@@ -1,0 +1,20 @@
+
+{
+    "title": "BenchmarkQueryGroupDataParams",
+    "type": "object",
+    "properties": {
+      "repo": { "type": "string" },
+      "benchmark_name": { "type": "string" },
+      "start_time": { "type": "string"},
+      "end_time": { "type": "string"},
+      "group_table_by_fields": {
+        "type": "array",
+        "items": { "type": "string" }
+      },
+      "group_row_by_fields": {
+        "type": "array",
+        "items": { "type": "string" }
+      }
+    },
+    "required": ["repo", "benchmark_name", "start_time", "end_time"]
+  }

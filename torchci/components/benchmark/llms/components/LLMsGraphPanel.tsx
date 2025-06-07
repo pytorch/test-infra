@@ -112,6 +112,8 @@ export default function LLMsGraphPanel({
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
 
+  console.log("data", data);
+
   metricNames.forEach((metric: string) => {
     if (
       modelName === DEFAULT_MODEL_NAME &&
@@ -235,6 +237,7 @@ export default function LLMsGraphPanel({
     metricNames[0]
   );
 
+  console.log("chartData", chartData);
   return (
     <>
       <div>
