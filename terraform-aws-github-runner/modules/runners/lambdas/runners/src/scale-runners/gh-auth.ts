@@ -2,7 +2,7 @@ import { Config } from './config';
 import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import { OctokitOptions } from '@octokit/core/dist-types/types';
-import { SecretsManager } from 'aws-sdk';
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import {
   AppAuthentication,
   InstallationAccessTokenAuthentication,
@@ -32,14 +32,14 @@ async function getCredentialsFromSecretsManager(
 ): Promise<GithubCredentials> {
   return await locallyCached('secretCache', secretsManagerSecretsId, 10 * 60, async () => {
     try {
-      const secretsManager = new SecretsManager();
+      const secretsManager = new SecretsManagerClient({});
 
       const data = await expBackOff(() => {
         return metrics.trackRequest(
           metrics.smGetSecretValueAWSCallSuccess,
           metrics.smGetSecretValueAWSCallFailure,
           () => {
-            return secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
+            return secretsManager.send(new GetSecretValueCommand({ SecretId: secretsManagerSecretsId }));
           },
         );
       });

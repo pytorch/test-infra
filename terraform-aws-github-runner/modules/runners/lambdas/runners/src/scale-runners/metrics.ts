@@ -1,9 +1,9 @@
-import { CloudWatch } from 'aws-sdk';
+import { CloudWatchClient, PutMetricDataCommand, MetricDatum, StandardUnit } from '@aws-sdk/client-cloudwatch';
 import { Config } from './config';
 import { expBackOff, Repo, RunnerInfo, getRepo } from './utils';
 
 interface CloudWatchMetricReq {
-  MetricData: Array<CloudWatchMetric>;
+  MetricData: Array<MetricDatum>;
   Namespace: string;
 }
 
@@ -12,14 +12,8 @@ interface CloudWatchMetricDim {
   Value: string;
 }
 
-interface CloudWatchMetric {
-  Counts: Array<number>;
-  MetricName: string;
-  Dimensions?: Array<CloudWatchMetricDim>;
-  Timestamp: Date;
-  Unit: string;
-  Values: Array<number>;
-}
+// Use MetricDatum directly instead of custom interface
+type CloudWatchMetric = MetricDatum;
 
 // Makes easier to understand the data structure defining this way...
 type CWMetricsEntryValues = number;
@@ -34,7 +28,7 @@ type CWMetricsDimensionsEntries = Map<CWMetricsDimensionStoredValues, CWMetricEn
 type CWMetrics = Map<CWMetricsKeyName, CWMetricsDimensionsEntries>;
 
 export class Metrics {
-  protected cloudwatch: CloudWatch;
+  protected cloudwatch: CloudWatchClient;
   protected lambdaName: string;
   protected metrics: CWMetrics;
   protected metricsDimensions: Map<CWMetricsKeyName, CWMetricsDimensionNames>;
@@ -42,11 +36,11 @@ export class Metrics {
   protected static baseMetricTypes = new Map<string, string>();
 
   /* istanbul ignore next */
-  protected getMetricType(metric: string): string {
-    if (Metrics.baseMetricTypes.has(metric)) return Metrics.baseMetricTypes.get(metric) as string;
-    if (metric.endsWith('.wallclock')) return 'Milliseconds';
-    if (metric.endsWith('.runningWallclock')) return 'Seconds';
-    return 'Count';
+  protected getMetricType(metric: string): StandardUnit {
+    if (Metrics.baseMetricTypes.has(metric)) return Metrics.baseMetricTypes.get(metric) as StandardUnit;
+    if (metric.endsWith('.wallclock')) return StandardUnit.Milliseconds;
+    if (metric.endsWith('.runningWallclock')) return StandardUnit.Seconds;
+    return StandardUnit.Count;
   }
 
   protected dimensonValues2storedValues(
@@ -111,7 +105,7 @@ export class Metrics {
   }
 
   protected constructor(lambdaName: string) {
-    this.cloudwatch = new CloudWatch({ region: Config.Instance.awsRegion });
+    this.cloudwatch = new CloudWatchClient({ region: Config.Instance.awsRegion });
     this.lambdaName = lambdaName;
     this.metrics = new Map();
     this.metricsDimensions = new Map();
@@ -207,8 +201,11 @@ export class Metrics {
           metricUnitCounts += 1;
 
           const md = awsMetrics[awsMetrics.length - 1].MetricData;
-          md[md.length - 1].Counts.push(count);
-          md[md.length - 1].Values.push(val);
+          const lastMetric = md[md.length - 1];
+          if (!lastMetric.Counts) lastMetric.Counts = [];
+          if (!lastMetric.Values) lastMetric.Values = [];
+          lastMetric.Counts.push(count);
+          lastMetric.Values.push(val);
         });
       });
     });
@@ -220,7 +217,7 @@ export class Metrics {
             `NS: ${metricsReq.Namespace}] (${i} of ${awsMetrics.length})`,
         );
         await expBackOff(async () => {
-          return await this.cloudwatch.putMetricData(metricsReq).promise();
+          return await this.cloudwatch.send(new PutMetricDataCommand(metricsReq));
         });
         console.info(`Success sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length})`);
       } catch (e) {

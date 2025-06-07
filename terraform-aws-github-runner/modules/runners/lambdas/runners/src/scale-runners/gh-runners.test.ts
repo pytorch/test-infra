@@ -20,25 +20,37 @@ import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
-import { mocked } from 'ts-jest/utils';
+import { jest } from '@jest/globals';
 import { locallyCached, redisCached } from './cache';
 import nock from 'nock';
 
-const mockEC2 = {
-  describeInstances: jest.fn(),
-  runInstances: jest.fn(),
-  terminateInstances: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-const mockSSMdescribeParametersRet = jest.fn();
-const mockSSM = {
-  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
-  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-jest.mock('aws-sdk', () => ({
-  EC2: jest.fn().mockImplementation(() => mockEC2),
-  SSM: jest.fn().mockImplementation(() => mockSSM),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
+// Mock AWS SDK v3 clients
+const mockEC2Send = jest.fn();
+const mockSSMSend = jest.fn();
+
+jest.mock('@aws-sdk/client-ec2', () => ({
+  EC2Client: jest.fn().mockImplementation(() => ({
+    send: mockEC2Send,
+  })),
+  DescribeInstancesCommand: jest.fn().mockImplementation((params) => params),
+  RunInstancesCommand: jest.fn().mockImplementation((params) => params),
+  TerminateInstancesCommand: jest.fn().mockImplementation((params) => params),
+}));
+
+jest.mock('@aws-sdk/client-ssm', () => ({
+  SSMClient: jest.fn().mockImplementation(() => ({
+    send: mockSSMSend,
+  })),
+  DescribeParametersCommand: jest.fn().mockImplementation((params) => params),
+  PutParameterCommand: jest.fn().mockImplementation((params) => params),
+  DeleteParameterCommand: jest.fn().mockImplementation((params) => params),
+}));
+
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
+  CloudWatchClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn().mockResolvedValue({}),
+  })),
+  PutMetricDataCommand: jest.fn().mockImplementation((params) => params),
 }));
 
 jest.mock('./gh-auth');
@@ -87,8 +99,8 @@ describe('resetGHRunnersCaches', () => {
 
   it('checks if cache is reset', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
@@ -132,8 +144,8 @@ describe('createGitHubClientForRunner variants', () => {
     it('createOctoClient fails', async () => {
       const errMsg = 'Error message';
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
 
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockImplementation(() => {
@@ -147,8 +159,8 @@ describe('createGitHubClientForRunner variants', () => {
     it('getRepoInstallation fails', async () => {
       const errMsg = 'Error message';
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const expectedReturn = {
         apps: { getRepoInstallation: jest.fn().mockRejectedValueOnce(Error(errMsg)) },
       };
@@ -162,8 +174,8 @@ describe('createGitHubClientForRunner variants', () => {
 
     it('runs twice and check if cached', async () => {
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValueOnce({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -196,8 +208,8 @@ describe('createGitHubClientForRunner variants', () => {
   describe('createGitHubClientForRunnerOrg', () => {
     it('runs twice and check if cached', async () => {
       const org = 'MockedOrg';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValueOnce({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -229,8 +241,8 @@ describe('createGitHubClientForRunner variants', () => {
     it('getOrgInstallation fails', async () => {
       const errMsg = 'Error message';
       const org = 'MockedOrg';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const expectedReturn = {
         apps: { getOrgInstallation: jest.fn().mockRejectedValueOnce(Error(errMsg)) },
       };
@@ -246,8 +258,8 @@ describe('createGitHubClientForRunner variants', () => {
   describe('createGitHubClientForRunnerInstallId', () => {
     it('runs twice and check if cached', async () => {
       const installId = 113;
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const expectedReturn = {
         apps: {},
       };
@@ -269,8 +281,8 @@ describe('createGitHubClientForRunner variants', () => {
     it('createOctoClient fails', async () => {
       const errMsg = 'Error message';
       const installId = 113;
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
 
       mockCreateGithubAuth.mockResolvedValueOnce('token1');
       mockCreateOctoClient.mockImplementation(() => {
@@ -298,8 +310,8 @@ describe('listGithubRunners', () => {
   describe('listGithubRunnersRepo', () => {
     it('runs twice and check if cached', async () => {
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -328,8 +340,8 @@ describe('listGithubRunners', () => {
     it('paginate fails', async () => {
       const errMsg = 'Error message';
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -350,8 +362,8 @@ describe('listGithubRunners', () => {
   describe('listGithubRunnersOrg', () => {
     it('runs twice and check if cached', async () => {
       const org = 'mocked_org';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -380,8 +392,8 @@ describe('listGithubRunners', () => {
     it('paginate fails', async () => {
       const errMsg = 'Error message';
       const org = 'mocked_org';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -404,8 +416,8 @@ describe('removeGithubRunnerRepo', () => {
   it('succeeds', async () => {
     const runnerId = 33;
     const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
@@ -436,8 +448,8 @@ describe('removeGithubRunnerRepo', () => {
   it('fails', async () => {
     const runnerId = 33;
     const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
@@ -471,8 +483,8 @@ describe('removeGithubRunnerOrg', () => {
 
   it('succeeds', async () => {
     const runnerId = 33;
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getOrgInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
@@ -502,8 +514,8 @@ describe('removeGithubRunnerOrg', () => {
 
   it('fails', async () => {
     const runnerId = 33;
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getOrgInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
@@ -547,8 +559,8 @@ describe('getRunner', () => {
   describe('getRunnerRepo', () => {
     it('succeeds', async () => {
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -576,8 +588,8 @@ describe('getRunner', () => {
     });
 
     it('fails && return undefined', async () => {
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -605,8 +617,8 @@ describe('getRunner', () => {
   describe('getRunnerOrg', () => {
     it('succeeds', async () => {
       const org = 'mockedOrg';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -635,8 +647,8 @@ describe('getRunner', () => {
 
     it('fails && return undefined', async () => {
       const org = 'mockedOrg';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -864,8 +876,8 @@ runner_types:
     const token1 = 'token1';
     const token2 = 'token2';
     const repoId = 'mockReturnValueOnce1';
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: repoId },
     });
@@ -908,8 +920,8 @@ runner_types:
 
   it('return is not 200', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });
@@ -938,8 +950,8 @@ describe('createRegistrationToken', () => {
     it('gets twice, using cache', async () => {
       const testToken = 'TOKEN-AGDGADUWG113';
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -973,8 +985,8 @@ describe('createRegistrationToken', () => {
       const testToken = 'TOKEN-AGDGADUWG113';
       const installationId = 123;
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn();
       const mockedOctokit = {
         apps: { getRepoInstallation: getRepoInstallation },
@@ -1001,8 +1013,8 @@ describe('createRegistrationToken', () => {
 
     it('fails to get, trow exception', async () => {
       const repo = { owner: 'owner', repo: 'repo' };
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getRepoInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -1032,8 +1044,8 @@ describe('createRegistrationToken', () => {
     it('gets twice, using cache', async () => {
       const testToken = 'TOKEN-AGDGADUWG113';
       const org = 'WG113';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -1067,8 +1079,8 @@ describe('createRegistrationToken', () => {
       const testToken = 'TOKEN-AGDGADUWG113';
       const installationId = 123;
       const org = 'WG113';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn();
       const mockedOctokit = {
         apps: { getOrgInstallation: getOrgInstallation },
@@ -1095,8 +1107,8 @@ describe('createRegistrationToken', () => {
 
     it('fails to get, trow exception', async () => {
       const org = 'WG113';
-      const mockCreateGithubAuth = mocked(createGithubAuth);
-      const mockCreateOctoClient = mocked(createOctoClient);
+      const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+      const mockCreateOctoClient = jest.mocked(createOctoClient);
       const getOrgInstallation = jest.fn().mockResolvedValue({
         data: { id: 'mockReturnValueOnce1' },
       });
@@ -1127,9 +1139,9 @@ describe('getGitHubRateLimit', () => {
   const repo = { owner: 'owner', repo: 'repo' };
 
   it('succeeds, make sure it is using the cache mechanism', async () => {
-    const mocckedRedisCache = mocked(redisCached).mockImplementationOnce((_, __, ___, ____, f) => f());
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
+    const mocckedRedisCache = jest.mocked(redisCached).mockImplementationOnce((_, __, ___, ____, f) => f());
+    const mockCreateGithubAuth = jest.mocked(createGithubAuth);
+    const mockCreateOctoClient = jest.mocked(createOctoClient);
     const getRepoInstallation = jest.fn().mockResolvedValue({
       data: { id: 'mockReturnValueOnce1' },
     });

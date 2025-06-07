@@ -1,5 +1,5 @@
 import { Config } from './config';
-import { mocked } from 'ts-jest/utils';
+import { jest } from '@jest/globals';
 import { getRepo, expBackOff, shuffleArrayInPlace } from './utils';
 import { getRunnerTypes } from './gh-runners';
 
@@ -105,8 +105,8 @@ describe('scaleUpChron', () => {
         } as unknown as Config),
     );
 
-    mocked(getRepo).mockReturnValue({ owner: 'owner', repo: 'repo' });
-    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeValid, { is_ephemeral: false } as RunnerType]]));
+    jest.mocked(getRepo).mockReturnValue({ owner: 'owner', repo: 'repo' });
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeValid, { is_ephemeral: false } as RunnerType]]));
 
     await expect(scaleUpChron(metrics)).rejects.toThrow(
       new Error('scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests'),
@@ -119,9 +119,9 @@ describe('scaleUpChron', () => {
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
 
-    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
-    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
-    mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidRunnerLabelResponse });
+    jest.mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
+    jest.mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidRunnerLabelResponse });
 
     await scaleUpChron(metrics);
     expect(scaleUpChronInstanceNoOpSpy).toBeCalledTimes(1);
@@ -133,27 +133,27 @@ describe('scaleUpChron', () => {
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
 
-    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
-    mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidOrgResponse });
-    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
+    jest.mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    jest.mocked(expBackOff).mockResolvedValue({ data: hudQueryInvalidOrgResponse });
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerTypeInvalid, { is_ephemeral: false } as RunnerType]]));
 
     await scaleUpChron(metrics);
     expect(scaleUpChronInstanceNoOp).toBeCalledTimes(1);
   });
 
   it('queued jobs match available runners and scale config org and scaled up completes', async () => {
-    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+    const mockedScaleUp = jest.mocked(scaleUp).mockResolvedValue(undefined);
     const scaleUpChronInstanceNoOpSpy = jest.spyOn(metrics, 'scaleUpChronInstanceNoOp');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
 
-    mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
-    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
-    mocked(getRunnerTypes).mockResolvedValue(
+    jest.mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
+    jest.mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    jest.mocked(getRunnerTypes).mockResolvedValue(
       new Map([[runnerTypeValid, { runnerTypeName: 'test_runner_type1' } as RunnerType]]),
     );
-    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+    jest.mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
 
     await scaleUpChron(metrics);
     expect(scaleUpChronInstanceNoOpSpy).toBeCalledTimes(0);
@@ -161,18 +161,18 @@ describe('scaleUpChron', () => {
   });
 
   it('scaled up throws error', async () => {
-    const mockedScaleUp = mocked(scaleUp).mockRejectedValue(Error('error'));
+    const mockedScaleUp = jest.mocked(scaleUp).mockRejectedValue(Error('error'));
     const scaleUpChronInstanceFailureNonRetryableSpy = jest.spyOn(metrics, 'scaleUpChronInstanceFailureNonRetryable');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
 
-    mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
-    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
-    mocked(getRunnerTypes).mockResolvedValue(
+    jest.mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
+    jest.mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    jest.mocked(getRunnerTypes).mockResolvedValue(
       new Map([[runnerTypeValid, { runnerTypeName: 'test_runner_type1' } as RunnerType]]),
     );
-    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+    jest.mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
 
     await expect(scaleUpChron(metrics)).rejects.toThrow('Non-retryable errors occurred while scaling up: 1');
     expect(scaleUpChronInstanceFailureNonRetryableSpy).toBeCalledTimes(1);
@@ -182,18 +182,18 @@ describe('scaleUpChron', () => {
   it('handles RetryableScalingError', async () => {
     // Test for the RetryableScalingError case (lines 82-83)
     const retryableError = new RetryableScalingError('Retryable error');
-    const mockedScaleUp = mocked(scaleUp).mockRejectedValue(retryableError);
+    const mockedScaleUp = jest.mocked(scaleUp).mockRejectedValue(retryableError);
     const scaleUpChronInstanceFailureRetryableSpy = jest.spyOn(metrics, 'scaleUpChronInstanceFailureRetryable');
 
     jest.clearAllMocks();
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => baseCfg);
 
-    mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
-    mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
-    mocked(getRunnerTypes).mockResolvedValue(
+    jest.mocked(shuffleArrayInPlace).mockReturnValue([hudQueryValidResponse]);
+    jest.mocked(getRepo).mockReturnValue({ owner: 'test_org1', repo: 'test_repo1' });
+    jest.mocked(getRunnerTypes).mockResolvedValue(
       new Map([[runnerTypeValid, { runnerTypeName: 'test_runner_type1' } as RunnerType]]),
     );
-    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+    jest.mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
 
     // This should not throw since RetryableScalingError is handled differently
     await scaleUpChron(metrics);
@@ -205,7 +205,7 @@ describe('scaleUpChron', () => {
 
 describe('getQueuedJobs', () => {
   it('get queue data from url request with valid response', async () => {
-    mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
+    jest.mocked(expBackOff).mockResolvedValue({ data: hudQueryValidResponse });
 
     expect(await getQueuedJobs(metrics, 'url')).toEqual([
       {
@@ -228,7 +228,7 @@ describe('getQueuedJobs', () => {
   });
 
   it('get queue data from url request with invalid response', async () => {
-    mocked(expBackOff).mockImplementation(() => {
+    jest.mocked(expBackOff).mockImplementation(() => {
       throw new Error('Throwing a fake error!');
     });
 
@@ -240,7 +240,7 @@ describe('getQueuedJobs', () => {
     const hudNoDataspy = jest.spyOn(metrics, 'hudQueuedRunnerFailureNoData');
     const hudFailureSpy = jest.spyOn(metrics, 'hudQueuedRunnerFailure');
 
-    mocked(expBackOff).mockResolvedValue({ data: errorResponse });
+    jest.mocked(expBackOff).mockResolvedValue({ data: errorResponse });
 
     expect(await getQueuedJobs(metrics, 'url')).toEqual([]);
     expect(hudNoDataspy).toBeCalledTimes(1);
@@ -261,7 +261,7 @@ describe('getQueuedJobs', () => {
     });
 
     // Setup the expBackOff to call its callback function which uses trackRequest
-    mocked(expBackOff).mockImplementation((callback) => {
+    jest.mocked(expBackOff).mockImplementation((callback) => {
       return callback();
     });
 
@@ -277,7 +277,7 @@ describe('getQueuedJobs', () => {
     // Test for line 142
     const hudQueuedRunnerFailureInvalidDataSpy = jest.spyOn(metrics, 'hudQueuedRunnerFailureInvalidData');
 
-    mocked(expBackOff).mockResolvedValue({ data: { notAnArray: true } });
+    jest.mocked(expBackOff).mockResolvedValue({ data: { notAnArray: true } });
 
     try {
       await getQueuedJobs(metrics, 'url');

@@ -2,7 +2,7 @@ import { getRepoIssuesWithLabel, resetIssuesCache } from './gh-issues';
 
 import { Octokit } from '@octokit/rest';
 import { createGitHubClientForRunnerRepo } from './gh-runners';
-import { mocked } from 'ts-jest/utils';
+import { jest } from '@jest/globals';
 import nock from 'nock';
 import { ScaleUpMetrics } from './metrics';
 import { redisCached } from './cache';
@@ -17,7 +17,7 @@ beforeEach(() => {
   jest.restoreAllMocks();
   nock.disableNetConnect();
 
-  mocked(redisCached).mockImplementation(
+  jest.mocked(redisCached).mockImplementation(
     async <T>(ns: string, k: string, t: number, j: number, fn: () => Promise<T>): Promise<T> => {
       return await fn();
     },
@@ -44,7 +44,7 @@ describe('getRepoIssuesWithLabel', () => {
         issuesAndPullRequests: 'The Thing',
       },
     };
-    const mockedCreateGitHubClientForRunnerRepo = mocked(createGitHubClientForRunnerRepo);
+    const mockedCreateGitHubClientForRunnerRepo = jest.mocked(createGitHubClientForRunnerRepo);
     // eslint-disable-next-line  @typescript-eslint/no-explicit-any
     mockedCreateGitHubClientForRunnerRepo.mockResolvedValue(mockedOctokit as any as Octokit);
 
@@ -71,7 +71,7 @@ describe('getRepoIssuesWithLabel', () => {
         issuesAndPullRequests: 'The Thing',
       },
     };
-    const mockedCreateGitHubClientForRunnerRepo = mocked(createGitHubClientForRunnerRepo);
+    const mockedCreateGitHubClientForRunnerRepo = jest.mocked(createGitHubClientForRunnerRepo);
     // eslint-disable-next-line  @typescript-eslint/no-explicit-any
     mockedCreateGitHubClientForRunnerRepo.mockResolvedValueOnce(mockedOctokit as any as Octokit);
 

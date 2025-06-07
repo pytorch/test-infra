@@ -1,6 +1,6 @@
 import moment from 'moment';
 import nock from 'nock';
-import { mocked } from 'ts-jest/utils';
+import { jest } from '@jest/globals';
 import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import { RunnerInfo, Repo } from './utils';
@@ -38,7 +38,7 @@ import {
   sortSSMParametersByUpdateTime,
 } from './scale-down';
 import { RequestError } from '@octokit/request-error';
-import { SSM } from 'aws-sdk';
+import { ParameterMetadata } from '@aws-sdk/client-ssm';
 
 jest.mock('./gh-runners', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -128,8 +128,8 @@ describe('scale-down', () => {
           labels: [],
         },
       ];
-      const mockedListRunners = mocked(listRunners).mockResolvedValue([]);
-      mocked(listGithubRunnersRepo).mockResolvedValue(matchRunner);
+      const mockedListRunners = jest.mocked(listRunners).mockResolvedValue([]);
+      jest.mocked(listGithubRunnersRepo).mockResolvedValue(matchRunner);
 
       await scaleDown();
 
@@ -137,7 +137,7 @@ describe('scale-down', () => {
     });
 
     it('ec2runner with repo = undefined && org = undefined', async () => {
-      mocked(listRunners).mockResolvedValue([
+      jest.mocked(listRunners).mockResolvedValue([
         {
           awsRegion: Config.Instance.awsRegion,
           instanceId: 'WG113',
@@ -146,14 +146,14 @@ describe('scale-down', () => {
             .toDate(),
         },
       ]);
-      const mockedResetRunnersCaches = mocked(resetRunnersCaches);
-      const mockedResetGHRunnersCaches = mocked(resetGHRunnersCaches);
-      const mockedResetSecretCache = mocked(resetSecretCache);
-      const mockedListGithubRunners = mocked(listGithubRunnersRepo);
-      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedRemoveGithubRunnerOrg = mocked(removeGithubRunnerOrg);
-      const mockedRemoveGithubRunnerRepo = mocked(removeGithubRunnerRepo);
-      const mockedTerminateRunner = mocked(terminateRunner);
+      const mockedResetRunnersCaches = jest.mocked(resetRunnersCaches);
+      const mockedResetGHRunnersCaches = jest.mocked(resetGHRunnersCaches);
+      const mockedResetSecretCache = jest.mocked(resetSecretCache);
+      const mockedListGithubRunners = jest.mocked(listGithubRunnersRepo);
+      const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg);
+      const mockedRemoveGithubRunnerOrg = jest.mocked(removeGithubRunnerOrg);
+      const mockedRemoveGithubRunnerRepo = jest.mocked(removeGithubRunnerRepo);
+      const mockedTerminateRunner = jest.mocked(terminateRunner);
 
       await scaleDown();
 
@@ -443,11 +443,11 @@ describe('scale-down', () => {
     });
 
     it('do according each one', async () => {
-      const mockedListRunners = mocked(listRunners);
-      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerTypes = mocked(getRunnerTypes);
-      const mockedRemoveGithubRunnerOrg = mocked(removeGithubRunnerOrg);
-      const mockedTerminateRunner = mocked(terminateRunner);
+      const mockedListRunners = jest.mocked(listRunners);
+      const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg);
+      const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
+      const mockedRemoveGithubRunnerOrg = jest.mocked(removeGithubRunnerOrg);
+      const mockedTerminateRunner = jest.mocked(terminateRunner);
 
       mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersOrg.mockResolvedValue(ghRunners);
@@ -785,11 +785,11 @@ describe('scale-down', () => {
     });
 
     it('do according each one', async () => {
-      const mockedListRunners = mocked(listRunners);
-      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerTypes = mocked(getRunnerTypes);
-      const mockedRemoveGithubRunnerRepo = mocked(removeGithubRunnerRepo);
-      const mockedTerminateRunner = mocked(terminateRunner);
+      const mockedListRunners = jest.mocked(listRunners);
+      const mockedListGithubRunnersRepo = jest.mocked(listGithubRunnersRepo);
+      const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
+      const mockedRemoveGithubRunnerRepo = jest.mocked(removeGithubRunnerRepo);
+      const mockedTerminateRunner = jest.mocked(terminateRunner);
 
       mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersRepo.mockResolvedValue(ghRunners);
@@ -1264,7 +1264,7 @@ describe('scale-down', () => {
 
       it('org in runner, is_ephemeral === undefined', async () => {
         const owner = 'the-org';
-        const mockedGetRunnerTypes = mocked(getRunnerTypes);
+        const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
         mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
 
@@ -1276,7 +1276,7 @@ describe('scale-down', () => {
 
       it('org in runner, is_ephemeral === false', async () => {
         const owner = 'the-org';
-        const mockedGetRunnerTypes = mocked(getRunnerTypes);
+        const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
         mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
 
@@ -1288,7 +1288,7 @@ describe('scale-down', () => {
 
       it('org not in runner, is_ephemeral === true', async () => {
         const owner = 'the-org';
-        const mockedGetRunnerTypes = mocked(getRunnerTypes);
+        const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
         mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
 
@@ -1322,7 +1322,7 @@ describe('scale-down', () => {
         });
 
         it('is_ephemeral === undefined', async () => {
-          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+          const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
 
@@ -1335,7 +1335,7 @@ describe('scale-down', () => {
         });
 
         it('is_ephemeral === true', async () => {
-          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+          const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
 
@@ -1348,7 +1348,7 @@ describe('scale-down', () => {
         });
 
         it('is_ephemeral === false', async () => {
-          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+          const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
 
@@ -1380,7 +1380,7 @@ describe('scale-down', () => {
         });
 
         it('is_ephemeral === undefined', async () => {
-          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+          const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
 
@@ -1393,7 +1393,7 @@ describe('scale-down', () => {
         });
 
         it('is_ephemeral === true', async () => {
-          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+          const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: true } as RunnerType]]));
 
@@ -1406,7 +1406,7 @@ describe('scale-down', () => {
         });
 
         it('is_ephemeral === false', async () => {
-          const mockedGetRunnerTypes = mocked(getRunnerTypes);
+          const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
 
           mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
 
@@ -1425,7 +1425,7 @@ describe('scale-down', () => {
     const runnerType = 'runnerTypeDef';
 
     it('min_runners === 2', async () => {
-      const mockedGetRunnerTypes = mocked(getRunnerTypes);
+      const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
       mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { min_available: 2 } as RunnerType]]));
       expect(await minRunners({ runnerType: runnerType, repo: 'the-org/a-repo' } as RunnerInfo, metrics)).toBe(2);
     });
@@ -1443,7 +1443,7 @@ describe('scale-down', () => {
     const repoKey = `the-org/a-repo`;
 
     it('finds on listGithubRunnersRepo, busy === true', async () => {
-      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
+      const mockedListGithubRunnersRepo = jest.mocked(listGithubRunnersRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1461,8 +1461,8 @@ describe('scale-down', () => {
     });
 
     it('dont finds on listGithubRunnersRep, finds with getRunnerRepo, busy === false', async () => {
-      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerRepo = mocked(getRunnerRepo);
+      const mockedListGithubRunnersRepo = jest.mocked(listGithubRunnersRepo);
+      const mockedGetRunnerRepo = jest.mocked(getRunnerRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1484,8 +1484,8 @@ describe('scale-down', () => {
     });
 
     it('listGithubRunnersRep and getRunnerRepo throws exception', async () => {
-      const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerRepo = mocked(getRunnerRepo);
+      const mockedListGithubRunnersRepo = jest.mocked(listGithubRunnersRepo);
+      const mockedGetRunnerRepo = jest.mocked(getRunnerRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1511,13 +1511,13 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       ssmParameters.set('WG113', { Name: 'WG113', LastModifiedDate: undefined });
       ssmParameters.set('WG115', { Name: 'WG115', LastModifiedDate: oldDt });
       ssmParameters.set('WG116', { Name: 'WG116', LastModifiedDate: oldDt });
 
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
+      const mockedDoDeleteSSMParameter = jest.mocked(doDeleteSSMParameter);
+      const mockedListSSMParameters = jest.mocked(listSSMParameters);
 
       mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
       mockedDoDeleteSSMParameter.mockResolvedValue(true);
@@ -1537,13 +1537,13 @@ describe('scale-down', () => {
       const olderDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays - 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       ssmParameters.set('WG113', { Name: 'WG113', LastModifiedDate: undefined });
       ssmParameters.set('WG115', { Name: 'WG115', LastModifiedDate: oldDt });
       ssmParameters.set('WG116', { Name: 'WG116', LastModifiedDate: olderDt });
 
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
+      const mockedDoDeleteSSMParameter = jest.mocked(doDeleteSSMParameter);
+      const mockedListSSMParameters = jest.mocked(listSSMParameters);
 
       mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
       mockedDoDeleteSSMParameter.mockResolvedValue(true);
@@ -1559,14 +1559,14 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
         const name = `AGDGADUWG113-${i}`;
         ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
       });
 
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
+      const mockedDoDeleteSSMParameter = jest.mocked(doDeleteSSMParameter);
+      const mockedListSSMParameters = jest.mocked(listSSMParameters);
 
       mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
       mockedDoDeleteSSMParameter.mockResolvedValue(true);
@@ -1581,14 +1581,14 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
         const name = `AGDGADUWG113-${i}`;
         ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
       });
 
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
+      const mockedDoDeleteSSMParameter = jest.mocked(doDeleteSSMParameter);
+      const mockedListSSMParameters = jest.mocked(listSSMParameters);
 
       mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
       mockedDoDeleteSSMParameter.mockResolvedValue(true);
@@ -1603,14 +1603,14 @@ describe('scale-down', () => {
       const oldDt = moment()
         .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
         .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
+      const ssmParameters = new Map<string, ParameterMetadata>();
       [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
         const name = `AGDGADUWG113-${i}`;
         ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
       });
 
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
+      const mockedDoDeleteSSMParameter = jest.mocked(doDeleteSSMParameter);
+      const mockedListSSMParameters = jest.mocked(listSSMParameters);
 
       mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
       mockedDoDeleteSSMParameter.mockResolvedValue(false);
@@ -1630,7 +1630,7 @@ describe('scale-down', () => {
     const org = 'the-org';
 
     it('finds on listGithubRunnersOrg, busy === true', async () => {
-      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+      const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1648,8 +1648,8 @@ describe('scale-down', () => {
     });
 
     it('dont finds on listGithubRunnersOrg, finds with getRunnerOrg, busy === false', async () => {
-      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerOrg = mocked(getRunnerOrg);
+      const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg);
+      const mockedGetRunnerOrg = jest.mocked(getRunnerOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1671,8 +1671,8 @@ describe('scale-down', () => {
     });
 
     it('listGithubRunnersRep and getRunnerRepo throws exception', async () => {
-      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerOrg = mocked(getRunnerOrg);
+      const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg);
+      const mockedGetRunnerOrg = jest.mocked(getRunnerOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1693,7 +1693,7 @@ describe('scale-down', () => {
     });
 
     it('getRunner throws when api rate limit is hit', async () => {
-      const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
+      const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg);
 
       mockedListGithubRunnersOrg.mockRejectedValueOnce(
         new RequestError('API rate limit exceeded for installation ID 13954108.', 403, {

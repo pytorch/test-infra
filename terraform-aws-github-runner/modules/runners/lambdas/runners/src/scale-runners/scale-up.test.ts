@@ -10,7 +10,7 @@ import {
 
 import { Config } from './config';
 import { getRepoIssuesWithLabel, GhIssues } from './gh-issues';
-import { mocked } from 'ts-jest/utils';
+import { jest } from '@jest/globals';
 import nock from 'nock';
 import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';
@@ -33,8 +33,8 @@ beforeEach(() => {
   jest.restoreAllMocks();
   nock.disableNetConnect();
 
-  mocked(getGitHubRateLimit).mockResolvedValue({ limit: 5000, remaining: 4999, used: 1 });
-  mocked(sleep).mockClear().mockResolvedValue(undefined);
+  jest.mocked(getGitHubRateLimit).mockResolvedValue({ limit: 5000, remaining: 4999, used: 1 });
+  jest.mocked(sleep).mockClear().mockResolvedValue(undefined);
 });
 
 const baseCfg = {
@@ -52,7 +52,7 @@ describe('scaleUp', () => {
     jest.spyOn(metrics, 'sendMetrics').mockImplementation(async () => {
       return;
     });
-    mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(false);
+    jest.mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(false);
   });
   it('does not accept sources that are not aws:sqs', async () => {
     const payload = {
@@ -76,7 +76,7 @@ describe('scaleUp', () => {
       installationId: 2,
       runnerLabels: ['label1', 'label2'],
     };
-    const mockedGetRunnerTypes = mocked(getRunnerTypes).mockResolvedValue(
+    const mockedGetRunnerTypes = jest.mocked(getRunnerTypes).mockResolvedValue(
       new Map([
         [
           'label1-nomatch',
@@ -91,7 +91,7 @@ describe('scaleUp', () => {
         ],
       ]),
     );
-    const mockedListGithubRunners = mocked(listGithubRunnersRepo);
+    const mockedListGithubRunners = jest.mocked(listGithubRunnersRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
@@ -116,7 +116,7 @@ describe('scaleUp', () => {
       installationId: 2,
       runnerLabels: ['label1', 'label2'],
     };
-    const mockedGetRunnerTypes = mocked(getRunnerTypes).mockResolvedValue(
+    const mockedGetRunnerTypes = jest.mocked(getRunnerTypes).mockResolvedValue(
       new Map([
         [
           'label1-nomatch',
@@ -131,7 +131,7 @@ describe('scaleUp', () => {
         ],
       ]),
     );
-    const mockedListGithubRunners = mocked(listGithubRunnersRepo);
+    const mockedListGithubRunners = jest.mocked(listGithubRunnersRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
@@ -155,7 +155,7 @@ describe('scaleUp', () => {
       repositoryOwner: 'owner',
       installationId: 2,
     };
-    const mockedGetRunnerTypes = mocked(getRunnerTypes).mockResolvedValue(
+    const mockedGetRunnerTypes = jest.mocked(getRunnerTypes).mockResolvedValue(
       new Map([
         [
           'linux.2xlarge',
@@ -181,7 +181,7 @@ describe('scaleUp', () => {
         ],
       ]),
     );
-    const mockedListGithubRunners = mocked(listGithubRunnersRepo).mockResolvedValue([
+    const mockedListGithubRunners = jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -239,7 +239,7 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
@@ -278,8 +278,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    const mockedListGithubRunnersOrg = jest.mocked(listGithubRunnersOrg).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -309,8 +309,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForOrg = mocked(createRegistrationTokenOrg).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForOrg = jest.mocked(createRegistrationTokenOrg).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedListGithubRunnersOrg).toBeCalledWith(repo.owner, metrics);
@@ -366,8 +366,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -397,8 +397,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -453,8 +453,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -484,8 +484,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -539,8 +539,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -570,8 +570,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -626,8 +626,8 @@ describe('scaleUp', () => {
       max_available: undefined,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -657,8 +657,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -713,8 +713,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -744,8 +744,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -800,8 +800,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -831,8 +831,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledTimes(1);
@@ -885,8 +885,8 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -902,7 +902,7 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    const mockedCreateRegistrationTokenForRepo = mocked(createRegistrationTokenRepo);
+    const mockedCreateRegistrationTokenForRepo = jest.mocked(createRegistrationTokenRepo);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();
@@ -934,8 +934,8 @@ describe('scaleUp', () => {
       runnerLabels: [runnerType1.runnerTypeName],
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerType1.runnerTypeName, runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerType1.runnerTypeName, runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -951,9 +951,9 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    mocked(tryReuseRunner).mockRejectedValue(new Error('No runners available'));
-    const mockedCreateRunner = mocked(createRunner);
+    jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    jest.mocked(tryReuseRunner).mockRejectedValue(new Error('No runners available'));
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).toBeCalledWith(
@@ -1005,8 +1005,8 @@ describe('scaleUp', () => {
       runnerLabels: [runnerType1.runnerTypeName],
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerType1.runnerTypeName, runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([[runnerType1.runnerTypeName, runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([
       {
         id: 3,
         name: 'name-01',
@@ -1022,8 +1022,8 @@ describe('scaleUp', () => {
         ],
       },
     ]);
-    mocked(createRegistrationTokenRepo).mockResolvedValue(token);
-    mocked(tryReuseRunner).mockResolvedValue({
+    jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    jest.mocked(tryReuseRunner).mockResolvedValue({
       awsRegion: 'us-east-1',
       az: 'us-east-1a',
       ephemeralRunnerFinished: 113,
@@ -1032,7 +1032,7 @@ describe('scaleUp', () => {
       launchTime: new Date(),
       repo: 'jeanschmidt/regularizationTheory',
     });
-    const mockedCreateRunner = mocked(createRunner);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedCreateRunner).not.toBeCalled();
@@ -1059,8 +1059,8 @@ describe('scaleUp', () => {
     };
 
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
-    const mockedGetRunnerTypes = mocked(getRunnerTypes);
-    const mockedGetRepoIssuesWithLabel = mocked(getRepoIssuesWithLabel);
+    const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
+    const mockedGetRepoIssuesWithLabel = jest.mocked(getRepoIssuesWithLabel);
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([]);
 
@@ -1092,8 +1092,8 @@ describe('scaleUp', () => {
     };
 
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
-    const mockedGetRunnerTypes = mocked(getRunnerTypes);
-    const mockedGetRepoIssuesWithLabel = mocked(getRepoIssuesWithLabel);
+    const mockedGetRunnerTypes = jest.mocked(getRunnerTypes);
+    const mockedGetRepoIssuesWithLabel = jest.mocked(getRepoIssuesWithLabel);
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([]);
     mockedGetRepoIssuesWithLabel.mockResolvedValueOnce([{ something: 1 }] as unknown as GhIssues);
 
@@ -1132,11 +1132,11 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(createRegistrationTokenOrg).mockResolvedValue(token);
-    const mockedCreateRunner = mocked(createRunner);
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(createRegistrationTokenOrg).mockResolvedValue(token);
+    const mockedCreateRunner = jest.mocked(createRunner);
 
-    mocked(getJoinedStressTestExperiment)
+    jest.mocked(getJoinedStressTestExperiment)
       .mockClear()
       /* eslint-disable-next-line @typescript-eslint/no-unused-vars */
       .mockImplementation(async (experimentKey: string, runnerName: string) => {
@@ -1186,12 +1186,12 @@ describe('scaleUp', () => {
       is_ephemeral: false,
     };
 
-    mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
-    mocked(listGithubRunnersRepo).mockResolvedValue([]);
-    mocked(createRegistrationTokenRepo).mockResolvedValue(token);
+    jest.mocked(getRunnerTypes).mockResolvedValue(new Map([['linux.2xlarge', runnerType1]]));
+    jest.mocked(listGithubRunnersRepo).mockResolvedValue([]);
+    jest.mocked(createRegistrationTokenRepo).mockResolvedValue(token);
     // Make Math.random return a small value to trigger the stresstest_ignorereq condition
     jest.spyOn(global.Math, 'random').mockReturnValue(0.01);
-    mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(true);
+    jest.mocked(getJoinedStressTestExperiment).mockClear().mockResolvedValue(true);
 
     await scaleUp('aws:sqs', payload, metrics);
 

@@ -9,6 +9,7 @@ import {
   terminateRunner,
   tryReuseRunner,
 } from './runners';
+import { DescribeInstancesResult } from '@aws-sdk/client-ec2';
 import { RunnerInfo, stripUndefined } from './utils';
 import { ScaleUpMetrics } from './metrics';
 
@@ -20,39 +21,31 @@ import moment from 'moment';
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;
 });
-const mockEC2runInstances = jest.fn();
-const mockEC2terminateInstances = jest.fn();
-const mockEC2 = {
-  createTags: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  deleteTags: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  createReplaceRootVolumeTask: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeInstances: jest.fn(),
-  runInstances: jest.fn().mockReturnValue({ promise: mockEC2runInstances }),
-  terminateInstances: jest.fn().mockReturnValue({ promise: mockEC2terminateInstances }),
-  describeImages: jest.fn().mockReturnValue({
-    promise: jest.fn().mockImplementation(async () => {
-      return {
-        Images: [
-          { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-234' },
-          { CreationDate: '2024-07-09T13:55:23+0000', ImageId: 'ami-AGDGADU113' },
-          { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-113' },
-          { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-1113' },
-        ],
-      };
-    }),
-  }),
-};
+// Create mock implementations for AWS SDK v3
+const mockEC2Send = jest.fn();
+const mockSSMSend = jest.fn();
 
-const mockSSMdescribeParametersRet = jest.fn();
-const mockSSM = {
-  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
-  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-jest.mock('aws-sdk', () => ({
-  EC2: jest.fn().mockImplementation(() => mockEC2),
-  SSM: jest.fn().mockImplementation(() => mockSSM),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
+// Mock the AWS SDK v3 clients
+jest.mock('@aws-sdk/client-ec2', () => ({
+  EC2Client: jest.fn().mockImplementation(() => ({
+    send: mockEC2Send,
+  })),
+  DescribeImagesCommand: jest.fn(),
+  DescribeInstancesCommand: jest.fn(),
+  RunInstancesCommand: jest.fn(),
+  TerminateInstancesCommand: jest.fn(),
+  CreateTagsCommand: jest.fn(),
+  DeleteTagsCommand: jest.fn(),
+  CreateReplaceRootVolumeTaskCommand: jest.fn(),
+}));
+
+jest.mock('@aws-sdk/client-ssm', () => ({
+  SSMClient: jest.fn().mockImplementation(() => ({
+    send: mockSSMSend,
+  })),
+  DescribeParametersCommand: jest.fn(),
+  PutParameterCommand: jest.fn(),
+  DeleteParameterCommand: jest.fn(),
 }));
 jest.mock('./utils', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -176,7 +169,7 @@ describe('list instances', () => {
     resetRunnersCaches();
     clearLocalCache();
     mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-    const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+    const mockRunningInstances: DescribeInstancesResult = {
       Reservations: [
         {
           Instances: [
@@ -522,7 +515,7 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [],
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
@@ -567,7 +560,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(30, 'seconds').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -634,7 +627,7 @@ describe('tryReuseRunner', () => {
           .getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -695,7 +688,7 @@ describe('tryReuseRunner', () => {
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -748,7 +741,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -832,7 +825,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -915,7 +908,7 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [],
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
@@ -961,7 +954,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -1045,7 +1038,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -1138,7 +1131,7 @@ describe('createRunner', () => {
 
     beforeEach(() => {
       mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [
@@ -1616,7 +1609,7 @@ describe('createRunner', () => {
       mockRunInstances.promise.mockReturnValue(runInstanceSuccess);
       mockSSM.putParameter.mockImplementation(() => mockPutParameter);
       mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
           {
             Instances: [

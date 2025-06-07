@@ -3,20 +3,19 @@ import { scaleDown as scaleDownL, scaleUp as scaleUpL, scaleUpChron as scaleUpCh
 import nock from 'nock';
 import { Config } from './scale-runners/config';
 import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
-import { mocked } from 'ts-jest/utils';
+import { jest } from '@jest/globals';
 import { scaleDown } from './scale-runners/scale-down';
 import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
 import { scaleUpChron } from './scale-runners/scale-up-chron';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 import * as MetricsModule from './scale-runners/metrics';
 
-const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
-};
-jest.mock('aws-sdk', () => ({
-  CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
+// Mock AWS SDK v3 CloudWatch client
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
+  CloudWatchClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn().mockResolvedValue({}),
+  })),
+  PutMetricDataCommand: jest.fn().mockImplementation((params) => params),
 }));
 
 jest.mock('./scale-runners/scale-down');
@@ -45,7 +44,7 @@ describe('scaleUp', () => {
   });
 
   it('succeeds', async () => {
-    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+    const mockedScaleUp = jest.jest.mocked(scaleUp).mockResolvedValue(undefined);
     const callback = jest.fn();
     await scaleUpL(
       {
@@ -65,7 +64,7 @@ describe('scaleUp', () => {
   });
 
   it('fails', async () => {
-    const mockedScaleUp = mocked(scaleUp).mockRejectedValue(Error('error'));
+    const mockedScaleUp = jest.jest.mocked(scaleUp).mockRejectedValue(Error('error'));
     const callback = jest.fn();
     const evts = [
       {
@@ -125,7 +124,7 @@ describe('scaleUp', () => {
       },
     ];
 
-    const mockedScaleUp = mocked(scaleUp).mockResolvedValue(undefined);
+    const mockedScaleUp = jest.jest.mocked(scaleUp).mockResolvedValue(undefined);
     jest.spyOn(global.Math, 'random').mockReturnValue(0.5);
 
     const callback = jest.fn();
@@ -174,7 +173,7 @@ describe('scaleUp', () => {
       { eventSource: 'aws:sqs', body: '{"id":6}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 6 },
       { eventSource: 'aws:sqs', body: '{"id":7}', eventSourceARN: '1:2:3:4:5:6', receiptHandle: 'xxx', messageId: 7 },
     ];
-    const mockedScaleUp = mocked(scaleUp)
+    const mockedScaleUp = jest.mocked(scaleUp)
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new RetryableScalingError('whatever'))
       .mockResolvedValueOnce(undefined)
@@ -217,7 +216,7 @@ describe('scaleUp', () => {
 
 describe('scaleDown', () => {
   it('succeeds', async () => {
-    const mockedScaleDown = mocked(scaleDown).mockResolvedValue(undefined);
+    const mockedScaleDown = jest.mocked(scaleDown).mockResolvedValue(undefined);
     const callback = jest.fn();
     await scaleDownL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleDown).toBeCalledTimes(1);
@@ -226,7 +225,7 @@ describe('scaleDown', () => {
   });
 
   it('fails', async () => {
-    const mockedScaleDown = mocked(scaleDown).mockRejectedValue(Error('error'));
+    const mockedScaleDown = jest.mocked(scaleDown).mockRejectedValue(Error('error'));
     const callback = jest.fn();
     await scaleDownL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleDown).toBeCalledTimes(1);
@@ -241,7 +240,7 @@ describe('scaleUpChron', () => {
   });
 
   it('succeeds', async () => {
-    const mockedScaleUpChron = mocked(scaleUpChron).mockResolvedValue(undefined);
+    const mockedScaleUpChron = jest.mocked(scaleUpChron).mockResolvedValue(undefined);
     const callback = jest.fn();
     await scaleUpChronL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleUpChron).toBeCalledTimes(1);
@@ -251,7 +250,7 @@ describe('scaleUpChron', () => {
   });
 
   it('fails', async () => {
-    const mockedScaleUpChron = mocked(scaleUpChron).mockRejectedValue(Error('error'));
+    const mockedScaleUpChron = jest.mocked(scaleUpChron).mockRejectedValue(Error('error'));
     const callback = jest.fn();
     await scaleUpChronL({} as unknown as ScheduledEvent, {} as unknown as Context, callback);
     expect(mockedScaleUpChron).toBeCalledTimes(1);

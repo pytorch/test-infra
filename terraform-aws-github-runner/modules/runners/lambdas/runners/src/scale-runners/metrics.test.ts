@@ -2,14 +2,14 @@ import { Config } from './config';
 import { ScaleUpMetrics, ScaleDownMetrics } from './metrics';
 import nock from 'nock';
 
-const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
-};
+// Mock AWS SDK v3 CloudWatch client
+const mockCloudWatchSend = jest.fn().mockResolvedValue({});
 
-jest.mock('aws-sdk', () => ({
-  CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
+  CloudWatchClient: jest.fn().mockImplementation(() => ({
+    send: mockCloudWatchSend,
+  })),
+  PutMetricDataCommand: jest.fn().mockImplementation((params) => params),
 }));
 
 beforeEach(() => {
@@ -34,7 +34,7 @@ describe('./metrics', () => {
     it('sends empty metrics', async () => {
       const m = new ScaleUpMetrics();
       await m.sendMetrics();
-      expect(mockCloudWatch.putMetricData).not.toBeCalled();
+      expect(mockCloudWatchSend).not.toBeCalled();
     });
 
     it('generate some countEntry, then sends', async () => {
@@ -48,7 +48,7 @@ describe('./metrics', () => {
       m.runRepo({ owner: 'o', repo: 'r1' });
       await m.sendMetrics();
 
-      expect(mockCloudWatch.putMetricData).toBeCalledWith({
+      expect(mockCloudWatchSend).toBeCalledWith({
         MetricData: [
           {
             Counts: [1],
@@ -98,7 +98,7 @@ describe('./metrics', () => {
       m.createAppAuthGHCallFailure(113);
       await m.sendMetrics();
 
-      expect(mockCloudWatch.putMetricData).toBeCalledWith({
+      expect(mockCloudWatchSend).toBeCalledWith({
         MetricData: [
           {
             Counts: [1],
