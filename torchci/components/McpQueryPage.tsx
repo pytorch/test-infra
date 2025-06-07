@@ -1,4 +1,4 @@
-import styled from "@emotion/styled";
+import { styled } from '@mui/material/styles'
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
@@ -254,6 +254,8 @@ interface ContentBlock {
   type: string;
   text?: string;
   id?: string;
+  tool_use_id?: string;
+  content?: { type: string; text: string }[];
 }
 
 interface AssistantMessage {
@@ -922,7 +924,7 @@ export const McpQueryPage = () => {
 
             if (prev.length > 0 && prev[prev.length - 1].type === "text") {
               const updated = [...prev];
-              updated[updated.length - 1].content += json.delta.text;
+              updated[updated.length - 1].content += json.delta?.text || "";
               updated[updated.length - 1].isAnimating = true;
 
               // Re-extract Grafana links from the updated content
@@ -945,7 +947,7 @@ export const McpQueryPage = () => {
               // Get previous timestamp if it exists
               const prevTimestamp =
                 prev.length > 0 ? prev[prev.length - 1].timestamp : startTime;
-              const textContent = json.delta.text;
+              const textContent = json.delta?.text || "";
 
               return [
                 ...prev,
@@ -1318,11 +1320,11 @@ export const McpQueryPage = () => {
         buffer = lines[lines.length - 1];
       }
     } catch (err) {
-      if (err.name === "AbortError") {
+      if (err instanceof Error && err.name === "AbortError") {
         setError("Request cancelled");
       } else {
         console.error("Fetch error:", err);
-        setError(`Error: ${err.message}`);
+        setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
     }
