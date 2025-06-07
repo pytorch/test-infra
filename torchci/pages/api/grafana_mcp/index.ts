@@ -5,16 +5,6 @@ import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
 import { getOctokitWithUserToken } from "../../../lib/github";
 import { authOptions } from "../auth/[...nextauth]";
 
-// Configure Next.js to accept streaming responses
-export const config = {
-  api: {
-    responseLimit: false,
-    bodyParser: {
-      sizeLimit: "1mb",
-    },
-  },
-};
-
 // Lambda function URL with direct streaming support
 const LAMBDA_URL =
   process.env.GRAFANA_MCP_LAMBDA_URL ||
