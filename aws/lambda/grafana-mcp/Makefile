@@ -12,8 +12,13 @@ deployment.zip:
 	@echo "Installing production dependencies..."
 	yarn install --production
 	
+	@echo "Creating bin directory for Claude CLI..."
+	mkdir -p bin
+	cp -f ./node_modules/.bin/claude bin/
+	chmod +x bin/claude
+	
 	@echo "Creating Lambda deployment package..."
-	zip -r deployment.zip lambda_function.js package.json yarn.lock node_modules .env.example mcp.json CLAUDE.md
+	zip -r deployment.zip lambda_function.js package.json yarn.lock node_modules .env.example mcp.json CLAUDE.md bin/
 	
 	@echo "Build complete!"
 
