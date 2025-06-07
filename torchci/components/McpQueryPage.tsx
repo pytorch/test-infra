@@ -16,8 +16,8 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import ToolIcon from "./ToolIcon";
 
@@ -497,7 +497,7 @@ const CLICKHOUSE_CONSOLE_BASE_URL =
 export const McpQueryPage = () => {
   const session = useSession();
   const theme = useTheme();
-  
+
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
@@ -1239,12 +1239,16 @@ export const McpQueryPage = () => {
       // Handle non-ok responses
       if (!response.ok) {
         const errorText = await response.text();
-        
+
         // Handle authentication/authorization errors with specific messages
         if (response.status === 401) {
-          throw new Error("Authentication required. Please sign in to continue.");
+          throw new Error(
+            "Authentication required. Please sign in to continue."
+          );
         } else if (response.status === 403) {
-          throw new Error("Access denied. You need write permissions to pytorch/pytorch repository to use this tool.");
+          throw new Error(
+            "Access denied. You need write permissions to pytorch/pytorch repository to use this tool."
+          );
         } else {
           throw new Error(errorText || `HTTP error: ${response.status}`);
         }
@@ -1324,11 +1328,8 @@ export const McpQueryPage = () => {
     }
   };
 
-
   // Authentication check - only allow authenticated users with access tokens
-  if (
-    session.status === "loading"
-  ) {
+  if (session.status === "loading") {
     // Show loading state while checking authentication
     return (
       <McpQueryPageContainer>
@@ -1355,7 +1356,8 @@ export const McpQueryPage = () => {
             Authentication Required
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            You must be logged in with write permissions to pytorch/pytorch to access this tool.
+            You must be logged in with write permissions to pytorch/pytorch to
+            access this tool.
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Please sign in to continue.

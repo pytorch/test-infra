@@ -1,9 +1,9 @@
 import { randomUUID } from "crypto";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../auth/[...nextauth]";
 import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
 import { getOctokitWithUserToken } from "../../../lib/github";
+import { authOptions } from "../auth/[...nextauth]";
 
 // Configure Next.js to accept streaming responses
 export const config = {
@@ -59,11 +59,13 @@ export default async function handler(
   // write permissions to the main PyTorch repository
   const repoOwner = "pytorch";
   const repoName = "pytorch";
-  
+
   try {
-    const octokit = await getOctokitWithUserToken(session.accessToken as string);
+    const octokit = await getOctokitWithUserToken(
+      session.accessToken as string
+    );
     const user = await octokit.rest.users.getAuthenticated();
-    
+
     if (!user?.data?.login) {
       console.log("Rejected: Could not authenticate user with GitHub");
       return res.status(401).json({ error: "GitHub authentication failed" });
@@ -77,9 +79,11 @@ export default async function handler(
     );
 
     if (!hasWritePermissions) {
-      console.log(`Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`);
-      return res.status(403).json({ 
-        error: "Write permissions to pytorch/pytorch repository required" 
+      console.log(
+        `Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`
+      );
+      return res.status(403).json({
+        error: "Write permissions to pytorch/pytorch repository required",
       });
     }
 
