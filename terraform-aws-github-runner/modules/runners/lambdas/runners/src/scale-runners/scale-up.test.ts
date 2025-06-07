@@ -24,7 +24,7 @@ jest.mock('./runners');
 jest.mock('./utils', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./utils') as any),
-  sleep: jest.fn().mockResolvedValue(undefined),
+  sleep: jest.fn().mockImplementation(() => Promise.resolve()),
 }));
 
 beforeEach(() => {
@@ -34,7 +34,7 @@ beforeEach(() => {
   nock.disableNetConnect();
 
   jest.mocked(getGitHubRateLimit).mockResolvedValue({ limit: 5000, remaining: 4999, used: 1 });
-  jest.mocked(sleep).mockClear().mockResolvedValue(undefined);
+  jest.mocked(sleep).mockClear().mockImplementation(() => Promise.resolve());
 });
 
 const baseCfg = {

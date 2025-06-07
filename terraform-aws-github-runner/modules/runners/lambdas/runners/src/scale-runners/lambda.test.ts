@@ -13,7 +13,7 @@ import * as MetricsModule from './scale-runners/metrics';
 // Mock AWS SDK v3 CloudWatch client
 jest.mock('@aws-sdk/client-cloudwatch', () => ({
   CloudWatchClient: jest.fn().mockImplementation(() => ({
-    send: jest.fn().mockResolvedValue({}),
+    send: jest.fn().mockResolvedValue({ $metadata: { httpStatusCode: 200 } }),
   })),
   PutMetricDataCommand: jest.fn().mockImplementation((params) => params),
 }));
@@ -44,7 +44,7 @@ describe('scaleUp', () => {
   });
 
   it('succeeds', async () => {
-    const mockedScaleUp = jest.jest.mocked(scaleUp).mockResolvedValue(undefined);
+    const mockedScaleUp = jest.mocked(scaleUp).mockResolvedValue(undefined);
     const callback = jest.fn();
     await scaleUpL(
       {
@@ -64,7 +64,7 @@ describe('scaleUp', () => {
   });
 
   it('fails', async () => {
-    const mockedScaleUp = jest.jest.mocked(scaleUp).mockRejectedValue(Error('error'));
+    const mockedScaleUp = jest.mocked(scaleUp).mockRejectedValue(Error('error'));
     const callback = jest.fn();
     const evts = [
       {
@@ -124,7 +124,7 @@ describe('scaleUp', () => {
       },
     ];
 
-    const mockedScaleUp = jest.jest.mocked(scaleUp).mockResolvedValue(undefined);
+    const mockedScaleUp = jest.mocked(scaleUp).mockResolvedValue(undefined);
     jest.spyOn(global.Math, 'random').mockReturnValue(0.5);
 
     const callback = jest.fn();

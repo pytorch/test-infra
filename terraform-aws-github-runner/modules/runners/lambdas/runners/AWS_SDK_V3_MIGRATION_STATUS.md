@@ -37,6 +37,21 @@ NODE_ENV=test yarn jest src/scale-runners/ --detectOpenHandles --coverage=false
 yarn test
 ```
 
+### Quick Type Check for Test Files (Jest v29 type debugging)
+```bash
+# Type check only test files (faster iteration during Jest fixes)
+yarn tsc --noEmit --skipLibCheck src/**/*.test.ts
+
+# Type check specific test file
+yarn tsc --noEmit --skipLibCheck src/scale-runners/scale-up.test.ts
+
+# Jest syntax validation without running tests
+yarn jest --listTests --passWithNoTests
+
+# Quick build check excluding problematic test files
+yarn tsc --noEmit --exclude "src/**/*.test.ts"
+```
+
 ### Verification Commands
 ```bash
 # Check Node.js version (needs v18+ for Jest v29)
@@ -214,6 +229,9 @@ This approach reduced the AWS SDK v3 migration from an estimated 40+ hours of ma
 | **Overall** | ✅ **CORE COMPLETE** | **95%** |
 
 ## 🎯 **NEXT STEPS** (Priority Order)
+
+### **DECISION: Proceeding with Option 2 - Fix Jest v29 Type Issues**
+**Selected Approach**: Fix the Jest v29 strict typing issues in the remaining test files rather than downgrading or using workarounds. This ensures we maintain modern Jest v29 benefits while completing the AWS SDK v3 migration properly.
 
 ### Phase 1: Upgrade Jest to Unblock Testing ✅ **COMPLETED**
 1. **✅ Upgrade Jest from v26 to v29** 
