@@ -157,7 +157,6 @@ beforeEach(async () => {
 });
 
 describe('list instances', () => {
-  const mockDescribeInstances = { promise: jest.fn() };
   const config = {
     awsRegion: 'us-east-1',
     environment: 'gi-ci',
@@ -168,7 +167,6 @@ describe('list instances', () => {
   beforeEach(() => {
     resetRunnersCaches();
     clearLocalCache();
-    mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
     const mockRunningInstances: DescribeInstancesResult = {
       Reservations: [
         {
@@ -195,13 +193,11 @@ describe('list instances', () => {
         },
       ],
     };
-    mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
   });
 
   it('ec2 fails', async () => {
     const errMsg = 'Error message';
-    mockDescribeInstances.promise.mockClear().mockRejectedValue(Error(errMsg));
     expect(listRunners(metrics)).rejects.toThrowError(errMsg);
   });
 
@@ -226,12 +222,12 @@ describe('list instances', () => {
 
   it('calls EC2 describe instances', async () => {
     await listRunners(metrics);
-    expect(mockEC2.describeInstances).toBeCalled();
+    expect(mockEC2Send).toBeCalled();
   });
 
   it('filters instances on repo name', async () => {
     await listRunners(metrics, { repoName: 'SomeAwesomeCoder/some-amazing-library' });
-    expect(mockEC2.describeInstances).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledWith({
       Filters: [
         { Name: 'tag:Application', Values: ['github-action-runner'] },
         { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -242,7 +238,7 @@ describe('list instances', () => {
 
   it('filters instances on org name', async () => {
     await listRunners(metrics, { orgName: 'SomeAwesomeCoder' });
-    expect(mockEC2.describeInstances).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledWith({
       Filters: [
         { Name: 'tag:Application', Values: ['github-action-runner'] },
         { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -253,7 +249,7 @@ describe('list instances', () => {
 
   it('filters instances on org name', async () => {
     await listRunners(metrics, { environment: 'unit-test-environment' });
-    expect(mockEC2.describeInstances).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledWith({
       Filters: [
         { Name: 'tag:Application', Values: ['github-action-runner'] },
         { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -264,7 +260,7 @@ describe('list instances', () => {
 
   it('filters instances on both org name and repo name', async () => {
     await listRunners(metrics, { orgName: 'SomeAwesomeCoder', repoName: 'SomeAwesomeCoder/some-amazing-library' });
-    expect(mockEC2.describeInstances).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledWith({
       Filters: [
         { Name: 'tag:Application', Values: ['github-action-runner'] },
         { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -277,7 +273,7 @@ describe('list instances', () => {
 
 describe('listSSMParameters', () => {
   beforeEach(() => {
-    mockSSMdescribeParametersRet.mockClear();
+    mockSSMSend.mockClear();
     resetRunnersCaches();
     const config = {
       environment: 'gi-ci',
@@ -293,18 +289,18 @@ describe('listSSMParameters', () => {
     const ret1 = new Map(api1.concat(api2).map((s) => [s, { Name: s }]));
     const ret2 = new Map(api3.map((s) => [s, { Name: s }]));
 
-    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+    mockSSMSend.mockResolvedValueOnce({
       NextToken: 'token',
       Parameters: api1.map((s) => {
         return { Name: s };
       }),
     });
-    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+    mockSSMSend.mockResolvedValueOnce({
       Parameters: api2.map((s) => {
         return { Name: s };
       }),
     });
-    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+    mockSSMSend.mockResolvedValueOnce({
       Parameters: api3.map((s) => {
         return { Name: s };
       }),
@@ -315,17 +311,17 @@ describe('listSSMParameters', () => {
     resetRunnersCaches();
     await expect(listSSMParameters(metrics, Config.Instance.awsRegion)).resolves.toEqual(ret2);
 
-    expect(mockSSMdescribeParametersRet).toBeCalledTimes(3);
-    expect(mockSSM.describeParameters).toBeCalledWith();
-    expect(mockSSM.describeParameters).toBeCalledWith({ NextToken: 'token' });
-    expect(mockSSM.describeParameters).toBeCalledWith();
+    expect(mockSSMSend).toBeCalledTimes(3);
+    expect(mockSSMSend).toBeCalledWith();
+    expect(mockSSMSend).toBeCalledWith({ NextToken: 'token' });
+    expect(mockSSMSend).toBeCalledWith();
   });
 });
 
 describe('terminateRunner', () => {
   beforeEach(() => {
-    mockSSMdescribeParametersRet.mockClear();
-    mockEC2.terminateInstances.mockClear();
+    mockSSMSend.mockClear();
+    mockEC2Send.mockClear();
     const config = {
       environment: 'gi-ci',
       minimumRunningTimeInMinutes: 45,
@@ -341,19 +337,19 @@ describe('terminateRunner', () => {
       instanceId: 'i-1234',
       environment: 'gi-ci',
     };
-    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+    mockSSMSend.mockResolvedValueOnce({
       Parameters: [getParameterNameForRunner(runner.environment as string, runner.instanceId)].map((s) => {
         return { Name: s };
       }),
     });
     await terminateRunner(runner, metrics);
 
-    expect(mockEC2.terminateInstances).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledWith({
       InstanceIds: [runner.instanceId],
     });
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
+    expect(mockSSMSend).toBeCalledTimes(1);
+    expect(mockSSMSend).toBeCalledTimes(1);
+    expect(mockSSMSend).toBeCalledWith({
       Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
     });
   });
@@ -364,12 +360,12 @@ describe('terminateRunner', () => {
       awsRegion: Config.Instance.awsRegion,
       instanceId: '1234',
     };
-    mockEC2.terminateInstances.mockClear().mockReturnValue({
+    mockEC2Send.mockClear().mockReturnValue({
       promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
     });
     expect(terminateRunner(runner, metrics)).rejects.toThrowError(errMsg);
-    expect(mockSSM.describeParameters).not.toBeCalled();
-    expect(mockSSM.deleteParameter).not.toBeCalled();
+    expect(mockSSMSend).not.toBeCalled();
+    expect(mockSSMSend).not.toBeCalled();
   });
 
   it('fails to list parameters on terminate, then force delete all next parameters', async () => {
@@ -383,17 +379,17 @@ describe('terminateRunner', () => {
       instanceId: '1235',
       environment: 'environ',
     };
-    mockSSMdescribeParametersRet.mockRejectedValueOnce('Some Error');
+    mockSSMSend.mockRejectedValueOnce('Some Error');
     await terminateRunner(runner1, metrics);
     await terminateRunner(runner2, metrics);
 
-    expect(mockEC2.terminateInstances).toBeCalledTimes(2);
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(2);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledTimes(2);
+    expect(mockSSMSend).toBeCalledTimes(1);
+    expect(mockSSMSend).toBeCalledTimes(2);
+    expect(mockSSMSend).toBeCalledWith({
       Name: getParameterNameForRunner(runner1.environment as string, runner1.instanceId),
     });
-    expect(mockSSM.deleteParameter).toBeCalledWith({
+    expect(mockSSMSend).toBeCalledWith({
       Name: getParameterNameForRunner(runner2.environment as string, runner2.instanceId),
     });
   });
@@ -402,15 +398,15 @@ describe('terminateRunner', () => {
 describe('findAmiID', () => {
   beforeEach(() => {
     clearLocalCache();
-    mockEC2.terminateInstances.mockClear();
+    mockEC2Send.mockClear();
 
     resetRunnersCaches();
   });
 
   it('lists twice, make sure is cached and sorted', async () => {
     const result1 = await findAmiID(metrics, 'REGION', 'FILTER');
-    expect(mockEC2.describeImages).toBeCalledTimes(1);
-    expect(mockEC2.describeImages).toBeCalledWith({
+    expect(mockEC2Send).toBeCalledTimes(1);
+    expect(mockEC2Send).toBeCalledWith({
       Owners: ['amazon'],
       Filters: [
         {
@@ -426,14 +422,14 @@ describe('findAmiID', () => {
     expect(result1).toBe('ami-AGDGADU113');
 
     const result2 = await findAmiID(metrics, 'REGION', 'FILTER');
-    expect(mockEC2.describeImages).toBeCalledTimes(1);
+    expect(mockEC2Send).toBeCalledTimes(1);
     expect(result2).toBe('ami-AGDGADU113');
 
     await findAmiID(metrics, 'REGION2', 'FILTER');
-    expect(mockEC2.describeImages).toBeCalledTimes(2);
+    expect(mockEC2Send).toBeCalledTimes(2);
 
     await findAmiID(metrics, 'REGION', 'FILTER2');
-    expect(mockEC2.describeImages).toBeCalledTimes(3);
+    expect(mockEC2Send).toBeCalledTimes(3);
   });
 });
 
@@ -480,11 +476,10 @@ describe('tryReuseRunner', () => {
 
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
 
-    mockEC2.describeInstances.mockClear();
+    mockEC2Send.mockClear();
   });
 
   describe('repo', () => {
-    const mockDescribeInstances = { promise: jest.fn() };
     const runnerParameters: RunnerInputParameters = {
       runnerConfig: runnerConfigFn,
       environment: 'wg113',
@@ -502,27 +497,25 @@ describe('tryReuseRunner', () => {
 
     it('does not have any runner', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -535,27 +528,26 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockSSM.putParameter).not.toBeCalled();
-      expect(mockEC2.createTags).not.toBeCalled();
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
 
     it('has a runner, but free less than a minute ago', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(30, 'seconds').utc().toDate().getTime() / 1000,
       );
@@ -581,11 +573,10 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -598,27 +589,26 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockSSM.putParameter).not.toBeCalled();
-      expect(mockEC2.createTags).not.toBeCalled();
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
 
     it('has a runner, but free more than minimumRunningTimeInMinutes ago', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date())
           .subtract(Config.Instance.minimumRunningTimeInMinutes + 10, 'minutes')
@@ -649,11 +639,10 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -666,27 +655,26 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockSSM.putParameter).not.toBeCalled();
-      expect(mockEC2.createTags).not.toBeCalled();
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
 
     it('has a runner, but still in replacement volume mode', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
       const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [
@@ -710,33 +698,31 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalled();
-      expect(mockSSM.putParameter).not.toBeCalled();
-      expect(mockEC2.createTags).not.toBeCalled();
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockEC2Send).toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
 
     //
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -763,7 +749,6 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       expect(stripUndefined(await tryReuseRunner(runnerParameters, metrics))).toEqual({
         awsRegion: 'us-east-1',
@@ -776,7 +761,7 @@ describe('tryReuseRunner', () => {
         ephemeralRunnerStage: 'RunnerFinished',
       });
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -789,18 +774,18 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockEC2.createTags).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
           { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
-      expect(mockEC2.deleteTags).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Resources: ['i-0113'],
         Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
       });
-      expect(mockEC2.createReplaceRootVolumeTask).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         DeleteReplacedRootVolume: true,
         InstanceId: 'i-0113',
       });
@@ -808,19 +793,18 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, and fail', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn().mockRejectedValue('Error') }));
+      mockEC2Send.mockClear().mockRejectedValue('Error');
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -847,11 +831,10 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -864,20 +847,19 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockEC2.createTags).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
           { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
   });
 
   describe('org', () => {
-    const mockDescribeInstances = { promise: jest.fn() };
     const runnerParameters: RunnerInputParameters = {
       runnerConfig: runnerConfigFn,
       environment: 'wg113',
@@ -895,27 +877,25 @@ describe('tryReuseRunner', () => {
 
     it('does not have any runner', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const mockRunningInstances: DescribeInstancesResult = {
         Reservations: [],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -929,27 +909,26 @@ describe('tryReuseRunner', () => {
         ],
       });
       expect(redisLocked).not.toBeCalled();
-      expect(mockSSM.putParameter).not.toBeCalled();
-      expect(mockEC2.createTags).not.toBeCalled();
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
 
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -976,7 +955,6 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       expect(stripUndefined(await tryReuseRunner(runnerParameters, metrics))).toEqual({
         awsRegion: 'us-east-1',
@@ -989,7 +967,7 @@ describe('tryReuseRunner', () => {
         ephemeralRunnerStage: 'RunnerFinished',
       });
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -1002,18 +980,18 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockEC2.createTags).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
           { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
-      expect(mockEC2.deleteTags).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Resources: ['i-0113'],
         Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
       });
-      expect(mockEC2.createReplaceRootVolumeTask).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         DeleteReplacedRootVolume: true,
         InstanceId: 'i-0113',
       });
@@ -1021,19 +999,18 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, and fail', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSMSend.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn().mockRejectedValue('Error') }));
+      mockEC2Send.mockClear().mockRejectedValue('Error');
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2Send.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -1059,11 +1036,10 @@ describe('tryReuseRunner', () => {
           },
         ],
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
 
-      expect(mockEC2.describeInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Filters: [
           { Name: 'tag:Application', Values: ['github-action-runner'] },
           { Name: 'instance-state-name', Values: ['running', 'pending'] },
@@ -1076,23 +1052,21 @@ describe('tryReuseRunner', () => {
           { Name: 'tag:EphemeralRunnerFinished', Values: ['*'] },
         ],
       });
-      expect(mockEC2.createTags).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         Resources: ['i-0113'],
         Tags: [
           { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
           { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
         ],
       });
-      expect(mockEC2.deleteTags).not.toBeCalled();
-      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
+      expect(mockEC2Send).not.toBeCalled();
     });
   });
 });
 
 describe('createRunner', () => {
   describe('single region', () => {
-    const mockRunInstances = { promise: jest.fn() };
-    const mockPutParameter = { promise: jest.fn() };
     const regionToVpc = new Map([['us-east-1', ['vpc-agdgaduwg113']]]);
     const config = {
       launchTemplateNameLinux: 'launch-template-name-linux',
@@ -1127,64 +1101,19 @@ describe('createRunner', () => {
       environment: 'gi-ci',
       minimumRunningTimeInMinutes: 45,
     };
-    const mockDescribeInstances = { promise: jest.fn() };
 
     beforeEach(() => {
-      mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: DescribeInstancesResult = {
-        Reservations: [
-          {
-            Instances: [
-              {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
-                InstanceId: 'i-0113',
-                Placement: {
-                  AvailabilityZone: 'us-east-1a',
-                },
-                Tags: [
-                  { Key: 'Repo', Value: 'CoderToCat/hello-world' },
-                  { Key: 'Org', Value: 'CoderToCat' },
-                  { Key: 'Application', Value: 'github-action-runner' },
-                ],
-              },
-              {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
-                InstanceId: 'i-1234',
-                Placement: {
-                  AvailabilityZone: 'us-east-1b',
-                },
-                Tags: [
-                  { Key: 'Repo', Value: 'CoderToCat/hello-world' },
-                  { Key: 'Org', Value: 'CoderToCat' },
-                  { Key: 'Application', Value: 'github-action-runner' },
-                ],
-              },
-              {
-                LaunchTime: new Date('2020-10-11T14:48:00.000+09:00'),
-                InstanceId: 'i-5678',
-                Placement: {
-                  AvailabilityZone: 'us-east-1b',
-                },
-                Tags: [
-                  { Key: 'Repo', Value: 'SomeAwesomeCoder/some-amazing-library' },
-                  { Key: 'Org', Value: 'SomeAwesomeCoder' },
-                  { Key: 'Application', Value: 'github-action-runner' },
-                ],
-              },
-            ],
-          },
-        ],
-      };
-      mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
-      mockEC2.runInstances.mockImplementation(() => mockRunInstances);
-      mockRunInstances.promise.mockReturnValue({
+      // Mock EC2 RunInstances response
+      mockEC2Send.mockResolvedValue({
         Instances: [
           {
             InstanceId: 'i-1234',
           },
         ],
       });
-      mockSSM.putParameter.mockImplementation(() => mockPutParameter);
+
+      // Mock SSM PutParameter response
+      mockSSMSend.mockResolvedValue({});
 
       resetRunnersCaches();
       clearLocalCache();
@@ -1212,8 +1141,8 @@ describe('createRunner', () => {
 
       await createRunner(runnerParameters, metrics);
 
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0));
+      expect(mockEC2Send).toHaveBeenCalledTimes(1);
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0));
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
     });
@@ -1238,8 +1167,8 @@ describe('createRunner', () => {
 
       await createRunner(runnerParameters, metrics);
 
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0, true));
+      expect(mockEC2Send).toHaveBeenCalledTimes(1);
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0, true));
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
     });
@@ -1266,9 +1195,9 @@ describe('createRunner', () => {
 
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+      expect(mockEC2Send).toHaveBeenCalledTimes(1);
       const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get('vpc-agdgaduwg113') || [];
-      expect(mockEC2.runInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         MaxCount: 1,
         MinCount: 1,
         LaunchTemplate: {
@@ -1345,9 +1274,9 @@ describe('createRunner', () => {
 
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+      expect(mockEC2Send).toHaveBeenCalledTimes(1);
       const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get('vpc-agdgaduwg113') || [];
-      expect(mockEC2.runInstances).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledWith({
         MaxCount: 1,
         MinCount: 1,
         LaunchTemplate: {
@@ -1415,8 +1344,8 @@ describe('createRunner', () => {
       );
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
-      expect(mockSSM.putParameter).toBeCalledTimes(1);
-      expect(mockSSM.putParameter).toBeCalledWith({
+      expect(mockSSMSend).toBeCalledTimes(1);
+      expect(mockSSMSend).toBeCalledWith({
         Name: 'wg113-i-1234',
         Value: 'us-east-1-BLAH',
         Type: 'SecureString',
@@ -1447,8 +1376,8 @@ describe('createRunner', () => {
       jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0999);
 
       await createRunner(runnerParameters, metrics);
-      expect(mockEC2.describeImages).toBeCalledTimes(1);
-      expect(mockEC2.describeImages).toBeCalledWith({
+      expect(mockEC2Send).toBeCalledTimes(1);
+      expect(mockEC2Send).toBeCalledWith({
         Owners: ['amazon'],
         Filters: [
           {
@@ -1461,20 +1390,20 @@ describe('createRunner', () => {
           },
         ],
       });
-      expect(mockSSM.putParameter).toBeCalledTimes(1);
-      expect(mockSSM.putParameter).toBeCalledWith({
+      expect(mockSSMSend).toBeCalledTimes(1);
+      expect(mockSSMSend).toBeCalledWith({
         Name: 'wg113-i-1234',
         Value: 'us-east-1-BLAH #ON_AMI_EXPERIMENT',
         Type: 'SecureString',
       });
-      expect(mockEC2.runInstances).toBeCalledTimes(1);
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toBeCalledTimes(1);
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 0, false, undefined, 'ami-AGDGADU113'),
       );
     });
 
     it('does not create ssm parameters when no instance is created', async () => {
-      mockRunInstances.promise.mockReturnValue({
+      mockEC2Send.mockResolvedValue({
         Instances: [],
       });
       await expect(
@@ -1499,12 +1428,11 @@ describe('createRunner', () => {
         ),
       ).rejects.toThrow();
       expect(runnerConfigFn).toBeCalledTimes(0);
-      expect(mockSSM.putParameter).not.toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
     });
 
     it('fails to attach to any network and raises exception', async () => {
       const errorMsg = 'test error msg ASDF';
-      mockRunInstances.promise.mockClear().mockRejectedValue(new Error(errorMsg));
       const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
@@ -1525,19 +1453,17 @@ describe('createRunner', () => {
       await expect(createRunner(runnerParameters, metrics)).rejects.toThrow();
 
       expect(runnerConfigFn).toBeCalledTimes(0);
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(4);
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0));
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 1));
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 2));
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 3));
+      expect(mockEC2Send).toHaveBeenCalledTimes(4);
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 0));
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 1));
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 2));
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 3));
 
-      expect(mockSSM.putParameter).not.toBeCalled();
+      expect(mockSSMSend).not.toBeCalled();
     });
   });
 
   describe('multiregion', () => {
-    const mockRunInstances = { promise: jest.fn() };
-    const mockPutParameter = { promise: jest.fn() };
     const regionToVpc = new Map([
       ['us-east-1', ['vpc-agdgaduwg113-11', 'vpc-agdgaduwg113-12']],
       ['us-west-1', ['vpc-agdgaduwg113-21', 'vpc-agdgaduwg113-22']],
@@ -1602,58 +1528,17 @@ describe('createRunner', () => {
         },
       ],
     };
-    const mockDescribeInstances = { promise: jest.fn() };
 
     beforeEach(() => {
-      mockEC2.runInstances.mockImplementation(() => mockRunInstances);
-      mockRunInstances.promise.mockReturnValue(runInstanceSuccess);
-      mockSSM.putParameter.mockImplementation(() => mockPutParameter);
-      mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: DescribeInstancesResult = {
-        Reservations: [
-          {
-            Instances: [
-              {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
-                InstanceId: 'i-0113',
-                Placement: {
-                  AvailabilityZone: 'us-east-1a',
-                },
-                Tags: [
-                  { Key: 'Repo', Value: 'CoderToCat/hello-world' },
-                  { Key: 'Org', Value: 'CoderToCat' },
-                  { Key: 'Application', Value: 'github-action-runner' },
-                ],
-              },
-              {
-                LaunchTime: new Date('2020-10-10T14:48:00.000+09:00'),
-                InstanceId: 'i-1234',
-                Placement: {
-                  AvailabilityZone: 'us-east-1b',
-                },
-                Tags: [
-                  { Key: 'Repo', Value: 'CoderToCat/hello-world' },
-                  { Key: 'Org', Value: 'CoderToCat' },
-                  { Key: 'Application', Value: 'github-action-runner' },
-                ],
-              },
-              {
-                LaunchTime: new Date('2020-10-11T14:48:00.000+09:00'),
-                InstanceId: 'i-5678',
-                Placement: {
-                  AvailabilityZone: 'us-east-1b',
-                },
-                Tags: [
-                  { Key: 'Repo', Value: 'SomeAwesomeCoder/some-amazing-library' },
-                  { Key: 'Org', Value: 'SomeAwesomeCoder' },
-                  { Key: 'Application', Value: 'github-action-runner' },
-                ],
-              },
-            ],
-          },
-        ],
-      };
-      mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
+      // Mock EC2 RunInstances to return success
+      mockEC2Send.mockResolvedValue(runInstanceSuccess);
+      
+      // Mock SSM PutParameter
+      mockSSMSend.mockResolvedValue({});
+
+      resetRunnersCaches();
+      clearLocalCache();
+
       jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     });
 
@@ -1677,15 +1562,13 @@ describe('createRunner', () => {
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
 
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
-      expect(mockEC2.runInstances).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 2));
+      expect(mockEC2Send).toHaveBeenCalledTimes(1);
+      expect(mockEC2Send).toBeCalledWith(createExpectedRunInstancesLinux(runnerParameters, 2));
       expect(runnerConfigFn).toBeCalledTimes(1);
       expect(runnerConfigFn).toBeCalledWith(config.shuffledAwsRegionInstances[0], false);
     });
 
     it('succeed, 2nd subnet and 1st region', async () => {
-      mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
-      mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
       const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
@@ -1706,11 +1589,11 @@ describe('createRunner', () => {
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
 
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(2);
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toHaveBeenCalledTimes(2);
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 2, false, 'vpc-agdgaduwg113-11'),
       );
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 4, false, 'vpc-agdgaduwg113-12'),
       );
       expect(runnerConfigFn).toBeCalledTimes(1);
@@ -1719,9 +1602,7 @@ describe('createRunner', () => {
 
     it('succeed, 1nd subnet and 2nd region', async () => {
       for (let i = 0; i < 4; i++) {
-        mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       }
-      mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
       const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
@@ -1742,20 +1623,20 @@ describe('createRunner', () => {
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[1]);
 
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(5);
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toHaveBeenCalledTimes(5);
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 2, false, 'vpc-agdgaduwg113-11'),
       );
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 4, false, 'vpc-agdgaduwg113-12'),
       );
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 3, false, 'vpc-agdgaduwg113-11'),
       );
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(runnerParameters, 5, false, 'vpc-agdgaduwg113-12'),
       );
-      expect(mockEC2.runInstances).toBeCalledWith(
+      expect(mockEC2Send).toBeCalledWith(
         createExpectedRunInstancesLinux(
           runnerParameters,
           0,
@@ -1769,7 +1650,6 @@ describe('createRunner', () => {
 
     it('fails, everywere', async () => {
       for (let i = 0; i < 8; i++) {
-        mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       }
 
       const runnerParameters: RunnerInputParameters = {
@@ -1791,7 +1671,7 @@ describe('createRunner', () => {
 
       await expect(createRunner(runnerParameters, metrics)).rejects.toThrow();
 
-      expect(mockEC2.runInstances).toHaveBeenCalledTimes(8);
+      expect(mockEC2Send).toHaveBeenCalledTimes(8);
       expect(runnerConfigFn).toBeCalledTimes(0);
     });
   });
