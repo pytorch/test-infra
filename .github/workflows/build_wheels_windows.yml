@@ -247,13 +247,16 @@ jobs:
         if: inputs.architecture == 'arm64'
         env:
           SRC_DIR: ${{ inputs.repository }}
+          CONDA_PREFIX: c:\temp\dependencies\
         run: |
-          
-          export CONDA_PREFIX="$DEPENDENCIES_DIR\Library"
           echo "CONDA_PREFIX=${CONDA_PREFIX}"
           echo "PATH=${PATH}"
-          export PATH="$PATH:$DEPENDENCIES_DIR\Library\bin"
+          export PATH="$PATH:$CONDA_PREFIX\Library\bin"
           echo "PATH=${PATH}"
+
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          call "%VS_PATH%" x64
+
           cd $SRC_DIR
           source .venv/Scripts/activate
           python setup.py bdist_wheel
