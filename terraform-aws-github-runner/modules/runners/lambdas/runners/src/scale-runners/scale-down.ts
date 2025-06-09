@@ -137,11 +137,6 @@ export async function scaleDown(): Promise<void> {
       return;
     }
 
-    // Early timeout check after initial setup (skip in test environment)
-    if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold * 0.2) {
-      console.warn(`Early timeout detection: ${getElapsedSeconds()}s elapsed, reducing scope`);
-    }
-
     const foundOrgs = new Set<string>();
     const foundRepos = new Set<string>();
 
@@ -161,7 +156,9 @@ export async function scaleDown(): Promise<void> {
         for (const [runnerType, runners] of batch) {
           // Early timeout check during processing (skip in test environment)
           if (isApproachingTimeout()) {
-            console.warn(`Timeout approaching (${getElapsedSeconds()}s), skipping remaining runners in batch`);
+            console.warn(
+              `Timeout approaching (${getElapsedSeconds()}s), skipping remaining runners in batch to gracefully exit`,
+            );
             break;
           }
 
@@ -246,8 +243,9 @@ export async function scaleDown(): Promise<void> {
       }),
     );
 
+    // TODO: We should probably split this out into its own lambda since SSM cleanup is not related to scale down
     // Only proceed with cleanup if we have time remaining (always proceed in test environment)
-    if (isTestEnvironment || getElapsedSeconds() < timeoutThreshold) {
+    if (isTestEnvironment || !isApproachingTimeout()) {
       // Process offline runners cleanup in parallel
       const offlineCleanupPromises = [];
 
