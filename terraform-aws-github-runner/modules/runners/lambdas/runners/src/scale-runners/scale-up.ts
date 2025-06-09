@@ -114,8 +114,6 @@ export async function scaleUp(
             );
           },
           runnerType: runnerType,
-          repositoryOwner: repo.owner,
-          repositoryName: repo.repo,
         };
         if (Config.Instance.enableOrganizationRunners) {
           createRunnerParams.orgName = repo.owner;
