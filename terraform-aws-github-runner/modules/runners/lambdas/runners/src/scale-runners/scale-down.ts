@@ -90,8 +90,25 @@ export async function scaleDown(): Promise<void> {
   // Track execution time for early timeout detection
   const startTime = Date.now();
   const getElapsedSeconds = () => Math.floor((Date.now() - startTime) / 1000);
-  const timeoutThreshold = Config.Instance.lambdaTimeout - 30; // Leave 30s buffer
+  const timeoutThreshold = Config.Instance.lambdaTimeout - 15; // Leave 15s buffer (reduced from 30s)
   const isTestEnvironment = process.env.NODE_ENV === 'test';
+
+  // Helper function for timeout detection
+  const isApproachingTimeout = () => !isTestEnvironment && getElapsedSeconds() > timeoutThreshold;
+
+  // Helper function to add removable runner to appropriate array
+  const addRemovableRunner = (
+    ec2runner: RunnerInfo,
+    ghRunner: GhRunner | undefined,
+    ghRunnersRemovableNoGHRunner: Array<[RunnerInfo, GhRunner | undefined]>,
+    ghRunnersRemovableWGHRunner: Array<[RunnerInfo, GhRunner]>
+  ) => {
+    if (ghRunner === undefined) {
+      ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
+    } else {
+      ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+    }
+  };
 
   try {
     console.info('Scale down started');
@@ -119,10 +136,10 @@ export async function scaleDown(): Promise<void> {
       return;
     }
 
-    // Early timeout check after initial setup (skip in test environment)
-    if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold * 0.2) {
-      console.warn(`Early timeout detection: ${getElapsedSeconds()}s elapsed, reducing scope`);
-    }
+      // Early timeout check after initial setup (skip in test environment)
+  if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold * 0.2) {
+    console.warn(`Early timeout detection: ${getElapsedSeconds()}s elapsed, reducing scope`);
+  }
 
     const foundOrgs = new Set<string>();
     const foundRepos = new Set<string>();
@@ -142,7 +159,7 @@ export async function scaleDown(): Promise<void> {
       batches.map(async (batch) => {
         for (const [runnerType, runners] of batch) {
           // Early timeout check during processing (skip in test environment)
-          if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold) {
+          if (isApproachingTimeout()) {
             console.warn(`Timeout approaching (${getElapsedSeconds()}s), skipping remaining runners in batch`);
             break;
           }
@@ -162,11 +179,7 @@ export async function scaleDown(): Promise<void> {
               if (!Config.Instance.enableOrganizationRunners) {
                 metrics.runnerFound(ec2runner);
                 if (await isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-                  if (ghRunner === undefined) {
-                    ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
-                  } else {
-                    ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
-                  }
+                  addRemovableRunner(ec2runner, ghRunner, ghRunnersRemovableNoGHRunner, ghRunnersRemovableWGHRunner);
                 }
               }
               // ORG assigned runners
@@ -177,11 +190,7 @@ export async function scaleDown(): Promise<void> {
               if (Config.Instance.enableOrganizationRunners) {
                 metrics.runnerFound(ec2runner);
                 if (await isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-                  if (ghRunner === undefined) {
-                    ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
-                  } else {
-                    ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
-                  }
+                  addRemovableRunner(ec2runner, ghRunner, ghRunnersRemovableNoGHRunner, ghRunnersRemovableWGHRunner);
                 }
               }
             } else {
@@ -203,7 +212,7 @@ export async function scaleDown(): Promise<void> {
 
           for (const [ec2runner, ghRunner] of ghRunnersRemovable) {
             // Early timeout check during removals (skip in test environment)
-            if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold) {
+            if (isApproachingTimeout()) {
               console.warn(`Timeout approaching (${getElapsedSeconds()}s), stopping removals`);
               break;
             }
