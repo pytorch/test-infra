@@ -50,11 +50,6 @@ export async function uploadArtifact(
   core.info(`Uploading to s3 prefix: ${finalS3Prefix}`)
   core.debug(`Root artifact directory is ${rootDirectory} `)
 
-  const retentionDays = options.retentionDays ? options.retentionDays : 90
-  const today = new Date()
-  const expirationDate = new Date(today)
-  expirationDate.setDate(expirationDate.getDate() + retentionDays)
-
   const s3Client = new S3Client({
     region: region,
     maxAttempts: 10
@@ -77,10 +72,16 @@ export async function uploadArtifact(
       Body: fs.createReadStream(fileName),
       Bucket: s3Bucket,
       ContentType: getFileType(uploadKey),
-      Expires: expirationDate,
       // conform windows paths to unix style paths
       Key: uploadKey.replace(path.sep, '/')
     }
+    if (options.retentionDays) {
+      const today = new Date()
+      const expirationDate = new Date(today)
+      expirationDate.setDate(expirationDate.getDate() + options.retentionDays)
+      uploadParams.Expires = expirationDate
+    }
+
     if (!options.overwrite) {
       uploadParams.IfNoneMatch = '*'
     }

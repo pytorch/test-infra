@@ -22,9 +22,10 @@ inputs:
   retention-days:
     description: >
       Duration after which artifact will expire in days. 0 means using default retention.
-
-      Minimum 1 day.
-      Maximum 90 days unless changed from the repository settings page.
+      What happens to the artifact after expiration is determined by the S3 bucket lifecycle policy.
+      For more information, see:
+      https://docs.aws.amazon.com/AmazonS3/latest/userguide/lifecycle-expire-general-considerations.html
+    default: '0'
   s3-acl:
     description: >
       The S3 ACL to use for the artifact. This is the same as the --acl parameter in the AWS CLI.
