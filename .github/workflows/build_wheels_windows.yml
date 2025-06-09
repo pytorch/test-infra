@@ -248,8 +248,12 @@ jobs:
         env:
           SRC_DIR: ${{ inputs.repository }}
         run: |
-          export CONDA_PREFIX="$DEPENDENCIES_DIR"
-          export PATH="$PATH:$CONDA_PREFIX/Library/bin"
+          
+          export CONDA_PREFIX="$DEPENDENCIES_DIR\Library"
+          echo "CONDA_PREFIX=${CONDA_PREFIX}"
+          echo "PATH=${PATH}"
+          export PATH="$PATH:$DEPENDENCIES_DIR\Library\bin"
+          echo "PATH=${PATH}"
           cd $SRC_DIR
           source .venv/Scripts/activate
           python setup.py bdist_wheel
