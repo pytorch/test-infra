@@ -20,6 +20,7 @@ import { SSM } from 'aws-sdk';
 // Add caching for GitHub runners to reduce API calls
 export const ghRunnerCache = new Map<string, { data: GhRunner[]; timestamp: number; ttl: number }>();
 const CACHE_TTL_MS = 30000; // 30 seconds cache
+const MAX_CONCURRENCY = 10;
 
 async function getCachedGHRunnersOrg(org: string, metrics: ScaleDownMetrics): Promise<GhRunner[]> {
   const cacheKey = `org-${org}`;
@@ -145,7 +146,7 @@ export async function scaleDown(): Promise<void> {
     const foundRepos = new Set<string>();
 
     // Process runner groups in parallel with controlled concurrency
-    const maxConcurrency = Math.min(10, runnersDict.size); // Limit to avoid overwhelming APIs
+    const maxConcurrency = Math.min(MAX_CONCURRENCY, runnersDict.size); // Limit to avoid overwhelming APIs
     const runnerEntries = shuffleArrayInPlace(Array.from(runnersDict.entries()));
 
     // Process runner groups in batches for better performance
