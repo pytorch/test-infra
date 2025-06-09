@@ -102,7 +102,7 @@ export async function scaleDown(): Promise<void> {
     ec2runner: RunnerInfo,
     ghRunner: GhRunner | undefined,
     ghRunnersRemovableNoGHRunner: Array<[RunnerInfo, GhRunner | undefined]>,
-    ghRunnersRemovableWGHRunner: Array<[RunnerInfo, GhRunner]>
+    ghRunnersRemovableWGHRunner: Array<[RunnerInfo, GhRunner]>,
   ) => {
     if (ghRunner === undefined) {
       ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
@@ -137,10 +137,10 @@ export async function scaleDown(): Promise<void> {
       return;
     }
 
-      // Early timeout check after initial setup (skip in test environment)
-  if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold * 0.2) {
-    console.warn(`Early timeout detection: ${getElapsedSeconds()}s elapsed, reducing scope`);
-  }
+    // Early timeout check after initial setup (skip in test environment)
+    if (!isTestEnvironment && getElapsedSeconds() > timeoutThreshold * 0.2) {
+      console.warn(`Early timeout detection: ${getElapsedSeconds()}s elapsed, reducing scope`);
+    }
 
     const foundOrgs = new Set<string>();
     const foundRepos = new Set<string>();
