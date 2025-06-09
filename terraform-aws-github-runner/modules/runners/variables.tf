@@ -109,7 +109,7 @@ variable "minimum_running_time_in_minutes" {
 variable "lambda_timeout_scale_down" {
   description = "Time out for the scale down lambda in seconds."
   type        = number
-  default     = 120
+  default     = 60
 }
 
 variable "lambda_timeout_scale_up" {
