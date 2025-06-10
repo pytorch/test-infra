@@ -149,6 +149,11 @@ def main() -> None:
     options = parse_args()
     if options.token == "":
         raise Exception("GITHUB_TOKEN or --token must be set")
+
+    # Get AWS instances with name {options.runner_name}
+    aws_instances = get_aws_instances_by_name(ec2, f"{options.runner_name}")
+    print(f"Found {len(aws_instances)} AWS instances with name '{options.runner_name}'")
+
     gh = Github(options.token)
     if "/" in options.entity:
         entity_get = gh.get_repo
@@ -156,10 +161,6 @@ def main() -> None:
         runners = entity.get_self_hosted_runners()
     else:
         runners = get_self_hosted_runners_org(gh.get_organization(options.entity))
-
-    # Get AWS instances with name {options.runner_name}
-    aws_instances = get_aws_instances_by_name(ec2, f"{options.runner_name}")
-    print(f"Found {len(aws_instances)} AWS instances with name '{options.runner_name}'")
 
     # Convert runners to list for intersection calculation
     runners_list = list(runners)
