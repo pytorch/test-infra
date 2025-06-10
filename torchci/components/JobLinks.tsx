@@ -3,7 +3,11 @@ import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
-import { getDurationDisplay, isFailedJob, transformJobName } from "../lib/jobUtils";
+import {
+  getDurationDisplay,
+  isFailedJob,
+  transformJobName,
+} from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
