@@ -252,12 +252,13 @@ jobs:
         shell: cmd
         run: |
           echo CONDA_PREFIX=%CONDA_PREFIX%
-          set PATH=%PATH%;%CONDA_PREFIX%\Library\bin
+          set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
 
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
           call "%VS_PATH%" x64
 
           cd %SRC_DIR%
+          set DISTUTILS_USE_SDK=1
           call .venv\Scripts\activate.bat
           python setup.py bdist_wheel
       - name: Run post-script
