@@ -196,8 +196,8 @@ variable "key_name" {
   default     = null
 }
 
-variable "secrets_arn" {
-  description = "ARN of the AWS Secrets Manager secret that the runner should have access to"
-  type        = string
-  default     = ""
+variable "runner_secrets_arns" {
+  description = "List of ARNs of AWS Secrets Manager secrets that the runner role should have access to"
+  type        = list(string)
+  default     = []
 }

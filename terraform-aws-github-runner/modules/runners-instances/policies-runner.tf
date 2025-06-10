@@ -54,16 +54,16 @@ resource "aws_iam_role_policy" "create_tags" {
   policy = file("${path.module}/policies/instance-ec2-create-tags-policy.json")
 }
 
-# This policy is conditionally created only when secrets_arn is provided.
+# This policy is conditionally created only when runner_secrets_arns is provided.
 # This ensures we don't create empty policies when no secret access is needed,
 # making the security configuration more explicit and reducing IAM clutter.
 resource "aws_iam_role_policy" "secrets_access" {
-  count  = var.secrets_arn != "" ? 1 : 0
+  count  = length(var.runner_secrets_arns) > 0 ? 1 : 0
   name   = "runner-secrets-access"
   role   = aws_iam_role.runner.name
   policy = templatefile("${path.module}/policies/instance-secrets-policy.json",
     {
-      secrets_arn = var.secrets_arn
+      secrets_arns = jsonencode(var.runner_secrets_arns)
     }
   )
 }
