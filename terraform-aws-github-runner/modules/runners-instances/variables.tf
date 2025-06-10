@@ -200,4 +200,5 @@ variable "runner_secrets_arns" {
   description = "List of ARNs of AWS Secrets Manager secrets that the runner role should have access to"
   type        = list(string)
   default     = []
+  sensitive   = true
 }
