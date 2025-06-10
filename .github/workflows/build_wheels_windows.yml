@@ -248,7 +248,7 @@ jobs:
         env:
           SRC_DIR: ${{ inputs.repository }}
           DEPENDENCIES_DIR: c:\temp\dependencies\
-          CONDA_PREFIX: c:\temp\dependencies\Library\bin
+          CONDA_PREFIX: c:\temp\dependencies\Library
         shell: cmd
         run: |
           echo CONDA_PREFIX=%CONDA_PREFIX%
