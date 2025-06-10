@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - .github/actions/setup-python/*
-      - .github/workflows/test-setup-python.yaml
+      - .github/workflows/test-setup-python.yml
 
 jobs:
   setup-python-job:
