@@ -182,7 +182,10 @@ def main() -> None:
             # no existing pr, so make a new one and approve it
             pr_num = make_pr(source_repo, args.repo_name, branch_name)
             approve_pr(source_repo, pr_num)
-        make_comment(source_repo, pr_num, "@pytorchbot merge")
+            make_comment(source_repo, pr_num, "@pytorchbot merge")
+        else:
+            # rebase the existing pr onto viable/strict
+            make_comment(source_repo, pr_num, "@pytorchbot merge --rebase")
     else:
         print(
             f"tried to update from old hash: {old_hash} to new hash: {hash} but "
