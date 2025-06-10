@@ -13,7 +13,7 @@ const requirementsPath = process.env['INPUT_PIP-REQUIREMENTS-FILE'];
 const formula = `python@${pythonVersion}`;
 
 const timestamp = Math.floor(Date.now() / 1000);
-const venvPath = path.join(process.env['GITHUB_WORKSPACE'], `venv-${pythonVersion}-${timestamp}`);
+const venvPath = path.join(process.env['RUNNER_TEMP'], `venv-${pythonVersion}-${timestamp}`);
 
 execSync(`brew install ${formula}`, {stdio: 'inherit'});
 const prefix = execSync(`brew --prefix`, {encoding: 'utf8'}).trim();
