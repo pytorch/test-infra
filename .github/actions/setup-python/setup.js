@@ -13,7 +13,7 @@ const requirementsPath = process.env['INPUT_PIP-REQUIREMENTS-FILE'];
 const formula = `python@${pythonVersion}`;
 
 const timestamp = Math.floor(Date.now() / 1000);
-const venvPath = `venv-${pythonVersion}-${timestamp}`;
+const venvPath = path.join(process.env['GITHUB_WORKSPACE'], `venv-${pythonVersion}-${timestamp}`);
 
 execSync(`brew install ${formula}`, {stdio: 'inherit'});
 const prefix = execSync(`brew --prefix`, {encoding: 'utf8'}).trim();
@@ -27,5 +27,5 @@ if (requirementsPath) {
   execSync(`"${venvPath}/bin/python" -m pip install -r "${requirementsPath}"`, {stdio: 'inherit'});
 }
 
-fs.appendFileSync(process.env['GITHUB_PATH'], path.join(process.cwd(), venvPath, 'bin') + os.EOL);
+fs.appendFileSync(process.env['GITHUB_PATH'], path.join(venvPath, 'bin') + os.EOL);
 fs.appendFileSync(process.env['GITHUB_STATE'], `venvPath=${venvPath}${os.EOL}`);
