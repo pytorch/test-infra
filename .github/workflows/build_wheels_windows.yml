@@ -242,9 +242,16 @@ jobs:
         if: inputs.architecture == 'arm64'
         env:
           SRC_DIR: ${{ inputs.repository }}
+          DEPENDENCIES_DIR: c:\temp\dependencies\
+        shell: cmd
         run: |
-          cd $SRC_DIR
-          source .venv/Scripts/activate
+          set CONDA_PREFIX=%DEPENDENCIES_DIR%
+          set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
+          set DISTUTILS_USE_SDK=1
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          call "%VS_PATH%" arm64
+          cd %SRC_DIR%
+          call .venv\Scripts\activate.bat
           python setup.py bdist_wheel
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
