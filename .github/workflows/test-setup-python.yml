@@ -17,6 +17,8 @@ jobs:
         with:
           version: '3.12'
           pip-requirements-file: .github/workflows/test-pip-requirements-macOS.txt
+      - name: Print env (including PATH)
+        run: env
       - name: Show python, python3, pip and pip3 locations
         run: for tool in python python3 pip pip3; do which $tool; done
       - name: Show Python and pip versions
