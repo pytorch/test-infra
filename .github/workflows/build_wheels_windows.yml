@@ -248,11 +248,9 @@ jobs:
         env:
           SRC_DIR: ${{ inputs.repository }}
           DEPENDENCIES_DIR: c:\temp\dependencies\
-          CONDA_PREFIX: c:\temp\dependencies\Library
         shell: cmd
         run: |
-          echo CONDA_PREFIX=%CONDA_PREFIX%
-          dir %CONDA_PREFIX%\include
+          set CONDA_PREFIX=%DEPENDENCIES_DIR%
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
 
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
