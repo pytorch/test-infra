@@ -139,9 +139,9 @@ def get_wheels_of_version(idx: Dict[str, str], version: str) -> Dict[str, str]:
 
 
 def upload_missing_whls(
-    pkg_name: str = "numpy", 
-    prefix: str = "whl/test", *, 
-    dry_run: bool = False, 
+    pkg_name: str = "numpy",
+    prefix: str = "whl/test", *,
+    dry_run: bool = False,
     only_pypi: bool = False,
     target_version: str = "latest"
 ) -> None:
