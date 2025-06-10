@@ -8,8 +8,8 @@ if (process.platform !== 'darwin') {
   process.exit(1);
 }
 
-const pythonVersion = process.env['INPUT_PYTHON-VERSION'] || '3.11';
-const requirementsPath = process.env['INPUT_PIP_REQUIREMENTS_FILE'];
+const pythonVersion = process.env['INPUT_VERSION'] || '3.11';
+const requirementsPath = process.env['INPUT_PIP-REQUIREMENTS-FILE'];
 const formula = `python@${pythonVersion}`;
 
 const timestamp = Math.floor(Date.now() / 1000);
@@ -19,10 +19,11 @@ execSync(`brew install ${formula}`, {stdio: 'inherit'});
 const prefix = execSync(`brew --prefix`, {encoding: 'utf8'}).trim();
 const pythonBin = path.join(prefix, 'bin', `python${pythonVersion}`);
 
-console.log(`Using python at ${pythonBin}`);
+console.log(`Using python at ${pythonBin} to create venv ${venvPath}`);
 execSync(`"${pythonBin}" -m venv "${venvPath}"`, {stdio: 'inherit'});
 
 if (requirementsPath) {
+  console.log(`Installing requirements from ${requirementsPath}`);
   execSync(`"${venvPath}/bin/python" -m pip install -r "${requirementsPath}"`, {stdio: 'inherit'});
 }
 
