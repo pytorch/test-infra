@@ -27,5 +27,5 @@ if (requirementsPath) {
   execSync(`"${venvPath}/bin/python" -m pip install -r "${requirementsPath}"`, {stdio: 'inherit'});
 }
 
-fs.appendFileSync(process.env['GITHUB_PATH'], path.join(venvPath, 'bin') + os.EOL);
+fs.appendFileSync(process.env['GITHUB_PATH'], path.join(process.cwd(), venvPath, 'bin') + os.EOL);
 fs.appendFileSync(process.env['GITHUB_STATE'], `venvPath=${venvPath}${os.EOL}`);
