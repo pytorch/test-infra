@@ -118,4 +118,3 @@ python cloudwatch_logs.py my-lambda-function --tail --poll-interval 10
 ```
 
 The `--tail` option will continuously poll for new logs and display them as they arrive. Press Ctrl+C to stop streaming.
-

@@ -2,11 +2,14 @@ import argparse
 import os
 import time
 from datetime import datetime, timezone
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 import boto3  # type: ignore[import-untyped]
 import dateparser  # type: ignore[import-untyped]
-from botocore.exceptions import ClientError, NoCredentialsError  # type: ignore[import-untyped]
+from botocore.exceptions import (  # type: ignore[import-untyped]
+    ClientError,
+    NoCredentialsError,
+)
 from tqdm import tqdm  # type: ignore[import-untyped]
 
 
@@ -22,8 +25,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--log-group",
         help="Log group name. If short name (no '/'), will prefix with '/aws/lambda/'. "
-             "If full path (starts with '/'), will use as-is. "
-             "Default: /aws/lambda/{function_name}",
+        "If full path (starts with '/'), will use as-is. "
+        "Default: /aws/lambda/{function_name}",
         type=str,
         default="",
     )
@@ -76,17 +79,17 @@ def parse_args() -> argparse.Namespace:
 def get_log_group_name(function_name: str, log_group_arg: str) -> str:
     """
     Determine the log group name based on function name and log_group argument.
-    
+
     If log_group_arg is empty, use /aws/lambda/{function_name}
     If log_group_arg starts with '/', use as-is
     Otherwise, prefix with /aws/lambda/
     """
     if not log_group_arg:
         return f"/aws/lambda/{function_name}"
-    
+
     if log_group_arg.startswith("/"):
         return log_group_arg
-    
+
     return f"/aws/lambda/{log_group_arg}"
 
 
@@ -94,7 +97,7 @@ def parse_timestamp(timestamp_str: str) -> int:
     """Parse timestamp string (ISO format or relative) to Unix timestamp in milliseconds."""
     # Note: 'UTC' is needed to make sure we get timezone-aware datetime objects.
     # 'PREFER_DATES_FROM': 'past' helps with relative dates like "1 day ago".
-    settings = {'PREFER_DATES_FROM': 'past', 'TIMEZONE': 'UTC'}
+    settings = {"PREFER_DATES_FROM": "past", "TIMEZONE": "UTC"}
     dt = dateparser.parse(timestamp_str, settings=settings)
     if dt is None:
         raise ValueError(
@@ -104,18 +107,20 @@ def parse_timestamp(timestamp_str: str) -> int:
     return int(dt.timestamp() * 1000)
 
 
-def get_latest_log_streams(logs_client, log_group_name: str, limit: int = 5) -> List[dict]:
+def get_latest_log_streams(
+    logs_client, log_group_name: str, limit: int = 5
+) -> List[dict]:
     """Get the latest log streams from the log group."""
     try:
         response = logs_client.describe_log_streams(
             logGroupName=log_group_name,
-            orderBy='LastEventTime',
+            orderBy="LastEventTime",
             descending=True,
-            limit=limit
+            limit=limit,
         )
-        return response.get('logStreams', [])
+        return response.get("logStreams", [])
     except ClientError as e:
-        if e.response['Error']['Code'] == 'ResourceNotFoundException':
+        if e.response["Error"]["Code"] == "ResourceNotFoundException":
             raise ValueError(f"Log group '{log_group_name}' not found")
         raise
 
@@ -131,34 +136,34 @@ def download_log_events(
 ) -> tuple[List[dict], Optional[str]]:
     """Download log events from a specific log stream."""
     events = []
-    
+
     kwargs = {
-        'logGroupName': log_group_name,
-        'logStreamName': log_stream_name,
-        'startFromHead': False,  # Get most recent logs first
+        "logGroupName": log_group_name,
+        "logStreamName": log_stream_name,
+        "startFromHead": False,  # Get most recent logs first
     }
-    
+
     if start_time:
-        kwargs['startTime'] = start_time
+        kwargs["startTime"] = start_time
     if end_time:
-        kwargs['endTime'] = end_time
+        kwargs["endTime"] = end_time
     if next_token:
-        kwargs['nextToken'] = next_token
-            
+        kwargs["nextToken"] = next_token
+
     try:
         response = logs_client.get_log_events(**kwargs)
-        events = response.get('events', [])
-        next_token = response.get('nextForwardToken')
-        
+        events = response.get("events", [])
+        next_token = response.get("nextForwardToken")
+
         # Sort by timestamp (most recent first)
-        events.sort(key=lambda x: x['timestamp'], reverse=True)
-        
+        events.sort(key=lambda x: x["timestamp"], reverse=True)
+
         if lines_limit:
             events = events[:lines_limit]
-            
+
     except ClientError as e:
         print(f"Error downloading log events: {e}")
-    
+
     return events, next_token
 
 
@@ -166,15 +171,15 @@ def format_log_events(events: List[dict], log_stream_name: str) -> str:
     """Format log events into a readable string."""
     if not events:
         return f"No log events found in stream: {log_stream_name}\n"
-    
+
     lines = [f"=== Log Stream: {log_stream_name} ===\n"]
-    
+
     for event in reversed(events):  # Show chronologically (oldest first)
-        timestamp = datetime.fromtimestamp(event['timestamp'] / 1000, tz=timezone.utc)
-        formatted_time = timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')
-        message = event['message'].rstrip('\n')
+        timestamp = datetime.fromtimestamp(event["timestamp"] / 1000, tz=timezone.utc)
+        formatted_time = timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")
+        message = event["message"].rstrip("\n")
         lines.append(f"[{formatted_time}] {message}\n")
-    
+
     lines.append("\n")
     return "".join(lines)
 
@@ -187,19 +192,19 @@ def stream_logs(
 ) -> None:
     """Stream logs in real-time."""
     print(f"Streaming logs from {log_group_name}... (Press Ctrl+C to stop)")
-    
+
     # Keep track of the last seen event timestamp for each stream
     stream_tokens: Dict[str, str] = {}
-    
+
     try:
         while True:
             # Get latest log streams
             log_streams = get_latest_log_streams(logs_client, log_group_name)
-            
+
             for stream in log_streams:
-                stream_name = stream['logStreamName']
+                stream_name = stream["logStreamName"]
                 next_token = stream_tokens.get(stream_name)
-                
+
                 events, new_token = download_log_events(
                     logs_client,
                     log_group_name,
@@ -207,28 +212,28 @@ def stream_logs(
                     start_time,
                     None,  # No end time for streaming
                     None,  # No line limit for streaming
-                    next_token
+                    next_token,
                 )
-                
+
                 if new_token:
                     stream_tokens[stream_name] = new_token
-                
+
                 if events:
                     formatted_logs = format_log_events(events, stream_name)
-                    print(formatted_logs, end='', flush=True)
-            
+                    print(formatted_logs, end="", flush=True)
+
             time.sleep(poll_interval)
-            
+
     except KeyboardInterrupt:
         print("\nStopping log stream...")
 
 
 def main() -> None:
     options = parse_args()
-    
+
     # Determine log group name
     log_group_name = get_log_group_name(options.function_name, options.log_group)
-    
+
     # Parse time arguments if provided
     start_time = None
     end_time = None
@@ -236,62 +241,64 @@ def main() -> None:
         start_time = parse_timestamp(options.start_time)
     if options.end_time:
         end_time = parse_timestamp(options.end_time)
-    
+
     if options.dry_run:
         print(f"DRY RUN: Would download logs from {log_group_name}")
         if options.output_file:
             print(f"Output would be written to: {options.output_file}")
         return
-    
+
     try:
         # Initialize CloudWatch Logs client
-        logs_client = boto3.client('logs')
-        
+        logs_client = boto3.client("logs")
+
         if options.tail:
             stream_logs(logs_client, log_group_name, start_time, options.poll_interval)
             return
-        
+
         # Get latest log streams
         log_streams = get_latest_log_streams(logs_client, log_group_name)
-        
+
         if not log_streams:
             print(f"No log streams found in {log_group_name}")
             return
-        
+
         all_logs = []
-        
+
         # Download logs from each stream
         for stream in tqdm(log_streams, desc="Downloading logs"):
-            stream_name = stream['logStreamName']
-            
+            stream_name = stream["logStreamName"]
+
             events, _ = download_log_events(
                 logs_client,
                 log_group_name,
                 stream_name,
                 start_time,
                 end_time,
-                options.lines // len(log_streams) if len(log_streams) > 1 else options.lines
+                options.lines // len(log_streams)
+                if len(log_streams) > 1
+                else options.lines,
             )
-            
+
             if events:
                 formatted_logs = format_log_events(events, stream_name)
                 all_logs.append(formatted_logs)
-        
+
         if not all_logs:
             print("No log events found matching the criteria")
             return
-        
+
         # Prepare header
         header = [
             f"CloudWatch Logs for {options.function_name}\n",
             f"Log Group: {log_group_name}\n",
             f"Downloaded: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')}\n",
-            "=" * 80 + "\n\n"
+            "=" * 80 + "\n\n",
         ]
-        
+
         if options.output_file:
             # Write to output file
-            with open(options.output_file, 'w', encoding='utf-8') as f:
+            with open(options.output_file, "w", encoding="utf-8") as f:
                 f.writelines(header)
                 for log_content in all_logs:
                     f.write(log_content)
@@ -299,12 +306,15 @@ def main() -> None:
         else:
             # Write to stdout
             import sys
+
             sys.stdout.writelines(header)
             for log_content in all_logs:
                 sys.stdout.write(log_content)
-        
+
     except NoCredentialsError:
-        print("Error: AWS credentials not found. Please configure your AWS credentials.")
+        print(
+            "Error: AWS credentials not found. Please configure your AWS credentials."
+        )
     except ValueError as e:
         print(f"Error: {e}")
     except ClientError as e:
@@ -314,4 +324,4 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main() 
+    main()
