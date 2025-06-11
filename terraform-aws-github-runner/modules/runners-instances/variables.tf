@@ -202,3 +202,10 @@ variable "runner_secrets_arns" {
   default     = []
   sensitive   = true
 }
+
+variable "runner_secrets_kms_key_arns" {
+  description = "List of ARNs of KMS keys used to encrypt the secrets specified in runner_secrets_arns. Must be provided if runner_secrets_arns is specified. Each KMS key ARN corresponds to the secrets that use that key for encryption."
+  type        = list(string)
+  default     = []
+  sensitive   = true
+}

@@ -61,9 +61,29 @@ resource "aws_iam_role_policy" "secrets_access" {
   count  = length(var.runner_secrets_arns) > 0 ? 1 : 0
   name   = "runner-secrets-access"
   role   = aws_iam_role.runner.name
+
+  lifecycle {
+    precondition {
+      condition     = length(var.runner_secrets_arns) == 0 || length(var.runner_secrets_kms_key_arns) > 0
+      error_message = "runner_secrets_kms_key_arns must be provided when runner_secrets_arns is specified. Each secret requires explicit KMS key permissions for decryption."
+    }
+  }
+
   policy = templatefile("${path.module}/policies/instance-secrets-policy.json",
     {
-      secrets_arns = jsonencode(var.runner_secrets_arns)
+      # Automatically append wildcards to secret ARNs if they don't already have them
+      # AWS Secrets Manager ARNs have a 6-character alphanumeric suffix starting with '-'
+      # (e.g., "XDR_WIZ_KEYS" becomes "XDR_WIZ_KEYS-agT8zf")
+      # We use "??????" to match exactly 6 characters, which is more secure than "*"
+      # This handles cases where users provide bare secret names or already-complete ARNs
+      secrets_arns = jsonencode([
+        for arn in var.runner_secrets_arns : 
+        # Skip transformation if ARN already ends with "*" or has the exact 6-char suffix
+        endswith(arn, "*") || can(regex("-[a-zA-Z0-9]{6}$", arn)) ? arn : "${arn}-??????"
+      ])
+      # KMS key ARNs for decrypting the secrets - must be provided when secrets are specified
+      kms_key_arns = jsonencode(var.runner_secrets_kms_key_arns)
+      aws_region = var.aws_region
     }
   )
 }
