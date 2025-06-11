@@ -196,16 +196,16 @@ variable "key_name" {
   default     = null
 }
 
-variable "runner_secrets_arns" {
-  description = "List of ARNs of AWS Secrets Manager secrets that the runner role should have access to"
-  type        = list(string)
-  default     = []
+variable "wiz_secrets_arn" {
+  description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
+  type        = string
+  default     = null
   sensitive   = true
 }
 
-variable "runner_secrets_kms_key_arns" {
-  description = "List of ARNs of KMS keys used to encrypt the secrets specified in runner_secrets_arns. Must be provided if runner_secrets_arns is specified. Each KMS key ARN corresponds to the secrets that use that key for encryption."
-  type        = list(string)
-  default     = []
+variable "wiz_secrets_kms_key_arn" {
+  description = "ARN of KMS key used to encrypt the secret specified in wiz_secrets_arn. Must be provided if wiz_secrets_arn is specified."
+  type        = string
+  default     = null
   sensitive   = true
 }
