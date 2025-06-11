@@ -73,8 +73,8 @@ resource "aws_iam_role_policy" "secrets_access" {
     {
       # Automatically append wildcards to secret ARNs if they don't already have them
       # AWS Secrets Manager ARNs have a 6-character alphanumeric suffix starting with '-'
-      # (e.g., "XDR_WIZ_KEYS" becomes "XDR_WIZ_KEYS-agT8zf")
-      # We use "??????" to match exactly 6 characters, which is more secure than "*"
+      # (e.g., "MySecret" becomes "MySecret-a1b2c3")
+      # We use "-??????" to match the format exactly, which is more secure than "*"
       # This handles cases where users provide bare secret names or already-complete ARNs
       secrets_arns = jsonencode([
         for arn in var.runner_secrets_arns : 
