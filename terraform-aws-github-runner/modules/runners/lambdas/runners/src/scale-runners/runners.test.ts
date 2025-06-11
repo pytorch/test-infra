@@ -458,14 +458,14 @@ describe('findAmiID', () => {
         ],
       };
     });
-    
+
     mockEC2.describeImages.mockClear();
     mockEC2.describeImages.mockReturnValue({
       promise: customAmiMock,
     });
 
     const result = await findAmiID(metrics, 'us-east-1', 'custom-runner-ami-*');
-    
+
     expect(mockEC2.describeImages).toBeCalledTimes(1);
     expect(mockEC2.describeImages).toBeCalledWith({
       Owners: ['123456789012', 'amazon'],
@@ -481,7 +481,7 @@ describe('findAmiID', () => {
       ],
     });
     expect(result).toBe('ami-custom123');
-    
+
     // Reset mock to default behavior for other tests
     mockEC2.describeImages.mockReturnValue({
       promise: jest.fn().mockImplementation(async () => {
