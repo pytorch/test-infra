@@ -453,9 +453,7 @@ describe('findAmiID', () => {
   it('finds custom AMIs using account ID as owner', async () => {
     const customAmiMock = jest.fn().mockImplementation(async () => {
       return {
-        Images: [
-          { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-custom123' },
-        ],
+        Images: [{ CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-custom123' }],
       };
     });
 
