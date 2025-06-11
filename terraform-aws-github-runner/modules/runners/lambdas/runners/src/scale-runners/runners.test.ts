@@ -49,9 +49,19 @@ const mockSSM = {
   describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
   putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
 };
+
+const mockSTS = {
+  getCallerIdentity: jest.fn().mockReturnValue({
+    promise: jest.fn().mockImplementation(async () => {
+      return { Account: '123456789012' };
+    }),
+  }),
+};
+
 jest.mock('aws-sdk', () => ({
   EC2: jest.fn().mockImplementation(() => mockEC2),
   SSM: jest.fn().mockImplementation(() => mockSSM),
+  STS: jest.fn().mockImplementation(() => mockSTS),
   CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
 }));
 jest.mock('./utils', () => ({
@@ -415,7 +425,7 @@ describe('findAmiID', () => {
     const result1 = await findAmiID(metrics, 'REGION', 'FILTER');
     expect(mockEC2.describeImages).toBeCalledTimes(1);
     expect(mockEC2.describeImages).toBeCalledWith({
-      Owners: ['amazon'],
+      Owners: ['123456789012', 'amazon'],
       Filters: [
         {
           Name: 'name',
@@ -438,6 +448,53 @@ describe('findAmiID', () => {
 
     await findAmiID(metrics, 'REGION', 'FILTER2');
     expect(mockEC2.describeImages).toBeCalledTimes(3);
+  });
+
+  it('finds custom AMIs using account ID as owner', async () => {
+    const customAmiMock = jest.fn().mockImplementation(async () => {
+      return {
+        Images: [
+          { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-custom123' },
+        ],
+      };
+    });
+    
+    mockEC2.describeImages.mockClear();
+    mockEC2.describeImages.mockReturnValue({
+      promise: customAmiMock,
+    });
+
+    const result = await findAmiID(metrics, 'us-east-1', 'custom-runner-ami-*');
+    
+    expect(mockEC2.describeImages).toBeCalledTimes(1);
+    expect(mockEC2.describeImages).toBeCalledWith({
+      Owners: ['123456789012', 'amazon'],
+      Filters: [
+        {
+          Name: 'name',
+          Values: ['custom-runner-ami-*'],
+        },
+        {
+          Name: 'state',
+          Values: ['available'],
+        },
+      ],
+    });
+    expect(result).toBe('ami-custom123');
+    
+    // Reset mock to default behavior for other tests
+    mockEC2.describeImages.mockReturnValue({
+      promise: jest.fn().mockImplementation(async () => {
+        return {
+          Images: [
+            { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-234' },
+            { CreationDate: '2024-07-09T13:55:23+0000', ImageId: 'ami-AGDGADU113' },
+            { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-113' },
+            { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-1113' },
+          ],
+        };
+      }),
+    });
   });
 });
 
@@ -1290,7 +1347,7 @@ describe('createRunner', () => {
       await createRunner(runnerParameters, metrics);
       expect(mockEC2.describeImages).toBeCalledTimes(1);
       expect(mockEC2.describeImages).toBeCalledWith({
-        Owners: ['amazon'],
+        Owners: ['123456789012', 'amazon'],
         Filters: [
           {
             Name: 'name',
