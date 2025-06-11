@@ -3,7 +3,11 @@ import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
-import { isFailedJob, transformJobName } from "../lib/jobUtils";
+import {
+  getDurationDisplay,
+  isFailedJob,
+  transformJobName,
+} from "../lib/jobUtils";
 import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
@@ -82,8 +86,9 @@ export default function JobLinks({
     );
   }
 
-  if (job.durationS != null) {
-    subInfo.push(<span>{`Duration: ${durationDisplay(job.durationS!)}`}</span>);
+  const durationDisplayText = getDurationDisplay(job);
+  if (durationDisplayText !== undefined) {
+    subInfo.push(<span>{durationDisplayText}</span>);
   }
 
   if (job.time != null) {
