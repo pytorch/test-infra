@@ -1,8 +1,9 @@
 import argparse
 import os
+import sys
 import time
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, TextIO
 
 import boto3  # type: ignore[import-untyped]
 import dateparser  # type: ignore[import-untyped]
@@ -228,6 +229,13 @@ def stream_logs(
         print("\nStopping log stream...")
 
 
+def write_logs(f: TextIO, header: List[str], all_logs: List[str]) -> None:
+    """Write logs to a file-like object."""
+    f.writelines(header)
+    for log_content in all_logs:
+        f.write(log_content)
+
+
 def main() -> None:
     options = parse_args()
 
@@ -261,7 +269,7 @@ def main() -> None:
 
         if not log_streams:
             print(f"No log streams found in {log_group_name}")
-            return
+            sys.exit(1)
 
         all_logs = []
 
@@ -286,7 +294,7 @@ def main() -> None:
 
         if not all_logs:
             print("No log events found matching the criteria")
-            return
+            sys.exit(1)
 
         # Prepare header
         header = [
@@ -299,29 +307,20 @@ def main() -> None:
         if options.output_file:
             # Write to output file
             with open(options.output_file, "w", encoding="utf-8") as f:
-                f.writelines(header)
-                for log_content in all_logs:
-                    f.write(log_content)
+                write_logs(f, header, all_logs)
             print(f"Downloaded logs to: {options.output_file}")
         else:
             # Write to stdout
-            import sys
-
-            sys.stdout.writelines(header)
-            for log_content in all_logs:
-                sys.stdout.write(log_content)
+            write_logs(sys.stdout, header, all_logs)
 
     except NoCredentialsError:
         print(
             "Error: AWS credentials not found. Please configure your AWS credentials."
         )
-    except ValueError as e:
+        sys.exit(1)
+    except (ValueError, ClientError, Exception) as e:
         print(f"Error: {e}")
-    except ClientError as e:
-        print(f"AWS Error: {e}")
-    except Exception as e:
-        print(f"Unexpected error: {e}")
-
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
