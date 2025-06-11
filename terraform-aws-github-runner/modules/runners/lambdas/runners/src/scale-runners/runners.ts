@@ -84,12 +84,12 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
   const ec2 = new EC2({ region: region });
   const accountId = await getCurrentAccountId();
   const allOwners = [accountId, owners];
-  
+
   const filters = [
     { Name: 'name', Values: [filter] },
     { Name: 'state', Values: ['available'] },
   ];
-  
+
   return redisCached('awsEC2', `findAmiID-${region}-${filter}-${allOwners.join(',')}`, 10 * 60, 0.5, () => {
     return expBackOff(() => {
       return metrics.trackRequestRegion(
