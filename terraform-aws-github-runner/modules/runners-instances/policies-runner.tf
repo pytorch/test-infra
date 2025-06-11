@@ -77,7 +77,7 @@ resource "aws_iam_role_policy" "secrets_access" {
       # We use "-??????" to match the format exactly, which is more secure than "*"
       # This handles cases where users provide bare secret names or already-complete ARNs
       secrets_arns = jsonencode([
-        for arn in var.runner_secrets_arns : 
+        for arn in var.runner_secrets_arns :
         # Skip transformation if ARN already ends with "*" or has the exact 6-char suffix
         endswith(arn, "*") || can(regex("-[a-zA-Z0-9]{6}$", arn)) ? arn : "${arn}-??????"
       ])
