@@ -199,13 +199,11 @@ variable "key_name" {
 variable "wiz_secrets_arn" {
   description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
   type        = string
-  default     = null
   sensitive   = true
 }
 
 variable "wiz_secrets_kms_key_arn" {
   description = "ARN of KMS key used to encrypt the secret specified in wiz_secrets_arn. Must be provided if wiz_secrets_arn is specified."
   type        = string
-  default     = null
   sensitive   = true
 }
