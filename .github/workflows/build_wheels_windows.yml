@@ -254,6 +254,7 @@ jobs:
           call .venv\Scripts\activate.bat
           where python
           pip install --upgrade setuptools==72.1.0
+          pip install --upgrade certifi==2025.04.26
           python setup.py bdist_wheel
           pip list
       - name: Run post-script
