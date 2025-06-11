@@ -100,13 +100,6 @@ build {
   }
 
   provisioner "powershell" {
-    environment_vars = ["CUDA_VERSION=11.8"]
-    scripts = [
-      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
-    ]
-  }
-
-  provisioner "powershell" {
     environment_vars = ["CUDA_VERSION=12.6"]
     scripts = [
       "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
