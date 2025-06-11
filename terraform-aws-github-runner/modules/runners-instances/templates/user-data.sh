@@ -104,6 +104,39 @@ ${install_config_runner}
 retry sudo dnf groupinstall -y 'Development Tools'
 retry sudo dnf install -y "kernel-devel-uname-r == $(uname -r)" || true
 
+%{ if wiz_secrets_arn != null ~}
+
+# Fetch Wiz secrets from AWS Secrets Manager
+echo "Fetching Wiz secrets from AWS Secrets Manager"
+WIZ_SECRET_RAW=$(retry aws secretsmanager get-secret-value --secret-id "${wiz_secrets_arn}" --region us-east-1 --query 'SecretString' --output text)
+if [ $? -eq 0 ] && [ ! -z "$WIZ_SECRET_RAW" ]; then
+  echo "Successfully retrieved Wiz secrets"
+  
+  
+  echo "Extracting Wiz runtime sensor credentials"
+  WIZ_SECRET_JSON=$(echo "$WIZ_SECRET_RAW" | tr -d '\n\r') # Remove newlines to fix malformed JSON (it's how it's stored in AWS Secrets Manager)
+  WIZ_API_CLIENT_ID=$(echo "$WIZ_SECRET_JSON" | jq -r '.WIZ_RUNTIME_SENSOR_CLIENT_ID // empty')
+  WIZ_API_CLIENT_SECRET=$(echo "$WIZ_SECRET_JSON" | jq -r '.WIZ_RUNTIME_SENSOR_CLIENT_SECRET // empty')
+  
+  if [ ! -z "$WIZ_API_CLIENT_ID" ] && [ ! -z "$WIZ_API_CLIENT_SECRET" ]; then
+    echo "Installing Wiz runtime sensor"
+    WIZ_API_CLIENT_ID="$WIZ_API_CLIENT_ID" WIZ_API_CLIENT_SECRET="$WIZ_API_CLIENT_SECRET" \
+    sudo -E bash -c "$(curl -L https://downloads.wiz.io/sensor/sensor_install.sh)"
+    echo "Wiz runtime sensor installation completed"
+  else
+    echo "Warning: WIZ_RUNTIME_SENSOR_CLIENT_ID or WIZ_RUNTIME_SENSOR_CLIENT_SECRET not found in secrets"
+    metric_report "linux_userdata.wiz_credentials_missing" 1
+  fi
+else
+  echo "Warning: Failed to retrieve Wiz secrets from ${wiz_secrets_arn}"
+  metric_report "linux_userdata.wiz_secrets_error" 1
+fi
+  
+# Clear all secrets from memory
+unset WIZ_SECRET_RAW WIZ_SECRET_JSON WIZ_API_CLIENT_ID WIZ_API_CLIENT_SECRET
+
+%{ endif ~}
+
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 echo "NVIDIA driver install required"
