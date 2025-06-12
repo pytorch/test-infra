@@ -105,8 +105,7 @@ retry sudo dnf groupinstall -y 'Development Tools'
 retry sudo dnf install -y "kernel-devel-uname-r == $(uname -r)" || true
 
 %{ if wiz_secrets_arn != null ~}
-
-# Fetch Wiz secrets from AWS Secrets Manager
+# Install Wiz Sensor - a runtime security agent
 echo "Fetching Wiz secrets from AWS Secrets Manager"
 WIZ_SECRET_RAW=$(retry aws secretsmanager get-secret-value --secret-id "${wiz_secrets_arn}" --region us-east-1 --query 'SecretString' --output text)
 if [ $? -eq 0 ] && [ ! -z "$WIZ_SECRET_RAW" ]; then
@@ -131,7 +130,6 @@ fi
   
 # Clear all secrets from memory
 unset WIZ_SECRET_RAW WIZ_SECRET_JSON WIZ_API_CLIENT_ID WIZ_API_CLIENT_SECRET
-
 %{ endif ~}
 
 echo Checking if nvidia install required ${nvidia_driver_install}
