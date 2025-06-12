@@ -5,6 +5,8 @@ import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import {
   Box,
   Button,
@@ -199,6 +201,16 @@ const ScrollToBottomButton = styled(Button)(({ theme }) => ({
     boxShadow: "0 6px 10px rgba(0, 0, 0, 0.4)",
   },
 }));
+
+const IssueButtonContainer = styled(Box)({
+  position: "fixed",
+  bottom: "20px",
+  left: "20px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+  zIndex: 2000,
+});
 
 // Component for embedding Grafana charts
 const GrafanaEmbed = ({ dashboardId }: { dashboardId: string }) => {
@@ -1384,6 +1396,31 @@ export const McpQueryPage = () => {
           </ScrollToBottomButton>
         </Tooltip>
       )}
+
+      <IssueButtonContainer>
+        <Tooltip title="Open feature request">
+          <Button
+            variant="contained"
+            color="secondary"
+            href="https://github.com/pytorch/test-infra/issues/new?title=%5BTorchGraph%5D%5Bfeaturerequest%5D&body=Describe%20the%20feature%20request%20here"
+            target="_blank"
+            startIcon={<LightbulbIcon />}
+          >
+            Feature Request
+          </Button>
+        </Tooltip>
+        <Tooltip title="Report a bug">
+          <Button
+            variant="contained"
+            color="error"
+            href="https://github.com/pytorch/test-infra/issues/new?title=%5BTorchGraph%5D%5Bbug%5D&body=Describe%20the%20bug%20here"
+            target="_blank"
+            startIcon={<BugReportIcon />}
+          >
+            Report Bug
+          </Button>
+        </Tooltip>
+      </IssueButtonContainer>
 
       <Typography variant="h4" gutterBottom>
         PyTorch Grafana Agent
