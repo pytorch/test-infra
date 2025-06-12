@@ -2,7 +2,7 @@
 import requests
 import argparse
 from datetime import datetime
-
+from datamodels.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams
 def validate_iso8601_no_ms(value):
     try:
         # Only allow format without milliseconds
@@ -33,6 +33,17 @@ def main():
     start_time_str = args.startTime.strftime("%Y-%m-%dT%H:%M:%S")
     end_time_str = args.endTime.strftime("%Y-%m-%dT%H:%M:%S")
 
+    paramsObject = BenchmarkQueryGroupDataParams(
+        repo = "pytorch/executorch",
+        benchmark_name="ExecuTorch",
+        start_time = start_time_str,
+        end_time = end_time_str,
+        group_table_by_fields= ["device", "backend", "model"],
+        group_row_by_fields= ["workflow_id", "job_id", "granularity_bucket"]
+    )
+
+    params = paramsObject.dict()
+    """
     params = {
         "groupTableByFields": ["device", "backend", "model"],
         "groupRowByFields": ["workflow_id", "job_id", "granularity_bucket"],
@@ -41,9 +52,8 @@ def main():
         "start_time": start_time_str,
         "end_time": end_time_str,
     }
-
+    """
     response = requests.get(url, params=params)
-
     if response.status_code == 200:
         print("Successfully fetched benchmark data")
         print(response.json())
