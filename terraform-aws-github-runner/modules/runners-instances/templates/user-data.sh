@@ -127,7 +127,7 @@ else
   echo "Warning: Failed to retrieve Wiz secrets from ${wiz_secrets_arn}"
   metric_report "linux_userdata.wiz_secrets_error" 1
 fi
-  
+
 # Clear all secrets from memory
 unset WIZ_SECRET_RAW WIZ_SECRET_JSON WIZ_API_CLIENT_ID WIZ_API_CLIENT_SECRET
 %{ endif ~}
