@@ -173,7 +173,7 @@ variable "enable_ssm_on_runners" {
 }
 
 variable "runner_iam_role_managed_policy_arns" {
-  description = "Attach AWS or customer-managed IAM policies (by ARN) to the runner IAM role"
+  description = "List of IAM managed policy ARNs to be attached to the runner IAM role"
   type        = list(string)
   default     = []
 }
@@ -194,4 +194,16 @@ variable "key_name" {
   description = "Key pair name"
   type        = string
   default     = null
+}
+
+variable "wiz_secrets_arn" {
+  description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
+  type        = string
+  sensitive   = true
+}
+
+variable "wiz_secrets_kms_key_arn" {
+  description = "ARN of KMS key used to encrypt the secret specified in wiz_secrets_arn. Must be provided if wiz_secrets_arn is specified."
+  type        = string
+  sensitive   = true
 }
