@@ -42,18 +42,18 @@ export default async function handler(
     arch: "",
   };
 
-  console.log("inputs",params)
+  console.log("inputs", params);
   const response = await queryClickhouseSaved(BENCNMARK_TABLE_NAME, params);
   const tableGroups = new Map();
 
   response.forEach((row: any) => {
     // Build table-level key
     const tableKey = groupTableByFields
-      .map((f:any) => (row[f] ? `${row[f]}` : ""))
+      .map((f: any) => (row[f] ? `${row[f]}` : ""))
       .join("|");
 
     // Build row-level key
-    const rowKey = groupRowByFields.map((f:any) => row[f] ?? "").join("|");
+    const rowKey = groupRowByFields.map((f: any) => row[f] ?? "").join("|");
 
     if (!tableGroups.has(tableKey)) {
       tableGroups.set(tableKey, new Map());
