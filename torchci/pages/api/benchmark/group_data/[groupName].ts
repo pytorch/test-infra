@@ -12,9 +12,6 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log(`[API] Method: ${req.method}`);
-  console.log(`[API] Query Params:`, req.query);
-
   const request = benchmarkQueryGroupDataParamsSchema.safeParse(req.query);
 
   if (!request.success) {
@@ -46,49 +43,17 @@ export default async function handler(
   };
 
   console.log("inputs",params)
-
   const response = await queryClickhouseSaved(BENCNMARK_TABLE_NAME, params);
-
-  /**
-    {
-    "workflow_id": 15476143878,
-    "job_id": 43590555333,
-    "model": "mv3",
-    "backend": "xnnpack_q8",
-    "origins": [],
-    "metric": "avg_inference_latency(ms)",
-    "actual": 7.62,
-    "target": 0,
-    "mode": "inference",
-    "dtype": "",
-    "device": "Samsung Galaxy S22 5G (private)",
-    "arch": "Android 13",
-    "granularity_bucket": "2025-06-06T04:00:00Z",
-    "extra": {
-      "use_torch_compile": "true",
-      "request_rate": "",
-      "tensor_parallel_size": "",
-      "is_dynamic": "false"
-    },
-    "metadata_info": {
-      "failure_type": "",
-      "device_id": "arn:aws:devicefarm:us-west-2::deviceinstance:PDX640664749",
-      "timestamp": "2025-06-06T04:00:39Z"
-    }
-  },
-
-   */
-
   const tableGroups = new Map();
 
   response.forEach((row: any) => {
     // Build table-level key
     const tableKey = groupTableByFields
-      .map((f) => (row[f] ? `${row[f]}` : ""))
+      .map((f:any) => (row[f] ? `${row[f]}` : ""))
       .join("|");
 
     // Build row-level key
-    const rowKey = groupRowByFields.map((f) => row[f] ?? "").join("|");
+    const rowKey = groupRowByFields.map((f:any) => row[f] ?? "").join("|");
 
     if (!tableGroups.has(tableKey)) {
       tableGroups.set(tableKey, new Map());
