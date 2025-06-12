@@ -1,4 +1,3 @@
-import { styled } from '@mui/material/styles'
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
@@ -16,6 +15,7 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
+import { styled } from "@mui/material/styles";
 import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
