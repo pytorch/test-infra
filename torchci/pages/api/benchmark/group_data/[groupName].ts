@@ -5,7 +5,7 @@ import { queryClickhouseSaved } from "lib/clickhouse";
 import { formatZodError } from "lib/zod/format";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const DEFAULT_TABLE_GROUP = ["device", "backend", "model", "dtype", "backend"];
+const DEFAULT_TABLE_GROUP = ["device", "backend", "model", "dtype", "backend", "arch"];
 const DEFAULT_ROW_GROUP = ["workflow_id", "job_id", "granularity_bucket"];
 const BENCNMARK_TABLE_NAME = "oss_ci_benchmark_llms";
 export default async function handler(
