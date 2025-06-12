@@ -5,6 +5,8 @@ import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import ThumbUpAltIcon from "@mui/icons-material/ThumbUpAlt";
+import ThumbDownAltIcon from "@mui/icons-material/ThumbDownAlt";
 import {
   Box,
   Button,
@@ -519,6 +521,9 @@ export const McpQueryPage = () => {
   const [completedTime, setCompletedTime] = useState(0); // final time after completion
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // whether auto-scrolling is enabled
   const [showScrollButton, setShowScrollButton] = useState(false); // whether to show the scroll-to-bottom button
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
   const displayedTokens = useAnimatedCounter(totalTokens); // animated token display
 
   // Funny thinking messages
@@ -647,6 +652,15 @@ export const McpQueryPage = () => {
 
       // Parse the JSON
       const json = JSON.parse(line) as MessageWrapper;
+
+      // Grab session id from the stream if present
+      if (!sessionId) {
+        if ((json as any).userUuid) {
+          setSessionId((json as any).userUuid);
+        } else if (json.session_id) {
+          setSessionId(json.session_id);
+        }
+      }
 
       // Process timing data from result messages
       try {
@@ -979,6 +993,7 @@ export const McpQueryPage = () => {
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
+      setShowFeedback(true);
     }
   };
 
@@ -1036,6 +1051,21 @@ export const McpQueryPage = () => {
 
     console.log("Auto-scroll re-enabled and scrolled to bottom");
   }, []);
+
+  // Submit thumbs up/down feedback
+  const submitFeedback = async (value: number) => {
+    if (feedbackSubmitted || !sessionId) return;
+    setFeedbackSubmitted(true);
+    try {
+      await fetch("/api/mcp_feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId, feedback: value }),
+      });
+    } catch (e) {
+      console.error("Failed to submit feedback", e);
+    }
+  };
 
   // Auto-scroll to bottom when new responses are added, but only when enabled
   // Auto-scroll to bottom when new content is added (only when enabled)
@@ -1205,6 +1235,9 @@ export const McpQueryPage = () => {
     setAllToolsExpanded(false); // Reset tool expansion state
     setAutoScrollEnabled(true); // Re-enable auto-scrolling
     setShowScrollButton(false); // Hide scroll button
+    setShowFeedback(false);
+    setFeedbackSubmitted(false);
+    setSessionId(null);
 
     // Start the timer and reset all token counts
     const now = Date.now();
@@ -1295,6 +1328,7 @@ export const McpQueryPage = () => {
 
             // Stop the token animation
             setIsLoading(false);
+            setShowFeedback(true);
           }, 500); // Increase timeout to ensure state updates properly
 
           break;
@@ -1327,6 +1361,7 @@ export const McpQueryPage = () => {
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
+      setShowFeedback(true);
     }
   };
 
@@ -1863,6 +1898,22 @@ export const McpQueryPage = () => {
                     {formatTokenCount(completedTokens)} tokens
                   </Typography>
                 </Box>
+                {showFeedback && sessionId && (
+                  <Box sx={{ textAlign: "center", mt: 2 }}>
+                    {!feedbackSubmitted ? (
+                      <Box>
+                        <IconButton onClick={() => submitFeedback(1)}>
+                          <ThumbUpAltIcon />
+                        </IconButton>
+                        <IconButton onClick={() => submitFeedback(-1)}>
+                          <ThumbDownAltIcon />
+                        </IconButton>
+                      </Box>
+                    ) : (
+                      <Typography variant="caption">Thank you for your feedback!</Typography>
+                    )}
+                  </Box>
+                )}
               )
             )}
           </div>
