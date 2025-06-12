@@ -330,28 +330,14 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
     console.info(`Runner terminated: ${runner.instanceId} ${runner.runnerType}`);
 
     const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
-    const cacheName = `${SHOULD_NOT_TRY_LIST_SSM}_${runner.awsRegion}`;
 
-    if (ssmParametersCache.has(cacheName)) {
+    try {
       doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-    } else {
-      try {
-        const params = await listSSMParameters(metrics, runner.awsRegion);
-
-        if (params.has(paramName)) {
-          doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-        } else {
-          /* istanbul ignore next */
-          console.info(`[${runner.awsRegion}] Parameter "${paramName}" not found in SSM, no need to delete it`);
-        }
-      } catch (e) {
-        ssmParametersCache.set(cacheName, 1, 60 * 1000);
-        console.error(
-          `[terminateRunner - listSSMParameters] [${runner.awsRegion}] ` +
-            `Failed to list parameters or check if available: ${e}`,
-        );
-        doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-      }
+    } catch (e) {
+      console.error(
+        `[terminateRunner - SSM.deleteParameter] [${runner.awsRegion}] Failed ` +
+          `deleting parameter ${paramName}: ${e}`,
+      );
     }
   } catch (e) {
     console.error(`[${runner.awsRegion}] [terminateRunner]: ${e}`);

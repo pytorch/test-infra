@@ -8,7 +8,7 @@ import { authOptions } from "../auth/[...nextauth]";
 // Lambda function URL with direct streaming support
 const LAMBDA_URL =
   process.env.GRAFANA_MCP_LAMBDA_URL ||
-  "https://your-lambda-url.lambda-url.us-east-1.on.aws/";
+  "https://h3bf6e6veesbbhd7rhw6xw2slq0nnwgv.lambda-url.us-east-2.on.aws/";
 
 // Auth token for Lambda access
 const AUTH_TOKEN =
