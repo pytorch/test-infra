@@ -1,7 +1,5 @@
 import requests
 import argparse
-import sys
-import os
 from datetime import datetime
 from data_models.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams
 from pydantic import ValidationError
