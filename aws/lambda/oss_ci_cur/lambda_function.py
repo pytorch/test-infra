@@ -29,7 +29,6 @@ DB_NAME = "misc"
 DB_TABLE_NAME = "oss_ci_cur"
 
 
-
 # todo(elainewy): make it a shared library for lambda
 def get_latest_time_from_table(
     cc: clickhouse_connect.driver.client.Client,
@@ -342,9 +341,6 @@ class CostExplorerProcessor:
             )
             logger.info(
                 f"Peeking the last record: {json.dumps(recordList[-1], default=str)}"
-            )
-            logger.info(
-                f"Peeking the first record: {json.dumps(recordList[0], default=str)}"
             )
         else:
             logger.info("No pre-database records were generated.")
