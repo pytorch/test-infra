@@ -1,8 +1,11 @@
 
 import requests
 import argparse
+import sys
+import os
 from datetime import datetime
-from datamodels.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams
+from data_models.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams
+
 def validate_iso8601_no_ms(value):
     try:
         # Only allow format without milliseconds
