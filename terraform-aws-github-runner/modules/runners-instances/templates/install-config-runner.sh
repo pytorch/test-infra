@@ -251,13 +251,7 @@ get_labels_from_config $CONFIG > /home/$USER_NAME/runner-labels
 # this is useful to hint the scale up lambda that this instance might be reused
 if grep "ephemeral" <<< $CONFIG; then
   echo "Ephemeral runner detected"
-  echo "aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \"Key=EphemeralRunnerStage,Value=RunnerFinished\" \"Key=EphemeralRunnerFinished,Value=\$(date +%s )\""  >> $AFTER_JOB_SCRIPT
-
-  # We add a tag to the instance to signal that the ephemeral runner has started
-  # see definition in terraform-aws-github-runner/modules/runners/lambdas/runners/src/scale-runners/utils.ts
-  retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \
-  "Key=EphemeralRunnerStage,Value=RunnerStarted" \
-  "Key=EphemeralRunnerStarted,Value=$(date +%s)"
+  echo "aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags \"Key=EphemeralRunnerFinished,Value=\$(date +%s )\""  >> $AFTER_JOB_SCRIPT
 fi
 
 export RUNNER_ALLOW_RUNASROOT=1
@@ -271,9 +265,8 @@ fi
 
 ./config.sh --unattended --name $INSTANCE_ID --work "_work" $CONFIG
 
-# Set tag `GithubRunnerID` as runner id for scale down later
+# Set tag as runner id for scale down later
 GH_RUNNER_ID=$(jq '.agentId' .runner)
-
 retry aws ec2 create-tags --region $REGION --resource $INSTANCE_ID --tags "Key=GithubRunnerID,Value=$GH_RUNNER_ID"
 
 chown -R $USER_NAME:$USER_NAME .

@@ -12,32 +12,13 @@ export interface RunnerInfo {
   ebsVolumeReplacementRequestTimestamp?: number;
   environment?: string;
   ephemeralRunnerFinished?: number;
-  ephemeralRunnerStage?: string;
-  ephemeralRunnerStarted?: number;
   ghRunnerId?: string;
   instanceId: string;
   instanceManagement?: string;
   launchTime?: Date;
   org?: string;
   repo?: string;
-  repositoryName?: string;
-  repositoryOwner?: string;
   runnerType?: string;
-}
-
-export enum EphemeralRunnerStage {
-  RunnerReplaceEBSVolume = 'RunnerReplaceEBSVolume',
-  RunnerFinished = 'RunnerFinished',
-  RunnerStarted = 'RunnerStarted',
-}
-
-export enum ReuseStatusDecision {
-  NoReuse_NoGithubRunnerIDTag = 'NoReuse_NoGithubRunnerIDTag',
-  NoReuse_NoRegionTag = 'NoReuse_NoRegionTag',
-  NoReuse_NoOrgOrRepoTag = 'NoReuse_NoOrgOrRepoTag',
-  NoReuse_IdleTimeTooLong = 'NoReuse_IdleTimeTooLong',
-  NoReuse_ReplaceEBSVolumeStage = 'NoReuse_ReplaceEBSVolumeStage',
-  Reuse = 'Reuse',
 }
 
 export function getRepoKey(repo: Repo): string {
@@ -186,8 +167,4 @@ export function shuffleArrayInPlace<T>(arr: T[]): T[] {
 
 export function sleep(time: number | undefined) {
   return new Promise((resolve) => setTimeout(resolve, time));
-}
-
-export function stripUndefined<T extends object>(obj: T): Partial<T> {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as Partial<T>;
 }

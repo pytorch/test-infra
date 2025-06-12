@@ -36,6 +36,6 @@ jobs:
     permissions:
       contents: write
     needs: tag
-    uses: ./.github/workflows/lambda-do-release-runners.yml
+    uses: ./.github/workflows/_lambda-do-release-runners.yml
     with:
       tag: v${{ needs.tag.outputs.date }}

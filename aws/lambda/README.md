@@ -38,7 +38,7 @@ create-deployment-package: deployment.zip
 ```
 
 ### Step 2: Add Deployment Step in Runner Release Workflow
-Add a deployment step to `.github/workflows/lambda-do-release-runners.yml` similar to [PR: [Queue Time Histogram] Add deployment step](https://github.com/pytorch/test-infra/pull/6505).
+Add a deployment step to `.github/workflows/_lambda-do-release-runners.yml` similar to [PR: [Queue Time Histogram] Add deployment step](https://github.com/pytorch/test-infra/pull/6505).
 
 #### Example Deployment Step
 ```yml

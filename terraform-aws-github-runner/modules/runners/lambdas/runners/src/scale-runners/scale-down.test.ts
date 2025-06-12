@@ -449,36 +449,22 @@ describe('scale-down', () => {
       const mockedRemoveGithubRunnerOrg = mocked(removeGithubRunnerOrg);
       const mockedTerminateRunner = mocked(terminateRunner);
 
-      mockedListRunners.mockImplementation(async (metrics, filters) => {
-        if (filters && filters.instanceId) {
-          const runner = listRunnersRet.find((r) => r.instanceId === filters.instanceId);
-          return runner ? [{ ...runner }] : [];
-        } else {
-          return listRunnersRet;
-        }
-      });
+      mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersOrg.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
-      mockedRemoveGithubRunnerOrg.mockImplementation(async (runnerId: number) => {
-        if (runnerId == 7) {
-          throw 'Failure';
-        }
-      });
+      mockedRemoveGithubRunnerOrg.mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (runnerId: number, org: string, metrics: MetricsModule.Metrics) => {
+          if (runnerId == 7) {
+            throw 'Failure';
+          }
+        },
+      );
 
       await scaleDown();
 
-      expect(mockedListRunners).toBeCalledTimes(1 + 9);
-      expect(mockedListRunners).toHaveBeenCalledWith(metrics, { environment: environment });
-      const terminatedInstanceIds = [
-        'keep-lt-min-no-ghrunner-no-ghr-02',
-        'keep-lt-min-no-ghrunner-no-ghr-01',
-        'keep-min-runners-oldest-02',
-        'keep-min-runners-oldest-01',
-        'remove-ephemeral-02',
-      ];
-      for (const instanceId of terminatedInstanceIds) {
-        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: instanceId });
-      }
+      expect(mockedListRunners).toBeCalledTimes(1);
+      expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(18);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
@@ -805,36 +791,22 @@ describe('scale-down', () => {
       const mockedRemoveGithubRunnerRepo = mocked(removeGithubRunnerRepo);
       const mockedTerminateRunner = mocked(terminateRunner);
 
-      mockedListRunners.mockImplementation(async (metrics, filters) => {
-        if (filters && filters.instanceId) {
-          const runner = listRunnersRet.find((r) => r.instanceId === filters.instanceId);
-          return runner ? [{ ...runner }] : [];
-        } else {
-          return listRunnersRet;
-        }
-      });
+      mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersRepo.mockResolvedValue(ghRunners);
       mockedGetRunnerTypes.mockResolvedValue(runnerTypes);
-      mockedRemoveGithubRunnerRepo.mockImplementation(async (runnerId: number) => {
-        if (runnerId == 7) {
-          throw 'Failure';
-        }
-      });
+      mockedRemoveGithubRunnerRepo.mockImplementation(
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        async (runnerId: number, repo: Repo, metrics: MetricsModule.Metrics) => {
+          if (runnerId == 7) {
+            throw 'Failure';
+          }
+        },
+      );
 
       await scaleDown();
 
-      expect(mockedListRunners).toBeCalledTimes(1 + 9);
-      expect(mockedListRunners).toHaveBeenCalledWith(metrics, { environment: environment });
-      const terminatedInstanceIds = [
-        'keep-lt-min-no-ghrunner-no-ghr-02',
-        'keep-lt-min-no-ghrunner-no-ghr-01',
-        'keep-min-runners-oldest-02',
-        'keep-min-runners-oldest-01',
-        'remove-ephemeral-02',
-      ];
-      for (const instanceId of terminatedInstanceIds) {
-        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: instanceId });
-      }
+      expect(mockedListRunners).toBeCalledTimes(1);
+      expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(18);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
@@ -1155,8 +1127,8 @@ describe('scale-down', () => {
 
   describe('isRunnerRemovable', () => {
     describe('ghRunner === undefined', () => {
-      it('launchTime === undefined', async () => {
-        const response = await isRunnerRemovable(
+      it('launchTime === undefined', () => {
+        const response = isRunnerRemovable(
           undefined,
           {
             awsRegion: baseConfig.awsRegion,
@@ -1168,23 +1140,24 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
 
-      it('exceeded minimum time', async () => {
-        const ec2RunnerInfo = {
-          awsRegion: baseConfig.awsRegion,
-          instanceId: 'AGDGADUWG113',
-          launchTime: moment(new Date())
-            .utc()
-            .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-            .toDate(),
-        };
-        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([{ ...ec2RunnerInfo }]);
-        const response = await isRunnerRemovable(undefined, ec2RunnerInfo, metrics);
+      it('exceeded minimum time', () => {
+        const response = isRunnerRemovable(
+          undefined,
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'AGDGADUWG113',
+            launchTime: moment(new Date())
+              .utc()
+              .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+              .toDate(),
+          },
+          metrics,
+        );
         expect(response).toEqual(true);
-        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
       });
 
-      it('dont exceeded minimum time', async () => {
-        const response = await isRunnerRemovable(
+      it('dont exceeded minimum time', () => {
+        const response = isRunnerRemovable(
           undefined,
           {
             awsRegion: baseConfig.awsRegion,
@@ -1201,8 +1174,8 @@ describe('scale-down', () => {
     });
 
     describe('ghRunner !== undefined', () => {
-      it('ghRunner.busy == true', async () => {
-        const response = await isRunnerRemovable(
+      it('ghRunner.busy == true', () => {
+        const response = isRunnerRemovable(
           {
             busy: true,
           } as GhRunner,
@@ -1216,8 +1189,8 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
 
-      it('ghRunner.busy == false, launchTime === undefined', async () => {
-        const response = await isRunnerRemovable(
+      it('ghRunner.busy == false, launchTime === undefined', () => {
+        const response = isRunnerRemovable(
           {
             busy: false,
           } as GhRunner,
@@ -1231,29 +1204,26 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
 
-      it('ghRunner.busy == false, launchTime exceeds', async () => {
-        const ec2RunnerInfo = {
-          awsRegion: baseConfig.awsRegion,
-          instanceId: 'AGDGADUWG113',
-          launchTime: moment(new Date())
-            .utc()
-            .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
-            .toDate(),
-        };
-        const mockedListRunners = mocked(listRunners).mockResolvedValueOnce([{ ...ec2RunnerInfo }]);
-        const response = await isRunnerRemovable(
+      it('ghRunner.busy == false, launchTime exceeds', () => {
+        const response = isRunnerRemovable(
           {
             busy: false,
           } as GhRunner,
-          ec2RunnerInfo,
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'AGDGADUWG113',
+            launchTime: moment(new Date())
+              .utc()
+              .subtract(minimumRunningTimeInMinutes + 5, 'minutes')
+              .toDate(),
+          },
           metrics,
         );
         expect(response).toEqual(true);
-        expect(mockedListRunners).toHaveBeenCalledWith(metrics, { instanceId: ec2RunnerInfo.instanceId });
       });
 
-      it('ghRunner.busy == false, launchTime dont exceeds', async () => {
-        const response = await isRunnerRemovable(
+      it('ghRunner.busy == false, launchTime dont exceeds', () => {
+        const response = isRunnerRemovable(
           {
             busy: false,
           } as GhRunner,

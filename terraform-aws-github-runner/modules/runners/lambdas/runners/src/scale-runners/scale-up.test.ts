@@ -321,8 +321,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         orgName: repo.owner,
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -408,8 +406,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -495,8 +491,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -581,8 +575,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -668,8 +660,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -755,8 +745,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -842,8 +830,6 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
-        repositoryName: repo.repo,
-        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -959,12 +945,10 @@ describe('scaleUp', () => {
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
-        repoName: 'owner/repo',
-        runnerType: runnerType1,
-        repositoryName: 'repo',
-        repositoryOwner: 'owner',
         // eslint-disable-next-line max-len
         runnerConfig: expect.any(Function),
+        repoName: 'owner/repo',
+        runnerType: runnerType1,
       },
       metrics,
     );
