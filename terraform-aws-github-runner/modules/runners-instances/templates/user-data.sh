@@ -111,13 +111,10 @@ echo "Fetching Wiz secrets from AWS Secrets Manager"
 WIZ_SECRET_RAW=$(retry aws secretsmanager get-secret-value --secret-id "${wiz_secrets_arn}" --region us-east-1 --query 'SecretString' --output text)
 if [ $? -eq 0 ] && [ ! -z "$WIZ_SECRET_RAW" ]; then
   echo "Successfully retrieved Wiz secrets"
-  
-  
   echo "Extracting Wiz runtime sensor credentials"
   WIZ_SECRET_JSON=$(echo "$WIZ_SECRET_RAW" | tr -d '\n\r') # Remove newlines to fix malformed JSON (it's how it's stored in AWS Secrets Manager)
   WIZ_API_CLIENT_ID=$(echo "$WIZ_SECRET_JSON" | jq -r '.WIZ_RUNTIME_SENSOR_CLIENT_ID // empty')
   WIZ_API_CLIENT_SECRET=$(echo "$WIZ_SECRET_JSON" | jq -r '.WIZ_RUNTIME_SENSOR_CLIENT_SECRET // empty')
-  
   if [ ! -z "$WIZ_API_CLIENT_ID" ] && [ ! -z "$WIZ_API_CLIENT_SECRET" ]; then
     echo "Installing Wiz runtime sensor"
     WIZ_API_CLIENT_ID="$WIZ_API_CLIENT_ID" WIZ_API_CLIENT_SECRET="$WIZ_API_CLIENT_SECRET" \
