@@ -27,7 +27,6 @@ BASE_URLS = {
     "prod": "https://hud.pytorch.org",
 }
 
-
 def main():
     args = argparser()
     url = f"{BASE_URLS[args.env]}/api/benchmark/group_data/execuTorch"
@@ -45,21 +44,14 @@ def main():
         group_row_by_fields= ["workflow_id", "job_id", "granularity_bucket"]
     )
 
-    params = paramsObject.dict()
-    """
-    params = {
-        "groupTableByFields": ["device", "backend", "model"],
-        "groupRowByFields": ["workflow_id", "job_id", "granularity_bucket"],
-        "repo": "pytorch/executorch",
-        "benchmark_name": "ExecuTorch",
-        "start_time": start_time_str,
-        "end_time": end_time_str,
-    }
-    """
+    params = paramsObject.model_dump()
+    print(params)
     response = requests.get(url, params=params)
     if response.status_code == 200:
         print("Successfully fetched benchmark data")
-        print(response.json())
+        resp = response.json()
+        print(f"fetched {len(resp)} table views")
+        print(f"peeking first table view, peeking.... {resp[0]} ")
     else:
         print(f"Failed to fetch benchmark data ({response.status_code})")
         print(response.text)
