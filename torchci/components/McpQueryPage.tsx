@@ -5,6 +5,9 @@ import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { useRouter } from "next/router";
+import dayjs from "dayjs";
 import {
   Box,
   Button,
@@ -31,6 +34,23 @@ const McpQueryPageContainer = styled("div")({
 const QuerySection = styled(Paper)({
   padding: "20px",
   marginBottom: "20px",
+});
+
+const PageWrapper = styled(Box)({
+  display: "flex",
+});
+
+const Sidebar = styled(Box)(({ theme }) => ({
+  width: "240px",
+  borderRight: `1px solid ${theme.palette.divider}`,
+  padding: "10px",
+  height: "calc(100vh - 40px)",
+  overflowY: "auto",
+}));
+
+const ContentArea = styled(Box)({
+  flex: 1,
+  paddingLeft: "20px",
 });
 
 // Use theme-aware styling for the results section
@@ -499,6 +519,12 @@ const CLICKHOUSE_CONSOLE_BASE_URL =
 export const McpQueryPage = () => {
   const session = useSession();
   const theme = useTheme();
+  const router = useRouter();
+
+  const [sessionsList, setSessionsList] = useState<{
+    key: string;
+    lastModified?: string | Date;
+  }[]>([]);
 
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -520,6 +546,27 @@ export const McpQueryPage = () => {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true); // whether auto-scrolling is enabled
   const [showScrollButton, setShowScrollButton] = useState(false); // whether to show the scroll-to-bottom button
   const displayedTokens = useAnimatedCounter(totalTokens); // animated token display
+
+  useEffect(() => {
+    if (session.status !== "authenticated") return;
+    fetch("/api/get_mcp_sessions")
+      .then((r) => r.json())
+      .then((d) => setSessionsList(d.sessions || []));
+  }, [session.status]);
+
+  useEffect(() => {
+    const key = router.query.session as string | undefined;
+    if (!key) return;
+    fetch(`/api/get_mcp_sessions?key=${encodeURIComponent(key)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.session) {
+          setParsedResponses([]);
+          d.session.split("\n").forEach((line: string) => parseJsonLine(line));
+          setIsLoading(false);
+        }
+      });
+  }, [router.query.session]);
 
   // Funny thinking messages
   const thinkingMessages = useMemo(
@@ -982,6 +1029,28 @@ export const McpQueryPage = () => {
     }
   };
 
+  const handleDeleteSession = async (key: string) => {
+    await fetch(`/api/get_mcp_sessions?key=${encodeURIComponent(key)}`, {
+      method: "DELETE",
+    });
+    setSessionsList((prev) => prev.filter((s) => s.key !== key));
+  };
+
+  const handleNewChat = () => {
+    router.push("/mcp_query");
+    setParsedResponses([]);
+    setQuery("");
+  };
+
+  const formatSessionLabel = (key: string) => {
+    const parts = key.split("/");
+    if (parts.length >= 2) {
+      const ts = parts[1];
+      return dayjs(ts, "YYYYMMDD_HHmmss").format("MMM D HH:mm");
+    }
+    return key;
+  };
+
   // Detect when user scrolls up and disable auto-scrolling
   useEffect(() => {
     // Using a reliable way to detect if we're at the bottom
@@ -1371,29 +1440,65 @@ export const McpQueryPage = () => {
 
   return (
     <McpQueryPageContainer>
-      {/* Floating scroll to bottom button - only shows when scrolled up during loading */}
-      {showScrollButton && (
-        <Tooltip title="Go to bottom and resume auto-scroll">
-          <ScrollToBottomButton
-            variant="contained"
-            color="primary"
-            onClick={scrollToBottomAndEnable}
-            aria-label="Scroll to bottom and resume auto-scroll"
-          >
-            <ArrowDownwardIcon />
-          </ScrollToBottomButton>
-        </Tooltip>
-      )}
+      <PageWrapper>
+        <Sidebar>
+          <Button variant="contained" fullWidth onClick={handleNewChat}>
+            New Chat
+          </Button>
+          <Box mt={2}>
+            {sessionsList.map((s) => (
+              <Box
+                key={s.key}
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  mb: 1,
+                  ":hover .deleteBtn": { visibility: "visible" },
+                }}
+              >
+                <Button
+                  variant="text"
+                  sx={{ flex: 1, justifyContent: "flex-start", textTransform: "none" }}
+                  onClick={() => router.push(`/mcp_query?session=${encodeURIComponent(s.key)}`)}
+                >
+                  {formatSessionLabel(s.key)}
+                </Button>
+                <IconButton
+                  size="small"
+                  className="deleteBtn"
+                  sx={{ visibility: "hidden" }}
+                  onClick={() => handleDeleteSession(s.key)}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
+          </Box>
+        </Sidebar>
+        <ContentArea>
+          {/* Floating scroll to bottom button - only shows when scrolled up during loading */}
+          {showScrollButton && (
+            <Tooltip title="Go to bottom and resume auto-scroll">
+              <ScrollToBottomButton
+                variant="contained"
+                color="primary"
+                onClick={scrollToBottomAndEnable}
+                aria-label="Scroll to bottom and resume auto-scroll"
+              >
+                <ArrowDownwardIcon />
+              </ScrollToBottomButton>
+            </Tooltip>
+          )}
 
-      <Typography variant="h4" gutterBottom>
-        PyTorch Grafana Agent
-      </Typography>
-      <Typography variant="body1" paragraph>
-        What timeseries should we create for you?
-      </Typography>
+          <Typography variant="h4" gutterBottom>
+            PyTorch Grafana Agent
+          </Typography>
+          <Typography variant="body1" paragraph>
+            What timeseries should we create for you?
+          </Typography>
 
-      <QuerySection>
-        <Box component="form" onSubmit={handleSubmit} noValidate>
+          <QuerySection>
+            <Box component="form" onSubmit={handleSubmit} noValidate>
           <TextField
             fullWidth
             label="Enter your query"
@@ -1919,6 +2024,8 @@ export const McpQueryPage = () => {
           </Box>
         )}
       </ResultsSection>
+        </ContentArea>
+      </PageWrapper>
     </McpQueryPageContainer>
   );
 };
