@@ -1,9 +1,9 @@
-import React from "react";
-import { Typography, Box, useTheme } from "@mui/material";
 import CheckBoxIcon from "@mui/icons-material/CheckBox";
 import CheckBoxOutlineBlankIcon from "@mui/icons-material/CheckBoxOutlineBlank";
+import { Box, Typography, useTheme } from "@mui/material";
+import React from "react";
+import { TodoItem, TodoListBlock, TodoListTitle } from "./styles";
 import { TodoItem as TodoItemType } from "./types";
-import { TodoListBlock, TodoListTitle, TodoItem } from "./styles";
 
 interface TodoListProps {
   todoItems: TodoItemType[];

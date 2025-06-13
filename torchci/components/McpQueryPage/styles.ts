@@ -1,5 +1,5 @@
+import { Box, Button, Paper, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
-import { Paper, Typography, Box, Button } from "@mui/material";
 
 export const McpQueryPageContainer = styled("div")({
   fontFamily: "Roboto",
@@ -60,24 +60,26 @@ export const TodoListTitle = styled(Typography)(({ theme }) => ({
   marginBottom: "8px",
 }));
 
-export const TodoItem = styled(Box)<{ status: string }>(({ theme, status }) => ({
-  display: "flex",
-  alignItems: "flex-start",
-  marginBottom: "2px",
-  padding: "2px 0",
-  textDecoration: status === "completed" ? "line-through" : "none",
-  color:
-    status === "completed"
-      ? theme.palette.mode === "dark"
-        ? "#72bb72"
-        : "#2e7d32"
-      : status === "in_progress"
-      ? theme.palette.mode === "dark"
-        ? "#f0c674"
-        : "#ed6c02"
-      : "inherit",
-  fontWeight: status === "in_progress" ? "bold" : "normal",
-}));
+export const TodoItem = styled(Box)<{ status: string }>(
+  ({ theme, status }) => ({
+    display: "flex",
+    alignItems: "flex-start",
+    marginBottom: "2px",
+    padding: "2px 0",
+    textDecoration: status === "completed" ? "line-through" : "none",
+    color:
+      status === "completed"
+        ? theme.palette.mode === "dark"
+          ? "#72bb72"
+          : "#2e7d32"
+        : status === "in_progress"
+        ? theme.palette.mode === "dark"
+          ? "#f0c674"
+          : "#ed6c02"
+        : "inherit",
+    fontWeight: status === "in_progress" ? "bold" : "normal",
+  })
+);
 
 export const ToolName = styled(Typography)(({ theme }) => ({
   fontWeight: "bold",

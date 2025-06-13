@@ -1,7 +1,8 @@
 import React from "react";
 import { GrafanaLink } from "./types";
 
-const GRAFANA_LINK_REGEX = /https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/([a-zA-Z0-9]+)/g;
+const GRAFANA_LINK_REGEX =
+  /https?:\/\/pytorchci\.grafana\.net\/?\/?public-dashboards\/([a-zA-Z0-9]+)/g;
 
 export const extractGrafanaLinks = (text: string): GrafanaLink[] => {
   const links: GrafanaLink[] = [];
@@ -30,7 +31,7 @@ export const renderTextWithLinks = (
 
   // Reset regex lastIndex to avoid issues with global regex
   GRAFANA_LINK_REGEX.lastIndex = 0;
-  
+
   while ((match = GRAFANA_LINK_REGEX.exec(text)) !== null) {
     if (match.index > lastIndex) {
       result.push(text.substring(lastIndex, match.index));

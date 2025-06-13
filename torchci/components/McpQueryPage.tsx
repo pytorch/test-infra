@@ -10,31 +10,31 @@ import {
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
-import { ParsedContent, MessageWrapper } from "./McpQueryPage/types";
-import {
-  McpQueryPageContainer,
-  QuerySection,
-  ResultsSection,
-  ResponseText,
-  ChunkMetadata,
-  LoaderWrapper,
-  ScrollToBottomButton,
-} from "./McpQueryPage/styles";
-import {
-  extractGrafanaLinks,
-  renderTextWithLinks,
-  formatElapsedTime,
-  formatTokenCount,
-} from "./McpQueryPage/utils";
+import { GrafanaEmbed } from "./McpQueryPage/GrafanaEmbed";
 import {
   useAnimatedCounter,
+  useAutoScroll,
   useThinkingMessages,
   useTokenCalculator,
-  useAutoScroll,
 } from "./McpQueryPage/hooks";
-import { GrafanaEmbed } from "./McpQueryPage/GrafanaEmbed";
+import {
+  ChunkMetadata,
+  LoaderWrapper,
+  McpQueryPageContainer,
+  QuerySection,
+  ResponseText,
+  ResultsSection,
+  ScrollToBottomButton,
+} from "./McpQueryPage/styles";
 import { TodoList } from "./McpQueryPage/TodoList";
 import { ToolUse } from "./McpQueryPage/ToolUse";
+import { MessageWrapper, ParsedContent } from "./McpQueryPage/types";
+import {
+  extractGrafanaLinks,
+  formatElapsedTime,
+  formatTokenCount,
+  renderTextWithLinks,
+} from "./McpQueryPage/utils";
 
 export const McpQueryPage = () => {
   const session = useSession();
@@ -44,7 +44,9 @@ export const McpQueryPage = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
   const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
-  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>({});
+  const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>(
+    {}
+  );
   const [allToolsExpanded, setAllToolsExpanded] = useState(false);
   const [typingSpeed] = useState(10);
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
@@ -61,11 +63,8 @@ export const McpQueryPage = () => {
   const thinkingMessages = useThinkingMessages();
   const displayedTokens = useAnimatedCounter(totalTokens);
   const calculateTotalTokens = useTokenCalculator();
-  const {
-    showScrollButton,
-    scrollToBottomAndEnable,
-    resetAutoScroll,
-  } = useAutoScroll(isLoading, parsedResponses);
+  const { showScrollButton, scrollToBottomAndEnable, resetAutoScroll } =
+    useAutoScroll(isLoading, parsedResponses);
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -197,7 +196,8 @@ export const McpQueryPage = () => {
                   content: textContent,
                   displayedContent: "",
                   isAnimating: true,
-                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                  grafanaLinks:
+                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
                   timestamp: now,
                   outputTokens: outputTokens,
                 },
@@ -368,7 +368,8 @@ export const McpQueryPage = () => {
                     console.error("Failed to process todo data:", err);
                     updated[toolUseIndex] = {
                       ...updated[toolUseIndex],
-                      toolResult: item.content?.[0]?.text || "No result content",
+                      toolResult:
+                        item.content?.[0]?.text || "No result content",
                     };
                   }
                 } else {
@@ -655,10 +656,7 @@ export const McpQueryPage = () => {
                   {item.grafanaLinks && item.grafanaLinks.length > 0 && (
                     <Box mt={2}>
                       {item.grafanaLinks.map((link, i) => (
-                        <GrafanaEmbed
-                          key={i}
-                          dashboardId={link.dashboardId}
-                        />
+                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
                       ))}
                     </Box>
                   )}

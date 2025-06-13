@@ -1,19 +1,23 @@
-import React from "react";
-import {
-  Box,
-  Typography,
-  IconButton,
-  Collapse,
-  Button,
-  Tooltip,
-  useTheme,
-} from "@mui/material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
+import {
+  Box,
+  Button,
+  Collapse,
+  IconButton,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
+import React from "react";
 import ToolIcon from "../ToolIcon";
-import { ToolUseBlock, ToolName, ToolInput, ChunkMetadata } from "./styles";
-import { formatTokenCount, generateQueryId, CLICKHOUSE_CONSOLE_BASE_URL } from "./utils";
+import { ChunkMetadata, ToolInput, ToolName, ToolUseBlock } from "./styles";
+import {
+  CLICKHOUSE_CONSOLE_BASE_URL,
+  formatTokenCount,
+  generateQueryId,
+} from "./utils";
 
 interface ToolUseProps {
   toolName: string;

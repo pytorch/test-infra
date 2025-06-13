@@ -1,7 +1,7 @@
+import { Box, Button, Typography } from "@mui/material";
 import React from "react";
-import { Typography, Button, Box } from "@mui/material";
 import { useDarkMode } from "../../lib/DarkModeContext";
-import { GrafanaChartContainer, ChartHeader } from "./styles";
+import { ChartHeader, GrafanaChartContainer } from "./styles";
 
 interface GrafanaEmbedProps {
   dashboardId: string;
