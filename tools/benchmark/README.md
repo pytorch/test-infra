@@ -22,22 +22,21 @@ tools/
     └── zod-generate.sh # generate zod schema from ts interface
 ```
 
-# Generate.sh
-The generate.sh used to generate dataModels from json files for both TS and Python environment
+# Update data models
+The generate.sh used to generate dataModels from json schema files located in test-infra/tools/benchmark/data_models/. It generate data model for both TS and Python environment.
 - TypeScript interface from a JSON Schema
-- Pydantic (Python) model from the same schema
-- zod schema (for runtime validation in TypeScript) from the generated interface
+- Pydantic (Python) model from the same schema [Validation included]
+- zod schema (for runtime validation in TypeScript) from the generated interface [Validation included]
 
-## update data models
-When files changes in `test-infra/tools/benchmark/data_models` changes, go to dir `test-infra/tools/benchmark/`, and run
+To update the data models, when files changes in `test-infra/tools/benchmark/data_models` changes, run:
 ```
-
+cd test-infra/tools/benchmark
+./generate.sh
 ```
-
 
 ## Benchmark Tool Usage
-### Use it from source
 
+### Use it from source (test-infra/ repo)
 ### Run scripts
 To run the python script,benchmark_execu_analysis as example:
 , go to `test-infra/tools/`, and run:
@@ -48,7 +47,7 @@ PYTHONPATH=benchmark python3 benchmark/pytorch_benchmark_lib/cli/benchmark_execu
   --env local
 ```
 
-### Use it as pip package
+### Use it as pip package (pip install)
 #### Use it as a cli
 To use the cli, benchmark_execu_analysis as example, with pip install:
 ```
