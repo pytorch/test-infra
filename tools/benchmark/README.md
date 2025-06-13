@@ -25,7 +25,8 @@ PYTHONPATH=benchmark python3 benchmark/pytorch_benchmark_lib/cli/benchmark_execu
 ```
 
 ### Use it as a python library
-go to  `test-infra/tools/benchmark/`, and run
+To use it as a python library with pip install:
+
 ```
 cd test-infra/tools/benchmark
 pip install -e . && pip install -r requirements.txt
@@ -34,4 +35,20 @@ pip install -e . && pip install -r requirements.txt
 to run the script:
 ```
 fetch-execu-benchmark --startTime "2025-06-01T00:00:00" --endTime "2025-06-06T00:00:00" --env local
+```
+
+to import data_model (python3)
+```python3
+from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import (
+   BenchmarkQueryGroupDataParams,
+)
+
+BenchmarkQueryGroupDataParams
+```
+
+to import lib (python3)
+```python3
+from pytorch_benchmark_lib.lib.benchmark_execu_query_api import (
+    fetch_execu_benchmark_data,
+)
 ```
