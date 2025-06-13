@@ -6,7 +6,6 @@ import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel, {
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
-import ValuePicker from "components/ValuePicker";
 import dayjs from "dayjs";
 import { encodeParams, useClickHouseAPI } from "lib/GeneralUtils";
 import _ from "lodash";

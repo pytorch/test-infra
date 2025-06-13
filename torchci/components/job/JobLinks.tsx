@@ -12,7 +12,6 @@ import { IssueData, JobData } from "../lib/types";
 import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
-import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 
 const DEFAULT_REPO = "pytorch/pytorch";
 function getRepoFromHtmlURL(htmlUrl?: string) {

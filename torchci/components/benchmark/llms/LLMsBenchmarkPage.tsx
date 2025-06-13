@@ -4,7 +4,7 @@ import {
   LAST_N_DAYS,
   MAIN_BRANCH,
 } from "components/benchmark/common";
-import CopyLink from "components/CopyLink";
+import CopyLink from "components/common/CopyLink";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import _, { cloneDeep } from "lodash";
@@ -13,7 +13,7 @@ import { ParsedUrlQuery } from "querystring";
 import { useEffect, useReducer, useState } from "react";
 import { propsReducer } from "./context/BenchmarkProps";
 
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import {
   DEFAULT_ARCH_NAME,
   DEFAULT_BACKEND_NAME,

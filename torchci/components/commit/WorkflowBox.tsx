@@ -1,5 +1,5 @@
 import { Button, styled } from "@mui/material";
-import styles from "components/commit.module.css";
+import styles from "components/commit/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
 import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
