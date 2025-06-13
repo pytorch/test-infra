@@ -1,4 +1,4 @@
-import { EC2, SSM } from 'aws-sdk';
+import { EC2, SSM, STS } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
 import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 
@@ -70,13 +70,42 @@ export function resetRunnersCaches() {
   ssmParametersCache.reset();
 }
 
-export async function findAmiID(metrics: Metrics, region: string, filter: string, owners = 'amazon'): Promise<string> {
+// Helper function to get the current AWS account ID
+async function getCurrentAccountId(): Promise<string | null> {
+  try {
+    const sts = new STS();
+    const identity = await sts.getCallerIdentity().promise();
+    if (!identity.Account) {
+      console.warn('Unable to retrieve AWS account ID, falling back to Amazon-only images');
+      return null;
+    }
+    return identity.Account;
+  } catch (error) {
+    console.warn('Error retrieving AWS account ID:', error);
+    return null;
+  }
+}
+
+export async function findAmiID(
+  metrics: Metrics, 
+  region: string, 
+  filter: string, 
+  owners: string[] = ['amazon']
+): Promise<string> {
   const ec2 = new EC2({ region: region });
+  const accountId = await getCurrentAccountId();
+  const lfAccountId = '391835788720';
+  
+  const allOwners = accountId 
+    ? [accountId, lfAccountId, ...owners]
+    : [lfAccountId, ...owners];
+  
   const filters = [
     { Name: 'name', Values: [filter] },
     { Name: 'state', Values: ['available'] },
   ];
-  return redisCached('awsEC2', `findAmiID-${region}-${filter}-${owners}`, 10 * 60, 0.5, () => {
+
+  return redisCached('awsEC2', `findAmiID-${region}-${filter}-${allOwners.join(',')}`, 10 * 60, 0.5, () => {
     return expBackOff(() => {
       return metrics.trackRequestRegion(
         region,
@@ -84,13 +113,13 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
         metrics.ec2DescribeImagesFailure,
         () => {
           return ec2
-            .describeImages({ Owners: [owners], Filters: filters })
+            .describeImages({ Owners: allOwners, Filters: filters })
             .promise()
             .then((data: EC2.DescribeImagesResult) => {
               /* istanbul ignore next */
               if (data.Images?.length === 0) {
-                console.error(`No availabe images found for filter '${filter}'`);
-                throw new Error(`No availabe images found for filter '${filter}'`);
+                console.error(`No available images found for filter '${filter}' in owners ${allOwners.join(', ')}`);
+                throw new Error(`No available images found for filter '${filter}'`);
               }
               sortByCreationDate(data);
               return data.Images?.shift()?.ImageId as string;
