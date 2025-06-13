@@ -209,16 +209,9 @@ class CostExplorerProcessor:
             record.get("Start", "").replace("Z", "+00:00")
         )
         now = datetime.now(timezone.utc)
-        startTime = datetime.fromisoformat(
-            record.get("Start", "").replace("Z", "+00:00")
-        )
-        now = datetime.now(timezone.utc)
         if len(keys) < 2:
             logger.warning(
                 f"Expected two keys from Record, but got {len(record)} keys:{keys}, skipping the record"
-            )
-            raise Exception(
-                f"Exeption mapping to Clickhouse schema: Expected two keys from Record, but got {len(record)} keys:{keys}"
             )
             raise Exception(
                 f"Exeption mapping to Clickhouse schema: Expected two keys from Record, but got {len(record)} keys:{keys}"
