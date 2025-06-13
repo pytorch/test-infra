@@ -248,7 +248,7 @@ class CostExplorerProcessor:
         time_now = datetime.now(timezone.utc)
         logger.info(f"Local mode {self.is_local}: Starting job at UTC time {time_now}")
 
-        # Set default data range to be 2 days ago
+        # Set default data range to be today
         end_time = time_now.date()
         start_time = end_time - timedelta(days=1)
 
@@ -279,7 +279,7 @@ class CostExplorerProcessor:
         )
 
         # Overlaps the start with db's previous day data, since we want to make sure we have the full day data for the previous day
-        start = db_start.strftime("%Y-%m-%d")
+        start = (db_start - timedelta(days=1)).strftime("%Y-%m-%d")
         return [start, end]
 
     def start(self, args: Optional[argparse.Namespace] = None):
