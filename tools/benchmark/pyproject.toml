@@ -7,8 +7,10 @@ name = "pytorch-benchmark-tools"
 description = "Benchmark library and CLI tools"
 version = "0.1.0"
 requires-python = ">=3.12"
-authors = ["Yang Wang <elainewy@meta.com>"]
 dependencies = []
+authors = [
+  { name = "Yang Wang", email = "elainewy@meta.com" }
+]
 
 [project.scripts]
 fetch-execu-benchmark = "pytorch_benchmark_lib.cli.benchmark_execu_analysis:main"
