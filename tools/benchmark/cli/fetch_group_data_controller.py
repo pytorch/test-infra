@@ -39,7 +39,6 @@ class GroupDataQueryController(Controller):
                 {
                     "help": "End time: YYYY-MM-DDTHH:MM:SS",
                     "dest": "endTime",
-
                 },
             ),
         ]

@@ -1,6 +1,7 @@
 from cement import App, Controller
 from cli.fetch_group_data_controller import GroupDataQueryController
 
+
 class BaseController(Controller):
     class Meta:
         label = "base"
