@@ -7,14 +7,18 @@ name = "pytorch-benchmark-tools"
 description = "Benchmark library and CLI tools"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "cement>=3.0.8",
+    "pydantic>=2.0",
+    "requests"
+]
 authors = [
   { name = "Yang Wang", email = "elainewy@meta.com" }
 ]
 
 [project.scripts]
-fetch-execu-benchmark = "pytorch_benchmark_lib.cli.benchmark_execu_analysis:main"
+pt2-bm-cli = "cli.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["pytorch_benchmark_lib*"]
+include = ["pt2_bm_tools","cli"]

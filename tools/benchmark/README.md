@@ -7,15 +7,15 @@ The structure of the benchmark tool is as follows:
 ```
 tools/
 └── benchmarks/
-    ├── pytorch_benchmark_lib/ # main entry point for benchmark library
+    ├── pt2_bm_tools/ # main entry point for benchmark library
     │   ├── __init__.py
     │   ├── lib/               # lib methods can be imported and used
     │   │   ├── __init__.py
     │   │   └── benchmark_execu_query_api.py
     │   └── data_models/      # data models can be imported and used
-    │   │    ├── __init__.py
-    │   │    └── benchmark_query_group_data_model.py
-    │   └── cli/                  # cli can be used in command line to run scripts
+    │       ├── __init__.py
+    │       └── benchmark_query_group_data_model.py
+    └── cli/                  # cli can be used in command line to run scripts
     ├── README.md
     └── requirements.txt
     └── generate.sh  # generate python and ts data models from json files
@@ -41,7 +41,7 @@ cd test-infra/tools/benchmark
 To run the python script,benchmark_execu_analysis as example:
 , go to `test-infra/tools/`, and run:
 ```
-PYTHONPATH=benchmark python3 benchmark/pytorch_benchmark_lib/cli/benchmark_execu_analysis.py \
+PYTHONPATH=benchmark python3 benchmark/pt2_bm_tools/cli/benchmark_execu_analysis.py \
   --startTime "2025-06-01T00:00:00" \
   --endTime "2025-06-06T00:00:00" \
   --env local
@@ -63,7 +63,7 @@ fetch-execu-benchmark --startTime "2025-06-01T00:00:00" --endTime "2025-06-06T00
 #### Use it as a python library
 to import data_model (python3)
 ```python3
-from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import (
+from pt2_bm_tools.data_models.benchmark_query_group_data_model import (
    BenchmarkQueryGroupDataParams,
 )
 
@@ -72,7 +72,7 @@ BenchmarkQueryGroupDataParams
 
 to import lib (python3)
 ```python3
-from pytorch_benchmark_lib.lib.benchmark_execu_query_api import (
+from pt2_bm_tools.lib.benchmark_execu_query_api import (
     fetch_execu_benchmark_data,
 )
 ```
