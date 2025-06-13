@@ -7,7 +7,7 @@ class GroupDataQueryController(Controller):
         label = "group-data-query"
         stacked_on = "base"
         stacked_type = "nested"
-        help = "Group data query CLI"
+        help = "Group data query CLI to query data from group data table"
         arguments = [
             (
                 ["--name"],
@@ -39,6 +39,7 @@ class GroupDataQueryController(Controller):
                 {
                     "help": "End time: YYYY-MM-DDTHH:MM:SS",
                     "dest": "endTime",
+                    "required": True,
                 },
             ),
         ]
