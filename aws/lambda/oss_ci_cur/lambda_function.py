@@ -278,7 +278,7 @@ class CostExplorerProcessor:
             f"[get_time_range] Detected latest data are from {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}"
         )
 
-        # Overlaps the start with db's previous day data, since we want to make sure we have the full day data for the previous day
+        # Overlap the date with db to cover cases that AWS CE provide incomplete data.
         start = (db_start - timedelta(days=1)).strftime("%Y-%m-%d")
         return [start, end]
 
