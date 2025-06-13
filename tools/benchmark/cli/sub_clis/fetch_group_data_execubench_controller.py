@@ -18,27 +18,3 @@ def run_execubench(env: str, start_time: str, end_time: str):
     pprint(group_infos)
     if resp:
         print(f"Peeking first table view: {resp[0]}")
-
-
-def main():
-    parser = argparse.ArgumentParser(description="Run execubench group-data-query")
-    parser.add_argument(
-        "--env", choices=["local", "prod"], default="prod", help="Environment"
-    )
-    parser.add_argument(
-        "--startTime", required=True, help="Start time in YYYY-MM-DDTHH:MM:SS"
-    )
-    parser.add_argument(
-        "--endTime", required=True, help="End time in YYYY-MM-DDTHH:MM:SS"
-    )
-    args = parser.parse_args()
-
-    run_execubench(
-        env=args.env,
-        start_time=args.startTime,
-        end_time=args.endTime,
-    )
-
-
-if __name__ == "__main__":
-    main()
