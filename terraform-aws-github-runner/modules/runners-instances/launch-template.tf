@@ -122,8 +122,8 @@ resource "aws_launch_template" "linux_runner" {
     nvidia_driver_install           = false
     ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux[0].name : ""
     ghes_url                        = var.ghes_url
-    install_config_runner           = local.install_config_runner_linux
     wiz_secrets_arn                 = var.wiz_secrets_arn
+    install_config_runner           = local.install_config_runner_linux
   }))
 
   tags = local.tags
@@ -179,8 +179,8 @@ resource "aws_launch_template" "linux_runner_nvidia" {
     nvidia_driver_install           = true
     ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux[0].name : ""
     ghes_url                        = var.ghes_url
-    install_config_runner           = local.install_config_runner_linux
     wiz_secrets_arn                 = var.wiz_secrets_arn
+    install_config_runner           = local.install_config_runner_linux
   }))
 
   tags = local.tags
@@ -236,8 +236,8 @@ resource "aws_launch_template" "linux_arm64_runner" {
     nvidia_driver_install           = false
     ssm_key_cloudwatch_agent_config = var.enable_cloudwatch_agent ? aws_ssm_parameter.cloudwatch_agent_config_runner_linux_arm64[0].name : ""
     ghes_url                        = var.ghes_url
-    install_config_runner           = local.install_config_runner_linux_arm64
     wiz_secrets_arn                 = var.wiz_secrets_arn
+    install_config_runner           = local.install_config_runner_linux_arm64
   }))
 
   tags = local.tags
