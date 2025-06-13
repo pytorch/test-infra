@@ -54,7 +54,7 @@ if __name__ == "__main__":
 
     resp = fetch_execu_benchmark_data(url, start_time_str, end_time_str)
     group_infos = [job.get("groupInfo", {}) for job in resp]
-    print(f"📊 Fetched {len(resp)} table views")
+    print(f"Fetched {len(resp)} table views")
     pprint(group_infos)
     if resp:
         print(f"Peeking first table view: {resp[0]}")
