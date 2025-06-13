@@ -79,8 +79,8 @@ tools/
 
 ## Data Models
 ----------------------
-
 the data models are generated from the json schema files in `test-infra/tools/benchmark/data_models`. The data models are used to represent the benchmark data and api.
+It is used: zod, pydantic, and datamodel-code-generator.
 
 ### Generating Data Models
 
