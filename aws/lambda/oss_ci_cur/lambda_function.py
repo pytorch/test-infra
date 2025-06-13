@@ -282,7 +282,7 @@ class CostExplorerProcessor:
         db_start = datetime.fromtimestamp(timestamp_db, tz=timezone.utc).date()
         db_end = db_start + timedelta(days=1)
         logger.info(
-            f"[get_time_range] Detected latest time range in the table is {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}"
+            f"[get_time_range] Detected latest data are from {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}"
         )
 
         # Overlaps the start with db's previous day data, since we want to make sure we have the full day data for the previous day
