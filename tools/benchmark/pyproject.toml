@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch-benchmark-tools"
+version = "0.1.0"
+description = "Benchmark library and CLI tools"
+authors = [{ name = "yang wang" }]
+requires-python = ">=3.8"
+dependencies = []
+
+# Install CLI command `fetch-execu-benchmark`
+[project.scripts]
+fetch-execu-benchmark = "scripts.benchmark_execu_analysis:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["data_models", "scripts"]
