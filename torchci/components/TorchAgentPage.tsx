@@ -773,7 +773,7 @@ export const TorchAgentPage = () => {
           borderColor: "divider",
         }}
       >
-        Hi, I'm TorchAgent, your intelligent assistant for PyTorch
+        Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
         infrastructure analysis and monitoring. I can help you create custom
         time-series visualizations, analyze CI/CD metrics, and gain insights
         into the PyTorch development workflow. Simply describe what you&apos;d
