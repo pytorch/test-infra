@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pytorch-benchmark-tools"
+description = "Benchmark library and CLI tools"
+version = "0.1.0"
+requires-python = ">=3.12"
+dependencies = [
+    "cement>=3.0.8",
+    "pydantic>=2.0",
+    "requests"
+]
+authors = [
+  { name = "Yang Wang", email = "elainewy@meta.com" }
+]
+
+[project.scripts]
+pt2-bm-cli = "cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pt2_bm_tools","cli"]
