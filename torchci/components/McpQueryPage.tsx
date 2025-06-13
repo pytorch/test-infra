@@ -51,7 +51,7 @@ export const McpQueryPage = () => {
   const [typingSpeed] = useState(10);
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0);
+  const [elapsedTime, setElapsedTime] = useState(0); // in seconds
   const [totalTokens, setTotalTokens] = useState(0); // track total tokens for display
   const [completedTokens, setCompletedTokens] = useState(0);
   const [completedTime, setCompletedTime] = useState(0);
