@@ -211,8 +211,8 @@ module "runners_instances" {
 
   runner_iam_role_managed_policy_arns = var.runner_iam_role_managed_policy_arns
 
-  wiz_secrets_arn         = var.wiz_secrets_arn
-  wiz_secrets_kms_key_arn = var.wiz_secrets_kms_key_arn
+  wiz_secret_arn         = var.wiz_secret_arn
+  wiz_secret_kms_key_arn = var.wiz_secret_kms_key_arn
 
   ghes_url = var.ghes_url
 }
