@@ -374,15 +374,15 @@ variable "retry_scale_up_chron_hud_query_url" {
   default     = ""
 }
 
-variable "wiz_secrets_arn" {
+variable "wiz_secret_arn" {
   description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
   type        = string
   default     = null
   sensitive   = true
 }
 
-variable "wiz_secrets_kms_key_arn" {
-  description = "ARN of KMS key used to encrypt the secret specified in wiz_secrets_arn. Must be provided if wiz_secrets_arn is specified."
+variable "wiz_secret_kms_key_arn" {
+  description = "ARN of KMS key used to encrypt the secret specified in wiz_secret_arn. Must be provided if wiz_secret_arn is specified."
   type        = string
   default     = null
   sensitive   = true

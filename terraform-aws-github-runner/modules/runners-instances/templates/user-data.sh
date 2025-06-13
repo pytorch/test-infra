@@ -104,7 +104,7 @@ ${install_config_runner}
 retry sudo dnf groupinstall -y 'Development Tools'
 retry sudo dnf install -y "kernel-devel-uname-r == $(uname -r)" || true
 
-%{ if wiz_secrets_arn != null ~}
+%{ if wiz_secret_arn != null ~}
 # Install Wiz Sensor - a runtime security agent
 echo "Fetching Wiz secrets from AWS Secrets Manager"
 
@@ -125,12 +125,12 @@ echo "Fetching Wiz secrets from AWS Secrets Manager"
         fi
     }
 
-    SECRET_REGION=$(get_region_from_arn "${wiz_secrets_arn}")
+    SECRET_REGION=$(get_region_from_arn "${wiz_secret_arn}")
     if [ -z "$SECRET_REGION" ]; then
         echo "Warning: Region is required in the Secrets Manager ARN. Skipping Wiz installation."
         metric_report "linux_userdata.wiz_failure_arn_invalid" 1
     else
-        WIZ_SECRET_RAW=$(retry aws secretsmanager get-secret-value --secret-id "${wiz_secrets_arn}" --region "$SECRET_REGION" --query 'SecretString' --output text)
+        WIZ_SECRET_RAW=$(retry aws secretsmanager get-secret-value --secret-id "${wiz_secret_arn}" --region "$SECRET_REGION" --query 'SecretString' --output text)
         if [ $? -eq 0 ] && [ ! -z "$WIZ_SECRET_RAW" ]; then
           echo "Successfully retrieved Wiz secrets"
           echo "Extracting Wiz runtime sensor credentials"
@@ -151,7 +151,7 @@ echo "Fetching Wiz secrets from AWS Secrets Manager"
             metric_report "linux_userdata.wiz_failure_credentials_missing" 1
           fi
         else
-          echo "Warning: Failed to retrieve Wiz secrets from ${wiz_secrets_arn}"
+          echo "Warning: Failed to retrieve Wiz secrets from ${wiz_secret_arn}"
           metric_report "linux_userdata.wiz_failure_secrets_error" 1
         fi
     fi
