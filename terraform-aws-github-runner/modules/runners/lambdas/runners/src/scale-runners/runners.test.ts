@@ -425,7 +425,7 @@ describe('findAmiID', () => {
     const result1 = await findAmiID(metrics, 'REGION', 'FILTER');
     expect(mockEC2.describeImages).toBeCalledTimes(1);
     expect(mockEC2.describeImages).toBeCalledWith({
-      Owners: ['123456789012', 'amazon'],
+      Owners: ['123456789012', '391835788720', 'amazon'],
       Filters: [
         {
           Name: 'name',
@@ -466,7 +466,7 @@ describe('findAmiID', () => {
 
     expect(mockEC2.describeImages).toBeCalledTimes(1);
     expect(mockEC2.describeImages).toBeCalledWith({
-      Owners: ['123456789012', 'amazon'],
+      Owners: ['123456789012', '391835788720', 'amazon'],
       Filters: [
         {
           Name: 'name',
@@ -1345,7 +1345,7 @@ describe('createRunner', () => {
       await createRunner(runnerParameters, metrics);
       expect(mockEC2.describeImages).toBeCalledTimes(1);
       expect(mockEC2.describeImages).toBeCalledWith({
-        Owners: ['123456789012', 'amazon'],
+        Owners: ['123456789012', '391835788720', 'amazon'],
         Filters: [
           {
             Name: 'name',

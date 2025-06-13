@@ -71,20 +71,35 @@ export function resetRunnersCaches() {
 }
 
 // Helper function to get the current AWS account ID
-async function getCurrentAccountId(): Promise<string> {
-  const sts = new STS();
-  const identity = await sts.getCallerIdentity().promise();
-  if (!identity.Account) {
-    throw new Error('Unable to retrieve AWS account ID');
+async function getCurrentAccountId(): Promise<string | null> {
+  try {
+    const sts = new STS();
+    const identity = await sts.getCallerIdentity().promise();
+    if (!identity.Account) {
+      console.warn('Unable to retrieve AWS account ID, falling back to Amazon-only images');
+      return null;
+    }
+    return identity.Account;
+  } catch (error) {
+    console.warn('Error retrieving AWS account ID:', error);
+    return null;
   }
-  return identity.Account;
 }
 
-export async function findAmiID(metrics: Metrics, region: string, filter: string, owners = 'amazon'): Promise<string> {
+export async function findAmiID(
+  metrics: Metrics, 
+  region: string, 
+  filter: string, 
+  owners: string[] = ['amazon']
+): Promise<string> {
   const ec2 = new EC2({ region: region });
   const accountId = await getCurrentAccountId();
-  const allOwners = [accountId, owners];
-
+  const lfAccountId = '391835788720';
+  
+  const allOwners = accountId 
+    ? [accountId, lfAccountId, ...owners]
+    : [lfAccountId, ...owners];
+  
   const filters = [
     { Name: 'name', Values: [filter] },
     { Name: 'state', Values: ['available'] },
