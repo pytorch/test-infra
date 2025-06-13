@@ -15,7 +15,7 @@ tools/
     │   └── data_models/      # data models can be imported and used
     │       ├── __init__.py
     │       └── benchmark_query_group_data_model.py
-    └── cli/                  # cli can be used in command line to run scripts
+    └── cli/                  # cement-baed cli can be used in command line to run scripts
     ├── README.md
     └── requirements.txt
     └── generate.sh  # generate python and ts data models from json files
@@ -35,32 +35,24 @@ cd test-infra/tools/benchmark
 ```
 
 ## Benchmark Tool Usage
+### cli tool: pt2-bm-cli
+the cli tool is based on cement.
 
-### Use it from source (test-infra/ repo)
-### Run scripts
-To run the python script,benchmark_execu_analysis as example:
-, go to `test-infra/tools/`, and run:
-```
-PYTHONPATH=benchmark python3 benchmark/pt2_bm_tools/cli/benchmark_execu_analysis.py \
-  --startTime "2025-06-01T00:00:00" \
-  --endTime "2025-06-06T00:00:00" \
-  --env local
-```
-
-### Use it as pip package (pip install)
-#### Use it as a cli
-To use the cli, benchmark_execu_analysis as example, with pip install:
+To use the cli tool from source, run:
 ```
 cd test-infra/tools/benchmark
-pip install -e . && pip install -r requirements.txt
+pip install -e .
+```
+to check the cli help:
+```
+ pt2-bm-cli --help
 ```
 
-to run the script, for instance, benchmark_execu_analysis is registered as fetch-execu-benchmark:
+to fetch execubench data from startTime to endTime:
 ```
-fetch-execu-benchmark --startTime "2025-06-01T00:00:00" --endTime "2025-06-06T00:00:00" --env local
+pt2-bm-cli group-data-query --name execubench --startTime "2025-06-01T00:00:00" --endTime "2025-06-06T00:00:00" run
 ```
-
-#### Use it as a python library
+### import python lib in python
 to import data_model (python3)
 ```python3
 from pt2_bm_tools.data_models.benchmark_query_group_data_model import (
@@ -72,7 +64,8 @@ BenchmarkQueryGroupDataParams
 
 to import lib (python3)
 ```python3
-from pt2_bm_tools.lib.benchmark_execu_query_api import (
-    fetch_execu_benchmark_data,
+from pt2_bm_tools.lib.fetch_group_data import (
+    fetch_group_data,
+    ferch_group_data_execubench
 )
 ```
