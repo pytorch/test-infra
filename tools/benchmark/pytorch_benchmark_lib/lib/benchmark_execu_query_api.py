@@ -1,7 +1,10 @@
-import requests
 from pprint import pprint
+
+import requests
 from pydantic import ValidationError
-from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams  # adjust import as needed
+from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import (  # adjust import as needed
+    BenchmarkQueryGroupDataParams,
+)
 
 
 def fetch_execu_benchmark_data(url: str, start_time_str: str, end_time_str: str):
