@@ -112,6 +112,7 @@ def main() -> None:
 
     branch_name = os.environ["NEW_BRANCH_NAME"]
     pr_num = None
+    merge_base_hash = None
 
     source_repo = args.source_repo
     # query to see if a pr already exists
@@ -126,6 +127,7 @@ def main() -> None:
         link = response["items"][0]["html_url"]
         response = git_api(f"/repos/{source_repo}/pulls/{pr_num}", {})
         branch_name = response["head"]["ref"]
+        merge_base_hash = response["base"]["sha"]
         print(
             f"pr does exist, number is {pr_num}, branch name is {branch_name}, link is {link}"
         )
@@ -139,7 +141,8 @@ def main() -> None:
         .stdout.decode("utf-8")
         .strip()
     )
-    with open(f"{args.pin_folder}/{args.repo_name}.txt", "r+") as f:
+    pin_file = f"{args.pin_folder}/{args.repo_name}.txt"
+    with open(pin_file, "r+") as f:
         old_hash = f.read().strip()
         subprocess.run(f"git checkout {old_hash}".split(), cwd=args.repo_name)
         f.seek(0)
@@ -156,10 +159,34 @@ def main() -> None:
             ["git", "submodule", "foreach", "--quiet", "echo $name"],
             capture_output=True,
         )
+        submodule = ""
         for submodule in submodules.stdout.decode().strip().splitlines():
             if f"/{args.repo_name}" in submodule:
                 has_submodule = True
                 break
+
+        use_existing_branch = False
+        if pr_num is not None:
+            # if there is a pr, and the pin file of the merge base is the same as the
+            # current HEAD, then we can push to the existing branch and do not need to
+            # use a force push
+            assert merge_base_hash is not None
+            if (
+                subprocess.run(
+                    f"git diff --exit-code --no-ext-diff {merge_base_hash} -- {pin_file}".split()
+                ).returncode
+                == 0
+            ):
+                print(
+                    f"the pin file {pin_file} is the same as the merge base {merge_base_hash}"
+                )
+                print("commit to the existing pr")
+                use_existing_branch = True
+
+        if use_existing_branch:
+            subprocess.run(f"git checkout {branch_name}".split())
+        else:
+            subprocess.run(f"git checkout -b {branch_name}".split())
 
         if submodule and os.path.exists(submodule):
             has_submodule = True
@@ -168,20 +195,23 @@ def main() -> None:
                 f"git checkout {hash}".split(), cwd=submodule, capture_output=True
             )
 
-        # if there was an update, push to branch
-        subprocess.run(f"git checkout -b {branch_name}".split())
-        subprocess.run(f"git add {args.pin_folder}/{args.repo_name}.txt".split())
+        subprocess.run(f"git add {pin_file}".split())
         if has_submodule:
             subprocess.run(f"git add {submodule}".split())
         subprocess.run(
             ["git", "commit", "-m"] + [f"update {args.repo_name} commit hash"]
         )
-        subprocess.run(f"git push --set-upstream origin {branch_name} -f".split())
+
+        # if there was an update, push to branch
+        subprocess.run(f"git push --force --set-upstream origin {branch_name}".split())
         print(f"changes pushed to branch {branch_name}")
+
         if pr_num is None:
             # no existing pr, so make a new one and approve it
             pr_num = make_pr(source_repo, args.repo_name, branch_name)
             approve_pr(source_repo, pr_num)
+
+        if not use_existing_branch:
             make_comment(source_repo, pr_num, "@pytorchbot merge")
         else:
             # rebase the existing pr onto viable/strict
