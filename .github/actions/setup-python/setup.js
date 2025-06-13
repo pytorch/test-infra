@@ -8,7 +8,7 @@ if (process.platform !== 'darwin') {
   process.exit(1);
 }
 
-let pythonVersion = process.env['INPUT_PYTHON_VERSION'];
+let pythonVersion = process.env['INPUT_PYTHON-VERSION'];
 const requirementsPath = process.env['INPUT_PIP-REQUIREMENTS-FILE'];
 
 if (pythonVersion.split('.').length > 2) {
