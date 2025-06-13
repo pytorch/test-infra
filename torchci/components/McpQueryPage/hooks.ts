@@ -87,7 +87,7 @@ export const useAutoScroll = (
   parsedResponses: ParsedContent[]
 ) => {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
-  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [showScrollButton, setShowScrollButton] = useState(false); // whether to show the scroll-to-bottom button
 
   const scrollToBottomAndEnable = useCallback(() => {
     setAutoScrollEnabled(true);
