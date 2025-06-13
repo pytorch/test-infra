@@ -111,7 +111,7 @@ echo "Fetching Wiz secrets from AWS Secrets Manager"
 (
     # Allow the script to continue even if the function fails, so that we gracefully handle
     # wiz installation failures
-    set +e 
+    set +e
 
     # Function to get region from ARN
     get_region_from_arn() {
