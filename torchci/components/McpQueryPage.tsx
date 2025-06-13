@@ -53,7 +53,7 @@ export const McpQueryPage = () => {
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0); // in seconds
   const [totalTokens, setTotalTokens] = useState(0); // track total tokens for display
-  const [completedTokens, setCompletedTokens] = useState(0);
+  const [completedTokens, setCompletedTokens] = useState(0); // final token count after completion
   const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
