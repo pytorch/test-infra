@@ -2,10 +2,9 @@ import argparse
 from datetime import datetime
 from pprint import pprint
 
-import requests
 from pydantic import ValidationError
-from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import (
-    BenchmarkQueryGroupDataParams,
+from pytorch_benchmark_lib.lib.benchmark_execu_query_api import (
+    fetch_execu_benchmark_data,
 )
 
 
@@ -52,33 +51,12 @@ def main():
     # Convert back to string in the same format 2025-06-01T00:00:00
     start_time_str = args.startTime.strftime("%Y-%m-%dT%H:%M:%S")
     end_time_str = args.endTime.strftime("%Y-%m-%dT%H:%M:%S")
-
-    try:
-        paramsObject = BenchmarkQueryGroupDataParams(
-            repo="pytorch/executorch",
-            benchmark_name="ExecuTorch",
-            start_time=start_time_str,
-            end_time=end_time_str,
-            group_table_by_fields=["device", "backend", "arch", "model"],
-            group_row_by_fields=["workflow_id", "job_id", "granularity_bucket"],
-        )
-        params = paramsObject.model_dump()
-        print(f"preparing request paranns: {params}")
-    except ValidationError as e:
-        print(f"Validation failed, {e}")
-        raise
-
-    response = requests.get(url, params=params)
-    if response.status_code == 200:
-        print("Successfully fetched benchmark data")
-        resp = response.json()
-        group_infos = [job.get("groupInfo", {}) for job in resp]
-        print(f"fetched {len(resp)} table views")
-        pprint(group_infos)
-        print(f"peeking first table view, peeking.... {resp[0]} ")
-    else:
-        print(f"Failed to fetch benchmark data ({response.status_code})")
-        print(response.text)
+    resp = fetch_execu_benchmark_data(url, start_time_str, end_time_str)
+    group_infos = [job.get("groupInfo", {}) for job in resp]
+    print(f"📊 Fetched {len(resp)} table views")
+    pprint(group_infos)
+    if resp:
+        print(f"👀 Peeking first table view: {resp[0]}")
 
 
 if __name__ == "__main__":
