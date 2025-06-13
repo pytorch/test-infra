@@ -5,7 +5,14 @@ import { queryClickhouseSaved } from "lib/clickhouse";
 import { formatZodError } from "lib/zod/format";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const DEFAULT_TABLE_GROUP = ["device", "backend", "model", "dtype", "backend", "arch"];
+const DEFAULT_TABLE_GROUP = [
+  "device",
+  "backend",
+  "model",
+  "dtype",
+  "backend",
+  "arch",
+];
 const DEFAULT_ROW_GROUP = ["workflow_id", "job_id", "granularity_bucket"];
 const BENCNMARK_TABLE_NAME = "oss_ci_benchmark_llms";
 export default async function handler(
@@ -83,7 +90,6 @@ export default async function handler(
     );
 
     const rows: Record<string, any[]> = Object.fromEntries(rowMap.entries());
-
     result.push({ groupInfo, rows });
   }
 
@@ -114,12 +120,13 @@ export default async function handler(
           rowObj[record.metric] = record.actual;
         }
       }
-
       pivotedRows.push(rowObj);
     }
 
+    const info = deepClone(group.groupInfo);
+    info["total_rows"] = pivotedRows.length;
     finalTables.push({
-      groupInfo: group.groupInfo,
+      groupInfo: info,
       rows: pivotedRows,
     });
   }
