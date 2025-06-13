@@ -3,8 +3,10 @@ from datetime import datetime
 from pprint import pprint
 
 import requests
-from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams
 from pydantic import ValidationError
+from pytorch_benchmark_lib.data_models.benchmark_query_group_data_model import (
+    BenchmarkQueryGroupDataParams,
+)
 
 
 def validate_iso8601_no_ms(value):
