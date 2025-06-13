@@ -2,10 +2,9 @@ name: Setup Python macOS
 description: Install Homebrew Python if missing and create a temporary virtual environment.
 
 inputs:
-  version:
+  python-version:
     description: Python version to create venv for
-    required: false
-    default: 3.12
+    required: true
   pip-requirements-file:
     description: An optional pip requirements file to be installed in the conda environment
     required: false
