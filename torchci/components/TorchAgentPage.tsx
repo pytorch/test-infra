@@ -773,12 +773,12 @@ export const TorchAgentPage = () => {
           borderColor: "divider",
         }}
       >
-        Welcome to TorchAgent, your intelligent assistant for PyTorch
-        infrastructure analysis and monitoring. This tool helps you create
-        custom time-series visualizations, analyze CI/CD metrics, and gain
-        insights into the PyTorch development workflow. Simply describe what
-        you&apos;d like to explore, and TorchAgent will generate the appropriate
-        queries and dashboards for you. Data we have access to:
+        Hi, I'm TorchAgent, your intelligent assistant for PyTorch
+        infrastructure analysis and monitoring. I can help you create custom
+        time-series visualizations, analyze CI/CD metrics, and gain insights
+        into the PyTorch development workflow. Simply describe what you&apos;d
+        like to explore, and I will generate the appropriate queries and
+        dashboards for you. Data I have access to:
         <ul>
           <li>
             PyTorch GitHub repository data (comments, issues, PRs, including
