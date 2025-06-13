@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TORCHCI_DIR="$SCRIPT_DIR/../../torchci"
 GEN_ZOD_SCRIPT="$SCRIPT_DIR/zod-generate.sh"
 SCHEMA_DIR="$SCRIPT_DIR/data_schemas"
-PYTHON_DATA_MODEL_DST="$SCRIPT_DIR/data_models"
+PYTHON_DATA_MODEL_DST="$SCRIPT_DIR/pytorch_benchmark_lib/data_models"
 TS_DATA_MODEL_DST="$TORCHCI_DIR/lib/benchmark/dataModels"
 
 # Generate TypeScript interface from JSON Schema

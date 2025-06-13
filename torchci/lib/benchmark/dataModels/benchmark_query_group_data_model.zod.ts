@@ -9,5 +9,5 @@ export const benchmarkQueryGroupDataParamsSchema = z.record(z.unknown()).and(
     end_time: z.string(),
     group_table_by_fields: z.array(z.string()).optional(),
     group_row_by_fields: z.array(z.string()).optional(),
-  })
+  }),
 );

@@ -18,7 +18,7 @@ run ./generate.sh
 ### Run scripts
 To run the python script, go to `test-infra/tools/`, and call script:
 ```
-PYTHONPATH=benchmark python3 benchmark/scripts/benchmark_execu_analysis.py \
+PYTHONPATH=benchmark python3 benchmark/pytorch_benchmark_lib/cli/benchmark_execu_analysis.py \
   --startTime "2025-06-01T00:00:00" \
   --endTime "2025-06-06T00:00:00" \
   --env local
@@ -28,7 +28,7 @@ PYTHONPATH=benchmark python3 benchmark/scripts/benchmark_execu_analysis.py \
 go to  `test-infra/tools/benchmark/`, and run
 ```
 cd test-infra/tools/benchmark
-pip install -e .
+pip install -e . && pip install -r requirements.txt
 ```
 
 to run the script:
