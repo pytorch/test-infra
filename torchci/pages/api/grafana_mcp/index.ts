@@ -4,6 +4,11 @@ import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
 import { getOctokitWithUserToken } from "../../../lib/github";
 import { authOptions } from "../auth/[...nextauth]";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
+import { getS3Client } from "../../../lib/s3";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 
 // Lambda function URL with direct streaming support
 const LAMBDA_URL =
@@ -29,6 +34,11 @@ export default async function handler(
   res: NextApiResponse
 ) {
   console.log("Grafana MCP API endpoint called - proxying to Lambda");
+
+  let username = "";
+  let s3client = getS3Client();
+  let timestamp = dayjs().utc().format("YYYYMMDD_HHmmss");
+  let sessionChunks: string[] = [];
 
   // Only allow POST method
   if (req.method !== "POST") {
@@ -78,6 +88,8 @@ export default async function handler(
     }
 
     console.log(`Authorized: User ${user.data.login} has write permissions`);
+
+    username = user.data.login;
   } catch (error) {
     console.error("Error checking permissions:", error);
     return res.status(500).json({ error: "Permission check failed" });
@@ -174,9 +186,24 @@ export default async function handler(
         // Forward the chunk to the client
         res.write(chunk);
         flushStream(res);
+        sessionChunks.push(chunk);
       }
     } finally {
       reader.releaseLock();
+    }
+    const bucket = process.env.MCP_SESSION_BUCKET_NAME;
+    if (bucket) {
+      try {
+        await s3client.send(
+          new PutObjectCommand({
+            Bucket: bucket,
+            Key: `${username}/${timestamp}/${userUuid}.json`,
+            Body: sessionChunks.join("")
+          })
+        );
+      } catch (e) {
+        console.error("Failed to save session", e);
+      }
     }
 
     safeEndResponse();
