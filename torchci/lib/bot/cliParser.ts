@@ -172,14 +172,6 @@ cherryPick.add_argument("-h", "--help", {
   help: SUPPRESS,
 });
 
-// close
-const close = commands.add_parser("close", {
-  help: "Close a PR",
-  description: "Close a PR [Can be used on issues]",
-  formatter_class: RawTextHelpFormatter,
-  add_help: false,
-});
-
 // Help
 parser.add_argument("-h", "--help", {
   default: SUPPRESS,
@@ -225,7 +217,5 @@ ${drCi.format_help()}\`\`\`
 ## cherry-pick
 \`\`\`
 ${cherryPick.format_help()}\`\`\`
-## Close
-${close.format_help()}
 `;
 }
