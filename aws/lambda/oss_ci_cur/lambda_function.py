@@ -263,8 +263,9 @@ class CostExplorerProcessor:
         logger.info(f"Local mode {self.is_local}: Starting job at UTC time {time_now}")
 
         # Set default data range to be 2 days ago
-        end_time = time_now.date() - timedelta(days=1)
+        end_time = time_now.date()
         start_time = end_time - timedelta(days=1)
+
         start = start_time.strftime("%Y-%m-%d")
         end = end_time.strftime("%Y-%m-%d")
 
@@ -278,23 +279,21 @@ class CostExplorerProcessor:
         )
 
         # No data detected in the table, return the default time range
-        timestamp = int(latest_unix_ts)
-        if timestamp == 0:
+        timestamp_db = int(latest_unix_ts)
+        if timestamp_db == 0:
             logger.info(
                 f"no time data found in the table, use default plan: {start} to {end}"
             )
             return [start, end]
 
-        db_start = datetime.fromtimestamp(timestamp, tz=timezone.utc).date()
+        db_start = datetime.fromtimestamp(timestamp_db, tz=timezone.utc).date()
         db_end = db_start + timedelta(days=1)
         logger.info(
-            f"[get_time_range] Detected latest time range in the table is {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}, default plan is {start_time} to {end_time} "
+            f"[get_time_range] Detected latest time range in the table is {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}"
         )
 
-        # skip the job if the latest time is already covered
-        if db_end >= end_time:
-            return None  # skip the job if the latest time is already covered
-        start = db_end.strftime("%Y-%m-%d")
+        # Overlaps the start with db's previous day data, since we want to make sure we have the full day data for the previous day
+        start = db_start.strftime("%Y-%m-%d")
         return [start, end]
 
     def start(self, args: Optional[argparse.Namespace] = None):
