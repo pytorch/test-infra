@@ -1,10 +1,10 @@
 import argparse
 from datetime import datetime
-from pprint import pprint
 
 import requests
 from data_models.benchmark_query_group_data_model import BenchmarkQueryGroupDataParams
 from pydantic import ValidationError
+from pprint import pprint
 
 
 def validate_iso8601_no_ms(value):
@@ -57,7 +57,7 @@ def main():
             benchmark_name="ExecuTorch",
             start_time=start_time_str,
             end_time=end_time_str,
-            group_table_by_fields=["device", "backend", "arch", "model"],
+            group_table_by_fields=["device", "backend", "arch","model"],
             group_row_by_fields=["workflow_id", "job_id", "granularity_bucket"],
         )
         params = paramsObject.model_dump()
@@ -70,7 +70,7 @@ def main():
     if response.status_code == 200:
         print("Successfully fetched benchmark data")
         resp = response.json()
-        group_infos = [job.get("groupInfo", {}) for job in resp]
+        group_infos = [job.get('groupInfo',{}) for job in resp]
         print(f"fetched {len(resp)} table views")
         pprint(group_infos)
         print(f"peeking first table view, peeking.... {resp[0]} ")
