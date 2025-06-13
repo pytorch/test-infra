@@ -29,7 +29,6 @@ DB_NAME = "misc"
 DB_TABLE_NAME = "oss_ci_cur"
 
 
-
 # todo(elainewy): make it a shared library for lambda
 def get_latest_time_from_table(
     cc: clickhouse_connect.driver.client.Client,
@@ -94,7 +93,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    #return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host,
