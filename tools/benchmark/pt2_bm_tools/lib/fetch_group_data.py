@@ -13,6 +13,7 @@ BASE_URLS = {
     "prod": "https://hud.pytorch.org",
 }
 
+
 def fetch_group_data(env: str, req: BenchmarkQueryGroupDataParams):
     url = f"{BASE_URLS[env]}/api/benchmark/group_data/result"
     if env not in BASE_URLS:
