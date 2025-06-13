@@ -777,7 +777,7 @@ export const TorchAgentPage = () => {
         infrastructure analysis and monitoring. This tool helps you create
         custom time-series visualizations, analyze CI/CD metrics, and gain
         insights into the PyTorch development workflow. Simply describe what
-        you'd like to explore, and TorchAgent will generate the appropriate
+        you&apos;d like to explore, and TorchAgent will generate the appropriate
         queries and dashboards for you. Data we have access to:
         <ul>
           <li>
