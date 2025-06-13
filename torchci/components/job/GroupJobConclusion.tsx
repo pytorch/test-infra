@@ -1,6 +1,7 @@
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
 import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import {
+  isCancellationSuccessJob,
   isFailedJob,
   isRerunDisabledTestsJob,
   isUnstableJob,
@@ -192,7 +193,11 @@ export default function HudGroupedCell({
   let viableStrictBlocking = false;
   for (const job of jobs) {
     if (isFailedJob(job)) {
-      if (isRerunDisabledTestsJob(job) || isUnstableJob(job, unstableIssues)) {
+      if (
+        isRerunDisabledTestsJob(job) ||
+        isUnstableJob(job, unstableIssues) ||
+        isCancellationSuccessJob(job)
+      ) {
         warningOnlyJobs.push(job);
       } else {
         erroredJobs.push(job);

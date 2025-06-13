@@ -21,6 +21,7 @@ const IssueAndPRRegexToLabel: [RegExp, string][] = [
 // List of regex patterns for assigning labels to Pull Requests
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
+  [/revert/gi, "ci-no-td"],
   [/rocm/gi, "ciflow/rocm"],
   ...IssueAndPRRegexToLabel,
 ];
@@ -63,8 +64,6 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
   [/(torch|test)\/quantization/gi, "release notes: quantization"],
   [/aten\/src\/ATen\/native\/quantized/gi, "release notes: quantization"],
   [/torch\/nn\/quantiz(ed|able)/gi, "release notes: quantization"],
-  // package
-  [/(torch|test)\/package/gi, "release notes: package/deploy"],
   // mobile
   [/torch\/csrc\/jit\/mobile/gi, "release notes: mobile"],
   [/aten\/src\/ATen\/native\/metal/gi, "release notes: mobile"],

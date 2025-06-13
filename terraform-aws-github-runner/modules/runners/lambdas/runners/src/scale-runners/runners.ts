@@ -5,7 +5,9 @@ import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 import { Config } from './config';
 import LRU from 'lru-cache';
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { redisCached, redisLocked } from './cache';
+import { getJoinedStressTestExperiment, redisCached, redisLocked } from './cache';
+import moment from 'moment';
+import { RetryableScalingError } from './scale-up';
 
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
@@ -471,6 +473,13 @@ export async function tryReuseRunner(
     repoName: runnerParameters.repoName,
     runnerType: runnerParameters.runnerType.runnerTypeName,
   };
+  if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
+    console.warn(
+      `Joining stress test stresstest_awsfail, failing AWS reuse for ${runnerParameters.runnerType.runnerTypeName}`,
+    );
+    throw new RetryableScalingError('Stress test stockout');
+  }
+
   const runners = shuffleArrayInPlace(await listRunners(metrics, filters));
 
   /* istanbul ignore next */
@@ -500,10 +509,24 @@ export async function tryReuseRunner(
       console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
       continue;
     }
-    if (runner.ephemeralRunnerFinished !== undefined && runner.ephemeralRunnerFinished > Date.now() / 1000 - 60) {
-      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
-      continue;
+    if (runner.ephemeralRunnerFinished !== undefined) {
+      const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
+
+      if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
+        console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
+        continue;
+      }
+
+      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
+        console.debug(
+          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+            `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
+            `not be reused. It's been idle since ${finishedAt.format()}`,
+        );
+        continue;
+      }
     }
+
     try {
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseTryOrg(1, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
@@ -527,7 +550,7 @@ export async function tryReuseRunner(
           const ec2 = ec2M.get(runner.awsRegion) as EC2;
 
           // should come before removing other tags, this is useful so
-          // there is always a tag present for scaeDown to know that
+          // there is always a tag present for scaleDown to know that
           // it can/will be reused and avoid deleting it
           await expBackOff(() => {
             return metrics.trackRequestRegion(
@@ -649,6 +672,21 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
   try {
     console.debug('Runner configuration: ' + JSON.stringify(runnerParameters));
 
+    if (await getJoinedStressTestExperiment('stresstest_awsfail', runnerParameters.runnerType.runnerTypeName)) {
+      console.warn(
+        `Joining stress test stresstest_awsfail, failing instance creation` +
+          ` for ${runnerParameters.runnerType.runnerTypeName}`,
+      );
+      throw new RetryableScalingError('Stress test stresstest_awsfail');
+    }
+    if (await getJoinedStressTestExperiment('stresstest_stockout', runnerParameters.runnerType.runnerTypeName)) {
+      console.warn(
+        `Joining stress test stresstest_stockout, failing instance ` +
+          `creation for ${runnerParameters.runnerType.runnerTypeName}`,
+      );
+      throw new RetryableScalingError('Stress test stresstest_stockout');
+    }
+
     const storageDeviceName = runnerParameters.runnerType.os === 'linux' ? '/dev/xvda' : '/dev/sda1';
     const tags = [
       { Key: 'Application', Value: 'github-action-runner' },
@@ -722,6 +760,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
             `[${awsRegion}] [${vpcId}] [${subnet}] Attempting to create ` +
               `instance ${runnerParameters.runnerType.instance_type}${labelsStrLog}`,
           );
+
           const runInstancesResponse = await expBackOff(() => {
             return metrics.trackRequestRegion(
               awsRegion,

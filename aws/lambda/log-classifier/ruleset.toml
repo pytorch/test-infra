@@ -218,7 +218,7 @@ pattern = '^\s*(test.*) errored - num_retries_left:'
 
 [[rule]]
 name = 'pr_time_benchmarks regression'
-pattern = '^REGRESSION: benchmark.*'
+pattern = '^(REGRESSION|MISSING REGRESSION TEST): benchmark.*'
 
 [[rule]]
 name = 'Python RuntimeError'

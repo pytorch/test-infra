@@ -2,10 +2,11 @@ import json
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List
 from unittest import main, TestCase
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from torchci.check_alerts import (
     check_for_no_flaky_tests_alert,
+    close_if_too_many_comments,
     fetch_alerts_filter,
     filter_job_names,
     gen_update_comment,
@@ -13,7 +14,9 @@ from torchci.check_alerts import (
     handle_flaky_tests_alert,
     JobStatus,
     PYTORCH_ALERT_LABEL,
+    SOFT_COMMENT_THRESHOLD,
 )
+from torchci.queue_alert import gen_issue, QueueInfo, queuing_alert
 
 
 JOB_NAME = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
@@ -354,6 +357,53 @@ class TestGitHubPR(TestCase):
                 labels=PYTORCH_ALERT_LABEL,
             )
             self.assertListEqual(alerts, case["expected"])
+
+
+class TestQueueAlert(TestCase):
+    @patch("torchci.queue_alert.update_issue")
+    @patch("torchci.queue_alert.create_issue")
+    @patch("torchci.queue_alert.close_if_too_many_comments")
+    @patch("torchci.queue_alert.fetch_alerts")
+    @patch("torchci.queue_alert.filter_long_queues")
+    @patch("torchci.queue_alert.requests.get")
+    def test_close_if_too_many_comments(
+        self, mock_get, mock_filter, mock_fetch, mock_close, mock_create, mock_update
+    ):
+        # Test that we can close an issue if it has too many comments and open a
+        # new one
+
+        # Setup mock response for API calls
+        mock_get_response = MagicMock()
+        mock_get_response.json.return_value = [{"mock": "data"}]
+        mock_get.return_value = mock_get_response
+
+        # Setup that we have queues that need an alert
+        queue_info = QueueInfo("linux.gpu.nvidia", 100, 5.0)
+        mock_filter.return_value = [queue_info]
+
+        # Setup scenario: we have an alert but it has too many comments
+        existing_issue = {
+            "number": 123,
+            "closed": False,
+            "body": "- linux.gpu.nvidia, 80 machines, 4.5 hours",
+            "comments": {"totalCount": SOFT_COMMENT_THRESHOLD + 1},
+        }
+        mock_fetch.return_value = [existing_issue]
+
+        # Make close_if_too_many_comments return True to simulate closing
+        mock_close.return_value = True
+
+        # Setup create_issue to return a new issue
+        new_issue = {"number": 456, "closed": False, "body": ""}
+        mock_create.return_value = new_issue
+
+        # Run the function under test
+        queuing_alert(dry_run=False)
+
+        # Verify we closed the old issue and created a new one
+        mock_close.assert_called_with(existing_issue, False)
+        mock_create.assert_called_once()
+        mock_update.assert_called_once()
 
 
 if __name__ == "__main__":

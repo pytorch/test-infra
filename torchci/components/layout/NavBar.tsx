@@ -46,8 +46,8 @@ function NavBar() {
       href: "/benchmark/torchao",
     },
     {
-      name: "TorchBench",
-      href: "/torchbench/userbenchmark",
+      name: "Triton",
+      href: "/tritonbench/commit_view",
     },
     {
       name: "PyTorch LLMs",
@@ -60,6 +60,10 @@ function NavBar() {
     {
       name: "TorchAO LLMs",
       href: "/benchmark/llms?repoName=pytorch%2Fao",
+    },
+    {
+      name: "TorchAO Micro API",
+      href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
     },
     {
       name: "PT CacheBench",
@@ -81,12 +85,20 @@ function NavBar() {
       href: "/tts",
     },
     {
+      name: "Queue Time Analysis",
+      href: "/queue_time_analysis",
+    },
+    {
       name: "Nightly Branch",
       href: "/hud/pytorch/pytorch/nightly",
     },
     {
       name: "Nightly Dashboard",
       href: "/nightlies",
+    },
+    {
+      name: "Cancelled Jobs",
+      href: "/job_cancellation_dashboard",
     },
     {
       name: "Failures Metric",
@@ -112,6 +124,10 @@ function NavBar() {
     {
       name: "Build Time Metrics",
       href: "/build_time_metrics",
+    },
+    {
+      name: "Utilization Workflow Report",
+      href: "/utilization/report?group_by=workflow_name",
     },
   ];
 

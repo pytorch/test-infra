@@ -18,6 +18,7 @@ const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
     "inductor-periodic": "Run periodic inductor jobs",
     "inductor-cu124": "Run inductor-cu124 jobs",
     xpu: "Run XPU jobs",
+    h100: "Run H100 jobs",
   },
 };
 

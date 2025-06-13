@@ -9,7 +9,6 @@ These are a collection of scripts that are to be used for release activities.
 
 ## Requirements to actually run these scripts
 * AWS access to pytorch account (META Employees: `bunnylol cloud pytorch`)
-* Access to upload conda packages to the [`pytorch`](https://anaconda.org/pytorch) conda channel
 * Access to the PyPI repositories (like [torch](https://pypi.org/project/torch))
 
 ## Promote pypi to staging

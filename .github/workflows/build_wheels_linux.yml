@@ -40,7 +40,11 @@ on:
         default: ""
         type: string
       package-name:
-        description: "Name of the actual python package that is imported"
+        description: "Name of the actual python package that is imported in the smoke test"
+        default: ""
+        type: string
+      build-target:
+        description: "The target to build and publish (for repos that build multiple packages)"
         default: ""
         type: string
       trigger-event:
@@ -123,7 +127,7 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
       UPLOAD_TO_BASE_BUCKET: ${{ matrix.upload_to_base_bucket }}
       ARCH: ${{ inputs.architecture }}
-      IS_MANYLINUX2_28: ${{ contains(matrix.container_image, '2_28') || contains(matrix.container_image, 'manylinuxaarch64-builder:cuda') }}
+      BUILD_TARGET: ${{ inputs.build-target }}
     name: build-${{ matrix.build_name }}
     runs-on: ${{ matrix.validation_runner }}
     environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
@@ -145,17 +149,9 @@ jobs:
           fi
           echo "::endgroup::"
 
-      - uses: actions/checkout@v4
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
-          repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
-          path: test-infra
-
-      - uses: atalman/checkout-action@main
-        if: ${{ env.IS_MANYLINUX2_28 == 'false' }}
-        with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
@@ -199,7 +195,6 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
           cuda-version: ${{ env.CU_VERSION }}
           arch: ${{ env.ARCH }}
-          use-github-checkout: ${{ env.IS_MANYLINUX2_28 }}
 
       - name: Combine Env Var and Build Env Files
         if: ${{ inputs.env-var-script != '' }}
@@ -252,6 +247,22 @@ jobs:
           ${CONDA_RUN} python setup.py clean
           echo "Successfully ran `python setup.py clean`"
           ${CONDA_RUN} python setup.py bdist_wheel
+      - name: Repair Manylinux_2_28 Wheel
+        shell: bash -l {0}
+        env:
+          PACKAGE_NAME: ${{ inputs.package-name }}
+          SMOKE_TEST_SCRIPT: ${{ inputs.smoke-test-script }}
+        run: |
+          set -euxo pipefail
+          source "${BUILD_ENV_FILE}"
+          for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
+            # if the glob didn't match anything
+            if [[ ! -e $pkg ]]; then
+                continue
+            fi
+            abs_pkg=$(realpath $pkg)
+            ./test-infra/.github/scripts/repair_manylinux_2_28.sh $abs_pkg
+          done
       - name: Run Post-Script
         if: ${{ inputs.post-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -294,17 +305,9 @@ jobs:
           fi
       # NB: Only upload to GitHub after passing smoke tests
 
-      - name: Upload wheel
-        if: ${{ env.IS_MANYLINUX2_28 != 'true' }}
-        uses: ./test-infra/.github/actions/binary-upload
-        with:
-          repository: ${{ inputs.repository }}
-          trigger-event: ${{ inputs.trigger-event }}
-
       - name: Upload wheel to GitHub
-        if: ${{ env.IS_MANYLINUX2_28 == 'true' }}
         continue-on-error: true
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/

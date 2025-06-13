@@ -1,5 +1,5 @@
 import { Paper, styled } from "@mui/material";
-import { getDurationMetrics } from "components/utilization/helper";
+import { getDurationMetrics } from "components/utilization/JobUtilizationPage/helper";
 import { UtilizationMetadata } from "lib/utilization/types";
 import { useEffect, useState } from "react";
 import SingleValueGauge from "../SingleValueGauge";
@@ -34,7 +34,7 @@ const MetadataGroupSection = styled("div")({
   alignItems: "center",
 });
 
-const NumericRingChart = styled("div")({
+export const NumericRingChart = styled("div")({
   display: "flex",
   width: "250px",
   height: "200px",

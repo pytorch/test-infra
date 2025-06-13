@@ -1,10 +1,11 @@
 .disableTestButton {
-  background-color: #ffc107;
-  border-color: #ffc107;
+  background-color: var(--warning-button-bg);
+  border-color: var(--warning-button-border);
+  color: var(--warning-button-text);
 }
 
 .closedDisableIssueButton {
-  background-color: #17a2b8;
-  border-color: #17a2b8;
-  color: white;
+  background-color: var(--info-button-bg);
+  border-color: var(--info-button-border);
+  color: var(--info-button-text);
 }

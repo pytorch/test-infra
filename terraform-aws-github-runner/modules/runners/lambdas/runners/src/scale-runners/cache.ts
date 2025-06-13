@@ -278,6 +278,85 @@ export async function redisLocked<T>(
   throw new Error(`Could not acquire lock for ${nameSpace}-${key}`);
 }
 
+export async function getExperimentValue<T>(experimentKey: string, defaultValue: T): Promise<T> {
+  return locallyCached('EXPERIMENT', experimentKey, 60, async (): Promise<T> => {
+    await startupRedisPool();
+    if (!redisPool) throw Error('Redis should be initialized!');
+
+    const queryKey = `${Config.Instance.environment}.EXPERIMENT.${experimentKey}`;
+
+    console.debug(`Checking redis entry for experiment ${experimentKey} (${queryKey})`);
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const experimentValue: any = await redisPool.use(async (client: RedisClientType) => {
+        return await client.get(queryKey);
+      });
+
+      if (experimentValue === undefined || experimentValue === null) {
+        console.debug(`Experiment ${queryKey} not found, returning default value ${defaultValue}`);
+        return defaultValue;
+      }
+
+      if (typeof defaultValue === 'number' && typeof experimentValue === 'string') {
+        const numValue = Number(experimentValue);
+        if (!isNaN(numValue)) {
+          console.debug(`Experiment ${queryKey} found and converted to number, returning experiment value ${numValue}`);
+          return numValue as T;
+        } else {
+          console.warn(
+            `Experiment ${queryKey} found but value is not a valid number: ` +
+              `${experimentValue}, returning default value ${defaultValue}`,
+          );
+          return defaultValue;
+        }
+      }
+
+      if (typeof defaultValue === typeof experimentValue) {
+        console.debug(
+          `Experiment ${queryKey} found and with the correct type (${typeof experimentValue}),` +
+            ` returning experiment value ${experimentValue}`,
+        );
+        return experimentValue;
+      }
+    } catch (e) {
+      console.error(`Error retrieving experiment ${queryKey}, returning default value ${defaultValue}: ${e}`);
+    }
+
+    return defaultValue;
+  });
+}
+
+export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
+  const runnerNameSuffix = await getExperimentValue('RUNNER_NAME_SUFFIX', '');
+  if (runnerNameSuffix === undefined || runnerNameSuffix === null || runnerNameSuffix === '') {
+    console.debug(`Experiment ${experimentKey} check ignored, as RUNNER_NAME_SUFFIX is not set`);
+    return false;
+  }
+
+  if (!runnerName.endsWith(runnerNameSuffix)) {
+    console.debug(
+      `Runner name ${runnerName} does not match suffix ${runnerNameSuffix} when checking experiment ${experimentKey}`,
+    );
+    return false;
+  }
+
+  const experimentValue = await getExperimentValue(experimentKey, 0);
+
+  if (Math.random() * 100 < experimentValue) {
+    console.debug(
+      `Enabling experiment ${experimentKey} for runner ${runnerName}. ` +
+        `Reached probability threshold of ${experimentValue}%`,
+    );
+    return true;
+  }
+
+  console.debug(
+    `Skipping experiment ${experimentKey} for runner ${runnerName}. ` +
+      `Didn't reach probability threshold of ${experimentValue}%`,
+  );
+  return false;
+}
+
 export async function redisCached<T>(
   nameSpace: string,
   key: string,

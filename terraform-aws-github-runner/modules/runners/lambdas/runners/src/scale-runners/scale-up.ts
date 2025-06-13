@@ -1,5 +1,5 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { Repo, getRepoKey } from './utils';
+import { Repo, getRepoKey, sleep } from './utils';
 import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
 import {
   createRegistrationTokenOrg,
@@ -12,6 +12,7 @@ import {
 
 import { Config } from './config';
 import { getRepoIssuesWithLabel } from './gh-issues';
+import { getJoinedStressTestExperiment } from './cache';
 
 export interface ActionRequestMessage {
   id: number;
@@ -75,6 +76,7 @@ export async function scaleUp(
   // if no labels are found this should just be a no-op
   for (const runnerLabel of runnerLabels) {
     const runnerType = runnerTypes.get(runnerLabel);
+
     if (runnerType === undefined) {
       console.info(
         `Runner label '${runnerLabel}' was not found in config at ` +
@@ -82,6 +84,12 @@ export async function scaleUp(
       );
       continue;
     }
+
+    if (await getJoinedStressTestExperiment('stresstest_ignorereq', runnerType.runnerTypeName)) {
+      console.warn(`Stresstest stresstest_ignorereq active: ignoring request for scale ${runnerType.runnerTypeName}`);
+      continue;
+    }
+
     const runnersRequested = 1;
     const runnersToCreate = await getCreatableRunnerCount(
       runnerType.runnerTypeName,
@@ -163,6 +171,14 @@ async function createRunnerConfigArgument(
   awsRegion: string,
   experimentalRunner: boolean,
 ): Promise<string> {
+  if (await getJoinedStressTestExperiment('stresstest_ghapislow', runnerType.runnerTypeName)) {
+    console.warn(
+      `Stress test slow gh api response active: Sleeping before reaching GH ` +
+        `API for token creation for ${runnerType.runnerTypeName}`,
+    );
+    await sleep(60 * 1000);
+  }
+
   const ephemeralArgument = runnerType.is_ephemeral || experimentalRunner ? '--ephemeral' : '';
   const labelsArgument = [
     `AWS:${awsRegion}`,
@@ -301,7 +317,7 @@ function getMaximumAllowedScaleUpSize(
  *
  * The desired logic for scale ups is as follows:
  *   - Always stay below the maximum allowed instance count for the runner type
- *   - If the in coming request will bring us belo than minimum number of runners available,
+ *   - If the in coming request will bring us below than minimum number of runners available,
  *     overprovision by a bit to bring us closer to the minimum limit (to handle potential
  *     incoming traffic).
  *   - Only provision more runners if supporting the requested number of runners would
@@ -350,10 +366,12 @@ export function _calculateScaleUpAmount(
     // Never proactively scale up above the minimum limit
     extraScaleUp = Math.min(extraScaleUp, minRunnersUnderprovisionCount);
 
-    console.info(
-      `Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
-        `Will provision ${extraScaleUp} extra runners`,
-    );
+    if (extraScaleUp > 0) {
+      console.info(
+        `Available (${availableCount}) runners will be below minimum ${minRunners}. ` +
+          `Will provision ${extraScaleUp} additional runners above the requested amount to serve as a buffer.`,
+      );
+    }
   }
 
   let scaleUpAmount = extraNeededToAcceptRequests + extraScaleUp;
@@ -365,6 +383,10 @@ export function _calculateScaleUpAmount(
 
     scaleUpAmount = maxScaleUp;
   }
+
+  console.info(
+    `Will provision a total of ${scaleUpAmount} runners to handle the requested amount of ${requestedCount} runners.`,
+  );
 
   return scaleUpAmount;
 }

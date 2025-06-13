@@ -1,45 +1,43 @@
--- TODO (huydhn): This query tracks the number of red commits on HUD KPIs page. This
--- is not the most efficient query around both in term of speed and memory usage. So,
--- a good BE task is to re-write this in a more efficient way, HUD code is also
--- subjected to change if need be
-WITH join_with_workflow_run AS (
-    -- Do the join with workflow_run, then workflow_job to avoid OOM
-    SELECT
-        w.id AS id,
+-- huydhn: This query tracks the number of red commits on HUD KPIs page.
+WITH pushes AS ( -- very selective
+    select
         p.head_commit. 'timestamp' AS time,
         p.head_commit. 'id' AS sha
-    FROM
+    from
         default .push p FINAL
-        JOIN default .workflow_run w FINAL ON w.head_commit. 'id' = p.head_commit. 'id'
-    WHERE
-        (
-            -- Limit it to workflows which block viable/strict upgrades
-            has({workflowNames: Array(String) }, lower(w.name))
-            OR w.name like 'linux-binary%'
-        )
-        AND w.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND p.ref = 'refs/heads/main'
-        AND p.repository. 'owner'.'name' = 'pytorch'
-        AND p.repository. 'name' = 'pytorch'
-        AND p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
-        AND p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
+    where
+        p.ref = 'refs/heads/main'
+        and p.repository. 'owner'.'name' = 'pytorch'
+        and p.repository. 'name' = 'pytorch'
+        and p.head_commit. 'timestamp' >= {startTime: DateTime64(3) }
+        and p.head_commit. 'timestamp' < {stopTime: DateTime64(3) }
 ),
 all_jobs AS (
     SELECT
-        w.time AS time,
+        p.time AS time,
         j.conclusion AS conclusion,
-        w.sha AS sha,
+        j.head_sha AS sha,
         ROW_NUMBER() OVER(
             PARTITION BY j.name,
-            w.sha
+            j.head_sha
             ORDER BY
                 j.run_attempt DESC
         ) AS row_num
     FROM
-        join_with_workflow_run w
-        JOIN default .workflow_job j FINAL ON w.id = j.run_id
+        default .workflow_job j FINAL
+        join pushes p FINAL on j.head_sha = p.sha
     WHERE
-        j.name != 'ciflow_should_run'
+        j.id in (
+            SELECT id FROM materialized_views.workflow_job_by_head_sha
+            WHERE head_sha in (SELECT distinct p.sha FROM pushes p)
+        )
+        AND j.workflow_event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
+        AND (
+            -- Limit it to jobs which block viable/strict upgrades
+            has({workflowNames: Array(String) }, lower(j.workflow_name))
+            OR j.workflow_name like 'linux-binary%'
+        )
+        AND j.name != 'ciflow_should_run'
         AND j.name != 'generate-test-matrix'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
         AND j.name NOT LIKE '%unstable%'

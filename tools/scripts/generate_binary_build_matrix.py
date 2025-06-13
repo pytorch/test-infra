@@ -24,17 +24,17 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
     "test": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
-    "release": ["3.9", "3.10", "3.11", "3.12", "3.13"],
+    "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.6", "12.8"],
+    "nightly": ["12.6", "12.8"],
     "test": ["11.8", "12.6", "12.8"],
-    "release": ["11.8", "12.4", "12.6"],
+    "release": ["11.8", "12.6", "12.8"],
 }
 ROCM_ARCHES_DICT = {
-    "nightly": ["6.2.4", "6.3"],
+    "nightly": ["6.3", "6.4"],
     "test": ["6.2.4", "6.3"],
-    "release": ["6.1", "6.2.4"],
+    "release": ["6.2.4", "6.3"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -47,12 +47,12 @@ CUDA_CUDNN_VERSIONS = {
 STABLE_CUDA_VERSIONS = {
     "nightly": "12.6",
     "test": "12.6",
-    "release": "12.4",
+    "release": "12.6",
 }
 
 CUDA_AARCH64_ARCHES = ["12.8-aarch64"]
 
-PACKAGE_TYPES = ["wheel", "conda", "libtorch"]
+PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
 RELEASE = "release"
 DEBUG = "debug"
@@ -75,8 +75,8 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.8.0"
-CURRENT_CANDIDATE_VERSION = "2.7.0"
-CURRENT_STABLE_VERSION = "2.6.0"
+CURRENT_CANDIDATE_VERSION = "2.7.1"
+CURRENT_STABLE_VERSION = "2.7.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -289,7 +289,7 @@ def get_wheel_install_command(
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
         and (
-            (gpu_arch_version == "12.4" and os == LINUX)
+            (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
             or (os == LINUX_AARCH64)
         )
@@ -302,23 +302,6 @@ def get_wheel_install_command(
             else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         )
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
-
-
-def generate_conda_matrix(
-    os: str,
-    channel: str,
-    with_cuda: str,
-    with_rocm: str,
-    with_cpu: str,
-    with_xpu: str,
-    limit_pr_builds: bool,
-    use_only_dl_pytorch_org: bool,
-    use_split_build: bool = False,
-    python_versions: Optional[List[str]] = None,
-) -> List[Dict[str, str]]:
-    ret: List[Dict[str, str]] = []
-    # return empty list. Conda builds are deprecated, see https://github.com/pytorch/pytorch/issues/138506
-    return ret
 
 
 def generate_libtorch_matrix(
@@ -443,17 +426,14 @@ def generate_wheels_matrix(
         arches = []
 
         if with_cpu == ENABLE:
-            arches += [CPU]
-
-        if os == LINUX_AARCH64:
-            # Only want the one arch as the CPU type is different and
-            # uses different build/test scripts
-            arches = [CPU_AARCH64] + CUDA_AARCH64_ARCHES
+            arches += [CPU_AARCH64] if os == LINUX_AARCH64 else [CPU]
 
         if with_cuda == ENABLE:
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
+            elif os == LINUX_AARCH64:
+                arches += CUDA_AARCH64_ARCHES
 
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
@@ -525,7 +505,6 @@ def generate_wheels_matrix(
 
 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE: Dict[str, Callable[..., List[Dict[str, str]]]] = {
     "wheel": generate_wheels_matrix,
-    "conda": generate_conda_matrix,
     "libtorch": generate_libtorch_matrix,
 }
 

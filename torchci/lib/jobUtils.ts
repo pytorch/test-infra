@@ -1,3 +1,4 @@
+import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { jaroWinkler } from "jaro-winkler-typescript";
 import {
@@ -29,6 +30,16 @@ export function isFailedJob(job: JobData) {
     job.conclusion === "failure" ||
     job.conclusion === "cancelled" ||
     job.conclusion === "timed_out"
+  );
+}
+
+export function isCancellationSuccessJob(job: JobData) {
+  // job was cancelled successfully
+  return (
+    job.conclusion === "cancelled" &&
+    (!job.failureLines ||
+      job.failureLines.length == 0 ||
+      job.failureLines[0]?.includes("was canceled"))
   );
 }
 
@@ -424,4 +435,17 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
   }
 
   return filteredJobs;
+}
+
+export function getDurationDisplay(job: JobData) {
+  // Returns a string with either the running time if the job is still running
+  // or it's duration
+  if (job.durationS === undefined) {
+  } else if (job.durationS > 0) {
+    return `Duration: ${durationDisplay(job.durationS)}`;
+  } else if (job.durationS === 0) {
+    return `Running: ${durationDisplay(
+      dayjs().diff(dayjs(job.time), "seconds")
+    )}`;
+  }
 }

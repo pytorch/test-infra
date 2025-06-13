@@ -57,7 +57,25 @@ WITH benchmarks AS (
                 -- Default to false
                 tupleElement(o.benchmark, 'extra_info')['is_dynamic']
             )
-        ) AS extra
+        ) AS extra, --  extra key for a record, used in group model logic.
+         map(
+            'failure_type',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['failure_type'] = '',
+                '',
+                -- Default to empty
+                tupleElement(o.benchmark, 'extra_info')['failure_type']
+            ),
+            'device_id',
+            IF(
+                tupleElement(o.benchmark, 'extra_info')['instance_arn'] = '',
+                '',
+                -- Default to empty
+                tupleElement(o.benchmark, 'extra_info')['instance_arn']
+            ),
+            'timestamp',
+            formatDateTime(fromUnixTimestamp(o.timestamp), '%Y-%m-%dT%H:%i:%sZ')
+        ) AS metadata_info --  metadata_info for a record
     FROM
         benchmark.oss_ci_benchmark_v3 o
     WHERE
@@ -109,7 +127,8 @@ SELECT DISTINCT
     device,
     arch,
     granularity_bucket,
-    extra
+    extra,
+    metadata_info
 FROM
     benchmarks
 WHERE
@@ -118,7 +137,12 @@ WHERE
         OR empty({branches: Array(String) })
     )
     AND (
-        startsWith({device: String }, device)
+        (startsWith({device: String }, device)
+        AND (
+            ({device: String } LIKE '%(private)%' AND device LIKE '%(private)%')
+            OR
+            ({device: String } NOT LIKE '%(private)%' AND device NOT LIKE '%(private)%')
+        ))
         OR {device: String } = ''
     )
     AND notEmpty(device)

@@ -136,10 +136,18 @@ export async function updateDrciComments(
   );
   const head = get_head_branch(repo);
   await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
-  const sevs = getActiveSEVs(await fetchIssuesByLabel("ci: sev"));
+  const sevs = getActiveSEVs(
+    await fetchIssuesByLabel("ci: sev", /*cache*/ true)
+  );
   const flakyRules: FlakyRule[] = (await fetchJSON(FLAKY_RULES_JSON)) || [];
-  const unstableIssues: IssueData[] = await fetchIssuesByLabel("unstable");
-  const disabledTestIssues: IssueData[] = await fetchIssuesByLabel("skipped");
+  const unstableIssues: IssueData[] = await fetchIssuesByLabel(
+    "unstable",
+    /*cache*/ true
+  );
+  const disabledTestIssues: IssueData[] = await fetchIssuesByLabel(
+    "skipped",
+    /*cache*/ true
+  );
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
     `${OWNER}/${repo}`,
@@ -436,10 +444,9 @@ export async function getBaseCommitJobs(
   workflowsByPR: Map<number, PRandJobs>
 ): Promise<Map<string, Map<string, RecentWorkflowsData[]>>> {
   // get merge base shas
-  let baseShas = [];
-  for (const [_, pr_info] of workflowsByPR) {
-    baseShas.push(pr_info.merge_base);
-  }
+  const baseShas = _.uniq(
+    Array.from(workflowsByPR.values()).map((v) => v.merge_base)
+  );
 
   // fetch failing jobs on those shas
   const commitFailedJobsQueryResult = await fetchFailedJobsFromCommits(

@@ -2,11 +2,14 @@ import dayjs from "dayjs";
 import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
-import { isFailure, IsJobInProgress } from "../../lib/JobClassifierUtil";
-import { isFailedJob, transformJobName } from "../../lib/jobUtils";
-import { IssueData, JobData } from "../../lib/types";
-import CopyLink from "../common/CopyLink";
-import { durationDisplay, LocalTimeHuman } from "../common/TimeUtils";
+import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
+import {
+  getDurationDisplay,
+  isFailedJob,
+  transformJobName,
+} from "../lib/jobUtils";
+import { IssueData, JobData } from "../lib/types";
+import CopyLink from "./CopyLink";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
 
@@ -82,8 +85,9 @@ export default function JobLinks({
     );
   }
 
-  if (job.durationS != null) {
-    subInfo.push(<span>{`Duration: ${durationDisplay(job.durationS!)}`}</span>);
+  const durationDisplayText = getDurationDisplay(job);
+  if (durationDisplayText !== undefined) {
+    subInfo.push(<span>{durationDisplayText}</span>);
   }
 
   if (job.time != null) {
@@ -201,10 +205,16 @@ function DisableTest({ job, label }: { job: JobData; label: string }) {
 
   // At this point, we should show something. Search the existing disable issues
   // for a matching one.
+  const formattedTestName = `${testName.testName} (__main__.${testName.suite})`;
   const issueTitle = `DISABLED ${testName.testName} (__main__.${testName.suite})`;
   const issueBody = formatDisableTestBody(job);
 
-  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const matchingIssues = issues.filter(
+    (issue) =>
+      issue.title === issueTitle ||
+      // Crude way to match with aggregate issues
+      issue.body.includes(formattedTestName)
+  );
   const repo = job.repo ?? "pytorch/pytorch";
 
   return (

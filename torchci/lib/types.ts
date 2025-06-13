@@ -125,7 +125,7 @@ export interface HudParams {
   nameFilter?: string;
   filter_reruns: boolean;
   filter_unstable: boolean;
-  mergeLF?: boolean;
+  mergeEphemeralLF?: boolean;
 }
 
 export interface PRData {
@@ -204,6 +204,20 @@ export interface CompilerPerformanceData {
   job_id?: number;
 }
 
+export interface TritonBenchPerformanceData {
+  metric_name: string;
+  metric_value: number;
+  granularity_bucket: string;
+  name: string;
+  workflow_id: number;
+  head_branch: string;
+  operator: string;
+  suite: string;
+  mode: string;
+  dtype: string;
+  backend: string;
+}
+
 export interface BenchmarkData {
   extra_info: { [key: string]: string };
   granularity_bucket: string;
@@ -214,6 +228,13 @@ export interface BenchmarkData {
   suite: string;
   value: number;
   workflow_id: number;
+}
+
+export interface RepoBranchAndCommit {
+  repo: string;
+  branch: string;
+  commit: string;
+  date?: string;
 }
 
 export interface BranchAndCommit {
@@ -250,7 +271,7 @@ export function packHudParams(input: any) {
     nameFilter: input.name_filter as string | undefined,
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
-    mergeLF: input.mergeLF as boolean,
+    mergeEphemeralLF: input.mergeEphemeralLF as boolean,
   };
 }
 
@@ -291,8 +312,8 @@ function formatHudURL(
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
   }
 
-  if (params.mergeLF) {
-    base += `&mergeLF=true`;
+  if (params.mergeEphemeralLF) {
+    base += `&mergeEphemeralLF=true`;
   }
 
   return base;

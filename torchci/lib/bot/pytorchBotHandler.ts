@@ -2,6 +2,7 @@ import { PullRequestReview } from "@octokit/webhooks-types";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
+import { queryClickhouseSaved } from "../clickhouse";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
@@ -17,6 +18,7 @@ import {
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+export const CIFLOW_PULL_LABEL = "ciflow/pull";
 
 export interface PytorchbotParams {
   owner: string;
@@ -215,6 +217,8 @@ The explanation needs to be clear on why this is needed. Here are some good exam
               delete latest_reviews[curr_review.user.login];
               break;
             case PR_CHANGES_REQUESTED:
+              latest_reviews[curr_review.user.login] = curr_review.state;
+              break;
             case PR_APPROVED:
               latest_reviews[curr_review.user.login] = curr_review.state;
               break;
@@ -231,10 +235,15 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     // Aggregate the reviews to figure out the overall status.
     // One approval is all that's needed
+    // If there are any changes requested, the status is changes requested
     let approval_status = "";
     for (let [_, review_state] of Object.entries(latest_reviews)) {
       if (review_state.toLocaleLowerCase() == PR_APPROVED) {
         approval_status = review_state;
+      } else if (review_state.toLocaleLowerCase() == PR_CHANGES_REQUESTED) {
+        // If there are any changes requested, we exit early and just return changes requested
+        approval_status = review_state;
+        break;
       }
     }
 
@@ -268,7 +277,10 @@ The explanation needs to be clear on why this is needed. Here are some good exam
     } else if (isPyTorchOrg(this.owner)) {
       // Ensure the PR has been signed off on
       let approval_status = await this.getApprovalStatus();
-      if (approval_status !== PR_APPROVED) {
+      if (approval_status == PR_CHANGES_REQUESTED) {
+        rejection_reason =
+          "This PR has pending changes requested. Please address the comments and update the PR before merging.";
+      } else if (approval_status !== PR_APPROVED) {
         rejection_reason =
           "This PR needs to be approved by an authorized maintainer before merge.";
       }
@@ -333,6 +345,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
           return;
         }
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
+      }
+      if (!(await this.hasCiFlowPull())) {
+        await addLabels(this.ctx, [CIFLOW_PULL_LABEL]);
       }
     }
 
@@ -599,6 +614,29 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       default:
         return await this.handleConfused(false);
     }
+  }
+
+  async hasCiFlowPull(): Promise<boolean> {
+    try {
+      const workflowNames = await this.getWorkflowsLatest();
+      return (
+        workflowNames?.some(
+          (workflow: any) => workflow.workflow_name === "pull"
+        ) ?? false
+      );
+    } catch (error: any) {
+      // Return true if we cannot read workflow data so that we don't unneccisarily tag the PR
+      await this.logger.log("workflow-pull-error", error);
+      return true;
+    }
+  }
+
+  // Returns the workflows attached to the PR only for the latest commit
+  async getWorkflowsLatest(): Promise<any> {
+    return await queryClickhouseSaved("get_workflows_for_commit", {
+      prNumber: this.prNum,
+      headSha: this.headSha,
+    });
   }
 }
 

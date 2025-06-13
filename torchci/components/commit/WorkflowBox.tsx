@@ -1,7 +1,7 @@
 import { Button, styled } from "@mui/material";
 import styles from "components/commit/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
-import { isFailedJob } from "lib/jobUtils";
+import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
 import {
@@ -9,13 +9,13 @@ import {
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
-import useSWR from "swr";
-import { getConclusionSeverityForSorting } from "../../lib/JobClassifierUtil";
-import { TestInfo } from "../additionalTestInfo/TestInfo";
-import LogViewer, { SearchLogViewer } from "../common/log/LogViewer";
-import { durationDisplay } from "../common/TimeUtils";
-import JobArtifact from "../job/JobArtifact";
-import JobSummary from "../job/JobSummary";
+import useSWRImmutable from "swr/immutable";
+import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
+import { TestInfo } from "./additionalTestInfo/TestInfo";
+import JobArtifact from "./JobArtifact";
+import JobSummary from "./JobSummary";
+import LogViewer, { SearchLogViewer } from "./LogViewer";
+import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -53,19 +53,12 @@ function WorkflowJobSummary({
 }) {
   const subInfo = [];
   if (job.queueTimeS != null) {
-    subInfo.push(
-      <>
-        <i>Queued:</i> {durationDisplay(Math.max(job.queueTimeS, 0))}
-      </>
-    );
+    subInfo.push(<>Queued: {durationDisplay(Math.max(job.queueTimeS, 0))}</>);
   }
 
-  if (job.durationS != null) {
-    subInfo.push(
-      <>
-        <i>Duration:</i> {durationDisplay(job.durationS)}
-      </>
-    );
+  const durationDisplayText = getDurationDisplay(job);
+  if (durationDisplayText !== undefined) {
+    subInfo.push(<>{durationDisplayText}</>);
   }
 
   const hasArtifacts = artifacts && artifacts.length > 0;
@@ -167,7 +160,7 @@ export default function WorkflowBox({
   const { utilMetadataList } = useUtilMetadata(workflowId);
   const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
 
-  const { artifacts, error } = useArtifacts(workflowId);
+  const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
   const [searchString, setSearchString] = useState("");
@@ -280,16 +273,11 @@ function useUtilMetadata(workflowId: string | undefined): {
   utilMetadataList: UtilizationMetadataInfo[];
   metaError: any;
 } {
-  const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
-    `/api/list_utilization_metadata_info/${workflowId}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
+  const { data, error } =
+    useSWRImmutable<ListUtilizationMetadataInfoAPIResponse>(
+      `/api/list_utilization_metadata_info/${workflowId}`,
+      fetcher
+    );
 
   if (!workflowId) {
     return { utilMetadataList: [], metaError: "No workflow ID" };
@@ -313,21 +301,18 @@ function useUtilMetadata(workflowId: string | undefined): {
   return { utilMetadataList: data.metadata_list, metaError: null };
 }
 
-function useArtifacts(workflowId: string | undefined): {
+function useArtifacts(workflowIds: (string | number | undefined)[]): {
   artifacts: Artifact[];
   error: any;
 } {
-  const { data, error } = useSWR<Artifact[]>(
-    `/api/artifacts/s3/${workflowId}`,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000,
-      refreshWhenHidden: true,
-    }
+  const uniqueWorkflowIds = Array.from(new Set(workflowIds)).filter(
+    (id) => id !== undefined
   );
-  if (workflowId === undefined) {
-    return { artifacts: [], error: "No workflow ID" };
-  }
+  // Get all artifacts for these ids
+  const { data, error } = useSWRImmutable<Artifact[]>(
+    `/api/artifacts/s3/${uniqueWorkflowIds.join(",")}`,
+    fetcher
+  );
   if (data == null) {
     return { artifacts: [], error: "Loading..." };
   }

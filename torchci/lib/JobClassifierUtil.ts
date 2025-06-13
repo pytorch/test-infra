@@ -6,6 +6,7 @@ const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
 const GROUP_UNSTABLE = "Unstable";
 const GROUP_PERIODIC = "Periodic";
+const GROUP_INDUCTOR_PERIODIC = "Inductor Periodic";
 const GROUP_SLOW = "Slow";
 const GROUP_LINT = "Lint";
 const GROUP_INDUCTOR = "Inductor";
@@ -31,18 +32,24 @@ const GROUP_OTHER = "other";
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
   {
-    regex: /mem_leak_check/,
+    // Weird regex because some names are too long and getting cut off
+    // TODO: figure out a better way to name the job or filter them
+    regex: /, mem_leak/,
     name: GROUP_MEMORY_LEAK_CHECK,
     persistent: true,
   },
   {
-    regex: /rerun_disabled_tests/,
+    regex: /, rerun_/,
     name: GROUP_RERUN_DISABLED_TESTS,
     persistent: true,
   },
   {
     regex: /unstable/,
     name: GROUP_UNSTABLE,
+  },
+  {
+    regex: /inductor-periodic/,
+    name: GROUP_INDUCTOR_PERIODIC,
   },
   {
     regex: /periodic/,
@@ -155,6 +162,7 @@ const HUD_GROUP_SORTING = [
   GROUP_SLOW,
   GROUP_DOCS,
   GROUP_INDUCTOR,
+  GROUP_INDUCTOR_PERIODIC,
   GROUP_ANNOTATIONS_AND_LABELING,
   GROUP_OTHER,
   GROUP_BINARY_WINDOWS,
@@ -387,6 +395,8 @@ export function isUnstableGroup(name: string, unstableIssues?: IssueData[]) {
 }
 
 export function getNameWithoutLF(name: string) {
-  const lfRegex = /, lf\.(linux|windows)/g;
-  return name.replace(lfRegex, ", $1");
+  const lfRegex = /, lf\.(ephemeral|linux|windows)/g;
+  name = name.replace(lfRegex, ", $1");
+  const ephemeralRegex = /, ephemeral\.(linux|windows)/g;
+  return name.replace(ephemeralRegex, ", $1");
 }

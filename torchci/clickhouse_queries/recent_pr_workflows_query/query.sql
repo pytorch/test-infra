@@ -12,18 +12,18 @@ WITH relevant_shas as (
 ),
 relevant_pushes as (
   -- optimization because push is currently ordered by timestamp
-  select push.head_commit.'timestamp' as timestamp, push.head_commit.'id' as id
-  from default.push final
+  select distinct push.head_commit.'timestamp' as timestamp, push.head_commit.'id' as id
+  from default.push
   where push.head_commit.'timestamp' in (select timestamp from materialized_views.push_by_sha where id in relevant_shas)
 ),
 recent_prs AS (
   SELECT
-    distinct pull_request.head.'sha' AS sha,
+    argMax(pull_request.head.'sha', pull_request.updated_at) AS sha,
     pull_request.number AS number,
-    push.timestamp AS timestamp
+    argMax(push.timestamp, pull_request.updated_at) AS timestamp
   FROM
     relevant_shas r
-    JOIN default.pull_request pull_request final ON r.head_sha = pull_request.head.'sha'
+    JOIN default.pull_request pull_request ON r.head_sha = pull_request.head.'sha'
     -- Do a left join here because the push table won't have any information about
     -- commits from forked repo
     LEFT JOIN relevant_pushes push ON r.head_sha = push.id
@@ -33,6 +33,8 @@ recent_prs AS (
     and pull_request.number in (select number from materialized_views.pr_by_sha where head_sha in (select head_sha from relevant_shas))
     -- This query is used by Dr.CI, so we just want to update open PR(s)
     and pull_request.state = 'open'
+  GROUP BY
+    pull_request.number
 )
 SELECT
   w.id AS workflowId,
