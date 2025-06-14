@@ -1,7 +1,6 @@
 use crate::SsmClient;
 use aws_config::BehaviorVersion;
 use aws_config::Region;
-use aws_config::meta::region::RegionProviderChain;
 use aws_sdk_ssm::types::ParameterMetadata;
 use aws_sdk_ssm::{Client, Error};
 
@@ -11,10 +10,8 @@ pub struct AwsSsmClient {
 
 impl AwsSsmClient {
     pub async fn new(region: &str) -> Result<Self, Error> {
-        let region_provider =
-            RegionProviderChain::default_provider().or_else(Region::new(region.to_string()));
         let config = aws_config::defaults(BehaviorVersion::latest())
-            .region(region_provider)
+            .region(Region::new(region.to_string()))
             .load()
             .await;
         let client = Client::new(&config);
