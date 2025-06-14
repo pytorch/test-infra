@@ -1,0 +1,48 @@
+name: Test Build Windows Wheels ARM64
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/test_build_wheels_windows_arm64.yml
+      - .github/workflows/build_wheels_windows.yml
+      - .github/workflows/generate_binary_build_matrix.yml
+      - tools/scripts/generate_binary_build_matrix.py
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  generate-matrix:
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: windows-arm64
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      with-cuda: disable
+  test:
+    needs: generate-matrix
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - repository: pytorch/vision
+            pre-script: packaging/pre_build_script_arm64.sh
+            smoke-test-script: test/smoke_test.py
+            package-name: torchvision
+            architecture: "arm64"
+    uses: ./.github/workflows/build_wheels_windows.yml
+    name: ${{ matrix.repository }}
+    with:
+      repository: ${{ matrix.repository }}
+      ref: nightly
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      pre-script: ${{ matrix.pre-script }}
+      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      smoke-test-script: ${{ matrix.smoke-test-script }}
+      package-name: ${{ matrix.package-name }}
+      trigger-event: "${{ github.event_name }}"
+      architecture: ${{ matrix.architecture }}
