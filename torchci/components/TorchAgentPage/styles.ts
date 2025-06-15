@@ -1,7 +1,7 @@
 import { Box, Button, Paper, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
-export const McpQueryPageContainer = styled("div")({
+export const TorchAgentPageContainer = styled("div")({
   fontFamily: "Roboto",
   padding: "20px",
   maxWidth: "1200px",
