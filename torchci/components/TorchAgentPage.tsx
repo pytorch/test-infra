@@ -785,8 +785,8 @@ export const TorchAgentPage = () => {
             text inside of these)
           </li>
           <li>
-            PyTorch GitHub Actions CI data (build/test/workflow results, logs,
-            artifacts)
+            PyTorch GitHub Actions CI data (build/test/workflow results,
+            error log classifications, duration, runner types)
           </li>
           <li>
             CI cost / duration data: how long does the average job/workflow run)
@@ -796,7 +796,7 @@ export const TorchAgentPage = () => {
       </Typography>
 
       <Typography variant="body1" paragraph>
-        What timeseries should we create for you?
+        What can I help you graph today?
       </Typography>
 
       <QuerySection>
