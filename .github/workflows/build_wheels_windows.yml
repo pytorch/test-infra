@@ -263,23 +263,17 @@ jobs:
         env:
           SRC_DIR: ${{ inputs.repository }}
           DEPENDENCIES_DIR: c:\temp\dependencies\
-        shell: pwsh
+        shell: cmd
         run: |
-          $env:CONDA_PREFIX = $env:DEPENDENCIES_DIR
-          $env:PATH = "$env:PATH;$env:DEPENDENCIES_DIR\Library\bin"
-          $env:DISTUTILS_USE_SDK = "1"
-          $VS_PATH = Join-Path $env:DEPENDENCIES_DIR "VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-          cmd.exe /c "`"$VS_PATH`" arm64 && set" | ForEach-Object {
-            if ($_ -match "^(.*?)=(.*)$") {
-              $name, $value = $matches[1], $matches[2]
-              ${env:$name} = $value
-            }
-          }
-          
-          cd $env:SRC_DIR
-          & .\.venv\Scripts\Activate.ps1
-          Get-Command python
-          pip install --upgrade setuptools==72.1.0
+          set CONDA_PREFIX=%DEPENDENCIES_DIR%
+          set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
+
+          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          call "%VS_PATH%" x64
+
+          cd %SRC_DIR%
+          set DISTUTILS_USE_SDK=1
+          call .venv\Scripts\activate.bat
           python setup.py bdist_wheel
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
