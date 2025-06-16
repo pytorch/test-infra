@@ -1,4 +1,6 @@
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import {
   Box,
   Button,
@@ -772,26 +774,6 @@ export const TorchAgentPage = () => {
         TorchAgent
       </Typography>
 
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Button
-          variant="outlined"
-          component="a"
-          href={featureRequestUrl}
-          target="_blank"
-          sx={{ mr: 1 }}
-        >
-          Feature Request
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          component="a"
-          href={bugReportUrl}
-          target="_blank"
-        >
-          Report Bug
-        </Button>
-      </Box>
 
       <Typography
         variant="body1"
@@ -961,24 +943,29 @@ export const TorchAgentPage = () => {
       </ResultsSection>
 
       <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-        <Button
-          variant="outlined"
-          component="a"
-          href={featureRequestUrl}
-          target="_blank"
-          sx={{ mr: 1 }}
-        >
-          Feature Request
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          component="a"
-          href={bugReportUrl}
-          target="_blank"
-        >
-          Report Bug
-        </Button>
+        <Tooltip title="Create feature request">
+          <Button
+            variant="outlined"
+            component="a"
+            href={featureRequestUrl}
+            target="_blank"
+            sx={{ mr: 1, minWidth: 'auto', p: 1 }}
+          >
+            <LightbulbIcon />
+          </Button>
+        </Tooltip>
+        <Tooltip title="Report bug">
+          <Button
+            variant="outlined"
+            color="error"
+            component="a"
+            href={bugReportUrl}
+            target="_blank"
+            sx={{ minWidth: 'auto', p: 1 }}
+          >
+            <BugReportIcon />
+          </Button>
+        </Tooltip>
       </Box>
     </TorchAgentPageContainer>
   );
