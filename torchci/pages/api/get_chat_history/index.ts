@@ -14,8 +14,8 @@ const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-2",
 });
 
-const SESSION_BUCKET_NAME =
-  process.env.SESSION_BUCKET_NAME || "torchci-session-history";
+const TORCHAGENT_SESSION_BUCKET_NAME =
+  process.env.TORCHAGENT_SESSION_BUCKET_NAME || "torchci-session-history";
 
 export default async function handler(
   req: NextApiRequest,
@@ -90,7 +90,7 @@ export default async function handler(
     console.log(`Fetching specific session ${sessionId} for user ${username}`);
 
     const listParams = {
-      Bucket: SESSION_BUCKET_NAME,
+      Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
       Prefix: prefix,
     };
 
@@ -115,7 +115,7 @@ export default async function handler(
 
     // Get the actual file content
     const getParams = {
-      Bucket: SESSION_BUCKET_NAME,
+      Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
       Key: sessionFile.Key,
     };
 

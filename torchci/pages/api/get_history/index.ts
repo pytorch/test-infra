@@ -10,8 +10,8 @@ const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-2",
 });
 
-const SESSION_BUCKET_NAME =
-  process.env.SESSION_BUCKET_NAME || "torchci-session-history";
+const TORCHAGENT_SESSION_BUCKET_NAME =
+  process.env.TORCHAGENT_SESSION_BUCKET_NAME || "torchci-session-history";
 
 interface HistorySession {
   sessionId: string;
@@ -88,7 +88,7 @@ export default async function handler(
     console.log(`Fetching history for user ${username} with prefix: ${prefix}`);
 
     const listParams = {
-      Bucket: SESSION_BUCKET_NAME,
+      Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
       Prefix: prefix,
     };
 
