@@ -785,8 +785,8 @@ export const TorchAgentPage = () => {
             text inside of these)
           </li>
           <li>
-            PyTorch GitHub Actions CI data (build/test/workflow results,
-            error log classifications, duration, runner types)
+            PyTorch GitHub Actions CI data (build/test/workflow results, error
+            log classifications, duration, runner types)
           </li>
           <li>
             CI cost / duration data: how long does the average job/workflow run)
