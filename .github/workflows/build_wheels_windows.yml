@@ -243,22 +243,43 @@ jobs:
           else
             ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
           fi
+      - name: Install certificates for Arm64 runner
+        if: ${{ inputs.architecture == 'arm64' }}
+        working-directory: ${{ inputs.repository }}
+        shell: pwsh
+        run: |
+          & .\.venv\Scripts\Activate.ps1
+          pip install --upgrade certifi==2025.04.26
+
+          # Grab the path to certifi's CA bundle
+          $certPath = (python -m certifi).Trim()
+          Write-Host "Using cert bundle at: $certPath"
+
+          # Point Python & urllib/requests at it
+          $env:SSL_CERT_FILE       = $certPath
+          $env:REQUESTS_CA_BUNDLE  = $certPath
       - name: Build the wheel (bdist_wheel) Arm64
         if: inputs.architecture == 'arm64'
         env:
           SRC_DIR: ${{ inputs.repository }}
           DEPENDENCIES_DIR: c:\temp\dependencies\
-        shell: cmd
+        shell: pwsh
         run: |
-          set CONDA_PREFIX=%DEPENDENCIES_DIR%
-          set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
-
-          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
-          call "%VS_PATH%" x64
-
-          cd %SRC_DIR%
-          set DISTUTILS_USE_SDK=1
-          call .venv\Scripts\activate.bat
+          $env:CONDA_PREFIX = $env:DEPENDENCIES_DIR
+          $env:PATH = "$env:PATH;$env:DEPENDENCIES_DIR\Library\bin"
+          $env:DISTUTILS_USE_SDK = "1"
+          $VS_PATH = "$env:DEPENDENCIES_DIR\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+          
+          cmd /c "`"$VS_PATH`" arm64 && set" | ForEach-Object {
+            if ($_ -match "^([^=]+)=(.*)$") {
+              [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+            }
+          }
+          
+          Set-Location $env:SRC_DIR
+          & .\.venv\Scripts\Activate.ps1
+          Get-Command python
+          pip install --upgrade setuptools==72.1.0
           python setup.py bdist_wheel
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
