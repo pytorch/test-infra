@@ -1,7 +1,15 @@
+import AddIcon from "@mui/icons-material/Add";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ChatIcon from "@mui/icons-material/Chat";
 import {
   Box,
   Button,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
   TextField,
   Tooltip,
   Typography,
@@ -36,6 +44,14 @@ import {
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
 
+interface ChatSession {
+  sessionId: string;
+  timestamp: string;
+  date: string;
+  filename: string;
+  key: string;
+}
+
 export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
@@ -69,6 +85,12 @@ export const TorchAgentPage = () => {
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
 
+  // Chat history state
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+
   const fetchControllerRef = useRef<AbortController | null>(null);
 
   const thinkingMessages = useThinkingMessages();
@@ -80,6 +102,187 @@ export const TorchAgentPage = () => {
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
   };
+
+  // Fetch chat history on component mount
+  const fetchChatHistory = async () => {
+    if (!session.data?.user) return;
+
+    setIsHistoryLoading(true);
+    try {
+      const response = await fetch("/api/get_history");
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.sessions || []);
+      } else {
+        console.error("Failed to fetch chat history");
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Load a specific chat session
+  const loadChatSession = async (sessionId: string) => {
+    try {
+      const response = await fetch(
+        `/api/get_chat_history?sessionId=${sessionId}`
+      );
+      if (response.ok) {
+        const sessionData = await response.json();
+        console.log("Loaded session data:", sessionData);
+
+        // The messages array contains the same format as streaming data
+        if (sessionData.messages && Array.isArray(sessionData.messages)) {
+          // Clear the query input for historical chats
+          setQuery("");
+
+          // Process each message in the same way as streaming data
+          // Create an accumulated response string just like streaming
+          let fullResponse = "";
+          sessionData.messages.forEach((msg: any) => {
+            if (msg.content) {
+              fullResponse += msg.content + "\n";
+            }
+          });
+
+          // Set the raw response for debug view
+          setResponse(fullResponse);
+
+          // Now process the messages to trigger the same parsing logic as streaming
+          // We'll simulate the streaming by processing each line
+          const lines = fullResponse.split("\n").filter((line) => line.trim());
+
+          // Clear existing parsed responses
+          setParsedResponses([]);
+
+          // Process each line as if it came from streaming
+          lines.forEach((line) => {
+            try {
+              const json = JSON.parse(line);
+
+              // Use the same logic as the streaming handler
+              if (json.type === "assistant" && json.message?.content) {
+                json.message.content.forEach((item: any) => {
+                  if (item.type === "text") {
+                    const textContent = item.text;
+                    const grafanaLinks = extractGrafanaLinks(textContent);
+
+                    setParsedResponses((prev) => [
+                      ...prev,
+                      {
+                        type: "text",
+                        content: textContent,
+                        displayedContent: textContent,
+                        isAnimating: false,
+                        timestamp: Date.now(),
+                        grafanaLinks:
+                          grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                      },
+                    ]);
+                  } else if (item.type === "tool_use") {
+                    // Handle tool usage
+                    setParsedResponses((prev) => [
+                      ...prev,
+                      {
+                        type: "tool_use",
+                        content: "",
+                        toolName: item.name,
+                        toolInput: item.input,
+                        toolResult: "", // Will be filled by tool_result
+                        timestamp: Date.now(),
+                        isAnimating: false,
+                        toolUseId: item.id,
+                      },
+                    ]);
+                  }
+                });
+              } else if (json.type === "user" && json.message?.content) {
+                // Handle user messages and tool results
+                json.message.content.forEach((item: any) => {
+                  if (item.type === "text") {
+                    const textContent = item.text;
+                    const grafanaLinks = extractGrafanaLinks(textContent);
+
+                    setParsedResponses((prev) => [
+                      ...prev,
+                      {
+                        type: "user_message",
+                        content: textContent,
+                        displayedContent: textContent,
+                        isAnimating: false,
+                        timestamp: Date.now(),
+                        grafanaLinks:
+                          grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                      },
+                    ]);
+                  } else if (item.type === "tool_result" && item.tool_use_id) {
+                    // Handle tool results - update the corresponding tool use
+                    setParsedResponses((prev) => {
+                      const updated = [...prev];
+                      const toolUseIndex = updated.findIndex(
+                        (response) =>
+                          response.type === "tool_use" &&
+                          response.toolUseId === item.tool_use_id
+                      );
+
+                      if (toolUseIndex !== -1) {
+                        // Extract tool result content
+                        let toolResult = "";
+                        if (item.content && Array.isArray(item.content)) {
+                          toolResult = item.content
+                            .map((c: any) => c.text || c)
+                            .join("");
+                        } else if (typeof item.content === "string") {
+                          toolResult = item.content;
+                        }
+
+                        updated[toolUseIndex] = {
+                          ...updated[toolUseIndex],
+                          toolResult: toolResult,
+                        };
+                      }
+                      return updated;
+                    });
+                  }
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          });
+        }
+
+        setSelectedSession(sessionId);
+        // Don't override the response we set above for the debug view
+      } else {
+        console.error("Failed to load chat session");
+      }
+    } catch (error) {
+      console.error("Error loading chat session:", error);
+    }
+  };
+
+  // Start a new chat
+  const startNewChat = () => {
+    setQuery("");
+    setResponse("");
+    setParsedResponses([]);
+    setSelectedSession(null);
+    setError("");
+    setTotalTokens(0);
+    setCompletedTokens(0);
+    setElapsedTime(0);
+    setCompletedTime(0);
+  };
+
+  // Fetch chat history on mount
+  useEffect(() => {
+    if (session.data?.user) {
+      fetchChatHistory();
+    }
+  }, [session.data?.user]);
 
   // Rotate through thinking messages every 6 seconds
   useEffect(() => {
@@ -630,7 +833,37 @@ export const TorchAgentPage = () => {
           .filter((item) => item.type !== "todo_list")
           .map((item, index) => (
             <div key={`content-${index}`}>
-              {item.type === "text" ? (
+              {item.type === "user_message" ? (
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    backgroundColor: "action.hover",
+                    borderRadius: 1,
+                    borderLeft: "4px solid",
+                    borderLeftColor: "primary.main",
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    color="primary"
+                    sx={{ mb: 1 }}
+                  >
+                    User Query:
+                  </Typography>
+                  <Typography variant="body1">
+                    {renderTextWithLinks(item.content, false)}
+                  </Typography>
+
+                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                    <Box mt={2}>
+                      {item.grafanaLinks.map((link, i) => (
+                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              ) : item.type === "text" ? (
                 <>
                   <ResponseText>
                     {renderTextWithLinks(
@@ -644,22 +877,9 @@ export const TorchAgentPage = () => {
 
                   {!item.isAnimating && (
                     <ChunkMetadata>
-                      {item.timestamp &&
-                      index > 0 &&
-                      parsedResponses[index - 1].timestamp
-                        ? `Generated in ${(
-                            (item.timestamp -
-                              (parsedResponses[index - 1].timestamp || 0)) /
-                            1000
-                          ).toFixed(2)}s`
-                        : item.timestamp && startTime
-                        ? `Generated in ${(
-                            (item.timestamp - (startTime || 0)) /
-                            1000
-                          ).toFixed(2)}s`
-                        : ""}
+                      {/* For historical chats, we skip timing calculations since timestamps are strings */}
                       {item.outputTokens
-                        ? ` • ${formatTokenCount(item.outputTokens)} tokens`
+                        ? `${formatTokenCount(item.outputTokens)} tokens`
                         : ""}
                     </ChunkMetadata>
                   )}
@@ -697,7 +917,11 @@ export const TorchAgentPage = () => {
               {item.todoItems && (
                 <TodoList
                   todoItems={item.todoItems}
-                  timestamp={item.timestamp}
+                  timestamp={
+                    typeof item.timestamp === "number"
+                      ? item.timestamp
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -753,233 +977,321 @@ export const TorchAgentPage = () => {
     );
   };
 
+  const sidebarWidth = 300;
+
   return (
-    <TorchAgentPageContainer>
-      {showScrollButton && (
-        <Tooltip title="Go to bottom and resume auto-scroll">
-          <ScrollToBottomButton
-            variant="contained"
-            color="primary"
-            onClick={scrollToBottomAndEnable}
-            aria-label="Scroll to bottom and resume auto-scroll"
-          >
-            <ArrowDownwardIcon />
-          </ScrollToBottomButton>
-        </Tooltip>
-      )}
-
-      <Typography variant="h4" gutterBottom>
-        TorchAgent
-      </Typography>
-
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Button
-          variant="outlined"
-          component="a"
-          href={featureRequestUrl}
-          target="_blank"
-          sx={{ mr: 1 }}
-        >
-          Feature Request
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          component="a"
-          href={bugReportUrl}
-          target="_blank"
-        >
-          Report Bug
-        </Button>
-      </Box>
-
-      <Typography
-        variant="body1"
-        paragraph
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* Sidebar */}
+      <Drawer
+        variant="persistent"
+        anchor="left"
+        open={drawerOpen}
         sx={{
-          mb: 3,
-          p: 2,
-          backgroundColor: "background.paper",
-          borderRadius: 1,
-          border: "1px solid",
-          borderColor: "divider",
+          width: sidebarWidth,
+          flexShrink: 0,
+          "& .MuiDrawer-paper": {
+            width: sidebarWidth,
+            boxSizing: "border-box",
+            position: "relative",
+            height: "100%",
+          },
         }}
       >
-        Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
-        infrastructure analysis and monitoring. I can help you create custom
-        time-series visualizations, analyze CI/CD metrics, and gain insights
-        into the PyTorch development workflow. Simply describe what you&apos;d
-        like to explore, and I will generate the appropriate queries and
-        dashboards for you. Data I have access to:
-        <ul>
-          <li>
-            PyTorch GitHub repository data (comments, issues, PRs, including
-            text inside of these)
-          </li>
-          <li>
-            PyTorch GitHub Actions CI data (build/test/workflow results, error
-            log classifications, duration, runner types)
-          </li>
-          <li>
-            CI cost / duration data: how long does the average job/workflow run)
-          </li>
-          <li>Benchmarking data in the benchmarking database</li>
-        </ul>
-      </Typography>
-
-      <Typography variant="body1" paragraph>
-        What can I help you graph today?
-      </Typography>
-
-      <QuerySection>
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <TextField
-            fullWidth
-            label="Enter your query"
-            value={query}
-            onChange={handleQueryChange}
-            margin="normal"
-            multiline
-            rows={3}
-            placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
-            variant="outlined"
-            disabled={isLoading}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                if (!isLoading && query.trim()) {
-                  handleSubmit(e);
-                }
-              }
-            }}
-          />
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={() => setDebugVisible(!debugVisible)}
-            >
-              {debugVisible ? "Hide Debug" : "Show Debug"}
-            </Button>
-            <Box>
-              {isLoading && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={cancelRequest}
-                  sx={{ mr: 1 }}
-                >
-                  Cancel
-                </Button>
-              )}
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading ? "Running..." : "RUN"}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </QuerySection>
-
-      <ResultsSection>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6">Results</Typography>
-          {parsedResponses.length > 0 &&
-            parsedResponses.some((item) => item.type === "tool_use") && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  if (allToolsExpanded) {
-                    setExpandedTools({});
-                    setAllToolsExpanded(false);
-                  } else {
-                    const allExpanded = parsedResponses.reduce(
-                      (acc, _, index) => {
-                        if (parsedResponses[index].type === "tool_use") {
-                          acc[index] = true;
-                        }
-                        return acc;
-                      },
-                      {} as Record<number, boolean>
-                    );
-                    setExpandedTools(allExpanded);
-                    setAllToolsExpanded(true);
-                  }
-                }}
-              >
-                {allToolsExpanded ? "Collapse all tools" : "Expand all tools"}
-              </Button>
-            )}
-        </Box>
-
-        {error && (
-          <Typography color="error" paragraph>
-            {error}
-          </Typography>
-        )}
-
-        {renderContent()}
-
-        {debugVisible && (
+        <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
           <Box
             sx={{
-              marginTop: "20px",
-              borderTop: `1px solid ${theme.palette.divider}`,
-              paddingTop: "10px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              mb: 2,
             }}
           >
-            <Typography variant="subtitle2">Debug: Raw Response</Typography>
-            <pre
-              style={{
-                fontSize: "0.8em",
-                opacity: 0.7,
-                maxHeight: "200px",
-                overflowY: "auto",
-                backgroundColor:
-                  theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
-                padding: "8px",
-                borderRadius: "4px",
-                color: theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+            <Typography variant="h6">Chat History</Typography>
+            <Tooltip title="New Chat">
+              <IconButton onClick={startNewChat} color="primary">
+                <AddIcon />
+              </IconButton>
+            </Tooltip>
+          </Box>
+        </Box>
+
+        <List sx={{ flexGrow: 1, overflow: "auto" }}>
+          {isHistoryLoading ? (
+            <ListItem>
+              <ListItemText primary="Loading..." />
+            </ListItem>
+          ) : chatHistory.length === 0 ? (
+            <ListItem>
+              <ListItemText
+                primary="No chat history"
+                secondary="Start a new conversation"
+              />
+            </ListItem>
+          ) : (
+            chatHistory.map((session) => (
+              <ListItem key={session.sessionId} disablePadding>
+                <ListItemButton
+                  selected={selectedSession === session.sessionId}
+                  onClick={() => loadChatSession(session.sessionId)}
+                >
+                  <ChatIcon sx={{ mr: 1, opacity: 0.7 }} />
+                  <ListItemText
+                    primary={session.timestamp}
+                    secondary={session.date}
+                  />
+                </ListItemButton>
+              </ListItem>
+            ))
+          )}
+        </List>
+      </Drawer>
+
+      {/* Main Content */}
+      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+        <TorchAgentPageContainer>
+          {showScrollButton && (
+            <Tooltip title="Go to bottom and resume auto-scroll">
+              <ScrollToBottomButton
+                variant="contained"
+                color="primary"
+                onClick={scrollToBottomAndEnable}
+                aria-label="Scroll to bottom and resume auto-scroll"
+              >
+                <ArrowDownwardIcon />
+              </ScrollToBottomButton>
+            </Tooltip>
+          )}
+
+          <Typography variant="h4" gutterBottom>
+            TorchAgent
+          </Typography>
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+            <Button
+              variant="outlined"
+              component="a"
+              href={featureRequestUrl}
+              target="_blank"
+              sx={{ mr: 1 }}
+            >
+              Feature Request
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              component="a"
+              href={bugReportUrl}
+              target="_blank"
+            >
+              Report Bug
+            </Button>
+          </Box>
+
+          {/* Show welcome message and query input only for new chats */}
+          {!selectedSession && (
+            <>
+              <Typography
+                variant="body1"
+                paragraph
+                sx={{
+                  mb: 3,
+                  p: 2,
+                  backgroundColor: "background.paper",
+                  borderRadius: 1,
+                  border: "1px solid",
+                  borderColor: "divider",
+                }}
+              >
+                Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
+                infrastructure analysis and monitoring. I can help you create
+                custom time-series visualizations, analyze CI/CD metrics, and
+                gain insights into the PyTorch development workflow. Simply
+                describe what you&apos;d like to explore, and I will generate
+                the appropriate queries and dashboards for you. Data I have
+                access to:
+                <ul>
+                  <li>
+                    PyTorch GitHub repository data (comments, issues, PRs,
+                    including text inside of these)
+                  </li>
+                  <li>
+                    PyTorch GitHub Actions CI data (build/test/workflow results,
+                    error log classifications, duration, runner types)
+                  </li>
+                  <li>
+                    CI cost / duration data: how long does the average
+                    job/workflow run)
+                  </li>
+                  <li>Benchmarking data in the benchmarking database</li>
+                </ul>
+              </Typography>
+
+              <Typography variant="body1" paragraph>
+                What can I help you graph today?
+              </Typography>
+
+              <QuerySection>
+                <Box component="form" onSubmit={handleSubmit} noValidate>
+                  <TextField
+                    fullWidth
+                    label="Enter your query"
+                    value={query}
+                    onChange={handleQueryChange}
+                    margin="normal"
+                    multiline
+                    rows={3}
+                    placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
+                    variant="outlined"
+                    disabled={isLoading}
+                    onKeyDown={(e) => {
+                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                        e.preventDefault();
+                        if (!isLoading && query.trim()) {
+                          handleSubmit(e);
+                        }
+                      }
+                    }}
+                  />
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      mt: 2,
+                    }}
+                  >
+                    <Button
+                      variant="outlined"
+                      color="secondary"
+                      onClick={() => setDebugVisible(!debugVisible)}
+                    >
+                      {debugVisible ? "Hide Debug" : "Show Debug"}
+                    </Button>
+                    <Box>
+                      {isLoading && (
+                        <Button
+                          variant="outlined"
+                          color="error"
+                          onClick={cancelRequest}
+                          sx={{ mr: 1 }}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                      <Button
+                        variant="contained"
+                        color="primary"
+                        type="submit"
+                        disabled={isLoading}
+                      >
+                        {isLoading ? "Running..." : "RUN"}
+                      </Button>
+                    </Box>
+                  </Box>
+                </Box>
+              </QuerySection>
+            </>
+          )}
+
+          <ResultsSection>
+            <Box
+              sx={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                mb: 2,
               }}
             >
-              {response || "(No data yet)"}
-            </pre>
-          </Box>
-        )}
-      </ResultsSection>
+              <Typography variant="h6">Results</Typography>
+              {parsedResponses.length > 0 &&
+                parsedResponses.some((item) => item.type === "tool_use") && (
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => {
+                      if (allToolsExpanded) {
+                        setExpandedTools({});
+                        setAllToolsExpanded(false);
+                      } else {
+                        const allExpanded = parsedResponses.reduce(
+                          (acc, _, index) => {
+                            if (parsedResponses[index].type === "tool_use") {
+                              acc[index] = true;
+                            }
+                            return acc;
+                          },
+                          {} as Record<number, boolean>
+                        );
+                        setExpandedTools(allExpanded);
+                        setAllToolsExpanded(true);
+                      }
+                    }}
+                  >
+                    {allToolsExpanded
+                      ? "Collapse all tools"
+                      : "Expand all tools"}
+                  </Button>
+                )}
+            </Box>
 
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-        <Button
-          variant="outlined"
-          component="a"
-          href={featureRequestUrl}
-          target="_blank"
-          sx={{ mr: 1 }}
-        >
-          Feature Request
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          component="a"
-          href={bugReportUrl}
-          target="_blank"
-        >
-          Report Bug
-        </Button>
+            {error && (
+              <Typography color="error" paragraph>
+                {error}
+              </Typography>
+            )}
+
+            {renderContent()}
+
+            {debugVisible && (
+              <Box
+                sx={{
+                  marginTop: "20px",
+                  borderTop: `1px solid ${theme.palette.divider}`,
+                  paddingTop: "10px",
+                }}
+              >
+                <Typography variant="subtitle2">Debug: Raw Response</Typography>
+                <pre
+                  style={{
+                    fontSize: "0.8em",
+                    opacity: 0.7,
+                    maxHeight: "200px",
+                    overflowY: "auto",
+                    backgroundColor:
+                      theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
+                    padding: "8px",
+                    borderRadius: "4px",
+                    color:
+                      theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+                  }}
+                >
+                  {response || "(No data yet)"}
+                </pre>
+              </Box>
+            )}
+          </ResultsSection>
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+            <Button
+              variant="outlined"
+              component="a"
+              href={featureRequestUrl}
+              target="_blank"
+              sx={{ mr: 1 }}
+            >
+              Feature Request
+            </Button>
+            <Button
+              variant="outlined"
+              color="error"
+              component="a"
+              href={bugReportUrl}
+              target="_blank"
+            >
+              Report Bug
+            </Button>
+          </Box>
+        </TorchAgentPageContainer>
       </Box>
-    </TorchAgentPageContainer>
+    </Box>
   );
 };
