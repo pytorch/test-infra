@@ -774,7 +774,6 @@ export const TorchAgentPage = () => {
         TorchAgent
       </Typography>
 
-
       <Typography
         variant="body1"
         paragraph
@@ -949,7 +948,7 @@ export const TorchAgentPage = () => {
             component="a"
             href={featureRequestUrl}
             target="_blank"
-            sx={{ mr: 1, minWidth: 'auto', p: 1 }}
+            sx={{ mr: 1, minWidth: "auto", p: 1 }}
           >
             <LightbulbIcon />
           </Button>
@@ -961,7 +960,7 @@ export const TorchAgentPage = () => {
             component="a"
             href={bugReportUrl}
             target="_blank"
-            sx={{ minWidth: 'auto', p: 1 }}
+            sx={{ minWidth: "auto", p: 1 }}
           >
             <BugReportIcon />
           </Button>
