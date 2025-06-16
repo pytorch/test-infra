@@ -49,6 +49,7 @@ export default async function handler(
   // write permissions to the main PyTorch repository
   const repoOwner = "pytorch";
   const repoName = "pytorch";
+  let username: string;
 
   try {
     const octokit = await getOctokitWithUserToken(
@@ -78,6 +79,9 @@ export default async function handler(
     }
 
     console.log(`Authorized: User ${user.data.login} has write permissions`);
+
+    // Store username for use in lambda request
+    username = user.data.login;
   } catch (error) {
     console.error("Error checking permissions:", error);
     return res.status(500).json({ error: "Permission check failed" });
@@ -142,6 +146,7 @@ export default async function handler(
       body: JSON.stringify({
         query: query,
         userUuid: userUuid,
+        username: username,
       }),
     });
 
