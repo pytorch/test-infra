@@ -6,7 +6,6 @@ on:
     - cron: '0 2 * * *'
   workflow_dispatch: # Allow manual triggering
 
-
 jobs:
   github-analyze:
     runs-on: ubuntu-latest
@@ -29,14 +28,15 @@ jobs:
 
     - name: Install dependencies
       run: |
+        python -m pip install --upgrade pip
         # Install any dependencies the script might need
-        python3 -m pip install requests tqdm
+        pip install requests tqdm
 
     - name: Run GitHub Analytics
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: |
-        python3 tools/analytics/github_analyze.py \
+        python tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote upstream -- \
           --branch release/2.7 \
