@@ -250,7 +250,7 @@ jobs:
         run: |
           & .\.venv\Scripts\Activate.ps1
           pip install --upgrade certifi==2025.04.26
-
+          pip install --upgrade ninja==1.11.1
           # Grab the path to certifi's CA bundle
           $certPath = (python -m certifi).Trim()
           Write-Host "Using cert bundle at: $certPath"
