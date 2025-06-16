@@ -49,7 +49,6 @@ export default async function handler(
   // write permissions to the main PyTorch repository
   const repoOwner = "pytorch";
   const repoName = "pytorch";
-  
   let username: string;
 
   try {
