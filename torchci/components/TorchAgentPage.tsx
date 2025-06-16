@@ -10,33 +10,33 @@ import {
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
-import { GrafanaEmbed } from "./McpQueryPage/GrafanaEmbed";
+import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
 import {
   useAnimatedCounter,
   useAutoScroll,
   useThinkingMessages,
   useTokenCalculator,
-} from "./McpQueryPage/hooks";
+} from "./TorchAgentPage/hooks";
 import {
   ChunkMetadata,
   LoaderWrapper,
-  McpQueryPageContainer,
   QuerySection,
   ResponseText,
   ResultsSection,
   ScrollToBottomButton,
-} from "./McpQueryPage/styles";
-import { TodoList } from "./McpQueryPage/TodoList";
-import { ToolUse } from "./McpQueryPage/ToolUse";
-import { MessageWrapper, ParsedContent } from "./McpQueryPage/types";
+  TorchAgentPageContainer,
+} from "./TorchAgentPage/styles";
+import { TodoList } from "./TorchAgentPage/TodoList";
+import { ToolUse } from "./TorchAgentPage/ToolUse";
+import { MessageWrapper, ParsedContent } from "./TorchAgentPage/types";
 import {
   extractGrafanaLinks,
   formatElapsedTime,
   formatTokenCount,
   renderTextWithLinks,
-} from "./McpQueryPage/utils";
+} from "./TorchAgentPage/utils";
 
-export const McpQueryPage = () => {
+export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
 
@@ -51,10 +51,10 @@ export const McpQueryPage = () => {
   const [typingSpeed] = useState(10);
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
-  const [elapsedTime, setElapsedTime] = useState(0); // in seconds
-  const [totalTokens, setTotalTokens] = useState(0); // track total tokens for display
-  const [completedTokens, setCompletedTokens] = useState(0); // final token count after completion
-  const [completedTime, setCompletedTime] = useState(0); // final time after completion
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const [totalTokens, setTotalTokens] = useState(0);
+  const [completedTokens, setCompletedTokens] = useState(0);
+  const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
 
@@ -554,14 +554,14 @@ export const McpQueryPage = () => {
   // Authentication check
   if (session.status === "loading") {
     return (
-      <McpQueryPageContainer>
+      <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
           <AISpinner />
           <Typography variant="h6" sx={{ mt: 2 }}>
             Checking authentication...
           </Typography>
         </QuerySection>
-      </McpQueryPageContainer>
+      </TorchAgentPageContainer>
     );
   }
 
@@ -571,7 +571,7 @@ export const McpQueryPage = () => {
     !(session.data as any)?.accessToken
   ) {
     return (
-      <McpQueryPageContainer>
+      <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
           <Typography variant="h4" gutterBottom>
             Authentication Required
@@ -584,7 +584,7 @@ export const McpQueryPage = () => {
             Please sign in to continue.
           </Typography>
         </QuerySection>
-      </McpQueryPageContainer>
+      </TorchAgentPageContainer>
     );
   }
 
@@ -743,7 +743,7 @@ export const McpQueryPage = () => {
   };
 
   return (
-    <McpQueryPageContainer>
+    <TorchAgentPageContainer>
       {showScrollButton && (
         <Tooltip title="Go to bottom and resume auto-scroll">
           <ScrollToBottomButton
@@ -758,10 +758,45 @@ export const McpQueryPage = () => {
       )}
 
       <Typography variant="h4" gutterBottom>
-        PyTorch Grafana Agent
+        TorchAgent
       </Typography>
+
+      <Typography
+        variant="body1"
+        paragraph
+        sx={{
+          mb: 3,
+          p: 2,
+          backgroundColor: "background.paper",
+          borderRadius: 1,
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        Welcome to TorchAgent, your intelligent assistant for PyTorch
+        infrastructure analysis and monitoring. This tool helps you create
+        custom time-series visualizations, analyze CI/CD metrics, and gain
+        insights into the PyTorch development workflow. Simply describe what
+        you&apos;d like to explore, and TorchAgent will generate the appropriate
+        queries and dashboards for you. Data we have access to:
+        <ul>
+          <li>
+            PyTorch GitHub repository data (comments, issues, PRs, including
+            text inside of these)
+          </li>
+          <li>
+            PyTorch GitHub Actions CI data (build/test/workflow results, error
+            log classifications, duration, runner types)
+          </li>
+          <li>
+            CI cost / duration data: how long does the average job/workflow run)
+          </li>
+          <li>Benchmarking data in the benchmarking database</li>
+        </ul>
+      </Typography>
+
       <Typography variant="body1" paragraph>
-        What timeseries should we create for you?
+        What can I help you graph today?
       </Typography>
 
       <QuerySection>
@@ -892,6 +927,6 @@ export const McpQueryPage = () => {
           </Box>
         )}
       </ResultsSection>
-    </McpQueryPageContainer>
+    </TorchAgentPageContainer>
   );
 };
