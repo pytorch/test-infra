@@ -268,15 +268,15 @@ jobs:
           $env:CONDA_PREFIX = $env:DEPENDENCIES_DIR
           $env:PATH = "$env:PATH;$env:DEPENDENCIES_DIR\Library\bin"
           $env:DISTUTILS_USE_SDK = "1"
-          $VS_PATH = "$env:DEPENDENCIES_DIR\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat"
-          
-          cmd /c "`"$VS_PATH`" arm64 && set" | ForEach-Object {
-            if ($_ -match "^([^=]+)=(.*)$") {
-              [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+          $VS_PATH = Join-Path $env:DEPENDENCIES_DIR "VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat"
+          cmd.exe /c "`"$VS_PATH`" arm64 && set" | ForEach-Object {
+            if ($_ -match "^(.*?)=(.*)$") {
+              $name, $value = $matches[1], $matches[2]
+              $env:$name = $value
             }
           }
           
-          Set-Location $env:SRC_DIR
+          cd $env:SRC_DIR
           & .\.venv\Scripts\Activate.ps1
           Get-Command python
           pip install --upgrade setuptools==72.1.0
