@@ -40,6 +40,17 @@ export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
 
+  const featureRequestUrl =
+    "https://github.com/pytorch/test-infra/issues/new?title=" +
+    encodeURIComponent("[TorchAgent][featurerequest]") +
+    "&body=" +
+    encodeURIComponent("Please describe your feature request here.");
+  const bugReportUrl =
+    "https://github.com/pytorch/test-infra/issues/new?title=" +
+    encodeURIComponent("[TorchAgent][bug]") +
+    "&body=" +
+    encodeURIComponent("Please describe the bug you encountered.");
+
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [response, setResponse] = useState("");
@@ -761,6 +772,27 @@ export const TorchAgentPage = () => {
         TorchAgent
       </Typography>
 
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <Button
+          variant="outlined"
+          component="a"
+          href={featureRequestUrl}
+          target="_blank"
+          sx={{ mr: 1 }}
+        >
+          Feature Request
+        </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          component="a"
+          href={bugReportUrl}
+          target="_blank"
+        >
+          Report Bug
+        </Button>
+      </Box>
+
       <Typography
         variant="body1"
         paragraph
@@ -773,12 +805,12 @@ export const TorchAgentPage = () => {
           borderColor: "divider",
         }}
       >
-        Welcome to TorchAgent, your intelligent assistant for PyTorch
-        infrastructure analysis and monitoring. This tool helps you create
-        custom time-series visualizations, analyze CI/CD metrics, and gain
-        insights into the PyTorch development workflow. Simply describe what
-        you&apos;d like to explore, and TorchAgent will generate the appropriate
-        queries and dashboards for you. Data we have access to:
+        Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
+        infrastructure analysis and monitoring. I can help you create custom
+        time-series visualizations, analyze CI/CD metrics, and gain insights
+        into the PyTorch development workflow. Simply describe what you&apos;d
+        like to explore, and I will generate the appropriate queries and
+        dashboards for you. Data I have access to:
         <ul>
           <li>
             PyTorch GitHub repository data (comments, issues, PRs, including
@@ -927,6 +959,27 @@ export const TorchAgentPage = () => {
           </Box>
         )}
       </ResultsSection>
+
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+        <Button
+          variant="outlined"
+          component="a"
+          href={featureRequestUrl}
+          target="_blank"
+          sx={{ mr: 1 }}
+        >
+          Feature Request
+        </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          component="a"
+          href={bugReportUrl}
+          target="_blank"
+        >
+          Report Bug
+        </Button>
+      </Box>
     </TorchAgentPageContainer>
   );
 };
