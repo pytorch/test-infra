@@ -1,4 +1,6 @@
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Box, Button, Tooltip, Typography, useTheme } from "@mui/material";
+import BugReportIcon from "@mui/icons-material/BugReport";
+import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -1116,24 +1118,29 @@ export const TorchAgentPage = () => {
             </ResultsSection>
 
             <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-              <Button
-                variant="outlined"
-                component="a"
-                href={featureRequestUrl}
-                target="_blank"
-                sx={{ mr: 1 }}
-              >
-                Feature Request
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                component="a"
-                href={bugReportUrl}
-                target="_blank"
-              >
-                Report Bug
-              </Button>
+              <Tooltip title="Create feature request">
+                <Button
+                  variant="outlined"
+                  component="a"
+                  href={featureRequestUrl}
+                  target="_blank"
+                  sx={{ mr: 1, minWidth: "auto", p: 1 }}
+                >
+                  <LightbulbIcon />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Report bug">
+                <Button
+                  variant="outlined"
+                  color="error"
+                  component="a"
+                  href={bugReportUrl}
+                  target="_blank"
+                  sx={{ minWidth: "auto", p: 1 }}
+                >
+                  <BugReportIcon />
+                </Button>
+              </Tooltip>
             </Box>
           </TorchAgentPageContainer>
         )}
