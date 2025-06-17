@@ -12,7 +12,7 @@ pub mod filter;
 pub struct CleanupConfig {
     pub region: String,
     pub dry_run: bool,
-    pub older_than_days: u32,
+    pub older_than_days: u16,
 }
 
 #[derive(Debug)]
@@ -58,15 +58,21 @@ pub async fn cleanup_ssm_parameters<C: SsmClient, T: TimeProvider>(
     println!("Found {} parameters to delete", parameters_to_delete.len());
     let parameters_found = parameters_to_delete.len();
 
-    let (deleted_count, failed_count) = if !config.dry_run {
-        cleanup::delete_parameters_in_batches(client, parameters_to_delete).await?
-    } else {
+    let deleted_count;
+    let failed_count;
+
+    if config.dry_run {
         println!("Dry run mode - no parameters were deleted");
         for name in &parameters_to_delete {
             println!("Would delete: {}", name);
         }
-        (0, 0)
-    };
+        deleted_count = 0;
+        failed_count = 0;
+    } else {
+        let (actual_deleted, actual_failed) = cleanup::delete_parameters_in_batches(client, parameters_to_delete).await?;
+        deleted_count = actual_deleted;
+        failed_count = actual_failed;
+    }
 
     Ok(CleanupResult {
         parameters_found,

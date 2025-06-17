@@ -5,7 +5,7 @@ use chrono::{DateTime, Duration};
 pub fn filter_old_parameters<T: TimeProvider>(
     parameters: &[ParameterMetadata],
     time_provider: &T,
-    older_than_days: u32,
+    older_than_days: u16,
 ) -> Vec<String> {
     let threshold = time_provider.now() - Duration::days(older_than_days.into());
     let mut parameters_to_delete = Vec::new();

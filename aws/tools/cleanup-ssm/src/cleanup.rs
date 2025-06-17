@@ -1,5 +1,7 @@
 use crate::SsmClient;
 
+const BATCH_SIZE: usize = 10;
+
 pub async fn delete_parameters_in_batches<C: SsmClient>(
     client: &C,
     parameters_to_delete: Vec<String>,
@@ -7,7 +9,7 @@ pub async fn delete_parameters_in_batches<C: SsmClient>(
     let mut total_deleted = 0;
     let mut total_failed = 0;
 
-    for chunk in parameters_to_delete.chunks(10) {
+    for chunk in parameters_to_delete.chunks(BATCH_SIZE) {
         let (deleted, failed) = client.delete_parameters(chunk.to_vec()).await?;
 
         total_deleted += deleted.len();

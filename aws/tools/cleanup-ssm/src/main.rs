@@ -12,7 +12,7 @@ struct Args {
     dry_run: bool,
     // number of days older than the parameter to delete
     #[clap(long, default_value = "1")]
-    older_than: u32,
+    older_than: u16,
 }
 
 #[tokio::main]
