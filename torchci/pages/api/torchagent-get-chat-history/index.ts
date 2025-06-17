@@ -12,10 +12,17 @@ import { authOptions } from "../auth/[...nextauth]";
 // Configure AWS S3
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-2",
+  credentials: {
+    accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY!,
+  },
 });
 
 const TORCHAGENT_SESSION_BUCKET_NAME =
   process.env.TORCHAGENT_SESSION_BUCKET_NAME || "torchci-session-history";
+
+// Auth token for cookie bypass
+const AUTH_TOKEN = process.env.GRAFANA_MCP_AUTH_TOKEN || "";
 
 export default async function handler(
   req: NextApiRequest,
@@ -43,44 +50,59 @@ export default async function handler(
     return res.status(400).json({ error: "Session ID is required" });
   }
 
-  // Check write permissions to pytorch/pytorch repository
-  const repoOwner = "pytorch";
-  const repoName = "pytorch";
-
+  // Check for special cookie bypass first
+  const authCookie = req.cookies["GRAFANA_MCP_AUTH_TOKEN"];
   let username: string;
 
-  try {
-    const octokit = await getOctokitWithUserToken(
-      session.accessToken as string
-    );
-    const user = await octokit.rest.users.getAuthenticated();
-
-    if (!user?.data?.login) {
-      console.log("Rejected: Could not authenticate user with GitHub");
-      return res.status(401).json({ error: "GitHub authentication failed" });
+  if (authCookie && AUTH_TOKEN && authCookie === AUTH_TOKEN) {
+    console.log("Authorized: Using GRAFANA_MCP_AUTH_TOKEN cookie bypass");
+    username = "grafana-bypass-user";
+  } else {
+    // Standard authentication flow
+    // @ts-ignore
+    const session = await getServerSession(req, res, authOptions);
+    if (!session?.user || !session?.accessToken) {
+      console.log("Rejected: User not authenticated");
+      return res.status(401).json({ error: "Authentication required" });
     }
 
-    const hasWritePermissions = await hasWritePermissionsUsingOctokit(
-      octokit,
-      user.data.login,
-      repoOwner,
-      repoName
-    );
+    // Check write permissions to pytorch/pytorch repository
+    const repoOwner = "pytorch";
+    const repoName = "pytorch";
 
-    if (!hasWritePermissions) {
-      console.log(
-        `Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`
+    try {
+      const octokit = await getOctokitWithUserToken(
+        session.accessToken as string
       );
-      return res.status(403).json({
-        error: "Write permissions to pytorch/pytorch repository required",
-      });
-    }
+      const user = await octokit.rest.users.getAuthenticated();
 
-    console.log(`Authorized: User ${user.data.login} has write permissions`);
-    username = user.data.login;
-  } catch (error) {
-    console.error("Error checking permissions:", error);
-    return res.status(500).json({ error: "Permission check failed" });
+      if (!user?.data?.login) {
+        console.log("Rejected: Could not authenticate user with GitHub");
+        return res.status(401).json({ error: "GitHub authentication failed" });
+      }
+
+      const hasWritePermissions = await hasWritePermissionsUsingOctokit(
+        octokit,
+        user.data.login,
+        repoOwner,
+        repoName
+      );
+
+      if (!hasWritePermissions) {
+        console.log(
+          `Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`
+        );
+        return res.status(403).json({
+          error: "Write permissions to pytorch/pytorch repository required",
+        });
+      }
+
+      console.log(`Authorized: User ${user.data.login} has write permissions`);
+      username = user.data.login;
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      return res.status(500).json({ error: "Permission check failed" });
+    }
   }
 
   try {

@@ -23,9 +23,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 }) => {
   return (
     <>
-      <Typography
-        variant="body1"
-        paragraph
+      <Box
         sx={{
           mb: 3,
           p: 2,
@@ -35,12 +33,14 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
           borderColor: "divider",
         }}
       >
-        Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
-        infrastructure analysis and monitoring. I can help you create custom
-        time-series visualizations, analyze CI/CD metrics, and gain insights
-        into the PyTorch development workflow. Simply describe what you&apos;d
-        like to explore, and I will generate the appropriate queries and
-        dashboards for you. Data I have access to:
+        <Typography variant="body1">
+          Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
+          infrastructure analysis and monitoring. I can help you create custom
+          time-series visualizations, analyze CI/CD metrics, and gain insights
+          into the PyTorch development workflow. Simply describe what you&apos;d
+          like to explore, and I will generate the appropriate queries and
+          dashboards for you. Data I have access to:
+        </Typography>
         <ul>
           <li>
             PyTorch GitHub repository data (comments, issues, PRs, including
@@ -55,7 +55,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
           </li>
           <li>Benchmarking data in the benchmarking database</li>
         </ul>
-      </Typography>
+      </Box>
 
       <Typography variant="body1" paragraph>
         What can I help you graph today?

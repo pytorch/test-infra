@@ -1,8 +1,25 @@
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ChatIcon from "@mui/icons-material/Chat";
+import {
+  Box,
+  Button,
+  Drawer,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  TextField,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
+import { FeedbackButtons } from "./TorchAgentPage/FeedbackButtons";
 import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
 import { HeaderSection } from "./TorchAgentPage/HeaderSection";
 import {
@@ -22,7 +39,7 @@ import {
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
-import { MessageWrapper, ParsedContent } from "./TorchAgentPage/types";
+import { ParsedContent } from "./TorchAgentPage/types";
 import {
   extractGrafanaLinks,
   formatElapsedTime,
@@ -37,10 +54,20 @@ interface ChatSession {
   date: string;
   filename: string;
   key: string;
-  status?: string;
   title?: string;
-  displayedTitle?: string;
 }
+
+// Helper function to check for special auth cookie (presence only)
+const hasAuthCookie = () => {
+  if (typeof document === "undefined") return false;
+
+  const cookies = document.cookie.split(";");
+  const authCookie = cookies.find((cookie) =>
+    cookie.trim().startsWith("GRAFANA_MCP_AUTH_TOKEN=")
+  );
+
+  return !!authCookie;
+};
 
 export const TorchAgentPage = () => {
   const session = useSession();
@@ -74,23 +101,17 @@ export const TorchAgentPage = () => {
   const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
-  const hasFetchedTitleRef = useRef(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
 
   // Chat history state
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
-  const chatHistoryRef = useRef<ChatSession[]>([]);
-  useEffect(() => {
-    chatHistoryRef.current = chatHistory;
-  }, [chatHistory]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
 
-  const pollingRef = useRef<NodeJS.Timeout | null>(null);
-
   const fetchControllerRef = useRef<AbortController | null>(null);
-  const suppressErrorRef = useRef<boolean>(false);
 
   const thinkingMessages = useThinkingMessages();
   const displayedTokens = useAnimatedCounter(totalTokens);
@@ -103,43 +124,28 @@ export const TorchAgentPage = () => {
   };
 
   // Fetch chat history on component mount
-  const fetchChatHistory = async (showLoading = false) => {
-    if (!session.data?.user) return;
+  const fetchChatHistory = async () => {
+    console.log("hasAuthCookie:", hasAuthCookie());
+    if (!session.data?.user && !hasAuthCookie()) return;
 
-    if (showLoading) {
-      setIsHistoryLoading(true);
-    }
+    setIsHistoryLoading(true);
     try {
       const response = await fetch("/api/torchagent-get-history");
       if (response.ok) {
         const data = await response.json();
         setChatHistory(data.sessions || []);
-        const hasInProgress = (data.sessions || []).some(
-          (s: ChatSession) => s.status === "in_progress"
-        );
-        if (hasInProgress && !pollingRef.current) {
-          pollingRef.current = setInterval(fetchChatHistory, 10000);
-        } else if (!hasInProgress && pollingRef.current) {
-          clearInterval(pollingRef.current);
-          pollingRef.current = null;
-        }
       } else {
         console.error("Failed to fetch chat history");
       }
     } catch (error) {
       console.error("Error fetching chat history:", error);
     } finally {
-      if (showLoading) {
-        setIsHistoryLoading(false);
-      }
+      setIsHistoryLoading(false);
     }
   };
 
   // Load a specific chat session
   const loadChatSession = async (sessionId: string) => {
-    // Cancel any ongoing streaming request first (suppress error message)
-    cancelRequest(true);
-
     setIsSessionLoading(true);
     // Clear existing content while loading
     setParsedResponses([]);
@@ -293,7 +299,8 @@ export const TorchAgentPage = () => {
         }
 
         setSelectedSession(sessionId);
-        // Don't override the response we set above for the debug view
+        setCurrentSessionId(sessionId);
+        setFeedbackVisible(sessionData.status === "completed");
       } else {
         console.error("Failed to load chat session");
         setError("Failed to load chat session");
@@ -308,49 +315,24 @@ export const TorchAgentPage = () => {
 
   // Start a new chat
   const startNewChat = () => {
-    cancelRequest(true);
     setQuery("");
     setResponse("");
     setParsedResponses([]);
     setSelectedSession(null);
+    setCurrentSessionId(null);
+    setFeedbackVisible(false);
     setError("");
     setTotalTokens(0);
     setCompletedTokens(0);
     setElapsedTime(0);
     setCompletedTime(0);
     setIsSessionLoading(false);
-    hasFetchedTitleRef.current = false;
-  };
-
-  const animateTitleTyping = (sessionId: string, title: string) => {
-    const totalDuration = 2000;
-    const steps = title.length;
-    if (steps === 0) return;
-    let index = 0;
-    const interval = setInterval(() => {
-      index += 1;
-      setChatHistory((prev) =>
-        prev.map((s) =>
-          s.sessionId === sessionId
-            ? { ...s, displayedTitle: title.slice(0, index) }
-            : s
-        )
-      );
-      if (index >= steps) {
-        clearInterval(interval);
-        setChatHistory((prev) =>
-          prev.map((s) =>
-            s.sessionId === sessionId ? { ...s, displayedTitle: undefined } : s
-          )
-        );
-      }
-    }, totalDuration / steps);
   };
 
   // Fetch chat history on mount
   useEffect(() => {
     if (session.data?.user) {
-      fetchChatHistory(true);
+      fetchChatHistory();
     }
   }, [session.data?.user]);
 
@@ -441,10 +423,6 @@ export const TorchAgentPage = () => {
         fetchControllerRef.current.abort();
         fetchControllerRef.current = null;
       }
-      if (pollingRef.current) {
-        clearInterval(pollingRef.current);
-        pollingRef.current = null;
-      }
     };
   }, []);
 
@@ -454,7 +432,12 @@ export const TorchAgentPage = () => {
       if (!line.trim()) return;
 
       setResponse((prev) => prev + line + "\n");
-      const json = JSON.parse(line) as MessageWrapper;
+      const json = JSON.parse(line) as any;
+
+      if (json.status === "connecting" && json.userUuid) {
+        setCurrentSessionId(json.userUuid);
+        return;
+      }
 
       // Process timing data from result messages
       if (
@@ -468,18 +451,8 @@ export const TorchAgentPage = () => {
 
       // Handle different response types
       if (json.type === "assistant" && json.message?.content) {
-        json.message.content.forEach((item) => {
+        json.message.content.forEach((item: any) => {
           if (item.type === "text" && "text" in item) {
-            if (!hasFetchedTitleRef.current && parsedResponses.length === 0) {
-              hasFetchedTitleRef.current = true;
-              fetchChatHistory().then(() => {
-                const latest = chatHistoryRef.current[0];
-                if (latest && latest.title) {
-                  animateTitleTyping(latest.sessionId, latest.title);
-                  setSelectedSession(latest.sessionId);
-                }
-              });
-            }
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
 
@@ -585,7 +558,7 @@ export const TorchAgentPage = () => {
           }
         });
       } else if (json.type === "user" && json.message?.content) {
-        json.message.content.forEach((item) => {
+        json.message.content.forEach((item: any) => {
           if (item.type === "tool_result" && item.tool_use_id) {
             setParsedResponses((prev) => {
               const updated = [...prev];
@@ -726,18 +699,18 @@ export const TorchAgentPage = () => {
         setError(`Error: ${json.error}`);
       }
     } catch (err) {
-      console.log("Failed to parse:", line);
+      console.error("Failed to parse:", line);
     }
   };
 
-  const cancelRequest = (suppressError: boolean = false) => {
+  const cancelRequest = () => {
     if (fetchControllerRef.current) {
-      // Set flag to suppress error message if needed
-      suppressErrorRef.current = suppressError;
-
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
@@ -751,23 +724,10 @@ export const TorchAgentPage = () => {
 
     cancelRequest();
 
-    const placeholderId = `tmp-${Date.now()}`;
-    const nowIso = new Date().toISOString();
-    const placeholderSession: ChatSession = {
-      sessionId: placeholderId,
-      timestamp: nowIso,
-      date: nowIso.slice(0, 10).replace(/-/g, ""),
-      filename: "",
-      key: placeholderId,
-      status: "in_progress",
-    };
-    setChatHistory((prev) => [placeholderSession, ...prev]);
-    setSelectedSession(placeholderId);
-    hasFetchedTitleRef.current = false;
-
     setIsLoading(true);
     setResponse("");
     setParsedResponses([]);
+    setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
     resetAutoScroll();
@@ -837,7 +797,9 @@ export const TorchAgentPage = () => {
             setCompletedTokens(finalTokens);
             setTotalTokens(finalTokens);
             setIsLoading(false);
-            fetchChatHistory();
+            if (currentSessionId) {
+              setFeedbackVisible(true);
+            }
           }, 500);
 
           break;
@@ -858,22 +820,21 @@ export const TorchAgentPage = () => {
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        // Only show "Request cancelled" error if it wasn't suppressed (i.e., user explicitly cancelled)
-        if (!suppressErrorRef.current) {
-          setError("Request cancelled");
-        }
-        // Reset the suppress flag after use
-        suppressErrorRef.current = false;
+        setError("Request cancelled");
       } else {
         console.error("Fetch error:", err);
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
-      fetchChatHistory();
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
-  // Authentication check
+  // Authentication check - allow bypass with special cookie
+  const hasCookieAuth = hasAuthCookie();
+
   if (session.status === "loading") {
     return (
       <TorchAgentPageContainer>
@@ -888,9 +849,10 @@ export const TorchAgentPage = () => {
   }
 
   if (
-    session.status === "unauthenticated" ||
-    !session.data?.user ||
-    !(session.data as any)?.accessToken
+    !hasCookieAuth &&
+    (session.status === "unauthenticated" ||
+      !session.data?.user ||
+      !(session.data as any)?.accessToken)
   ) {
     return (
       <TorchAgentPageContainer>
@@ -1049,7 +1011,7 @@ export const TorchAgentPage = () => {
             </Box>
           </LoaderWrapper>
         ) : (
-          completedTokens > 0 && (
+          (completedTokens > 0 || feedbackVisible) && (
             <Box
               sx={{
                 display: "flex",
@@ -1070,14 +1032,20 @@ export const TorchAgentPage = () => {
                 boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.primary"
-                sx={{ fontWeight: "medium" }}
-              >
-                Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                {formatTokenCount(completedTokens)} tokens
-              </Typography>
+              {completedTokens > 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  sx={{ fontWeight: "medium" }}
+                >
+                  Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                  {formatTokenCount(completedTokens)} tokens
+                </Typography>
+              )}
+              <FeedbackButtons
+                sessionId={currentSessionId}
+                visible={feedbackVisible}
+              />
             </Box>
           )
         )}
