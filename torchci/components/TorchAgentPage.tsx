@@ -1,6 +1,13 @@
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
 import ThumbUpIcon from "@mui/icons-material/ThumbUp";
-import { Box, Button, IconButton, Typography, useTheme } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -76,6 +83,10 @@ export const TorchAgentPage = () => {
   const [debugVisible, setDebugVisible] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState<number | null>(
+    null
+  );
+  const [feedbackSelected, setFeedbackSelected] = useState<number | null>(null);
 
   // Chat history state
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
@@ -91,6 +102,11 @@ export const TorchAgentPage = () => {
   const calculateTotalTokens = useTokenCalculator();
   const { showScrollButton, scrollToBottomAndEnable, resetAutoScroll } =
     useAutoScroll(isLoading, parsedResponses);
+
+  // Debug: Track feedbackVisible changes
+  useEffect(() => {
+    console.log("feedbackVisible changed to:", feedbackVisible);
+  }, [feedbackVisible]);
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -123,6 +139,8 @@ export const TorchAgentPage = () => {
     setParsedResponses([]);
     setResponse("");
     setError("");
+    setFeedbackSubmitted(null);
+    setFeedbackSelected(null);
 
     try {
       const response = await fetch(
@@ -272,7 +290,13 @@ export const TorchAgentPage = () => {
 
         setSelectedSession(sessionId);
         setCurrentSessionId(sessionId);
-        setFeedbackVisible(false);
+        console.log("sessiondata:", sessionData);
+        console.log("status:", sessionData.status);
+        console.log(
+          "setting feedbackVisible to:",
+          sessionData.status === "completed"
+        );
+        setFeedbackVisible(sessionData.status === "completed");
         // Don't override the response we set above for the debug view
       } else {
         console.error("Failed to load chat session");
@@ -294,6 +318,8 @@ export const TorchAgentPage = () => {
     setSelectedSession(null);
     setCurrentSessionId(null);
     setFeedbackVisible(false);
+    setFeedbackSubmitted(null);
+    setFeedbackSelected(null);
     setError("");
     setTotalTokens(0);
     setCompletedTokens(0);
@@ -813,10 +839,14 @@ export const TorchAgentPage = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sessionId: currentSessionId, feedback: value }),
       });
+      setFeedbackSelected(value);
+      setFeedbackSubmitted(value);
+      // Hide confirmation message after 5 seconds, but keep button selected
+      setTimeout(() => {
+        setFeedbackSubmitted(null);
+      }, 3000);
     } catch (e) {
       console.error("Failed to send feedback", e);
-    } finally {
-      setFeedbackVisible(false);
     }
   };
 
@@ -996,7 +1026,7 @@ export const TorchAgentPage = () => {
             </Box>
           </LoaderWrapper>
         ) : (
-          completedTokens > 0 && (
+          (completedTokens > 0 || feedbackVisible) && (
             <Box
               sx={{
                 display: "flex",
@@ -1017,30 +1047,103 @@ export const TorchAgentPage = () => {
                 boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.primary"
-                sx={{ fontWeight: "medium" }}
-              >
-                Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                {formatTokenCount(completedTokens)} tokens
-              </Typography>
+              {completedTokens > 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  sx={{ fontWeight: "medium" }}
+                >
+                  Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                  {formatTokenCount(completedTokens)} tokens
+                </Typography>
+              )}
               {feedbackVisible && (
-                <Box sx={{ ml: 2 }}>
-                  <IconButton
-                    color="primary"
-                    size="small"
-                    onClick={() => sendFeedback(1)}
-                  >
-                    <ThumbUpIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    color="primary"
-                    size="small"
-                    onClick={() => sendFeedback(-1)}
-                  >
-                    <ThumbDownIcon fontSize="small" />
-                  </IconButton>
+                <Box sx={{ ml: 2, position: "relative" }}>
+                  <Tooltip title="This session was helpful and gave me what I asked for">
+                    <IconButton
+                      color="primary"
+                      size="small"
+                      onClick={() => sendFeedback(1)}
+                      sx={{
+                        backgroundColor:
+                          feedbackSelected === 1
+                            ? "primary.main"
+                            : "transparent",
+                        color:
+                          feedbackSelected === 1
+                            ? "primary.contrastText"
+                            : "primary.main",
+                        "&:hover": {
+                          backgroundColor:
+                            feedbackSelected === 1
+                              ? "primary.dark"
+                              : "primary.light",
+                        },
+                      }}
+                    >
+                      <ThumbUpIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="This output is not what I asked">
+                    <IconButton
+                      color="primary"
+                      size="small"
+                      onClick={() => sendFeedback(-1)}
+                      sx={{
+                        backgroundColor:
+                          feedbackSelected === -1
+                            ? "primary.main"
+                            : "transparent",
+                        color:
+                          feedbackSelected === -1
+                            ? "primary.contrastText"
+                            : "primary.main",
+                        "&:hover": {
+                          backgroundColor:
+                            feedbackSelected === -1
+                              ? "primary.dark"
+                              : "primary.light",
+                        },
+                      }}
+                    >
+                      <ThumbDownIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  {feedbackSubmitted !== null && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        top: -40,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        backgroundColor: "success.main",
+                        color: "success.contrastText",
+                        px: 2,
+                        py: 1,
+                        borderRadius: 1,
+                        fontSize: "0.875rem",
+                        fontWeight: "medium",
+                        boxShadow: 2,
+                        zIndex: 1000,
+                        whiteSpace: "nowrap",
+                        "&::after": {
+                          content: '""',
+                          position: "absolute",
+                          top: "100%",
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          width: 0,
+                          height: 0,
+                          borderLeft: "6px solid transparent",
+                          borderRight: "6px solid transparent",
+                          borderTop: "6px solid",
+                          borderTopColor: "success.main",
+                        },
+                      }}
+                    >
+                      Feedback recorded, thank you!
+                    </Box>
+                  )}
                 </Box>
               )}
             </Box>

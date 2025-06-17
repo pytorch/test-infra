@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
-import { getClickhouseClientWritableTorchAgent } from "../../lib/clickhouse";
+import { getClickhouseClientWritable } from "../../lib/clickhouse";
 import { hasWritePermissionsUsingOctokit } from "../../lib/GeneralUtils";
 import { getOctokitWithUserToken } from "../../lib/github";
 import { authOptions } from "./auth/[...nextauth]";
@@ -11,8 +11,8 @@ export async function insertFeedback(
   sessionId: string,
   feedback: number
 ) {
-  await getClickhouseClientWritableTorchAgent().insert({
-    table: "misc.torchagent_feedback",
+  await getClickhouseClientWritable().insert({
+    table: "fortesting.torchagent_feedback",
     values: [
       [user, sessionId, feedback, dayjs().utc().format("YYYY-MM-DD HH:mm:ss")],
     ],

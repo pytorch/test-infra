@@ -27,15 +27,6 @@ export function getClickhouseClientWritable() {
   });
 }
 
-export function getClickhouseClientWritableTorchAgent() {
-  return createClient({
-    host: process.env.CLICKHOUSE_HUD_USER_URL ?? "http://localhost:8123",
-    username:
-      process.env.CLICKHOUSE_HUD_USER_USERNAME_WRITE_TORCHAGENT ?? "default",
-    password: process.env.CLICKHOUSE_HUD_USER_PASSWORD_WRITE_TORCHAGENT ?? "",
-  });
-}
-
 export async function queryClickhouse(
   query: string,
   params: Record<string, unknown>,
