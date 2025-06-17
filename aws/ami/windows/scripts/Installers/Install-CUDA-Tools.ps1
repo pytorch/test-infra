@@ -15,7 +15,7 @@ $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
 $cudnn_lib_folder="lib\x64"
-$cudnn_subfolder="cudnn-windows-x86_64-9.10.2.21_cuda12-archive"
+$cudnn_subfolder="cudnn-windows-x86_64-9.9.0.52_cuda12-archive"
 $toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
 
 Switch ($cudaVersion) {
