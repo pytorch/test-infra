@@ -12,7 +12,7 @@ export async function insertFeedback(
   feedback: number
 ) {
   await getClickhouseClientWritable().insert({
-    table: "fortesting.torchagent_feedback",
+    table: "misc.torchagent_feedback",
     values: [
       [user, sessionId, feedback, dayjs().utc().format("YYYY-MM-DD HH:mm:ss")],
     ],
