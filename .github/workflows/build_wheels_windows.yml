@@ -248,16 +248,20 @@ jobs:
         working-directory: ${{ inputs.repository }}
         shell: pwsh
         run: |
-          & .\.venv\Scripts\Activate.ps1
+          :: Activate virtual environment
+          call .\.venv\Scripts\activate.bat
+
+          :: Install specific versions of packages
           pip install --upgrade certifi==2025.04.26
           pip install --upgrade ninja==1.11.1
-          # Grab the path to certifi's CA bundle
-          $certPath = (python -m certifi).Trim()
-          Write-Host "Using cert bundle at: $certPath"
 
-          # Point Python & urllib/requests at it
-          $env:SSL_CERT_FILE       = $certPath
-          $env:REQUESTS_CA_BUNDLE  = $certPath
+          :: Get the path to certifi's CA bundle
+          for /f "delims=" %%A in ('python -m certifi') do set CERT_PATH=%%A
+          echo Using cert bundle at: %CERT_PATH%
+
+          :: Set environment variables for Python and requests
+          set SSL_CERT_FILE=%CERT_PATH%
+          set REQUESTS_CA_BUNDLE=%CERT_PATH%
       - name: Build the wheel (bdist_wheel) Arm64
         if: inputs.architecture == 'arm64'
         env:
