@@ -169,8 +169,6 @@ export default async function handler(
     res.status(200).json({ sessions });
   } catch (error) {
     console.error("Error fetching history:", error);
-    console.error("Error details:", error instanceof Error ? error.message : error);
-    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
-    res.status(500).json({ error: "Failed to fetch chat history", details: error instanceof Error ? error.message : String(error) });
+    res.status(500).json({ error: "Failed to fetch chat history" });
   }
 }
