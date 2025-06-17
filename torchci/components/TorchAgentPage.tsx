@@ -1,6 +1,6 @@
-import { Box, Button, Tooltip, Typography, useTheme } from "@mui/material";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import { Box, Button, Tooltip, Typography, useTheme } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
