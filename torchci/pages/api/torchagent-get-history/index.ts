@@ -23,6 +23,7 @@ interface HistorySession {
   date: string;
   filename: string;
   key: string;
+  status?: string;
   title?: string;
 }
 
@@ -128,6 +129,7 @@ export default async function handler(
               headResponse.Metadata?.timestamp ||
               filename.replace(".json", "").split("_")[0];
             const title = headResponse.Metadata?.title;
+            const status = headResponse.Metadata?.status;
 
             return {
               sessionId,
@@ -136,6 +138,7 @@ export default async function handler(
               filename,
               key,
               title,
+              status,
             };
           } catch (error) {
             console.error(`Failed to get metadata for ${obj.Key}:`, error);
@@ -154,6 +157,7 @@ export default async function handler(
                 date: timestamp.slice(0, 8),
                 filename,
                 key,
+                status: undefined,
               };
             }
             return null;

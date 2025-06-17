@@ -20,7 +20,9 @@ interface ChatSession {
   date: string;
   filename: string;
   key: string;
+  status?: string;
   title?: string;
+  displayedTitle?: string;
 }
 
 interface ChatHistorySidebarProps {
@@ -105,10 +107,16 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
                 selected={selectedSession === session.sessionId}
                 onClick={() => onLoadChatSession(session.sessionId)}
               >
-                <ChatIcon sx={{ mr: 1, opacity: 0.7 }} />
+                {session.status === "in_progress" ? (
+                  <CircularProgress size={14} sx={{ mr: 1 }} />
+                ) : (
+                  <ChatIcon sx={{ mr: 1, opacity: 0.7 }} />
+                )}
                 <ListItemText
-                  primary={session.title || session.timestamp}
-                  secondary={session.title ? session.timestamp : session.date}
+                  primary={session.displayedTitle || session.title || session.timestamp}
+                  secondary={
+                    session.title ? session.timestamp : session.date
+                  }
                 />
               </ListItemButton>
             </ListItem>

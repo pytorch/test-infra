@@ -37,7 +37,9 @@ interface ChatSession {
   date: string;
   filename: string;
   key: string;
+  status?: string;
   title?: string;
+  displayedTitle?: string;
 }
 
 export const TorchAgentPage = () => {
@@ -72,13 +74,20 @@ export const TorchAgentPage = () => {
   const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
+  const hasFetchedTitleRef = useRef(false);
 
   // Chat history state
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+  const chatHistoryRef = useRef<ChatSession[]>([]);
+  useEffect(() => {
+    chatHistoryRef.current = chatHistory;
+  }, [chatHistory]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
+
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
 
@@ -102,6 +111,15 @@ export const TorchAgentPage = () => {
       if (response.ok) {
         const data = await response.json();
         setChatHistory(data.sessions || []);
+        const hasInProgress = (data.sessions || []).some(
+          (s: ChatSession) => s.status === "in_progress"
+        );
+        if (hasInProgress && !pollingRef.current) {
+          pollingRef.current = setInterval(fetchChatHistory, 10000);
+        } else if (!hasInProgress && pollingRef.current) {
+          clearInterval(pollingRef.current);
+          pollingRef.current = null;
+        }
       } else {
         console.error("Failed to fetch chat history");
       }
@@ -292,6 +310,32 @@ export const TorchAgentPage = () => {
     setElapsedTime(0);
     setCompletedTime(0);
     setIsSessionLoading(false);
+    hasFetchedTitleRef.current = false;
+  };
+
+  const animateTitleTyping = (sessionId: string, title: string) => {
+    const totalDuration = 2000;
+    const steps = title.length;
+    if (steps === 0) return;
+    let index = 0;
+    const interval = setInterval(() => {
+      index += 1;
+      setChatHistory((prev) =>
+        prev.map((s) =>
+          s.sessionId === sessionId
+            ? { ...s, displayedTitle: title.slice(0, index) }
+            : s
+        )
+      );
+      if (index >= steps) {
+        clearInterval(interval);
+        setChatHistory((prev) =>
+          prev.map((s) =>
+            s.sessionId === sessionId ? { ...s, displayedTitle: undefined } : s
+          )
+        );
+      }
+    }, totalDuration / steps);
   };
 
   // Fetch chat history on mount
@@ -388,6 +432,10 @@ export const TorchAgentPage = () => {
         fetchControllerRef.current.abort();
         fetchControllerRef.current = null;
       }
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
     };
   }, []);
 
@@ -413,6 +461,16 @@ export const TorchAgentPage = () => {
       if (json.type === "assistant" && json.message?.content) {
         json.message.content.forEach((item) => {
           if (item.type === "text" && "text" in item) {
+            if (!hasFetchedTitleRef.current && parsedResponses.length === 0) {
+              hasFetchedTitleRef.current = true;
+              fetchChatHistory().then(() => {
+                const latest = chatHistoryRef.current[0];
+                if (latest && latest.title) {
+                  animateTitleTyping(latest.sessionId, latest.title);
+                  setSelectedSession(latest.sessionId);
+                }
+              });
+            }
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
 
@@ -681,6 +739,20 @@ export const TorchAgentPage = () => {
 
     cancelRequest();
 
+    const placeholderId = `tmp-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+    const placeholderSession: ChatSession = {
+      sessionId: placeholderId,
+      timestamp: nowIso,
+      date: nowIso.slice(0, 10).replace(/-/g, ""),
+      filename: "",
+      key: placeholderId,
+      status: "in_progress",
+    };
+    setChatHistory((prev) => [placeholderSession, ...prev]);
+    setSelectedSession(placeholderId);
+    hasFetchedTitleRef.current = false;
+
     setIsLoading(true);
     setResponse("");
     setParsedResponses([]);
@@ -753,6 +825,7 @@ export const TorchAgentPage = () => {
             setCompletedTokens(finalTokens);
             setTotalTokens(finalTokens);
             setIsLoading(false);
+            fetchChatHistory();
           }, 500);
 
           break;
@@ -779,6 +852,7 @@ export const TorchAgentPage = () => {
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
+      fetchChatHistory();
     }
   };
 
