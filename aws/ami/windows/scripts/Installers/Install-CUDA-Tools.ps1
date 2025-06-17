@@ -15,28 +15,20 @@ $installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
 $cudnn_lib_folder="lib\x64"
-$cudnn_subfolder="cudnn-windows-x86_64-9.1.0.70_cuda11-archive"
-$toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
+$cudnn_subfolder="cudnn-windows-x86_64-9.10.2.21_cuda12-archive"
+$toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
 
 Switch ($cudaVersion) {
-  "11.8" {
-    $toolkitInstaller = "cuda_11.8.0_522.06_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda11-archive"
-    $installerArgs += " cuda_profiler_api_$cudaVersion"
-  }
-  "12.4" {
-    $toolkitInstaller = "cuda_12.4.0_551.61_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-9.1.0.70_cuda12-archive"
-    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
-  }
   "12.6" {
-    $toolkitInstaller = "cuda_12.6.2_560.94_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-9.7.1.26_cuda12-archive"
+    $toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
   "12.8" {
     $toolkitInstaller = "cuda_12.8.1_572.61_windows.exe"
-    $cudnn_subfolder = "cudnn-windows-x86_64-9.7.1.26_cuda12-archive"
+    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
+  }
+  "12.9" {
+    $toolkitInstaller = "cuda_12.9.1_576.57_windows.exe"
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
 }
@@ -108,12 +100,7 @@ function Install-Cudnn() {
   Write-Output "Copying cudnn to $expectedInstallLocation"
 
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\bin\*" "$expectedInstallLocation\bin"
-  # TODO: Remove when CUDA 11.7 is deprecated
-  if ($cudaVersion -eq "11.7") {
-    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\*" "$expectedInstallLocation\lib\x64"
-  } else {
-    Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\x64\*" "$expectedInstallLocation\lib\x64"
-  }
+  Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\$cudnn_lib_folder\x64\*" "$expectedInstallLocation\lib\x64"
   Copy-Item -Force -Verbose -Recurse "$tmpCudnnExtracted\$cudnn_subfolder\include\*" "$expectedInstallLocation\include"
 
   if (-Not (Test-Path -Path "$expectedInstallLocation\include\cudnn.h" -PathType Leaf)) {

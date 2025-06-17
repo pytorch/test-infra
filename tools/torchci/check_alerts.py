@@ -363,10 +363,11 @@ def create_issue(issue: Dict, dry_run: bool) -> Dict:
     print(f"Creating issue with content:{os.linesep}{issue}")
     if dry_run:
         print("NOTE: Dry run activated, not doing any real work")
-        return
+        return {"number": -1, "closed": False, "body": ""}
     r = requests.post(CREATE_ISSUE_URL, json=issue, headers=headers)
     r.raise_for_status()
-    return {"number": r.json()["number"], "closed": False}
+    res = r.json()
+    return {"number": res["number"], "closed": False, "body": res["body"]}
 
 
 def fetch_hud_data(repo: str, branch: str) -> Any:
@@ -574,7 +575,7 @@ def check_for_recurrently_failing_jobs_alert(
         new_issue = create_issue(
             generate_failed_job_issue(repo=repo, branch=branch, failed_jobs=[]), dry_run
         )
-        existing_alerts.push(new_issue)
+        existing_alerts.append(new_issue)
 
     # Always favor the most recent issue, close all other ones
     existing_issue = existing_alerts[-1]

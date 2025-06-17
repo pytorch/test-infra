@@ -1,13 +1,6 @@
 import { EC2, SSM } from 'aws-sdk';
 import { PromiseResult } from 'aws-sdk/lib/request';
-import {
-  EphemeralRunnerStage,
-  ReuseStatusDecision,
-  RunnerInfo,
-  expBackOff,
-  getRepo,
-  shuffleArrayInPlace,
-} from './utils';
+import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 
 import { Config } from './config';
 import LRU from 'lru-cache';
@@ -31,8 +24,6 @@ export interface RunnerInputParameters {
   environment: string;
   repoName?: string;
   orgName?: string;
-  repositoryOwner?: string;
-  repositoryName?: string;
   runnerType: RunnerType;
 }
 
@@ -216,7 +207,27 @@ export async function listRunners(
           /* istanbul ignore next */
           return (
             reservation.Instances?.map((instance) => {
-              return toRunnerInfo(instance, itm.awsRegion);
+              const ebsVolumeReplacementRequestTimestamp = instance.Tags?.find(
+                (e) => e.Key === 'EBSVolumeReplacementRequestTm',
+              )?.Value;
+              const ephemeralRunnerFinished = instance.Tags?.find((e) => e.Key === 'EphemeralRunnerFinished')?.Value;
+              return {
+                applicationDeployDatetime: instance.Tags?.find((e) => e.Key === 'ApplicationDeployDatetime')?.Value,
+                awsRegion: itm.awsRegion,
+                az: instance.Placement?.AvailabilityZone?.toLocaleLowerCase(),
+                ebsVolumeReplacementRequestTimestamp: ebsVolumeReplacementRequestTimestamp
+                  ? parseInt(ebsVolumeReplacementRequestTimestamp)
+                  : undefined,
+                environment: instance.Tags?.find((e) => e.Key === 'Environment')?.Value,
+                ephemeralRunnerFinished: ephemeralRunnerFinished ? parseInt(ephemeralRunnerFinished) : undefined,
+                ghRunnerId: instance.Tags?.find((e) => e.Key === 'GithubRunnerID')?.Value,
+                instanceId: instance.InstanceId as string,
+                instanceManagement: instance.Tags?.find((e) => e.Key == 'InstanceManagement')?.Value,
+                launchTime: instance.LaunchTime,
+                org: instance.Tags?.find((e) => e.Key === 'Org')?.Value,
+                repo: instance.Tags?.find((e) => e.Key === 'Repo')?.Value,
+                runnerType: instance.Tags?.find((e) => e.Key === 'RunnerType')?.Value,
+              };
             }) ?? []
           );
         }) ?? []
@@ -226,41 +237,6 @@ export async function listRunners(
     console.error(`[listRunners]: ${e}`);
     throw e;
   }
-}
-
-/**
- * Convert ec2 instance metadata to RunnerInfo
- * @param instance
- * @param awsRegion
- * @returns
- */
-function toRunnerInfo(instance: AWS.EC2.Instance, awsRegion: string): RunnerInfo {
-  const getTag = (key: string) => instance.Tags?.find((t) => t.Key === key)?.Value;
-  const ephemeralRunnerFinished = getTag('EphemeralRunnerFinished');
-  const ephemeralRunnerStarted = getTag('EphemeralRunnerStarted');
-  const ebsVolumeReplacementRequestTimestamp = getTag('EBSVolumeReplacementRequestTm');
-
-  return {
-    applicationDeployDatetime: getTag('ApplicationDeployDatetime'),
-    awsRegion,
-    az: instance.Placement?.AvailabilityZone?.toLowerCase(),
-    environment: getTag('Environment'),
-    ephemeralRunnerStage: getTag('EphemeralRunnerStage'),
-    ebsVolumeReplacementRequestTimestamp: ebsVolumeReplacementRequestTimestamp
-      ? parseInt(ebsVolumeReplacementRequestTimestamp)
-      : undefined,
-    ephemeralRunnerStarted: ephemeralRunnerStarted ? parseInt(ephemeralRunnerStarted) : undefined,
-    ephemeralRunnerFinished: ephemeralRunnerFinished ? parseInt(ephemeralRunnerFinished!) : undefined,
-    ghRunnerId: getTag('GithubRunnerID'),
-    instanceId: instance.InstanceId!,
-    instanceManagement: getTag('InstanceManagement'),
-    launchTime: instance.LaunchTime,
-    repositoryName: getTag('RepositoryName'),
-    repositoryOwner: getTag('RepositoryOwner'),
-    org: getTag('Org'),
-    repo: getTag('Repo'),
-    runnerType: getTag('RunnerType'),
-  };
 }
 
 export function getParameterNameForRunner(environment: string, instanceId: string): string {
@@ -484,29 +460,6 @@ async function getCreateRunnerSubnetSequence(
     .flat();
 }
 
-/**
- * Attempt to find and reuse an existing EC2 GitHub Actions runner instance that meets the criteria
- * specified in `runnerParameters`.
- *
- * The method performs the following steps:
- * 1. Skips reuse if a stress test is active.
- * 2. Queries and filters existing runners matching specific tags and metadata.
- * 3. Validates each runner for reusability based on tag presence and recent activity.
- * 4. Acquires a Redis-based distributed lock to avoid concurrent reuse conflicts.
- * 5. Applies necessary EC2 and SSM updates to prepare the runner for reuse:
- *    - Create & delete tags to indicate the ec2 instance's EphemeralRunnerStage.
- *    - Triggers a root volume replacement task.
- *    - Writes updated runner configuration to SSM Parameter Store.
- * 6. Tracks detailed CloudWatch metrics across success/failure/retry paths.
- *
- * Throws:
- * - `RetryableScalingError` if stress test logic requires bypassing reuse.
- * - Generic `Error` if no suitable runners are found.
- *
- * @param runnerParameters - Parameters used to filter and configure reusable runners.
- * @param metrics - Metrics tracker for logging reuse attempts and outcomes.
- * @returns A successfully reused `RunnerInfo` instance.
- */
 export async function tryReuseRunner(
   runnerParameters: RunnerInputParameters,
   metrics: ScaleUpMetrics,
@@ -544,46 +497,53 @@ export async function tryReuseRunner(
   const ssmM: Map<string, SSM> = new Map();
 
   for (const runner of runners) {
-    const { status, msg } = isRunnerReusable(runner);
-    if (status !== ReuseStatusDecision.Reuse) {
-      console.debug(`[tryReuseRunner][ Runner ${runner.instanceId}] ${status.toString()}: ${msg}`);
+    if (runner.ghRunnerId === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a GithubRunnerID tag`);
       continue;
     }
-
+    if (runner.awsRegion === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have a region`);
+      continue;
+    }
+    if (runner.org === undefined && runner.repo === undefined) {
+      console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} does not have org or repo`);
+      continue;
+    }
     if (runner.ephemeralRunnerFinished !== undefined) {
       const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
-      // when runner.ephemeralRunnerFinished is set, it
-      // indicates that the runner is at post-test
-      // ephemeralRunnerStage of github,cthere is some cleanup
-      //  still left in the runner job though. This adds a buffer
-      // to make sure the cleanup gets completed.
+
       if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
         console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
+        continue;
+      }
+
+      if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
+        console.debug(
+          `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+            `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
+            `not be reused. It's been idle since ${finishedAt.format()}`,
+        );
         continue;
       }
     }
 
     try {
-      // logging metrics to cloudwatch
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseTryOrg(1, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
       } else if (runnerParameters.repoName !== undefined) {
         metrics.runnersReuseTryRepo(1, getRepo(runnerParameters.repoName), runnerParameters.runnerType.runnerTypeName);
       }
 
-      // applies redis locks to avoid race condition between multiple scale-up/scale-down workers
       await redisLocked(
         `tryReuseRunner`,
         runner.instanceId,
         async () => {
-          // I suspect it will be too many requests against GH API to check
-          // if runner is really offline
+          // I suspect it will be too many requests against GH API to check if runner is really offline
 
           if (ssmM.has(runner.awsRegion) === false) {
             ssmM.set(runner.awsRegion, new SSM({ region: runner.awsRegion }));
           }
           const ssm = ssmM.get(runner.awsRegion) as SSM;
-
           if (ec2M.has(runner.awsRegion) === false) {
             ec2M.set(runner.awsRegion, new EC2({ region: runner.awsRegion }));
           }
@@ -591,16 +551,56 @@ export async function tryReuseRunner(
 
           // should come before removing other tags, this is useful so
           // there is always a tag present for scaleDown to know that
-          // it can/will be reused and avoid deleting it.
-          await createTagForReuse(ec2, runner, metrics);
+          // it can/will be reused and avoid deleting it
+          await expBackOff(() => {
+            return metrics.trackRequestRegion(
+              runner.awsRegion,
+              metrics.ec2CreateTagsAWSCallSuccess,
+              metrics.ec2CreateTagsAWSCallFailure,
+              () => {
+                return ec2
+                  .createTags({
+                    Resources: [runner.instanceId],
+                    Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` }],
+                  })
+                  .promise();
+              },
+            );
+          });
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Created reuse tag`);
 
-          // Delete EphemeralRunnerFinished tag to make sure other pipelines do not
-          // pick this instance up since it's in next stage, in this case, it's in the ReplaceVolume stage.
-          await deleteTagForReuse(ec2, runner, metrics);
+          await expBackOff(() => {
+            return metrics.trackRequestRegion(
+              runner.awsRegion,
+              metrics.ec2DeleteTagsAWSCallSuccess,
+              metrics.ec2DeleteTagsAWSCallFailure,
+              () => {
+                return ec2
+                  .deleteTags({
+                    Resources: [runner.instanceId],
+                    Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
+                  })
+                  .promise();
+              },
+            );
+          });
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Tags deleted`);
 
-          await replaceRootVolume(ec2, runner, metrics);
+          await expBackOff(() => {
+            return metrics.trackRequestRegion(
+              runner.awsRegion,
+              metrics.ec2CreateReplaceRootVolumeTaskSuccess,
+              metrics.ec2CreateReplaceRootVolumeTaskFailure,
+              () => {
+                return ec2
+                  .createReplaceRootVolumeTask({
+                    InstanceId: runner.instanceId,
+                    DeleteReplacedRootVolume: true,
+                  })
+                  .promise();
+              },
+            );
+          });
           console.debug(`[tryReuseRunner]: Reuse of runner ${runner.instanceId}: Replace volume task created`);
 
           await addSSMParameterRunnerConfig(
@@ -618,7 +618,6 @@ export async function tryReuseRunner(
         0.05,
       );
 
-      // logging metrics to cloudwatch
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseSuccessOrg(
           runners.length,
@@ -640,7 +639,6 @@ export async function tryReuseRunner(
           `${runner.instanceId}, either an error or it is already locked to be reused ${e}`,
       );
 
-      // logging metrics to cloudwatch
       if (runnerParameters.orgName !== undefined) {
         metrics.runnersReuseFailureOrg(
           runners.length,
@@ -657,7 +655,6 @@ export async function tryReuseRunner(
     }
   }
 
-  // logging metrics to cloudwatch
   if (runnerParameters.orgName !== undefined) {
     metrics.runnersReuseGiveUpOrg(runners.length, runnerParameters.orgName, runnerParameters.runnerType.runnerTypeName);
   } else if (runnerParameters.repoName !== undefined) {
@@ -695,34 +692,22 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
       { Key: 'Application', Value: 'github-action-runner' },
       { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
     ];
-
-    if (runnerParameters.repositoryName !== undefined) {
-      tags.push({ Key: 'RepositoryName', Value: runnerParameters.repositoryName });
-    }
-
-    if (runnerParameters.repositoryOwner !== undefined) {
-      tags.push({ Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner });
-    }
-
     /* istanbul ignore next */
     if (Config.Instance.datetimeDeploy) {
       tags.push({ Key: 'ApplicationDeployDatetime', Value: Config.Instance.datetimeDeploy });
     }
-
     if (runnerParameters.repoName !== undefined) {
       tags.push({
         Key: 'Repo',
         Value: runnerParameters.repoName,
       });
     }
-
     if (runnerParameters.orgName !== undefined) {
       tags.push({
         Key: 'Org',
         Value: runnerParameters.orgName,
       });
     }
-
     let customAmi = runnerParameters.runnerType.ami;
     let customAmiExperiment = false;
     if (runnerParameters.runnerType.ami_experiment) {
@@ -916,134 +901,4 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     }
     throw e;
   }
-}
-
-/**
- * Determines whether a given EC2 runner is eligible for reuse in a GitHub Actions workflow.
- * The function checks a series of conditions that would disqualify the runner from reuse,
- * including missing metadata or conflicting runner state (e.g., pending shutdown or already reused).
- *
- * @param runner - The runner metadata retrieved from EC2 tags and instance state.
- * @param useCase - A string used to prefix debug logs for traceability.
- * @returns An object containing a reuse status decision and an explanatory message.
- * If reunner is reusable, returns ReuseStatusDecision.Reuse, otherwise, returns enum value with reason.
- */
-function isRunnerReusable(runner: RunnerInfo): { status: ReuseStatusDecision; msg: string } {
-  if (runner.ghRunnerId === undefined) {
-    return {
-      status: ReuseStatusDecision.NoReuse_NoGithubRunnerIDTag,
-      msg: `does not have a GithubRunnerID tag`,
-    };
-  }
-  if (runner.awsRegion === undefined) {
-    console.debug(`does not have a region`);
-    return {
-      status: ReuseStatusDecision.NoReuse_NoRegionTag,
-      msg: `does not have a region`,
-    };
-  }
-  if (runner.org === undefined && runner.repo === undefined) {
-    return {
-      status: ReuseStatusDecision.NoReuse_NoOrgOrRepoTag,
-      msg: `does not have org or repo`,
-    };
-  }
-
-  if (runner.ephemeralRunnerStage === EphemeralRunnerStage.RunnerReplaceEBSVolume) {
-    console.debug(`the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`);
-
-    return {
-      status: ReuseStatusDecision.NoReuse_ReplaceEBSVolumeStage,
-      msg: `the runner is in RunnerReplaceEBSVolume stage, skip to reuse it`,
-    };
-  }
-
-  if (runner.ephemeralRunnerFinished !== undefined) {
-    const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
-    // since the runner finshed the previous github job, it's idling
-    // for a long time that it is likely tobe caught in scale-down
-    // pipeline, we do not reuse it to avoid the race condition.
-    if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
-      return {
-        status: ReuseStatusDecision.NoReuse_IdleTimeTooLong,
-        msg:
-          `has been idle for over minimumRunningTimeInMinutes time of ` +
-          `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
-          `not be reused. It's been idle since ${finishedAt.format()}`,
-      };
-    }
-  }
-  return {
-    status: ReuseStatusDecision.Reuse,
-    msg: '',
-  };
-}
-
-/**
- *
- * Create tags for ec2 instance ready for reuse
- * EBSVolumeReplacementRequestTm: record when was last time the task to replace volume was created.
- * scale-down pipeline will not delete the runner if the EBSVolumeReplacementRequestTmp is present
- *  and it's less than 5 mins.
- * Stage: record the stage of the runner, in this case, it's in the ReplaceEBSVolume.
- *  Refresh and scaleup pipelines will not reuse the runner if the Stage is present and it's ReplaceEBSVolume.
- * the stage tag will be removed once the replace volume task is completed at job's startup.sh
- * @param ec2
- * @param runner
- * @param metrics
- */
-async function createTagForReuse(ec2: EC2, runner: RunnerInfo, metrics: ScaleUpMetrics) {
-  await expBackOff(() => {
-    return metrics.trackRequestRegion(
-      runner.awsRegion,
-      metrics.ec2CreateTagsAWSCallSuccess,
-      metrics.ec2CreateTagsAWSCallFailure,
-      () => {
-        return ec2
-          .createTags({
-            Resources: [runner.instanceId],
-            Tags: [
-              { Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` },
-              { Key: 'EphemeralRunnerStage', Value: 'RunnerReplaceEBSVolume' },
-            ],
-          })
-          .promise();
-      },
-    );
-  });
-}
-
-async function deleteTagForReuse(ec2: EC2, runner: RunnerInfo, metrics: ScaleUpMetrics) {
-  await expBackOff(() => {
-    return metrics.trackRequestRegion(
-      runner.awsRegion,
-      metrics.ec2DeleteTagsAWSCallSuccess,
-      metrics.ec2DeleteTagsAWSCallFailure,
-      () => {
-        return ec2
-          .deleteTags({
-            Resources: [runner.instanceId],
-            Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
-          })
-          .promise();
-      },
-    );
-  });
-}
-
-async function replaceRootVolume(ec2: EC2, runner: RunnerInfo, metrics: ScaleUpMetrics) {
-  await expBackOff(() =>
-    metrics.trackRequestRegion(
-      runner.awsRegion,
-      metrics.ec2CreateReplaceRootVolumeTaskSuccess,
-      metrics.ec2CreateReplaceRootVolumeTaskFailure,
-      () =>
-        ec2
-          .createReplaceRootVolumeTask({
-            InstanceId: runner.instanceId,
-            DeleteReplacedRootVolume: true,
-          })
-          .promise(),
-    ),
-  );
 }

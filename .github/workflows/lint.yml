@@ -31,7 +31,7 @@ jobs:
 
       - name: Install Lintrunner
         run: |
-          pip install lintrunner==0.12.5
+          pip install lintrunner==0.12.5 boto3-stubs==1.34.51
           lintrunner init
 
       - name: Run lintrunner on all files - Linux

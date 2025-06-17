@@ -179,8 +179,8 @@ jobs:
           tag: ${{ inputs.tag }}
           updateOnlyUnreleased: true
 
-  release-pytorch-auto-revert:
-    name:  Upload Release for pytorch-auto-revert lambda
+  release-benchmark-results-uploader:
+    name: Upload Release for benchmark-results-uploader lambda
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -197,15 +197,15 @@ jobs:
           python-version: '3.10'
 
       - name: Build deployment.zip
-        working-directory: aws/lambda/pytorch-auto-revert
+        working-directory: aws/lambda/benchmark-results-uploader
         run: make deployment.zip
 
       - name: Copy deployment.zip to root
-        run: cp aws/lambda/pytorch-auto-revert/deployment.zip pytorch-auto-revert.zip
+        run: cp aws/lambda/benchmark-results-uploader/deployment.zip benchmark-results-uploader.zip
 
-      - uses: ncipollo/release-action@440c8c1cb0ed28b9f43e4d1d670870f059653174 # v1.16.0
+      - uses: ncipollo/release-action@v1
         with:
-          artifacts: "pytorch-auto-revert.zip"
+          artifacts: "benchmark-results-uploader.zip"
           allowUpdates: true
           draft: true
           name: ${{ inputs.tag }}
@@ -214,10 +214,10 @@ jobs:
 
   finish-release:
     needs:
-      - release-ci-queue-pct
       - release-lambdas
+      - release-ci-queue-pct
       - release-oss-ci-job-queue-time
-      - release-pytorch-auto-revert
+      - release-benchmark-results-uploader
     name: Mark the release as final and publish it
     runs-on: ubuntu-latest
     permissions:
