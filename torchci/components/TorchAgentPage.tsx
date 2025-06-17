@@ -3,6 +3,7 @@ import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
+import { FeedbackButtons } from "./TorchAgentPage/FeedbackButtons";
 import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
 import { HeaderSection } from "./TorchAgentPage/HeaderSection";
 import {
@@ -22,7 +23,7 @@ import {
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
-import { MessageWrapper, ParsedContent } from "./TorchAgentPage/types";
+import { ParsedContent } from "./TorchAgentPage/types";
 import {
   extractGrafanaLinks,
   formatElapsedTime,
@@ -84,6 +85,8 @@ export const TorchAgentPage = () => {
   const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
 
   // Chat history state
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
@@ -280,7 +283,8 @@ export const TorchAgentPage = () => {
         }
 
         setSelectedSession(sessionId);
-        // Don't override the response we set above for the debug view
+        setCurrentSessionId(sessionId);
+        setFeedbackVisible(sessionData.status === "completed");
       } else {
         console.error("Failed to load chat session");
         setError("Failed to load chat session");
@@ -299,6 +303,8 @@ export const TorchAgentPage = () => {
     setResponse("");
     setParsedResponses([]);
     setSelectedSession(null);
+    setCurrentSessionId(null);
+    setFeedbackVisible(false);
     setError("");
     setTotalTokens(0);
     setCompletedTokens(0);
@@ -309,7 +315,9 @@ export const TorchAgentPage = () => {
 
   // Fetch chat history on mount
   useEffect(() => {
-    fetchChatHistory();
+    if (session.data?.user) {
+      fetchChatHistory();
+    }
   }, [session.data?.user]);
 
   // Rotate through thinking messages every 6 seconds
@@ -408,7 +416,12 @@ export const TorchAgentPage = () => {
       if (!line.trim()) return;
 
       setResponse((prev) => prev + line + "\n");
-      const json = JSON.parse(line) as MessageWrapper;
+      const json = JSON.parse(line) as any;
+
+      if (json.status === "connecting" && json.userUuid) {
+        setCurrentSessionId(json.userUuid);
+        return;
+      }
 
       // Process timing data from result messages
       if (
@@ -422,7 +435,7 @@ export const TorchAgentPage = () => {
 
       // Handle different response types
       if (json.type === "assistant" && json.message?.content) {
-        json.message.content.forEach((item) => {
+        json.message.content.forEach((item: any) => {
           if (item.type === "text" && "text" in item) {
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
@@ -529,7 +542,7 @@ export const TorchAgentPage = () => {
           }
         });
       } else if (json.type === "user" && json.message?.content) {
-        json.message.content.forEach((item) => {
+        json.message.content.forEach((item: any) => {
           if (item.type === "tool_result" && item.tool_use_id) {
             setParsedResponses((prev) => {
               const updated = [...prev];
@@ -670,7 +683,7 @@ export const TorchAgentPage = () => {
         setError(`Error: ${json.error}`);
       }
     } catch (err) {
-      console.log("Failed to parse:", line);
+      console.error("Failed to parse:", line);
     }
   };
 
@@ -679,6 +692,9 @@ export const TorchAgentPage = () => {
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
@@ -695,6 +711,7 @@ export const TorchAgentPage = () => {
     setIsLoading(true);
     setResponse("");
     setParsedResponses([]);
+    setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
     resetAutoScroll();
@@ -764,6 +781,9 @@ export const TorchAgentPage = () => {
             setCompletedTokens(finalTokens);
             setTotalTokens(finalTokens);
             setIsLoading(false);
+            if (currentSessionId) {
+              setFeedbackVisible(true);
+            }
           }, 500);
 
           break;
@@ -790,6 +810,9 @@ export const TorchAgentPage = () => {
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
@@ -972,7 +995,7 @@ export const TorchAgentPage = () => {
             </Box>
           </LoaderWrapper>
         ) : (
-          completedTokens > 0 && (
+          (completedTokens > 0 || feedbackVisible) && (
             <Box
               sx={{
                 display: "flex",
@@ -993,14 +1016,20 @@ export const TorchAgentPage = () => {
                 boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.primary"
-                sx={{ fontWeight: "medium" }}
-              >
-                Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                {formatTokenCount(completedTokens)} tokens
-              </Typography>
+              {completedTokens > 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  sx={{ fontWeight: "medium" }}
+                >
+                  Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                  {formatTokenCount(completedTokens)} tokens
+                </Typography>
+              )}
+              <FeedbackButtons
+                sessionId={currentSessionId}
+                visible={feedbackVisible}
+              />
             </Box>
           )
         )}
