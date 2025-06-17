@@ -4,6 +4,7 @@ import ChatIcon from "@mui/icons-material/Chat";
 import {
   Box,
   Button,
+  CircularProgress,
   Drawer,
   IconButton,
   List,
@@ -89,6 +90,7 @@ export const TorchAgentPage = () => {
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
@@ -125,6 +127,12 @@ export const TorchAgentPage = () => {
 
   // Load a specific chat session
   const loadChatSession = async (sessionId: string) => {
+    setIsSessionLoading(true);
+    // Clear existing content while loading
+    setParsedResponses([]);
+    setResponse("");
+    setError("");
+    
     try {
       const response = await fetch(
         `/api/get_chat_history?sessionId=${sessionId}`
@@ -258,9 +266,13 @@ export const TorchAgentPage = () => {
         // Don't override the response we set above for the debug view
       } else {
         console.error("Failed to load chat session");
+        setError("Failed to load chat session");
       }
     } catch (error) {
       console.error("Error loading chat session:", error);
+      setError("Error loading chat session");
+    } finally {
+      setIsSessionLoading(false);
     }
   };
 
@@ -275,6 +287,7 @@ export const TorchAgentPage = () => {
     setCompletedTokens(0);
     setElapsedTime(0);
     setCompletedTime(0);
+    setIsSessionLoading(false);
   };
 
   // Fetch chat history on mount
@@ -1017,8 +1030,11 @@ export const TorchAgentPage = () => {
 
         <List sx={{ flexGrow: 1, overflow: "auto" }}>
           {isHistoryLoading ? (
-            <ListItem>
-              <ListItemText primary="Loading..." />
+            <ListItem sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 3 }}>
+              <CircularProgress size={24} />
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                Loading History...
+              </Typography>
             </ListItem>
           ) : chatHistory.length === 0 ? (
             <ListItem>
@@ -1048,44 +1064,52 @@ export const TorchAgentPage = () => {
 
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
-        <TorchAgentPageContainer>
-          {showScrollButton && (
-            <Tooltip title="Go to bottom and resume auto-scroll">
-              <ScrollToBottomButton
-                variant="contained"
-                color="primary"
-                onClick={scrollToBottomAndEnable}
-                aria-label="Scroll to bottom and resume auto-scroll"
-              >
-                <ArrowDownwardIcon />
-              </ScrollToBottomButton>
-            </Tooltip>
-          )}
-
-          <Typography variant="h4" gutterBottom>
-            TorchAgent
-          </Typography>
-
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-            <Button
-              variant="outlined"
-              component="a"
-              href={featureRequestUrl}
-              target="_blank"
-              sx={{ mr: 1 }}
-            >
-              Feature Request
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              component="a"
-              href={bugReportUrl}
-              target="_blank"
-            >
-              Report Bug
-            </Button>
+        {isSessionLoading ? (
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+            <CircularProgress size={60} />
+            <Typography variant="h6" sx={{ mt: 3 }}>
+              Loading Conversation...
+            </Typography>
           </Box>
+        ) : (
+          <TorchAgentPageContainer>
+            {showScrollButton && (
+              <Tooltip title="Go to bottom and resume auto-scroll">
+                <ScrollToBottomButton
+                  variant="contained"
+                  color="primary"
+                  onClick={scrollToBottomAndEnable}
+                  aria-label="Scroll to bottom and resume auto-scroll"
+                >
+                  <ArrowDownwardIcon />
+                </ScrollToBottomButton>
+              </Tooltip>
+            )}
+
+            <Typography variant="h4" gutterBottom>
+              TorchAgent
+            </Typography>
+
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+              <Button
+                variant="outlined"
+                component="a"
+                href={featureRequestUrl}
+                target="_blank"
+                sx={{ mr: 1 }}
+              >
+                Feature Request
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                component="a"
+                href={bugReportUrl}
+                target="_blank"
+              >
+                Report Bug
+              </Button>
+            </Box>
 
           {/* Show welcome message and query input only for new chats */}
           {!selectedSession && (
@@ -1291,6 +1315,7 @@ export const TorchAgentPage = () => {
             </Button>
           </Box>
         </TorchAgentPageContainer>
+        )}
       </Box>
     </Box>
   );
