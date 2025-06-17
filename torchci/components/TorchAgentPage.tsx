@@ -51,6 +51,7 @@ interface ChatSession {
   date: string;
   filename: string;
   key: string;
+  title?: string;
 }
 
 export const TorchAgentPage = () => {
@@ -146,10 +147,32 @@ export const TorchAgentPage = () => {
           // Clear the query input for historical chats
           setQuery("");
 
-          // Process each message in the same way as streaming data
-          // Create an accumulated response string just like streaming
+          // Process each message directly
           let fullResponse = "";
+          
+          // Clear existing parsed responses
+          setParsedResponses([]);
+          
+          // First, process user messages (queries/prompts) - these should appear first
           sessionData.messages.forEach((msg: any) => {
+            if (msg.type === "user_message" && msg.content) {
+              const textContent = msg.content;
+              const grafanaLinks = extractGrafanaLinks(textContent);
+              
+              setParsedResponses((prev) => [
+                ...prev,
+                {
+                  type: "user_message",
+                  content: textContent,
+                  displayedContent: textContent,
+                  isAnimating: false,
+                  timestamp: Date.now(),
+                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                },
+              ]);
+            }
+            
+            // For debugging and streaming format processing, accumulate content
             if (msg.content) {
               fullResponse += msg.content + "\n";
             }
@@ -158,14 +181,8 @@ export const TorchAgentPage = () => {
           // Set the raw response for debug view
           setResponse(fullResponse);
 
-          // Now process the messages to trigger the same parsing logic as streaming
-          // We'll simulate the streaming by processing each line
+          // Now process streaming format messages for AI responses
           const lines = fullResponse.split("\n").filter((line) => line.trim());
-
-          // Clear existing parsed responses
-          setParsedResponses([]);
-
-          // Process each line as if it came from streaming
           lines.forEach((line) => {
             try {
               const json = JSON.parse(line);
@@ -1059,8 +1076,8 @@ export const TorchAgentPage = () => {
                 >
                   <ChatIcon sx={{ mr: 1, opacity: 0.7 }} />
                   <ListItemText
-                    primary={session.timestamp}
-                    secondary={session.date}
+                    primary={session.title || session.timestamp}
+                    secondary={session.title ? session.timestamp : session.date}
                   />
                 </ListItemButton>
               </ListItem>

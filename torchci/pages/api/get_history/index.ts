@@ -1,4 +1,4 @@
-import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import { ListObjectsV2Command, S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
@@ -19,6 +19,7 @@ interface HistorySession {
   date: string;
   filename: string;
   key: string;
+  title?: string;
 }
 
 export default async function handler(
@@ -100,53 +101,66 @@ export default async function handler(
       return res.status(200).json({ sessions: [] });
     }
 
-    // Parse the history files and extract session information
-    const sessions: HistorySession[] = data.Contents.filter(
-      (obj) => obj.Key && obj.Key.endsWith(".json")
-    )
-      .map((obj) => {
-        const key = obj.Key!;
-        const filename = key.split("/").pop()!;
+    // Get metadata for each object to fetch the title
+    const objectsWithMetadata = await Promise.all(
+      data.Contents.filter((obj) => obj.Key && obj.Key.endsWith(".json")).map(
+        async (obj) => {
+          try {
+            const headResponse = await s3.send(
+              new HeadObjectCommand({
+                Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
+                Key: obj.Key!,
+              })
+            );
 
-        // Extract timestamp and session ID from filename: HHMMSS_<session_id>.json
-        const match = filename.match(
-          /^(\d{4})\/(\d{2})\/(\d{2})\/(\d{6})_(.+)\.json$/
-        );
-        if (match) {
-          const [, year, month, day, time, sessionId] = match;
-          const timestamp = `${year}${month}${day}${time}`;
-          const date = `${year}-${month}-${day}`;
+            const key = obj.Key!;
+            const filename = key.split("/").pop()!;
 
-          return {
-            sessionId,
-            timestamp,
-            date,
-            filename,
-            key,
-          };
+            // Extract session info from metadata or filename
+            const sessionId =
+              headResponse.Metadata?.sessionid ||
+              filename.replace(".json", "").split("_").slice(1).join("_");
+            const timestamp =
+              headResponse.Metadata?.timestamp ||
+              filename.replace(".json", "").split("_")[0];
+            const title = headResponse.Metadata?.title;
+
+            return {
+              sessionId,
+              timestamp,
+              date: timestamp.slice(0, 8),
+              filename,
+              key,
+              title,
+            };
+          } catch (error) {
+            console.error(`Failed to get metadata for ${obj.Key}:`, error);
+            // Fallback to filename parsing
+            const key = obj.Key!;
+            const filename = key.split("/").pop()!;
+            const parts = filename.replace(".json", "").split("_");
+            
+            if (parts.length >= 2) {
+              const timestamp = parts[0];
+              const sessionId = parts.slice(1).join("_");
+
+              return {
+                sessionId,
+                timestamp,
+                date: timestamp.slice(0, 8),
+                filename,
+                key,
+              };
+            }
+            return null;
+          }
         }
+      )
+    );
 
-        // Fallback parsing for different filename formats
-        const parts = filename.replace(".json", "").split("_");
-        if (parts.length >= 2) {
-          const timestamp = parts[0];
-          const sessionId = parts.slice(1).join("_");
-
-          return {
-            sessionId,
-            timestamp,
-            date: timestamp.slice(0, 8),
-            filename,
-            key,
-          };
-        }
-
-        return null;
-      })
+    const sessions: HistorySession[] = objectsWithMetadata
       .filter(Boolean)
-      .sort((a, b) =>
-        b!.timestamp.localeCompare(a!.timestamp)
-      ) as HistorySession[];
+      .sort((a, b) => b!.timestamp.localeCompare(a!.timestamp)) as HistorySession[];
 
     console.log(
       `Found ${sessions.length} history sessions for user ${username}`
@@ -155,6 +169,8 @@ export default async function handler(
     res.status(200).json({ sessions });
   } catch (error) {
     console.error("Error fetching history:", error);
-    res.status(500).json({ error: "Failed to fetch chat history" });
+    console.error("Error details:", error instanceof Error ? error.message : error);
+    console.error("Error stack:", error instanceof Error ? error.stack : "No stack trace");
+    res.status(500).json({ error: "Failed to fetch chat history", details: error instanceof Error ? error.message : String(error) });
   }
 }
