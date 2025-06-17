@@ -258,6 +258,16 @@ runner_types:
     instance_type: r5.12xlarge
     is_ephemeral: true
     os: linux
+  c.linux.16xlarge.memory:
+    disk_size: 600
+    instance_type: r5.16xlarge
+    is_ephemeral: true
+    os: linux
+  c.linux.24xlarge.memory:
+    disk_size: 800
+    instance_type: r5.24xlarge
+    is_ephemeral: true
+    os: linux
   c.linux.12xlarge.memory.ephemeral:
     disk_size: 400
     instance_type: r5.12xlarge
