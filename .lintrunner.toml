@@ -6,7 +6,6 @@ include_patterns = ['**/*.py']
 exclude_patterns = [
     '.git/**',
     '.github/scripts/**',
-    'aws/lambda/**',
     's3_management/**',
     'tools/**',
 ]
@@ -36,15 +35,14 @@ init_command = [
 [[linter]]
 code = 'MYPY'
 include_patterns = [
-    'tools/**/*.py',
-    'tools/**/*.pyi',
+    '.github/scripts/*.py',
+    'aws/lambda/**/.py',
     'stats/**/*.py',
     'stats/**/*.pyi',
+    'tools/**/*.py',
+    'tools/**/*.pyi',
     'torchci/**/*.py',
     'torchci/**/*.pyi',
-    '.github/scripts/*.py',
-    'aws/lambda/oss-ci-job-queue-time/*.py',
-    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
 ]
 command = [
     'python3',
@@ -129,7 +127,6 @@ exclude_patterns=[
     '**/fixtures/**',
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
-    'aws/lambda/log-classifier/data/**',
     'tools/clang-tidy-checks/*-patches/**',
 ]
 command = [
@@ -288,7 +285,6 @@ include_patterns = [
     '**/*.py',
 ]
 exclude_patterns = [
-    'aws/lambda/**',
     's3_management/**',
 ]
 command = [
@@ -340,7 +336,6 @@ code = 'RUFF'
 include_patterns = ['**/*.py']
 exclude_patterns = [
     '.github/scripts/**',
-    'aws/lambda/**',
     's3_management/**',
     'tools/**',
 ]
