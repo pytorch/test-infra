@@ -90,6 +90,7 @@ export const TorchAgentPage = () => {
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const suppressErrorRef = useRef<boolean>(false);
 
   const thinkingMessages = useThinkingMessages();
   const displayedTokens = useAnimatedCounter(totalTokens);
@@ -136,6 +137,9 @@ export const TorchAgentPage = () => {
 
   // Load a specific chat session
   const loadChatSession = async (sessionId: string) => {
+    // Cancel any ongoing streaming request first (suppress error message)
+    cancelRequest(true);
+
     setIsSessionLoading(true);
     // Clear existing content while loading
     setParsedResponses([]);
@@ -304,7 +308,7 @@ export const TorchAgentPage = () => {
 
   // Start a new chat
   const startNewChat = () => {
-    cancelRequest();
+    cancelRequest(true);
     setQuery("");
     setResponse("");
     setParsedResponses([]);
@@ -726,8 +730,11 @@ export const TorchAgentPage = () => {
     }
   };
 
-  const cancelRequest = () => {
+  const cancelRequest = (suppressError: boolean = false) => {
     if (fetchControllerRef.current) {
+      // Set flag to suppress error message if needed
+      suppressErrorRef.current = suppressError;
+
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
@@ -851,7 +858,12 @@ export const TorchAgentPage = () => {
       }
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") {
-        setError("Request cancelled");
+        // Only show "Request cancelled" error if it wasn't suppressed (i.e., user explicitly cancelled)
+        if (!suppressErrorRef.current) {
+          setError("Request cancelled");
+        }
+        // Reset the suppress flag after use
+        suppressErrorRef.current = false;
       } else {
         console.error("Fetch error:", err);
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);

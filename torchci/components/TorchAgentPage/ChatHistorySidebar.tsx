@@ -113,10 +113,10 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
                   <ChatIcon sx={{ mr: 1, opacity: 0.7 }} />
                 )}
                 <ListItemText
-                  primary={session.displayedTitle || session.title || session.timestamp}
-                  secondary={
-                    session.title ? session.timestamp : session.date
+                  primary={
+                    session.displayedTitle || session.title || session.timestamp
                   }
+                  secondary={session.title ? session.timestamp : session.date}
                 />
               </ListItemButton>
             </ListItem>
