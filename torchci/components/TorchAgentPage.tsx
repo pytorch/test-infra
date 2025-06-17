@@ -102,10 +102,12 @@ export const TorchAgentPage = () => {
   };
 
   // Fetch chat history on component mount
-  const fetchChatHistory = async () => {
+  const fetchChatHistory = async (showLoading = false) => {
     if (!session.data?.user) return;
 
-    setIsHistoryLoading(true);
+    if (showLoading) {
+      setIsHistoryLoading(true);
+    }
     try {
       const response = await fetch("/api/torchagent-get-history");
       if (response.ok) {
@@ -126,7 +128,9 @@ export const TorchAgentPage = () => {
     } catch (error) {
       console.error("Error fetching chat history:", error);
     } finally {
-      setIsHistoryLoading(false);
+      if (showLoading) {
+        setIsHistoryLoading(false);
+      }
     }
   };
 
@@ -341,7 +345,7 @@ export const TorchAgentPage = () => {
   // Fetch chat history on mount
   useEffect(() => {
     if (session.data?.user) {
-      fetchChatHistory();
+      fetchChatHistory(true);
     }
   }, [session.data?.user]);
 

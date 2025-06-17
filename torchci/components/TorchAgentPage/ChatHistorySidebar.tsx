@@ -79,7 +79,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       </Box>
 
       <List sx={{ flexGrow: 1, overflow: "auto" }}>
-        {isHistoryLoading ? (
+        {isHistoryLoading && chatHistory.length === 0 ? (
           <ListItem
             sx={{
               display: "flex",
