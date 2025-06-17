@@ -1,38 +1,23 @@
-import AddIcon from "@mui/icons-material/Add";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import ChatIcon from "@mui/icons-material/Chat";
-import {
-  Box,
-  Button,
-  CircularProgress,
-  Drawer,
-  IconButton,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemText,
-  TextField,
-  Tooltip,
-  Typography,
-  useTheme,
-} from "@mui/material";
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
+import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
 import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
+import { HeaderSection } from "./TorchAgentPage/HeaderSection";
 import {
   useAnimatedCounter,
   useAutoScroll,
   useThinkingMessages,
   useTokenCalculator,
 } from "./TorchAgentPage/hooks";
+import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
 import {
   ChunkMetadata,
   LoaderWrapper,
   QuerySection,
   ResponseText,
   ResultsSection,
-  ScrollToBottomButton,
   TorchAgentPageContainer,
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
@@ -44,6 +29,7 @@ import {
   formatTokenCount,
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
+import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
 
 interface ChatSession {
   sessionId: string;
@@ -149,16 +135,16 @@ export const TorchAgentPage = () => {
 
           // Process each message directly
           let fullResponse = "";
-          
+
           // Clear existing parsed responses
           setParsedResponses([]);
-          
+
           // First, process user messages (queries/prompts) - these should appear first
           sessionData.messages.forEach((msg: any) => {
             if (msg.type === "user_message" && msg.content) {
               const textContent = msg.content;
               const grafanaLinks = extractGrafanaLinks(textContent);
-              
+
               setParsedResponses((prev) => [
                 ...prev,
                 {
@@ -167,11 +153,12 @@ export const TorchAgentPage = () => {
                   displayedContent: textContent,
                   isAnimating: false,
                   timestamp: Date.now(),
-                  grafanaLinks: grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                  grafanaLinks:
+                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
                 },
               ]);
             }
-            
+
             // For debugging and streaming format processing, accumulate content
             if (msg.content) {
               fullResponse += msg.content + "\n";
@@ -1012,241 +999,40 @@ export const TorchAgentPage = () => {
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       {/* Sidebar */}
-      <Drawer
-        variant="persistent"
-        anchor="left"
-        open={drawerOpen}
-        sx={{
-          width: sidebarWidth,
-          flexShrink: 0,
-          "& .MuiDrawer-paper": {
-            width: sidebarWidth,
-            boxSizing: "border-box",
-            position: "relative",
-            height: "100%",
-          },
-        }}
-      >
-        <Box sx={{ p: 2, borderBottom: "1px solid", borderColor: "divider" }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mb: 2,
-            }}
-          >
-            <Typography variant="h6">Chat History</Typography>
-            <Tooltip title="New Chat">
-              <IconButton onClick={startNewChat} color="primary">
-                <AddIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </Box>
-
-        <List sx={{ flexGrow: 1, overflow: "auto" }}>
-          {isHistoryLoading ? (
-            <ListItem
-              sx={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                py: 3,
-              }}
-            >
-              <CircularProgress size={24} />
-              <Typography variant="body2" sx={{ mt: 1 }}>
-                Loading History...
-              </Typography>
-            </ListItem>
-          ) : chatHistory.length === 0 ? (
-            <ListItem>
-              <ListItemText
-                primary="No chat history"
-                secondary="Start a new conversation"
-              />
-            </ListItem>
-          ) : (
-            chatHistory.map((session) => (
-              <ListItem key={session.sessionId} disablePadding>
-                <ListItemButton
-                  selected={selectedSession === session.sessionId}
-                  onClick={() => loadChatSession(session.sessionId)}
-                >
-                  <ChatIcon sx={{ mr: 1, opacity: 0.7 }} />
-                  <ListItemText
-                    primary={session.title || session.timestamp}
-                    secondary={session.title ? session.timestamp : session.date}
-                  />
-                </ListItemButton>
-              </ListItem>
-            ))
-          )}
-        </List>
-      </Drawer>
+      <ChatHistorySidebar
+        drawerOpen={drawerOpen}
+        sidebarWidth={sidebarWidth}
+        chatHistory={chatHistory}
+        selectedSession={selectedSession}
+        isHistoryLoading={isHistoryLoading}
+        onStartNewChat={startNewChat}
+        onLoadChatSession={loadChatSession}
+      />
 
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
         {isSessionLoading ? (
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              height: "100vh",
-            }}
-          >
-            <CircularProgress size={60} />
-            <Typography variant="h6" sx={{ mt: 3 }}>
-              Loading Conversation...
-            </Typography>
-          </Box>
+          <LoadingDisplay message="Loading Conversation..." showFullScreen />
         ) : (
           <TorchAgentPageContainer>
-            {showScrollButton && (
-              <Tooltip title="Go to bottom and resume auto-scroll">
-                <ScrollToBottomButton
-                  variant="contained"
-                  color="primary"
-                  onClick={scrollToBottomAndEnable}
-                  aria-label="Scroll to bottom and resume auto-scroll"
-                >
-                  <ArrowDownwardIcon />
-                </ScrollToBottomButton>
-              </Tooltip>
-            )}
-
-            <Typography variant="h4" gutterBottom>
-              TorchAgent
-            </Typography>
-
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-              <Button
-                variant="outlined"
-                component="a"
-                href={featureRequestUrl}
-                target="_blank"
-                sx={{ mr: 1 }}
-              >
-                Feature Request
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                component="a"
-                href={bugReportUrl}
-                target="_blank"
-              >
-                Report Bug
-              </Button>
-            </Box>
+            <HeaderSection
+              showScrollButton={showScrollButton}
+              onScrollToBottom={scrollToBottomAndEnable}
+              featureRequestUrl={featureRequestUrl}
+              bugReportUrl={bugReportUrl}
+            />
 
             {/* Show welcome message and query input only for new chats */}
             {!selectedSession && (
-              <>
-                <Typography
-                  variant="body1"
-                  paragraph
-                  sx={{
-                    mb: 3,
-                    p: 2,
-                    backgroundColor: "background.paper",
-                    borderRadius: 1,
-                    border: "1px solid",
-                    borderColor: "divider",
-                  }}
-                >
-                  Hi, I&apos;m TorchAgent, your intelligent assistant for
-                  PyTorch infrastructure analysis and monitoring. I can help you
-                  create custom time-series visualizations, analyze CI/CD
-                  metrics, and gain insights into the PyTorch development
-                  workflow. Simply describe what you&apos;d like to explore, and
-                  I will generate the appropriate queries and dashboards for
-                  you. Data I have access to:
-                  <ul>
-                    <li>
-                      PyTorch GitHub repository data (comments, issues, PRs,
-                      including text inside of these)
-                    </li>
-                    <li>
-                      PyTorch GitHub Actions CI data (build/test/workflow
-                      results, error log classifications, duration, runner
-                      types)
-                    </li>
-                    <li>
-                      CI cost / duration data: how long does the average
-                      job/workflow run)
-                    </li>
-                    <li>Benchmarking data in the benchmarking database</li>
-                  </ul>
-                </Typography>
-
-                <Typography variant="body1" paragraph>
-                  What can I help you graph today?
-                </Typography>
-
-                <QuerySection>
-                  <Box component="form" onSubmit={handleSubmit} noValidate>
-                    <TextField
-                      fullWidth
-                      label="Enter your query"
-                      value={query}
-                      onChange={handleQueryChange}
-                      margin="normal"
-                      multiline
-                      rows={3}
-                      placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
-                      variant="outlined"
-                      disabled={isLoading}
-                      onKeyDown={(e) => {
-                        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                          e.preventDefault();
-                          if (!isLoading && query.trim()) {
-                            handleSubmit(e);
-                          }
-                        }
-                      }}
-                    />
-                    <Box
-                      sx={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        mt: 2,
-                      }}
-                    >
-                      <Button
-                        variant="outlined"
-                        color="secondary"
-                        onClick={() => setDebugVisible(!debugVisible)}
-                      >
-                        {debugVisible ? "Hide Debug" : "Show Debug"}
-                      </Button>
-                      <Box>
-                        {isLoading && (
-                          <Button
-                            variant="outlined"
-                            color="error"
-                            onClick={cancelRequest}
-                            sx={{ mr: 1 }}
-                          >
-                            Cancel
-                          </Button>
-                        )}
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          type="submit"
-                          disabled={isLoading}
-                        >
-                          {isLoading ? "Running..." : "RUN"}
-                        </Button>
-                      </Box>
-                    </Box>
-                  </Box>
-                </QuerySection>
-              </>
+              <WelcomeSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
             )}
 
             <ResultsSection>

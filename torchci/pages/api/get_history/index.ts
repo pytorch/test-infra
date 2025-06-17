@@ -1,4 +1,8 @@
-import { ListObjectsV2Command, S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
+import {
+  HeadObjectCommand,
+  ListObjectsV2Command,
+  S3Client,
+} from "@aws-sdk/client-s3";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
@@ -139,7 +143,7 @@ export default async function handler(
             const key = obj.Key!;
             const filename = key.split("/").pop()!;
             const parts = filename.replace(".json", "").split("_");
-            
+
             if (parts.length >= 2) {
               const timestamp = parts[0];
               const sessionId = parts.slice(1).join("_");
@@ -160,7 +164,9 @@ export default async function handler(
 
     const sessions: HistorySession[] = objectsWithMetadata
       .filter(Boolean)
-      .sort((a, b) => b!.timestamp.localeCompare(a!.timestamp)) as HistorySession[];
+      .sort((a, b) =>
+        b!.timestamp.localeCompare(a!.timestamp)
+      ) as HistorySession[];
 
     console.log(
       `Found ${sessions.length} history sessions for user ${username}`

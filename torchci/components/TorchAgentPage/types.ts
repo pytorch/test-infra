@@ -80,7 +80,7 @@ export type ParsedContent = {
   toolResult?: string;
   grafanaLinks?: GrafanaLink[];
   isAnimating?: boolean;
-  timestamp?: number | string;
+  timestamp?: number;
   outputTokens?: number;
   todoItems?: TodoItem[];
 };
