@@ -4,7 +4,14 @@ on:
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "PyTorch release branch. e.g. release/2.7"
+        required: true
+      milestone-id:
+        description: 'Release milestone ID. e.g. 54'
+        required: true
 
 
 jobs:
