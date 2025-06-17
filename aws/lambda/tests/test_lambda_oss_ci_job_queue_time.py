@@ -1,21 +1,20 @@
-from math import exp
-import unittest
-import os
-import gzip
 import logging
-
-from typing import Any, List, Tuple, Dict
-from unittest.mock import Mock, patch, MagicMock
+import unittest
 from datetime import datetime, timedelta
-from .common import MockClickHouseQuery, setup_mock_db_client
+from typing import Any, List, Tuple
+from unittest.mock import MagicMock, patch
+
 from oss_ci_job_queue_time.lambda_function import (
-    QueueTimeProcessor,
-    QueuedJobHistogramGenerator,
-    WorkerPoolHandler,
     lambda_handler,
     local_run,
+    QueuedJobHistogramGenerator,
+    QueueTimeProcessor,
     TimeIntervalGenerator,
+    WorkerPoolHandler,
 )
+
+from .common import MockClickHouseQuery, setup_mock_db_client
+
 
 logger = logging.getLogger(__name__)
 

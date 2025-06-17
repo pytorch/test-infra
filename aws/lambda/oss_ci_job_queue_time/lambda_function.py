@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 import argparse
-from collections import defaultdict
 import json
 import logging
 import os
 import threading
-import yaml
-import clickhouse_connect
+from collections import defaultdict
+from concurrent.futures import as_completed, ThreadPoolExecutor
+from datetime import datetime, timedelta, timezone
 
 # Local imports
-from typing import Any, Optional, Dict, Set, Iterable, List
-from github import Github, Auth
+from typing import Any, Dict, Iterable, List, Optional, Set
+
+import clickhouse_connect
+import yaml
 from dateutil.parser import parse
-from datetime import datetime, timezone, timedelta
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from github import Auth, Github
 
 
 logging.basicConfig(
@@ -208,7 +209,7 @@ class LazyFileHistory:
 
 
 def explode_runner_variants(
-    runner_configs: Dict[str, Dict[str, Any]]
+    runner_configs: Dict[str, Dict[str, Any]],
 ) -> Dict[str, Dict[str, Any]]:
     runner_types_list = [i for i in runner_configs["runner_types"].items()]
 
@@ -493,7 +494,7 @@ class QueueTimeProcessor:
         db_table_name = "oss_ci_queue_time_histogram"
         logger.info(f" Insert data to db table: {db_name}.{db_table_name}")
         if len(records) == 0:
-            logger.info(f" No histogram records, skipping writing..")
+            logger.info(" No histogram records, skipping writing..")
             return
         columns = list(records[0].keys())
         data = [list(record.values()) for record in records]
@@ -1252,7 +1253,7 @@ def main(
     config_retrievers = get_config_retrievers(github_access_token)
 
     # get time intervals.
-    logger.info(f" [Main] generating time intervals ....")
+    logger.info(" [Main] generating time intervals ....")
     if args:
         cc = get_clickhouse_client(
             args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
@@ -1276,7 +1277,7 @@ def main(
         ),
     )
     handler.start(time_intervals, args)
-    logger.info(f" [Main] Done. work completed.")
+    logger.info(" [Main] Done. work completed.")
 
 
 def lambda_handler(event: Any, context: Any) -> None:

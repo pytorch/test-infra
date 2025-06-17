@@ -1,9 +1,9 @@
-from functools import lru_cache
 import json
 import os
 import re
 from collections import defaultdict
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple, Union
 from warnings import warn
 
@@ -181,7 +181,9 @@ def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, str, Any]]:
     return table, id, body
 
 
-def upsert_documents(table: str, documents: List[Tuple[str, Any]], dry_run: bool) -> None:
+def upsert_documents(
+    table: str, documents: List[Tuple[str, Any]], dry_run: bool
+) -> None:
     """
     Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
     update the document in place, but rather adding a new record for the update

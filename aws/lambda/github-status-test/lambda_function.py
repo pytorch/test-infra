@@ -3,13 +3,14 @@
 import gzip
 import json
 import os
+import random
 from urllib.error import HTTPError
 from urllib.request import urlopen
 from uuid import uuid4
-import requests
-import random
 
 import boto3
+import requests
+
 
 s3 = boto3.resource("s3")
 GITHUB_TOKENS = os.environ.get("GITHUB_TOKENS")

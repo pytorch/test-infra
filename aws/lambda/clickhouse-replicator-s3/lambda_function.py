@@ -1,13 +1,14 @@
-from functools import lru_cache
 import json
 import os
+import urllib
 from collections import defaultdict
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 from warnings import warn
+
 import clickhouse_connect
-import urllib
-import argparse
+
 
 CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
@@ -560,9 +561,9 @@ SUPPORTED_PATHS = {
     "v3": "benchmark.oss_ci_benchmark_v3",
     "debug_util_metadata": "fortesting.oss_ci_utilization_metadata",
     "debug_util_timeseries": "fortesting.oss_ci_time_series",
-    "util_metadata":"misc.oss_ci_utilization_metadata",
-    "util_timeseries":"misc.oss_ci_time_series",
-    "disabled_tests_historical": "misc.disabled_tests_historical"
+    "util_metadata": "misc.oss_ci_utilization_metadata",
+    "util_timeseries": "misc.oss_ci_time_series",
+    "disabled_tests_historical": "misc.disabled_tests_historical",
 }
 
 OBJECT_CONVERTER = {
@@ -584,7 +585,7 @@ OBJECT_CONVERTER = {
     "fortesting.oss_ci_time_series": oss_ci_util_time_series_adapter,
     "misc.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
     "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
-    "misc.disabled_tests_historical": disabled_tests_historical_adapter
+    "misc.disabled_tests_historical": disabled_tests_historical_adapter,
 }
 
 

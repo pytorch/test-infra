@@ -1,8 +1,9 @@
-import requests
 import argparse
-import random
 import json
 import os
+import random
+
+import requests
 
 
 def read_log_dataset(file_location):
@@ -32,15 +33,19 @@ def read_log_dataset(file_location):
         for line in lines[1:]:
             parts = line.strip().split(",")
             if len(parts) != 6:
-                raise ValueError(f"Invalid CSV schema. Expected 6 columns. with entry {parts}")
+                raise ValueError(
+                    f"Invalid CSV schema. Expected 6 columns. with entry {parts}"
+                )
             parts = [part.strip('"') for part in parts]
-            data.append({
-                "id": parts[0],
-                "startTime": parts[1],
-                "conclusion": parts[2],
-                "repo": parts[3].split("/")[-1],
-                "job_name": parts[5],
-            })
+            data.append(
+                {
+                    "id": parts[0],
+                    "startTime": parts[1],
+                    "conclusion": parts[2],
+                    "repo": parts[3].split("/")[-1],
+                    "job_name": parts[5],
+                }
+            )
         return data
 
 
@@ -78,7 +83,6 @@ def download_log(save_location, job_id):
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser(description="Download logs from log dataset")
     parser.add_argument("log_dataset_location", help="Location of the log dataset")
     parser.add_argument("num_logs", type=int, help="Number of logs to download")
@@ -91,7 +95,9 @@ if __name__ == "__main__":
         os.makedirs(args.save_location)
     # if there is content in the save location, raise an error and ask the user to delete the content
     if os.listdir(args.save_location):
-        raise ValueError(f"The save location is not empty. Please delete the content before running the script. You can run the following command to delete the content:\n rm -rf {args.save_location}/*")
+        raise ValueError(
+            f"The save location is not empty. Please delete the content before running the script. You can run the following command to delete the content:\n rm -rf {args.save_location}/*"
+        )
 
     data = read_log_dataset(args.log_dataset_location)
 
@@ -102,7 +108,7 @@ if __name__ == "__main__":
     for item in data:
         item["save_location"] = f"{args.save_location}/{item['id']}.txt"
 
-    for item in data[:args.num_logs]:
+    for item in data[: args.num_logs]:
         print(f"Downloading log for job ID: {item['id']}")
         download_log(args.save_location, item["id"])
 
