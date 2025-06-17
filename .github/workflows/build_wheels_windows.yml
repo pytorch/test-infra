@@ -246,7 +246,7 @@ jobs:
       - name: Install certificates for Arm64 runner
         if: ${{ inputs.architecture == 'arm64' }}
         working-directory: ${{ inputs.repository }}
-        shell: pwsh
+        shell: cmd
         run: |
           :: Activate virtual environment
           call .\.venv\Scripts\activate.bat
