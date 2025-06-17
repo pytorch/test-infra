@@ -199,6 +199,19 @@ jobs:
 
           call "%VS_PATH%" arm64
           "%GIT_BASH%" -c "bash --noprofile --norc %PRE_SCRIPT%"
+      - name: Install certificates for Arm64 runner
+        if: ${{ inputs.architecture == 'arm64' }}
+        working-directory: ${{ inputs.repository }}
+        shell: cmd
+        run: |
+          call .\.venv\Scripts\activate.bat
+
+          pip install --upgrade certifi==2025.04.26
+          for /f "delims=" %%A in ('python -m certifi') do set CERT_PATH=%%A
+          echo Using cert bundle at: %CERT_PATH%
+
+          set SSL_CERT_FILE=%CERT_PATH%
+          set REQUESTS_CA_BUNDLE=%CERT_PATH%
       - name: Build clean
         if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
@@ -249,14 +262,13 @@ jobs:
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
           set DISTUTILS_USE_SDK=1
           set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+
           call "%VS_PATH%" arm64
           cd %SRC_DIR%
           call .venv\Scripts\activate.bat
-          where python
+
           pip install --upgrade setuptools==72.1.0
-          pip install --upgrade certifi==2025.04.26
           python setup.py bdist_wheel
-          pip list
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
