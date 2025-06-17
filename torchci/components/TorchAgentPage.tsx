@@ -98,7 +98,7 @@ export const TorchAgentPage = () => {
 
     setIsHistoryLoading(true);
     try {
-      const response = await fetch("/api/get_history");
+      const response = await fetch("/api/torchagent-get-history");
       if (response.ok) {
         const data = await response.json();
         setChatHistory(data.sessions || []);
@@ -122,7 +122,7 @@ export const TorchAgentPage = () => {
 
     try {
       const response = await fetch(
-        `/api/get_chat_history?sessionId=${sessionId}`
+        `/api/torchagent-get-chat-history?sessionId=${sessionId}`
       );
       if (response.ok) {
         const sessionData = await response.json();
@@ -698,7 +698,7 @@ export const TorchAgentPage = () => {
     fetchControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch("/api/grafana_mcp", {
+      const response = await fetch("/api/torchagent-api", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
