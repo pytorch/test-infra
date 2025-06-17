@@ -5,7 +5,7 @@ describe("torchagent feedback", () => {
   test("insertFeedback inserts into clickhouse", async () => {
     const insert = jest.fn().mockResolvedValue(undefined);
     jest
-      .spyOn(clickhouse, "getClickhouseClientWritableTorchAgent")
+      .spyOn(clickhouse, "getClickhouseClientWritable")
       .mockReturnValue({ insert } as any);
 
     await insertFeedback("user", "session1", 1);
