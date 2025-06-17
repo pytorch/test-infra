@@ -31,7 +31,12 @@ pub async fn get_dynamo_client() -> dynamodb::Client {
 }
 
 /// Download a log for `job_id` from S3.
-pub async fn download_log(client: &s3::Client, repo: &str, job_id: usize, is_temp_log: bool) -> Result<String> {
+pub async fn download_log(
+    client: &s3::Client,
+    repo: &str,
+    job_id: usize,
+    is_temp_log: bool,
+) -> Result<String> {
     let mut key = match repo {
         "pytorch/pytorch" => format!("log/{}", job_id),
         _ => format!("log/{}/{}", repo, job_id),
@@ -41,12 +46,7 @@ pub async fn download_log(client: &s3::Client, repo: &str, job_id: usize, is_tem
         key = format!("temp_logs/{}", job_id);
         bucket = "gha-artifacts";
     }
-    let resp = client
-        .get_object()
-        .bucket(bucket)
-        .key(key)
-        .send()
-        .await?;
+    let resp = client.get_object().bucket(bucket).key(key).send().await?;
 
     let data = resp.body.collect().await?;
     let mut decoder = GzDecoder::new(data.reader());
@@ -82,7 +82,7 @@ pub async fn upload_classification_dynamo(
     repo: &str,
     job_id: usize,
     best_match: &SerializedMatch,
-    is_temp_log: bool
+    is_temp_log: bool,
 ) -> Result<()> {
     let update = AttributeValueUpdate::builder()
         .action(AttributeAction::Put)
@@ -93,7 +93,7 @@ pub async fn upload_classification_dynamo(
     } else {
         "torchci_classification"
     };
-        client
+    client
         .update_item()
         .table_name("torchci-workflow-job")
         .key(

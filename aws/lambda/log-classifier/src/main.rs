@@ -66,7 +66,8 @@ async fn handle(
             info!("match: {}", body);
             if should_write_dynamo.0 {
                 let client = get_dynamo_client().await;
-                upload_classification_dynamo(&client, repo, job_id, &match_json, is_temp_log).await?;
+                upload_classification_dynamo(&client, repo, job_id, &match_json, is_temp_log)
+                    .await?;
             }
             Ok(body)
         }
@@ -93,10 +94,16 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
             let is_temp_log = query_string_parameters
                 .first("temp_log")
                 .map_or(false, |v| v == "true");
-            handle(job_id, repo, ShouldWriteDynamo(true), context_depth, is_temp_log)
-                .await?
-                .into_response()
-                .await
+            handle(
+                job_id,
+                repo,
+                ShouldWriteDynamo(true),
+                context_depth,
+                is_temp_log,
+            )
+            .await?
+            .into_response()
+            .await
         }
 
         _ => Response::builder()
