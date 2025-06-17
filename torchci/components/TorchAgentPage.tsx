@@ -95,13 +95,6 @@ export const TorchAgentPage = () => {
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
 
-  // Chat history state
-  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
-  const [selectedSession, setSelectedSession] = useState<string | null>(null);
-  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
-  const [isSessionLoading, setIsSessionLoading] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
-
   const fetchControllerRef = useRef<AbortController | null>(null);
 
   const thinkingMessages = useThinkingMessages();
