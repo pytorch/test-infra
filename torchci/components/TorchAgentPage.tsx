@@ -1,4 +1,6 @@
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Box, Button, Typography, useTheme, IconButton } from "@mui/material";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import ThumbDownIcon from "@mui/icons-material/ThumbDown";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -72,6 +74,8 @@ export const TorchAgentPage = () => {
   const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
 
   // Chat history state
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
@@ -267,6 +271,8 @@ export const TorchAgentPage = () => {
         }
 
         setSelectedSession(sessionId);
+        setCurrentSessionId(sessionId);
+        setFeedbackVisible(false);
         // Don't override the response we set above for the debug view
       } else {
         console.error("Failed to load chat session");
@@ -286,6 +292,8 @@ export const TorchAgentPage = () => {
     setResponse("");
     setParsedResponses([]);
     setSelectedSession(null);
+    setCurrentSessionId(null);
+    setFeedbackVisible(false);
     setError("");
     setTotalTokens(0);
     setCompletedTokens(0);
@@ -397,7 +405,12 @@ export const TorchAgentPage = () => {
       if (!line.trim()) return;
 
       setResponse((prev) => prev + line + "\n");
-      const json = JSON.parse(line) as MessageWrapper;
+      const json = JSON.parse(line) as any;
+
+      if (json.status === "connecting" && json.userUuid) {
+        setCurrentSessionId(json.userUuid);
+        return;
+      }
 
       // Process timing data from result messages
       if (
@@ -668,6 +681,9 @@ export const TorchAgentPage = () => {
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
@@ -684,6 +700,7 @@ export const TorchAgentPage = () => {
     setIsLoading(true);
     setResponse("");
     setParsedResponses([]);
+    setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
     resetAutoScroll();
@@ -753,6 +770,9 @@ export const TorchAgentPage = () => {
             setCompletedTokens(finalTokens);
             setTotalTokens(finalTokens);
             setIsLoading(false);
+            if (currentSessionId) {
+              setFeedbackVisible(true);
+            }
           }, 500);
 
           break;
@@ -779,6 +799,24 @@ export const TorchAgentPage = () => {
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
+    }
+  };
+
+  const sendFeedback = async (value: number) => {
+    if (!currentSessionId) return;
+    try {
+      await fetch("/api/torchagent-feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sessionId: currentSessionId, feedback: value }),
+      });
+    } catch (e) {
+      console.error("Failed to send feedback", e);
+    } finally {
+      setFeedbackVisible(false);
     }
   };
 
@@ -987,6 +1025,24 @@ export const TorchAgentPage = () => {
                 Completed in {formatElapsedTime(completedTime)} • Total:{" "}
                 {formatTokenCount(completedTokens)} tokens
               </Typography>
+              {feedbackVisible && (
+                <Box sx={{ ml: 2 }}>
+                  <IconButton
+                    color="primary"
+                    size="small"
+                    onClick={() => sendFeedback(1)}
+                  >
+                    <ThumbUpIcon fontSize="small" />
+                  </IconButton>
+                  <IconButton
+                    color="primary"
+                    size="small"
+                    onClick={() => sendFeedback(-1)}
+                  >
+                    <ThumbDownIcon fontSize="small" />
+                  </IconButton>
+                </Box>
+              )}
             </Box>
           )
         )}
