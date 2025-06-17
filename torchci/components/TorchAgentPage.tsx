@@ -820,6 +820,9 @@ export const TorchAgentPage = () => {
   }
 
   const renderContent = () => {
+    const todoListItems = parsedResponses.filter(
+      (item) => item.type === "todo_list"
+    );
     if (parsedResponses.length === 0) {
       if (isLoading) {
         return (
@@ -927,9 +930,8 @@ export const TorchAgentPage = () => {
             </div>
           ))}
 
-        {parsedResponses
-          .filter((item) => item.type === "todo_list")
-          .map((item, index) => (
+        {!isLoading &&
+          todoListItems.map((item, index) => (
             <div key={`todo-${index}`}>
               {item.todoItems && (
                 <TodoList
@@ -956,6 +958,21 @@ export const TorchAgentPage = () => {
                 {formatTokenCount(displayedTokens)} tokens
               </Typography>
             </Box>
+            {todoListItems.map(
+              (item, index) =>
+                item.todoItems && (
+                  <Box key={`todo-inline-${index}`} sx={{ ml: 2 }}>
+                    <TodoList
+                      todoItems={item.todoItems}
+                      timestamp={
+                        typeof item.timestamp === "number"
+                          ? item.timestamp
+                          : undefined
+                      }
+                    />
+                  </Box>
+                )
+            )}
           </LoaderWrapper>
         ) : (
           completedTokens > 0 && (
