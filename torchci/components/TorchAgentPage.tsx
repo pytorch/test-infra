@@ -304,6 +304,7 @@ export const TorchAgentPage = () => {
 
   // Start a new chat
   const startNewChat = () => {
+    cancelRequest();
     setQuery("");
     setResponse("");
     setParsedResponses([]);
