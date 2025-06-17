@@ -12,6 +12,10 @@ import { authOptions } from "../auth/[...nextauth]";
 // Configure AWS S3
 const s3 = new S3Client({
   region: process.env.AWS_REGION || "us-east-2",
+  credentials: {
+    accessKeyId: process.env.OUR_AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.OUR_AWS_SECRET_ACCESS_KEY!,
+  },
 });
 
 const TORCHAGENT_SESSION_BUCKET_NAME =
