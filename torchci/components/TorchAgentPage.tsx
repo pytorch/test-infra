@@ -132,7 +132,7 @@ export const TorchAgentPage = () => {
     setParsedResponses([]);
     setResponse("");
     setError("");
-    
+
     try {
       const response = await fetch(
         `/api/get_chat_history?sessionId=${sessionId}`
@@ -1030,7 +1030,14 @@ export const TorchAgentPage = () => {
 
         <List sx={{ flexGrow: 1, overflow: "auto" }}>
           {isHistoryLoading ? (
-            <ListItem sx={{ display: "flex", flexDirection: "column", alignItems: "center", py: 3 }}>
+            <ListItem
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                py: 3,
+              }}
+            >
               <CircularProgress size={24} />
               <Typography variant="body2" sx={{ mt: 1 }}>
                 Loading History...
@@ -1065,7 +1072,15 @@ export const TorchAgentPage = () => {
       {/* Main Content */}
       <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
         {isSessionLoading ? (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100vh" }}>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              height: "100vh",
+            }}
+          >
             <CircularProgress size={60} />
             <Typography variant="h6" sx={{ mt: 3 }}>
               Loading Conversation...
@@ -1111,210 +1126,213 @@ export const TorchAgentPage = () => {
               </Button>
             </Box>
 
-          {/* Show welcome message and query input only for new chats */}
-          {!selectedSession && (
-            <>
-              <Typography
-                variant="body1"
-                paragraph
-                sx={{
-                  mb: 3,
-                  p: 2,
-                  backgroundColor: "background.paper",
-                  borderRadius: 1,
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              >
-                Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
-                infrastructure analysis and monitoring. I can help you create
-                custom time-series visualizations, analyze CI/CD metrics, and
-                gain insights into the PyTorch development workflow. Simply
-                describe what you&apos;d like to explore, and I will generate
-                the appropriate queries and dashboards for you. Data I have
-                access to:
-                <ul>
-                  <li>
-                    PyTorch GitHub repository data (comments, issues, PRs,
-                    including text inside of these)
-                  </li>
-                  <li>
-                    PyTorch GitHub Actions CI data (build/test/workflow results,
-                    error log classifications, duration, runner types)
-                  </li>
-                  <li>
-                    CI cost / duration data: how long does the average
-                    job/workflow run)
-                  </li>
-                  <li>Benchmarking data in the benchmarking database</li>
-                </ul>
-              </Typography>
-
-              <Typography variant="body1" paragraph>
-                What can I help you graph today?
-              </Typography>
-
-              <QuerySection>
-                <Box component="form" onSubmit={handleSubmit} noValidate>
-                  <TextField
-                    fullWidth
-                    label="Enter your query"
-                    value={query}
-                    onChange={handleQueryChange}
-                    margin="normal"
-                    multiline
-                    rows={3}
-                    placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
-                    variant="outlined"
-                    disabled={isLoading}
-                    onKeyDown={(e) => {
-                      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                        e.preventDefault();
-                        if (!isLoading && query.trim()) {
-                          handleSubmit(e);
-                        }
-                      }
-                    }}
-                  />
-                  <Box
-                    sx={{
-                      display: "flex",
-                      justifyContent: "space-between",
-                      mt: 2,
-                    }}
-                  >
-                    <Button
-                      variant="outlined"
-                      color="secondary"
-                      onClick={() => setDebugVisible(!debugVisible)}
-                    >
-                      {debugVisible ? "Hide Debug" : "Show Debug"}
-                    </Button>
-                    <Box>
-                      {isLoading && (
-                        <Button
-                          variant="outlined"
-                          color="error"
-                          onClick={cancelRequest}
-                          sx={{ mr: 1 }}
-                        >
-                          Cancel
-                        </Button>
-                      )}
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        type="submit"
-                        disabled={isLoading}
-                      >
-                        {isLoading ? "Running..." : "RUN"}
-                      </Button>
-                    </Box>
-                  </Box>
-                </Box>
-              </QuerySection>
-            </>
-          )}
-
-          <ResultsSection>
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                mb: 2,
-              }}
-            >
-              <Typography variant="h6">Results</Typography>
-              {parsedResponses.length > 0 &&
-                parsedResponses.some((item) => item.type === "tool_use") && (
-                  <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={() => {
-                      if (allToolsExpanded) {
-                        setExpandedTools({});
-                        setAllToolsExpanded(false);
-                      } else {
-                        const allExpanded = parsedResponses.reduce(
-                          (acc, _, index) => {
-                            if (parsedResponses[index].type === "tool_use") {
-                              acc[index] = true;
-                            }
-                            return acc;
-                          },
-                          {} as Record<number, boolean>
-                        );
-                        setExpandedTools(allExpanded);
-                        setAllToolsExpanded(true);
-                      }
-                    }}
-                  >
-                    {allToolsExpanded
-                      ? "Collapse all tools"
-                      : "Expand all tools"}
-                  </Button>
-                )}
-            </Box>
-
-            {error && (
-              <Typography color="error" paragraph>
-                {error}
-              </Typography>
-            )}
-
-            {renderContent()}
-
-            {debugVisible && (
-              <Box
-                sx={{
-                  marginTop: "20px",
-                  borderTop: `1px solid ${theme.palette.divider}`,
-                  paddingTop: "10px",
-                }}
-              >
-                <Typography variant="subtitle2">Debug: Raw Response</Typography>
-                <pre
-                  style={{
-                    fontSize: "0.8em",
-                    opacity: 0.7,
-                    maxHeight: "200px",
-                    overflowY: "auto",
-                    backgroundColor:
-                      theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
-                    padding: "8px",
-                    borderRadius: "4px",
-                    color:
-                      theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+            {/* Show welcome message and query input only for new chats */}
+            {!selectedSession && (
+              <>
+                <Typography
+                  variant="body1"
+                  paragraph
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    backgroundColor: "background.paper",
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: "divider",
                   }}
                 >
-                  {response || "(No data yet)"}
-                </pre>
-              </Box>
-            )}
-          </ResultsSection>
+                  Hi, I&apos;m TorchAgent, your intelligent assistant for
+                  PyTorch infrastructure analysis and monitoring. I can help you
+                  create custom time-series visualizations, analyze CI/CD
+                  metrics, and gain insights into the PyTorch development
+                  workflow. Simply describe what you&apos;d like to explore, and
+                  I will generate the appropriate queries and dashboards for
+                  you. Data I have access to:
+                  <ul>
+                    <li>
+                      PyTorch GitHub repository data (comments, issues, PRs,
+                      including text inside of these)
+                    </li>
+                    <li>
+                      PyTorch GitHub Actions CI data (build/test/workflow
+                      results, error log classifications, duration, runner
+                      types)
+                    </li>
+                    <li>
+                      CI cost / duration data: how long does the average
+                      job/workflow run)
+                    </li>
+                    <li>Benchmarking data in the benchmarking database</li>
+                  </ul>
+                </Typography>
 
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-            <Button
-              variant="outlined"
-              component="a"
-              href={featureRequestUrl}
-              target="_blank"
-              sx={{ mr: 1 }}
-            >
-              Feature Request
-            </Button>
-            <Button
-              variant="outlined"
-              color="error"
-              component="a"
-              href={bugReportUrl}
-              target="_blank"
-            >
-              Report Bug
-            </Button>
-          </Box>
-        </TorchAgentPageContainer>
+                <Typography variant="body1" paragraph>
+                  What can I help you graph today?
+                </Typography>
+
+                <QuerySection>
+                  <Box component="form" onSubmit={handleSubmit} noValidate>
+                    <TextField
+                      fullWidth
+                      label="Enter your query"
+                      value={query}
+                      onChange={handleQueryChange}
+                      margin="normal"
+                      multiline
+                      rows={3}
+                      placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
+                      variant="outlined"
+                      disabled={isLoading}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+                          e.preventDefault();
+                          if (!isLoading && query.trim()) {
+                            handleSubmit(e);
+                          }
+                        }
+                      }}
+                    />
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        mt: 2,
+                      }}
+                    >
+                      <Button
+                        variant="outlined"
+                        color="secondary"
+                        onClick={() => setDebugVisible(!debugVisible)}
+                      >
+                        {debugVisible ? "Hide Debug" : "Show Debug"}
+                      </Button>
+                      <Box>
+                        {isLoading && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            onClick={cancelRequest}
+                            sx={{ mr: 1 }}
+                          >
+                            Cancel
+                          </Button>
+                        )}
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          type="submit"
+                          disabled={isLoading}
+                        >
+                          {isLoading ? "Running..." : "RUN"}
+                        </Button>
+                      </Box>
+                    </Box>
+                  </Box>
+                </QuerySection>
+              </>
+            )}
+
+            <ResultsSection>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
+                }}
+              >
+                <Typography variant="h6">Results</Typography>
+                {parsedResponses.length > 0 &&
+                  parsedResponses.some((item) => item.type === "tool_use") && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        if (allToolsExpanded) {
+                          setExpandedTools({});
+                          setAllToolsExpanded(false);
+                        } else {
+                          const allExpanded = parsedResponses.reduce(
+                            (acc, _, index) => {
+                              if (parsedResponses[index].type === "tool_use") {
+                                acc[index] = true;
+                              }
+                              return acc;
+                            },
+                            {} as Record<number, boolean>
+                          );
+                          setExpandedTools(allExpanded);
+                          setAllToolsExpanded(true);
+                        }
+                      }}
+                    >
+                      {allToolsExpanded
+                        ? "Collapse all tools"
+                        : "Expand all tools"}
+                    </Button>
+                  )}
+              </Box>
+
+              {error && (
+                <Typography color="error" paragraph>
+                  {error}
+                </Typography>
+              )}
+
+              {renderContent()}
+
+              {debugVisible && (
+                <Box
+                  sx={{
+                    marginTop: "20px",
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                    paddingTop: "10px",
+                  }}
+                >
+                  <Typography variant="subtitle2">
+                    Debug: Raw Response
+                  </Typography>
+                  <pre
+                    style={{
+                      fontSize: "0.8em",
+                      opacity: 0.7,
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      backgroundColor:
+                        theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      color:
+                        theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+                    }}
+                  >
+                    {response || "(No data yet)"}
+                  </pre>
+                </Box>
+              )}
+            </ResultsSection>
+
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+              <Button
+                variant="outlined"
+                component="a"
+                href={featureRequestUrl}
+                target="_blank"
+                sx={{ mr: 1 }}
+              >
+                Feature Request
+              </Button>
+              <Button
+                variant="outlined"
+                color="error"
+                component="a"
+                href={bugReportUrl}
+                target="_blank"
+              >
+                Report Bug
+              </Button>
+            </Box>
+          </TorchAgentPageContainer>
         )}
       </Box>
     </Box>
