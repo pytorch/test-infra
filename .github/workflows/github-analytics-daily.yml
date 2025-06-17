@@ -2,7 +2,8 @@ name: GitHub Analytics Daily
 
 on:
   pull_request:
-    - .github/workflows/github-analytics-daily.yml
+    paths:
+      - .github/workflows/github-analytics-daily.yml
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
