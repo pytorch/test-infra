@@ -1,7 +1,7 @@
 name: GitHub Analytics Daily
 
 on:
-  pull:
+  pull_request:
     - .github/workflows/github-analytics-daily.yml
   schedule:
     # Run daily at 2 AM UTC
@@ -37,7 +37,6 @@ on:
         description: 'Date to analyze. e.g. 2023-01-01'
       issue-num:
         description: 'Issue number to analyze. e.g. 12345'
-        type: number
 
 
 
