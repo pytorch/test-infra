@@ -2,18 +2,43 @@ name: GitHub Analytics Daily
 
 on:
   pull:
-  	- .github/workflows/github-analytics-daily.yml
+    - .github/workflows/github-analytics-daily.yml
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
-      release:
+      branch:
         description: "PyTorch release branch. e.g. release/2.7"
-        required: true
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
-        required: true
+      repo-path:
+        description: "Path to the repository to analyze"
+      remote:
+        description: "Remote name to use for the repository"
+      missing-in-branch:
+        description: 'bool to flag if commits are missing in the branch'
+        type: boolean
+      minor-release:
+        description: 'Minor release number. e.g. 2.7'
+      analyze-reverts:
+        description: 'bool to flag if reverts should be analyzed'
+        type: boolean
+      print-reverts:
+        description: 'bool to flag if reverts should be printed'
+        type: boolean
+      contributor-stats:
+        description: 'bool to flag if contributor stats should be printed'
+        type: boolean
+      analyze-stacks:
+        description: 'bool to flag if stack analysis should be performed'
+        type: boolean
+      date:
+        description: 'Date to analyze. e.g. 2023-01-01'
+      issue-num:
+        description: 'Issue number to analyze. e.g. 12345'
+        type: number
+
 
 
 jobs:
@@ -48,7 +73,7 @@ jobs:
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
-          --remote upstream -- \
+          --remote upstream \
           --branch release/2.7 \
           --milestone-id 54 \
           --missing-in-branch
