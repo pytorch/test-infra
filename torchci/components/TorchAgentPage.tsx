@@ -40,6 +40,18 @@ interface ChatSession {
   title?: string;
 }
 
+// Helper function to check for special auth cookie (presence only)
+const hasAuthCookie = () => {
+  if (typeof document === "undefined") return false;
+
+  const cookies = document.cookie.split(";");
+  const authCookie = cookies.find((cookie) =>
+    cookie.trim().startsWith("GRAFANA_MCP_AUTH_TOKEN=")
+  );
+
+  return !!authCookie;
+};
+
 export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
@@ -94,7 +106,7 @@ export const TorchAgentPage = () => {
 
   // Fetch chat history on component mount
   const fetchChatHistory = async () => {
-    if (!session.data?.user) return;
+    if (!session.data?.user && !hasAuthCookie()) return;
 
     setIsHistoryLoading(true);
     try {
@@ -782,7 +794,9 @@ export const TorchAgentPage = () => {
     }
   };
 
-  // Authentication check
+  // Authentication check - allow bypass with special cookie
+  const hasCookieAuth = hasAuthCookie();
+
   if (session.status === "loading") {
     return (
       <TorchAgentPageContainer>
@@ -797,9 +811,10 @@ export const TorchAgentPage = () => {
   }
 
   if (
-    session.status === "unauthenticated" ||
-    !session.data?.user ||
-    !(session.data as any)?.accessToken
+    !hasCookieAuth &&
+    (session.status === "unauthenticated" ||
+      !session.data?.user ||
+      !(session.data as any)?.accessToken)
   ) {
     return (
       <TorchAgentPageContainer>
