@@ -11,7 +11,9 @@ import {
   ListItemText,
   Tooltip,
   Typography,
+  useMediaQuery,
 } from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 import React from "react";
 
 interface ChatSession {
@@ -31,6 +33,7 @@ interface ChatHistorySidebarProps {
   isHistoryLoading: boolean;
   onStartNewChat: () => void;
   onLoadChatSession: (sessionId: string) => void;
+  onClose: () => void;
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
@@ -41,20 +44,30 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   isHistoryLoading,
   onStartNewChat,
   onLoadChatSession,
+  onClose,
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
   return (
     <Drawer
-      variant="persistent"
+      variant={isMobile ? "temporary" : "persistent"}
       anchor="left"
       open={drawerOpen}
+      onClose={isMobile ? onClose : undefined}
+      ModalProps={{ keepMounted: true }}
       sx={{
         width: sidebarWidth,
         flexShrink: 0,
         "& .MuiDrawer-paper": {
           width: sidebarWidth,
           boxSizing: "border-box",
-          position: "relative",
-          height: "100%",
+          ...(isMobile
+            ? {}
+            : {
+                position: "relative",
+                height: "100%",
+              }),
         },
       }}
     >

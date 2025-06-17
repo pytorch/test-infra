@@ -1,4 +1,4 @@
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import { Box, Button, Typography, useTheme, useMediaQuery } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -43,6 +43,7 @@ interface ChatSession {
 export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const featureRequestUrl =
     "https://github.com/pytorch/test-infra/issues/new?title=" +
@@ -78,7 +79,11 @@ export const TorchAgentPage = () => {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(!isMobile);
+
+  useEffect(() => {
+    setDrawerOpen(!isMobile);
+  }, [isMobile]);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
 
@@ -275,10 +280,13 @@ export const TorchAgentPage = () => {
     } catch (error) {
       console.error("Error loading chat session:", error);
       setError("Error loading chat session");
-    } finally {
-      setIsSessionLoading(false);
+  } finally {
+    setIsSessionLoading(false);
+    if (isMobile) {
+      setDrawerOpen(false);
     }
-  };
+  }
+};
 
   // Start a new chat
   const startNewChat = () => {
@@ -292,6 +300,9 @@ export const TorchAgentPage = () => {
     setElapsedTime(0);
     setCompletedTime(0);
     setIsSessionLoading(false);
+    if (isMobile) {
+      setDrawerOpen(false);
+    }
   };
 
   // Fetch chat history on mount
@@ -1007,6 +1018,7 @@ export const TorchAgentPage = () => {
         isHistoryLoading={isHistoryLoading}
         onStartNewChat={startNewChat}
         onLoadChatSession={loadChatSession}
+        onClose={() => setDrawerOpen(false)}
       />
 
       {/* Main Content */}
@@ -1020,6 +1032,8 @@ export const TorchAgentPage = () => {
               onScrollToBottom={scrollToBottomAndEnable}
               featureRequestUrl={featureRequestUrl}
               bugReportUrl={bugReportUrl}
+              onToggleDrawer={() => setDrawerOpen(!drawerOpen)}
+              isMobile={isMobile}
             />
 
             {/* Show welcome message and query input only for new chats */}
