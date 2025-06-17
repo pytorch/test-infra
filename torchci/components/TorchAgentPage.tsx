@@ -272,7 +272,6 @@ export const TorchAgentPage = () => {
         setSelectedSession(sessionId);
         setCurrentSessionId(sessionId);
         setFeedbackVisible(sessionData.status === "completed");
-        // Don't override the response we set above for the debug view
       } else {
         console.error("Failed to load chat session");
         setError("Failed to load chat session");
@@ -671,7 +670,7 @@ export const TorchAgentPage = () => {
         setError(`Error: ${json.error}`);
       }
     } catch (err) {
-      console.log("Failed to parse:", line);
+      console.error("Failed to parse:", line);
     }
   };
 
