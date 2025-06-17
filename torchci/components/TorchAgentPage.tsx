@@ -1,29 +1,23 @@
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import {
-  Box,
-  Button,
-  TextField,
-  Tooltip,
-  Typography,
-  useTheme,
-} from "@mui/material";
+import { Box, Button, Typography, useTheme } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
+import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
 import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
+import { HeaderSection } from "./TorchAgentPage/HeaderSection";
 import {
   useAnimatedCounter,
   useAutoScroll,
   useThinkingMessages,
   useTokenCalculator,
 } from "./TorchAgentPage/hooks";
+import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
 import {
   ChunkMetadata,
   LoaderWrapper,
   QuerySection,
   ResponseText,
   ResultsSection,
-  ScrollToBottomButton,
   TorchAgentPageContainer,
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
@@ -35,6 +29,28 @@ import {
   formatTokenCount,
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
+import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
+
+interface ChatSession {
+  sessionId: string;
+  timestamp: string;
+  date: string;
+  filename: string;
+  key: string;
+  title?: string;
+}
+
+// Helper function to check for special auth cookie (presence only)
+const hasAuthCookie = () => {
+  if (typeof document === "undefined") return false;
+
+  const cookies = document.cookie.split(";");
+  const authCookie = cookies.find((cookie) =>
+    cookie.trim().startsWith("GRAFANA_MCP_AUTH_TOKEN=")
+  );
+
+  return !!authCookie;
+};
 
 export const TorchAgentPage = () => {
   const session = useSession();
@@ -69,6 +85,13 @@ export const TorchAgentPage = () => {
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
 
+  // Chat history state
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
+
   const fetchControllerRef = useRef<AbortController | null>(null);
 
   const thinkingMessages = useThinkingMessages();
@@ -80,6 +103,214 @@ export const TorchAgentPage = () => {
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
   };
+
+  // Fetch chat history on component mount
+  const fetchChatHistory = async () => {
+    console.log("hasAuthCookie:", hasAuthCookie());
+    if (!session.data?.user && !hasAuthCookie()) return;
+
+    setIsHistoryLoading(true);
+    try {
+      const response = await fetch("/api/torchagent-get-history");
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.sessions || []);
+      } else {
+        console.error("Failed to fetch chat history");
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Load a specific chat session
+  const loadChatSession = async (sessionId: string) => {
+    setIsSessionLoading(true);
+    // Clear existing content while loading
+    setParsedResponses([]);
+    setResponse("");
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/torchagent-get-chat-history?sessionId=${sessionId}`
+      );
+      if (response.ok) {
+        const sessionData = await response.json();
+        console.log("Loaded session data:", sessionData);
+
+        // The messages array contains the same format as streaming data
+        if (sessionData.messages && Array.isArray(sessionData.messages)) {
+          // Clear the query input for historical chats
+          setQuery("");
+
+          // Process each message directly
+          let fullResponse = "";
+
+          // Clear existing parsed responses
+          setParsedResponses([]);
+
+          // First, process user messages (queries/prompts) - these should appear first
+          sessionData.messages.forEach((msg: any) => {
+            if (msg.type === "user_message" && msg.content) {
+              const textContent = msg.content;
+              const grafanaLinks = extractGrafanaLinks(textContent);
+
+              setParsedResponses((prev) => [
+                ...prev,
+                {
+                  type: "user_message",
+                  content: textContent,
+                  displayedContent: textContent,
+                  isAnimating: false,
+                  timestamp: Date.now(),
+                  grafanaLinks:
+                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                },
+              ]);
+            }
+
+            // For debugging and streaming format processing, accumulate content
+            if (msg.content) {
+              fullResponse += msg.content + "\n";
+            }
+          });
+
+          // Set the raw response for debug view
+          setResponse(fullResponse);
+
+          // Now process streaming format messages for AI responses
+          const lines = fullResponse.split("\n").filter((line) => line.trim());
+          lines.forEach((line) => {
+            try {
+              const json = JSON.parse(line);
+
+              // Use the same logic as the streaming handler
+              if (json.type === "assistant" && json.message?.content) {
+                json.message.content.forEach((item: any) => {
+                  if (item.type === "text") {
+                    const textContent = item.text;
+                    const grafanaLinks = extractGrafanaLinks(textContent);
+
+                    setParsedResponses((prev) => [
+                      ...prev,
+                      {
+                        type: "text",
+                        content: textContent,
+                        displayedContent: textContent,
+                        isAnimating: false,
+                        timestamp: Date.now(),
+                        grafanaLinks:
+                          grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                      },
+                    ]);
+                  } else if (item.type === "tool_use") {
+                    // Handle tool usage
+                    setParsedResponses((prev) => [
+                      ...prev,
+                      {
+                        type: "tool_use",
+                        content: "",
+                        toolName: item.name,
+                        toolInput: item.input,
+                        toolResult: "", // Will be filled by tool_result
+                        timestamp: Date.now(),
+                        isAnimating: false,
+                        toolUseId: item.id,
+                      },
+                    ]);
+                  }
+                });
+              } else if (json.type === "user" && json.message?.content) {
+                // Handle user messages and tool results
+                json.message.content.forEach((item: any) => {
+                  if (item.type === "text") {
+                    const textContent = item.text;
+                    const grafanaLinks = extractGrafanaLinks(textContent);
+
+                    setParsedResponses((prev) => [
+                      ...prev,
+                      {
+                        type: "user_message",
+                        content: textContent,
+                        displayedContent: textContent,
+                        isAnimating: false,
+                        timestamp: Date.now(),
+                        grafanaLinks:
+                          grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                      },
+                    ]);
+                  } else if (item.type === "tool_result" && item.tool_use_id) {
+                    // Handle tool results - update the corresponding tool use
+                    setParsedResponses((prev) => {
+                      const updated = [...prev];
+                      const toolUseIndex = updated.findIndex(
+                        (response) =>
+                          response.type === "tool_use" &&
+                          response.toolUseId === item.tool_use_id
+                      );
+
+                      if (toolUseIndex !== -1) {
+                        // Extract tool result content
+                        let toolResult = "";
+                        if (item.content && Array.isArray(item.content)) {
+                          toolResult = item.content
+                            .map((c: any) => c.text || c)
+                            .join("");
+                        } else if (typeof item.content === "string") {
+                          toolResult = item.content;
+                        }
+
+                        updated[toolUseIndex] = {
+                          ...updated[toolUseIndex],
+                          toolResult: toolResult,
+                        };
+                      }
+                      return updated;
+                    });
+                  }
+                });
+              }
+            } catch (e) {
+              // Skip invalid JSON lines
+            }
+          });
+        }
+
+        setSelectedSession(sessionId);
+        // Don't override the response we set above for the debug view
+      } else {
+        console.error("Failed to load chat session");
+        setError("Failed to load chat session");
+      }
+    } catch (error) {
+      console.error("Error loading chat session:", error);
+      setError("Error loading chat session");
+    } finally {
+      setIsSessionLoading(false);
+    }
+  };
+
+  // Start a new chat
+  const startNewChat = () => {
+    setQuery("");
+    setResponse("");
+    setParsedResponses([]);
+    setSelectedSession(null);
+    setError("");
+    setTotalTokens(0);
+    setCompletedTokens(0);
+    setElapsedTime(0);
+    setCompletedTime(0);
+    setIsSessionLoading(false);
+  };
+
+  // Fetch chat history on mount
+  useEffect(() => {
+    fetchChatHistory();
+  }, [session.data?.user]);
 
   // Rotate through thinking messages every 6 seconds
   useEffect(() => {
@@ -478,7 +709,7 @@ export const TorchAgentPage = () => {
     fetchControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch("/api/grafana_mcp", {
+      const response = await fetch("/api/torchagent-api", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -562,7 +793,9 @@ export const TorchAgentPage = () => {
     }
   };
 
-  // Authentication check
+  // Authentication check - allow bypass with special cookie
+  const hasCookieAuth = hasAuthCookie();
+
   if (session.status === "loading") {
     return (
       <TorchAgentPageContainer>
@@ -577,9 +810,10 @@ export const TorchAgentPage = () => {
   }
 
   if (
-    session.status === "unauthenticated" ||
-    !session.data?.user ||
-    !(session.data as any)?.accessToken
+    !hasCookieAuth &&
+    (session.status === "unauthenticated" ||
+      !session.data?.user ||
+      !(session.data as any)?.accessToken)
   ) {
     return (
       <TorchAgentPageContainer>
@@ -630,7 +864,37 @@ export const TorchAgentPage = () => {
           .filter((item) => item.type !== "todo_list")
           .map((item, index) => (
             <div key={`content-${index}`}>
-              {item.type === "text" ? (
+              {item.type === "user_message" ? (
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    backgroundColor: "action.hover",
+                    borderRadius: 1,
+                    borderLeft: "4px solid",
+                    borderLeftColor: "primary.main",
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    color="primary"
+                    sx={{ mb: 1 }}
+                  >
+                    User Query:
+                  </Typography>
+                  <Typography variant="body1">
+                    {renderTextWithLinks(item.content, false)}
+                  </Typography>
+
+                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                    <Box mt={2}>
+                      {item.grafanaLinks.map((link, i) => (
+                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              ) : item.type === "text" ? (
                 <>
                   <ResponseText>
                     {renderTextWithLinks(
@@ -644,22 +908,9 @@ export const TorchAgentPage = () => {
 
                   {!item.isAnimating && (
                     <ChunkMetadata>
-                      {item.timestamp &&
-                      index > 0 &&
-                      parsedResponses[index - 1].timestamp
-                        ? `Generated in ${(
-                            (item.timestamp -
-                              (parsedResponses[index - 1].timestamp || 0)) /
-                            1000
-                          ).toFixed(2)}s`
-                        : item.timestamp && startTime
-                        ? `Generated in ${(
-                            (item.timestamp - (startTime || 0)) /
-                            1000
-                          ).toFixed(2)}s`
-                        : ""}
+                      {/* For historical chats, we skip timing calculations since timestamps are strings */}
                       {item.outputTokens
-                        ? ` • ${formatTokenCount(item.outputTokens)} tokens`
+                        ? `${formatTokenCount(item.outputTokens)} tokens`
                         : ""}
                     </ChunkMetadata>
                   )}
@@ -697,7 +948,11 @@ export const TorchAgentPage = () => {
               {item.todoItems && (
                 <TodoList
                   todoItems={item.todoItems}
-                  timestamp={item.timestamp}
+                  timestamp={
+                    typeof item.timestamp === "number"
+                      ? item.timestamp
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -753,233 +1008,150 @@ export const TorchAgentPage = () => {
     );
   };
 
+  const sidebarWidth = 300;
+
   return (
-    <TorchAgentPageContainer>
-      {showScrollButton && (
-        <Tooltip title="Go to bottom and resume auto-scroll">
-          <ScrollToBottomButton
-            variant="contained"
-            color="primary"
-            onClick={scrollToBottomAndEnable}
-            aria-label="Scroll to bottom and resume auto-scroll"
-          >
-            <ArrowDownwardIcon />
-          </ScrollToBottomButton>
-        </Tooltip>
-      )}
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* Sidebar */}
+      <ChatHistorySidebar
+        drawerOpen={drawerOpen}
+        sidebarWidth={sidebarWidth}
+        chatHistory={chatHistory}
+        selectedSession={selectedSession}
+        isHistoryLoading={isHistoryLoading}
+        onStartNewChat={startNewChat}
+        onLoadChatSession={loadChatSession}
+      />
 
-      <Typography variant="h4" gutterBottom>
-        TorchAgent
-      </Typography>
+      {/* Main Content */}
+      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+        {isSessionLoading ? (
+          <LoadingDisplay message="Loading Conversation..." showFullScreen />
+        ) : (
+          <TorchAgentPageContainer>
+            <HeaderSection
+              showScrollButton={showScrollButton}
+              onScrollToBottom={scrollToBottomAndEnable}
+              featureRequestUrl={featureRequestUrl}
+              bugReportUrl={bugReportUrl}
+            />
 
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Button
-          variant="outlined"
-          component="a"
-          href={featureRequestUrl}
-          target="_blank"
-          sx={{ mr: 1 }}
-        >
-          Feature Request
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          component="a"
-          href={bugReportUrl}
-          target="_blank"
-        >
-          Report Bug
-        </Button>
-      </Box>
+            {/* Show welcome message and query input only for new chats */}
+            {!selectedSession && (
+              <WelcomeSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
 
-      <Typography
-        variant="body1"
-        paragraph
-        sx={{
-          mb: 3,
-          p: 2,
-          backgroundColor: "background.paper",
-          borderRadius: 1,
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
-        infrastructure analysis and monitoring. I can help you create custom
-        time-series visualizations, analyze CI/CD metrics, and gain insights
-        into the PyTorch development workflow. Simply describe what you&apos;d
-        like to explore, and I will generate the appropriate queries and
-        dashboards for you. Data I have access to:
-        <ul>
-          <li>
-            PyTorch GitHub repository data (comments, issues, PRs, including
-            text inside of these)
-          </li>
-          <li>
-            PyTorch GitHub Actions CI data (build/test/workflow results, error
-            log classifications, duration, runner types)
-          </li>
-          <li>
-            CI cost / duration data: how long does the average job/workflow run)
-          </li>
-          <li>Benchmarking data in the benchmarking database</li>
-        </ul>
-      </Typography>
-
-      <Typography variant="body1" paragraph>
-        What can I help you graph today?
-      </Typography>
-
-      <QuerySection>
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <TextField
-            fullWidth
-            label="Enter your query"
-            value={query}
-            onChange={handleQueryChange}
-            margin="normal"
-            multiline
-            rows={3}
-            placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
-            variant="outlined"
-            disabled={isLoading}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                if (!isLoading && query.trim()) {
-                  handleSubmit(e);
-                }
-              }
-            }}
-          />
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={() => setDebugVisible(!debugVisible)}
-            >
-              {debugVisible ? "Hide Debug" : "Show Debug"}
-            </Button>
-            <Box>
-              {isLoading && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={cancelRequest}
-                  sx={{ mr: 1 }}
-                >
-                  Cancel
-                </Button>
-              )}
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading ? "Running..." : "RUN"}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </QuerySection>
-
-      <ResultsSection>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6">Results</Typography>
-          {parsedResponses.length > 0 &&
-            parsedResponses.some((item) => item.type === "tool_use") && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  if (allToolsExpanded) {
-                    setExpandedTools({});
-                    setAllToolsExpanded(false);
-                  } else {
-                    const allExpanded = parsedResponses.reduce(
-                      (acc, _, index) => {
-                        if (parsedResponses[index].type === "tool_use") {
-                          acc[index] = true;
-                        }
-                        return acc;
-                      },
-                      {} as Record<number, boolean>
-                    );
-                    setExpandedTools(allExpanded);
-                    setAllToolsExpanded(true);
-                  }
+            <ResultsSection>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
                 }}
               >
-                {allToolsExpanded ? "Collapse all tools" : "Expand all tools"}
+                <Typography variant="h6">Results</Typography>
+                {parsedResponses.length > 0 &&
+                  parsedResponses.some((item) => item.type === "tool_use") && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        if (allToolsExpanded) {
+                          setExpandedTools({});
+                          setAllToolsExpanded(false);
+                        } else {
+                          const allExpanded = parsedResponses.reduce(
+                            (acc, _, index) => {
+                              if (parsedResponses[index].type === "tool_use") {
+                                acc[index] = true;
+                              }
+                              return acc;
+                            },
+                            {} as Record<number, boolean>
+                          );
+                          setExpandedTools(allExpanded);
+                          setAllToolsExpanded(true);
+                        }
+                      }}
+                    >
+                      {allToolsExpanded
+                        ? "Collapse all tools"
+                        : "Expand all tools"}
+                    </Button>
+                  )}
+              </Box>
+
+              {error && (
+                <Typography color="error" paragraph>
+                  {error}
+                </Typography>
+              )}
+
+              {renderContent()}
+
+              {debugVisible && (
+                <Box
+                  sx={{
+                    marginTop: "20px",
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                    paddingTop: "10px",
+                  }}
+                >
+                  <Typography variant="subtitle2">
+                    Debug: Raw Response
+                  </Typography>
+                  <pre
+                    style={{
+                      fontSize: "0.8em",
+                      opacity: 0.7,
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      backgroundColor:
+                        theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      color:
+                        theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+                    }}
+                  >
+                    {response || "(No data yet)"}
+                  </pre>
+                </Box>
+              )}
+            </ResultsSection>
+
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+              <Button
+                variant="outlined"
+                component="a"
+                href={featureRequestUrl}
+                target="_blank"
+                sx={{ mr: 1 }}
+              >
+                Feature Request
               </Button>
-            )}
-        </Box>
-
-        {error && (
-          <Typography color="error" paragraph>
-            {error}
-          </Typography>
+              <Button
+                variant="outlined"
+                color="error"
+                component="a"
+                href={bugReportUrl}
+                target="_blank"
+              >
+                Report Bug
+              </Button>
+            </Box>
+          </TorchAgentPageContainer>
         )}
-
-        {renderContent()}
-
-        {debugVisible && (
-          <Box
-            sx={{
-              marginTop: "20px",
-              borderTop: `1px solid ${theme.palette.divider}`,
-              paddingTop: "10px",
-            }}
-          >
-            <Typography variant="subtitle2">Debug: Raw Response</Typography>
-            <pre
-              style={{
-                fontSize: "0.8em",
-                opacity: 0.7,
-                maxHeight: "200px",
-                overflowY: "auto",
-                backgroundColor:
-                  theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
-                padding: "8px",
-                borderRadius: "4px",
-                color: theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
-              }}
-            >
-              {response || "(No data yet)"}
-            </pre>
-          </Box>
-        )}
-      </ResultsSection>
-
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-        <Button
-          variant="outlined"
-          component="a"
-          href={featureRequestUrl}
-          target="_blank"
-          sx={{ mr: 1 }}
-        >
-          Feature Request
-        </Button>
-        <Button
-          variant="outlined"
-          color="error"
-          component="a"
-          href={bugReportUrl}
-          target="_blank"
-        >
-          Report Bug
-        </Button>
       </Box>
-    </TorchAgentPageContainer>
+    </Box>
   );
 };

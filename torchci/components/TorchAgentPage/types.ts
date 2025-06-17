@@ -71,7 +71,7 @@ export interface TodoItem {
 }
 
 export type ParsedContent = {
-  type: "text" | "tool_use" | "todo_list";
+  type: "text" | "tool_use" | "todo_list" | "user_message";
   content: string;
   displayedContent?: string;
   toolName?: string;
