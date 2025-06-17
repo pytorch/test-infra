@@ -1,5 +1,5 @@
-import { insertFeedback } from "../pages/api/torchagent-feedback";
 import * as clickhouse from "../lib/clickhouse";
+import { insertFeedback } from "../pages/api/torchagent-feedback";
 
 describe("torchagent feedback", () => {
   test("insertFeedback inserts into clickhouse", async () => {

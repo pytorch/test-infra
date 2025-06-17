@@ -1,19 +1,28 @@
 import dayjs from "dayjs";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
+import { getClickhouseClientWritableTorchAgent } from "../../lib/clickhouse";
 import { hasWritePermissionsUsingOctokit } from "../../lib/GeneralUtils";
 import { getOctokitWithUserToken } from "../../lib/github";
-import { getClickhouseClientWritableTorchAgent } from "../../lib/clickhouse";
 import { authOptions } from "./auth/[...nextauth]";
 
-export async function insertFeedback(user: string, sessionId: string, feedback: number) {
+export async function insertFeedback(
+  user: string,
+  sessionId: string,
+  feedback: number
+) {
   await getClickhouseClientWritableTorchAgent().insert({
     table: "misc.torchagent_feedback",
-    values: [[user, sessionId, feedback, dayjs().utc().format("YYYY-MM-DD HH:mm:ss")]],
+    values: [
+      [user, sessionId, feedback, dayjs().utc().format("YYYY-MM-DD HH:mm:ss")],
+    ],
   });
 }
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(
+  req: NextApiRequest,
+  res: NextApiResponse
+) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -25,7 +34,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const { sessionId, feedback } = req.body ?? {};
-  if (!sessionId || typeof sessionId !== "string" || (feedback !== 1 && feedback !== -1)) {
+  if (
+    !sessionId ||
+    typeof sessionId !== "string" ||
+    (feedback !== 1 && feedback !== -1)
+  ) {
     return res.status(400).json({ error: "Invalid parameters" });
   }
 
@@ -33,7 +46,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const repoName = "pytorch";
 
   try {
-    const octokit = await getOctokitWithUserToken(session.accessToken as string);
+    const octokit = await getOctokitWithUserToken(
+      session.accessToken as string
+    );
     const user = await octokit.rest.users.getAuthenticated();
     if (!user?.data?.login) {
       return res.status(401).json({ error: "GitHub authentication failed" });

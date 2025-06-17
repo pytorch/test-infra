@@ -1,6 +1,6 @@
-import { Box, Button, Typography, useTheme, IconButton } from "@mui/material";
-import ThumbUpIcon from "@mui/icons-material/ThumbUp";
 import ThumbDownIcon from "@mui/icons-material/ThumbDown";
+import ThumbUpIcon from "@mui/icons-material/ThumbUp";
+import { Box, Button, IconButton, Typography, useTheme } from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -24,7 +24,7 @@ import {
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
-import { MessageWrapper, ParsedContent } from "./TorchAgentPage/types";
+import { ParsedContent } from "./TorchAgentPage/types";
 import {
   extractGrafanaLinks,
   formatElapsedTime,
