@@ -106,6 +106,7 @@ export const TorchAgentPage = () => {
 
   // Fetch chat history on component mount
   const fetchChatHistory = async () => {
+    console.log("hasAuthCookie:", hasAuthCookie());
     if (!session.data?.user && !hasAuthCookie()) return;
 
     setIsHistoryLoading(true);
@@ -308,9 +309,7 @@ export const TorchAgentPage = () => {
 
   // Fetch chat history on mount
   useEffect(() => {
-    if (session.data?.user) {
-      fetchChatHistory();
-    }
+    fetchChatHistory();
   }, [session.data?.user]);
 
   // Rotate through thinking messages every 6 seconds
