@@ -12,10 +12,10 @@ pub fn filter_old_parameters<T: TimeProvider>(
 
     for parameter in parameters {
         if let Some(last_modified) = parameter.last_modified_date() {
-            let last_modified_chrono = DateTime::from_timestamp(last_modified.secs(), 0)
+            let last_modified_time = DateTime::from_timestamp(last_modified.secs(), 0)
                 .unwrap_or_else(|| DateTime::from_timestamp(0, 0).unwrap());
 
-            if last_modified_chrono < threshold {
+            if last_modified_time < threshold {
                 if let Some(name) = parameter.name() {
                     parameters_to_delete.push(name.to_string());
                 }
