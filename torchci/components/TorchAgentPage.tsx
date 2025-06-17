@@ -424,7 +424,7 @@ export const TorchAgentPage = () => {
 
       // Handle different response types
       if (json.type === "assistant" && json.message?.content) {
-        json.message.content.forEach((item) => {
+        json.message.content.forEach((item: any) => {
           if (item.type === "text" && "text" in item) {
             const textContent = item.text || "";
             const grafanaLinks = extractGrafanaLinks(textContent);
@@ -531,7 +531,7 @@ export const TorchAgentPage = () => {
           }
         });
       } else if (json.type === "user" && json.message?.content) {
-        json.message.content.forEach((item) => {
+        json.message.content.forEach((item: any) => {
           if (item.type === "tool_result" && item.tool_use_id) {
             setParsedResponses((prev) => {
               const updated = [...prev];
