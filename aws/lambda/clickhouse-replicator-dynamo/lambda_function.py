@@ -213,7 +213,8 @@ def upsert_documents(
             }
             id_bodies += json.dumps(id_doc) + "\n"
         get_clickhouse_client().query(
-            f"INSERT INTO errors.gen_errors SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {id_bodies}"
+            "INSERT INTO errors.gen_errors SETTINGS async_insert=1, "
+            f"wait_for_async_insert=1 FORMAT JSONEachRow {id_bodies}"
         )
         raise error
 

@@ -461,7 +461,7 @@ def gen_statistics(
     breakdowns: Dict[str, Set[str]],
 ) -> Dict[str, Dict[str, float]]:
     statistics = {}
-    stat_counts = {b: 0 for b in breakdowns.keys()}
+    stat_counts = dict.fromkeys(breakdowns.keys(), 0)
     stat_holders = {b: [] for b in breakdowns.keys()}
 
     runners = set.union(set(queue_histories.keys()), set(total_jobs.keys()))
@@ -637,7 +637,8 @@ def process_hour(
     start_time = end_time - datetime.timedelta(hours=24)
 
     # In the past, for a brief period, the runner configuration was stored in the pytorch/pytorch repository.
-    # This is a fallback to get the runner configuration from that repository when it is not found in the test-infra repository.
+    # This is a fallback to get the runner configuration from that repository when it
+    # is not found in the test-infra repository.
     lf_runner_config = get_runner_config(lf_runner_config_retriever, start_time)
     if not lf_runner_config or not lf_runner_config["runner_types"]:
         lf_runner_config = get_runner_config(
@@ -682,9 +683,8 @@ def process_hour(
             )
         return
 
-    update_breakdowns(
-        breakdowns, set(w[0] for w in res_queue_times_hist.result_rows)
-    )
+    update_breakdowns(breakdowns, {w[0] for w in res_queue_times_hist.result_rows})
+    # noqa: C401
     update_breakdowns(breakdowns, res_total_jobs.keys())
 
     if not multiprocessing:

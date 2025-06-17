@@ -96,7 +96,9 @@ if __name__ == "__main__":
     # if there is content in the save location, raise an error and ask the user to delete the content
     if os.listdir(args.save_location):
         raise ValueError(
-            f"The save location is not empty. Please delete the content before running the script. You can run the following command to delete the content:\n rm -rf {args.save_location}/*"
+            "The save location is not empty. Please delete the content before running"
+            + " the script. You can run the following command to delete the content:\n"
+            + f" rm -rf {args.save_location}/*"
         )
 
     data = read_log_dataset(args.log_dataset_location)
