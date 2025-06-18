@@ -58,14 +58,6 @@ export default async function handler(
     console.log("Authorized: Using GRAFANA_MCP_AUTH_TOKEN cookie bypass");
     username = "grafana-bypass-user";
   } else {
-    // Standard authentication flow
-    // @ts-ignore
-    const session = await getServerSession(req, res, authOptions);
-    if (!session?.user || !session?.accessToken) {
-      console.log("Rejected: User not authenticated");
-      return res.status(401).json({ error: "Authentication required" });
-    }
-
     // Check write permissions to pytorch/pytorch repository
     const repoOwner = "pytorch";
     const repoName = "pytorch";

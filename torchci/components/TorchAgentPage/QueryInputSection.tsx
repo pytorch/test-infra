@@ -7,7 +7,6 @@ interface QueryInputSectionProps {
   isLoading: boolean;
   debugVisible: boolean;
   isReadOnly?: boolean;
-  showWelcome?: boolean;
   onQueryChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (event: React.FormEvent) => void;
   onToggleDebug: () => void;
