@@ -1,8 +1,7 @@
+import datetime
 import gzip
 import io
 import json
-import subprocess
-import datetime
 from pathlib import Path
 from typing import List
 
@@ -77,7 +76,12 @@ def upload_merge_base_info(shas: List[str]) -> None:
             unix_timestamp = run_command(
                 f"git show --no-patch --format=%ct {merge_base}"
             )
-            timestamp = datetime.datetime.fromtimestamp(int(unix_timestamp), tz=datetime.timezone.utc).isoformat() + "Z"
+            timestamp = (
+                datetime.datetime.fromtimestamp(
+                    int(unix_timestamp), tz=datetime.timezone.utc
+                ).isoformat()
+                + "Z"
+            )
             data = {
                 "sha": sha,
                 "merge_base": merge_base,
