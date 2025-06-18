@@ -129,7 +129,6 @@ export default async function handler(
     const userUuid = randomUUID();
 
     console.log(`Calling Lambda with userUuid: ${userUuid}`);
-    console.log("and token: ", AUTH_TOKEN);
 
     // Write initial message to start the stream
     res.write(`{"status":"connecting","userUuid":"${userUuid}"}\n`);
