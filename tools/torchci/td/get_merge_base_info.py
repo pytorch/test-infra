@@ -76,11 +76,9 @@ def upload_merge_base_info(shas: List[str]) -> None:
             unix_timestamp = run_command(
                 f"git show --no-patch --format=%ct {merge_base}"
             )
-            timestamp = (
-                datetime.datetime.fromtimestamp(
-                    int(unix_timestamp), tz=datetime.timezone.utc
-                ).isoformat()
-            )
+            timestamp = datetime.datetime.fromtimestamp(
+                int(unix_timestamp), tz=datetime.timezone.utc
+            ).isoformat()
             data = {
                 "sha": sha,
                 "merge_base": merge_base,
