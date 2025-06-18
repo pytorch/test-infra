@@ -44,6 +44,7 @@ interface ChatSession {
   filename: string;
   key: string;
   title?: string;
+  status?: string;
 }
 
 // Helper function to check for special auth cookie (presence only)
