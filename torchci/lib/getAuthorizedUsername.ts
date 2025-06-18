@@ -49,8 +49,8 @@ export async function getAuthorizedUsername(
   const repoName = "pytorch";
 
   try {
-    // @ts-ignore – next-auth's Session type is not exported client-side
     const octokit = await getOctokitWithUserToken(
+      // @ts-ignore – next-auth's Session type is not exported client-side
       session.accessToken as string
     );
     const user = await octokit.rest.users.getAuthenticated();
