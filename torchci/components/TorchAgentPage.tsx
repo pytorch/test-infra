@@ -222,12 +222,14 @@ export const TorchAgentPage = () => {
   // Poll chat history every 10 seconds when there's an active chat
   useEffect(() => {
     if (!session.data?.user) return;
-    
-    const hasActiveChat = isLoading || 
-      currentSessionId !== null || 
-      chatHistory.some(chat => 
-        chat.title === "New Chat..." || 
-        (chat.status && chat.status === "in_progress")
+
+    const hasActiveChat =
+      isLoading ||
+      currentSessionId !== null ||
+      chatHistory.some(
+        (chat) =>
+          chat.title === "New Chat..." ||
+          (chat.status && chat.status === "in_progress")
       );
 
     if (hasActiveChat) {
