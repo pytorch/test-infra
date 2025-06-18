@@ -6,7 +6,6 @@ include_patterns = ['**/*.py']
 exclude_patterns = [
     '.git/**',
     '.github/scripts/**',
-    'aws/lambda/log-classifier/**',
     'aws/lambda/oss_ci_cur/**',
     'aws/lambda/oss_ci_job_queue_time/**',
     'aws/lambda/servicelab-ingestor/**',
@@ -51,7 +50,6 @@ include_patterns = [
     'torchci/**/*.pyi',
 ]
 exclude_patterns = [
-    'aws/lambda/log-classifier/**',
     'aws/lambda/oss_ci_cur/**',
     'aws/lambda/oss_ci_job_queue_time/**',
     'aws/lambda/servicelab-ingestor/**',
@@ -350,7 +348,6 @@ code = 'RUFF'
 include_patterns = ['**/*.py']
 exclude_patterns = [
     '.github/scripts/**',
-    'aws/lambda/log-classifier/**',
     'aws/lambda/oss_ci_cur/**',
     'aws/lambda/oss_ci_job_queue_time/**',
     'aws/lambda/servicelab-ingestor/**',
