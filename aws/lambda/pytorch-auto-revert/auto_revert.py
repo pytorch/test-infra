@@ -36,7 +36,7 @@ def get_opts() -> argparse.Namespace:
 
 def main(*args, **kwargs) -> None:
     opts = get_opts()
-    cc = get_clickhouse_client(
+    get_clickhouse_client(
         opts.clickhouse_host,
         opts.clickhouse_port,
         opts.clickhouse_username,

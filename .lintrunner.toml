@@ -6,6 +6,12 @@ include_patterns = ['**/*.py']
 exclude_patterns = [
     '.git/**',
     '.github/scripts/**',
+    'aws/lambda/log-classifier/**',
+    'aws/lambda/oss_ci_cur/**',
+    'aws/lambda/oss_ci_job_queue_time/**',
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/tests/**',
+    'aws/lambda/whl_metadata_upload_pep658/**',
     's3_management/**',
     'tools/**',
 ]
@@ -43,6 +49,14 @@ include_patterns = [
     'tools/**/*.pyi',
     'torchci/**/*.py',
     'torchci/**/*.pyi',
+]
+exclude_patterns = [
+    'aws/lambda/log-classifier/**',
+    'aws/lambda/oss_ci_cur/**',
+    'aws/lambda/oss_ci_job_queue_time/**',
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/tests/**',
+    'aws/lambda/whl_metadata_upload_pep658/**',
 ]
 command = [
     'python3',
@@ -336,6 +350,12 @@ code = 'RUFF'
 include_patterns = ['**/*.py']
 exclude_patterns = [
     '.github/scripts/**',
+    'aws/lambda/log-classifier/**',
+    'aws/lambda/oss_ci_cur/**',
+    'aws/lambda/oss_ci_job_queue_time/**',
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/tests/**',
+    'aws/lambda/whl_metadata_upload_pep658/**',
     's3_management/**',
     'tools/**',
 ]
