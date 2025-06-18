@@ -145,6 +145,10 @@ export default async function handler(
             const title = headResponse.Metadata?.title;
             const status = headResponse.Metadata?.status;
 
+            console.log(
+              `Found session: ${sessionId}, timestamp: ${timestamp}, title: ${title}`
+            );
+
             return {
               sessionId,
               timestamp,

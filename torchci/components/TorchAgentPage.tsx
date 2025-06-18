@@ -99,7 +99,6 @@ export const TorchAgentPage = () => {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
-  const [hasRefreshedHistory, setHasRefreshedHistory] = useState(false);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
 
@@ -211,7 +210,6 @@ export const TorchAgentPage = () => {
     setElapsedTime(0);
     setCompletedTime(0);
     setIsSessionLoading(false);
-    setHasRefreshedHistory(false);
   };
 
   // Fetch chat history on mount
@@ -220,6 +218,26 @@ export const TorchAgentPage = () => {
       fetchChatHistory();
     }
   }, [session.data?.user]);
+
+  // Poll chat history every 10 seconds when there's an active chat
+  useEffect(() => {
+    if (!session.data?.user) return;
+    
+    const hasActiveChat = isLoading || 
+      currentSessionId !== null || 
+      chatHistory.some(chat => 
+        chat.title === "New Chat..." || 
+        (chat.status && chat.status === "in_progress")
+      );
+
+    if (hasActiveChat) {
+      const interval = setInterval(() => {
+        fetchChatHistory();
+      }, 10000); // Every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [session.data?.user, isLoading, currentSessionId, chatHistory]);
 
   // Rotate through thinking messages every 6 seconds
   useEffect(() => {
@@ -321,18 +339,14 @@ export const TorchAgentPage = () => {
 
       if (json.status === "connecting" && json.userUuid) {
         setCurrentSessionId(json.userUuid);
-        setHasRefreshedHistory(false);
 
         // Immediately add a temporary session to the chat history
         const now = new Date();
-        const timestamp = now
-          .toISOString()
-          .replace(/[-:T.]/g, "")
-          .slice(0, 14);
+        const timestamp = now.toISOString();
         const tempSession: ChatSession = {
           sessionId: json.userUuid,
           timestamp: timestamp,
-          date: timestamp.slice(0, 8),
+          date: timestamp.slice(0, 10),
           filename: `${timestamp}_${json.userUuid}.json`,
           key: `history/user/${timestamp}_${json.userUuid}.json`,
           title: "New Chat...", // Temporary placeholder
@@ -354,13 +368,6 @@ export const TorchAgentPage = () => {
       }
 
       // Handle different response types
-      if (json.type === "assistant" && json.message?.content) {
-        // Refresh chat history on first assistant response to get the real title
-        if (!hasRefreshedHistory && currentSessionId) {
-          setHasRefreshedHistory(true);
-          fetchChatHistory();
-        }
-      }
 
       // Use unified message processing
       if (json.type === "assistant" || json.type === "user") {
@@ -402,7 +409,6 @@ export const TorchAgentPage = () => {
     setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
-    setHasRefreshedHistory(false);
     resetAutoScroll();
 
     const now = Date.now();
