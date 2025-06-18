@@ -6,7 +6,6 @@ include_patterns = ['**/*.py']
 exclude_patterns = [
     '.git/**',
     '.github/scripts/**',
-    'aws/lambda/oss_ci_job_queue_time/**',
     'aws/lambda/servicelab-ingestor/**',
     'aws/lambda/tests/**',
     'aws/lambda/whl_metadata_upload_pep658/**',
@@ -49,7 +48,6 @@ include_patterns = [
     'torchci/**/*.pyi',
 ]
 exclude_patterns = [
-    'aws/lambda/oss_ci_job_queue_time/**',
     'aws/lambda/servicelab-ingestor/**',
     'aws/lambda/tests/**',
     'aws/lambda/whl_metadata_upload_pep658/**',
@@ -346,7 +344,6 @@ code = 'RUFF'
 include_patterns = ['**/*.py']
 exclude_patterns = [
     '.github/scripts/**',
-    'aws/lambda/oss_ci_job_queue_time/**',
     'aws/lambda/servicelab-ingestor/**',
     'aws/lambda/tests/**',
     'aws/lambda/whl_metadata_upload_pep658/**',
