@@ -14,6 +14,12 @@ import {
 } from "./TorchAgentPage/hooks";
 import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
 import {
+  processContentBlockDelta,
+  processMessageLine,
+  processUserMessages,
+} from "./TorchAgentPage/messageProcessor";
+import { QueryInputSection } from "./TorchAgentPage/QueryInputSection";
+import {
   ChunkMetadata,
   LoaderWrapper,
   QuerySection,
@@ -25,7 +31,6 @@ import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
 import { ParsedContent } from "./TorchAgentPage/types";
 import {
-  extractGrafanaLinks,
   formatElapsedTime,
   formatTokenCount,
   renderTextWithLinks,
@@ -39,6 +44,7 @@ interface ChatSession {
   filename: string;
   key: string;
   title?: string;
+  status?: string;
 }
 
 // Helper function to check for special auth cookie (presence only)
@@ -146,139 +152,33 @@ export const TorchAgentPage = () => {
 
         // The messages array contains the same format as streaming data
         if (sessionData.messages && Array.isArray(sessionData.messages)) {
-          // Clear the query input for historical chats
-          setQuery("");
-
-          // Process each message directly
-          let fullResponse = "";
+          // Extract the user query from the first user message
+          const userMessage = sessionData.messages.find(
+            (msg: any) => msg.type === "user_message" && msg.content
+          );
+          if (userMessage) {
+            setQuery(userMessage.content);
+          }
 
           // Clear existing parsed responses
           setParsedResponses([]);
 
-          // First, process user messages (queries/prompts) - these should appear first
+          // Process each message for debug view
+          let fullResponse = "";
           sessionData.messages.forEach((msg: any) => {
-            if (msg.type === "user_message" && msg.content) {
-              const textContent = msg.content;
-              const grafanaLinks = extractGrafanaLinks(textContent);
-
-              setParsedResponses((prev) => [
-                ...prev,
-                {
-                  type: "user_message",
-                  content: textContent,
-                  displayedContent: textContent,
-                  isAnimating: false,
-                  timestamp: Date.now(),
-                  grafanaLinks:
-                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
-                },
-              ]);
-            }
-
-            // For debugging and streaming format processing, accumulate content
             if (msg.content) {
               fullResponse += msg.content + "\n";
             }
           });
-
-          // Set the raw response for debug view
           setResponse(fullResponse);
 
-          // Now process streaming format messages for AI responses
+          // First, process user messages
+          processUserMessages(sessionData.messages, setParsedResponses);
+
+          // Then process all other messages
           const lines = fullResponse.split("\n").filter((line) => line.trim());
           lines.forEach((line) => {
-            try {
-              const json = JSON.parse(line);
-
-              // Use the same logic as the streaming handler
-              if (json.type === "assistant" && json.message?.content) {
-                json.message.content.forEach((item: any) => {
-                  if (item.type === "text") {
-                    const textContent = item.text;
-                    const grafanaLinks = extractGrafanaLinks(textContent);
-
-                    setParsedResponses((prev) => [
-                      ...prev,
-                      {
-                        type: "text",
-                        content: textContent,
-                        displayedContent: textContent,
-                        isAnimating: false,
-                        timestamp: Date.now(),
-                        grafanaLinks:
-                          grafanaLinks.length > 0 ? grafanaLinks : undefined,
-                      },
-                    ]);
-                  } else if (item.type === "tool_use") {
-                    // Handle tool usage
-                    setParsedResponses((prev) => [
-                      ...prev,
-                      {
-                        type: "tool_use",
-                        content: "",
-                        toolName: item.name,
-                        toolInput: item.input,
-                        toolResult: "", // Will be filled by tool_result
-                        timestamp: Date.now(),
-                        isAnimating: false,
-                        toolUseId: item.id,
-                      },
-                    ]);
-                  }
-                });
-              } else if (json.type === "user" && json.message?.content) {
-                // Handle user messages and tool results
-                json.message.content.forEach((item: any) => {
-                  if (item.type === "text") {
-                    const textContent = item.text;
-                    const grafanaLinks = extractGrafanaLinks(textContent);
-
-                    setParsedResponses((prev) => [
-                      ...prev,
-                      {
-                        type: "user_message",
-                        content: textContent,
-                        displayedContent: textContent,
-                        isAnimating: false,
-                        timestamp: Date.now(),
-                        grafanaLinks:
-                          grafanaLinks.length > 0 ? grafanaLinks : undefined,
-                      },
-                    ]);
-                  } else if (item.type === "tool_result" && item.tool_use_id) {
-                    // Handle tool results - update the corresponding tool use
-                    setParsedResponses((prev) => {
-                      const updated = [...prev];
-                      const toolUseIndex = updated.findIndex(
-                        (response) =>
-                          response.type === "tool_use" &&
-                          response.toolUseId === item.tool_use_id
-                      );
-
-                      if (toolUseIndex !== -1) {
-                        // Extract tool result content
-                        let toolResult = "";
-                        if (item.content && Array.isArray(item.content)) {
-                          toolResult = item.content
-                            .map((c: any) => c.text || c)
-                            .join("");
-                        } else if (typeof item.content === "string") {
-                          toolResult = item.content;
-                        }
-
-                        updated[toolUseIndex] = {
-                          ...updated[toolUseIndex],
-                          toolResult: toolResult,
-                        };
-                      }
-                      return updated;
-                    });
-                  }
-                });
-              }
-            } catch (e) {
-              // Skip invalid JSON lines
-            }
+            processMessageLine(line, setParsedResponses, false);
           });
         }
 
@@ -319,6 +219,28 @@ export const TorchAgentPage = () => {
       fetchChatHistory();
     }
   }, [session.data?.user]);
+
+  // Poll chat history every 10 seconds when there's an active chat
+  useEffect(() => {
+    if (!session.data?.user) return;
+
+    const hasActiveChat =
+      isLoading ||
+      currentSessionId !== null ||
+      chatHistory.some(
+        (chat) =>
+          chat.title === "New Chat..." ||
+          (chat.status && chat.status === "in_progress")
+      );
+
+    if (hasActiveChat) {
+      const interval = setInterval(() => {
+        fetchChatHistory();
+      }, 10000); // Every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [session.data?.user, isLoading, currentSessionId, chatHistory]);
 
   // Rotate through thinking messages every 6 seconds
   useEffect(() => {
@@ -420,6 +342,21 @@ export const TorchAgentPage = () => {
 
       if (json.status === "connecting" && json.userUuid) {
         setCurrentSessionId(json.userUuid);
+
+        // Immediately add a temporary session to the chat history
+        const now = new Date();
+        const timestamp = now.toISOString();
+        const tempSession: ChatSession = {
+          sessionId: json.userUuid,
+          timestamp: timestamp,
+          date: timestamp.slice(0, 10),
+          filename: `${timestamp}_${json.userUuid}.json`,
+          key: `history/user/${timestamp}_${json.userUuid}.json`,
+          title: "New Chat...", // Temporary placeholder
+        };
+
+        setChatHistory((prev) => [tempSession, ...prev]);
+        setSelectedSession(json.userUuid);
         return;
       }
 
@@ -434,251 +371,12 @@ export const TorchAgentPage = () => {
       }
 
       // Handle different response types
-      if (json.type === "assistant" && json.message?.content) {
-        json.message.content.forEach((item: any) => {
-          if (item.type === "text" && "text" in item) {
-            const textContent = item.text || "";
-            const grafanaLinks = extractGrafanaLinks(textContent);
 
-            setParsedResponses((prev) => {
-              const now = Date.now();
-              const outputTokens = json.message?.usage?.output_tokens || 0;
-
-              return [
-                ...prev,
-                {
-                  type: "text",
-                  content: textContent,
-                  displayedContent: "",
-                  isAnimating: true,
-                  grafanaLinks:
-                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
-                  timestamp: now,
-                  outputTokens: outputTokens,
-                },
-              ];
-            });
-          } else if (
-            item.type === "tool_use" &&
-            "name" in item &&
-            "input" in item
-          ) {
-            // Special handling for Todo tools
-            if (item.name === "TodoWrite" || item.name === "TodoRead") {
-              if (item.name === "TodoWrite" && "todos" in item.input) {
-                setParsedResponses((prev) => {
-                  const now = Date.now();
-                  const todos = item.input.todos;
-
-                  const todoListIndex = prev.findIndex(
-                    (response) => response.type === "todo_list"
-                  );
-
-                  const updated = [...prev];
-
-                  if (todoListIndex !== -1) {
-                    updated[todoListIndex] = {
-                      ...updated[todoListIndex],
-                      todoItems: todos,
-                      timestamp: now,
-                    };
-                  } else {
-                    updated.push({
-                      type: "todo_list",
-                      content: "Todo List",
-                      todoItems: todos,
-                      timestamp: now,
-                    });
-                  }
-
-                  updated.push({
-                    type: "tool_use",
-                    content: "",
-                    toolName: item.name,
-                    toolInput: item.input,
-                    timestamp: now,
-                    outputTokens: json.message?.usage?.output_tokens || 0,
-                    toolUseId: "id" in item ? item.id : undefined,
-                  });
-
-                  return updated;
-                });
-              } else {
-                setParsedResponses((prev) => {
-                  const now = Date.now();
-                  return [
-                    ...prev,
-                    {
-                      type: "tool_use",
-                      content: "",
-                      toolName: item.name,
-                      toolInput: item.input,
-                      timestamp: now,
-                      outputTokens: json.message?.usage?.output_tokens || 0,
-                      toolUseId: "id" in item ? item.id : undefined,
-                    },
-                  ];
-                });
-              }
-            } else {
-              setParsedResponses((prev) => {
-                const now = Date.now();
-                const outputTokens = json.message?.usage?.output_tokens || 0;
-
-                return [
-                  ...prev,
-                  {
-                    type: "tool_use",
-                    content: "",
-                    toolName: item.name,
-                    toolInput: item.input,
-                    timestamp: now,
-                    outputTokens: outputTokens,
-                    toolUseId: "id" in item ? item.id : undefined,
-                  },
-                ];
-              });
-            }
-          }
-        });
-      } else if (json.type === "user" && json.message?.content) {
-        json.message.content.forEach((item: any) => {
-          if (item.type === "tool_result" && item.tool_use_id) {
-            setParsedResponses((prev) => {
-              const updated = [...prev];
-              const toolUseIndex = updated.findIndex(
-                (response) =>
-                  response.type === "tool_use" &&
-                  response.toolUseId === item.tool_use_id
-              );
-
-              if (toolUseIndex !== -1) {
-                const toolName = updated[toolUseIndex].toolName;
-
-                if (toolName === "TodoWrite" || toolName === "TodoRead") {
-                  try {
-                    const toolInput = updated[toolUseIndex].toolInput;
-
-                    if (
-                      toolName === "TodoWrite" &&
-                      toolInput &&
-                      "todos" in toolInput
-                    ) {
-                      const todos = toolInput.todos;
-                      const todoListIndex = updated.findIndex(
-                        (response) => response.type === "todo_list"
-                      );
-
-                      if (todoListIndex !== -1) {
-                        updated[todoListIndex] = {
-                          ...updated[todoListIndex],
-                          todoItems: todos,
-                          timestamp: Date.now(),
-                        };
-                      } else {
-                        updated.push({
-                          type: "todo_list",
-                          content: "Todo List",
-                          todoItems: todos,
-                          timestamp: Date.now(),
-                        });
-                      }
-                    } else if (toolName === "TodoRead") {
-                      try {
-                        const resultContent = item.content?.[0]?.text || "";
-                        if (resultContent.includes('"todos":')) {
-                          const todoData = JSON.parse(resultContent);
-                          if (
-                            todoData &&
-                            todoData.todos &&
-                            Array.isArray(todoData.todos)
-                          ) {
-                            const todoListIndex = updated.findIndex(
-                              (response) => response.type === "todo_list"
-                            );
-
-                            if (todoListIndex !== -1) {
-                              updated[todoListIndex] = {
-                                ...updated[todoListIndex],
-                                todoItems: todoData.todos,
-                                timestamp: Date.now(),
-                              };
-                            } else {
-                              updated.push({
-                                type: "todo_list",
-                                content: "Todo List",
-                                todoItems: todoData.todos,
-                                timestamp: Date.now(),
-                              });
-                            }
-                          }
-                        }
-                      } catch (e) {
-                        console.error("Failed to parse TodoRead result:", e);
-                      }
-                    }
-
-                    updated.splice(toolUseIndex, 1);
-                  } catch (err) {
-                    console.error("Failed to process todo data:", err);
-                    updated[toolUseIndex] = {
-                      ...updated[toolUseIndex],
-                      toolResult:
-                        item.content?.[0]?.text || "No result content",
-                    };
-                  }
-                } else {
-                  updated[toolUseIndex] = {
-                    ...updated[toolUseIndex],
-                    toolResult: item.content?.[0]?.text || "No result content",
-                  };
-                }
-              }
-
-              return updated;
-            });
-          }
-        });
+      // Use unified message processing
+      if (json.type === "assistant" || json.type === "user") {
+        processMessageLine("", setParsedResponses, true, json);
       } else if (json.type === "content_block_delta") {
-        if (json.delta?.type === "text" && json.delta.text) {
-          setParsedResponses((prev) => {
-            const now = Date.now();
-
-            if (prev.length > 0 && prev[prev.length - 1].type === "text") {
-              const updated = [...prev];
-              updated[updated.length - 1].content += json.delta?.text || "";
-              updated[updated.length - 1].isAnimating = true;
-
-              const fullContent = updated[updated.length - 1].content;
-              updated[updated.length - 1].grafanaLinks =
-                extractGrafanaLinks(fullContent);
-
-              const tokenIncrement = 1;
-              const currentTokens =
-                updated[updated.length - 1].outputTokens || 0;
-              updated[updated.length - 1].outputTokens =
-                currentTokens + tokenIncrement;
-              updated[updated.length - 1].timestamp = now;
-
-              return updated;
-            } else {
-              const textContent = json.delta?.text || "";
-
-              return [
-                ...prev,
-                {
-                  type: "text",
-                  content: textContent,
-                  displayedContent: "",
-                  isAnimating: true,
-                  grafanaLinks: extractGrafanaLinks(textContent),
-                  timestamp: now,
-                  outputTokens: json.usage?.output_tokens || 0,
-                },
-              ];
-            }
-          });
-        }
+        processContentBlockDelta(json, setParsedResponses);
       } else if (json.error) {
         setError(`Error: ${json.error}`);
       }
@@ -1065,12 +763,26 @@ export const TorchAgentPage = () => {
               bugReportUrl={bugReportUrl}
             />
 
-            {/* Show welcome message and query input only for new chats */}
+            {/* Show welcome message for completely new chats */}
             {!selectedSession && (
               <WelcomeSection
                 query={query}
                 isLoading={isLoading}
                 debugVisible={debugVisible}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
+
+            {/* Show query input for active chats (read-only for history) */}
+            {selectedSession && (
+              <QueryInputSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                isReadOnly={selectedSession !== currentSessionId}
                 onQueryChange={handleQueryChange}
                 onSubmit={handleSubmit}
                 onToggleDebug={() => setDebugVisible(!debugVisible)}
