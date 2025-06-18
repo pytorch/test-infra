@@ -1,13 +1,14 @@
+import json
 import os
 import unittest
-import json
 from unittest.mock import patch
+
 from botocore.exceptions import ClientError
 from lambda_function import (
-    lambda_handler,
-    check_path_exists,
-    upload_to_s3,
     authenticate,
+    check_path_exists,
+    lambda_handler,
+    upload_to_s3,
 )
 
 

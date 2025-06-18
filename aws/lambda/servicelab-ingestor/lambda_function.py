@@ -11,6 +11,7 @@ import boto3
 import clickhouse_connect
 from dateutil import parser
 
+
 CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
 CLICKHOUSE_PASSWORD = os.getenv("CLICKHOUSE_PASSWORD", "")
@@ -179,7 +180,7 @@ if os.getenv("DEBUG", "0") == "1":
                         "sequencer": "0066BF8659A2FDB5EE",
                     },
                 },
-            }
+            },
         ]
     }
     lambda_handler(mock_body, None)
