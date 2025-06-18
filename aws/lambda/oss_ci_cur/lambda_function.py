@@ -132,7 +132,8 @@ class CostExplorerProcessor:
     A processor for fetching, processing, and inserting AWS Cost Explorer data into a ClickHouse database.
 
     Attributes:
-    - is_dry_run (bool): Indicates if the processor is running in dry-run mode, where no data is inserted into the database.
+    - is_dry_run (bool): Indicates if the processor is running in dry-run mode, where no
+    data is inserted into the database.
     - aws_ce_client (boto3.client): A boto3 client for interacting with AWS Cost Explorer.
     - cc (clickhouse_connect.driver.client.Client): A ClickHouse client for database operations, initialized at runtime.
     - granularity (str): The granularity of the data to fetch from AWS Cost Explorer, default is "DAILY".
@@ -192,14 +193,16 @@ class CostExplorerProcessor:
         start = record.get("TimePeriod", {}).get("Start")
         end = record.get("TimePeriod", {}).get("End")
         for group in record["Groups"]:
-            new_group = {}
-            new_group["Start"] = start
-            new_group["End"] = end
-            new_group["Keys"] = group.get("Keys", [])
             usage_quantity = group.get("Metrics", {}).get("UsageQuantity", {})
-            new_group["Amount"] = usage_quantity.get("Amount", 0)
-            new_group["Unit"] = usage_quantity.get("Unit", 0)
-            results.append(new_group)
+            results.append(
+                {
+                    "Amount": usage_quantity.get("Amount", 0),
+                    "End": end,
+                    "Keys": group.get("Keys", []),
+                    "Start": start,
+                    "Unit": usage_quantity.get("Unit", 0),
+                }
+            )
         return results
 
     def to_db_schema(
@@ -215,7 +218,8 @@ class CostExplorerProcessor:
                 f"Expected two keys from Record, but got {len(record)} keys:{keys}, skipping the record"
             )
             raise Exception(
-                f"Exeption mapping to Clickhouse schema: Expected two keys from Record, but got {len(record)} keys:{keys}"
+                "Exeption mapping to Clickhouse schema: Expected two "
+                + f"keys from Record, but got {len(record)} keys:{keys}"
             )
         return {
             "created": now,
@@ -233,7 +237,8 @@ class CostExplorerProcessor:
     def get_time_range_for_local(self, args: argparse.Namespace):
         if args.start_time > args.end_time:
             logger.warning(
-                f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job"
+                f"[local run] the input start time {args.start_time.strftime('%Y-%m-%d')} is later"  # noqa: G003,E261
+                + f" than end time {args.end_time.strftime('%Y-%m-%d')}, skipping the job"
             )
             return None
         start = args.start_time.strftime("%Y-%m-%d")
@@ -276,7 +281,8 @@ class CostExplorerProcessor:
         db_start = datetime.fromtimestamp(timestamp_db, tz=timezone.utc).date()
         db_end = db_start + timedelta(days=1)
         logger.info(
-            f"[get_time_range] Detected latest data are from {db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}"
+            "[get_time_range] Detected latest data are from "  # noqa: G003,E261
+            + f"{db_start.strftime('%Y-%m-%d')} to {db_end.strftime('%Y-%m-%d')}"
         )
 
         # Overlap the date with db to cover cases that AWS CE provide incomplete data.
@@ -376,7 +382,8 @@ def parse_args() -> argparse.Namespace:
         "--clickhouse-endpoint",
         default=ENVS["CLICKHOUSE_ENDPOINT"],
         type=str,
-        help="the clickhouse endpoint, the clickhouse_endpoint name is  https://{clickhouse_endpoint}:{port} for full url ",
+        help="the clickhouse endpoint, the clickhouse_endpoint"
+        + " name is  https://{clickhouse_endpoint}:{port} for full url ",
     )
     parser.add_argument(
         "--clickhouse-username",
@@ -393,7 +400,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--not-dry-run",
         action="store_true",
-        help="when set, writing results to destination from local environment. By default, we run in dry-run mode for local environment",
+        help="when set, writing results to destination from local "
+        + "environment. By default, we run in dry-run mode for local environment",
     )
     parser.add_argument(
         "--start-time",
