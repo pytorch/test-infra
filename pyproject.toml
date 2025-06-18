@@ -38,10 +38,11 @@ ignore = [
     "B018", # Useless expression
     "B019", "B020",
     "B023", "B024", "B026",
+    "B028",
     "B028", # No explicit `stacklevel` keyword argument found
     "B904", "B905",
-    "E402",
     "C408", # C408 ignored because we like the dict keyword argument syntax
+    "E402",
     "E501", # E501 is not flexible enough, we're using B950 instead
     "E721",
     "E731", # Assign lambda expression
@@ -50,10 +51,9 @@ ignore = [
     "F405",
     "F821",
     "F841",
-    # these ignores are from flake8-logging-format; please fix!
-    "G101", "G201", "G202",
+    "G003",
     "G004",  # IMO this rule is not useful
-    "B028",
+    "G101", "G201", "G202",
     "SIM102", "SIM103", "SIM112", # flake8-simplify code styles
     "SIM105", # these ignores are from flake8-simplify. please fix or ignore with commented reason
     "SIM108",
@@ -63,6 +63,7 @@ ignore = [
     "SIM116", # Disable Use a dictionary instead of consecutive `if` statements
     "SIM117",
     "SIM118",
+    # these ignores are from flake8-logging-format; please fix!
 ]
 select = [
     "B",
