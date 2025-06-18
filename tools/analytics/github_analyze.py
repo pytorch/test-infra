@@ -187,13 +187,9 @@ def parse_fuller_format(lines: Union[str, List[str]]) -> GitCommit:
 
 def _check_output(items: List[str], encoding="utf-8") -> str:
     from subprocess import check_output
-    ret = ''
-    try: 
-        ret = check_output(items).decode(encoding)
-    except:
-        print(f"Failed to run 'check_output' with {items}")
-    
-    return ret
+
+    return check_output(items).decode(encoding)
+
 
 def get_git_remotes(path: str) -> Dict[str, str]:
     keys = _check_output(["git", "-C", path, "remote"]).strip().split("\n")
