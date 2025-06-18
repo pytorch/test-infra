@@ -157,7 +157,6 @@ export function SummaryPanel({
     compression_ratio: computeMemoryCompressionRatio,
     dynamo_peak_mem: computePeakMemoryUsage,
   };
-  console.log(lPerfData.data);
   // The left
   const lBranch = lPerfData.branch;
   const lCommit = lPerfData.commit;

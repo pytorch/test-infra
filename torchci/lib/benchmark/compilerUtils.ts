@@ -488,14 +488,14 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
   });
 
   data.forEach((r: BenchmarkData) => {
-    const k = `${r.granularity_bucket} ${r.model}`;
+    const k = `${r.workflow_id} ${r.model} ${r.backend}`;
 
     if (!(k in convertData)) {
       convertData[k] = {
         abs_latency: 0,
         accuracy: "",
         compilation_latency: 0,
-        compiler: "default",
+        compiler: r.backend,
         compression_ratio: 0,
         dynamo_peak_mem: 0,
         eager_peak_mem: 0,
@@ -516,10 +516,6 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
     } else {
       // @ts-expect-error
       convertData[k][r.metric] = r.value;
-    }
-
-    if (r.backend) {
-      convertData[k].compiler = r.backend;
     }
   });
 
