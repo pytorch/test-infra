@@ -1,0 +1,161 @@
+name: Test Upload/Download Artifact S3 Actions
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/actions/download-artifact-s3/**'
+      - '.github/actions/upload-artifact-s3/**'
+      - '!**/*.md'
+  pull_request:
+    paths:
+      - '.github/actions/download-artifact-s3/**'
+      - '.github/actions/upload-artifact-s3/**'
+      - '!**/*.md'
+
+jobs:
+
+  build:
+    name: test-upload-download-artifact-s3-build
+
+    strategy:
+      matrix:
+        runs-on: [linux.2xlarge, macos-m1-stable]
+      fail-fast: false
+      max-parallel: 1
+
+    runs-on: ${{ matrix.runs-on }}
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+
+    - name: npm paths to run
+      uses: dorny/paths-filter@v3
+      id: npmpath
+      with:
+        filters: |
+          upload:
+            - '.github/actions/upload-artifact-s3/**'
+          download:
+            - '.github/actions/download-artifact-s3/**'
+
+    - name: Set Node.js 22.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22.x
+
+    - name: npm install (download)
+      if: steps.npmpath.outputs.download == 'true'
+      run: npm install
+      working-directory: '.github/actions/download-artifact-s3'
+
+    - name: compile (download)
+      if: steps.npmpath.outputs.download == 'true'
+      run: npm run build
+      working-directory: '.github/actions/download-artifact-s3'
+
+    - name: lint (download)
+      if: steps.npmpath.outputs.download == 'true'
+      run: npm run lint
+      working-directory: '.github/actions/download-artifact-s3'
+
+    - name: format (download)
+      if: steps.npmpath.outputs.download == 'true'
+      run: npm run format-check
+      working-directory: '.github/actions/download-artifact-s3'
+
+    - name: npm install (upload)
+      if: steps.npmpath.outputs.upload == 'true'
+      run: npm install
+      working-directory: '.github/actions/upload-artifact-s3'
+
+    - name: compile (upload)
+      if: steps.npmpath.outputs.upload == 'true'
+      run: npm run build
+      working-directory: '.github/actions/upload-artifact-s3'
+
+    - name: lint (upload)
+      if: steps.npmpath.outputs.upload == 'true'
+      run: npm run lint
+      working-directory: '.github/actions/upload-artifact-s3'
+
+    - name: format (upload)
+      if: steps.npmpath.outputs.upload == 'true'
+      run: npm run format-check
+      working-directory: '.github/actions/upload-artifact-s3'
+
+    # Test end-to-end by uploading two artifacts and then downloading them
+    # These tests can run in the root of the workspace
+    - name: Create artifacts
+      run: |
+        mkdir -p path/to/artifact-A
+        mkdir -p path/to/artifact-B
+        echo "Lorem ipsum dolor sit amet" > path/to/artifact-A/file-A.txt
+        echo "Hello world from file B" > path/to/artifact-B/file-B.txt
+
+    - name: Upload artifact A
+      uses: ./.github/actions/upload-artifact-s3
+      with:
+        name: 'Artifact-A-${{ matrix.runs-on }}'
+        path: path/to/artifact-A
+
+    - name: Upload artifact B
+      uses: ./.github/actions/upload-artifact-s3
+      with:
+        name: 'Artifact-B-${{ matrix.runs-on }}'
+        path: path/to/artifact-B
+
+    # Test downloading a single artifact
+    - name: Download artifact A
+      uses: ./.github/actions/download-artifact-s3
+      with:
+        name: 'Artifact-A-${{ matrix.runs-on }}'
+        path: some/new/path
+
+    # Test downloading an artifact using tilde expansion
+    - name: Download artifact A
+      uses: ./.github/actions/download-artifact-s3
+      with:
+        name: 'Artifact-A-${{ matrix.runs-on }}'
+        path: ~/some/path/with/a/tilde
+
+    - name: Verify successful download
+      run: |
+        file1="${{ github.workspace }}/some/new/path/file-A.txt"
+        file2="${HOME}/some/path/with/a/tilde/file-A.txt"
+        # Check if either file does not exist
+        if [[ ! -f "$file1" ]] || [[ ! -f "$file2" ]]; then
+            echo "Error: Expected files do not exist" >&2
+            exit 1
+        fi
+        # Check if file contents are incorrect
+        if [[ "$(cat "$file1")" != "Lorem ipsum dolor sit amet" ]] || [[ "$(cat "$file2")" != "Lorem ipsum dolor sit amet" ]]; then
+            echo "Error: File contents of downloaded artifacts are incorrect" >&2
+            exit 1
+        fi
+      shell: bash
+    # Test downloading both artifacts at once does not work
+    # Testing file B separately
+    # TODO: Fix Download all artifacts feature
+    - name: Download artifact B
+      uses: ./.github/actions/download-artifact-s3
+      with:
+        name: 'Artifact-B-${{ matrix.runs-on }}'
+        path: some/other/path
+
+    - name: Verify successful download
+      run: |
+        fileA="${{ github.workspace }}/some/new/path/file-A.txt"
+        fileB="${{ github.workspace }}/some/other/path/file-B.txt"
+        # Check if either file does not exist
+        if [[ ! -f "$fileA" ]] || [[ ! -f "$fileB" ]]; then
+            echo "Error: Expected files do not exist" >&2
+            exit 1
+        fi
+        # Check if file contents are incorrect
+        if [[ "$(cat "$fileA")" != "Lorem ipsum dolor sit amet" ]] || [[ "$(cat "$fileB")" != "Hello world from file B" ]]; then
+            echo "Error: File contents of downloaded artifacts are incorrect" >&2
+            exit 1
+        fi
+      shell: bash
