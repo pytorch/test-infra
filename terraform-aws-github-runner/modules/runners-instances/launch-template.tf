@@ -114,7 +114,7 @@ resource "aws_launch_template" "linux_runner" {
     instance_metadata_tags      = "enabled"
   }
 
-  user_data = base64encode(templatefile(local.userdata_template, {
+  user_data = base64gzip(templatefile(local.userdata_template, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
     post_install                    = var.userdata_post_install
@@ -171,7 +171,7 @@ resource "aws_launch_template" "linux_runner_nvidia" {
     instance_metadata_tags      = "enabled"
   }
 
-  user_data = base64encode(templatefile(local.userdata_template, {
+  user_data = base64gzip(templatefile(local.userdata_template, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
     post_install                    = var.userdata_post_install
@@ -228,7 +228,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
     instance_metadata_tags      = "enabled"
   }
 
-  user_data = base64encode(templatefile(local.userdata_template, {
+  user_data = base64gzip(templatefile(local.userdata_template, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
     post_install                    = var.userdata_post_install
@@ -301,7 +301,7 @@ resource "aws_launch_template" "windows_runner" {
   }
 
 
-  user_data = base64encode(templatefile(local.userdata_template_windows, {
+  user_data = base64gzip(templatefile(local.userdata_template_windows, {
     environment                     = var.environment
     pre_install                     = var.userdata_pre_install
     post_install                    = var.userdata_post_install
