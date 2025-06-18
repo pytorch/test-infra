@@ -1,6 +1,7 @@
 name: Update test file ratings for TD Heuristics
 
 on:
+  push:
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
 
@@ -31,7 +32,7 @@ jobs:
       - name: Install Dependencies
         run: |
           pip3 install --upgrade pip
-          pip3 install boto3==1.19.12 clickhouse-connect==0.8.14
+          pip3 install boto3==1.35.42 clickhouse-connect==0.8.14
           cd test-infra/tools/torchci
           pip3 install -e .
 
