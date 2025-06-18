@@ -1283,8 +1283,7 @@ class TimeIntervalGenerator:
         cc: clickhouse_connect.driver.client.Client,
     ) -> str:
         query = """
-        SELECT toUnixTimestamp(MAX(time)) as latest
-        FROM fortesting.oss_ci_queue_time_histogram
+        SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
         """
         logger.info(
             " Getting lastest timestamp from fortesting.oss_ci_queue_time_histogram...."
