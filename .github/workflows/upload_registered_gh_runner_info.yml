@@ -1,4 +1,4 @@
-name: Upload GH Runner Count
+name: Upload Registered GitHub Runner Info
 
 on:
   schedule:
@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  update-gh-runner-count:
+  update-registered-gh-runner-info:
     runs-on: ubuntu-latest
-    environment: upload-gh-runner-count
+    environment: upload-registered-gh-runner-info
     steps:
       - name: Checkout pytorch/test-infra
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -30,4 +30,4 @@ jobs:
 
       - name: Update test times
         run: |
-          python -m torchci.upload_gh_runner_count --github-token ${{ secrets.LIST_RUNNERS_GITHUB_TOKEN }} --upload
+          python -m torchci.upload_registered_gh_runner_info --github-token ${{ secrets.LIST_RUNNERS_GITHUB_TOKEN }} --upload
