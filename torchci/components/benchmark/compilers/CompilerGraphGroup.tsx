@@ -26,8 +26,6 @@ export default function CompilerGraphGroup({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
 }) {
-  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
-  // new database schema
   const queryName =
     dashboard === "torchao"
       ? "torchao_query"

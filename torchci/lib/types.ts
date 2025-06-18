@@ -225,6 +225,7 @@ export interface BenchmarkData {
   metric: string;
   model: string;
   quantization?: string;
+  backend?: string;
   suite: string;
   value: number;
   workflow_id: number;

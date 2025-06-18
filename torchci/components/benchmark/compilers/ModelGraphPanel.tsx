@@ -52,12 +52,7 @@ export function GraphPanel({
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
-  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
-  // new database schema
-  data =
-    queryName === "torchao_query"
-      ? convertToCompilerPerformanceData(data)
-      : data;
+  data = convertToCompilerPerformanceData(data);
   data = augmentData(data);
 
   if (data === undefined || data.length === 0) {
