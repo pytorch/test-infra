@@ -20,24 +20,6 @@ on:
       missing-in-branch:
         description: 'bool to flag if commits are missing in the branch'
         type: boolean
-      minor-release:
-        description: 'Minor release number. e.g. 2.7'
-      analyze-reverts:
-        description: 'bool to flag if reverts should be analyzed'
-        type: boolean
-      print-reverts:
-        description: 'bool to flag if reverts should be printed'
-        type: boolean
-      contributor-stats:
-        description: 'bool to flag if contributor stats should be printed'
-        type: boolean
-      analyze-stacks:
-        description: 'bool to flag if stack analysis should be performed'
-        type: boolean
-      date:
-        description: 'Date to analyze. e.g. 2023-01-01'
-      issue-num:
-        description: 'Issue number to analyze. e.g. 12345'
 
 
 

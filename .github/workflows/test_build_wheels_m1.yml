@@ -5,7 +5,6 @@ on:
   pull_request:
     paths:
       - .github/actions/setup-binary-builds/action.yml
-      - .github/workflows/github-analytics-daily.yml
       - .github/workflows/test_build_wheels_m1.yml
       - .github/workflows/build_wheels_macos.yml
       - .github/workflows/generate_binary_build_matrix.yml
