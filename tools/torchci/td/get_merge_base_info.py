@@ -80,7 +80,6 @@ def upload_merge_base_info(shas: List[str]) -> None:
                 datetime.datetime.fromtimestamp(
                     int(unix_timestamp), tz=datetime.timezone.utc
                 ).isoformat()
-                + "Z"
             )
             data = {
                 "sha": sha,
