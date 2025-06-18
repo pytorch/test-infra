@@ -1,6 +1,6 @@
 use clap::Parser;
 use cleanup_ssm::client::AwsSsmClient;
-use cleanup_ssm::{CleanupConfig, SystemTimeProvider, cleanup_ssm_parameters};
+use cleanup_ssm::{cleanup_ssm_parameters, CleanupConfig, SystemTimeProvider};
 
 #[derive(Parser, Debug)]
 struct Args {
