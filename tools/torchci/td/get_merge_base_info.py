@@ -16,14 +16,27 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent.parent
 S3_RESOURCE = boto3.resource("s3")
 
 FAILED_TEST_SHAS_QUERY = """
+with job_ids as (
+    SELECT
+        DISTINCT t.job_id
+    FROM
+        default .failed_test_runs t
+    where
+        t.time_inserted > CURRENT_TIMESTAMP() - interval 90 days
+)
 SELECT
     DISTINCT j.head_sha as head_sha
 FROM
-    default.failed_test_runs t
-    join default.workflow_job j on t.job_id = j.id
-    left anti join default.merge_bases mb on j.head_sha = mb.sha
+    job_ids
+    join default .workflow_job j on job_ids.job_id = j.id left anti
+    join default .merge_bases mb on j.head_sha = mb.sha
 where
-    t.time_inserted > CURRENT_TIMESTAMP() - interval 90 days
+    j.id in (
+        select
+            job_id
+        from
+            job_ids
+    )
 """
 
 NOT_IN_MERGE_BASES_TABLE = """
