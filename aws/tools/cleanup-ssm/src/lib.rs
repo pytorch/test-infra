@@ -69,7 +69,8 @@ pub async fn cleanup_ssm_parameters<C: SsmClient, T: TimeProvider>(
         deleted_count = 0;
         failed_count = 0;
     } else {
-        let (actual_deleted, actual_failed) = cleanup::delete_parameters_in_batches(client, parameters_to_delete).await?;
+        let (actual_deleted, actual_failed) =
+            cleanup::delete_parameters_in_batches(client, parameters_to_delete).await?;
         deleted_count = actual_deleted;
         failed_count = actual_failed;
     }
