@@ -220,6 +220,7 @@ exclude_patterns = [
     ".github/workflows/log-classifier-lambda.yml",
     ".github/workflows/validate-linux-binaries.yml",
     ".github/workflows/validate-repackaged-binary-sizes.yml",
+    ".github/actions/upload-benchmark-results/action.yml",
 ]
 command = [
     'python3',
