@@ -214,33 +214,17 @@ runner_types:
     variants:
       wincanary:
         ami: Windows 2019 GHA CI - 20250526202723
-  c.windows.4xlarge.memory:
+  c.windows.8xlarge.memory:
     disk_size: 256
-    instance_type: r5n.4xlarge
+    instance_type: r5n.8xlarge
     is_ephemeral: true
     os: windows
     variants:
       wincanary:
         ami: Windows 2019 GHA CI - 20250526202723
-  c.windows.4xlarge.memory.nonephemeral:
+  c.windows.8xlarge.memory.nonephemeral:
     disk_size: 256
-    instance_type: r5n.4xlarge
-    is_ephemeral: true
-    os: windows
-    variants:
-      wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
-  c.windows.9xlarge:
-    disk_size: 256
-    instance_type: c5d.9xlarge
-    is_ephemeral: true
-    os: windows
-    variants:
-      wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
-  c.windows.9xlarge.nonephemeral:
-    disk_size: 256
-    instance_type: c5d.9xlarge
+    instance_type: r5n.8xlarge
     is_ephemeral: true
     os: windows
     variants:
