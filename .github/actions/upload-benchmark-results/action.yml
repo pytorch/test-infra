@@ -18,7 +18,16 @@ runs:
       shell: bash
       run: |
         set -eux
-        python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0 torch
+
+        python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
+        # NB: I'm using PyTorch here to get the device name, however, it needs to
+        # install the correct version of PyTorch manually for now. Any PyTorch
+        # version is fine, I just use 2.7.1 to satify PYPIDEP linter
+        if command -v nvidia-smi; then
+          python3 -mpip install torch==2.7.1
+        elif command -v amd-smi; then
+          python3 -mpip install torch==2.7.1 --index-url https://download.pytorch.org/whl/rocm6.3
+        fi
 
     - name: Check that GITHUB_TOKEN is defined
       env:
