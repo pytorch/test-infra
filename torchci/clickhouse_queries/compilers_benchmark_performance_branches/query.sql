@@ -13,7 +13,7 @@ WHERE
     AND (
         (
             {arch: String } = ''
-            AND benchmark_extra_info[ 'output' ] LIKE CONCAT(
+            AND benchmark_extra_info['output'] LIKE CONCAT(
                 '%_',
                 {dtype: String },
                 '_',
@@ -25,7 +25,7 @@ WHERE
         )
         OR (
             {arch: String } != ''
-            AND benchmark_extra_info[ 'output' ] LIKE CONCAT(
+            AND benchmark_extra_info['output'] LIKE CONCAT(
                 '%_',
                 {dtype: String },
                 '_',
