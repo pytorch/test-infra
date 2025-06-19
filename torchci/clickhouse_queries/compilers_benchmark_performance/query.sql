@@ -53,6 +53,7 @@ WITH benchmarks AS (
             OR {workflowId: Int64} = 0
         )
 )
+
 SELECT
     workflow_id,
     job_id,
