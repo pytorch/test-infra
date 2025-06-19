@@ -19,7 +19,7 @@ WITH benchmarks AS (
         device,
         arch,
         replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
-        benchmark_extra_info[ 'output' ] AS output,
+        benchmark_extra_info [ 'output' ] AS output,
         REGEXP_REPLACE(
             output,
             CONCAT(
@@ -62,6 +62,7 @@ SELECT
     metric_name AS metric,
     value,
     extra_info,
+    output,
     granularity_bucket
 FROM
     benchmarks
@@ -102,6 +103,16 @@ WHERE
             AND benchmark_mode = {mode: String }
             AND device = {device: String }
             AND arch = {arch: String }
+        )
+    )
+    AND (
+        (
+            metric_name = 'accuracy'
+            AND output LIKE '%_accuracy%'
+        )
+        OR (
+            metric_name != 'accuracy'
+            AND output NOT LIKE '%_accuracy%'
         )
     )
 ORDER BY

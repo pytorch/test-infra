@@ -88,7 +88,10 @@ function Report({
   lData = convertToCompilerPerformanceData(lData);
   lData = augmentData(lData);
   lData = lData
-    ? lData.filter((e: CompilerPerformanceData) => e.suite === suite)
+    ? lData.filter(
+        (e: CompilerPerformanceData) =>
+          e.suite === suite && e.compiler === compiler
+      )
     : lData;
 
   const queryParamsWithR: { [key: string]: any } = {
@@ -107,7 +110,10 @@ function Report({
   rData = convertToCompilerPerformanceData(rData);
   rData = augmentData(rData);
   rData = rData
-    ? rData.filter((e: CompilerPerformanceData) => e.suite === suite)
+    ? rData.filter(
+        (e: CompilerPerformanceData) =>
+          e.suite === suite && e.compiler === compiler
+      )
     : rData;
 
   if (lData === undefined || lData.length === 0) {

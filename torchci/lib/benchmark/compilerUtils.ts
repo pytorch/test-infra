@@ -495,7 +495,7 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
         abs_latency: 0,
         accuracy: "",
         compilation_latency: 0,
-        compiler: r.backend,
+        compiler: r.backend as string,
         compression_ratio: 0,
         dynamo_peak_mem: 0,
         eager_peak_mem: 0,
