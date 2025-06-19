@@ -132,9 +132,13 @@ function SingleGraphPanel({
 
   const metricData = computeMetric(data).filter((r: any) => {
     const id = r.workflow_id;
+    const op_name = r.operator;
+    // low_mem_dropout tflops is too low and we have to exclude it from the dashboard
+    // to avoid all zero numbers
     return (
-      (id >= lWorkflowId && id <= rWorkflowId) ||
-      (id <= lWorkflowId && id >= rWorkflowId)
+      ((id >= lWorkflowId && id <= rWorkflowId) ||
+        (id <= lWorkflowId && id >= rWorkflowId)) &&
+      op_name !== "low_mem_dropout"
     );
   });
 

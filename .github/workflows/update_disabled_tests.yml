@@ -20,7 +20,7 @@ jobs:
     environment: ${{ github.ref == 'refs/heads/main' && 'trigger-nightly' || '' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Generate new disabled tests and jobs jsons
         env:
@@ -30,8 +30,9 @@ jobs:
           # PyTorch bot token is the most obvious choice.  Outside of the
           # environment, we do not have access to this token so fall back to the
           # GITHUB_TOKEN.
-          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && secrets.GH_MERGEBOT_TOKEN || secrets.GITHUB_TOKEN }}
+          FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
         run: |
+          python3 -m pip install GitPython==3.1.44
           python3 .github/scripts/update_disabled_issues.py
 
       - name: Print the list of disabled tests
@@ -89,7 +90,7 @@ jobs:
           user_name: "Pytorch Test Infra"
           commit_message: "Updating unstable jobs"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: disabled-artifacts
           if-no-files-found: error
@@ -97,6 +98,7 @@ jobs:
             disabled-tests-condensed.json
             disabled-jobs.json
             unstable-jobs.json
+            for_historical_records.json
 
   # NB: Use our self-hosted runner to upload the files to S3, the runners already
   # have access to the bucket
@@ -105,7 +107,7 @@ jobs:
     needs: update-disabled-tests
     steps:
       - name: Download disabled artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: disabled-artifacts
 
@@ -117,3 +119,6 @@ jobs:
           aws s3 cp disabled-tests-condensed.json s3://ossci-metrics/disabled-tests-condensed.json
           aws s3 cp disabled-jobs.json s3://ossci-metrics/disabled-jobs.json
           aws s3 cp unstable-jobs.json s3://ossci-metrics/unstable-jobs.json
+
+          unix_time="$(date +%s)"
+          aws s3 cp for_historical_records.json s3://ossci-metrics/disabled_tests_historical/"${unix_time}".json

@@ -2,6 +2,7 @@ import { PullRequestReview } from "@octokit/webhooks-types";
 import _ from "lodash";
 import { updateDrciComments } from "pages/api/drci/drci";
 import shlex from "shlex";
+import { queryClickhouseSaved } from "../clickhouse";
 import { getHelp, getParser } from "./cliParser";
 import { cherryPickClassifications } from "./Constants";
 import PytorchBotLogger from "./pytorchbotLogger";
@@ -17,6 +18,7 @@ import {
 } from "./utils";
 
 export const CIFLOW_TRUNK_LABEL = "ciflow/trunk";
+export const CIFLOW_PULL_LABEL = "ciflow/pull";
 
 export interface PytorchbotParams {
   owner: string;
@@ -344,6 +346,9 @@ The explanation needs to be clear on why this is needed. Here are some good exam
         }
         await addLabels(this.ctx, [CIFLOW_TRUNK_LABEL]);
       }
+      if (!(await this.hasCiFlowPull())) {
+        await addLabels(this.ctx, [CIFLOW_PULL_LABEL]);
+      }
     }
 
     await this.dispatchEvent("try-merge", {
@@ -415,29 +420,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       this.ctx.payload.repository.name,
       this.headSha!
     );
-  }
-
-  async handleClose() {
-    if (
-      this.ctx.payload?.issue?.author_association == "FIRST_TIME_CONTRIBUTOR"
-    ) {
-      return await this.addComment(
-        "You don't have permissions to close this PR or Issue through pytorchbot since you are a first time contributor.  If you think this is a mistake, please contact PyTorch Dev Infra."
-      );
-    }
-
-    // test if pr or issue
-    const is_pr_comment = this.ctx.payload.issue.pull_request != null;
-
-    if (is_pr_comment) {
-      this.addComment("Closing this pull request!");
-      await this.ctx.octokit.pulls.update(
-        this.ctx.pullRequest({ state: "closed" })
-      );
-    } else {
-      this.addComment("Closing this issue!");
-      await this.ctx.octokit.issues.update(this.ctx.issue({ state: "closed" }));
-    }
   }
 
   async handleLabel(labels: string[], is_pr_comment: boolean = true) {
@@ -596,9 +578,6 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       case "label": {
         return await this.handleLabel(args.labels, is_pr_comment);
       }
-      case "close": {
-        return await this.handleClose();
-      }
       case "cherry-pick": {
         return await this.handleCherryPick(
           args.onto,
@@ -609,6 +588,29 @@ The explanation needs to be clear on why this is needed. Here are some good exam
       default:
         return await this.handleConfused(false);
     }
+  }
+
+  async hasCiFlowPull(): Promise<boolean> {
+    try {
+      const workflowNames = await this.getWorkflowsLatest();
+      return (
+        workflowNames?.some(
+          (workflow: any) => workflow.workflow_name === "pull"
+        ) ?? false
+      );
+    } catch (error: any) {
+      // Return true if we cannot read workflow data so that we don't unneccisarily tag the PR
+      await this.logger.log("workflow-pull-error", error);
+      return true;
+    }
+  }
+
+  // Returns the workflows attached to the PR only for the latest commit
+  async getWorkflowsLatest(): Promise<any> {
+    return await queryClickhouseSaved("get_workflows_for_commit", {
+      prNumber: this.prNum,
+      headSha: this.headSha,
+    });
   }
 }
 

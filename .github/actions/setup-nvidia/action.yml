@@ -40,7 +40,12 @@ runs:
                   fi
 
                   sudo yum-config-manager --add-repo "${YUM_REPO_URL}"
-                  sudo yum install -y nvidia-docker2 nvidia-container-toolkit-1.16.2
+                  sudo yum install -y \
+                    nvidia-docker2 \
+                    nvidia-container-toolkit-1.16.2 \
+                    libnvidia-container-tools-1.16.2 \
+                    libnvidia-container1-1.16.2 \
+                    nvidia-container-toolkit-base-1.16.2
                   sudo systemctl restart docker
               )
           }
@@ -255,3 +260,6 @@ runs:
           sudo nvidia-persistenced || true
           # This should show persistence mode ON
           nvidia-smi
+
+          # check if the container-toolkit is correctly installed and CUDA is available inside a container
+          docker run --rm -t --gpus=all public.ecr.aws/docker/library/python:3.13 nvidia-smi

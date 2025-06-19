@@ -62,6 +62,10 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
     {
+      name: "TorchAO Micro API",
+      href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
+    },
+    {
       name: "PT CacheBench",
       href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
     },
@@ -120,6 +124,10 @@ function NavBar() {
     {
       name: "Build Time Metrics",
       href: "/build_time_metrics",
+    },
+    {
+      name: "Utilization Workflow Report",
+      href: "/utilization/report?group_by=workflow_name",
     },
   ];
 

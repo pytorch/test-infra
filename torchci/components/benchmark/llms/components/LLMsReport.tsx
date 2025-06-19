@@ -70,7 +70,9 @@ export default function LLMsReport({
   );
 
   if (props.repoName === "pytorch/ao") {
-    metricNames = [...TORCHAO_SPEEDUP_METRIC_NAMES, ...metricNames];
+    if (!props.benchmarkName.startsWith("micro-benchmark")) {
+      metricNames = [...TORCHAO_SPEEDUP_METRIC_NAMES, ...metricNames];
+    }
   }
 
   return (

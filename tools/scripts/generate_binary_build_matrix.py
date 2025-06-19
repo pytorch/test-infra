@@ -27,21 +27,21 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.6", "12.8"],
+    "nightly": ["12.6", "12.8", "12.9"],
     "test": ["11.8", "12.6", "12.8"],
     "release": ["11.8", "12.6", "12.8"],
 }
 ROCM_ARCHES_DICT = {
-    "nightly": ["6.2.4", "6.3"],
+    "nightly": ["6.3", "6.4"],
     "test": ["6.2.4", "6.3"],
     "release": ["6.2.4", "6.3"],
 }
 
 CUDA_CUDNN_VERSIONS = {
     "11.8": {"cuda": "11.8.0", "cudnn": "9"},
-    "12.4": {"cuda": "12.4.1", "cudnn": "9"},
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
+    "12.9": {"cuda": "12.9.1", "cudnn": "9"},
 }
 
 STABLE_CUDA_VERSIONS = {
@@ -50,7 +50,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "12.6",
 }
 
-CUDA_AARCH64_ARCHES = ["12.8-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.9-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -76,8 +76,8 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.8.0"
-CURRENT_CANDIDATE_VERSION = "2.7.0"
-CURRENT_STABLE_VERSION = "2.7.0"
+CURRENT_CANDIDATE_VERSION = "2.7.1"
+CURRENT_STABLE_VERSION = "2.7.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -445,6 +445,9 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
+                # todo: remove once windows cuda 12.9 binaries are available
+                if channel == NIGHTLY and os != LINUX:
+                    arches.remove("12.9")
             elif os == LINUX_AARCH64:
                 arches += CUDA_AARCH64_ARCHES
 

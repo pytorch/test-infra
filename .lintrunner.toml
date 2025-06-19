@@ -6,7 +6,9 @@ include_patterns = ['**/*.py']
 exclude_patterns = [
     '.git/**',
     '.github/scripts/**',
-    'aws/lambda/**',
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/tests/**',
+    'aws/lambda/whl_metadata_upload_pep658/**',
     's3_management/**',
     'tools/**',
 ]
@@ -36,15 +38,19 @@ init_command = [
 [[linter]]
 code = 'MYPY'
 include_patterns = [
-    'tools/**/*.py',
-    'tools/**/*.pyi',
+    '.github/scripts/*.py',
+    'aws/lambda/**/.py',
     'stats/**/*.py',
     'stats/**/*.pyi',
+    'tools/**/*.py',
+    'tools/**/*.pyi',
     'torchci/**/*.py',
     'torchci/**/*.pyi',
-    '.github/scripts/*.py',
-    'aws/lambda/oss-ci-job-queue-time/*.py',
-    'aws/lambda/whl_metadata_upload_pep658/**/*.py',
+]
+exclude_patterns = [
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/tests/**',
+    'aws/lambda/whl_metadata_upload_pep658/**',
 ]
 command = [
     'python3',
@@ -57,6 +63,8 @@ init_command = [
     'python3',
     'tools/linter/adapters/pip_init.py',
     '--dry-run={{DRYRUN}}',
+    "boto3==1.38.29",
+    "botocore==1.38.29",
     'numpy==1.26.4 ; python_version >= "3.9" and python_version <= "3.11"',
     'numpy==2.1.0 ; python_version >= "3.12"',
     'expecttest==0.3.0',
@@ -127,7 +135,6 @@ exclude_patterns=[
     '**/fixtures/**',
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
-    'aws/lambda/log-classifier/data/**',
     'tools/clang-tidy-checks/*-patches/**',
 ]
 command = [
@@ -286,7 +293,6 @@ include_patterns = [
     '**/*.py',
 ]
 exclude_patterns = [
-    'aws/lambda/**',
     's3_management/**',
 ]
 command = [
@@ -338,7 +344,9 @@ code = 'RUFF'
 include_patterns = ['**/*.py']
 exclude_patterns = [
     '.github/scripts/**',
-    'aws/lambda/**',
+    'aws/lambda/servicelab-ingestor/**',
+    'aws/lambda/tests/**',
+    'aws/lambda/whl_metadata_upload_pep658/**',
     's3_management/**',
     'tools/**',
 ]

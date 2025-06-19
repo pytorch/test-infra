@@ -1,9 +1,9 @@
-from functools import lru_cache
 import json
 import os
 import re
 from collections import defaultdict
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, List, Optional, Tuple, Union
 from warnings import warn
 
@@ -24,6 +24,7 @@ SUPPORTED_TABLES = {
     "torchci-issues": "default.issues",
     "torchci-issue-comment": "default.issue_comment",
     "torchci-issues-label-event": "default.issues_label_event",
+    "torchci-pull-label-event": "default.pull_label_event",
     "torchci-job-annotation": "default.job_annotation",
     "torchci-pull-request-review": "default.pull_request_review",
     "torchci-pull-request-review-comment": "default.pull_request_review_comment",
@@ -180,7 +181,9 @@ def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, str, Any]]:
     return table, id, body
 
 
-def upsert_documents(table: str, documents: List[Tuple[str, Any]], dry_run: bool) -> None:
+def upsert_documents(
+    table: str, documents: List[Tuple[str, Any]], dry_run: bool
+) -> None:
     """
     Insert a new doc or modify an existing document. Note that ClickHouse doesn't really
     update the document in place, but rather adding a new record for the update
@@ -210,7 +213,8 @@ def upsert_documents(table: str, documents: List[Tuple[str, Any]], dry_run: bool
             }
             id_bodies += json.dumps(id_doc) + "\n"
         get_clickhouse_client().query(
-            f"INSERT INTO errors.gen_errors SETTINGS async_insert=1, wait_for_async_insert=1 FORMAT JSONEachRow {id_bodies}"
+            "INSERT INTO errors.gen_errors SETTINGS async_insert=1, "
+            f"wait_for_async_insert=1 FORMAT JSONEachRow {id_bodies}"
         )
         raise error
 

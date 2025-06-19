@@ -1,6 +1,7 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Box,
+  Button,
   Grid2,
   IconButton,
   Link,
@@ -15,11 +16,13 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { deepClone } from "@mui/x-data-grid/internals";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
+import { arrayToCSV, downloadCSV, generateCSVFilename } from "lib/csvUtils";
 
 import {
   Granularity,
@@ -104,10 +107,11 @@ export default function LLMsGraphPanel({
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rBranchAndCommit.commit];
 
-  const groupByFieldName = "display";
+  const groupByFieldName = "group_key";
 
   const chartData: { [k: string]: any } = {};
   const graphSeries: { [k: string]: any } = {};
+
   metricNames.forEach((metric: string) => {
     if (
       modelName === DEFAULT_MODEL_NAME &&
@@ -210,9 +214,10 @@ export default function LLMsGraphPanel({
 
               return record;
             });
-
+    const graphItems = formGraphItem(chartData[metric]);
+    // group by timestamp to identify devices with the same timestamp
     graphSeries[metric] = seriesWithInterpolatedTimes(
-      chartData[metric],
+      graphItems,
       startTime,
       stopTime,
       granularity,
@@ -223,9 +228,12 @@ export default function LLMsGraphPanel({
     );
   });
 
-  const availableMetric =
-    metricNames.find((metric) => chartData[metric].length !== 0) ??
-    metricNames[0];
+  // find the metric with the longest data array, it is used as baseline for rows and mapping in the table.
+  const maxLengthMetric = metricNames.reduce(
+    (longest, metric) =>
+      chartData[metric].length > chartData[longest].length ? metric : longest,
+    metricNames[0]
+  );
 
   return (
     <>
@@ -281,7 +289,7 @@ export default function LLMsGraphPanel({
             <MetricTable
               chartData={chartData}
               metricNames={metricNames}
-              availableMetric={availableMetric}
+              availableMetric={maxLengthMetric}
               METRIC_DISPLAY_SHORT_HEADERS={METRIC_DISPLAY_SHORT_HEADERS}
               WORKFLOW_ID_TO_COMMIT={WORKFLOW_ID_TO_COMMIT}
               repo={repoName}
@@ -339,72 +347,124 @@ const MetricTable = ({
 }) => {
   const repoUrl = "https://github.com/" + repo;
 
+  const exportToCSV = () => {
+    const baseData = chartData[availableMetric] ?? [];
+    const rows = baseData.map((entry, index) => {
+      const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+      const row: Record<string, any> = {
+        Date: entry?.metadata_info.timestamp,
+        Commit: commit,
+        Workflow: `${entry.workflow_id}/${entry.job_id}`,
+      };
+
+      metricNames.forEach((metric) => {
+        if (chartData[metric]?.length) {
+          const label = METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric;
+          row[label] = chartData[metric][index]?.actual ?? "";
+        }
+      });
+      return row;
+    });
+
+    const csvData = arrayToCSV(rows);
+    const filename = generateCSVFilename("benchmark", "metrics", [
+      repo.replace("/", "_"),
+    ]);
+    downloadCSV(csvData, filename);
+  };
   return (
-    <TableContainer
-      component={Paper}
-      sx={{ maxHeight: 440, margin: "10px 0", tableLayout: "auto" }}
-    >
-      <Table size="small" stickyHeader>
-        <TableHead>
-          <TableRow>
-            <MetricCell tooltipText="the date when data inserted in db">
-              Date
-            </MetricCell>
-            <MetricCell tooltipText="the latest commit associted with the git job">
-              Commit
-            </MetricCell>
-            <MetricCell tooltipText="the workflow job that generates the value">
-              Workflow Info
-            </MetricCell>
-            {metricNames.map((metric: string) => (
-              <TableCell key={metric} sx={{ py: 0.5 }}>
-                {chartData[metric]?.length
-                  ? METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric
-                  : ""}
-              </TableCell>
-            ))}
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {chartData[availableMetric].map((entry: any, index: number) => {
-            const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
-            return (
-              <TableRow key={index}>
-                <TableCell>
-                  <span>{entry.granularity_bucket} </span>
+    <>
+      <Button
+        variant="outlined"
+        size="small"
+        sx={{ mb: 1 }}
+        onClick={exportToCSV}
+      >
+        Download as CSV
+      </Button>
+      <TableContainer
+        component={Paper}
+        sx={{ maxHeight: 440, margin: "10px 0", tableLayout: "auto" }}
+      >
+        <Table size="small" stickyHeader>
+          <TableHead>
+            <TableRow>
+              <MetricCell tooltipText="the date when data inserted in db">
+                Date
+              </MetricCell>
+              <MetricCell tooltipText="the latest commit associted with the git job">
+                Commit
+              </MetricCell>
+              <MetricCell tooltipText="the workflow job that generates the value">
+                Workflow Info
+              </MetricCell>
+              {metricNames.map((metric: string) => (
+                <TableCell key={metric} sx={{ py: 0.5 }}>
+                  {chartData[metric]?.length
+                    ? METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric
+                    : ""}
                 </TableCell>
-                <TableCell sx={{ py: 0.25 }}>
-                  <code>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {chartData[availableMetric].map((entry: any, index: number) => {
+              const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+              return (
+                <TableRow key={index}>
+                  <TableCell>
+                    <span>{entry?.metadata_info.timestamp} </span>
+                  </TableCell>
+                  <TableCell sx={{ py: 0.25 }}>
+                    <code>
+                      <Link
+                        component="button"
+                        underline="hover"
+                        onClick={() => navigator.clipboard.writeText(commit)}
+                        sx={{ cursor: "pointer", fontSize: "0.75rem" }}
+                      >
+                        {commit}
+                      </Link>
+                    </code>
+                  </TableCell>
+                  <TableCell sx={{ py: 0.25 }}>
                     <Link
-                      component="button"
-                      underline="hover"
-                      onClick={() => navigator.clipboard.writeText(commit)}
-                      sx={{ cursor: "pointer", fontSize: "0.75rem" }}
+                      href={`${repoUrl}/actions/runs/${entry.workflow_id}/job/${entry.job_id}`}
+                      target="_blank"
                     >
-                      {commit}
+                      {entry.workflow_id}/{entry.job_id}
                     </Link>
-                  </code>
-                </TableCell>
-                <TableCell sx={{ py: 0.25 }}>
-                  <Link
-                    href={`${repoUrl}/actions/runs/${entry.workflow_id}/job/${entry.job_id}`}
-                    target="_blank"
-                  >
-                    {entry.workflow_id}/{entry.job_id}
-                  </Link>
-                </TableCell>
-                {metricNames
-                  .filter((metric) => chartData[metric]?.length)
-                  .map((metric) => (
-                    <TableCell key={`${metric}-${index}`} sx={{ py: 0.25 }}>
-                      {chartData[metric][index]?.actual ?? ""}
-                    </TableCell>
-                  ))}
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </TableContainer>
+                  </TableCell>
+                  {metricNames
+                    .filter((metric) => chartData[metric]?.length)
+                    .map((metric) => (
+                      <TableCell key={`${metric}-${index}`} sx={{ py: 0.25 }}>
+                        {chartData[metric][index]?.actual ?? ""}
+                      </TableCell>
+                    ))}
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </>
   );
 };
+
+// creates chart items to visualize in the series graph, group by device name and display name
+function formGraphItem(data: any[]) {
+  const res: any[] = [];
+  data.forEach((item) => {
+    const deviceId = item?.metadata_info?.device_id;
+    const displayName = item.display;
+    const group_key =
+      deviceId && deviceId !== ""
+        ? `${displayName} (${deviceId})`
+        : displayName;
+    const seriesData = deepClone(item);
+    seriesData.group_key = group_key;
+    res.push(seriesData);
+  });
+  return res;
+}

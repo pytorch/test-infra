@@ -145,7 +145,7 @@ export default function QueueTimeSearchBar({
   const [props, dispatch] = useReducer(propsReducer, null);
   useEffect(() => {
     const rQuery = router.query as ParsedUrlQuery;
-    const newprops = {
+    let newprops = {
       dateRange: rQuery.dateRange
         ? parseInt(rQuery.dateRange as string)
         : rQuery.startDate || rQuery.endDate
@@ -168,11 +168,38 @@ export default function QueueTimeSearchBar({
         ? splitString(rQuery.repos as string)
         : ["pytorch/pytorch"],
       category: rQuery.category ? (rQuery.category as string) : "workflow_name",
-      items: rQuery.items ? splitString(rQuery.items as string) : null, // if items is not specified, it will fetch all items belongs to category
+      workflowNames: [],
+      jobNames: [],
+      machineTypes: [],
+      runnerLabels: [],
     };
+
+    if (rQuery.items) {
+      const items = splitString(rQuery.items as string); // if items is not specified, it will fetch all items belongs to category
+      newprops = getSearchItems(newprops.category, items, newprops);
+    }
     updateSearch({ type: "UPDATE_FIELDS", payload: newprops });
     dispatch({ type: "UPDATE_FIELDS", payload: newprops });
   }, [router.query]);
+
+  const getSearchItems = (
+    category: string,
+    items: string[],
+    props: any
+  ): any => {
+    switch (category) {
+      case "workflow_name":
+        return { ...props, workflowNames: items };
+      case "job_name":
+        return { ...props, jobNames: items };
+      case "machine_type":
+        return { ...props, machineTypes: items };
+      case "runner_label":
+        return { ...props, runnerLabels: items };
+      default:
+        return props;
+    }
+  };
 
   const onSearch = () => {
     const newprops = cloneDeep(props);
@@ -219,7 +246,7 @@ export default function QueueTimeSearchBar({
                   setStopDate={(val: any) => {
                     dispatch({
                       type: "UPDATE_FIELD",
-                      field: "stopDate",
+                      field: "endDate",
                       value: val,
                     });
                   }}
@@ -261,7 +288,12 @@ export default function QueueTimeSearchBar({
                   startDate={props.startDate}
                   endDate={props.endDate}
                   updateFields={(val: any) => {
-                    dispatch({ type: "UPDATE_FIELDS", payload: val });
+                    const payload = getSearchItems(
+                      props.category,
+                      val.items,
+                      val
+                    );
+                    dispatch({ type: "UPDATE_FIELDS", payload: payload });
                   }}
                 />
               </div>

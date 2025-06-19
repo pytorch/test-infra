@@ -176,15 +176,16 @@ export async function scaleUpChron(event: ScheduledEvent, context: Context, call
     (Config.Instance.lambdaTimeout - 10) * 1000,
   );
 
+  let callbackOutput: string | null = null;
+
   try {
     metrics.scaleUpChronInitiated();
     await scaleUpChronR(metrics);
     metrics.scaleUpChronSuccess();
-    return callback(null);
   } catch (e) {
     metrics.scaleUpChronFailure();
     console.error(e);
-    return callback('Failed');
+    callbackOutput = `Failed to scale up chron: ${e}`;
   } finally {
     try {
       clearTimeout(sndMetricsTimout.setTimeout);
@@ -192,7 +193,12 @@ export async function scaleUpChron(event: ScheduledEvent, context: Context, call
       sndMetricsTimout.setTimeout = undefined;
       await metrics.sendMetrics();
     } catch (e) {
-      console.error(`Error sending metrics: ${e}`);
+      callbackOutput = `Error sending metrics: ${e}`;
     }
   }
+
+  if (callbackOutput !== null) {
+    console.error(callbackOutput);
+  }
+  callback(callbackOutput);
 }

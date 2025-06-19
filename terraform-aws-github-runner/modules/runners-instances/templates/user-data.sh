@@ -53,42 +53,37 @@ exec > >(tee /var/log/user-data.log | logger -t user-data -s 2>/dev/console) 2>&
 metric_report "linux_userdata.execution" 1
 
 OS_ID=$(. /etc/os-release;echo $ID$VERSION_ID)
-if [[ "$OS_ID" =~ ^amzn2023* ]]; then
-  PKG_MANAGER="dnf"
-else
-  PKG_MANAGER="yum"
-fi
 
 ${pre_install}
 
 if ! command -v curl 2>/dev/null; then
   echo "Installing curl"
-  sudo $PKG_MANAGER install -y curl
+  sudo dnf install -y curl
 fi
 
-retry sudo $PKG_MANAGER update -y
+retry sudo dnf update -y
 
 if ! command -v jq 2>/dev/null; then
   echo "Installing jq"
-  retry sudo $PKG_MANAGER install -y jq
+  retry sudo dnf install -y jq
 fi
 if ! command -v git 2>/dev/null; then
   echo "Installing git"
-  retry sudo $PKG_MANAGER install -y git
+  retry sudo dnf install -y git
 fi
 if ! command -v pip3 2>/dev/null; then
-  echo "Installing git"
-  retry sudo $PKG_MANAGER install -y pip
+  echo "Installing pip"
+  retry sudo dnf install -y pip
 fi
 
 %{ if enable_cloudwatch_agent ~}
-retry sudo $PKG_MANAGER install amazon-cloudwatch-agent -y
+retry sudo dnf install amazon-cloudwatch-agent -y
 amazon-cloudwatch-agent-ctl -a fetch-config -m ec2 -s -c ssm:${ssm_key_cloudwatch_agent_config}
 %{ endif ~}
 
 # Install docker
 if [ "$(uname -m)" == "aarch64" ]; then
-  retry sudo $PKG_MANAGER install -y docker
+  retry sudo dnf install -y docker
 else
   if command -v amazon-linux-extras 2>/dev/null; then
     echo "Installing docker using amazon-linux-extras"
@@ -99,41 +94,93 @@ else
   fi
 fi
 
-service docker start
-usermod -a -G docker ec2-user
-
 USER_NAME=ec2-user
+
+service docker start
+usermod -a -G docker $USER_NAME
+
 ${install_config_runner}
 
-retry sudo $PKG_MANAGER groupinstall -y 'Development Tools'
-retry sudo $PKG_MANAGER install -y "kernel-devel-uname-r == $(uname -r)" || true
+retry sudo dnf groupinstall -y 'Development Tools'
+retry sudo dnf install -y "kernel-devel-uname-r == $(uname -r)" || true
+
+%{ if wiz_secret_arn != null ~}
+# Install Wiz Sensor - a runtime security agent
+echo "Fetching Wiz secrets from AWS Secrets Manager"
+
+(
+    # Allow the script to continue even if the function fails, so that we gracefully handle
+    # wiz installation failures
+    set +e
+
+    # Function to get region from ARN
+    get_region_from_arn() {
+        local arn=$1
+        # Extract region from ARN (format: arn:aws:service:region:account:resource)
+        local region=$(echo "$arn" | cut -d':' -f4)
+        if [ -n "$region" ]; then
+            echo "$region"
+        else
+            echo ""
+        fi
+    }
+
+    SECRET_REGION=$(get_region_from_arn "${wiz_secret_arn}")
+    if [ -z "$SECRET_REGION" ]; then
+        echo "Warning: Region is required in the Secrets Manager ARN. Skipping Wiz installation."
+        metric_report "linux_userdata.wiz_failure_arn_invalid" 1
+    else
+        WIZ_SECRET_RAW=$(retry aws secretsmanager get-secret-value --secret-id "${wiz_secret_arn}" --region "$SECRET_REGION" --query 'SecretString' --output text)
+        if [ $? -eq 0 ] && [ ! -z "$WIZ_SECRET_RAW" ]; then
+          echo "Successfully retrieved Wiz secrets"
+          echo "Extracting Wiz runtime sensor credentials"
+          WIZ_SECRET_JSON=$(echo "$WIZ_SECRET_RAW" | tr -d '\n\r') # Remove newlines to fix malformed JSON (it's how it's stored in AWS Secrets Manager)
+          WIZ_API_CLIENT_ID=$(echo "$WIZ_SECRET_JSON" | jq -r '.WIZ_RUNTIME_SENSOR_CLIENT_ID // empty')
+          WIZ_API_CLIENT_SECRET=$(echo "$WIZ_SECRET_JSON" | jq -r '.WIZ_RUNTIME_SENSOR_CLIENT_SECRET // empty')
+          if [ ! -z "$WIZ_API_CLIENT_ID" ] && [ ! -z "$WIZ_API_CLIENT_SECRET" ]; then
+            echo "Installing Wiz runtime sensor"
+            if ! WIZ_API_CLIENT_ID="$WIZ_API_CLIENT_ID" WIZ_API_CLIENT_SECRET="$WIZ_API_CLIENT_SECRET" \
+            sudo -E bash -c "$(curl -L https://downloads.wiz.io/sensor/sensor_install.sh)"; then
+              echo "Error: Failed to install Wiz runtime sensor"
+              metric_report "linux_userdata.wiz_failure_installation_failed" 1
+            else
+              echo "Wiz runtime sensor installation completed"
+            fi
+          else
+            echo "Warning: WIZ_RUNTIME_SENSOR_CLIENT_ID or WIZ_RUNTIME_SENSOR_CLIENT_SECRET not found in secrets"
+            metric_report "linux_userdata.wiz_failure_credentials_missing" 1
+          fi
+        else
+          echo "Warning: Failed to retrieve Wiz secrets from ${wiz_secret_arn}"
+          metric_report "linux_userdata.wiz_failure_secrets_error" 1
+        fi
+    fi
+)
+
+# Clear all secrets from memory
+unset WIZ_SECRET_RAW WIZ_SECRET_JSON WIZ_API_CLIENT_ID WIZ_API_CLIENT_SECRET SECRET_REGION
+%{ endif ~}
 
 echo Checking if nvidia install required ${nvidia_driver_install}
 %{ if nvidia_driver_install ~}
 echo "NVIDIA driver install required"
-if [[ "$OS_ID" =~ ^amzn.* ]]; then
-    if [[ "$OS_ID" =~ "amzn2023" ]] ; then
-      echo "On Amazon Linux 2023, installing kernel-modules-extra"
-      retry sudo dnf install kernel-modules-extra -y
-    fi
-    echo Installing Development Tools
-    sudo modprobe backlight
-fi
+
+echo "Installing kernel-modules-extra"
+retry sudo dnf install kernel-modules-extra -y
+echo Installing Development Tools
+sudo modprobe backlight
+
 retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-570.133.07.run'
 retry sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
-if [[ "$OS_ID" =~ ^amzn.* ]]; then
-    if [[ "$OS_ID" == ^amzn2023* ]]; then
-      retry sudo dnf install -y dnf-plugins-core
-      retry sudo dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
-    else
-      retry sudo yum install -y yum-utils
-      retry sudo yum-config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
-    fi
-    echo Installing nvidia-docker tools
-    retry sudo $PKG_MANAGER install -y nvidia-docker2
-    sudo systemctl restart docker
-fi
+
+retry sudo dnf install -y dnf-plugins-core
+retry sudo dnf config-manager --add-repo 'https://nvidia.github.io/libnvidia-container/stable/rpm/nvidia-container-toolkit.repo'
+
+echo Installing nvidia-docker tools
+retry sudo dnf install -y nvidia-docker2
+sudo systemctl restart docker
+
 %{ endif ~}
 
 ${post_install}

@@ -1,8 +1,10 @@
-import json
-from pathlib import Path
-from lambda_function import handle_event
-from contextlib import redirect_stdout
 import io
+import json
+from contextlib import redirect_stdout
+from pathlib import Path
+
+from lambda_function import handle_event
+
 
 if __name__ == "__main__":
     # Uses the sample.json file to test the lambda function.  Does not perform

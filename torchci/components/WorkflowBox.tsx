@@ -1,7 +1,7 @@
 import { Button, styled } from "@mui/material";
 import styles from "components/commit.module.css";
 import { fetcher } from "lib/GeneralUtils";
-import { isFailedJob } from "lib/jobUtils";
+import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
 import {
@@ -53,19 +53,12 @@ function WorkflowJobSummary({
 }) {
   const subInfo = [];
   if (job.queueTimeS != null) {
-    subInfo.push(
-      <>
-        <i>Queued:</i> {durationDisplay(Math.max(job.queueTimeS, 0))}
-      </>
-    );
+    subInfo.push(<>Queued: {durationDisplay(Math.max(job.queueTimeS, 0))}</>);
   }
 
-  if (job.durationS != null) {
-    subInfo.push(
-      <>
-        <i>Duration:</i> {durationDisplay(job.durationS)}
-      </>
-    );
+  const durationDisplayText = getDurationDisplay(job);
+  if (durationDisplayText !== undefined) {
+    subInfo.push(<>{durationDisplayText}</>);
   }
 
   const hasArtifacts = artifacts && artifacts.length > 0;

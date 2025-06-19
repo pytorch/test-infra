@@ -114,6 +114,14 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "tcmlib",
     "umf",
     "intel_pti",
+    "oneccl_devel",
+    "oneccl",
+    "impi_rt",
+    "onemkl_sycl_blas",
+    "onemkl_sycl_dft",
+    "onemkl_sycl_lapack",
+    "onemkl_sycl_sparse",
+    "onemkl_sycl_rng",
     # ----
     "Pillow",
     "certifi",
@@ -121,6 +129,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "cmake",
     "colorama",
     "fbgemm_gpu",
+    "fbgemm_gpu_genai",
     "filelock",
     "fsspec",
     "idna",
@@ -154,6 +163,7 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "nvidia_cudnn_cu12",
     "nvidia_cufft_cu12",
     "nvidia_cufile_cu12",
+    "nvidia_nvshmem_cu12",
     "nvidia_curand_cu12",
     "nvidia_cusolver_cu12",
     "nvidia_cusparse_cu12",
@@ -204,11 +214,10 @@ PACKAGE_DATE_REGEX = r"([a-zA-z]*-[0-9.]*.dev)([0-9]*)"
 # How many packages should we keep of a specific package?
 KEEP_THRESHOLD = 60
 
-# TODO (huydhn): Clean this up once ExecuTorch has a new stable release that
-# match PyTorch stable release cadence. This nightly version is currently
-# referred to publicly in ExecuTorch alpha 0.1 release. So we want to keep
-# nightly binaries around for now
-KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH = {datetime(2023, 10, 10, 0, 0)}
+# TODO (huydhn): Clean this up afte https://github.com/pytorch/pytorch/pull/152238
+# is in the release branch, be it via cherry picking to the next release branch
+# cut
+KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH = {datetime(2025, 3, 10, 0, 0)}
 
 S3IndexType = TypeVar('S3IndexType', bound='S3Index')
 

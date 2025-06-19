@@ -1,5 +1,5 @@
 import { Octokit } from "octokit";
-import useSWR from "swr";
+import useSWR, { SWRConfiguration } from "swr";
 import useSWRImmutable from "swr/immutable";
 import { isFailure } from "./JobClassifierUtil";
 import { CommitData, JobData } from "./types";
@@ -112,7 +112,8 @@ export async function hasWritePermissionsUsingOctokit(
 export function useClickHouseAPI<T = any>(
   queryName: string,
   parameters: { [key: string]: string },
-  condition: boolean = true
+  condition: boolean = true,
+  config?: SWRConfiguration<T[]>
 ) {
   // Helper function to format the URL nicely
   return useSWR<T[]>(
@@ -120,7 +121,8 @@ export function useClickHouseAPI<T = any>(
       `/api/clickhouse/${encodeURIComponent(queryName)}?${encodeParams({
         parameters: JSON.stringify(parameters),
       })}`,
-    fetcher
+    fetcher,
+    config
   );
 }
 

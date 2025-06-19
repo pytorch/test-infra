@@ -60,9 +60,14 @@ async function searchLog(
       };
     }
 
-    const log = await fetch(
-      `https://ossci-raw-job-status.s3.amazonaws.com/log/${job.id!}`
-    );
+    if (job.logUrl == undefined) {
+      return {
+        results: [],
+        info: "No log URL",
+      };
+    }
+
+    const log = await fetch(job.logUrl);
     if (log.status != 200) {
       return {
         results: [],

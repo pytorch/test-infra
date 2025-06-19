@@ -45,16 +45,24 @@ export function useBenchmark(
  * @param props LLMsBenchmarkProps
  */
 export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
+  let dtypes: any[] = [];
+  if (props.dtypeName === DEFAULT_DTYPE_NAME) {
+    dtypes = [];
+  } else if (props.repoName == "pytorch/ao") {
+    if (props.backendName.startsWith("micro-benchmark")) {
+      dtypes = [props.dtypeName];
+    } else {
+      dtypes = [props.dtypeName, TORCHAO_BASELINE];
+    }
+  } else {
+    dtypes = [props.dtypeName];
+  }
+
   const queryParams = {
     arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
     device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
     mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
-    dtypes:
-      props.dtypeName === DEFAULT_DTYPE_NAME
-        ? []
-        : props.repoName !== "pytorch/ao" // TODO(elainewy): add config to handle repos-specific logics
-        ? [props.dtypeName]
-        : [props.dtypeName, TORCHAO_BASELINE],
+    dtypes: dtypes,
     excludedMetrics: EXCLUDED_METRICS,
     benchmarks: props.benchmarkName
       ? [props.benchmarkName]
@@ -401,12 +409,12 @@ const processJobLevelFailureRows = (
       if ("FAILURE_REPORT" in record) {
         const failure_record = record["FAILURE_REPORT"];
         const hasrFailure =
-          "r" in failure_record && failure_record["r"].additional_info
-            ? failure_record["r"].additional_info["failure_type"] === "GIT_JOB"
+          "r" in failure_record && failure_record["r"].metadata_info
+            ? failure_record["r"].metadata_info["failure_type"] === "GIT_JOB"
             : false;
         const haslFailure =
-          "l" in failure_record && failure_record["l"].additional_info
-            ? failure_record["l"].additional_info["failure_type"] === "GIT_JOB"
+          "l" in failure_record && failure_record["l"].metadata_info
+            ? failure_record["l"].metadata_info["failure_type"] === "GIT_JOB"
             : false;
         isJobLevelFailure = hasrFailure || haslFailure;
       }

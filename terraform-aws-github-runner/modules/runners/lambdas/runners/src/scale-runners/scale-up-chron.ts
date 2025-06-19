@@ -34,7 +34,7 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
           runner.max_queue_time_minutes,
         );
         return (
-          runner.min_queue_time_minutes >= Config.Instance.scaleUpMinQueueTimeMinutes &&
+          runner.max_queue_time_minutes >= Config.Instance.scaleUpMaxQueueTimeMinutes &&
           runner.org === Config.Instance.scaleConfigOrg
         );
       })

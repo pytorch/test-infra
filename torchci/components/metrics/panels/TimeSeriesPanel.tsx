@@ -180,6 +180,8 @@ export function TimeSeriesPanelWithData({
   // To avoid overlapping long legends and the chart
   legendPadding = 200,
   onEvents,
+  // Whether to keep dates in UTC or convert to local time
+  useUTC = false,
 }: {
   data: any;
   series: any;
@@ -191,6 +193,7 @@ export function TimeSeriesPanelWithData({
   additionalOptions?: EChartsOption;
   legendPadding?: number;
   onEvents?: { [key: string]: any };
+  useUTC?: boolean;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
@@ -247,7 +250,8 @@ export function TimeSeriesPanelWithData({
           `${params.seriesName}` +
           `<br/>${formatTimeForCharts(
             params.value[0],
-            timeFieldDisplayFormat
+            timeFieldDisplayFormat,
+            useUTC
           )}<br/>` +
           `${getTooltipMarker(params.color)}` +
           `<b>${yAxisRenderer(params.value[1])}</b>` +
@@ -305,10 +309,15 @@ export default function TimeSeriesPanel({
   sort_by = "name",
   max_items_in_series = 0,
   filter = undefined,
+  legendPadding = 200,
   isRegex = false,
   auto_refresh = true,
   // Additional function to process the data after querying
   dataReader = undefined,
+  // Whether to keep dates in UTC or convert to local time
+  useUTC = false,
+  // Whether to fill in missing data points with 0s
+  fillMissingData = true,
 }: {
   title: string;
   queryName: string;
@@ -328,7 +337,10 @@ export default function TimeSeriesPanel({
   filter?: string;
   isRegex?: boolean;
   auto_refresh?: boolean;
+  legendPadding?: number;
   dataReader?: (_data: { [k: string]: any }[]) => { [k: string]: any }[];
+  useUTC?: boolean;
+  fillMissingData?: boolean;
 }) {
   // - Granularity
   // - Group by
@@ -365,7 +377,7 @@ export default function TimeSeriesPanel({
     groupByFieldName,
     timeFieldName,
     yAxisFieldName,
-    true,
+    fillMissingData,
     smooth,
     sort_by,
     chartType,
@@ -430,6 +442,8 @@ export default function TimeSeriesPanel({
       yAxisLabel={yAxisLabel}
       timeFieldDisplayFormat={timeFieldDisplayFormat}
       additionalOptions={additionalOptions}
+      legendPadding={legendPadding}
+      useUTC={useUTC}
     />
   );
 }

@@ -91,6 +91,15 @@ PACKAGES_PER_PROJECT = {
         "umf",
         "intel-pti",
         "tbb",
+        "oneccl-devel",
+        "oneccl",
+        "impi-rt",
+        "onemkl-sycl-blas",
+        "onemkl-sycl-dft",
+        "onemkl-sycl-lapack",
+        "onemkl-sycl-sparse",
+        "onemkl-sycl-rng",
+        "mkl",
     ]
 }
 
