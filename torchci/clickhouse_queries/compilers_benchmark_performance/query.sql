@@ -19,7 +19,7 @@ WITH benchmarks AS (
         device,
         arch,
         replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
-        benchmark_extra_info [ 'output' ] AS output,
+        benchmark_extra_info['output'] AS output,
         REGEXP_REPLACE(
             output,
             CONCAT(
