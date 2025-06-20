@@ -1,15 +1,9 @@
+#!/usr/bin/env python3
+
 import argparse
 import os
 
-import clickhouse_connect
-
-
-def get_clickhouse_client(
-    host: str, port: int, username: str, password: str
-) -> clickhouse_connect.driver.client.Client:
-    return clickhouse_connect.get_client(
-        host=host, port=port, username=username, password=password
-    )
+from clickhouse_client_helper import ClickHouseClientFactory
 
 
 def get_opts() -> argparse.Namespace:
@@ -29,6 +23,9 @@ def get_opts() -> argparse.Namespace:
         "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD", "")
     )
     parser.add_argument(
+        "--clickhouse-database", default=os.environ.get("CLICKHOUSE_DATABASE", "default")
+    )
+    parser.add_argument(
         "--github-access-token", default=os.environ.get("GITHUB_TOKEN", "")
     )
     return parser.parse_args()
@@ -36,14 +33,15 @@ def get_opts() -> argparse.Namespace:
 
 def main(*args, **kwargs) -> None:
     opts = get_opts()
-    get_clickhouse_client(
+    ClickHouseClientFactory.setup_client(
         opts.clickhouse_host,
         opts.clickhouse_port,
         opts.clickhouse_username,
         opts.clickhouse_password,
+        opts.clickhouse_database,
     )
 
-    print("TODO")
+    print(ClickHouseClientFactory().client)
 
 
 if __name__ == "__main__":
