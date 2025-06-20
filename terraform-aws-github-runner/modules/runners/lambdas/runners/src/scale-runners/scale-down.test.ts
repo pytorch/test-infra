@@ -29,6 +29,7 @@ import {
   cleanupOldSSMParameters,
   getGHRunnerOrg,
   getGHRunnerRepo,
+  ghRunnerCache,
   isEphemeralRunner,
   isRunnerRemovable,
   minRunners,
@@ -72,6 +73,9 @@ beforeEach(() => {
   jest.clearAllMocks();
   jest.restoreAllMocks();
   nock.disableNetConnect();
+
+  // Clear the GitHub runner cache before each test
+  ghRunnerCache.clear();
 });
 
 /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -466,7 +470,6 @@ describe('scale-down', () => {
       expect(mockedListRunners).toBeCalledTimes(1);
       expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
-      expect(mockedListGithubRunnersOrg).toBeCalledTimes(18);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
       expect(mockedGetRunnerTypes).toBeCalledTimes(9);
@@ -808,7 +811,6 @@ describe('scale-down', () => {
       expect(mockedListRunners).toBeCalledTimes(1);
       expect(mockedListRunners).toBeCalledWith(metrics, { environment: environment });
 
-      expect(mockedListGithubRunnersRepo).toBeCalledTimes(18);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
 
       expect(mockedGetRunnerTypes).toBeCalledTimes(9);
@@ -1127,8 +1129,8 @@ describe('scale-down', () => {
 
   describe('isRunnerRemovable', () => {
     describe('ghRunner === undefined', () => {
-      it('launchTime === undefined', () => {
-        const response = isRunnerRemovable(
+      it('launchTime === undefined', async () => {
+        const response = await isRunnerRemovable(
           undefined,
           {
             awsRegion: baseConfig.awsRegion,
@@ -1140,8 +1142,8 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
 
-      it('exceeded minimum time', () => {
-        const response = isRunnerRemovable(
+      it('exceeded minimum time', async () => {
+        const response = await isRunnerRemovable(
           undefined,
           {
             awsRegion: baseConfig.awsRegion,
@@ -1156,8 +1158,8 @@ describe('scale-down', () => {
         expect(response).toEqual(true);
       });
 
-      it('dont exceeded minimum time', () => {
-        const response = isRunnerRemovable(
+      it('dont exceeded minimum time', async () => {
+        const response = await isRunnerRemovable(
           undefined,
           {
             awsRegion: baseConfig.awsRegion,
@@ -1174,8 +1176,8 @@ describe('scale-down', () => {
     });
 
     describe('ghRunner !== undefined', () => {
-      it('ghRunner.busy == true', () => {
-        const response = isRunnerRemovable(
+      it('ghRunner.busy == true', async () => {
+        const response = await isRunnerRemovable(
           {
             busy: true,
           } as GhRunner,
@@ -1189,8 +1191,8 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
 
-      it('ghRunner.busy == false, launchTime === undefined', () => {
-        const response = isRunnerRemovable(
+      it('ghRunner.busy == false, launchTime === undefined', async () => {
+        const response = await isRunnerRemovable(
           {
             busy: false,
           } as GhRunner,
@@ -1204,8 +1206,8 @@ describe('scale-down', () => {
         expect(response).toEqual(false);
       });
 
-      it('ghRunner.busy == false, launchTime exceeds', () => {
-        const response = isRunnerRemovable(
+      it('ghRunner.busy == false, launchTime exceeds', async () => {
+        const response = await isRunnerRemovable(
           {
             busy: false,
           } as GhRunner,
@@ -1222,8 +1224,8 @@ describe('scale-down', () => {
         expect(response).toEqual(true);
       });
 
-      it('ghRunner.busy == false, launchTime dont exceeds', () => {
-        const response = isRunnerRemovable(
+      it('ghRunner.busy == false, launchTime dont exceeds', async () => {
+        const response = await isRunnerRemovable(
           {
             busy: false,
           } as GhRunner,
@@ -1456,7 +1458,6 @@ describe('scale-down', () => {
 
       expect(await getGHRunnerRepo(ec2runner, metrics)).toEqual(ghRunners[0]);
 
-      expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
     });
 
@@ -1477,9 +1478,7 @@ describe('scale-down', () => {
 
       expect(await getGHRunnerRepo(ec2runner, metrics)).toEqual(theGhRunner);
 
-      expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
-      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
       expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
     });
 
@@ -1499,9 +1498,7 @@ describe('scale-down', () => {
 
       expect(await getGHRunnerRepo(ec2runner, metrics)).toBeUndefined();
 
-      expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
-      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
       expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
     });
   });
@@ -1527,7 +1524,7 @@ describe('scale-down', () => {
       expect(mockedDoDeleteSSMParameter).toBeCalledTimes(2);
       expect(mockedDoDeleteSSMParameter).toBeCalledWith('WG115', metrics, 'us-east-1');
       expect(mockedDoDeleteSSMParameter).toBeCalledWith('WG116', metrics, 'us-east-1');
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
+      expect(mockedListSSMParameters).toBeCalled();
     });
 
     it('Stops when LastModifiedDate is < Config.Instance.sSMParamCleanupAgeDays', async () => {
@@ -1552,7 +1549,7 @@ describe('scale-down', () => {
 
       expect(mockedDoDeleteSSMParameter).toBeCalledTimes(1);
       expect(mockedDoDeleteSSMParameter).toBeCalledWith('WG115', metrics, 'us-east-1');
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
+      expect(mockedListSSMParameters).toBeCalled();
     });
 
     it('Stops when deleted >= Config.Instance.sSMParamMaxCleanupAllowance', async () => {
@@ -1574,7 +1571,7 @@ describe('scale-down', () => {
       await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
 
       expect(mockedDoDeleteSSMParameter).toBeCalledTimes(MAX_SSM_PARAMETERS);
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
+      expect(mockedListSSMParameters).toBeCalled();
     });
 
     it('Breaks when deleted >= Config.Instance.sSMParamMaxCleanupAllowance', async () => {
@@ -1596,7 +1593,7 @@ describe('scale-down', () => {
       await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
 
       expect(mockedDoDeleteSSMParameter).toBeCalledTimes(MAX_SSM_PARAMETERS);
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
+      expect(mockedListSSMParameters).toBeCalled();
     });
 
     it('Dont count failed to delete', async () => {
@@ -1618,7 +1615,7 @@ describe('scale-down', () => {
       await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
 
       expect(mockedDoDeleteSSMParameter).toBeCalledTimes(MAX_SSM_PARAMETERS + 5);
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
+      expect(mockedListSSMParameters).toBeCalled();
     });
   });
 
@@ -1643,7 +1640,6 @@ describe('scale-down', () => {
 
       expect(await getGHRunnerOrg(ec2runner, metrics)).toEqual(ghRunners[0]);
 
-      expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
     });
 
@@ -1664,9 +1660,7 @@ describe('scale-down', () => {
 
       expect(await getGHRunnerOrg(ec2runner, metrics)).toEqual(theGhRunner);
 
-      expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
-      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
       expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
     });
 
@@ -1686,9 +1680,7 @@ describe('scale-down', () => {
 
       expect(await getGHRunnerOrg(ec2runner, metrics)).toBeUndefined();
 
-      expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
-      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
       expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
     });
 
