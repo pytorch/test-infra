@@ -55,7 +55,10 @@ SELECT
     tupleElement(model, 'name') AS model_name,
     tupleElement(model, 'origins')[1] AS suite,
     tupleElement(metric, 'name') AS metric_name,
-    floor(arrayAvg(tupleElement(metric, 'benchmark_values')), 4) AS value,
+    floor(
+        arrayAvg(tupleElement(metric, 'benchmark_values')),
+        4
+    ) AS value,
     tupleElement(metric, 'extra_info') AS metric_extra_info,
     tupleElement(benchmark, 'dtype') AS benchmark_dtype,
     tupleElement(benchmark, 'mode') AS benchmark_mode,
@@ -72,15 +75,18 @@ WHERE
     AND tupleElement(benchmark, 'name') = 'TorchInductor'
     AND repo = 'pytorch/pytorch'
     AND (
-        tupleElement(metric, 'name') in [ 'accuracy',
-        'speedup',
-        'compilation_latency',
-        'compression_ratio',
-        'abs_latency',
-        'mfu',
-        'memory_bandwidth',
-        'dynamo_peak_mem',
-        'eager_peak_mem' ]
+        tupleElement(metric, 'name') = 'accuracy'
+        OR (
+            tupleElement(metric, 'name') in ['speedup',
+            'compilation_latency',
+            'compression_ratio',
+            'abs_latency',
+            'mfu',
+            'memory_bandwidth',
+            'dynamo_peak_mem',
+            'eager_peak_mem']
+            AND tupleElement(benchmark, 'extra_info')['output'] NOT LIKE '%_accuracy%'
+        )
     );
 
 INSERT INTO
@@ -123,15 +129,18 @@ WHERE
     tupleElement(benchmark, 'name') = 'TorchInductor'
     AND repo = 'pytorch/pytorch'
     AND (
-        tupleElement(metric, 'name') in [ 'accuracy',
-        'speedup',
-        'compilation_latency',
-        'compression_ratio',
-        'abs_latency',
-        'mfu',
-        'memory_bandwidth',
-        'dynamo_peak_mem',
-        'eager_peak_mem' ]
+        tupleElement(metric, 'name') = 'accuracy'
+        OR (
+            tupleElement(metric, 'name') in ['speedup',
+            'compilation_latency',
+            'compression_ratio',
+            'abs_latency',
+            'mfu',
+            'memory_bandwidth',
+            'dynamo_peak_mem',
+            'eager_peak_mem']
+            AND tupleElement(benchmark, 'extra_info')['output'] NOT LIKE '%_accuracy%'
+        )
     )
     AND timestamp >= toUnixTimestamp(toDateTime('2025-01-01 00:00:00'))
     AND timestamp < toUnixTimestamp(toDateTime('2025-06-17 00:00:00'));

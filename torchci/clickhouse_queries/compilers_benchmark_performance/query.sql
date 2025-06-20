@@ -106,16 +106,6 @@ WHERE
             AND arch = {arch: String }
         )
     )
-    AND (
-        (
-            metric_name = 'accuracy'
-            AND output LIKE '%_accuracy%'
-        )
-        OR (
-            metric_name != 'accuracy'
-            AND output NOT LIKE '%_accuracy%'
-        )
-    )
 ORDER BY
     model_name ASC,
     suite ASC,
