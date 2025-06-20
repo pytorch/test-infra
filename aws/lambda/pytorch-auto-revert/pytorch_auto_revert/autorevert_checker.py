@@ -66,7 +66,7 @@ class AutorevertPatternChecker:
     def __init__(self, workflow_names: List[str] = None, lookback_hours: int = 48):
         self.workflow_names = workflow_names or []
         self.lookback_hours = lookback_hours
-        self._workflow_commits_cache = {}  # Dict[str, List[CommitJobs]]
+        self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:

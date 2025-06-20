@@ -6,14 +6,12 @@ from datetime import datetime, timedelta
 from typing import Dict, Set
 
 from clickhouse_client_helper import CHCliFactory
-from dotenv import load_dotenv
 
 
 class WorkflowRestartChecker:
     """Check if workflows have been restarted using ClickHouse."""
 
     def __init__(self):
-        load_dotenv()
         self._cache: Dict[str, bool] = {}
 
     def has_restarted_workflow(self, workflow_name: str, commit_sha: str) -> bool:
