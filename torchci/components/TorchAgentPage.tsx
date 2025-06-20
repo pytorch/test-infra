@@ -416,6 +416,14 @@ export const TorchAgentPage = () => {
     setAllToolsExpanded(false);
     resetAutoScroll();
 
+    // Add user query to parsed responses immediately
+    const userMessage = {
+      type: "user_message" as const,
+      content: query,
+      timestamp: Date.now(),
+    };
+    setParsedResponses([userMessage]);
+
     const now = Date.now();
     setStartTime(now);
     setElapsedTime(0);
@@ -771,32 +779,16 @@ export const TorchAgentPage = () => {
               bugReportUrl={bugReportUrl}
             />
 
-            {/* Show welcome message for completely new chats */}
-            {!selectedSession && (
+            {/* Show welcome message for completely new chats (hide when loading) */}
+            {!selectedSession && !isLoading && (
               <WelcomeSection
                 query={query}
                 isLoading={isLoading}
-                debugVisible={debugVisible}
                 onQueryChange={handleQueryChange}
                 onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
               />
             )}
 
-            {/* Show query input for active chats at the top (only for current session) */}
-            {selectedSession && selectedSession === currentSessionId && (
-              <QueryInputSection
-                query={query}
-                isLoading={isLoading}
-                debugVisible={debugVisible}
-                isReadOnly={false}
-                onQueryChange={handleQueryChange}
-                onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
-              />
-            )}
 
             <ResultsSection>
               <Box
@@ -808,35 +800,45 @@ export const TorchAgentPage = () => {
                 }}
               >
                 <Typography variant="h6">Results</Typography>
-                {parsedResponses.length > 0 &&
-                  parsedResponses.some((item) => item.type === "tool_use") && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => {
-                        if (allToolsExpanded) {
-                          setExpandedTools({});
-                          setAllToolsExpanded(false);
-                        } else {
-                          const allExpanded = parsedResponses.reduce(
-                            (acc, _, index) => {
-                              if (parsedResponses[index].type === "tool_use") {
-                                acc[index] = true;
-                              }
-                              return acc;
-                            },
-                            {} as Record<number, boolean>
-                          );
-                          setExpandedTools(allExpanded);
-                          setAllToolsExpanded(true);
-                        }
-                      }}
-                    >
-                      {allToolsExpanded
-                        ? "Collapse all tools"
-                        : "Expand all tools"}
-                    </Button>
-                  )}
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button 
+                    variant="outlined" 
+                    color="secondary" 
+                    size="small"
+                    onClick={() => setDebugVisible(!debugVisible)}
+                  >
+                    {debugVisible ? "Hide Debug" : "Show Debug"}
+                  </Button>
+                  {parsedResponses.length > 0 &&
+                    parsedResponses.some((item) => item.type === "tool_use") && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        onClick={() => {
+                          if (allToolsExpanded) {
+                            setExpandedTools({});
+                            setAllToolsExpanded(false);
+                          } else {
+                            const allExpanded = parsedResponses.reduce(
+                              (acc, _, index) => {
+                                if (parsedResponses[index].type === "tool_use") {
+                                  acc[index] = true;
+                                }
+                                return acc;
+                              },
+                              {} as Record<number, boolean>
+                            );
+                            setExpandedTools(allExpanded);
+                            setAllToolsExpanded(true);
+                          }
+                        }}
+                      >
+                        {allToolsExpanded
+                          ? "Collapse all tools"
+                          : "Expand all tools"}
+                      </Button>
+                    )}
+                </Box>
               </Box>
 
               {error && (
@@ -878,17 +880,14 @@ export const TorchAgentPage = () => {
               )}
             </ResultsSection>
 
-            {/* Show query input for historic chats at the bottom for continuation */}
-            {selectedSession && selectedSession !== currentSessionId && (
+            {/* Show query input at the bottom for all chats (historic and active, or when streaming) */}
+            {(selectedSession || isLoading) && (
               <QueryInputSection
-                query={query}
+                query={isLoading ? "" : query}
                 isLoading={isLoading}
-                debugVisible={debugVisible}
-                isReadOnly={isLoading}
+                isReadOnly={false}
                 onQueryChange={handleQueryChange}
                 onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
               />
             )}
           </TorchAgentPageContainer>
