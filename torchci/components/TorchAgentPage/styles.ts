@@ -51,6 +51,7 @@ export const TodoListBlock = styled(Paper)(({ theme }) => ({
   borderLeft: `4px solid ${
     theme.palette.mode === "dark" ? "#9c27b0" : "#673ab7"
   }`,
+  maxWidth: "320px",
   overflow: "hidden",
 }));
 
@@ -114,7 +115,8 @@ export const ChunkMetadata = styled(Typography)(({ theme }) => ({
 export const LoaderWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
   alignItems: "center",
-  justifyContent: "center",
+  justifyContent: "flex-start",
+  gap: "20px",
   padding: "20px 25px",
   marginTop: "20px",
   marginBottom: "20px",

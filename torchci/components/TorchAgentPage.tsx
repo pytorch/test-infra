@@ -555,6 +555,11 @@ export const TorchAgentPage = () => {
   }
 
   const renderContent = () => {
+    const todoListItems = parsedResponses.filter(
+      (item) => item.type === "todo_list"
+    );
+    const latestTodo =
+      todoListItems.length > 0 ? todoListItems[todoListItems.length - 1] : null;
     if (parsedResponses.length === 0) {
       if (isLoading) {
         return (
@@ -569,6 +574,16 @@ export const TorchAgentPage = () => {
                 {formatTokenCount(displayedTokens)} tokens
               </Typography>
             </Box>
+            {latestTodo?.todoItems && (
+              <TodoList
+                todoItems={latestTodo.todoItems}
+                timestamp={
+                  typeof latestTodo.timestamp === "number"
+                    ? latestTodo.timestamp
+                    : undefined
+                }
+              />
+            )}
           </LoaderWrapper>
         );
       }
@@ -662,22 +677,23 @@ export const TorchAgentPage = () => {
             </div>
           ))}
 
-        {parsedResponses
-          .filter((item) => item.type === "todo_list")
-          .map((item, index) => (
-            <div key={`todo-${index}`}>
-              {item.todoItems && (
-                <TodoList
-                  todoItems={item.todoItems}
-                  timestamp={
-                    typeof item.timestamp === "number"
-                      ? item.timestamp
-                      : undefined
-                  }
-                />
-              )}
-            </div>
-          ))}
+        {!isLoading &&
+          parsedResponses
+            .filter((item) => item.type === "todo_list")
+            .map((item, index) => (
+              <div key={`todo-${index}`}>
+                {item.todoItems && (
+                  <TodoList
+                    todoItems={item.todoItems}
+                    timestamp={
+                      typeof item.timestamp === "number"
+                        ? item.timestamp
+                        : undefined
+                    }
+                  />
+                )}
+              </div>
+            ))}
 
         {isLoading ? (
           <LoaderWrapper>
@@ -691,6 +707,16 @@ export const TorchAgentPage = () => {
                 {formatTokenCount(displayedTokens)} tokens
               </Typography>
             </Box>
+            {latestTodo?.todoItems && (
+              <TodoList
+                todoItems={latestTodo.todoItems}
+                timestamp={
+                  typeof latestTodo.timestamp === "number"
+                    ? latestTodo.timestamp
+                    : undefined
+                }
+              />
+            )}
           </LoaderWrapper>
         ) : (
           (completedTokens > 0 || feedbackVisible) && (
