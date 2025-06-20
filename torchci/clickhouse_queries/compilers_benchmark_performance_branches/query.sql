@@ -10,6 +10,8 @@ FROM
 WHERE
     timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
     AND timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
+    -- TODO (huydhn): Clean up the output field and how it's used in the query
+    -- in 6 months
     AND (
         (
             {arch: String } = ''

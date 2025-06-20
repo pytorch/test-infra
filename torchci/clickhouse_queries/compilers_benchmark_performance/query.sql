@@ -72,6 +72,8 @@ WHERE
         has({branches: Array(String) }, head_branch)
         OR empty({branches: Array(String) })
     )
+    -- TODO (huydhn): Clean up the output field and how it's used in the query
+    -- in 6 months
     AND (
         (
             {arch: String } = ''
