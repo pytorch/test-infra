@@ -98,6 +98,10 @@ export default function QueueTimeCheckBoxList({
     let newSelectedItem: { [x: string]: boolean } = {};
 
     // initial category, set all items based on inputItems
+    console.log(
+      "initial category, set all items based on inputItems",
+      inputItems
+    );
     if (!prevCategory.current) {
       const inputSet = new Set(inputItems);
       newSelectedItem = items.reduce(

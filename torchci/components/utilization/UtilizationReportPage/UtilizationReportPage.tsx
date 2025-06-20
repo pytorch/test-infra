@@ -57,7 +57,15 @@ const InnerUtilizationContent = ({
         }}
       >
         <h2>Utilization Report Table: {values.group_by}</h2>{" "}
-        <UMCopyLink params={values} />
+        <UMCopyLink
+          params={values}
+          excludeKeys={[
+            "workflowNames",
+            "jobNames",
+            "machineTypes",
+            "runnerLabels",
+          ]}
+        />
       </Box>
       <UMDateButtonPicker
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) => {
