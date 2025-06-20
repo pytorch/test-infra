@@ -14,3 +14,6 @@ To test the Lambda function locally:
 # Run test
 python test_lambda_function.py
 ```
+
+Page maintainers: @clee2000
+Last verified: 2025-06-20
