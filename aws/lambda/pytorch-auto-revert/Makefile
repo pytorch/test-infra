@@ -1,5 +1,6 @@
 all: run-local
 
+.PHONY: clean
 clean:
 	rm -rf deployment
 	rm -rf deployment.zip
@@ -10,6 +11,11 @@ clean:
 venv/bin/python:
 	virtualenv venv
 	venv/bin/pip install -r requirements.txt
+
+venv/bin/lintrunner: venv/bin/python
+	venv/bin/pip install lintrunner==0.12.5 boto3-stubs==1.34.51
+	# lintrunner only works properly with virtualenv if you activate it first
+	. venv/bin/activate && lintrunner init --config ../../../.lintrunner.toml
 
 .PHONY: run-local
 run-local: venv/bin/python
@@ -23,3 +29,8 @@ deployment.zip:
 
 .PHONY: create-deployment-package
 create-deployment-package: deployment.zip
+
+.PHONY: lintrunner
+lintrunner: venv/bin/lintrunner
+	# lintrunner only works properly with virtualenv if you activate it first
+	. venv/bin/activate && lintrunner -a -v --force-color --config ../../../.lintrunner.toml --paths-cmd='git grep -Il .'

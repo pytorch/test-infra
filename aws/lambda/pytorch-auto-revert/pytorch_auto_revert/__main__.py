@@ -3,7 +3,7 @@
 import argparse
 import os
 
-from clickhouse_client_helper import ClickHouseClientFactory
+from clickhouse_client_helper import CHCliFactory
 
 
 def get_opts() -> argparse.Namespace:
@@ -23,7 +23,8 @@ def get_opts() -> argparse.Namespace:
         "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD", "")
     )
     parser.add_argument(
-        "--clickhouse-database", default=os.environ.get("CLICKHOUSE_DATABASE", "default")
+        "--clickhouse-database",
+        default=os.environ.get("CLICKHOUSE_DATABASE", "default"),
     )
     parser.add_argument(
         "--github-access-token", default=os.environ.get("GITHUB_TOKEN", "")
@@ -33,7 +34,7 @@ def get_opts() -> argparse.Namespace:
 
 def main(*args, **kwargs) -> None:
     opts = get_opts()
-    ClickHouseClientFactory.setup_client(
+    CHCliFactory.setup_client(
         opts.clickhouse_host,
         opts.clickhouse_port,
         opts.clickhouse_username,
@@ -41,7 +42,10 @@ def main(*args, **kwargs) -> None:
         opts.clickhouse_database,
     )
 
-    print(ClickHouseClientFactory().client)
+    if not CHCliFactory().client.connection_test():
+        raise RuntimeError(
+            "ClickHouse connection test failed. Please check your configuration."
+        )
 
 
 if __name__ == "__main__":
