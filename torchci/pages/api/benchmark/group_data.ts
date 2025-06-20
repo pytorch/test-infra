@@ -13,8 +13,13 @@ const DEFAULT_TABLE_GROUP = [
   "backend",
   "arch",
 ];
-const DEFAULT_ROW_GROUP = ["workflow_id", "job_id", "granularity_bucket"];
+const DEFAULT_ROW_GROUP = ["workflow_id", "job_id", "metadata_info.timestamp"];
 const BENCNMARK_TABLE_NAME = "oss_ci_benchmark_llms";
+
+function getNestedField(obj: any, path: string): any {
+  return path.split(".").reduce((o, key) => (o && key in o ? o[key] : ""), obj);
+}
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -55,11 +60,12 @@ export default async function handler(
   response.forEach((row: any) => {
     // Build table-level key
     const tableKey = groupTableByFields
-      .map((f: any) => (row[f] ? `${row[f]}` : ""))
+      .map((f: any) => `${getNestedField(row, f)}`)
       .join("|");
 
-    // Build row-level key
-    const rowKey = groupRowByFields.map((f: any) => row[f] ?? "").join("|");
+    const rowKey = groupRowByFields
+      .map((f: any) => `${getNestedField(row, f)}`)
+      .join("|");
 
     if (!tableGroups.has(tableKey)) {
       tableGroups.set(tableKey, new Map());
@@ -92,8 +98,6 @@ export default async function handler(
     result.push({ groupInfo, rows });
   }
 
-  const rowGroupFields = ["workflow_id", "job_id", "granularity_bucket"];
-
   const finalTables: {
     groupInfo: Record<string, string>;
     rows: Record<string, any>[];
@@ -108,8 +112,8 @@ export default async function handler(
       const rowObj: Record<string, any> = {};
 
       // Set row group fields from the first item
-      rowGroupFields.forEach((field) => {
-        rowObj[field] = rowList[0][field];
+      groupRowByFields.forEach((field: string) => {
+        rowObj[field] = getNestedField(rowList[0], field);
       });
 
       // Add each metric -> actual value
@@ -129,8 +133,5 @@ export default async function handler(
       rows: pivotedRows,
     });
   }
-
-  console.log(JSON.stringify(finalTables[0], null, 2));
-
   res.status(200).json(finalTables);
 }
