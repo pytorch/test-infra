@@ -3,7 +3,7 @@ import threading
 import clickhouse_connect
 
 
-class CHCliFactory(object):
+class CHCliFactory:
     """
     Thread safe clickhose client singleton class
     """
