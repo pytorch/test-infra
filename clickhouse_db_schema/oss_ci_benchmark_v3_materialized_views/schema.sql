@@ -40,13 +40,21 @@ SELECT
     tupleElement(model, 'name') AS model_name,
     tupleElement(model, 'backend') AS model_backend,
     IF(
-        empty(runners),
-        tupleElement(benchmark, 'extra_info') [ 'device' ],
+        empty(tupleElement(runners [ 1 ], 'name')),
+        IF(
+            empty(tupleElement(benchmark, 'extra_info') [ 'device' ]),
+            'cpu',
+            tupleElement(benchmark, 'extra_info') [ 'device' ]
+        ),
         tupleElement(runners [ 1 ], 'name')
     ) AS device,
     IF(
-        empty(runners),
-        tupleElement(benchmark, 'extra_info') [ 'arch' ],
+        empty(tupleElement(runners [ 1 ], 'type')),
+        IF(
+            empty(tupleElement(benchmark, 'extra_info') [ 'arch' ]),
+            tupleElement(runners [ 1 ], 'cpu_info'),
+            tupleElement(benchmark, 'extra_info') [ 'arch' ]
+        ),
         tupleElement(runners [ 1 ], 'type')
     ) AS arch,
     tupleElement(metric, 'name') AS metric_name,
@@ -57,13 +65,13 @@ SELECT
 FROM
     benchmark.oss_ci_benchmark_v3
 WHERE
-    timestamp >= toUnixTimestamp(toDateTime('2025-02-19 00:00:00'))
+    timestamp >= toUnixTimestamp(toDateTime('2025-06-15 00:00:00'))
     AND tupleElement(benchmark, 'name') != 'sccache_stats';
 
 -- Below is the SQL query to backfill the view with all data from 2024 onward
 INSERT INTO
     benchmark.oss_ci_benchmark_metadata
-SELECT
+SELECT DISTINCT
     repo AS repo,
     tupleElement(benchmark, 'name') AS benchmark_name,
     tupleElement(benchmark, 'dtype') AS benchmark_dtype,
@@ -71,13 +79,21 @@ SELECT
     tupleElement(model, 'name') AS model_name,
     tupleElement(model, 'backend') AS model_backend,
     IF(
-        empty(runners),
-        tupleElement(benchmark, 'extra_info') [ 'device' ],
+        empty(tupleElement(runners [ 1 ], 'name')),
+        IF(
+            empty(tupleElement(benchmark, 'extra_info') [ 'device' ]),
+            'cpu',
+            tupleElement(benchmark, 'extra_info') [ 'device' ]
+        ),
         tupleElement(runners [ 1 ], 'name')
     ) AS device,
     IF(
-        empty(runners),
-        tupleElement(benchmark, 'extra_info') [ 'arch' ],
+        empty(tupleElement(runners [ 1 ], 'type')),
+        IF(
+            empty(tupleElement(benchmark, 'extra_info') [ 'arch' ]),
+            tupleElement(runners [ 1 ], 'cpu_info'),
+            tupleElement(benchmark, 'extra_info') [ 'arch' ]
+        ),
         tupleElement(runners [ 1 ], 'type')
     ) AS arch,
     tupleElement(metric, 'name') AS metric_name,
