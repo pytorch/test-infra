@@ -751,7 +751,17 @@ export const TorchAgentPage = () => {
       />
 
       {/* Main Content */}
-      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          flexGrow: 1,
+          display: "flex",
+          flexDirection: "column",
+          width: `calc(100% - ${drawerOpen ? sidebarWidth : 0}px)`,
+          maxWidth: `calc(100% - ${drawerOpen ? sidebarWidth : 0}px)`,
+          minWidth: `calc(100% - ${drawerOpen ? sidebarWidth : 0}px)`,
+          overflow: "hidden",
+        }}
+      >
         {isSessionLoading ? (
           <LoadingDisplay message="Loading Conversation..." showFullScreen />
         ) : (
