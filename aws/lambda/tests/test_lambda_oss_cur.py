@@ -1,15 +1,12 @@
-from typing import Any, Dict, List, Tuple
-import unittest
-from unittest.mock import patch, MagicMock
-from .common import (
-    MockClickHouseQuery,
-    setup_mock_db_client,
-)
 import logging
+import unittest
+from typing import Any, Dict, List, Tuple
+from unittest.mock import MagicMock, patch
 
-from oss_ci_cur.lambda_function import (
-    CostExplorerProcessor,
-)
+from oss_ci_cur.lambda_function import CostExplorerProcessor
+
+from .common import MockClickHouseQuery, setup_mock_db_client
+
 
 logger = logging.getLogger(__name__)
 

@@ -1,0 +1,61 @@
+{
+  "name": "upload-artifact-s3",
+  "version": "6.0.0",
+  "description": "Upload an Actions Artifact in a workflow run",
+  "main": "dist/upload/index.js",
+  "scripts": {
+    "all": "npm run format && npm run build && npm run lint && npm run release",
+    "build": "tsc",
+    "release": "ncc build src/upload/index.ts -o dist/upload",
+    "check-all": "concurrently \"npm:format-check\" \"npm:lint\" \"npm:test\" \"npm:build\"",
+    "format": "prettier --write **/*.ts",
+    "format-check": "prettier --check **/*.ts",
+    "lint": "eslint **/*.ts",
+    "test": "jest --testTimeout 10000"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pytorch/test-infra.git"
+  },
+  "keywords": [
+    "Actions",
+    "GitHub",
+    "Artifacts",
+    "Upload"
+  ],
+  "author": "The PyTorch Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/pytorch/test-infra/issues"
+  },
+  "homepage": "https://github.com/pytorch/test-infra/tree/main/.github/actions/upload-artifact-s3#readme",
+  "dependencies": {
+    "@actions/core": "^1.11.1",
+    "@actions/github": "^6.0.0",
+    "@actions/glob": "^0.5.0",
+    "@actions/io": "^1.1.2",
+    "@aws-sdk/client-s3": "^3.803.0",
+    "@aws-sdk/lib-storage": "^3.803.0",
+    "mime": "^4.0.7",
+    "minimatch": "^9.0.3"
+  },
+  "devDependencies": {
+    "@babel/preset-env": "^7.27.2",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^18.11.18",
+    "@typescript-eslint/parser": "^5.48.0",
+    "@vercel/ncc": "^0.36.0",
+    "aws-sdk-client-mock": "^4.1.0",
+    "aws-sdk-client-mock-jest": "^4.1.0",
+    "concurrently": "^7.6.0",
+    "eslint": "^8.31.0",
+    "eslint-plugin-github": "^4.6.0",
+    "eslint-plugin-jest": "^27.2.0",
+    "glob": "^8.0.3",
+    "jest": "^29.3.1",
+    "jest-circus": "^29.3.1",
+    "prettier": "^2.8.1",
+    "ts-jest": "^29.0.3",
+    "typescript": "^4.9.4"
+  }
+}

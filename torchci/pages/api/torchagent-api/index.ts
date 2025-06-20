@@ -1,8 +1,6 @@
 import { randomUUID } from "crypto";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
-import { hasWritePermissionsUsingOctokit } from "../../../lib/GeneralUtils";
-import { getOctokitWithUserToken } from "../../../lib/github";
+import { getAuthorizedUsername } from "../../../lib/getAuthorizedUsername";
 import { authOptions } from "../auth/[...nextauth]";
 
 // Lambda function URL with direct streaming support
@@ -11,8 +9,7 @@ const LAMBDA_URL =
   "https://h3bf6e6veesbbhd7rhw6xw2slq0nnwgv.lambda-url.us-east-2.on.aws/";
 
 // Auth token for Lambda access
-const AUTH_TOKEN =
-  process.env.GRAFANA_MCP_AUTH_TOKEN || "your-placeholder-token";
+const AUTH_TOKEN = process.env.GRAFANA_MCP_AUTH_TOKEN || "";
 
 // This is critical for proper streaming - signals to browser to flush each chunk immediately
 const flushStream = (res: NextApiResponse) => {
@@ -36,51 +33,9 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  // Check authentication
-  // @ts-ignore
-  const session = await getServerSession(req, res, authOptions);
-  if (!session?.user || !session?.accessToken) {
-    console.log("Rejected: User not authenticated");
-    return res.status(401).json({ error: "Authentication required" });
-  }
-
-  // Check write permissions to pytorch/pytorch repository
-  // Since this is a sensitive tool that can query CI data, we require
-  // write permissions to the main PyTorch repository
-  const repoOwner = "pytorch";
-  const repoName = "pytorch";
-
-  try {
-    const octokit = await getOctokitWithUserToken(
-      session.accessToken as string
-    );
-    const user = await octokit.rest.users.getAuthenticated();
-
-    if (!user?.data?.login) {
-      console.log("Rejected: Could not authenticate user with GitHub");
-      return res.status(401).json({ error: "GitHub authentication failed" });
-    }
-
-    const hasWritePermissions = await hasWritePermissionsUsingOctokit(
-      octokit,
-      user.data.login,
-      repoOwner,
-      repoName
-    );
-
-    if (!hasWritePermissions) {
-      console.log(
-        `Rejected: User ${user.data.login} does not have write permissions to ${repoOwner}/${repoName}`
-      );
-      return res.status(403).json({
-        error: "Write permissions to pytorch/pytorch repository required",
-      });
-    }
-
-    console.log(`Authorized: User ${user.data.login} has write permissions`);
-  } catch (error) {
-    console.error("Error checking permissions:", error);
-    return res.status(500).json({ error: "Permission check failed" });
+  const username = await getAuthorizedUsername(req, res, authOptions);
+  if (!username) {
+    return;
   }
 
   // Get query from request body
@@ -142,6 +97,7 @@ export default async function handler(
       body: JSON.stringify({
         query: query,
         userUuid: userUuid,
+        username: username,
       }),
     });
 

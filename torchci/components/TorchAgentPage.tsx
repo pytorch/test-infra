@@ -12,31 +12,62 @@ import {
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
+import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
+import { FeedbackButtons } from "./TorchAgentPage/FeedbackButtons";
 import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
+import { HeaderSection } from "./TorchAgentPage/HeaderSection";
 import {
   useAnimatedCounter,
   useAutoScroll,
   useThinkingMessages,
   useTokenCalculator,
 } from "./TorchAgentPage/hooks";
+import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
+import {
+  processContentBlockDelta,
+  processMessageLine,
+  processUserMessages,
+} from "./TorchAgentPage/messageProcessor";
+import { QueryInputSection } from "./TorchAgentPage/QueryInputSection";
 import {
   ChunkMetadata,
   LoaderWrapper,
   QuerySection,
   ResponseText,
   ResultsSection,
-  ScrollToBottomButton,
   TorchAgentPageContainer,
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
-import { MessageWrapper, ParsedContent } from "./TorchAgentPage/types";
+import { ParsedContent } from "./TorchAgentPage/types";
 import {
-  extractGrafanaLinks,
   formatElapsedTime,
   formatTokenCount,
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
+import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
+
+interface ChatSession {
+  sessionId: string;
+  timestamp: string;
+  date: string;
+  filename: string;
+  key: string;
+  title?: string;
+  status?: string;
+}
+
+// Helper function to check for special auth cookie (presence only)
+const hasAuthCookie = () => {
+  if (typeof document === "undefined") return false;
+
+  const cookies = document.cookie.split(";");
+  const authCookie = cookies.find((cookie) =>
+    cookie.trim().startsWith("GRAFANA_MCP_AUTH_TOKEN=")
+  );
+
+  return !!authCookie;
+};
 
 export const TorchAgentPage = () => {
   const session = useSession();
@@ -70,6 +101,15 @@ export const TorchAgentPage = () => {
   const [completedTime, setCompletedTime] = useState(0);
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [feedbackVisible, setFeedbackVisible] = useState(false);
+
+  // Chat history state
+  const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
+  const [selectedSession, setSelectedSession] = useState<string | null>(null);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  const [isSessionLoading, setIsSessionLoading] = useState(false);
+  const [drawerOpen, setDrawerOpen] = useState(true);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
 
@@ -82,6 +122,135 @@ export const TorchAgentPage = () => {
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
   };
+
+  // Fetch chat history on component mount
+  const fetchChatHistory = async () => {
+    console.log("hasAuthCookie:", hasAuthCookie());
+    if (!session.data?.user && !hasAuthCookie()) return;
+
+    setIsHistoryLoading(true);
+    try {
+      const response = await fetch("/api/torchagent-get-history");
+      if (response.ok) {
+        const data = await response.json();
+        setChatHistory(data.sessions || []);
+      } else {
+        console.error("Failed to fetch chat history");
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+    } finally {
+      setIsHistoryLoading(false);
+    }
+  };
+
+  // Load a specific chat session
+  const loadChatSession = async (sessionId: string) => {
+    setIsSessionLoading(true);
+    // Clear existing content while loading
+    setParsedResponses([]);
+    setResponse("");
+    setError("");
+
+    try {
+      const response = await fetch(
+        `/api/torchagent-get-chat-history?sessionId=${sessionId}`
+      );
+      if (response.ok) {
+        const sessionData = await response.json();
+        console.log("Loaded session data:", sessionData);
+
+        // The messages array contains the same format as streaming data
+        if (sessionData.messages && Array.isArray(sessionData.messages)) {
+          // Extract the user query from the first user message
+          const userMessage = sessionData.messages.find(
+            (msg: any) => msg.type === "user_message" && msg.content
+          );
+          if (userMessage) {
+            setQuery(userMessage.content);
+          }
+
+          // Clear existing parsed responses
+          setParsedResponses([]);
+
+          // Process each message for debug view
+          let fullResponse = "";
+          sessionData.messages.forEach((msg: any) => {
+            if (msg.content) {
+              fullResponse += msg.content + "\n";
+            }
+          });
+          setResponse(fullResponse);
+
+          // First, process user messages
+          processUserMessages(sessionData.messages, setParsedResponses);
+
+          // Then process all other messages
+          const lines = fullResponse.split("\n").filter((line) => line.trim());
+          lines.forEach((line) => {
+            processMessageLine(line, setParsedResponses, false);
+          });
+        }
+
+        setSelectedSession(sessionId);
+        setCurrentSessionId(sessionId);
+        setFeedbackVisible(sessionData.status === "completed");
+      } else {
+        console.error("Failed to load chat session");
+        setError("Failed to load chat session");
+      }
+    } catch (error) {
+      console.error("Error loading chat session:", error);
+      setError("Error loading chat session");
+    } finally {
+      setIsSessionLoading(false);
+    }
+  };
+
+  // Start a new chat
+  const startNewChat = () => {
+    setQuery("");
+    setResponse("");
+    setParsedResponses([]);
+    setSelectedSession(null);
+    setCurrentSessionId(null);
+    setFeedbackVisible(false);
+    setError("");
+    setTotalTokens(0);
+    setCompletedTokens(0);
+    setElapsedTime(0);
+    setCompletedTime(0);
+    setIsSessionLoading(false);
+  };
+
+  // Fetch chat history on mount
+  useEffect(() => {
+    if (session.data?.user) {
+      fetchChatHistory();
+    }
+  }, [session.data?.user]);
+
+  // Poll chat history every 10 seconds when there's an active chat
+  useEffect(() => {
+    if (!session.data?.user) return;
+
+    const hasActiveChat =
+      isLoading ||
+      currentSessionId !== null ||
+      chatHistory.some(
+        (chat) =>
+          chat.title === "New Chat..." ||
+          (chat.status && chat.status === "in_progress")
+      );
+
+    if (hasActiveChat) {
+      const interval = setInterval(() => {
+        fetchChatHistory();
+      }, 10000); // Every 10 seconds
+
+      return () => clearInterval(interval);
+    }
+  }, [session.data?.user, isLoading, currentSessionId, chatHistory]);
 
   // Rotate through thinking messages every 6 seconds
   useEffect(() => {
@@ -179,7 +348,27 @@ export const TorchAgentPage = () => {
       if (!line.trim()) return;
 
       setResponse((prev) => prev + line + "\n");
-      const json = JSON.parse(line) as MessageWrapper;
+      const json = JSON.parse(line) as any;
+
+      if (json.status === "connecting" && json.userUuid) {
+        setCurrentSessionId(json.userUuid);
+
+        // Immediately add a temporary session to the chat history
+        const now = new Date();
+        const timestamp = now.toISOString();
+        const tempSession: ChatSession = {
+          sessionId: json.userUuid,
+          timestamp: timestamp,
+          date: timestamp.slice(0, 10),
+          filename: `${timestamp}_${json.userUuid}.json`,
+          key: `history/user/${timestamp}_${json.userUuid}.json`,
+          title: "New Chat...", // Temporary placeholder
+        };
+
+        setChatHistory((prev) => [tempSession, ...prev]);
+        setSelectedSession(json.userUuid);
+        return;
+      }
 
       // Process timing data from result messages
       if (
@@ -192,256 +381,17 @@ export const TorchAgentPage = () => {
       }
 
       // Handle different response types
-      if (json.type === "assistant" && json.message?.content) {
-        json.message.content.forEach((item) => {
-          if (item.type === "text" && "text" in item) {
-            const textContent = item.text || "";
-            const grafanaLinks = extractGrafanaLinks(textContent);
 
-            setParsedResponses((prev) => {
-              const now = Date.now();
-              const outputTokens = json.message?.usage?.output_tokens || 0;
-
-              return [
-                ...prev,
-                {
-                  type: "text",
-                  content: textContent,
-                  displayedContent: "",
-                  isAnimating: true,
-                  grafanaLinks:
-                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
-                  timestamp: now,
-                  outputTokens: outputTokens,
-                },
-              ];
-            });
-          } else if (
-            item.type === "tool_use" &&
-            "name" in item &&
-            "input" in item
-          ) {
-            // Special handling for Todo tools
-            if (item.name === "TodoWrite" || item.name === "TodoRead") {
-              if (item.name === "TodoWrite" && "todos" in item.input) {
-                setParsedResponses((prev) => {
-                  const now = Date.now();
-                  const todos = item.input.todos;
-
-                  const todoListIndex = prev.findIndex(
-                    (response) => response.type === "todo_list"
-                  );
-
-                  const updated = [...prev];
-
-                  if (todoListIndex !== -1) {
-                    updated[todoListIndex] = {
-                      ...updated[todoListIndex],
-                      todoItems: todos,
-                      timestamp: now,
-                    };
-                  } else {
-                    updated.push({
-                      type: "todo_list",
-                      content: "Todo List",
-                      todoItems: todos,
-                      timestamp: now,
-                    });
-                  }
-
-                  updated.push({
-                    type: "tool_use",
-                    content: "",
-                    toolName: item.name,
-                    toolInput: item.input,
-                    timestamp: now,
-                    outputTokens: json.message?.usage?.output_tokens || 0,
-                    toolUseId: "id" in item ? item.id : undefined,
-                  });
-
-                  return updated;
-                });
-              } else {
-                setParsedResponses((prev) => {
-                  const now = Date.now();
-                  return [
-                    ...prev,
-                    {
-                      type: "tool_use",
-                      content: "",
-                      toolName: item.name,
-                      toolInput: item.input,
-                      timestamp: now,
-                      outputTokens: json.message?.usage?.output_tokens || 0,
-                      toolUseId: "id" in item ? item.id : undefined,
-                    },
-                  ];
-                });
-              }
-            } else {
-              setParsedResponses((prev) => {
-                const now = Date.now();
-                const outputTokens = json.message?.usage?.output_tokens || 0;
-
-                return [
-                  ...prev,
-                  {
-                    type: "tool_use",
-                    content: "",
-                    toolName: item.name,
-                    toolInput: item.input,
-                    timestamp: now,
-                    outputTokens: outputTokens,
-                    toolUseId: "id" in item ? item.id : undefined,
-                  },
-                ];
-              });
-            }
-          }
-        });
-      } else if (json.type === "user" && json.message?.content) {
-        json.message.content.forEach((item) => {
-          if (item.type === "tool_result" && item.tool_use_id) {
-            setParsedResponses((prev) => {
-              const updated = [...prev];
-              const toolUseIndex = updated.findIndex(
-                (response) =>
-                  response.type === "tool_use" &&
-                  response.toolUseId === item.tool_use_id
-              );
-
-              if (toolUseIndex !== -1) {
-                const toolName = updated[toolUseIndex].toolName;
-
-                if (toolName === "TodoWrite" || toolName === "TodoRead") {
-                  try {
-                    const toolInput = updated[toolUseIndex].toolInput;
-
-                    if (
-                      toolName === "TodoWrite" &&
-                      toolInput &&
-                      "todos" in toolInput
-                    ) {
-                      const todos = toolInput.todos;
-                      const todoListIndex = updated.findIndex(
-                        (response) => response.type === "todo_list"
-                      );
-
-                      if (todoListIndex !== -1) {
-                        updated[todoListIndex] = {
-                          ...updated[todoListIndex],
-                          todoItems: todos,
-                          timestamp: Date.now(),
-                        };
-                      } else {
-                        updated.push({
-                          type: "todo_list",
-                          content: "Todo List",
-                          todoItems: todos,
-                          timestamp: Date.now(),
-                        });
-                      }
-                    } else if (toolName === "TodoRead") {
-                      try {
-                        const resultContent = item.content?.[0]?.text || "";
-                        if (resultContent.includes('"todos":')) {
-                          const todoData = JSON.parse(resultContent);
-                          if (
-                            todoData &&
-                            todoData.todos &&
-                            Array.isArray(todoData.todos)
-                          ) {
-                            const todoListIndex = updated.findIndex(
-                              (response) => response.type === "todo_list"
-                            );
-
-                            if (todoListIndex !== -1) {
-                              updated[todoListIndex] = {
-                                ...updated[todoListIndex],
-                                todoItems: todoData.todos,
-                                timestamp: Date.now(),
-                              };
-                            } else {
-                              updated.push({
-                                type: "todo_list",
-                                content: "Todo List",
-                                todoItems: todoData.todos,
-                                timestamp: Date.now(),
-                              });
-                            }
-                          }
-                        }
-                      } catch (e) {
-                        console.error("Failed to parse TodoRead result:", e);
-                      }
-                    }
-
-                    updated.splice(toolUseIndex, 1);
-                  } catch (err) {
-                    console.error("Failed to process todo data:", err);
-                    updated[toolUseIndex] = {
-                      ...updated[toolUseIndex],
-                      toolResult:
-                        item.content?.[0]?.text || "No result content",
-                    };
-                  }
-                } else {
-                  updated[toolUseIndex] = {
-                    ...updated[toolUseIndex],
-                    toolResult: item.content?.[0]?.text || "No result content",
-                  };
-                }
-              }
-
-              return updated;
-            });
-          }
-        });
+      // Use unified message processing
+      if (json.type === "assistant" || json.type === "user") {
+        processMessageLine("", setParsedResponses, true, json);
       } else if (json.type === "content_block_delta") {
-        if (json.delta?.type === "text" && json.delta.text) {
-          setParsedResponses((prev) => {
-            const now = Date.now();
-
-            if (prev.length > 0 && prev[prev.length - 1].type === "text") {
-              const updated = [...prev];
-              updated[updated.length - 1].content += json.delta?.text || "";
-              updated[updated.length - 1].isAnimating = true;
-
-              const fullContent = updated[updated.length - 1].content;
-              updated[updated.length - 1].grafanaLinks =
-                extractGrafanaLinks(fullContent);
-
-              const tokenIncrement = 1;
-              const currentTokens =
-                updated[updated.length - 1].outputTokens || 0;
-              updated[updated.length - 1].outputTokens =
-                currentTokens + tokenIncrement;
-              updated[updated.length - 1].timestamp = now;
-
-              return updated;
-            } else {
-              const textContent = json.delta?.text || "";
-
-              return [
-                ...prev,
-                {
-                  type: "text",
-                  content: textContent,
-                  displayedContent: "",
-                  isAnimating: true,
-                  grafanaLinks: extractGrafanaLinks(textContent),
-                  timestamp: now,
-                  outputTokens: json.usage?.output_tokens || 0,
-                },
-              ];
-            }
-          });
-        }
+        processContentBlockDelta(json, setParsedResponses);
       } else if (json.error) {
         setError(`Error: ${json.error}`);
       }
     } catch (err) {
-      console.log("Failed to parse:", line);
+      console.error("Failed to parse:", line);
     }
   };
 
@@ -450,6 +400,9 @@ export const TorchAgentPage = () => {
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
@@ -466,6 +419,7 @@ export const TorchAgentPage = () => {
     setIsLoading(true);
     setResponse("");
     setParsedResponses([]);
+    setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
     resetAutoScroll();
@@ -480,7 +434,7 @@ export const TorchAgentPage = () => {
     fetchControllerRef.current = new AbortController();
 
     try {
-      const response = await fetch("/api/grafana_mcp", {
+      const response = await fetch("/api/torchagent-api", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -535,6 +489,9 @@ export const TorchAgentPage = () => {
             setCompletedTokens(finalTokens);
             setTotalTokens(finalTokens);
             setIsLoading(false);
+            if (currentSessionId) {
+              setFeedbackVisible(true);
+            }
           }, 500);
 
           break;
@@ -561,10 +518,15 @@ export const TorchAgentPage = () => {
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
+      if (currentSessionId) {
+        setFeedbackVisible(true);
+      }
     }
   };
 
-  // Authentication check
+  // Authentication check - allow bypass with special cookie
+  const hasCookieAuth = hasAuthCookie();
+
   if (session.status === "loading") {
     return (
       <TorchAgentPageContainer>
@@ -579,9 +541,10 @@ export const TorchAgentPage = () => {
   }
 
   if (
-    session.status === "unauthenticated" ||
-    !session.data?.user ||
-    !(session.data as any)?.accessToken
+    !hasCookieAuth &&
+    (session.status === "unauthenticated" ||
+      !session.data?.user ||
+      !(session.data as any)?.accessToken)
   ) {
     return (
       <TorchAgentPageContainer>
@@ -632,7 +595,37 @@ export const TorchAgentPage = () => {
           .filter((item) => item.type !== "todo_list")
           .map((item, index) => (
             <div key={`content-${index}`}>
-              {item.type === "text" ? (
+              {item.type === "user_message" ? (
+                <Box
+                  sx={{
+                    mb: 3,
+                    p: 2,
+                    backgroundColor: "action.hover",
+                    borderRadius: 1,
+                    borderLeft: "4px solid",
+                    borderLeftColor: "primary.main",
+                  }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    color="primary"
+                    sx={{ mb: 1 }}
+                  >
+                    User Query:
+                  </Typography>
+                  <Typography variant="body1">
+                    {renderTextWithLinks(item.content, false)}
+                  </Typography>
+
+                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                    <Box mt={2}>
+                      {item.grafanaLinks.map((link, i) => (
+                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
+                      ))}
+                    </Box>
+                  )}
+                </Box>
+              ) : item.type === "text" ? (
                 <>
                   <ResponseText>
                     {renderTextWithLinks(
@@ -646,22 +639,9 @@ export const TorchAgentPage = () => {
 
                   {!item.isAnimating && (
                     <ChunkMetadata>
-                      {item.timestamp &&
-                      index > 0 &&
-                      parsedResponses[index - 1].timestamp
-                        ? `Generated in ${(
-                            (item.timestamp -
-                              (parsedResponses[index - 1].timestamp || 0)) /
-                            1000
-                          ).toFixed(2)}s`
-                        : item.timestamp && startTime
-                        ? `Generated in ${(
-                            (item.timestamp - (startTime || 0)) /
-                            1000
-                          ).toFixed(2)}s`
-                        : ""}
+                      {/* For historical chats, we skip timing calculations since timestamps are strings */}
                       {item.outputTokens
-                        ? ` • ${formatTokenCount(item.outputTokens)} tokens`
+                        ? `${formatTokenCount(item.outputTokens)} tokens`
                         : ""}
                     </ChunkMetadata>
                   )}
@@ -699,7 +679,11 @@ export const TorchAgentPage = () => {
               {item.todoItems && (
                 <TodoList
                   todoItems={item.todoItems}
-                  timestamp={item.timestamp}
+                  timestamp={
+                    typeof item.timestamp === "number"
+                      ? item.timestamp
+                      : undefined
+                  }
                 />
               )}
             </div>
@@ -719,7 +703,7 @@ export const TorchAgentPage = () => {
             </Box>
           </LoaderWrapper>
         ) : (
-          completedTokens > 0 && (
+          (completedTokens > 0 || feedbackVisible) && (
             <Box
               sx={{
                 display: "flex",
@@ -740,14 +724,20 @@ export const TorchAgentPage = () => {
                 boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
               }}
             >
-              <Typography
-                variant="body2"
-                color="text.primary"
-                sx={{ fontWeight: "medium" }}
-              >
-                Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                {formatTokenCount(completedTokens)} tokens
-              </Typography>
+              {completedTokens > 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.primary"
+                  sx={{ fontWeight: "medium" }}
+                >
+                  Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                  {formatTokenCount(completedTokens)} tokens
+                </Typography>
+              )}
+              <FeedbackButtons
+                sessionId={currentSessionId}
+                visible={feedbackVisible}
+              />
             </Box>
           )
         )}
@@ -755,189 +745,162 @@ export const TorchAgentPage = () => {
     );
   };
 
+  const sidebarWidth = 300;
+
   return (
-    <TorchAgentPageContainer>
-      {showScrollButton && (
-        <Tooltip title="Go to bottom and resume auto-scroll">
-          <ScrollToBottomButton
-            variant="contained"
-            color="primary"
-            onClick={scrollToBottomAndEnable}
-            aria-label="Scroll to bottom and resume auto-scroll"
-          >
-            <ArrowDownwardIcon />
-          </ScrollToBottomButton>
-        </Tooltip>
-      )}
+    <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* Sidebar */}
+      <ChatHistorySidebar
+        drawerOpen={drawerOpen}
+        sidebarWidth={sidebarWidth}
+        chatHistory={chatHistory}
+        selectedSession={selectedSession}
+        isHistoryLoading={isHistoryLoading}
+        onStartNewChat={startNewChat}
+        onLoadChatSession={loadChatSession}
+      />
 
-      <Typography variant="h4" gutterBottom>
-        TorchAgent
-      </Typography>
+      {/* Main Content */}
+      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+        {isSessionLoading ? (
+          <LoadingDisplay message="Loading Conversation..." showFullScreen />
+        ) : (
+          <TorchAgentPageContainer>
+            <HeaderSection
+              showScrollButton={showScrollButton}
+              onScrollToBottom={scrollToBottomAndEnable}
+              featureRequestUrl={featureRequestUrl}
+              bugReportUrl={bugReportUrl}
+            />
 
-      <Typography
-        variant="body1"
-        paragraph
-        sx={{
-          mb: 3,
-          p: 2,
-          backgroundColor: "background.paper",
-          borderRadius: 1,
-          border: "1px solid",
-          borderColor: "divider",
-        }}
-      >
-        Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
-        infrastructure analysis and monitoring. I can help you create custom
-        time-series visualizations, analyze CI/CD metrics, and gain insights
-        into the PyTorch development workflow. Simply describe what you&apos;d
-        like to explore, and I will generate the appropriate queries and
-        dashboards for you. Data I have access to:
-        <ul>
-          <li>
-            PyTorch GitHub repository data (comments, issues, PRs, including
-            text inside of these)
-          </li>
-          <li>
-            PyTorch GitHub Actions CI data (build/test/workflow results, error
-            log classifications, duration, runner types)
-          </li>
-          <li>
-            CI cost / duration data: how long does the average job/workflow run)
-          </li>
-          <li>Benchmarking data in the benchmarking database</li>
-        </ul>
-      </Typography>
+            {/* Show welcome message for completely new chats */}
+            {!selectedSession && (
+              <WelcomeSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
 
-      <Typography variant="body1" paragraph>
-        What can I help you graph today?
-      </Typography>
+            {/* Show query input for active chats (read-only for history) */}
+            {selectedSession && (
+              <QueryInputSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                isReadOnly={selectedSession !== currentSessionId}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
 
-      <QuerySection>
-        <Box component="form" onSubmit={handleSubmit} noValidate>
-          <TextField
-            fullWidth
-            label="Enter your query"
-            value={query}
-            onChange={handleQueryChange}
-            margin="normal"
-            multiline
-            rows={3}
-            placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
-            variant="outlined"
-            disabled={isLoading}
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                if (!isLoading && query.trim()) {
-                  handleSubmit(e);
-                }
-              }
-            }}
-          />
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 2 }}>
-            <Button
-              variant="outlined"
-              color="secondary"
-              onClick={() => setDebugVisible(!debugVisible)}
-            >
-              {debugVisible ? "Hide Debug" : "Show Debug"}
-            </Button>
-            <Box>
-              {isLoading && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={cancelRequest}
-                  sx={{ mr: 1 }}
-                >
-                  Cancel
-                </Button>
-              )}
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading ? "Running..." : "RUN"}
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </QuerySection>
-
-      <ResultsSection>
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            mb: 2,
-          }}
-        >
-          <Typography variant="h6">Results</Typography>
-          {parsedResponses.length > 0 &&
-            parsedResponses.some((item) => item.type === "tool_use") && (
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={() => {
-                  if (allToolsExpanded) {
-                    setExpandedTools({});
-                    setAllToolsExpanded(false);
-                  } else {
-                    const allExpanded = parsedResponses.reduce(
-                      (acc, _, index) => {
-                        if (parsedResponses[index].type === "tool_use") {
-                          acc[index] = true;
-                        }
-                        return acc;
-                      },
-                      {} as Record<number, boolean>
-                    );
-                    setExpandedTools(allExpanded);
-                    setAllToolsExpanded(true);
-                  }
+            <ResultsSection>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  mb: 2,
                 }}
               >
-                {allToolsExpanded ? "Collapse all tools" : "Expand all tools"}
+                <Typography variant="h6">Results</Typography>
+                {parsedResponses.length > 0 &&
+                  parsedResponses.some((item) => item.type === "tool_use") && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => {
+                        if (allToolsExpanded) {
+                          setExpandedTools({});
+                          setAllToolsExpanded(false);
+                        } else {
+                          const allExpanded = parsedResponses.reduce(
+                            (acc, _, index) => {
+                              if (parsedResponses[index].type === "tool_use") {
+                                acc[index] = true;
+                              }
+                              return acc;
+                            },
+                            {} as Record<number, boolean>
+                          );
+                          setExpandedTools(allExpanded);
+                          setAllToolsExpanded(true);
+                        }
+                      }}
+                    >
+                      {allToolsExpanded
+                        ? "Collapse all tools"
+                        : "Expand all tools"}
+                    </Button>
+                  )}
+              </Box>
+
+              {error && (
+                <Typography color="error" paragraph>
+                  {error}
+                </Typography>
+              )}
+
+              {renderContent()}
+
+              {debugVisible && (
+                <Box
+                  sx={{
+                    marginTop: "20px",
+                    borderTop: `1px solid ${theme.palette.divider}`,
+                    paddingTop: "10px",
+                  }}
+                >
+                  <Typography variant="subtitle2">
+                    Debug: Raw Response
+                  </Typography>
+                  <pre
+                    style={{
+                      fontSize: "0.8em",
+                      opacity: 0.7,
+                      maxHeight: "200px",
+                      overflowY: "auto",
+                      backgroundColor:
+                        theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
+                      padding: "8px",
+                      borderRadius: "4px",
+                      color:
+                        theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+                    }}
+                  >
+                    {response || "(No data yet)"}
+                  </pre>
+                </Box>
+              )}
+            </ResultsSection>
+
+            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
+              <Button
+                variant="outlined"
+                component="a"
+                href={featureRequestUrl}
+                target="_blank"
+                sx={{ mr: 1 }}
+              >
+                Feature Request
               </Button>
-            )}
-        </Box>
-
-        {error && (
-          <Typography color="error" paragraph>
-            {error}
-          </Typography>
-        )}
-
-        {renderContent()}
-
-        {debugVisible && (
-          <Box
-            sx={{
-              marginTop: "20px",
-              borderTop: `1px solid ${theme.palette.divider}`,
-              paddingTop: "10px",
-            }}
-          >
-            <Typography variant="subtitle2">Debug: Raw Response</Typography>
-            <pre
-              style={{
-                fontSize: "0.8em",
-                opacity: 0.7,
-                maxHeight: "200px",
-                overflowY: "auto",
-                backgroundColor:
-                  theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
-                padding: "8px",
-                borderRadius: "4px",
-                color: theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
-              }}
-            >
-              {response || "(No data yet)"}
-            </pre>
-          </Box>
+              <Button
+                variant="outlined"
+                color="error"
+                component="a"
+                href={bugReportUrl}
+                target="_blank"
+              >
+                Report Bug
+              </Button>
+            </Box>
+          </TorchAgentPageContainer>
         )}
       </ResultsSection>
 
@@ -966,6 +929,6 @@ export const TorchAgentPage = () => {
           </Button>
         </Tooltip>
       </Box>
-    </TorchAgentPageContainer>
+    </Box>
   );
 };

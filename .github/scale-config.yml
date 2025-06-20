@@ -210,33 +210,17 @@ runner_types:
     variants:
       wincanary:
         ami: Windows 2019 GHA CI - 20250526202723
-  windows.4xlarge.memory:
+  windows.16xlarge.memory:
     disk_size: 256
-    instance_type: r5n.4xlarge
+    instance_type: r5n.16xlarge
     is_ephemeral: true
     os: windows
     variants:
       wincanary:
         ami: Windows 2019 GHA CI - 20250526202723
-  windows.4xlarge.memory.nonephemeral:
+  windows.16xlarge.memory.nonephemeral:
     disk_size: 256
-    instance_type: r5n.4xlarge
-    is_ephemeral: true
-    os: windows
-    variants:
-      wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
-  windows.9xlarge:
-    disk_size: 256
-    instance_type: c5d.9xlarge
-    is_ephemeral: true
-    os: windows
-    variants:
-      wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
-  windows.9xlarge.nonephemeral:
-    disk_size: 256
-    instance_type: c5d.9xlarge
+    instance_type: r5n.16xlarge
     is_ephemeral: true
     os: windows
     variants:
@@ -284,6 +268,16 @@ runner_types:
   linux.12xlarge.memory:
     disk_size: 600
     instance_type: r5.12xlarge
+    is_ephemeral: true
+    os: linux
+  linux.16xlarge.memory:
+    disk_size: 600
+    instance_type: r5.16xlarge
+    is_ephemeral: true
+    os: linux
+  linux.24xlarge.memory:
+    disk_size: 800
+    instance_type: r5.24xlarge
     is_ephemeral: true
     os: linux
   linux.12xlarge.memory.ephemeral:
