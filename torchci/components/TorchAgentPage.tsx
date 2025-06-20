@@ -1,4 +1,5 @@
 import { Box, Button, Typography, useTheme } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -62,6 +63,7 @@ const hasAuthCookie = () => {
 export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const featureRequestUrl =
     "https://github.com/pytorch/test-infra/issues/new?title=" +
@@ -99,7 +101,7 @@ export const TorchAgentPage = () => {
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
-  const [drawerOpen, setDrawerOpen] = useState(true);
+  const [drawerOpen, setDrawerOpen] = useState(!isMobile);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
 
@@ -109,8 +111,16 @@ export const TorchAgentPage = () => {
   const { showScrollButton, scrollToBottomAndEnable, resetAutoScroll } =
     useAutoScroll(isLoading, parsedResponses);
 
+  useEffect(() => {
+    setDrawerOpen(!isMobile);
+  }, [isMobile]);
+
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
+  };
+
+  const handleToggleDrawer = () => {
+    setDrawerOpen((prev) => !prev);
   };
 
   // Fetch chat history on component mount
@@ -748,6 +758,8 @@ export const TorchAgentPage = () => {
         isHistoryLoading={isHistoryLoading}
         onStartNewChat={startNewChat}
         onLoadChatSession={loadChatSession}
+        isMobile={isMobile}
+        onClose={handleToggleDrawer}
       />
 
       {/* Main Content */}
@@ -761,6 +773,7 @@ export const TorchAgentPage = () => {
               onScrollToBottom={scrollToBottomAndEnable}
               featureRequestUrl={featureRequestUrl}
               bugReportUrl={bugReportUrl}
+              onToggleDrawer={handleToggleDrawer}
             />
 
             {/* Show welcome message for completely new chats */}

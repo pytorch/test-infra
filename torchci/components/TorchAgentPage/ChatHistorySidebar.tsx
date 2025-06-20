@@ -33,6 +33,8 @@ interface ChatHistorySidebarProps {
   isHistoryLoading: boolean;
   onStartNewChat: () => void;
   onLoadChatSession: (sessionId: string) => void;
+  isMobile: boolean;
+  onClose: () => void;
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
@@ -43,19 +45,22 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   isHistoryLoading,
   onStartNewChat,
   onLoadChatSession,
+  isMobile,
+  onClose,
 }) => {
   return (
     <Drawer
-      variant="persistent"
+      variant={isMobile ? "temporary" : "persistent"}
       anchor="left"
       open={drawerOpen}
+      onClose={onClose}
       sx={{
         width: sidebarWidth,
         flexShrink: 0,
         "& .MuiDrawer-paper": {
           width: sidebarWidth,
           boxSizing: "border-box",
-          position: "relative",
+          position: isMobile ? "fixed" : "relative",
           height: "100%",
         },
       }}
