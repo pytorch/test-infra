@@ -23,12 +23,13 @@ async fn handle(
     repo: &str,
     should_write_dynamo: ShouldWriteDynamo,
     context_depth: usize,
+    is_temp_log: bool,
 ) -> Result<String> {
     // delete this in a future pr
     let client = get_s3_client().await;
     // Download the log from S3.
     let start = Instant::now();
-    let raw_log = download_log(&client, repo, job_id).await?;
+    let raw_log = download_log(&client, repo, job_id, is_temp_log).await?;
     info!("download: {:?}", start.elapsed());
 
     // Do some preprocessing.
@@ -65,7 +66,8 @@ async fn handle(
             info!("match: {}", body);
             if should_write_dynamo.0 {
                 let client = get_dynamo_client().await;
-                upload_classification_dynamo(&client, repo, job_id, &match_json).await?;
+                upload_classification_dynamo(&client, repo, job_id, &match_json, is_temp_log)
+                    .await?;
             }
             Ok(body)
         }
@@ -89,10 +91,19 @@ async fn function_handler(event: Request) -> Result<Response<Body>, Error> {
                 .first("context_depth")
                 .unwrap_or_else(|| CONTEXT_DEPTH)
                 .parse::<usize>()?;
-            handle(job_id, repo, ShouldWriteDynamo(true), context_depth)
-                .await?
-                .into_response()
-                .await
+            let is_temp_log = query_string_parameters
+                .first("temp_log")
+                .map_or(false, |v| v == "true");
+            handle(
+                job_id,
+                repo,
+                ShouldWriteDynamo(true),
+                context_depth,
+                is_temp_log,
+            )
+            .await?
+            .into_response()
+            .await
         }
 
         _ => Response::builder()
