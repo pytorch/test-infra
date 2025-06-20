@@ -78,14 +78,16 @@ export default async function handler(
     };
 
     // Filter JSON files and prepare for batched metadata fetching
-    const jsonFiles = data.Contents.filter((obj) => obj.Key && obj.Key.endsWith(".json"));
-    
+    const jsonFiles = data.Contents.filter(
+      (obj) => obj.Key && obj.Key.endsWith(".json")
+    );
+
     // Process files in batches of 10 to avoid overwhelming S3 with concurrent requests
     const BATCH_SIZE = 10;
     const fileChunks = chunkArray(jsonFiles, BATCH_SIZE);
-    
+
     const allObjectsWithMetadata: (HistorySession | null)[] = [];
-    
+
     // Process each batch sequentially to control concurrency
     for (const chunk of fileChunks) {
       const chunkResults = await Promise.all(
@@ -148,7 +150,7 @@ export default async function handler(
           }
         })
       );
-      
+
       allObjectsWithMetadata.push(...chunkResults);
     }
 
