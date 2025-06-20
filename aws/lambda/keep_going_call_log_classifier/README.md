@@ -15,5 +15,5 @@ To test the Lambda function locally:
 python test_lambda_function.py
 ```
 
-Page maintainers: @clee2000
+Page maintainers: @pytorch/pytorch-dev-infra
 Last verified: 2025-06-20
