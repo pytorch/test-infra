@@ -136,6 +136,14 @@ export const TorchAgentPage = () => {
 
   // Load a specific chat session
   const loadChatSession = async (sessionId: string) => {
+    // Cancel any active stream first
+    if (fetchControllerRef.current && isLoading) {
+      console.log("Cancelling active stream to load historic chat");
+      fetchControllerRef.current.abort();
+      fetchControllerRef.current = null;
+      setIsLoading(false);
+    }
+
     setIsSessionLoading(true);
     // Clear existing content while loading
     setParsedResponses([]);
@@ -199,6 +207,14 @@ export const TorchAgentPage = () => {
 
   // Start a new chat
   const startNewChat = () => {
+    // Cancel any active stream first
+    if (fetchControllerRef.current && isLoading) {
+      console.log("Cancelling active stream to start new chat");
+      fetchControllerRef.current.abort();
+      fetchControllerRef.current = null;
+      setIsLoading(false);
+    }
+
     setQuery("");
     setResponse("");
     setParsedResponses([]);
