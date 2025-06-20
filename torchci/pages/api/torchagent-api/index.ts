@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getAuthorizedUsername } from "../../../lib/getAuthorizedUsername";
 import { authOptions } from "../auth/[...nextauth]";
@@ -38,8 +37,8 @@ export default async function handler(
     return;
   }
 
-  // Get query from request body
-  const { query } = req.body;
+  // Get query and optional sessionId from request body
+  const { query, sessionId } = req.body;
 
   if (!query || typeof query !== "string") {
     console.log("Rejected: Invalid query parameter");
@@ -76,29 +75,42 @@ export default async function handler(
   };
 
   try {
-    // Generate a session ID for this user (could be made more sophisticated)
-    const userUuid = randomUUID();
-
-    console.log(`Calling Lambda with userUuid: ${userUuid}`);
+    console.log(
+      `Calling Lambda${
+        sessionId
+          ? ` with sessionId: ${sessionId} (continuing session)`
+          : " (new session)"
+      }`
+    );
     console.log("and token: ", AUTH_TOKEN);
 
     // Write initial message to start the stream
-    res.write(`{"status":"connecting","userUuid":"${userUuid}"}\n`);
+    res.write(
+      `{"status":"connecting"${
+        sessionId ? `,"sessionId":"${sessionId}"` : ""
+      }}\n`
+    );
 
     flushStream(res);
 
     // Call Lambda function with auth token
+    const lambdaPayload = {
+      query: query,
+      username: username,
+    };
+
+    // Only add sessionId if continuing an existing session
+    if (sessionId) {
+      lambdaPayload.sessionId = sessionId;
+    }
+
     const lambdaResponse = await fetch(LAMBDA_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${AUTH_TOKEN}`,
       },
-      body: JSON.stringify({
-        query: query,
-        userUuid: userUuid,
-        username: username,
-      }),
+      body: JSON.stringify(lambdaPayload),
     });
 
     if (!lambdaResponse.ok) {

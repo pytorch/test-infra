@@ -340,23 +340,25 @@ export const TorchAgentPage = () => {
       setResponse((prev) => prev + line + "\n");
       const json = JSON.parse(line) as any;
 
-      if (json.status === "connecting" && json.userUuid) {
-        setCurrentSessionId(json.userUuid);
+      if (json.status === "connecting" && json.sessionId) {
+        setCurrentSessionId(json.sessionId);
 
-        // Immediately add a temporary session to the chat history
-        const now = new Date();
-        const timestamp = now.toISOString();
-        const tempSession: ChatSession = {
-          sessionId: json.userUuid,
-          timestamp: timestamp,
-          date: timestamp.slice(0, 10),
-          filename: `${timestamp}_${json.userUuid}.json`,
-          key: `history/user/${timestamp}_${json.userUuid}.json`,
-          title: "New Chat...", // Temporary placeholder
-        };
+        // Only add a temporary session to the chat history for new sessions
+        if (!selectedSession || selectedSession !== json.sessionId) {
+          const now = new Date();
+          const timestamp = now.toISOString();
+          const tempSession: ChatSession = {
+            sessionId: json.sessionId,
+            timestamp: timestamp,
+            date: timestamp.slice(0, 10),
+            filename: `${timestamp}_${json.sessionId}.json`,
+            key: `history/user/${timestamp}_${json.sessionId}.json`,
+            title: "New Chat...", // Temporary placeholder
+          };
 
-        setChatHistory((prev) => [tempSession, ...prev]);
-        setSelectedSession(json.userUuid);
+          setChatHistory((prev) => [tempSession, ...prev]);
+          setSelectedSession(json.sessionId);
+        }
         return;
       }
 
@@ -432,7 +434,13 @@ export const TorchAgentPage = () => {
           Connection: "keep-alive",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({
+          query,
+          sessionId:
+            selectedSession && selectedSession !== currentSessionId
+              ? selectedSession
+              : undefined,
+        }),
         signal: fetchControllerRef.current.signal,
         cache: "no-store",
         // @ts-ignore
@@ -776,13 +784,13 @@ export const TorchAgentPage = () => {
               />
             )}
 
-            {/* Show query input for active chats (read-only for history) */}
-            {selectedSession && (
+            {/* Show query input for active chats at the top (only for current session) */}
+            {selectedSession && selectedSession === currentSessionId && (
               <QueryInputSection
                 query={query}
                 isLoading={isLoading}
                 debugVisible={debugVisible}
-                isReadOnly={selectedSession !== currentSessionId}
+                isReadOnly={false}
                 onQueryChange={handleQueryChange}
                 onSubmit={handleSubmit}
                 onToggleDebug={() => setDebugVisible(!debugVisible)}
@@ -869,6 +877,20 @@ export const TorchAgentPage = () => {
                 </Box>
               )}
             </ResultsSection>
+
+            {/* Show query input for historic chats at the bottom for continuation */}
+            {selectedSession && selectedSession !== currentSessionId && (
+              <QueryInputSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                isReadOnly={isLoading}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
           </TorchAgentPageContainer>
         )}
       </Box>
