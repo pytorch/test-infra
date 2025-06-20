@@ -120,7 +120,7 @@ export const TorchAgentPage = () => {
           {thinkingMessages[thinkingMessageIndex]}
         </Typography>
         <Typography variant="caption" sx={{ opacity: 0.7 }}>
-          Running for {formatElapsedTime(elapsedTime)} •{' '}
+          Running for {formatElapsedTime(elapsedTime)} •{" "}
           {formatTokenCount(displayedTokens)} tokens
         </Typography>
       </Box>
@@ -653,47 +653,45 @@ export const TorchAgentPage = () => {
             </div>
           ))}
 
-        {isLoading ? (
-          renderLoader()
-        ) : (
-          (completedTokens > 0 || feedbackVisible) && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "flex-end",
-                alignItems: "center",
-                mt: 3,
-                p: 2,
-                borderTop: "1px solid",
-                borderTopColor: "divider",
-                backgroundColor:
-                  theme.palette.mode === "dark"
-                    ? "rgba(30,30,30,0.95)"
-                    : "rgba(250,250,250,0.95)",
-                borderRadius: "0 0 8px 8px",
-                position: "sticky",
-                bottom: 0,
-                zIndex: 10,
-                boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
-              }}
-            >
-              {completedTokens > 0 && (
-                <Typography
-                  variant="body2"
-                  color="text.primary"
-                  sx={{ fontWeight: "medium" }}
-                >
-                  Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                  {formatTokenCount(completedTokens)} tokens
-                </Typography>
-              )}
-              <FeedbackButtons
-                sessionId={currentSessionId}
-                visible={feedbackVisible}
-              />
-            </Box>
-          )
-        )}
+        {isLoading
+          ? renderLoader()
+          : (completedTokens > 0 || feedbackVisible) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  mt: 3,
+                  p: 2,
+                  borderTop: "1px solid",
+                  borderTopColor: "divider",
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(30,30,30,0.95)"
+                      : "rgba(250,250,250,0.95)",
+                  borderRadius: "0 0 8px 8px",
+                  position: "sticky",
+                  bottom: 0,
+                  zIndex: 10,
+                  boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+                }}
+              >
+                {completedTokens > 0 && (
+                  <Typography
+                    variant="body2"
+                    color="text.primary"
+                    sx={{ fontWeight: "medium" }}
+                  >
+                    Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                    {formatTokenCount(completedTokens)} tokens
+                  </Typography>
+                )}
+                <FeedbackButtons
+                  sessionId={currentSessionId}
+                  visible={feedbackVisible}
+                />
+              </Box>
+            )}
       </div>
     );
   };
