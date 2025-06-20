@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - .github/workflows/github-analytics-daily.yml
+      - tools/analytics/github_analyze.py
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
@@ -11,15 +12,20 @@ on:
     inputs:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
+        default: "release/2.7"
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
+        default: 54
       repo-path:
         description: "Path to the repository to analyze"
+        default: "./pytorch"
       remote:
         description: "Remote name to use for the repository"
+        default: "origin"
       missing-in-branch:
         description: 'bool to flag if commits are missing in the branch'
         type: boolean
+        default: true
 
 
 
@@ -55,7 +61,7 @@ jobs:
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
-          --remote upstream \
+          --remote origin \
           --branch release/2.7 \
           --milestone-id 54 \
           --missing-in-branch
