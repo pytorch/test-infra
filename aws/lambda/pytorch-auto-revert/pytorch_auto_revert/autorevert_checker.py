@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set
 
-from clickhouse_client_helper import ClickHouseClient
+from clickhouse_client_helper import CHCliFactory
 
 
 @dataclass
@@ -116,7 +116,7 @@ class AutorevertPatternChecker:
         ORDER BY workflow_name, workflow_created_at DESC, head_sha, name
         """
 
-        result = ClickHouseClient().client.query(
+        result = CHCliFactory().client.query(
             query,
             parameters={
                 "workflow_names": self.workflow_names,
@@ -185,7 +185,7 @@ class AutorevertPatternChecker:
         ORDER BY head_commit.timestamp DESC
         """
 
-        result = ClickHouseClient().client.query(
+        result = CHCliFactory().client.query(
             query, parameters={"lookback_time": lookback_time}
         )
 

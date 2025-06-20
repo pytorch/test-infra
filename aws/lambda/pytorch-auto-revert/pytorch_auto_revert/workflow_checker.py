@@ -5,7 +5,7 @@ WorkflowRestartChecker for querying restarted workflows via ClickHouse.
 from datetime import datetime, timedelta
 from typing import Dict, Set
 
-from clickhouse_client_helper import CHCliFactory
+from .clickhouse_client_helper import CHCliFactory
 
 
 class WorkflowRestartChecker:

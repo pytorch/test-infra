@@ -19,7 +19,7 @@ venv/bin/lintrunner: venv/bin/python
 
 .PHONY: run-local
 run-local: venv/bin/python
-	venv/bin/python pytorch_auto_revert
+	venv/bin/python -m pytorch_auto_revert
 
 deployment.zip:
 	mkdir -p deployment
