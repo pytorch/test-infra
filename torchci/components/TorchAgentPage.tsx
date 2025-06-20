@@ -869,27 +869,6 @@ export const TorchAgentPage = () => {
                 </Box>
               )}
             </ResultsSection>
-
-            <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 2 }}>
-              <Button
-                variant="outlined"
-                component="a"
-                href={featureRequestUrl}
-                target="_blank"
-                sx={{ mr: 1 }}
-              >
-                Feature Request
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                component="a"
-                href={bugReportUrl}
-                target="_blank"
-              >
-                Report Bug
-              </Button>
-            </Box>
           </TorchAgentPageContainer>
         )}
       </Box>
