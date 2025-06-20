@@ -125,6 +125,7 @@ jobs:
 
   finish-release:
     needs:
+      - release-lambdas
       - release-python-lambdas
     name: Mark the release as final and publish it
     runs-on: ubuntu-latest
