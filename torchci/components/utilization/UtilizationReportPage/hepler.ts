@@ -59,10 +59,18 @@ export function objectToQueryString(
   excludeKeys: string[] = []
 ): string {
   const excludeSet = new Set(excludeKeys);
-  return new URLSearchParams(
-    Object.entries(obj).filter(
+
+  const normalizedEntries = Object.entries(obj)
+    .filter(
       ([key, value]) =>
         !excludeSet.has(key) && value !== undefined && value !== null
     )
-  ).toString();
+    .map(([key, value]) => {
+      if (Array.isArray(value)) {
+        return [key, JSON.stringify(value)];
+      }
+      return [key, String(value)];
+    });
+
+  return new URLSearchParams(normalizedEntries).toString();
 }

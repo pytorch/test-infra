@@ -4,11 +4,11 @@ import { useEffect, useReducer, useState } from "react";
 
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import LoadingPage from "components/LoadingPage";
+import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import dayjs from "dayjs";
 import QueueTimeCharts from "./charts/QueueTimeCharts";
 import DebugToggle from "./DebugToggle";
 import QueueTimeSearchBar from "./searchBarItems/QueueTimeSearchBar";
-
 const FlexNoWrap = styled("div")({
   display: "flex",
   flexWrap: "nowrap",
@@ -36,6 +36,7 @@ export default function QueueTimeChartPage() {
       <Stack spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"2rem"} fontWeight={"bold"}>
           PyTorch Queue Time Analysis
+          <UMCopyLink params={props} />
         </Typography>
       </Stack>
       <Stack sx={{ mb: 2, fontSize: 15 }}>

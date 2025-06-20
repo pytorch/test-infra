@@ -361,7 +361,6 @@ const formatTime = (value: number) => {
 
 const getCumulativeList = (data: any[]) => {
   const counts = data.map(Number);
-  console.log("bardatea", data);
   const total = counts.reduce((a, b) => a + b, 0);
   const cumulative = counts.map((_, i) =>
     counts.slice(0, i + 1).reduce((a, b) => a + b, 0)
