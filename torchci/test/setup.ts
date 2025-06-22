@@ -3,6 +3,7 @@
 // jest.spyOn when upgrading to node 14.2.16.
 // The following Object.defineProperty wrapper will ensure that all esModule exports
 // are configurable and can be mocked by Jest.
+import "@testing-library/jest-dom";
 const objectDefineProperty = Object.defineProperty;
 Object.defineProperty = function <T>(
   obj: T,

@@ -20,11 +20,13 @@ import {
 } from "./TorchAgentPage/messageProcessor";
 import { QueryInputSection } from "./TorchAgentPage/QueryInputSection";
 import {
+  ChatBubble,
+  ChatContainer,
+  ChatMessageRow,
   ChunkMetadata,
   LoaderWrapper,
   QuerySection,
   ResponseText,
-  ResultsSection,
   TorchAgentPageContainer,
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
@@ -35,7 +37,6 @@ import {
   formatTokenCount,
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
-import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
 
 interface ChatSession {
   sessionId: string;
@@ -105,8 +106,9 @@ export const TorchAgentPage = () => {
   const thinkingMessages = useThinkingMessages();
   const displayedTokens = useAnimatedCounter(totalTokens);
   const calculateTotalTokens = useTokenCalculator();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const { showScrollButton, scrollToBottomAndEnable, resetAutoScroll } =
-    useAutoScroll(isLoading, parsedResponses);
+    useAutoScroll(isLoading, parsedResponses, chatContainerRef);
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -147,6 +149,7 @@ export const TorchAgentPage = () => {
   };
 
   const loadChatSession = async (sessionId: string) => {
+    cancelRequest();
     setIsSessionLoading(true);
     setParsedResponses([]);
     setResponse("");
@@ -201,6 +204,7 @@ export const TorchAgentPage = () => {
   };
 
   const startNewChat = () => {
+    cancelRequest();
     setQuery("");
     setResponse("");
     setParsedResponses([]);
@@ -420,7 +424,10 @@ export const TorchAgentPage = () => {
           Connection: "keep-alive",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({
+          query,
+          sessionId: currentSessionId ?? undefined,
+        }),
         signal: fetchControllerRef.current.signal,
         cache: "no-store",
         // @ts-ignore
@@ -560,78 +567,68 @@ export const TorchAgentPage = () => {
           .map((item, index) => (
             <div key={`content-${index}`}>
               {item.type === "user_message" ? (
-                <Box
-                  sx={{
-                    mb: 3,
-                    p: 2,
-                    backgroundColor: "action.hover",
-                    borderRadius: 1,
-                    borderLeft: "4px solid",
-                    borderLeftColor: "primary.main",
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    color="primary"
-                    sx={{ mb: 1 }}
-                  >
-                    User Query:
-                  </Typography>
-                  <Typography variant="body1">
+                <ChatMessageRow role="user">
+                  <ChatBubble role="user">
                     {renderTextWithLinks(item.content, false)}
-                  </Typography>
-
-                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
-                    <Box mt={2}>
-                      {item.grafanaLinks.map((link, i) => (
-                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
-                      ))}
-                    </Box>
-                  )}
-                </Box>
-              ) : item.type === "text" ? (
-                <>
-                  <ResponseText>
-                    {renderTextWithLinks(
-                      (item.displayedContent !== undefined
-                        ? item.displayedContent
-                        : item.content
-                      )?.trim() || "",
-                      item.isAnimating
+                    {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                      <Box mt={2}>
+                        {item.grafanaLinks.map((link, i) => (
+                          <GrafanaEmbed
+                            key={i}
+                            dashboardId={link.dashboardId}
+                          />
+                        ))}
+                      </Box>
                     )}
-                  </ResponseText>
-
-                  {!item.isAnimating && (
-                    <ChunkMetadata>
-                      {/* For historical chats, we skip timing calculations since timestamps are strings */}
-                      {item.outputTokens
-                        ? `${formatTokenCount(item.outputTokens)} tokens`
-                        : ""}
-                    </ChunkMetadata>
-                  )}
-
-                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
-                    <Box mt={2}>
-                      {item.grafanaLinks.map((link, i) => (
-                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
-                      ))}
-                    </Box>
-                  )}
-                </>
+                  </ChatBubble>
+                </ChatMessageRow>
+              ) : item.type === "text" ? (
+                <ChatMessageRow role="assistant">
+                  <ChatBubble role="assistant">
+                    <ResponseText>
+                      {renderTextWithLinks(
+                        (item.displayedContent !== undefined
+                          ? item.displayedContent
+                          : item.content
+                        )?.trim() || "",
+                        item.isAnimating
+                      )}
+                    </ResponseText>
+                    {!item.isAnimating && (
+                      <ChunkMetadata>
+                        {item.outputTokens
+                          ? `${formatTokenCount(item.outputTokens)} tokens`
+                          : ""}
+                      </ChunkMetadata>
+                    )}
+                    {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                      <Box mt={2}>
+                        {item.grafanaLinks.map((link, i) => (
+                          <GrafanaEmbed
+                            key={i}
+                            dashboardId={link.dashboardId}
+                          />
+                        ))}
+                      </Box>
+                    )}
+                  </ChatBubble>
+                </ChatMessageRow>
               ) : item.type === "tool_use" && item.toolName ? (
-                <ToolUse
-                  toolName={item.toolName}
-                  toolInput={item.toolInput}
-                  toolResult={item.toolResult}
-                  outputTokens={item.outputTokens}
-                  isExpanded={expandedTools[index] || false}
-                  onToggleExpand={() =>
-                    setExpandedTools((prev) => ({
-                      ...prev,
-                      [index]: !prev[index],
-                    }))
-                  }
-                />
+                <ChatMessageRow role="assistant">
+                  <ToolUse
+                    toolName={item.toolName}
+                    toolInput={item.toolInput}
+                    toolResult={item.toolResult}
+                    outputTokens={item.outputTokens}
+                    isExpanded={expandedTools[index] || false}
+                    onToggleExpand={() =>
+                      setExpandedTools((prev) => ({
+                        ...prev,
+                        [index]: !prev[index],
+                      }))
+                    }
+                  />
+                </ChatMessageRow>
               ) : null}
             </div>
           ))}
@@ -724,34 +721,7 @@ export const TorchAgentPage = () => {
               bugReportUrl={bugReportUrl}
             />
 
-            {/* Show welcome message for completely new chats */}
-            {!selectedSession && (
-              <WelcomeSection
-                query={query}
-                isLoading={isLoading}
-                debugVisible={debugVisible}
-                onQueryChange={handleQueryChange}
-                onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
-              />
-            )}
-
-            {/* Show query input for active chats (read-only for history) */}
-            {selectedSession && (
-              <QueryInputSection
-                query={query}
-                isLoading={isLoading}
-                debugVisible={debugVisible}
-                isReadOnly={selectedSession !== currentSessionId}
-                onQueryChange={handleQueryChange}
-                onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
-              />
-            )}
-
-            <ResultsSection>
+            <ChatContainer ref={chatContainerRef}>
               <Box
                 sx={{
                   display: "flex",
@@ -829,7 +799,20 @@ export const TorchAgentPage = () => {
                   </pre>
                 </Box>
               )}
-            </ResultsSection>
+            </ChatContainer>
+
+            <QueryInputSection
+              query={query}
+              isLoading={isLoading}
+              debugVisible={debugVisible}
+              isReadOnly={
+                selectedSession !== null && selectedSession !== currentSessionId
+              }
+              onQueryChange={handleQueryChange}
+              onSubmit={handleSubmit}
+              onToggleDebug={() => setDebugVisible(!debugVisible)}
+              onCancel={cancelRequest}
+            />
           </TorchAgentPageContainer>
         )}
       </Box>

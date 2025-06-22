@@ -10,7 +10,7 @@ export const TorchAgentPageContainer = styled("div")({
 
 export const QuerySection = styled(Paper)({
   padding: "20px",
-  marginBottom: "20px",
+  flexShrink: 0,
 });
 
 export const ResultsSection = styled(Paper)(({ theme }) => ({
@@ -143,6 +143,39 @@ export const GrafanaChartContainer = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
   overflow: "hidden",
 }));
+
+export const ChatContainer = styled(Box)({
+  flexGrow: 1,
+  overflowY: "auto",
+  padding: "20px",
+  display: "flex",
+  flexDirection: "column",
+});
+
+export const ChatMessageRow = styled(Box)<{ role: "user" | "assistant" }>(
+  ({ role }) => ({
+    display: "flex",
+    justifyContent: role === "user" ? "flex-end" : "flex-start",
+    marginBottom: "12px",
+  })
+);
+
+export const ChatBubble = styled(Box)<{ role: "user" | "assistant" }>(
+  ({ theme, role }) => ({
+    maxWidth: "80%",
+    padding: "10px 14px",
+    borderRadius: role === "user" ? "16px 16px 0 16px" : "16px 16px 16px 0",
+    backgroundColor:
+      role === "user"
+        ? theme.palette.primary.main
+        : theme.palette.mode === "dark"
+        ? "#2e2e2e"
+        : "#e0e0e0",
+    color: role === "user" ? "#fff" : theme.palette.text.primary,
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+  })
+);
 
 export const ChartHeader = styled(Box)(({ theme }) => ({
   padding: "10px",

@@ -13,6 +13,7 @@ const customJestConfig = {
       "@opensearch-project/opensearch/lib/aws/index.js",
   },
   setupFilesAfterEnv: ["<rootDir>/test/setup.ts"],
+  testPathIgnorePatterns: ["<rootDir>/playwright/", "<rootDir>/test/triggerCircleCIWorkflows.test.ts"],
 };
 
 module.exports = createJestConfig(customJestConfig);

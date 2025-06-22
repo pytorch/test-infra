@@ -84,7 +84,8 @@ export const useTokenCalculator = () => {
 
 export const useAutoScroll = (
   isLoading: boolean,
-  parsedResponses: ParsedContent[]
+  parsedResponses: ParsedContent[],
+  containerRef: React.RefObject<HTMLElement>
 ) => {
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -92,11 +93,13 @@ export const useAutoScroll = (
   const scrollToBottomAndEnable = useCallback(() => {
     setAutoScrollEnabled(true);
     setShowScrollButton(false);
-    window.scrollTo({
-      top: document.body.scrollHeight,
-      behavior: "smooth",
-    });
-  }, []);
+    if (containerRef.current) {
+      containerRef.current.scrollTo({
+        top: containerRef.current.scrollHeight,
+        behavior: "smooth",
+      });
+    }
+  }, [containerRef]);
 
   const resetAutoScroll = useCallback(() => {
     setAutoScrollEnabled(true);
@@ -105,9 +108,9 @@ export const useAutoScroll = (
 
   useEffect(() => {
     const isAtBottom = () => {
-      const scrollPosition = window.innerHeight + window.scrollY;
-      const bottomOfPage = document.body.offsetHeight - 100;
-      return scrollPosition >= bottomOfPage;
+      if (!containerRef.current) return true;
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      return scrollHeight - (scrollTop + clientHeight) <= 100;
     };
 
     const handleScroll = () => {
@@ -124,9 +127,17 @@ export const useAutoScroll = (
       }
     };
 
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [isLoading, showScrollButton, parsedResponses, autoScrollEnabled]);
+    const element = containerRef.current;
+    if (!element) return;
+    element.addEventListener("scroll", handleScroll);
+    return () => element.removeEventListener("scroll", handleScroll);
+  }, [
+    isLoading,
+    showScrollButton,
+    parsedResponses,
+    autoScrollEnabled,
+    containerRef,
+  ]);
 
   useEffect(() => {
     if (!isLoading || !autoScrollEnabled || parsedResponses.length === 0)
@@ -140,17 +151,19 @@ export const useAutoScroll = (
     }
 
     const isAtBottom = () => {
-      const scrollPosition = window.innerHeight + window.scrollY;
-      const bottomOfPage = document.body.offsetHeight - 50;
-      return scrollPosition >= bottomOfPage;
+      if (!containerRef.current) return true;
+      const { scrollTop, scrollHeight, clientHeight } = containerRef.current;
+      return scrollHeight - (scrollTop + clientHeight) <= 50;
     };
 
     if (!isAtBottom()) {
       const scrollToBottom = () => {
-        window.scrollTo({
-          top: document.body.scrollHeight,
-          behavior: "smooth",
-        });
+        if (containerRef.current) {
+          containerRef.current.scrollTo({
+            top: containerRef.current.scrollHeight,
+            behavior: "smooth",
+          });
+        }
       };
 
       requestAnimationFrame(scrollToBottom);
@@ -167,9 +180,9 @@ export const useAutoScroll = (
       }
 
       const finalScrollTimer = setTimeout(() => {
-        if (autoScrollEnabled) {
-          window.scrollTo({
-            top: document.body.scrollHeight,
+        if (autoScrollEnabled && containerRef.current) {
+          containerRef.current.scrollTo({
+            top: containerRef.current.scrollHeight,
             behavior: "smooth",
           });
         }
