@@ -74,6 +74,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
             placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
             variant="outlined"
             disabled={isLoading}
+            inputProps={{ "data-test-id": "query-input" }}
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
@@ -94,6 +95,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
               variant="outlined"
               color="secondary"
               onClick={onToggleDebug}
+              data-test-id="toggle-debug"
             >
               {debugVisible ? "Hide Debug" : "Show Debug"}
             </Button>
@@ -104,6 +106,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
                   color="error"
                   onClick={onCancel}
                   sx={{ mr: 1 }}
+                  data-test-id="cancel-button"
                 >
                   Cancel
                 </Button>
@@ -113,6 +116,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
                 color="primary"
                 type="submit"
                 disabled={isLoading}
+                data-test-id="run-button"
               >
                 {isLoading ? "Running..." : "RUN"}
               </Button>

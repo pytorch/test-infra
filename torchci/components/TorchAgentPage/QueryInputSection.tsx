@@ -44,6 +44,7 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
           InputProps={{
             readOnly: isReadOnly,
           }}
+          inputProps={{ "data-test-id": "query-input" }}
           onKeyDown={(e) => {
             if (!isReadOnly && (e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault();
@@ -60,7 +61,12 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
             mt: 2,
           }}
         >
-          <Button variant="outlined" color="secondary" onClick={onToggleDebug}>
+          <Button
+            variant="outlined"
+            color="secondary"
+            onClick={onToggleDebug}
+            data-test-id="toggle-debug"
+          >
             {debugVisible ? "Hide Debug" : "Show Debug"}
           </Button>
           <Box>
@@ -70,6 +76,7 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
                 color="error"
                 onClick={onCancel}
                 sx={{ mr: 1 }}
+                data-test-id="cancel-button"
               >
                 Cancel
               </Button>
@@ -80,6 +87,7 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
                 color="primary"
                 type="submit"
                 disabled={isLoading}
+                data-test-id="run-button"
               >
                 {isLoading ? "Running..." : "RUN"}
               </Button>
