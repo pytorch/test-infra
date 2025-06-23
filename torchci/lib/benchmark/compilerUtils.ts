@@ -464,28 +464,42 @@ export function augmentData(data: CompilerPerformanceData[]) {
   );
 }
 
-// TODO (huydhn): Use this function to convert the generic benchmark data to the old
-// CompilerPerformanceData format. This is needed until the TorchInductor dashboard
-// is migrated to the new format
+// Use this function to convert the generic benchmark data to the old
+// CompilerPerformanceData format. Maybe we can get rid of this once
+// we have a new UX for benchmark dashboard 2.0
 export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
   const convertData: { [model: string]: CompilerPerformanceData } = {};
   if (data === undefined || data === null) {
     return [];
   }
 
+  const workflowBucket: { [id: number]: string } = {};
+  // One different in the new benchmark CI is that the results will be
+  // uploaded right away when the benchmark job finishes. This means
+  // that jobs in the same workflow could have different timestamp and
+  // thus, different granularity bucket. The current dashboard logic
+  // doesn't like that, so we will just keep the earliest timestamp here
   data.forEach((r: BenchmarkData) => {
-    const k = `${r.granularity_bucket} ${r.model}`;
+    const id = r.workflow_id;
+
+    if (!(id in workflowBucket)) {
+      workflowBucket[id] = r.granularity_bucket;
+    }
+  });
+
+  data.forEach((r: BenchmarkData) => {
+    const k = `${r.workflow_id} ${r.model} ${r.backend}`;
 
     if (!(k in convertData)) {
       convertData[k] = {
         abs_latency: 0,
         accuracy: "",
         compilation_latency: 0,
-        compiler: "default",
+        compiler: r.backend as string,
         compression_ratio: 0,
         dynamo_peak_mem: 0,
         eager_peak_mem: 0,
-        granularity_bucket: r.granularity_bucket,
+        granularity_bucket: workflowBucket[r.workflow_id],
         name: r.model,
         speedup: 0,
         suite: r.suite,

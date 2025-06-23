@@ -94,7 +94,6 @@ export const TorchAgentPage = () => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [feedbackVisible, setFeedbackVisible] = useState(false);
 
-  // Chat history state
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
@@ -113,9 +112,22 @@ export const TorchAgentPage = () => {
     setQuery(event.target.value);
   };
 
-  // Fetch chat history on component mount
+  const renderLoader = () => (
+    <LoaderWrapper>
+      <AISpinner />
+      <Box sx={{ ml: 2 }}>
+        <Typography variant="body2">
+          {thinkingMessages[thinkingMessageIndex]}
+        </Typography>
+        <Typography variant="caption" sx={{ opacity: 0.7 }}>
+          Running for {formatElapsedTime(elapsedTime)} •{" "}
+          {formatTokenCount(displayedTokens)} tokens
+        </Typography>
+      </Box>
+    </LoaderWrapper>
+  );
+
   const fetchChatHistory = async () => {
-    console.log("hasAuthCookie:", hasAuthCookie());
     if (!session.data?.user && !hasAuthCookie()) return;
 
     setIsHistoryLoading(true);
@@ -134,10 +146,8 @@ export const TorchAgentPage = () => {
     }
   };
 
-  // Load a specific chat session
   const loadChatSession = async (sessionId: string) => {
     setIsSessionLoading(true);
-    // Clear existing content while loading
     setParsedResponses([]);
     setResponse("");
     setError("");
@@ -148,11 +158,8 @@ export const TorchAgentPage = () => {
       );
       if (response.ok) {
         const sessionData = await response.json();
-        console.log("Loaded session data:", sessionData);
 
-        // The messages array contains the same format as streaming data
         if (sessionData.messages && Array.isArray(sessionData.messages)) {
-          // Extract the user query from the first user message
           const userMessage = sessionData.messages.find(
             (msg: any) => msg.type === "user_message" && msg.content
           );
@@ -160,10 +167,8 @@ export const TorchAgentPage = () => {
             setQuery(userMessage.content);
           }
 
-          // Clear existing parsed responses
           setParsedResponses([]);
 
-          // Process each message for debug view
           let fullResponse = "";
           sessionData.messages.forEach((msg: any) => {
             if (msg.content) {
@@ -172,10 +177,8 @@ export const TorchAgentPage = () => {
           });
           setResponse(fullResponse);
 
-          // First, process user messages
           processUserMessages(sessionData.messages, setParsedResponses);
 
-          // Then process all other messages
           const lines = fullResponse.split("\n").filter((line) => line.trim());
           lines.forEach((line) => {
             processMessageLine(line, setParsedResponses, false);
@@ -197,7 +200,6 @@ export const TorchAgentPage = () => {
     }
   };
 
-  // Start a new chat
   const startNewChat = () => {
     setQuery("");
     setResponse("");
@@ -213,14 +215,12 @@ export const TorchAgentPage = () => {
     setIsSessionLoading(false);
   };
 
-  // Fetch chat history on mount
   useEffect(() => {
     if (session.data?.user) {
       fetchChatHistory();
     }
   }, [session.data?.user]);
 
-  // Poll chat history every 10 seconds when there's an active chat
   useEffect(() => {
     if (!session.data?.user) return;
 
@@ -236,13 +236,12 @@ export const TorchAgentPage = () => {
     if (hasActiveChat) {
       const interval = setInterval(() => {
         fetchChatHistory();
-      }, 10000); // Every 10 seconds
+      }, 10000);
 
       return () => clearInterval(interval);
     }
   }, [session.data?.user, isLoading, currentSessionId, chatHistory]);
 
-  // Rotate through thinking messages every 6 seconds
   useEffect(() => {
     if (!isLoading) return;
 
@@ -253,14 +252,12 @@ export const TorchAgentPage = () => {
     return () => clearInterval(interval);
   }, [isLoading, thinkingMessages.length]);
 
-  // Also update message when new data comes in
   useEffect(() => {
     if (isLoading && parsedResponses.length > 0) {
       setThinkingMessageIndex((prev) => (prev + 1) % thinkingMessages.length);
     }
   }, [parsedResponses.length, isLoading, thinkingMessages.length]);
 
-  // Timer effect to update elapsed time
   useEffect(() => {
     if (!isLoading || !startTime) return;
 
@@ -273,7 +270,6 @@ export const TorchAgentPage = () => {
     return () => clearInterval(timer);
   }, [isLoading, startTime]);
 
-  // Handle typewriter effect for text content
   useEffect(() => {
     const animatingItems = parsedResponses.filter(
       (item) => item.type === "text" && item.isAnimating
@@ -312,7 +308,6 @@ export const TorchAgentPage = () => {
     return () => clearTimeout(timer);
   }, [parsedResponses, typingSpeed]);
 
-  // Calculate total tokens whenever parsedResponses changes
   useEffect(() => {
     if (parsedResponses.length > 0) {
       const total = calculateTotalTokens(parsedResponses);
@@ -322,7 +317,6 @@ export const TorchAgentPage = () => {
     }
   }, [parsedResponses, calculateTotalTokens, totalTokens]);
 
-  // Clean up on component unmount
   useEffect(() => {
     return () => {
       if (fetchControllerRef.current) {
@@ -332,7 +326,6 @@ export const TorchAgentPage = () => {
     };
   }, []);
 
-  // Parse response JSON and extract content
   const parseJsonLine = (line: string) => {
     try {
       if (!line.trim()) return;
@@ -343,7 +336,6 @@ export const TorchAgentPage = () => {
       if (json.status === "connecting" && json.userUuid) {
         setCurrentSessionId(json.userUuid);
 
-        // Immediately add a temporary session to the chat history
         const now = new Date();
         const timestamp = now.toISOString();
         const tempSession: ChatSession = {
@@ -352,7 +344,7 @@ export const TorchAgentPage = () => {
           date: timestamp.slice(0, 10),
           filename: `${timestamp}_${json.userUuid}.json`,
           key: `history/user/${timestamp}_${json.userUuid}.json`,
-          title: "New Chat...", // Temporary placeholder
+          title: "New Chat...",
         };
 
         setChatHistory((prev) => [tempSession, ...prev]);
@@ -360,7 +352,6 @@ export const TorchAgentPage = () => {
         return;
       }
 
-      // Process timing data from result messages
       if (
         json.type === "result" &&
         json.subtype === "success" &&
@@ -370,9 +361,6 @@ export const TorchAgentPage = () => {
         setElapsedTime(durationSec);
       }
 
-      // Handle different response types
-
-      // Use unified message processing
       if (json.type === "assistant" || json.type === "user") {
         processMessageLine("", setParsedResponses, true, json);
       } else if (json.type === "content_block_delta") {
@@ -514,7 +502,6 @@ export const TorchAgentPage = () => {
     }
   };
 
-  // Authentication check - allow bypass with special cookie
   const hasCookieAuth = hasAuthCookie();
 
   if (session.status === "loading") {
@@ -557,20 +544,7 @@ export const TorchAgentPage = () => {
   const renderContent = () => {
     if (parsedResponses.length === 0) {
       if (isLoading) {
-        return (
-          <LoaderWrapper>
-            <AISpinner />
-            <Box sx={{ ml: 2 }}>
-              <Typography variant="body2">
-                {thinkingMessages[thinkingMessageIndex]}
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Running for {formatElapsedTime(elapsedTime)} •{" "}
-                {formatTokenCount(displayedTokens)} tokens
-              </Typography>
-            </Box>
-          </LoaderWrapper>
-        );
+        return renderLoader();
       }
       return (
         <Typography color="textSecondary" align="center" sx={{ mt: 5 }}>
@@ -679,58 +653,45 @@ export const TorchAgentPage = () => {
             </div>
           ))}
 
-        {isLoading ? (
-          <LoaderWrapper>
-            <AISpinner />
-            <Box sx={{ ml: 2 }}>
-              <Typography variant="body2">
-                {thinkingMessages[thinkingMessageIndex]}
-              </Typography>
-              <Typography variant="caption" sx={{ opacity: 0.7 }}>
-                Running for {formatElapsedTime(elapsedTime)} •{" "}
-                {formatTokenCount(displayedTokens)} tokens
-              </Typography>
-            </Box>
-          </LoaderWrapper>
-        ) : (
-          (completedTokens > 0 || feedbackVisible) && (
-            <Box
-              sx={{
-                display: "flex",
-                justifyContent: "flex-end",
-                alignItems: "center",
-                mt: 3,
-                p: 2,
-                borderTop: "1px solid",
-                borderTopColor: "divider",
-                backgroundColor:
-                  theme.palette.mode === "dark"
-                    ? "rgba(30,30,30,0.95)"
-                    : "rgba(250,250,250,0.95)",
-                borderRadius: "0 0 8px 8px",
-                position: "sticky",
-                bottom: 0,
-                zIndex: 10,
-                boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
-              }}
-            >
-              {completedTokens > 0 && (
-                <Typography
-                  variant="body2"
-                  color="text.primary"
-                  sx={{ fontWeight: "medium" }}
-                >
-                  Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                  {formatTokenCount(completedTokens)} tokens
-                </Typography>
-              )}
-              <FeedbackButtons
-                sessionId={currentSessionId}
-                visible={feedbackVisible}
-              />
-            </Box>
-          )
-        )}
+        {isLoading
+          ? renderLoader()
+          : (completedTokens > 0 || feedbackVisible) && (
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  alignItems: "center",
+                  mt: 3,
+                  p: 2,
+                  borderTop: "1px solid",
+                  borderTopColor: "divider",
+                  backgroundColor:
+                    theme.palette.mode === "dark"
+                      ? "rgba(30,30,30,0.95)"
+                      : "rgba(250,250,250,0.95)",
+                  borderRadius: "0 0 8px 8px",
+                  position: "sticky",
+                  bottom: 0,
+                  zIndex: 10,
+                  boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+                }}
+              >
+                {completedTokens > 0 && (
+                  <Typography
+                    variant="body2"
+                    color="text.primary"
+                    sx={{ fontWeight: "medium" }}
+                  >
+                    Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+                    {formatTokenCount(completedTokens)} tokens
+                  </Typography>
+                )}
+                <FeedbackButtons
+                  sessionId={currentSessionId}
+                  visible={feedbackVisible}
+                />
+              </Box>
+            )}
       </div>
     );
   };

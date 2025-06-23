@@ -58,16 +58,24 @@ export const HELP_LINK =
 export const DTYPES = ["amp", "float16", "bfloat16", "quant", "notset"];
 
 export const DEFAULT_DEVICE_NAME = "cuda (h100)";
-// TODO (huydhn): there is a way to avoid hard-coding dtypes and devices like how
-// the LLM micro-benchmark page is implemented
 export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (a100)": "cuda",
-  "cuda (h100)": "cuda_h100",
-  "cpu (x86)": "cpu_x86",
-  "cpu (x86_zen)": "zen_cpu_x86",
-  "cpu (aarch64)": "cpu_aarch64",
+  "cuda (h100)": "cuda",
+  "cpu (x86_64)": "cpu",
+  "cpu (x86_zen)": "cpu",
+  "cpu (aarch64)": "cpu",
   "rocm (mi300x)": "rocm",
   mps: "mps",
+};
+export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
+  "cuda (a100)": "a100",
+  "cuda (h100)": "h100",
+  "cpu (x86_64)": "x86_64",
+  "cpu (x86_zen)": "x86_zen",
+  "cpu (aarch64)": "aarch64",
+  // TODO (huydhn): Figure out a way to get the GPU name for ROCm
+  "rocm (mi300x)": "",
+  mps: "",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a100)": "inductor-A100-perf-nightly",

@@ -1,7 +1,8 @@
 {
   "params": {
     "device": "String",
-    "dtypes": "String",
+    "arch": "String",
+    "dtype": "String",
     "mode": "String",
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)"

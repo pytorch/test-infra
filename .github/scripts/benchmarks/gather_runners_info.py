@@ -35,7 +35,6 @@ def get_runner_info() -> Dict[str, Any]:
         import torch
 
         if torch.cuda.is_available():
-            # TODO (huydhn): only support CUDA and ROCm for now
             if torch.version.hip:
                 device_name = "rocm"
             elif torch.version.cuda:
@@ -55,7 +54,6 @@ def get_runner_info() -> Dict[str, Any]:
         },
     }
 
-    # TODO (huydhn): only support CUDA and ROCm for now
     if device_name and device_type:
         runner_info["name"] = device_name
         runner_info["type"] = device_type
@@ -65,6 +63,10 @@ def get_runner_info() -> Dict[str, Any]:
             * torch.cuda.device_count()
             / (1024 * 1024 * 1024)
         )
+    else:
+        # Check if the workflow has already set the device name and type
+        runner_info["name"] = os.getenv("DEVICE_NAME", "")
+        runner_info["type"] = os.getenv("DEVICE_TYPE", "")
 
     return runner_info
 
