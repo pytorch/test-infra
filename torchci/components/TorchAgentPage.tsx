@@ -20,11 +20,13 @@ import {
 } from "./TorchAgentPage/messageProcessor";
 import { QueryInputSection } from "./TorchAgentPage/QueryInputSection";
 import {
+  ChatMain,
+  ChatMessages,
   ChunkMetadata,
   LoaderWrapper,
+  MessageBubble,
   QuerySection,
   ResponseText,
-  ResultsSection,
   TorchAgentPageContainer,
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
@@ -35,7 +37,6 @@ import {
   formatTokenCount,
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
-import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
 
 interface ChatSession {
   sessionId: string;
@@ -101,12 +102,13 @@ export const TorchAgentPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(true);
 
   const fetchControllerRef = useRef<AbortController | null>(null);
+  const chatContainerRef = useRef<HTMLDivElement | null>(null);
 
   const thinkingMessages = useThinkingMessages();
   const displayedTokens = useAnimatedCounter(totalTokens);
   const calculateTotalTokens = useTokenCalculator();
   const { showScrollButton, scrollToBottomAndEnable, resetAutoScroll } =
-    useAutoScroll(isLoading, parsedResponses);
+    useAutoScroll(isLoading, parsedResponses, chatContainerRef);
 
   const handleQueryChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setQuery(event.target.value);
@@ -560,27 +562,8 @@ export const TorchAgentPage = () => {
           .map((item, index) => (
             <div key={`content-${index}`}>
               {item.type === "user_message" ? (
-                <Box
-                  sx={{
-                    mb: 3,
-                    p: 2,
-                    backgroundColor: "action.hover",
-                    borderRadius: 1,
-                    borderLeft: "4px solid",
-                    borderLeftColor: "primary.main",
-                  }}
-                >
-                  <Typography
-                    variant="subtitle2"
-                    color="primary"
-                    sx={{ mb: 1 }}
-                  >
-                    User Query:
-                  </Typography>
-                  <Typography variant="body1">
-                    {renderTextWithLinks(item.content, false)}
-                  </Typography>
-
+                <MessageBubble from="user">
+                  {renderTextWithLinks(item.content, false)}
                   {item.grafanaLinks && item.grafanaLinks.length > 0 && (
                     <Box mt={2}>
                       {item.grafanaLinks.map((link, i) => (
@@ -588,9 +571,9 @@ export const TorchAgentPage = () => {
                       ))}
                     </Box>
                   )}
-                </Box>
+                </MessageBubble>
               ) : item.type === "text" ? (
-                <>
+                <MessageBubble from="agent">
                   <ResponseText>
                     {renderTextWithLinks(
                       (item.displayedContent !== undefined
@@ -600,16 +583,13 @@ export const TorchAgentPage = () => {
                       item.isAnimating
                     )}
                   </ResponseText>
-
                   {!item.isAnimating && (
                     <ChunkMetadata>
-                      {/* For historical chats, we skip timing calculations since timestamps are strings */}
                       {item.outputTokens
                         ? `${formatTokenCount(item.outputTokens)} tokens`
                         : ""}
                     </ChunkMetadata>
                   )}
-
                   {item.grafanaLinks && item.grafanaLinks.length > 0 && (
                     <Box mt={2}>
                       {item.grafanaLinks.map((link, i) => (
@@ -617,7 +597,7 @@ export const TorchAgentPage = () => {
                       ))}
                     </Box>
                   )}
-                </>
+                </MessageBubble>
               ) : item.type === "tool_use" && item.toolName ? (
                 <ToolUse
                   toolName={item.toolName}
@@ -700,7 +680,6 @@ export const TorchAgentPage = () => {
 
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
-      {/* Sidebar */}
       <ChatHistorySidebar
         drawerOpen={drawerOpen}
         sidebarWidth={sidebarWidth}
@@ -711,8 +690,7 @@ export const TorchAgentPage = () => {
         onLoadChatSession={loadChatSession}
       />
 
-      {/* Main Content */}
-      <Box sx={{ flexGrow: 1, display: "flex", flexDirection: "column" }}>
+      <ChatMain>
         {isSessionLoading ? (
           <LoadingDisplay message="Loading Conversation..." showFullScreen />
         ) : (
@@ -724,34 +702,7 @@ export const TorchAgentPage = () => {
               bugReportUrl={bugReportUrl}
             />
 
-            {/* Show welcome message for completely new chats */}
-            {!selectedSession && (
-              <WelcomeSection
-                query={query}
-                isLoading={isLoading}
-                debugVisible={debugVisible}
-                onQueryChange={handleQueryChange}
-                onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
-              />
-            )}
-
-            {/* Show query input for active chats (read-only for history) */}
-            {selectedSession && (
-              <QueryInputSection
-                query={query}
-                isLoading={isLoading}
-                debugVisible={debugVisible}
-                isReadOnly={selectedSession !== currentSessionId}
-                onQueryChange={handleQueryChange}
-                onSubmit={handleSubmit}
-                onToggleDebug={() => setDebugVisible(!debugVisible)}
-                onCancel={cancelRequest}
-              />
-            )}
-
-            <ResultsSection>
+            <ChatMessages ref={chatContainerRef}>
               <Box
                 sx={{
                   display: "flex",
@@ -829,10 +780,21 @@ export const TorchAgentPage = () => {
                   </pre>
                 </Box>
               )}
-            </ResultsSection>
+            </ChatMessages>
+
+            <QueryInputSection
+              query={query}
+              isLoading={isLoading}
+              debugVisible={debugVisible}
+              isReadOnly={selectedSession !== currentSessionId}
+              onQueryChange={handleQueryChange}
+              onSubmit={handleSubmit}
+              onToggleDebug={() => setDebugVisible(!debugVisible)}
+              onCancel={cancelRequest}
+            />
           </TorchAgentPageContainer>
         )}
-      </Box>
+      </ChatMain>
     </Box>
   );
 };

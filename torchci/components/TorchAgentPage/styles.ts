@@ -8,10 +8,13 @@ export const TorchAgentPageContainer = styled("div")({
   margin: "0 auto",
 });
 
-export const QuerySection = styled(Paper)({
+export const QuerySection = styled(Paper)(({ theme }) => ({
   padding: "20px",
-  marginBottom: "20px",
-});
+  position: "sticky",
+  bottom: 0,
+  zIndex: 5,
+  borderTop: `1px solid ${theme.palette.divider}`,
+}));
 
 export const ResultsSection = styled(Paper)(({ theme }) => ({
   padding: "20px",
@@ -20,6 +23,37 @@ export const ResultsSection = styled(Paper)(({ theme }) => ({
   backgroundColor: theme.palette.mode === "dark" ? "#1a1a1a" : "#f5f5f5",
   scrollBehavior: "smooth",
 }));
+
+export const ChatMain = styled(Box)({
+  flexGrow: 1,
+  display: "flex",
+  flexDirection: "column",
+  height: "100vh",
+});
+
+export const ChatMessages = styled(Box)(({ theme }) => ({
+  flexGrow: 1,
+  overflowY: "auto",
+  padding: "20px",
+  backgroundColor: theme.palette.mode === "dark" ? "#1a1a1a" : "#f5f5f5",
+}));
+
+export const MessageBubble = styled(Box)<{ from: "user" | "agent" }>(
+  ({ theme, from }) => ({
+    maxWidth: "80%",
+    padding: "12px",
+    borderRadius: 12,
+    marginBottom: "10px",
+    alignSelf: from === "user" ? "flex-end" : "flex-start",
+    backgroundColor:
+      from === "user"
+        ? theme.palette.primary.main
+        : theme.palette.mode === "dark"
+        ? "#333"
+        : "#e0e0e0",
+    color: from === "user" ? "white" : theme.palette.text.primary,
+  })
+);
 
 export const ResponseText = styled("div")(({ theme }) => ({
   whiteSpace: "pre-wrap",

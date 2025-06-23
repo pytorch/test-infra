@@ -40,7 +40,7 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
               : "Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
           }
           variant="outlined"
-          disabled={isLoading || isReadOnly}
+          disabled={isReadOnly}
           InputProps={{
             readOnly: isReadOnly,
           }}
