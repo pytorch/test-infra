@@ -33,7 +33,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
         </Tooltip>
       )}
 
-      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>        
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
           TorchAgent
         </Typography>
