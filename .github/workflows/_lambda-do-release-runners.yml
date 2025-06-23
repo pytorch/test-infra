@@ -90,7 +90,7 @@ jobs:
           { dir-name: 'oss_ci_cur',                 zip-name: 'oss-ci-cur' },
           { dir-name: 'benchmark-results-uploader', zip-name: 'benchmark-results-uploader' },
           { dir-name: 'pytorch-auto-revert',        zip-name: 'pytorch-auto-revert' },
-          { dir-name: 'keep_going_call_log_classifier', zip-name: 'keep_going_call_log_classifier' },
+          { dir-name: 'keep-going-call-log-classifier', zip-name: 'keep-going-call-log-classifier' },
         ]
     name: Upload Release for ${{ matrix.dir-name }} lambda
     runs-on: ubuntu-latest
