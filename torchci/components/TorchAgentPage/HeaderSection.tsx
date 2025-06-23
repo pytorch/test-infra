@@ -33,22 +33,23 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
         </Tooltip>
       )}
 
-      <Typography variant="h4" gutterBottom>
-        TorchAgent
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>        
+        <Typography variant="h4" sx={{ flexGrow: 1 }}>
+          TorchAgent
+        </Typography>
 
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Tooltip title="Create feature request">
-          <Button
-            variant="outlined"
-            component="a"
-            href={featureRequestUrl}
-            target="_blank"
-            sx={{ mr: 1, minWidth: "auto", p: 1 }}
-          >
-            <LightbulbIcon />
-          </Button>
-        </Tooltip>
+        <Box sx={{ display: "flex" }}>
+          <Tooltip title="Create feature request">
+            <Button
+              variant="outlined"
+              component="a"
+              href={featureRequestUrl}
+              target="_blank"
+              sx={{ mr: 1, minWidth: "auto", p: 1 }}
+            >
+              <LightbulbIcon />
+            </Button>
+          </Tooltip>
         <Tooltip title="Report bug">
           <Button
             variant="outlined"
@@ -61,6 +62,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
             <BugReportIcon />
           </Button>
         </Tooltip>
+        </Box>
       </Box>
     </>
   );

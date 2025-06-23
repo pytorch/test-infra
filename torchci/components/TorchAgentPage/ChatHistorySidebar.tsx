@@ -1,5 +1,6 @@
 import AddIcon from "@mui/icons-material/Add";
 import ChatIcon from "@mui/icons-material/Chat";
+import MenuIcon from "@mui/icons-material/Menu";
 import {
   Box,
   CircularProgress,
@@ -33,6 +34,7 @@ interface ChatHistorySidebarProps {
   isHistoryLoading: boolean;
   onStartNewChat: () => void;
   onLoadChatSession: (sessionId: string) => void;
+  onToggleSidebar: () => void;
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
@@ -43,6 +45,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   isHistoryLoading,
   onStartNewChat,
   onLoadChatSession,
+  onToggleSidebar,
 }) => {
   return (
     <Drawer
@@ -50,13 +53,17 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       anchor="left"
       open={drawerOpen}
       sx={{
-        width: sidebarWidth,
+        width: drawerOpen ? sidebarWidth : 0,
         flexShrink: 0,
+        transition: "width 0.3s ease",
         "& .MuiDrawer-paper": {
           width: sidebarWidth,
           boxSizing: "border-box",
-          position: "relative",
-          height: "100%",
+          position: "fixed",
+          height: "calc(100vh - 80px)", // Fixed height instead of dynamic
+          top: "80px", // Fixed top position
+          left: 0,
+          transition: "transform 0.3s ease",
         },
       }}
     >
@@ -69,7 +76,18 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             mb: 2,
           }}
         >
-          <Typography variant="h6">Chat History</Typography>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Tooltip title="Toggle sidebar">
+              <IconButton
+                onClick={onToggleSidebar}
+                sx={{ mr: 1 }}
+                aria-label="Toggle sidebar"
+              >
+                <MenuIcon />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="h6">Chat History</Typography>
+          </Box>
           <Tooltip title="New Chat">
             <IconButton onClick={onStartNewChat} color="primary">
               <AddIcon />

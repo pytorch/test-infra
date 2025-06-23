@@ -1,4 +1,12 @@
-import { Box, Button, Typography, useTheme } from "@mui/material";
+import MenuIcon from "@mui/icons-material/Menu";
+import {
+  Box,
+  Button,
+  IconButton,
+  Tooltip,
+  Typography,
+  useTheme,
+} from "@mui/material";
 import { useSession } from "next-auth/react";
 import { useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
@@ -37,6 +45,7 @@ import {
   formatTokenCount,
   renderTextWithLinks,
 } from "./TorchAgentPage/utils";
+import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
 
 interface ChatSession {
   sessionId: string;
@@ -100,6 +109,10 @@ export const TorchAgentPage = () => {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
+
+  const toggleSidebar = () => {
+    setDrawerOpen(!drawerOpen);
+  };
 
   const fetchControllerRef = useRef<AbortController | null>(null);
   const chatContainerRef = useRef<HTMLDivElement | null>(null);
@@ -165,9 +178,10 @@ export const TorchAgentPage = () => {
           const userMessage = sessionData.messages.find(
             (msg: any) => msg.type === "user_message" && msg.content
           );
-          if (userMessage) {
-            setQuery(userMessage.content);
-          }
+          // Don't set the query in the input box for historic sessions
+          // if (userMessage) {
+          //   setQuery(userMessage.content);
+          // }
 
           setParsedResponses([]);
 
@@ -396,9 +410,17 @@ export const TorchAgentPage = () => {
 
     cancelRequest();
 
+    // Add user query to parsed responses immediately and clear input
+    const userMessage = {
+      type: "user_message" as const,
+      content: query,
+      timestamp: Date.now(),
+    };
+
     setIsLoading(true);
     setResponse("");
-    setParsedResponses([]);
+    setParsedResponses([userMessage]); // Start with user message
+    setQuery(""); // Clear the input immediately
     setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
@@ -422,7 +444,7 @@ export const TorchAgentPage = () => {
           Connection: "keep-alive",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query: userMessage.content }), // Use the saved query
         signal: fetchControllerRef.current.signal,
         cache: "no-store",
         // @ts-ignore
@@ -680,6 +702,31 @@ export const TorchAgentPage = () => {
 
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
+      {/* Hamburger button for collapsed sidebar */}
+      {!drawerOpen && (
+        <Box
+          sx={{
+            position: "fixed",
+            top: "96px", // Fixed height instead of dynamic
+            left: "16px",
+            zIndex: 1300,
+            backgroundColor: "background.paper",
+            borderRadius: "50%",
+            boxShadow: 2,
+          }}
+        >
+          <Tooltip title="Open sidebar">
+            <IconButton
+              onClick={toggleSidebar}
+              aria-label="Open sidebar"
+              size="large"
+            >
+              <MenuIcon />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+
       <ChatHistorySidebar
         drawerOpen={drawerOpen}
         sidebarWidth={sidebarWidth}
@@ -688,9 +735,15 @@ export const TorchAgentPage = () => {
         isHistoryLoading={isHistoryLoading}
         onStartNewChat={startNewChat}
         onLoadChatSession={loadChatSession}
+        onToggleSidebar={toggleSidebar}
       />
 
-      <ChatMain>
+      <ChatMain
+        sx={{
+          marginLeft: drawerOpen ? `${sidebarWidth}px` : 0,
+          transition: "margin-left 0.3s ease",
+        }}
+      >
         {isSessionLoading ? (
           <LoadingDisplay message="Loading Conversation..." showFullScreen />
         ) : (
@@ -702,7 +755,9 @@ export const TorchAgentPage = () => {
               bugReportUrl={bugReportUrl}
             />
 
-            <ChatMessages ref={chatContainerRef}>
+            <ChatMessages
+              ref={chatContainerRef}
+            >
               <Box
                 sx={{
                   display: "flex",
@@ -782,16 +837,32 @@ export const TorchAgentPage = () => {
               )}
             </ChatMessages>
 
-            <QueryInputSection
-              query={query}
-              isLoading={isLoading}
-              debugVisible={debugVisible}
-              isReadOnly={selectedSession !== currentSessionId}
-              onQueryChange={handleQueryChange}
-              onSubmit={handleSubmit}
-              onToggleDebug={() => setDebugVisible(!debugVisible)}
-              onCancel={cancelRequest}
-            />
+            {/* Show welcome message for completely new chats */}
+            {!selectedSession && (
+              <WelcomeSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
+
+            {/* Show query input for active chats (read-only for history) */}
+            {selectedSession && (
+              <QueryInputSection
+                query={query}
+                isLoading={isLoading}
+                debugVisible={debugVisible}
+                isReadOnly={selectedSession !== currentSessionId}
+                onQueryChange={handleQueryChange}
+                onSubmit={handleSubmit}
+                onToggleDebug={() => setDebugVisible(!debugVisible)}
+                onCancel={cancelRequest}
+              />
+            )}
           </TorchAgentPageContainer>
         )}
       </ChatMain>

@@ -4,7 +4,8 @@ import { styled } from "@mui/material/styles";
 export const TorchAgentPageContainer = styled("div")({
   fontFamily: "Roboto",
   padding: "20px",
-  maxWidth: "1200px",
+  width: "100%",
+  maxWidth: "900px",
   margin: "0 auto",
 });
 
@@ -36,6 +37,8 @@ export const ChatMessages = styled(Box)(({ theme }) => ({
   overflowY: "auto",
   padding: "20px",
   backgroundColor: theme.palette.mode === "dark" ? "#1a1a1a" : "#f5f5f5",
+  display: "flex",
+  flexDirection: "column",
 }));
 
 export const MessageBubble = styled(Box)<{ from: "user" | "agent" }>(
@@ -45,9 +48,11 @@ export const MessageBubble = styled(Box)<{ from: "user" | "agent" }>(
     borderRadius: 12,
     marginBottom: "10px",
     alignSelf: from === "user" ? "flex-end" : "flex-start",
+    marginLeft: from === "user" ? "auto" : "0",
+    marginRight: from === "user" ? "0" : "auto",
     backgroundColor:
       from === "user"
-        ? theme.palette.primary.main
+        ? "#059669" // Green color instead of red
         : theme.palette.mode === "dark"
         ? "#333"
         : "#e0e0e0",
@@ -195,7 +200,7 @@ export const ScrollToBottomButton = styled(Button)(({ theme }) => ({
   height: "48px",
   minWidth: "48px",
   borderRadius: "50%",
-  backgroundColor: theme.palette.primary.main,
+  backgroundColor: "#059669", // Green color
   color: "white",
   display: "flex",
   justifyContent: "center",
@@ -206,7 +211,7 @@ export const ScrollToBottomButton = styled(Button)(({ theme }) => ({
   transition: "all 0.2s ease-in-out",
   padding: 0,
   "&:hover": {
-    backgroundColor: theme.palette.primary.dark,
+    backgroundColor: "#047857", // Darker green
     transform: "scale(1.1)",
     boxShadow: "0 6px 10px rgba(0, 0, 0, 0.4)",
   },
