@@ -6,9 +6,7 @@ def autorevert_checker(
     workflow_names: list[str], hours: int = 48, verbose: bool = False
 ):
     # Initialize checker
-    checker = AutorevertPatternChecker(
-        CHCliFactory().client, workflow_names=workflow_names, lookback_hours=hours
-    )
+    checker = AutorevertPatternChecker(workflow_names, hours)
 
     # Fetch data
     if verbose:

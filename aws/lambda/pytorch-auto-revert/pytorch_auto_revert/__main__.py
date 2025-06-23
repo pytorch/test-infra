@@ -7,13 +7,9 @@ import sys
 
 from dotenv import load_dotenv
 
-
-# WHY PYTHON WHEN I RUN `python -m package` it is NOT imported as a package?
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
-from .testers.autorevert_checker_tester import autorevert_checker
+from .testers.workflows import autorevert_checker
 
 
 def setup_logging(log_level: str) -> None:
@@ -112,17 +108,10 @@ def main(*args, **kwargs) -> None:
             "ClickHouse connection test failed. Please check your configuration."
         )
 
-    try:
-        if opts.subcommand == "lambda":
-            print("TODO: run lambda flow")
-        elif opts.subcommand == "workflows":
-            autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
-    except Exception as e:
-        logging.error(f"An error occurred: {e}")
-        import traceback
-
-        traceback.print_exc()
-        raise
+    if opts.subcommand == "lambda":
+        print("TODO: run lambda flow")
+    elif opts.subcommand == "workflows":
+        autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
 
 
 if __name__ == "__main__":

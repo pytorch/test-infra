@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set
 
-from clickhouse_client_helper import CHCliFactory
+from .clickhouse_client_helper import CHCliFactory
 
 
 @dataclass

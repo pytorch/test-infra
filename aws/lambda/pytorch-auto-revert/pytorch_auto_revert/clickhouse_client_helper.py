@@ -55,8 +55,11 @@ class CHCliFactory:
                 or not hasattr(self, "_password")
                 or not hasattr(self, "_database")
             ):
+                print(self._host, self._port, self._username, self._password, self._database)
                 raise RuntimeError(
-                    "ClickHouse client not configured. Call setup_client first."
+                    "ClickHouse client not properly configured. Call setup_client first."
+                    + " This might be due credentials not being correctly provided by "
+                    + "environment variables, cli arguments or .env file."
                 )
 
             self._data["client"] = clickhouse_connect.get_client(

@@ -21,6 +21,10 @@ venv/bin/lintrunner: venv/bin/python
 run-local: venv/bin/python
 	venv/bin/python -m pytorch_auto_revert
 
+.PHONY: run-local-workflows
+run-local-workflows: venv/bin/python
+	venv/bin/python -m pytorch_auto_revert workflows pull.yml
+
 deployment.zip:
 	mkdir -p deployment
 	cp -a pytorch-auto-revert. ./deployment/.
