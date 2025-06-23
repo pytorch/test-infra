@@ -50,18 +50,18 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
               <LightbulbIcon />
             </Button>
           </Tooltip>
-        <Tooltip title="Report bug">
-          <Button
-            variant="outlined"
-            color="error"
-            component="a"
-            href={bugReportUrl}
-            target="_blank"
-            sx={{ minWidth: "auto", p: 1 }}
-          >
-            <BugReportIcon />
-          </Button>
-        </Tooltip>
+          <Tooltip title="Report bug">
+            <Button
+              variant="outlined"
+              color="error"
+              component="a"
+              href={bugReportUrl}
+              target="_blank"
+              sx={{ minWidth: "auto", p: 1 }}
+            >
+              <BugReportIcon />
+            </Button>
+          </Tooltip>
         </Box>
       </Box>
     </>

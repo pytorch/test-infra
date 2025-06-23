@@ -755,9 +755,7 @@ export const TorchAgentPage = () => {
               bugReportUrl={bugReportUrl}
             />
 
-            <ChatMessages
-              ref={chatContainerRef}
-            >
+            <ChatMessages ref={chatContainerRef}>
               <Box
                 sx={{
                   display: "flex",
