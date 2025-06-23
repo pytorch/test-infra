@@ -7,6 +7,9 @@ on:
       - main
     paths:
       - 'terraform-aws-github-runner/**'
+  pull_request: # Generate tag when PR modifies this workflow file
+    paths:
+      - '.github/workflows/lambda-release-tag-runners.yml'
 
 jobs:
   tag:
@@ -28,10 +31,10 @@ jobs:
       - name: Create tag name
         id: tag
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag_name=v${{ steps.date.outputs.date }}-custom" >> "${GITHUB_OUTPUT}"
-          else
+          if [ "${{ github.event_name }}" = "push" ] && [ "${{ github.ref }}" = "refs/heads/main" ]; then
             echo "tag_name=v${{ steps.date.outputs.date }}" >> "${GITHUB_OUTPUT}"
+          else
+            echo "tag_name=v${{ steps.date.outputs.date }}-custom" >> "${GITHUB_OUTPUT}"
           fi
 
       - name: Tag snapshot
