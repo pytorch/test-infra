@@ -3,7 +3,6 @@
 import argparse
 import logging
 import os
-import sys
 
 from dotenv import load_dotenv
 
@@ -67,7 +66,9 @@ def get_opts() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="subcommand")
 
     # autorevert subcommand
-    workflow_parser = subparsers.add_parser("autorevert", help="Analyze workflows looking for autorevert patterns")
+    workflow_parser = subparsers.add_parser(
+        "autorevert", help="Analyze workflows looking for autorevert patterns"
+    )
     workflow_parser.add_argument(
         "workflows",
         nargs="+",
@@ -147,9 +148,7 @@ def main(*args, **kwargs) -> None:
     elif opts.subcommand == "workflows":
         autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
     elif opts.subcommand == "workflow-restart-checker":
-        workflow_restart_checker(
-            opts.workflow, commit=opts.commit, days=opts.days
-        )
+        workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "do-restart":
         do_restart_workflow(opts.workflow, commit=opts.commit)
 
