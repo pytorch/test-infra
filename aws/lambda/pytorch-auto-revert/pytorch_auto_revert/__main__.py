@@ -9,7 +9,8 @@ from dotenv import load_dotenv
 
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
-from .testers.workflows import autorevert_checker
+from .testers.autorevert import autorevert_checker
+from .testers.restart import workflow_restart_checker
 
 
 def setup_logging(log_level: str) -> None:
@@ -64,8 +65,8 @@ def get_opts() -> argparse.Namespace:
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # workflows subcommand
-    workflow_parser = subparsers.add_parser("workflows")
+    # autorevert subcommand
+    workflow_parser = subparsers.add_parser("autorevert", help="Analyze workflows looking for autorevert patterns")
     workflow_parser.add_argument(
         "workflows",
         nargs="+",
@@ -80,6 +81,25 @@ def get_opts() -> argparse.Namespace:
         "-v",
         action="store_true",
         help="Show detailed output including commit summaries",
+    )
+
+    # workflow-restart subcommand
+    workflow_restart_parser = subparsers.add_parser(
+        "workflow-restart", help="Check for restarted workflows"
+    )
+    workflow_restart_parser.add_argument(
+        "workflow",
+        help="Workflow file name (e.g., trunk.yml)",
+    )
+    workflow_restart_parser.add_argument(
+        "--commit",
+        help="Check specific commit SHA",
+    )
+    workflow_restart_parser.add_argument(
+        "--days",
+        type=int,
+        default=7,
+        help="If no `--commit` specified, look back days for bulk query (default: 7)",
     )
 
     return parser.parse_args()
@@ -112,6 +132,10 @@ def main(*args, **kwargs) -> None:
         print("TODO: run lambda flow")
     elif opts.subcommand == "workflows":
         autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
+    elif opts.subcommand == "workflow-restart":
+        workflow_restart_checker(
+            opts.workflow, commit=opts.commit, days=opts.days
+        )
 
 
 if __name__ == "__main__":
