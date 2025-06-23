@@ -10,7 +10,8 @@ from dotenv import load_dotenv
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert import autorevert_checker
-from .testers.restart import workflow_restart_checker
+from .testers.do_restart import do_restart_workflow
+from .testers.restart_checker import workflow_restart_checker
 
 
 def setup_logging(log_level: str) -> None:
@@ -83,9 +84,9 @@ def get_opts() -> argparse.Namespace:
         help="Show detailed output including commit summaries",
     )
 
-    # workflow-restart subcommand
+    # workflow-restart-checke subcommand
     workflow_restart_parser = subparsers.add_parser(
-        "workflow-restart", help="Check for restarted workflows"
+        "workflow-restart-checke", help="Check for restarted workflows"
     )
     workflow_restart_parser.add_argument(
         "workflow",
@@ -100,6 +101,19 @@ def get_opts() -> argparse.Namespace:
         type=int,
         default=7,
         help="If no `--commit` specified, look back days for bulk query (default: 7)",
+    )
+
+    # do-restart subcommand
+    do_restart_parser = subparsers.add_parser(
+        "do-restart", help="Restart a workflow for a specific commit"
+    )
+    do_restart_parser.add_argument(
+        "workflow",
+        help="Workflow file name to restart (e.g., trunk.yml)",
+    )
+    do_restart_parser.add_argument(
+        "commit",
+        help="Commit SHA to restart the workflow for",
     )
 
     return parser.parse_args()
@@ -132,10 +146,12 @@ def main(*args, **kwargs) -> None:
         print("TODO: run lambda flow")
     elif opts.subcommand == "workflows":
         autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
-    elif opts.subcommand == "workflow-restart":
+    elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(
             opts.workflow, commit=opts.commit, days=opts.days
         )
+    elif opts.subcommand == "do-restart":
+        do_restart_workflow(opts.workflow, commit=opts.commit)
 
 
 if __name__ == "__main__":
