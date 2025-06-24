@@ -2,6 +2,7 @@ import { CloudWatch } from 'aws-sdk';
 import { Config } from './config';
 import { expBackOff, Repo, RunnerInfo, getRepo } from './utils';
 import { CHFactory } from './clickhouse';
+import { getExperimentValue } from './cache';
 
 interface CloudWatchMetricReq {
   MetricData: Array<CloudWatchMetric>;
@@ -159,7 +160,12 @@ export class Metrics {
   }
 
   async sendMetrics() {
-    await await Promise.all([this.sendMetricsCW(), this.sendMetricsCH()]);
+
+   if (await getExperimentValue('SendMetricsCH', false)){
+    Promise.all([this.sendMetricsCW(), this.sendMetricsCH()]);
+   } else {
+    await this.sendMetricsCW();
+   }
   }
 
   async sendMetricsCH() {
