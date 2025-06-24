@@ -28,12 +28,12 @@ PYTHON_ARCHES_DICT = {
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "12.9"],
-    "test": ["11.8", "12.6", "12.8"],
+    "test": ["12.6", "12.8", "12.9"],
     "release": ["11.8", "12.6", "12.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.3", "6.4"],
-    "test": ["6.2.4", "6.3"],
+    "test": ["6.3", "6.4"],
     "release": ["6.2.4", "6.3"],
 }
 
@@ -45,8 +45,8 @@ CUDA_CUDNN_VERSIONS = {
 }
 
 STABLE_CUDA_VERSIONS = {
-    "nightly": "12.6",
-    "test": "12.6",
+    "nightly": "12.8",
+    "test": "12.8",
     "release": "12.6",
 }
 
@@ -76,7 +76,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.8.0"
-CURRENT_CANDIDATE_VERSION = "2.7.1"
+CURRENT_CANDIDATE_VERSION = "2.8.0"
 CURRENT_STABLE_VERSION = "2.7.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
