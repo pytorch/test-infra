@@ -7,6 +7,7 @@ on:
       - main
     paths:
       - 'terraform-aws-github-runner/**'
+      - 'aws/lambda/**'
   pull_request: # Generate tag when PR modifies this workflow file
     paths:
       - '.github/workflows/lambda-release-tag-runners.yml'
