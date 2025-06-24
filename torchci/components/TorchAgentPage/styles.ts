@@ -55,32 +55,60 @@ export const ChatMessages = styled(Box)(({ theme }) => ({
   flexDirection: "column",
 }));
 
-export const MessageBubble = styled(Box)<{ from: "user" | "agent" }>(
-  ({ theme, from }) => ({
-    maxWidth: "80%",
-    padding: "12px",
-    borderRadius: 12,
-    marginBottom: "10px",
-    alignSelf: from === "user" ? "flex-end" : "flex-start",
-    marginLeft: from === "user" ? "auto" : "0",
-    marginRight: from === "user" ? "0" : "auto",
-    backgroundColor:
-      from === "user"
-        ? "#059669" // Green color instead of red
-        : theme.palette.mode === "dark"
-        ? "#333"
-        : "#e0e0e0",
-    color: from === "user" ? "white" : theme.palette.text.primary,
-  })
-);
+export const MessageBubble = styled(Box)<{
+  from: "user" | "agent";
+  fullWidth?: boolean;
+}>(({ theme, from, fullWidth }) => ({
+  maxWidth: fullWidth ? "100%" : "80%",
+  padding: "12px",
+  borderRadius: 12,
+  marginBottom: "10px",
+  alignSelf: from === "user" ? "flex-end" : "flex-start",
+  marginLeft: from === "user" ? "auto" : "0",
+  marginRight: from === "user" ? "0" : "auto",
+  backgroundColor:
+    from === "user"
+      ? "#059669" // Green color instead of red
+      : theme.palette.mode === "dark"
+      ? "#333"
+      : "#e0e0e0",
+  color: from === "user" ? "white" : theme.palette.text.primary,
+}));
 
 export const ResponseText = styled("div")(({ theme }) => ({
-  whiteSpace: "pre-wrap",
   wordBreak: "break-word",
   fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
   margin: 0,
   lineHeight: 1.5,
   color: theme.palette.mode === "dark" ? "#e0e0e0" : "inherit",
+  // Reset styles for markdown content
+  "& > *:first-of-type": {
+    marginTop: 0,
+  },
+  "& > *:last-child": {
+    marginBottom: 0,
+  },
+  // Dark mode adjustments for code blocks
+  "& code": {
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? "rgba(255, 255, 255, 0.1)"
+        : "rgba(0, 0, 0, 0.1)",
+    color: theme.palette.mode === "dark" ? "#e0e0e0" : "inherit",
+  },
+  "& pre": {
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? "rgba(255, 255, 255, 0.05)"
+        : "rgba(0, 0, 0, 0.05)",
+  },
+  "& blockquote": {
+    borderLeftColor: theme.palette.mode === "dark" ? "#666" : "#ccc",
+    color:
+      theme.palette.mode === "dark"
+        ? "rgba(255, 255, 255, 0.7)"
+        : "rgba(0, 0, 0, 0.7)",
+  },
 }));
 
 export const ToolUseBlock = styled(Paper)(({ theme }) => ({

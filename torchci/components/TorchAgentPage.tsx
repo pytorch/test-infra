@@ -44,7 +44,7 @@ import { ParsedContent } from "./TorchAgentPage/types";
 import {
   formatElapsedTime,
   formatTokenCount,
-  renderTextWithLinks,
+  renderMarkdownWithLinks,
 } from "./TorchAgentPage/utils";
 import { WelcomeSection } from "./TorchAgentPage/WelcomeSection";
 
@@ -632,43 +632,53 @@ export const TorchAgentPage = () => {
           .filter((item) => item.type !== "todo_list")
           .map((item, index) => (
             <div key={`content-${index}`}>
+              {" "}
               {item.type === "user_message" ? (
-                <MessageBubble from="user">
-                  {renderTextWithLinks(item.content, false)}
-                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
-                    <Box mt={2}>
-                      {item.grafanaLinks.map((link, i) => (
-                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
-                      ))}
-                    </Box>
-                  )}
-                </MessageBubble>
-              ) : item.type === "text" ? (
-                <MessageBubble from="agent">
-                  <ResponseText>
-                    {renderTextWithLinks(
-                      (item.displayedContent !== undefined
-                        ? item.displayedContent
-                        : item.content
-                      )?.trim() || "",
-                      item.isAnimating
+                <>
+                  <MessageBubble from="user">
+                    {renderMarkdownWithLinks(
+                      item.content,
+                      false,
+                      theme.palette.mode === "dark"
                     )}
-                  </ResponseText>
-                  {!item.isAnimating && (
-                    <ChunkMetadata>
-                      {item.outputTokens
-                        ? `${formatTokenCount(item.outputTokens)} tokens`
-                        : ""}
-                    </ChunkMetadata>
-                  )}
+                  </MessageBubble>
                   {item.grafanaLinks && item.grafanaLinks.length > 0 && (
-                    <Box mt={2}>
+                    <MessageBubble from="user" fullWidth>
                       {item.grafanaLinks.map((link, i) => (
                         <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
                       ))}
-                    </Box>
+                    </MessageBubble>
                   )}
-                </MessageBubble>
+                </>
+              ) : item.type === "text" ? (
+                <>
+                  <MessageBubble from="agent">
+                    <ResponseText>
+                      {renderMarkdownWithLinks(
+                        (item.displayedContent !== undefined
+                          ? item.displayedContent
+                          : item.content
+                        )?.trim() || "",
+                        item.isAnimating,
+                        theme.palette.mode === "dark"
+                      )}
+                    </ResponseText>
+                    {!item.isAnimating && (
+                      <ChunkMetadata>
+                        {item.outputTokens
+                          ? `${formatTokenCount(item.outputTokens)} tokens`
+                          : ""}
+                      </ChunkMetadata>
+                    )}
+                  </MessageBubble>
+                  {item.grafanaLinks && item.grafanaLinks.length > 0 && (
+                    <MessageBubble from="agent" fullWidth>
+                      {item.grafanaLinks.map((link, i) => (
+                        <GrafanaEmbed key={i} dashboardId={link.dashboardId} />
+                      ))}
+                    </MessageBubble>
+                  )}
+                </>
               ) : item.type === "tool_use" &&
                 item.toolName &&
                 item.toolName !== "TodoWrite" &&
