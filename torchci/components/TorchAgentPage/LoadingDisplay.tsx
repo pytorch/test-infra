@@ -25,7 +25,9 @@ export const LoadingDisplay: React.FC<LoadingDisplayProps> = ({
         height: "100vh",
         width: "100%",
         maxWidth: "900px",
-        marginLeft: drawerOpen ? `calc(50% + ${-sidebarWidth / 2}px)` : "calc(50%)",
+        marginLeft: drawerOpen
+          ? `calc(50% + ${-sidebarWidth / 2}px)`
+          : "calc(50%)",
         marginRight: "auto",
         transform: "translateX(-50%)",
         transition: "margin-left 0.3s ease, transform 0.3s ease",
