@@ -669,7 +669,8 @@ export const TorchAgentPage = () => {
                     </Box>
                   )}
                 </MessageBubble>
-              ) : item.type === "tool_use" && item.toolName ? (
+              ) : item.type === "tool_use" && item.toolName && 
+                   item.toolName !== "TodoWrite" && item.toolName !== "TodoRead" ? (
                 <ToolUse
                   toolName={item.toolName}
                   toolInput={item.toolInput}
@@ -794,7 +795,12 @@ export const TorchAgentPage = () => {
         }}
       >
         {isSessionLoading ? (
-          <LoadingDisplay message="Loading Conversation..." showFullScreen />
+          <LoadingDisplay 
+            message="Loading Conversation..." 
+            showFullScreen 
+            drawerOpen={drawerOpen && !isMobile}
+            sidebarWidth={sidebarWidth}
+          />
         ) : (
           <TorchAgentPageContainer
             ref={contentRef}

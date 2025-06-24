@@ -80,7 +80,6 @@ export const ResponseText = styled("div")(({ theme }) => ({
   fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
   margin: 0,
   lineHeight: 1.5,
-  paddingTop: "1em",
   color: theme.palette.mode === "dark" ? "#e0e0e0" : "inherit",
 }));
 
@@ -160,7 +159,7 @@ export const ChunkMetadata = styled(Typography)(({ theme }) => ({
       : "rgba(0, 0, 0, 0.5)",
   textAlign: "right",
   marginTop: "4px",
-  marginBottom: "16px",
+  marginBottom: "-5px",
   fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
 }));
 
