@@ -16,9 +16,15 @@ export interface RunnerInfo {
   instanceId: string;
   instanceManagement?: string;
   launchTime?: Date;
+  repositoryOwner?: string;
+  repositoryName?: string;
+  runnerTypeLabels?: string[];
+  runnerExtraLabels?: string[];
+  runnerGroupName?: string;
   org?: string;
   repo?: string;
   runnerType?: string;
+  stage?: string;
 }
 
 export function getRepoKey(repo: Repo): string {
