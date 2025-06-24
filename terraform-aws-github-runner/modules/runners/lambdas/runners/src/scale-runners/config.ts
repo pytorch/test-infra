@@ -8,6 +8,11 @@ export class Config {
   readonly awsRegionsToVpcIds: Map<string, Array<string>>;
   readonly azToSubnetIds: Map<string, Array<string>>;
   readonly cantHaveIssuesLabels: string[];
+  readonly clickhouseHost: string;
+  readonly clickhousePort: number;
+  readonly clickhouseDatabase: string;
+  readonly clickhouseUsername: string;
+  readonly clickhousePassword: string;
   readonly datetimeDeploy: string | undefined;
   readonly enableOrganizationRunners: boolean;
   readonly environment: string;
@@ -56,6 +61,16 @@ export class Config {
     this.awsRegionsToVpcIds = this.getMapFromFlatEnv(process.env.AWS_REGIONS_TO_VPC_IDS);
     /* istanbul ignore next */
     this.cantHaveIssuesLabels = process.env.CANT_HAVE_ISSUES_LABELS?.split(',').filter((w) => w.length > 0) || [];
+    /* istanbul ignore next */
+    this.clickhouseHost = process.env.CLICKHOUSE_HOST || 'localhost';
+    /* istanbul ignore next */
+    this.clickhousePort = Number(process.env.CLICKHOUSE_PORT || '8443');
+    /* istanbul ignore next */
+    this.clickhouseDatabase = process.env.CLICKHOUSE_DATABASE || 'default';
+    /* istanbul ignore next */
+    this.clickhouseUsername = process.env.CLICKHOUSE_USERNAME || 'default';
+    /* istanbul ignore next */
+    this.clickhousePassword = process.env.CLICKHOUSE_PASSWORD || '';
     /* istanbul ignore next */
     this.datetimeDeploy = process.env.DATETIME_DEPLOY ? process.env.DATETIME_DEPLOY : undefined;
     this.enableOrganizationRunners = getBoolean(process.env.ENABLE_ORGANIZATION_RUNNERS);

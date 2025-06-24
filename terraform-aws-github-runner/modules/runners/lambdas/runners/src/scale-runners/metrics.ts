@@ -1,6 +1,7 @@
 import { CloudWatch } from 'aws-sdk';
 import { Config } from './config';
 import { expBackOff, Repo, RunnerInfo, getRepo } from './utils';
+import { CHFactory } from './clickhouse';
 
 interface CloudWatchMetricReq {
   MetricData: Array<CloudWatchMetric>;
@@ -158,6 +159,105 @@ export class Metrics {
   }
 
   async sendMetrics() {
+    await await Promise.all([this.sendMetricsCW(), this.sendMetricsCH()]);
+  }
+
+  async sendMetricsCH() {
+    /*
+    Inser metrics into clickhouse on the following table:
+    CREATE TABLE fortesting.metrics_test
+      (
+          namespace LowCardinality(String),
+          metric_name LowCardinality(String),
+          time_bucket DateTime, -- please use `toStartOfInterval(now(), INTERVAL 1 MINUTE)` to insert the time
+          dimensions Map(String, String), -- please make sure to sort the keys before inserting so Map hash is constant
+          value Float64
+      )
+      ENGINE = SummingMergeTree()
+      PARTITION BY toYYYYMM(time_bucket)
+      ORDER BY (namespace, metric_name, time_bucket, dimensions)
+      TTL time_bucket + INTERVAL 12 MONTH DELETE
+      ;
+    */
+    if (this.metrics.size < 1) {
+      return;
+    }
+
+    try {
+      // Import CHFactory and get client
+      const client = CHFactory.instance.getClient();
+
+      // Current time bucket - rounded to the nearest minute
+      const timeBucket = new Date();
+      timeBucket.setSeconds(0, 0); // Round to minute
+
+      const namespace = `${Config.Instance.environment}-${this.lambdaName}-dim`;
+      const rows = [];
+
+      // Convert metrics to ClickHouse format
+      this.metrics.forEach((dimsVals, name) => {
+        dimsVals.forEach((vals, dimDef) => {
+          // Parse the dimensions
+          let dimensions = {};
+          if ((this.metricsDimensions.get(name)?.length ?? 0) > 0) {
+            const dimVals = JSON.parse(dimDef);
+            const dimNames = this.metricsDimensions.get(name) || [];
+
+            // Create dimensions object with sorted keys
+            dimensions = dimNames.reduce((acc, dimName, idx) => {
+              acc[dimName] = dimVals[idx];
+              return acc;
+            }, {} as Record<string, string>);
+          }
+
+          // Add each value and count to rows
+          vals.forEach((count, val) => {
+            rows.push({
+              namespace,
+              metric_name: name,
+              time_bucket: timeBucket,
+              dimensions,
+              value: val
+            });
+
+            // If count > 1, we need to add the count metric
+            if (count > 1) {
+              rows.push({
+                namespace,
+                metric_name: `${name}.count`,
+                time_bucket: timeBucket,
+                dimensions,
+                value: count
+              });
+            }
+          });
+        });
+      });
+
+      // Check if we have data to send
+      if (rows.length === 0) {
+        return;
+      }
+
+      // Send data to ClickHouse in batches
+      const batchSize = 1000;
+      for (let i = 0; i < rows.length; i += batchSize) {
+        const batch = rows.slice(i, i + batchSize);
+        await client.insert({
+          table: 'fortesting.metrics_test',
+          values: batch,
+          format: 'JSONEachRow'
+        });
+      }
+
+      console.info(`Successfully sent ${rows.length} metrics to ClickHouse`);
+    } catch (error) {
+      console.error('Error sending metrics to ClickHouse:', error);
+      // Don't throw the error, just log it - we don't want metrics issues to break the application
+    }
+  }
+
+  async sendMetricsCW() {
     if (this.metrics.size < 1) {
       return;
     }
