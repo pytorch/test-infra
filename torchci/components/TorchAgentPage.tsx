@@ -5,10 +5,11 @@ import {
   IconButton,
   Tooltip,
   Typography,
+  useMediaQuery,
   useTheme,
 } from "@mui/material";
 import { useSession } from "next-auth/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
 import { FeedbackButtons } from "./TorchAgentPage/FeedbackButtons";
@@ -72,6 +73,11 @@ const hasAuthCookie = () => {
 export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("lg")); // Below 1200px
+
+  // Constants
+  const typingSpeed = 10;
+  const sidebarWidth = 300;
 
   const featureRequestUrl =
     "https://github.com/pytorch/test-infra/issues/new?title=" +
@@ -92,7 +98,6 @@ export const TorchAgentPage = () => {
     {}
   );
   const [allToolsExpanded, setAllToolsExpanded] = useState(false);
-  const [typingSpeed] = useState(10);
   const [thinkingMessageIndex, setThinkingMessageIndex] = useState(0);
   const [startTime, setStartTime] = useState<number | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
@@ -109,6 +114,44 @@ export const TorchAgentPage = () => {
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
+  const [headerHeight, setHeaderHeight] = useState(80); // Default fallback
+
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Auto-collapse sidebar on mobile screens
+  useEffect(() => {
+    if (isMobile && drawerOpen) {
+      setDrawerOpen(false);
+    } else if (!isMobile && !drawerOpen) {
+      setDrawerOpen(true);
+    }
+    // Don't auto-expand on desktop - preserve user preference
+  }, [isMobile]);
+
+  // Measure header height dynamically by calculating offset from viewport top
+  useEffect(() => {
+    const measureHeaderHeight = () => {
+      if (contentRef.current) {
+        const rect = contentRef.current.getBoundingClientRect();
+        const height = Math.max(rect.top, 80); // Ensure minimum of 80px
+        setHeaderHeight(height);
+      }
+    };
+
+    // Use requestAnimationFrame for proper timing after render
+    const rafId = requestAnimationFrame(measureHeaderHeight);
+
+    // Re-measure on window resize
+    const handleResize = () => {
+      requestAnimationFrame(measureHeaderHeight);
+    };
+    
+    window.addEventListener("resize", handleResize);
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const toggleSidebar = () => {
     setDrawerOpen(!drawerOpen);
@@ -142,7 +185,7 @@ export const TorchAgentPage = () => {
     </LoaderWrapper>
   );
 
-  const fetchChatHistory = async () => {
+  const fetchChatHistory = useCallback(async () => {
     if (!session.data?.user && !hasAuthCookie()) return;
 
     setIsHistoryLoading(true);
@@ -159,13 +202,18 @@ export const TorchAgentPage = () => {
     } finally {
       setIsHistoryLoading(false);
     }
-  };
+  }, [session.data?.user]);
 
   const loadChatSession = async (sessionId: string) => {
     setIsSessionLoading(true);
     setParsedResponses([]);
     setResponse("");
     setError("");
+
+    // Close mobile sidebar when loading a session
+    if (isMobile && drawerOpen) {
+      setDrawerOpen(false);
+    }
 
     try {
       const response = await fetch(
@@ -175,14 +223,6 @@ export const TorchAgentPage = () => {
         const sessionData = await response.json();
 
         if (sessionData.messages && Array.isArray(sessionData.messages)) {
-          const userMessage = sessionData.messages.find(
-            (msg: any) => msg.type === "user_message" && msg.content
-          );
-          // Don't set the query in the input box for historic sessions
-          // if (userMessage) {
-          //   setQuery(userMessage.content);
-          // }
-
           setParsedResponses([]);
 
           let fullResponse = "";
@@ -229,13 +269,18 @@ export const TorchAgentPage = () => {
     setElapsedTime(0);
     setCompletedTime(0);
     setIsSessionLoading(false);
+
+    // Close mobile sidebar when starting new chat
+    if (isMobile && drawerOpen) {
+      setDrawerOpen(false);
+    }
   };
 
   useEffect(() => {
     if (session.data?.user) {
       fetchChatHistory();
     }
-  }, [session.data?.user]);
+  }, [session.data?.user, fetchChatHistory]);
 
   useEffect(() => {
     if (!session.data?.user) return;
@@ -256,7 +301,7 @@ export const TorchAgentPage = () => {
 
       return () => clearInterval(interval);
     }
-  }, [session.data?.user, isLoading, currentSessionId, chatHistory]);
+  }, [session.data?.user, isLoading, currentSessionId, chatHistory, fetchChatHistory]);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -485,16 +530,14 @@ export const TorchAgentPage = () => {
             parseJsonLine(buffer.trim());
           }
 
-          setTimeout(() => {
-            const finalTokens = calculateTotalTokens(parsedResponses);
-            setCompletedTime(elapsedTime);
-            setCompletedTokens(finalTokens);
-            setTotalTokens(finalTokens);
-            setIsLoading(false);
-            if (currentSessionId) {
-              setFeedbackVisible(true);
-            }
-          }, 500);
+          const finalTokens = calculateTotalTokens(parsedResponses);
+          setCompletedTime(elapsedTime);
+          setCompletedTokens(finalTokens);
+          setTotalTokens(finalTokens);
+          setIsLoading(false);
+          if (currentSessionId) {
+            setFeedbackVisible(true);
+          }
 
           break;
         }
@@ -698,8 +741,6 @@ export const TorchAgentPage = () => {
     );
   };
 
-  const sidebarWidth = 300;
-
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       {/* Hamburger button for collapsed sidebar */}
@@ -707,7 +748,7 @@ export const TorchAgentPage = () => {
         <Box
           sx={{
             position: "fixed",
-            top: "96px", // Fixed height instead of dynamic
+            top: `${headerHeight + 16}px`, // Dynamic position based on header height + some padding
             left: "16px",
             zIndex: 1300,
             backgroundColor: "background.paper",
@@ -733,6 +774,8 @@ export const TorchAgentPage = () => {
         chatHistory={chatHistory}
         selectedSession={selectedSession}
         isHistoryLoading={isHistoryLoading}
+        isMobile={isMobile}
+        headerHeight={headerHeight}
         onStartNewChat={startNewChat}
         onLoadChatSession={loadChatSession}
         onToggleSidebar={toggleSidebar}
@@ -740,14 +783,18 @@ export const TorchAgentPage = () => {
 
       <ChatMain
         sx={{
-          marginLeft: drawerOpen ? `${sidebarWidth}px` : 0,
+          marginLeft: drawerOpen && !isMobile ? `${sidebarWidth}px` : 0,
           transition: "margin-left 0.3s ease",
         }}
       >
         {isSessionLoading ? (
           <LoadingDisplay message="Loading Conversation..." showFullScreen />
         ) : (
-          <TorchAgentPageContainer>
+          <TorchAgentPageContainer
+            ref={contentRef}
+            drawerOpen={drawerOpen && !isMobile}
+            sidebarWidth={sidebarWidth}
+          >
             <HeaderSection
               showScrollButton={showScrollButton}
               onScrollToBottom={scrollToBottomAndEnable}
@@ -756,82 +803,94 @@ export const TorchAgentPage = () => {
             />
 
             <ChatMessages ref={chatContainerRef}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  mb: 2,
-                }}
-              >
-                <Typography variant="h6">Results</Typography>
-                {parsedResponses.length > 0 &&
-                  parsedResponses.some((item) => item.type === "tool_use") && (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={() => {
-                        if (allToolsExpanded) {
-                          setExpandedTools({});
-                          setAllToolsExpanded(false);
-                        } else {
-                          const allExpanded = parsedResponses.reduce(
-                            (acc, _, index) => {
-                              if (parsedResponses[index].type === "tool_use") {
-                                acc[index] = true;
-                              }
-                              return acc;
-                            },
-                            {} as Record<number, boolean>
-                          );
-                          setExpandedTools(allExpanded);
-                          setAllToolsExpanded(true);
-                        }
-                      }}
-                    >
-                      {allToolsExpanded
-                        ? "Collapse all tools"
-                        : "Expand all tools"}
-                    </Button>
-                  )}
-              </Box>
-
-              {error && (
-                <Typography color="error" paragraph>
-                  {error}
-                </Typography>
-              )}
-
-              {renderContent()}
-
-              {debugVisible && (
-                <Box
-                  sx={{
-                    marginTop: "20px",
-                    borderTop: `1px solid ${theme.palette.divider}`,
-                    paddingTop: "10px",
-                  }}
-                >
-                  <Typography variant="subtitle2">
-                    Debug: Raw Response
-                  </Typography>
-                  <pre
-                    style={{
-                      fontSize: "0.8em",
-                      opacity: 0.7,
-                      maxHeight: "200px",
-                      overflowY: "auto",
-                      backgroundColor:
-                        theme.palette.mode === "dark" ? "#121212" : "#f0f0f0",
-                      padding: "8px",
-                      borderRadius: "4px",
-                      color:
-                        theme.palette.mode === "dark" ? "#e0e0e0" : "#333333",
+              {parsedResponses.length > 0 && (
+                <>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      mb: 2,
                     }}
                   >
-                    {response || "(No data yet)"}
-                  </pre>
-                </Box>
+                    <Typography variant="h6">Results</Typography>
+                    {parsedResponses.length > 0 &&
+                      parsedResponses.some(
+                        (item) => item.type === "tool_use"
+                      ) && (
+                        <Button
+                          variant="outlined"
+                          size="small"
+                          onClick={() => {
+                            if (allToolsExpanded) {
+                              setExpandedTools({});
+                              setAllToolsExpanded(false);
+                            } else {
+                              const allExpanded = parsedResponses.reduce(
+                                (acc, _, index) => {
+                                  if (
+                                    parsedResponses[index].type === "tool_use"
+                                  ) {
+                                    acc[index] = true;
+                                  }
+                                  return acc;
+                                },
+                                {} as Record<number, boolean>
+                              );
+                              setExpandedTools(allExpanded);
+                              setAllToolsExpanded(true);
+                            }
+                          }}
+                        >
+                          {allToolsExpanded
+                            ? "Collapse all tools"
+                            : "Expand all tools"}
+                        </Button>
+                      )}
+                  </Box>
+
+                  {error && (
+                    <Typography color="error" paragraph>
+                      {error}
+                    </Typography>
+                  )}
+
+                  {renderContent()}
+
+                  {debugVisible && (
+                    <Box
+                      sx={{
+                        marginTop: "20px",
+                        borderTop: `1px solid ${theme.palette.divider}`,
+                        paddingTop: "10px",
+                      }}
+                    >
+                      <Typography variant="subtitle2">
+                        Debug: Raw Response
+                      </Typography>
+                      <pre
+                        style={{
+                          fontSize: "0.8em",
+                          opacity: 0.7,
+                          maxHeight: "200px",
+                          overflowY: "auto",
+                          backgroundColor:
+                            theme.palette.mode === "dark"
+                              ? "#121212"
+                              : "#f0f0f0",
+                          padding: "8px",
+                          borderRadius: "4px",
+                          color:
+                            theme.palette.mode === "dark"
+                              ? "#e0e0e0"
+                              : "#333333",
+                        }}
+                      >
+                        {response || "(No data yet)"}
+                      </pre>
+                    </Box>
+                  )}
+                </>
               )}
             </ChatMessages>
 

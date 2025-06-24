@@ -1,12 +1,26 @@
 import { Box, Button, Paper, Typography } from "@mui/material";
 import { styled } from "@mui/material/styles";
 
-export const TorchAgentPageContainer = styled("div")({
-  fontFamily: "Roboto",
-  padding: "20px",
-  width: "100%",
-  maxWidth: "900px",
-  margin: "0 auto",
+export const TorchAgentPageContainer = styled("div")<{
+  drawerOpen?: boolean;
+  sidebarWidth?: number;
+}>(({ drawerOpen = false, sidebarWidth = 300 }) => {
+  // When drawer is open, we want to center the content in the remaining space
+  // The sidebar takes up sidebarWidth, so we shift left by half of that to center
+  const leftOffset = drawerOpen ? -sidebarWidth / 2 : 0;
+  
+  return {
+    fontFamily: "Roboto",
+    padding: "20px",
+    width: "100%",
+    maxWidth: "900px",
+    marginTop: "0",
+    marginBottom: "0",
+    marginLeft: `calc(50% + ${leftOffset}px)`,
+    marginRight: "auto",
+    transform: "translateX(-50%)",
+    transition: "margin-left 0.3s ease, transform 0.3s ease",
+  };
 });
 
 export const QuerySection = styled(Paper)(({ theme }) => ({
