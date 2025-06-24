@@ -6,6 +6,8 @@ export const TorchAgentPageContainer = styled("div")({
   padding: "20px",
   maxWidth: "1200px",
   margin: "0 auto",
+  width: "100%",
+  boxSizing: "border-box",
 });
 
 export const QuerySection = styled(Paper)({
