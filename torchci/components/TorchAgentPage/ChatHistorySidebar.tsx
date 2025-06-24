@@ -49,6 +49,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
       variant="persistent"
       anchor="left"
       open={drawerOpen}
+      data-test-id="chat-history-drawer"
       sx={{
         width: sidebarWidth,
         flexShrink: 0,
@@ -71,7 +72,11 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
         >
           <Typography variant="h6">Chat History</Typography>
           <Tooltip title="New Chat">
-            <IconButton onClick={onStartNewChat} color="primary">
+            <IconButton
+              onClick={onStartNewChat}
+              color="primary"
+              data-test-id="new-chat-button"
+            >
               <AddIcon />
             </IconButton>
           </Tooltip>
@@ -106,6 +111,7 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
               <ListItemButton
                 selected={selectedSession === session.sessionId}
                 onClick={() => onLoadChatSession(session.sessionId)}
+                data-test-id={`chat-session-${session.sessionId}`}
               >
                 {session.status === "in_progress" ? (
                   <CircularProgress size={14} sx={{ mr: 1 }} />
