@@ -64,6 +64,7 @@ LINUX = "linux"
 LINUX_AARCH64 = "linux-aarch64"
 MACOS_ARM64 = "macos-arm64"
 WINDOWS = "windows"
+WINDOWS_ARM64 = "windows-arm64"
 
 # Accelerator architectures
 CPU = "cpu"
@@ -94,9 +95,11 @@ LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.g4dn.xlarge"
 WIN_CPU_RUNNER = "windows.4xlarge"
+WIN_ARM64_RUNNER = "windows-11-arm64"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
@@ -135,6 +138,8 @@ def validation_runner(arch_type: str, os: str) -> str:
             return WIN_GPU_RUNNER
         else:
             return WIN_CPU_RUNNER
+    elif os == WINDOWS_ARM64:
+        return WIN_ARM64_RUNNER
     elif os == MACOS_ARM64:
         return MACOS_M1_RUNNER
     else:  # default to linux cpu runner
@@ -296,11 +301,16 @@ def get_wheel_install_command(
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
     else:
-        whl_install_command = (
-            f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
-            if channel == "nightly"
-            else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
-        )
+        whl_install_command = ""
+        if os == WINDOWS_ARM64:
+            # winarm64 has only nightly torch package for now
+            whl_install_command = (
+                f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
+            )
+        elif channel == "nightly":
+            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
+        else:
+            whl_install_command = f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
 
 
@@ -415,6 +425,9 @@ def generate_wheels_matrix(
     if not python_versions:
         # Define default python version
         python_versions = list(PYTHON_ARCHES)
+
+    if os == WINDOWS_ARM64:
+        python_versions = ["3.11", "3.12", "3.13"]  # only versions for now
 
     if os == LINUX:
         # NOTE: We only build manywheel packages for linux
