@@ -46,7 +46,7 @@ CUDA_CUDNN_VERSIONS = {
 
 STABLE_CUDA_VERSIONS = {
     "nightly": "12.8",
-    "test": "12.9",
+    "test": "12.8",
     "release": "12.6",
 }
 
