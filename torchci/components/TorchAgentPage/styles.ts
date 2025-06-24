@@ -8,7 +8,7 @@ export const TorchAgentPageContainer = styled("div")<{
   // When drawer is open, we want to center the content in the remaining space
   // The sidebar takes up sidebarWidth, so we shift left by half of that to center
   const leftOffset = drawerOpen ? -sidebarWidth / 2 : 0;
-  
+
   return {
     fontFamily: "Roboto",
     padding: "20px",

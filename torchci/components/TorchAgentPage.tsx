@@ -145,7 +145,7 @@ export const TorchAgentPage = () => {
     const handleResize = () => {
       requestAnimationFrame(measureHeaderHeight);
     };
-    
+
     window.addEventListener("resize", handleResize);
     return () => {
       cancelAnimationFrame(rafId);
@@ -301,7 +301,13 @@ export const TorchAgentPage = () => {
 
       return () => clearInterval(interval);
     }
-  }, [session.data?.user, isLoading, currentSessionId, chatHistory, fetchChatHistory]);
+  }, [
+    session.data?.user,
+    isLoading,
+    currentSessionId,
+    chatHistory,
+    fetchChatHistory,
+  ]);
 
   useEffect(() => {
     if (!isLoading) return;
