@@ -9,8 +9,8 @@ This script can be used to cut any branch on any repository
 For `pytorch/pytorch` usage would be like:
 > DRY_RUN=disabled cut-release-branch.sh
 
-For `pytorch/builder`, `pytorch/test-infra` or domains usage would be like:
-> DRY_RUN=disabled GIT_BRANCH_TO_CUT_FROM=main RELEASE_VERSION=2.1 cut-release-branch.sh
+For `pytorch/test-infra` or domains usage would be like:
+> DRY_RUN=disabled GIT_BRANCH_TO_CUT_FROM=main RELEASE_VERSION={version} ./release/cut-release-branch.sh
 '
 
 set -eou pipefail
@@ -19,8 +19,6 @@ GIT_TOP_DIR=$(git rev-parse --show-toplevel)
 GIT_REMOTE=${GIT_REMOTE:-origin}
 GIT_BRANCH_TO_CUT_FROM=${GIT_BRANCH_TO_CUT_FROM:-viable/strict}
 
-# should output something like 1.11
-RELEASE_VERSION=${RELEASE_VERSION:-$(cut -d'.' -f1-2 "${GIT_TOP_DIR}/version.txt")}
 TEST_INFRA_BRANCH=${TEST_INFRA_BRANCH:-"release/${RELEASE_VERSION}"}
 
 DRY_RUN_FLAG="--dry-run"
