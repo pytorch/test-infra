@@ -16,12 +16,16 @@ export const LoadingDisplay: React.FC<LoadingDisplayProps> = ({
   drawerOpen = false,
   sidebarWidth = 300,
 }) => {
+  const baseStyles = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+  } as const;
+
   const containerSx = showFullScreen
     ? {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
+        ...baseStyles,
         height: "100vh",
         width: "100%",
         maxWidth: "900px",
@@ -33,10 +37,7 @@ export const LoadingDisplay: React.FC<LoadingDisplayProps> = ({
         transition: "margin-left 0.3s ease, transform 0.3s ease",
       }
     : {
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
+        ...baseStyles,
         height: "300px",
       };
 
