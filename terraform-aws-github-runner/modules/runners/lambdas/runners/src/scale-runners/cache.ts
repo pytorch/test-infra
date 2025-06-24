@@ -326,35 +326,40 @@ export async function getExperimentValue<T>(experimentKey: string, defaultValue:
   });
 }
 
-export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
+export async function isRunnerInExperimentGroup(runnerName: string): Promise<boolean> {
   const runnerNameSuffix = await getExperimentValue('RUNNER_NAME_SUFFIX', '');
   if (runnerNameSuffix === undefined || runnerNameSuffix === null || runnerNameSuffix === '') {
-    console.debug(`Experiment ${experimentKey} check ignored, as RUNNER_NAME_SUFFIX is not set`);
+    console.debug('Experiment check ignored, as RUNNER_NAME_SUFFIX is not set');
     return false;
   }
 
-  if (!runnerName.endsWith(runnerNameSuffix)) {
-    console.debug(
-      `Runner name ${runnerName} does not match suffix ${runnerNameSuffix} when checking experiment ${experimentKey}`,
-    );
-    return false;
+  const matches = runnerName.endsWith(runnerNameSuffix);
+  if (!matches) {
+    console.debug(`Runner name ${runnerName} does not match suffix ${runnerNameSuffix}`);
   }
 
+  return matches;
+}
+
+export async function getExperimentJoined(experimentKey: string): Promise<boolean> {
   const experimentValue = await getExperimentValue(experimentKey, 0);
 
   if (Math.random() * 100 < experimentValue) {
-    console.debug(
-      `Enabling experiment ${experimentKey} for runner ${runnerName}. ` +
-        `Reached probability threshold of ${experimentValue}%`,
-    );
+    console.debug(`Enabling experiment ${experimentKey}. Reached probability threshold of ${experimentValue}%`);
     return true;
   }
 
-  console.debug(
-    `Skipping experiment ${experimentKey} for runner ${runnerName}. ` +
-      `Didn't reach probability threshold of ${experimentValue}%`,
-  );
+  console.debug(`Skipping experiment ${experimentKey}. Didn't reach probability threshold of ${experimentValue}%`);
   return false;
+}
+
+export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
+  if (!await isRunnerInExperimentGroup(runnerName)) {
+    console.debug(`Experiment ${experimentKey} check ignored for runner ${runnerName}, not in experiment group`);
+    return false;
+  }
+
+  return await getExperimentJoined(experimentKey);
 }
 
 export async function redisCached<T>(
