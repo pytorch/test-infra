@@ -197,7 +197,7 @@ export class Metrics {
       timeBucket.setSeconds(0, 0); // Round to minute
 
       const namespace = `${Config.Instance.environment}-${this.lambdaName}-dim`;
-      const rows = [];
+      const rows: Array<{namespace: string; metric_name: string; time_bucket: Date; dimensions: Record<string, string>; value: number;}> = [];
 
       // Convert metrics to ClickHouse format
       this.metrics.forEach((dimsVals, name) => {

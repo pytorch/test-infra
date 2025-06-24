@@ -40,6 +40,11 @@ describe('Config', () => {
     process.env.SCALE_CONFIG_REPO = 'SCALE_CONFIG_REPO';
     process.env.SCALE_CONFIG_REPO_PATH = '.gh/the.yaml';
     process.env.SECRETSMANAGER_SECRETS_ID = 'SECRETSMANAGER_SECRETS_ID';
+    process.env.CLICKHOUSE_HOST = 'clickhouse.example.com';
+    process.env.CLICKHOUSE_PORT = '9440';
+    process.env.CLICKHOUSE_DATABASE = 'github_runners';
+    process.env.CLICKHOUSE_USERNAME = 'runner_user';
+    process.env.CLICKHOUSE_PASSWORD = 'secret_password';
     process.env.VPC_ID_TO_SECURITY_GROUP_IDS =
       'VPC_1|SG_1,VPC_1|SG_2,VPC_2|SG_3,VPC_2|SG_4,VPC_3|SG_5,VPC_4|SG_6,VPC_5|SG_7';
     process.env.VPC_ID_TO_SUBNET_IDS = 'VPC_1|SN_1,VPC_1|SN_2,VPC_2|SN_3,VPC_2|SN_4,VPC_3|SN_5,VPC_4|SN_6,VPC_5|SN_7';
@@ -78,6 +83,11 @@ describe('Config', () => {
     expect(Config.Instance.scaleConfigRepo).toEqual('SCALE_CONFIG_REPO');
     expect(Config.Instance.scaleConfigRepoPath).toEqual('.gh/the.yaml');
     expect(Config.Instance.secretsManagerSecretsId).toBe('SECRETSMANAGER_SECRETS_ID');
+    expect(Config.Instance.clickhouseHost).toBe('clickhouse.example.com');
+    expect(Config.Instance.clickhousePort).toBe(9440);
+    expect(Config.Instance.clickhouseDatabase).toBe('github_runners');
+    expect(Config.Instance.clickhouseUsername).toBe('runner_user');
+    expect(Config.Instance.clickhousePassword).toBe('secret_password');
     expect(Config.Instance.vpcIdToSecurityGroupIds).toEqual(
       new Map([
         ['VPC_1', ['SG_1', 'SG_2']],
@@ -169,6 +179,11 @@ describe('Config', () => {
     delete process.env.SECRETSMANAGER_SECRETS_ID;
     delete process.env.VPC_ID_TO_SECURITY_GROUP_IDS;
     delete process.env.ENABLE_ORGANIZATION_RUNNERS;
+    delete process.env.CLICKHOUSE_HOST;
+    delete process.env.CLICKHOUSE_PORT;
+    delete process.env.CLICKHOUSE_DATABASE;
+    delete process.env.CLICKHOUSE_USERNAME;
+    delete process.env.CLICKHOUSE_PASSWORD;
 
     expect(Config.Instance.awsRegion).toBe('us-east-1');
     expect(Config.Instance.cantHaveIssuesLabels).toEqual([]);
@@ -198,6 +213,11 @@ describe('Config', () => {
     expect(Config.Instance.secretsManagerSecretsId).toBeUndefined();
     expect(Config.Instance.shuffledAwsRegionInstances).toEqual([]);
     expect(Config.Instance.enableOrganizationRunners).toBeFalsy();
+    expect(Config.Instance.clickhouseHost).toBe('localhost');
+    expect(Config.Instance.clickhousePort).toBe(8443);
+    expect(Config.Instance.clickhouseDatabase).toBe('default');
+    expect(Config.Instance.clickhouseUsername).toBe('default');
+    expect(Config.Instance.clickhousePassword).toBe('');
   });
 
   it('requires scaleConfigRepo to be set when organization runners are enabled', () => {
@@ -206,5 +226,17 @@ describe('Config', () => {
     process.env.SCALE_CONFIG_REPO = '';
 
     expect(() => Config.Instance).toThrowError('SCALE_CONFIG_REPO is required when ENABLE_ORGANIZATION_RUNNERS is set');
+  });
+
+  it('correctly converts clickhouse port to a number', () => {
+    Config.resetConfig();
+    process.env.CLICKHOUSE_PORT = '12345';
+    process.env.ENABLE_ORGANIZATION_RUNNERS = 'false';
+    // Or if organization runners should be enabled, set the required config repo
+    // process.env.ENABLE_ORGANIZATION_RUNNERS = 'true';
+    // process.env.SCALE_CONFIG_REPO = 'some-repo';
+
+    expect(Config.Instance.clickhousePort).toBe(12345);
+    expect(typeof Config.Instance.clickhousePort).toBe('number');
   });
 });
