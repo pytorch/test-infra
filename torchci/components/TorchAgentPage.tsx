@@ -106,7 +106,8 @@ export const TorchAgentPage = () => {
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [hasInsufficientPermissions, setHasInsufficientPermissions] = useState(false);
+  const [hasInsufficientPermissions, setHasInsufficientPermissions] =
+    useState(false);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
@@ -711,7 +712,9 @@ export const TorchAgentPage = () => {
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
           <AISpinner />
           <Typography variant="h6" sx={{ mt: 2 }}>
-            {session.status === "loading" ? "Checking authentication..." : "Checking permissions..."}
+            {session.status === "loading"
+              ? "Checking authentication..."
+              : "Checking permissions..."}
           </Typography>
         </QuerySection>
       </TorchAgentPageContainer>
@@ -773,7 +776,10 @@ export const TorchAgentPage = () => {
             Insufficient Permissions
           </Typography>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            You are signed in as <strong>{session.data.user.name || session.data.user.email}</strong>, but you need write permissions to pytorch/pytorch to access this tool.
+            You are signed in as{" "}
+            <strong>{session.data.user.name || session.data.user.email}</strong>
+            , but you need write permissions to pytorch/pytorch to access this
+            tool.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
             Please request access to continue using TorchAgent.
@@ -796,9 +802,9 @@ export const TorchAgentPage = () => {
             >
               Request Access
             </Button>
-            <Button 
-              variant="outlined" 
-              color="secondary" 
+            <Button
+              variant="outlined"
+              color="secondary"
               onClick={() => {
                 setHasInsufficientPermissions(false);
                 checkUserPermissions();

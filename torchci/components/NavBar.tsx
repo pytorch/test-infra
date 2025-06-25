@@ -22,7 +22,11 @@ const NavBarDropdown = ({
       onMouseLeave={() => setDropdown(false)}
       style={{ padding: 0 }}
     >
-      <Link href={firstItemHref} prefetch={false} className={styles.dropdowntitle}>
+      <Link
+        href={firstItemHref}
+        prefetch={false}
+        className={styles.dropdowntitle}
+      >
         {title} ▾
       </Link>
       <ul className={styles.dropdown} style={dropdownStyle}>
@@ -198,7 +202,6 @@ function NavBar() {
               TorchAudio
             </Link>
           </li>
-
         </ul>
       </div>
       <div

@@ -18,8 +18,8 @@ export default async function handler(
   }
 
   // If we get here, the user has sufficient permissions
-  res.status(200).json({ 
-    authorized: true, 
-    username: username === "grafana-bypass-user" ? "system" : username 
+  res.status(200).json({
+    authorized: true,
+    username: username === "grafana-bypass-user" ? "system" : username,
   });
 }
