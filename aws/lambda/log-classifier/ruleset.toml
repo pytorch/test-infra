@@ -21,6 +21,10 @@ name = 'Operator backwards compatibility'
 pattern = '^The PR is introducing backward incompatible changes to the operator library.'
 
 [[rule]]
+name = 'Failed graph_break_registry check'
+pattern = '^Found the unimplemented_v2 or unimplemented_v2_with_warning calls below that don.t match the registry in graph_break_registry.json.'
+
+[[rule]]
 name = 'Lintrunner failure'
 pattern = '^>>> Lint for.*'
 
