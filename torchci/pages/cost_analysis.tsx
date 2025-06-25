@@ -23,7 +23,6 @@ import TimeSeriesPanel, {
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
 import TimeSeriesTable from "components/metrics/panels/TimeSeriesTable";
-import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
