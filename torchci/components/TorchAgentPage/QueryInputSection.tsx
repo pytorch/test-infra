@@ -56,7 +56,11 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
           }}
         >
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Button variant="outlined" color="secondary" onClick={onToggleDebug}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={onToggleDebug}
+            >
               {debugVisible ? "Hide Debug" : "Show Debug"}
             </Button>
             <FeedbackButtons
