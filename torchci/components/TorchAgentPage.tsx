@@ -25,7 +25,6 @@ import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
 import {
   processContentBlockDelta,
   processMessageLine,
-  processUserMessages,
 } from "./TorchAgentPage/messageProcessor";
 import { QueryInputSection } from "./TorchAgentPage/QueryInputSection";
 import {
@@ -42,6 +41,7 @@ import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
 import { ParsedContent } from "./TorchAgentPage/types";
 import {
+  extractGrafanaLinks,
   formatElapsedTime,
   formatTokenCount,
   renderMarkdownWithLinks,
@@ -241,16 +241,52 @@ export const TorchAgentPage = () => {
           });
           setResponse(fullResponse);
 
-          processUserMessages(sessionData.messages, setParsedResponses);
+          // Process all messages in chronological order
+          sessionData.messages.forEach((msg: any) => {
+            if (msg.type === "user_message" || msg.type === "user") {
+              // Process user message
+              const textContent = msg.content;
+              const grafanaLinks = extractGrafanaLinks(textContent);
 
-          const lines = fullResponse.split("\n").filter((line) => line.trim());
-          lines.forEach((line) => {
-            processMessageLine(line, setParsedResponses, false);
+              setParsedResponses((prev) => [
+                ...prev,
+                {
+                  type: "user_message",
+                  content: textContent,
+                  displayedContent: textContent,
+                  isAnimating: false,
+                  timestamp: Date.now(),
+                  grafanaLinks:
+                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
+                },
+              ]);
+            } else if (msg.content) {
+              // Process assistant message content line by line
+              const lines = msg.content
+                .split("\n")
+                .filter((line: string) => line.trim());
+              lines.forEach((line: string) => {
+                processMessageLine(
+                  line,
+                  setParsedResponses,
+                  false,
+                  undefined,
+                  (sessionId: string) => {
+                    console.log(
+                      "Setting session ID from loadChatSession:",
+                      sessionId
+                    );
+                    setCurrentSessionId(sessionId);
+                  }
+                );
+              });
+            }
           });
         }
 
         setSelectedSession(sessionId);
         setCurrentSessionId(sessionId);
+
         setFeedbackVisible(sessionData.status === "completed");
       } else {
         console.error("Failed to load chat session");
@@ -416,22 +452,33 @@ export const TorchAgentPage = () => {
       setResponse((prev) => prev + line + "\n");
       const json = JSON.parse(line) as any;
 
-      if (json.status === "connecting" && json.userUuid) {
-        setCurrentSessionId(json.userUuid);
+      if (json.status === "connecting" && json.sessionId) {
+        setCurrentSessionId(json.sessionId);
 
-        const now = new Date();
-        const timestamp = now.toISOString();
-        const tempSession: ChatSession = {
-          sessionId: json.userUuid,
-          timestamp: timestamp,
-          date: timestamp.slice(0, 10),
-          filename: `${timestamp}_${json.userUuid}.json`,
-          key: `history/user/${timestamp}_${json.userUuid}.json`,
-          title: "New Chat...",
-        };
+        // Only add to chat history if this is a new session (not resuming)
+        if (!json.resumeSession) {
+          const now = new Date();
+          const timestamp = now.toISOString();
+          const tempSession: ChatSession = {
+            sessionId: json.sessionId,
+            timestamp: timestamp,
+            date: timestamp.slice(0, 10),
+            filename: `${timestamp}_${json.sessionId}.json`,
+            key: `history/user/${timestamp}_${json.sessionId}.json`,
+            title: "New Chat...",
+          };
 
-        setChatHistory((prev) => [tempSession, ...prev]);
-        setSelectedSession(json.userUuid);
+          setChatHistory((prev) => [tempSession, ...prev]);
+          setSelectedSession(json.sessionId);
+        }
+        // For resumed sessions, we keep the existing selectedSession and just update currentSessionId
+        return;
+      }
+
+      // Handle system messages with session_id
+      if (json.type === "agent_mgmt" && json.sessionId) {
+        console.log("Received session_id from system message:", json.sessionId);
+        setCurrentSessionId(json.sessionId);
         return;
       }
 
@@ -445,7 +492,19 @@ export const TorchAgentPage = () => {
       }
 
       if (json.type === "assistant" || json.type === "user") {
-        processMessageLine("", setParsedResponses, true, json);
+        processMessageLine(
+          "",
+          setParsedResponses,
+          true,
+          json,
+          (sessionId: string) => {
+            console.log(
+              "Setting session ID from processMessageLine:",
+              sessionId
+            );
+            setCurrentSessionId(sessionId);
+          }
+        );
       } else if (json.type === "content_block_delta") {
         processContentBlockDelta(json, setParsedResponses);
       } else if (json.error) {
@@ -486,7 +545,15 @@ export const TorchAgentPage = () => {
 
     setIsLoading(true);
     setResponse("");
-    setParsedResponses([userMessage]); // Start with user message
+
+    // For new chats or when no session exists, start fresh
+    // For continued sessions, append to existing responses
+    if (!currentSessionId || !selectedSession) {
+      setParsedResponses([userMessage]); // Start fresh for new chats
+    } else {
+      setParsedResponses((prev) => [...prev, userMessage]); // Append for continued chats
+    }
+
     setQuery(""); // Clear the input immediately
     setFeedbackVisible(false);
     setError("");
@@ -503,6 +570,18 @@ export const TorchAgentPage = () => {
     fetchControllerRef.current = new AbortController();
 
     try {
+      const requestBody: any = { query: userMessage.content };
+
+      // Include sessionId if this is a continued session
+      if (currentSessionId) {
+        console.log("Continuing session with sessionId:", currentSessionId);
+        requestBody.sessionId = currentSessionId;
+      } else {
+        console.log("Starting new session");
+      }
+
+      console.log("Sending request body:", requestBody);
+
       const response = await fetch("/api/torchagent-api", {
         method: "POST",
         headers: {
@@ -511,7 +590,7 @@ export const TorchAgentPage = () => {
           Connection: "keep-alive",
           "X-Requested-With": "XMLHttpRequest",
         },
-        body: JSON.stringify({ query: userMessage.content }), // Use the saved query
+        body: JSON.stringify(requestBody),
         signal: fetchControllerRef.current.signal,
         cache: "no-store",
         // @ts-ignore
@@ -953,7 +1032,6 @@ export const TorchAgentPage = () => {
                 query={query}
                 isLoading={isLoading}
                 debugVisible={debugVisible}
-                isReadOnly={selectedSession !== currentSessionId}
                 onQueryChange={handleQueryChange}
                 onSubmit={handleSubmit}
                 onToggleDebug={() => setDebugVisible(!debugVisible)}
