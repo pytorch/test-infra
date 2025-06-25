@@ -51,7 +51,7 @@ SELECT
     min(time) AS earliest_ts,
     max(time) AS latest_ts
 
-FROM fortesting.oss_ci_utilization_summary_report_v1
+FROM misc.oss_ci_utilization_summary_report_v1
 WHERE
     time >= toDate({start_time:String})
     AND time <= toDate({end_time:String})
