@@ -1,25 +1,20 @@
 import { Box, Button, TextField, Typography } from "@mui/material";
 import React from "react";
 import { QuerySection } from "./styles";
+import { TipsInfoButton } from "./TipsInfoButton";
 
 interface WelcomeSectionProps {
   query: string;
   isLoading: boolean;
-  debugVisible: boolean;
   onQueryChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onSubmit: (event: React.FormEvent) => void;
-  onToggleDebug: () => void;
-  onCancel: () => void;
 }
 
 export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
   query,
   isLoading,
-  debugVisible,
   onQueryChange,
   onSubmit,
-  onToggleDebug,
-  onCancel,
 }) => {
   return (
     <>
@@ -57,8 +52,13 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
         </ul>
       </Box>
 
-      <Typography variant="body1" paragraph>
+      <Typography
+        variant="body1"
+        paragraph
+        sx={{ display: "flex", alignItems: "center" }}
+      >
         What can I help you graph today?
+        <TipsInfoButton />
       </Typography>
 
       <QuerySection>
@@ -86,37 +86,18 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
           <Box
             sx={{
               display: "flex",
-              justifyContent: "space-between",
+              justifyContent: "flex-end",
               mt: 2,
             }}
           >
             <Button
-              variant="outlined"
-              color="secondary"
-              onClick={onToggleDebug}
+              variant="contained"
+              color="primary"
+              type="submit"
+              disabled={isLoading}
             >
-              {debugVisible ? "Hide Debug" : "Show Debug"}
+              {isLoading ? "Running..." : "RUN"}
             </Button>
-            <Box>
-              {isLoading && (
-                <Button
-                  variant="outlined"
-                  color="error"
-                  onClick={onCancel}
-                  sx={{ mr: 1 }}
-                >
-                  Cancel
-                </Button>
-              )}
-              <Button
-                variant="contained"
-                color="primary"
-                type="submit"
-                disabled={isLoading}
-              >
-                {isLoading ? "Running..." : "RUN"}
-              </Button>
-            </Box>
           </Box>
         </Box>
       </QuerySection>
