@@ -47,7 +47,7 @@ class CommitJobs:
     @property
     def job_base_names(self) -> Set[str]:
         if not hasattr(self, "_job_base_names"):
-            self._job_base_names = self._get_job_base_names()
+            self._job_base_names = self.get_job_base_names()
         return self._job_base_names
 
     def normalize_job_name(self, name: str) -> str:
@@ -55,7 +55,7 @@ class CommitJobs:
         # Remove patterns like ", 1, 1, " or ", 2, 3, " from job names
         return re.sub(r", \d+, \d+, ", ", ", name)
 
-    def _get_job_base_names(self) -> Set[str]:
+    def get_job_base_names(self) -> Set[str]:
         """Get normalized job names (without shard info)."""
         return {self.normalize_job_name(j.name) for j in self.jobs}
 
@@ -107,13 +107,16 @@ class AutorevertPatternChecker:
             name,
             conclusion,
             status,
-            torchci_classification.rule as classification_rule,
-            workflow_created_at
-        FROM workflow_job FINAL
-        WHERE workflow_name IN {workflow_names:Array(String)}
-          AND head_branch = 'main'
-          AND workflow_created_at >= {lookback_time:DateTime}
-        ORDER BY workflow_name, workflow_created_at DESC, head_sha, name
+            torchci_classification.rule AS classification_rule,
+            created_at AS workflow_created_at
+        FROM
+            workflow_job FINAL
+        WHERE
+            workflow_name IN {workflow_names:Array(String)}
+            AND head_branch = 'main'
+            AND created_at >= {lookback_time:DateTime}
+        ORDER BY
+            workflow_name, workflow_created_at DESC, head_sha, name
         """
 
         result = CHCliFactory().client.query(
@@ -215,23 +218,40 @@ class AutorevertPatternChecker:
 
         patterns = []
 
-        for i in range(len(commits) - 2):
-            newer_commit1 = commits[i]  # Most recent
-            newer_commit2 = commits[i + 1]  # Second most recent
-            older_commit = commits[i + 2]  # Third most recent
+        for i in range(1, len(commits) - 1):
+            suspected_commit1 = commits[i] # The commit we want to check for failure
 
-            # All commits must have jobs (signal)
-            if not all(c.jobs for c in [newer_commit1, newer_commit2, older_commit]):
+            if suspected_commit1.has_pending_jobs:
                 continue
 
-            # Oldest commit cannot have pending jobs
-            if older_commit.has_pending_jobs:
+            for j in range(i + 1, len(commits)):
+                older_commit = commits[j]
+                if not older_commit.jobs:
+                    continue
+                if older_commit.has_pending_jobs:
+                    continue
+                break
+
+            for j in range(i - 1, -1, -1):
+                newer_commit = commits[j]
+                if not newer_commit.jobs:
+                    continue
+                if newer_commit.has_pending_jobs:
+                    continue
+                break
+
+            if older_commit is None or newer_commit is None:
+                continue
+
+            if older_commit.has_pending_jobs or not older_commit.jobs:
+                continue
+            if newer_commit is None or not newer_commit.jobs:
                 continue
 
             # Find common failure classifications between the 2 newer commits
-            newer1_failures = {j.classification_rule for j in newer_commit1.failed_jobs}
-            newer2_failures = {j.classification_rule for j in newer_commit2.failed_jobs}
-            common_failures = newer1_failures & newer2_failures
+            suspected_failures = {j.classification_rule for j in suspected_commit1.failed_jobs}
+            newer_failures = {j.classification_rule for j in newer_commit.failed_jobs}
+            common_failures = suspected_failures & newer_failures
 
             if not common_failures:
                 continue
@@ -246,7 +266,7 @@ class AutorevertPatternChecker:
 
                 # Get job names that had this failure in newer commits
                 failed_job_names = set()
-                for commit in [newer_commit1, newer_commit2]:
+                for commit in [newer_commit, suspected_commit1]:
                     for job in commit.failed_jobs:
                         if job.classification_rule == failure_rule:
                             failed_job_names.add(commit.normalize_job_name(job.name))
@@ -259,8 +279,8 @@ class AutorevertPatternChecker:
                             "workflow_name": workflow_name,
                             "failure_rule": failure_rule,
                             "newer_commits": [
-                                newer_commit1.head_sha,
-                                newer_commit2.head_sha,
+                                newer_commit.head_sha,
+                                suspected_commit1.head_sha,
                             ],
                             "older_commit": older_commit.head_sha,
                             "failed_job_names": list(failed_job_names),
@@ -313,6 +333,20 @@ class AutorevertPatternChecker:
                     all_patterns.append(pattern)
 
         return all_patterns
+
+    def get_commits_reverted(self) -> List[str]:
+        """
+        Get all commits that were reverted within the lookback window.
+
+        Returns:
+            List of revert information dictionaries
+        """
+        reverted_commits = []
+        for commit in self.commit_history:
+            revert_info = self.is_commit_reverted(commit["sha"])
+            if revert_info:
+                reverted_commits.append(commit["sha"])
+        return reverted_commits
 
     def is_commit_reverted(self, target_commit_sha: str) -> Optional[Dict]:
         """

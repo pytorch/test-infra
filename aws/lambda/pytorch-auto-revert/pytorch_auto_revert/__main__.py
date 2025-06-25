@@ -65,9 +65,9 @@ def get_opts() -> argparse.Namespace:
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # autorevert subcommand
+    # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
-        "autorevert", help="Analyze workflows looking for autorevert patterns"
+        "autorevert-checker", help="Analyze workflows looking for autorevert patterns"
     )
     workflow_parser.add_argument(
         "workflows",
@@ -85,9 +85,9 @@ def get_opts() -> argparse.Namespace:
         help="Show detailed output including commit summaries",
     )
 
-    # workflow-restart-checke subcommand
+    # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
-        "workflow-restart-checke", help="Check for restarted workflows"
+        "workflow-restart-checker", help="Check for restarted workflows"
     )
     workflow_restart_parser.add_argument(
         "workflow",
@@ -145,7 +145,7 @@ def main(*args, **kwargs) -> None:
 
     if opts.subcommand == "lambda":
         print("TODO: run lambda flow")
-    elif opts.subcommand == "workflows":
+    elif opts.subcommand == "autorevert-checker":
         autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)

@@ -44,6 +44,7 @@ def autorevert_checker(
 
     # Detect patterns
     patterns = checker.detect_autorevert_pattern()
+    reverts = checker.get_commits_reverted()
 
     if patterns:
         print(
@@ -51,16 +52,13 @@ def autorevert_checker(
         )
 
         # Create a revert checker (with extended lookback for finding reverts)
-        revert_checker = AutorevertPatternChecker(
-            CHCliFactory().client, workflow_names=[], lookback_hours=hours * 2
-        )
+        revert_checker = AutorevertPatternChecker(workflow_names=[], lookback_hours=hours * 2)
 
         # Track reverts
         reverted_patterns = []
 
         for i, pattern in enumerate(patterns, 1):
-            if len(patterns) > 1:
-                print(f"\nPattern #{i}:")
+            print(f"\nPattern #{i}:")
 
             print(f"Failure rule: '{pattern['failure_rule']}'")
             print(
@@ -121,10 +119,12 @@ def autorevert_checker(
         )
         print(f"Commits checked: {total_commits}")
 
-        print(f"Patterns detected: {len(patterns)}")
+        print(f"Auto revert patterns detected: {len(patterns)}")
         print(
-            f"Actual reverts: {len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
+            f"Actual reverts inside auto revert patterns detected: {len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
         )
+        print(f"Total revert commits in period: {len(reverts)}")
+        print(f"Reverts that dont match any auto revert pattern detected: {len(reverts) - len(reverted_patterns)}")
 
         if reverted_patterns:
             print("\nReverted patterns:")
