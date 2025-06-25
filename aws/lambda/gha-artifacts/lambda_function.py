@@ -8,6 +8,7 @@ from urllib.parse import quote
 
 import aioboto3
 
+
 URL_PREFIX = "https://gha-artifacts.s3.amazonaws.com"
 GHA_ARTIFACTS_BUCKET = "gha-artifacts"
 DEFAULT_REPO = "pytorch/pytorch"

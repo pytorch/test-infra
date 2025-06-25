@@ -5,8 +5,8 @@ from typing import Any
 from urllib.parse import unquote
 
 import boto3  # type: ignore[import-not-found]
-from botocore import UNSIGNED # type: ignore[import-not-found]
-from botocore.config import Config # type: ignore[import-not-found]
+from botocore import UNSIGNED  # type: ignore[import-not-found]
+from botocore.config import Config  # type: ignore[import-not-found]
 
 
 @cache

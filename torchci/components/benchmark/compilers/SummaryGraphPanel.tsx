@@ -105,12 +105,7 @@ function SuiteGraphPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  // TODO (huydhn): Remove this once TorchInductor dashboard is migrated to the
-  // new database schema
-  data =
-    queryName === "torchao_query"
-      ? convertToCompilerPerformanceData(data)
-      : data;
+  data = convertToCompilerPerformanceData(data);
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database

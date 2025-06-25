@@ -17,13 +17,31 @@ import {
   RainbowScrollStyle,
 } from "./SharedUIElements";
 
-function splitString(input: string | string[]): string[] {
+export function normalizeQueryParamToArray(
+  input: string | string[] | undefined
+): string[] {
+  if (!input) return [];
+
+  const handleOne = (val: string): string[] => {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed) && parsed.every((i) => typeof i === "string")) {
+        return parsed;
+      }
+    } catch {
+      // not JSON, fallback
+    }
+    return val
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+  };
+
   if (Array.isArray(input)) {
-    // Join the array into a single string, separating elements with a comma
-    return input;
+    return input.flatMap(handleOne);
   }
-  // If it's already a string, return it as is
-  return input.split(",");
+
+  return handleOne(input);
 }
 
 export interface QueueTimeSearchBarOptions {
@@ -165,17 +183,28 @@ export default function QueueTimeSearchBar({
       granularity: (rQuery.granularity as string) || "half_hour",
       chartType: (rQuery.chartType as string) || "bar",
       repos: rQuery.repos
-        ? splitString(rQuery.repos as string)
+        ? normalizeQueryParamToArray(rQuery.repos as string)
         : ["pytorch/pytorch"],
       category: rQuery.category ? (rQuery.category as string) : "workflow_name",
-      workflowNames: [],
-      jobNames: [],
-      machineTypes: [],
-      runnerLabels: [],
+      workflowNames: rQuery.workflowNames
+        ? normalizeQueryParamToArray(rQuery.workflowNames as string)
+        : [],
+      jobNames: rQuery.jobNames
+        ? normalizeQueryParamToArray(rQuery.jobNames as string)
+        : [],
+      machineTypes: rQuery.machineTypes
+        ? normalizeQueryParamToArray(rQuery.machineTypes as string)
+        : [],
+      runnerLabels: rQuery.runnerLabels
+        ? normalizeQueryParamToArray(rQuery.runnerLabels as string)
+        : [],
+      items: rQuery.items
+        ? normalizeQueryParamToArray(rQuery.items as string)
+        : [],
     };
 
     if (rQuery.items) {
-      const items = splitString(rQuery.items as string); // if items is not specified, it will fetch all items belongs to category
+      const items = normalizeQueryParamToArray(rQuery.items as string); // if items is not specified, it will fetch all items belongs to category
       newprops = getSearchItems(newprops.category, items, newprops);
     }
     updateSearch({ type: "UPDATE_FIELDS", payload: newprops });

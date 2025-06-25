@@ -1,9 +1,11 @@
-import os
 import json
+import os
+from json.decoder import JSONDecodeError
+from typing import Any, Dict
+
 import boto3
 from botocore.exceptions import ClientError
-from typing import Dict, Any
-from json.decoder import JSONDecodeError
+
 
 # Configure AWS S3 client
 S3_CLIENT = boto3.client("s3")

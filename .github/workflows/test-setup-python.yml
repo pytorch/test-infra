@@ -15,7 +15,7 @@ jobs:
       - name: Setup Python
         uses: ./.github/actions/setup-python
         with:
-          version: '3.12'
+          python-version: '3.11.5'
           pip-requirements-file: .github/workflows/test-pip-requirements-macOS.txt
       - name: Print env (including PATH)
         run: env
