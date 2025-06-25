@@ -542,6 +542,58 @@ def analyze_stacks(repo: GitRepo) -> None:
         )
 
 
+def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
+    """
+    Analyze reverts applied to main branch but not applied to specified branch.
+    This identifies potential missing revert commits that may need to be cherry-picked
+    to the release branch.
+    """
+    # Get commits from main that are not in the specified branch
+    main_only_commits = build_commit_dict(repo.get_commit_list(branch, "main"))
+
+    # Get commits from the specified branch that are not in main
+    branch_only_commits = build_commit_dict(repo.get_commit_list("main", branch))
+
+    print(f"Analyzing reverts in main branch not present in {branch} branch")
+    print(f"Total commits in main but not in {branch}: {len(main_only_commits)}")
+    print(f"Total commits in {branch} but not in main: {len(branch_only_commits)}")
+    print()
+
+    # Find reverts in main that are not in the specified branch
+    reverts_missing_from_branch = []
+
+    for commit_hash, commit in main_only_commits.items():
+        if is_revert(commit):
+            reverts_missing_from_branch.append(commit)
+
+    if not reverts_missing_from_branch:
+        print(f"No reverts found in main branch that are missing from {branch} branch.")
+        return
+
+    print(f"Found {len(reverts_missing_from_branch)} revert(s) in main branch not present in {branch} branch:")
+    print("=" * 80)
+
+    for commit in reverts_missing_from_branch:
+        print(f"Commit Hash: {commit.commit_hash}")
+        print(f"Author: {commit.author}")
+        print(f"Date: {commit.commit_date or commit.author_date}")
+        print(f"Title: {commit.title}")
+        if commit.pr_url:
+            print(f"PR URL: {commit.pr_url}")
+
+        # Try to identify what was reverted
+        revert_revision = get_revert_revision(commit)
+        ghf_revert_revision = get_ghf_revert_revision(commit)
+
+        if revert_revision:
+            print(f"Reverted Phabricator Diff: {revert_revision}")
+        elif ghf_revert_revision:
+            print(f"Reverted GitHub Commit: {ghf_revert_revision}")
+
+        print(f"Body Preview: {commit.body[:200]}{'...' if len(commit.body) > 200 else ''}")
+        print("-" * 80)
+
+
 def parse_arguments():
     from argparse import ArgumentParser
 
@@ -562,6 +614,8 @@ def parse_arguments():
     parser.add_argument("--missing-in-branch", action="store_true")
     parser.add_argument("--missing-in-release", action="store_true")
     parser.add_argument("--analyze-stacks", action="store_true")
+    parser.add_argument("--analyze-missing-reverts-from-branch", action="store_true",
+                        help="Analyze reverts applied to main branch but not applied to specified branch")
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -584,6 +638,13 @@ def main():
 
     if args.analyze_stacks:
         analyze_stacks(repo)
+        return
+
+    if args.analyze_missing_reverts_from_branch:
+        if not args.branch:
+            print("Error: --branch argument is required for --analyze-missing-reverts-from-branch")
+            return
+        analyze_reverts_missing_from_branch(repo, args.branch)
         return
 
     # Use milestone idx or search it along milestone titles
