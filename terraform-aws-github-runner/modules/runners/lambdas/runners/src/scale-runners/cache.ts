@@ -354,7 +354,7 @@ export async function getExperimentJoined(experimentKey: string): Promise<boolea
 }
 
 export async function getJoinedStressTestExperiment(experimentKey: string, runnerName: string): Promise<boolean> {
-  if (!await isRunnerInExperimentGroup(runnerName)) {
+  if (!(await isRunnerInExperimentGroup(runnerName))) {
     console.debug(`Experiment ${experimentKey} check ignored for runner ${runnerName}, not in experiment group`);
     return false;
   }

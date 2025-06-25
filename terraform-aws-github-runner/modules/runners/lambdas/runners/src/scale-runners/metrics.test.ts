@@ -1,9 +1,8 @@
 import { Config } from './config';
-import { Metrics, ScaleUpMetrics, ScaleDownMetrics } from './metrics';
+import { ScaleUpMetrics, ScaleDownMetrics } from './metrics';
 import * as cache from './cache';
 import { CHFactory } from './clickhouse';
 import nock from 'nock';
-import { ClickHouseClient } from '@clickhouse/client';
 import { mocked } from 'ts-jest/utils';
 
 const mockCloudWatch = {
@@ -53,7 +52,7 @@ jest.mock('./clickhouse', () => {
   return {
     CHFactory: {
       instance: {
-        getClient: jest.fn()
+        getClient: jest.fn(),
       },
     },
   };
@@ -281,17 +280,17 @@ describe('./metrics', () => {
               metric_name: 'run.process',
               time_bucket: expectDate,
               dimensions: { Owner: 'o', Repo: 'r' },
-              value: 2
+              value: 2,
             }),
             expect.objectContaining({
               namespace: 'environ-test-dim',
               metric_name: 'run.process',
               time_bucket: expectDate,
               dimensions: { Owner: 'o', Repo: 'r1' },
-              value: 1
-            })
+              value: 1,
+            }),
           ]),
-          format: 'JSONEachRow'
+          format: 'JSONEachRow',
         });
       });
     });
@@ -299,7 +298,9 @@ describe('./metrics', () => {
     it('sendMetrics with experiment enabled calls both _sendMetricsCW and _sendMetricsCH', async () => {
       // Setup mock for isolated testing
       const m = new IsolatedTestMetrics('test');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const spyCW = jest.spyOn(m as any, '_sendMetricsCW');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const spyCH = jest.spyOn(m as any, '_sendMetricsCH');
 
       // Mock getExperimentJoined to return true to enable ClickHouse metrics
@@ -316,7 +317,9 @@ describe('./metrics', () => {
     it('sendMetrics with experiment disabled only calls _sendMetricsCW', async () => {
       // Setup mock for isolated testing
       const m = new IsolatedTestMetrics('test');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const spyCW = jest.spyOn(m as any, '_sendMetricsCW');
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const spyCH = jest.spyOn(m as any, '_sendMetricsCH');
 
       // Mock getExperimentJoined to return false to disable ClickHouse metrics

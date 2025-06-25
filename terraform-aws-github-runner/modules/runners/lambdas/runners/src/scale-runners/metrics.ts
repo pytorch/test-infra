@@ -160,11 +160,11 @@ export class Metrics {
   }
 
   async sendMetrics() {
-   if (await getExperimentJoined('SendMetricsCH')){
-    Promise.all([this._sendMetricsCW(), this._sendMetricsCH()]);
-   } else {
-    await this._sendMetricsCW();
-   }
+    if (await getExperimentJoined('SendMetricsCH')) {
+      Promise.all([this._sendMetricsCW(), this._sendMetricsCH()]);
+    } else {
+      await this._sendMetricsCW();
+    }
   }
 
   protected async _sendMetricsCH() {
@@ -197,7 +197,13 @@ export class Metrics {
       timeBucket.setSeconds(0, 0); // Round to minute
 
       const namespace = `${Config.Instance.environment}-${this.lambdaName}-dim`;
-      const rows: Array<{namespace: string; metric_name: string; time_bucket: Date; dimensions: Record<string, string>; value: number;}> = [];
+      const rows: Array<{
+        namespace: string;
+        metric_name: string;
+        time_bucket: Date;
+        dimensions: Record<string, string>;
+        value: number;
+      }> = [];
 
       // Convert metrics to ClickHouse format
       this.metrics.forEach((dimsVals, name) => {
@@ -222,7 +228,7 @@ export class Metrics {
               metric_name: name,
               time_bucket: timeBucket,
               dimensions,
-              value: val
+              value: val,
             });
 
             // If count > 1, we need to add the count metric
@@ -232,7 +238,7 @@ export class Metrics {
                 metric_name: `${name}.count`,
                 time_bucket: timeBucket,
                 dimensions,
-                value: count
+                value: count,
               });
             }
           });
@@ -251,7 +257,7 @@ export class Metrics {
         await client.insert({
           table: 'fortesting.metrics_test',
           values: batch,
-          format: 'JSONEachRow'
+          format: 'JSONEachRow',
         });
       }
 

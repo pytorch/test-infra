@@ -5,7 +5,7 @@ import { createClient } from '@clickhouse/client';
 // Mock the @clickhouse/client module
 jest.mock('@clickhouse/client', () => {
   return {
-    createClient: jest.fn()
+    createClient: jest.fn(),
   };
 });
 
@@ -50,7 +50,7 @@ describe('./clickhouse', () => {
 
     it('should create a client with correct config when getClient is called', () => {
       const instance = CHFactory.instance;
-      const client = instance.getClient();
+      instance.getClient();
 
       // Check that createClient was called with the right parameters
       expect(createClient).toHaveBeenCalledWith({
@@ -75,6 +75,7 @@ describe('./clickhouse', () => {
       const client2 = instance.getClient();
 
       expect(createClient).toHaveBeenCalledTimes(1);
+      expect(client1).toBe(client2);
     });
 
     it('should close the client when close is called', async () => {
@@ -93,7 +94,7 @@ describe('./clickhouse', () => {
       Object.defineProperty(instance, 'client', {
         get: jest.fn(() => null),
         set: jest.fn(),
-        configurable: true
+        configurable: true,
       });
 
       await instance.close();
@@ -124,7 +125,7 @@ describe('./clickhouse', () => {
       // Make close throw an error
       mockClickHouseClient.close.mockRejectedValueOnce(new Error('Close error'));
 
-      // Spy on console.error
+      // eslint-disable-next-line @typescript-eslint/no-empty-function
       const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
 
       // Reset should not throw

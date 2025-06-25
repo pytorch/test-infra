@@ -29,7 +29,7 @@ jest.mock('./scale-runners/clickhouse', () => {
   return {
     CHFactory: {
       instance: {
-        getClient: jest.fn()
+        getClient: jest.fn(),
       },
     },
   };
