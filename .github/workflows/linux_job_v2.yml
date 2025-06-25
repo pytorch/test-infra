@@ -191,7 +191,7 @@ jobs:
 
       - name: Calculate docker image
         id: calculate-docker-image
-        uses: ./test-infra/.github/actions/calculate-docker-image
+        uses: pytorch/test-infra/.github/actions/calculate-docker-image@zainr/nova-gpu
         with:
           use-custom-docker-registry: ${{ inputs.use-custom-docker-registry }}
           docker-image-name: ${{ env.DOCKER_IMAGE }}
