@@ -38,43 +38,7 @@ create-deployment-package: deployment.zip
 ```
 
 ### Step 2: Add Deployment Step in Runner Release Workflow
-Add a deployment step to `.github/workflows/_lambda-do-release-runners.yml` similar to [PR: [Queue Time Histogram] Add deployment step](https://github.com/pytorch/test-infra/pull/6505).
-
-#### Example Deployment Step
-```yml
-release-${YOUR_LAMBDA_FUNCTION_NAME}:
-    name: Upload Release for ${YOUR_LAMBDA_FUNCTION_NAME} lambda
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    env:
-      REF: ${{ inputs.tag }}
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.10'
-
-      - name: Build deployment.zip
-        working-directory: aws/lambda/${YOUR_LAMBDA_FUNCTION_FOLDER_NAME}
-        run: make deployment.zip
-
-      - name: Copy deployment.zip to root
-        run: cp aws/lambda/${YOUR_LAMBDA_FUNCTION_FOLDER_NAME}/deployment.zip ${YOUR_LAMBDA_FUNCTION_ZIP_NAME}.zip
-
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: "${YOUR_LAMBDA_FUNCTION_ZIP_NAME}.zip"
-          allowUpdates: true
-          draft: true
-          name: ${{ inputs.tag }}
-          tag: ${{ inputs.tag }}
-          updateOnlyUnreleased: true
-```
+Add a deployment step to `.github/workflows/_lambda-do-release-runners.yml`.  If you followed the directions above and have a simple python lambda, add your folder and zip name to [the list of python lambdas](https://github.com/pytorch/test-infra/blob/f2c6cbeba65e94e877379cfe88d723e81749ead7/.github/workflows/_lambda-do-release-runners.yml#L88).  If are not working in python or need more complex logic, use the examples in that file to write a custom job, and remember to add it to [the list of jobs needed to run for the full release](https://github.com/pytorch/test-infra/blob/f2c6cbeba65e94e877379cfe88d723e81749ead7/.github/workflows/_lambda-do-release-runners.yml#L128).
 
 ### Step 3: Trigger a Release
 
