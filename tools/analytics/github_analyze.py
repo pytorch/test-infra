@@ -570,7 +570,9 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         print(f"No reverts found in main branch that are missing from {branch} branch.")
         return
 
-    print(f"Found {len(reverts_missing_from_branch)} revert(s) in main branch not present in {branch} branch:")
+    print(
+        f"Found {len(reverts_missing_from_branch)} revert(s) in main branch not present in {branch} branch:"
+    )
     print("=" * 80)
 
     for commit in reverts_missing_from_branch:
@@ -590,7 +592,9 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         elif ghf_revert_revision:
             print(f"Reverted GitHub Commit: {ghf_revert_revision}")
 
-        print(f"Body Preview: {commit.body[:200]}{'...' if len(commit.body) > 200 else ''}")
+        print(
+            f"Body Preview: {commit.body[:200]}{'...' if len(commit.body) > 200 else ''}"
+        )
         print("-" * 80)
 
 
@@ -614,8 +618,11 @@ def parse_arguments():
     parser.add_argument("--missing-in-branch", action="store_true")
     parser.add_argument("--missing-in-release", action="store_true")
     parser.add_argument("--analyze-stacks", action="store_true")
-    parser.add_argument("--analyze-missing-reverts-from-branch", action="store_true",
-                        help="Analyze reverts applied to main branch but not applied to specified branch")
+    parser.add_argument(
+        "--analyze-missing-reverts-from-branch",
+        action="store_true",
+        help="Analyze reverts applied to main branch but not applied to specified branch",
+    )
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -642,7 +649,9 @@ def main():
 
     if args.analyze_missing_reverts_from_branch:
         if not args.branch:
-            print("Error: --branch argument is required for --analyze-missing-reverts-from-branch")
+            print(
+                "Error: --branch argument is required for --analyze-missing-reverts-from-branch"
+            )
             return
         analyze_reverts_missing_from_branch(repo, args.branch)
         return
