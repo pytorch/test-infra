@@ -14,6 +14,7 @@ const NavBarDropdown = ({
 }): JSX.Element => {
   const [dropdown, setDropdown] = useState(false);
   const dropdownStyle = dropdown ? { display: "block" } : {};
+  const firstItemHref = items.length > 0 ? items[0].href : "#";
 
   return (
     <li
@@ -21,7 +22,9 @@ const NavBarDropdown = ({
       onMouseLeave={() => setDropdown(false)}
       style={{ padding: 0 }}
     >
-      <div className={styles.dropdowntitle}>{title} ▾</div>
+      <Link href={firstItemHref} prefetch={false} className={styles.dropdowntitle}>
+        {title} ▾
+      </Link>
       <ul className={styles.dropdown} style={dropdownStyle}>
         {items.map((item: any) => (
           <li key={item.href}>
@@ -131,6 +134,36 @@ function NavBar() {
     },
   ];
 
+  const metricsDropdown = [
+    {
+      name: "Metrics",
+      href: "/metrics",
+    },
+    {
+      name: (
+        <span style={{ position: "relative" }}>
+          TorchAgent
+          <span
+            style={{
+              marginLeft: "4px",
+              padding: "2px 6px",
+              fontSize: "10px",
+              fontWeight: "bold",
+              backgroundColor: "#FF6B35",
+              color: "white",
+              borderRadius: "8px",
+              textTransform: "uppercase",
+              lineHeight: "1",
+            }}
+          >
+            BETA
+          </span>
+        </span>
+      ),
+      href: "/torchagent",
+    },
+  ];
+
   return (
     <div className={styles.navbar}>
       <div>
@@ -143,6 +176,11 @@ function NavBar() {
           <li>
             <Link prefetch={false} href="/minihud">
               MiniHUD
+            </Link>
+          </li>
+          <li>
+            <Link prefetch={false} href="/hud/pytorch/pytorch/main">
+              PyTorch
             </Link>
           </li>
           <li>
@@ -160,6 +198,7 @@ function NavBar() {
               TorchAudio
             </Link>
           </li>
+
         </ul>
       </div>
       <div
@@ -181,11 +220,7 @@ function NavBar() {
               Requests
             </Link>
           </li>
-          <li>
-            <Link prefetch={false} href="/metrics">
-              Metrics
-            </Link>
-          </li>
+          <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <li>
             <Link prefetch={false} href="/kpis">
               KPIs
