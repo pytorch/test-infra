@@ -3,6 +3,8 @@ import { BenchmarkPicker } from "components/benchmark/BenchmarkPicker";
 import { LAST_N_DAYS, MAIN_BRANCH } from "components/benchmark/common";
 import { RepositoryBranchCommitPicker } from "components/benchmark/RepositoryPicker";
 import { TimeSeriesGraphReport } from "components/benchmark/tritonbench/TimeSeries";
+import CopyLink from "components/common/CopyLink";
+import GranularityPicker from "components/common/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import {
   DEFAULT_DEVICE_NAME,
@@ -13,8 +15,6 @@ import dayjs from "dayjs";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { TimeRangePicker } from "../metrics";
-import CopyLink from "components/common/CopyLink";
-import GranularityPicker from "components/common/GranularityPicker";
 
 export default function Page() {
   const router = useRouter();
