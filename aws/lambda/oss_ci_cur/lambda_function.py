@@ -101,11 +101,7 @@ def get_clickhouse_client(
         host=host,
         user=user,
         password=password,
-        secure=True,
-        host=host,
-        user=user,
-        password=password,
-        secure=True,
+        secure=True
     )
 
 
@@ -380,7 +376,6 @@ class CostExplorerProcessor:
         logger.info(f"Generated {len(db_records)} database records.")
         if db_records:
             logger.info(
-                f"Peeking the first database record: {json.dumps(db_records[0], default=str)}"
                 f"Peeking the first database record: {json.dumps(db_records[0], default=str)}"
             )
 
