@@ -15,15 +15,10 @@ export class CHFactory {
         return CHFactory.#instance;
     }
 
-    /**
-     * Get the ClickHouse client instance. Creates a new client if one doesn't exist yet.
-     * @returns ClickHouseClient instance
-     */
     public getClient(): ClickHouseClient {
         if (!this.client) {
             const config = Config.Instance;
 
-            // Get configuration from Config class
             const host = config.clickhouseHost;
             const port = config.clickhousePort;
             const database = config.clickhouseDatabase;
@@ -36,13 +31,13 @@ export class CHFactory {
                 username,
                 password,
                 compression: {
-                    request: true, // Enable compression for request
-                    response: true, // Enable compression for response
+                    request: true,
+                    response: true,
                 },
                 clickhouse_settings: {
                     wait_end_of_query: 1,
                 },
-                max_open_connections: 10, // Adjust based on your needs
+                max_open_connections: 10,
             };
 
             this.client = createClient(options);
@@ -51,9 +46,6 @@ export class CHFactory {
         return this.client;
     }
 
-    /**
-     * Closes the client connection if one exists
-     */
     public async close(): Promise<void> {
         if (this.client) {
             await this.client.close();
@@ -61,9 +53,6 @@ export class CHFactory {
         }
     }
 
-    /**
-     * Reset the factory instance - useful for testing
-     */
     public static reset(): void {
         if (CHFactory.#instance && CHFactory.#instance.client) {
             CHFactory.#instance.client.close().catch(console.error);

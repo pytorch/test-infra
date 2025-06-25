@@ -43,12 +43,18 @@ jest.mock('./scale-runners/scale-up-chron');
 const mockScaleUpMetrics = new MetricsModule.ScaleUpMetrics();
 const mockScaleUpChronMetrics = new MetricsModule.ScaleUpChronMetrics();
 
+jest.mock('./scale-runners/cache', () => {
+  return {
+    ...jest.requireActual('./scale-runners/cache'),
+    getExperimentJoined: jest.fn().mockResolvedValue(false),
+  };
+});
+
 beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   jest.restoreAllMocks();
-  // nock.disableNetConnect();
-  nock.cleanAll();
+  nock.disableNetConnect();
 
   CHFactory.instance.getClient = jest.fn().mockReturnValue(mockClickHouseClient);
 });
