@@ -1,5 +1,5 @@
 import { Alert, Box, styled } from "@mui/material";
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import ToggleIconPicker, {
   ToggleIconPickerContent,
 } from "components/metrics/pickers/ToggleIconPicker";
