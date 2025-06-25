@@ -6,6 +6,8 @@ import {
   redisClearCacheKeyPattern,
   getExperimentValue,
   getJoinedStressTestExperiment,
+  getExperimentJoined,
+  isRunnerInExperimentGroup,
 } from './cache';
 import { mocked } from 'ts-jest/utils';
 import { v4 as uuidv4 } from 'uuid';
@@ -201,6 +203,116 @@ describe('experiment functions', () => {
 
       expect(result).toBe(defaultValue);
       expect(mockedRedisClient.get).toBeCalledTimes(1);
+    });
+  });
+
+  describe('getExperimentJoined', () => {
+    it('returns true when probability threshold is reached', async () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.4);
+
+      mockedRedisClient.get.mockResolvedValueOnce('50');
+
+      const result = await getExperimentJoined('TEST_EXPERIMENT');
+
+      expect(result).toBe(true);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when probability threshold is not reached', async () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.6);
+
+      mockedRedisClient.get.mockResolvedValueOnce('50');
+
+      const result = await getExperimentJoined('TEST_EXPERIMENT');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when experiment value is zero', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('0');
+
+      const result = await getExperimentJoined('TEST_EXPERIMENT');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns true when experiment value is 100', async () => {
+      jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.99);
+
+      mockedRedisClient.get.mockResolvedValueOnce('100');
+
+      const result = await getExperimentJoined('TEST_EXPERIMENT');
+
+      expect(result).toBe(true);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when experiment value is not a valid number', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('not-a-number');
+
+      const result = await getExperimentJoined('TEST_EXPERIMENT');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+
+    it('returns false when experiment query throws an error', async () => {
+      mockedRedisClient.get.mockRejectedValueOnce(new Error('Redis error'));
+
+      const result = await getExperimentJoined('TEST_EXPERIMENT');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.TEST_EXPERIMENT');
+    });
+  });
+
+  describe('isRunnerInExperimentGroup', () => {
+    it('returns false when RUNNER_NAME_SUFFIX is not set', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce(null);
+
+      const result = await isRunnerInExperimentGroup('runner-name');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+    });
+
+    it('returns false when RUNNER_NAME_SUFFIX is empty', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('');
+
+      const result = await isRunnerInExperimentGroup('runner-name');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+    });
+
+    it('returns true when runner name matches suffix', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+
+      const result = await isRunnerInExperimentGroup('runner-name-suffix');
+
+      expect(result).toBe(true);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
+    });
+
+    it('returns false when runner name does not match suffix', async () => {
+      mockedRedisClient.get.mockResolvedValueOnce('-suffix');
+
+      const result = await isRunnerInExperimentGroup('runner-name-different');
+
+      expect(result).toBe(false);
+      expect(mockedRedisClient.get).toBeCalledTimes(1);
+      expect(mockedRedisClient.get).toBeCalledWith('gh-ci.EXPERIMENT.RUNNER_NAME_SUFFIX');
     });
   });
 
