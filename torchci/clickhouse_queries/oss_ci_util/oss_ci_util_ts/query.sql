@@ -1,5 +1,4 @@
 --- This query is used by utilization dashboard
--- TODO(): change to misc. once the pipeline is ready, currently fetch data from fortesting for development
 SELECT
     time_stamp AS ts,
     tags,
