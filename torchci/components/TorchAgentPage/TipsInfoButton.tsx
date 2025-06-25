@@ -10,7 +10,7 @@ const tipsMarkdown = `
 - ** Use natural language:** You can ask questions in plain English, e.g. "How long on average does it take to add the label 'triaged' to issues with label 'module: dynamo'? Average per week.".
 - ** TorchAgent knows who you are:** You can use your GitHub username to filter results, e.g. "Show me the number issues I open per month, per repo".
 - **Try tool actions:** Expand tool sections for more details - you can see sql queries used, go to Clickhouse and get the raw data for that query, or see the model's reasoning and table schemas.
-- **Keyboard shortcut:** Press <kbd>Cmd+Enter</kbd> to submit
+- **Keyboard shortcut:** Press Cmd+Enter to submit
 - **Feedback:** Use the thumbs up/down to help us improve TorchAgent! Submit feature requests or report issues with the feedback buttons on the top right corner of the page.
 `;
 
