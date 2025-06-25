@@ -512,8 +512,6 @@ class QueueTimeProcessor:
     def _write_to_db_table(
         self, cc: clickhouse_connect.driver.client.Client, records: List[Dict[str, Any]]
     ):
-        # TODO(elainewy): Change to misc.oss_ci_queue_time_histogram after testing
-        # is completed
         db_name = "misc"
         db_table_name = "oss_ci_queue_time_histogram"
         logger.info(f" Insert data to db table: {db_name}.{db_table_name}")
