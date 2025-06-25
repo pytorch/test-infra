@@ -161,13 +161,13 @@ export class Metrics {
 
   async sendMetrics() {
    if (await getExperimentJoined('SendMetricsCH')){
-    Promise.all([this.sendMetricsCW(), this.sendMetricsCH()]);
+    Promise.all([this._sendMetricsCW(), this._sendMetricsCH()]);
    } else {
-    await this.sendMetricsCW();
+    await this._sendMetricsCW();
    }
   }
 
-  async sendMetricsCH() {
+  protected async _sendMetricsCH() {
     /*
     Inser metrics into clickhouse on the following table:
     CREATE TABLE fortesting.metrics_test
@@ -262,7 +262,7 @@ export class Metrics {
     }
   }
 
-  async sendMetricsCW() {
+  protected async _sendMetricsCW() {
     if (this.metrics.size < 1) {
       return;
     }

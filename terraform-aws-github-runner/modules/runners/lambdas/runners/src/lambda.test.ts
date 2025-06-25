@@ -1,6 +1,7 @@
 import { scaleDown as scaleDownL, scaleUp as scaleUpL, scaleUpChron as scaleUpChronL } from './lambda';
 
 import nock from 'nock';
+import { CHFactory } from './scale-runners/clickhouse';
 import { Config } from './scale-runners/config';
 import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
 import { mocked } from 'ts-jest/utils';
@@ -15,9 +16,24 @@ const mockCloudWatch = {
     return { promise: jest.fn().mockResolvedValue(true) };
   }),
 };
+
+const mockClickHouseClient = {
+  insert: jest.fn().mockResolvedValue(true),
+};
+
 jest.mock('aws-sdk', () => ({
   CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
 }));
+
+jest.mock('./scale-runners/clickhouse', () => {
+  return {
+    CHFactory: {
+      instance: {
+        getClient: jest.fn()
+      },
+    },
+  };
+});
 
 jest.mock('./scale-runners/scale-down');
 jest.mock('./scale-runners/scale-up');
@@ -31,7 +47,10 @@ beforeEach(() => {
   jest.resetModules();
   jest.clearAllMocks();
   jest.restoreAllMocks();
-  nock.disableNetConnect();
+  // nock.disableNetConnect();
+  nock.cleanAll();
+
+  CHFactory.instance.getClient = jest.fn().mockReturnValue(mockClickHouseClient);
 });
 
 describe('scaleUp', () => {
