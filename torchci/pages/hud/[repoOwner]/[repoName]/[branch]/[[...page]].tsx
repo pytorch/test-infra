@@ -4,16 +4,16 @@ import LoadingPage from "components/common/LoadingPage";
 import PageSelector from "components/common/PageSelector";
 import { LocalTimeHuman } from "components/common/TimeUtils";
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import styles from "components/hud.module.css";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
   passesGroupFilter,
-} from "components/GroupHudTableHeaders";
-import HudGroupedCell from "components/GroupJobConclusion";
-import styles from "components/hud.module.css";
-import JobConclusion from "components/JobConclusion";
-import JobFilterInput from "components/JobFilterInput";
-import JobTooltip from "components/JobTooltip";
+} from "components/hud/GroupHudTableHeaders";
+import HudGroupedCell from "components/job/GroupJobConclusion";
+import JobConclusion from "components/job/JobConclusion";
+import JobFilterInput from "components/job/JobFilterInput";
+import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
 import { fetcher } from "lib/GeneralUtils";
 import {

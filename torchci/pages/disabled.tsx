@@ -1,5 +1,6 @@
 import { Grid2, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import CopyLink from "components/common/CopyLink";
 import ValuePicker from "components/common/ValuePicker";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -12,7 +13,6 @@ import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { TimeRangePicker } from "./metrics";
-import CopyLink from "components/common/CopyLink";
 
 const GRAPH_ROW_HEIGHT = 240;
 const DEFAULT_ISSUE_STATE = "open";
