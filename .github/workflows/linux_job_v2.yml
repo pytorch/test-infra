@@ -58,6 +58,10 @@ on:
         description: "Test infra reference to use"
         default: ""
         type: string
+      use-custom-docker-registry:
+        description: "Use the custom ECR registry hosted on AWS. Only takes effect if there's a build.sh script in the docker-build-dir."
+        default: true
+        type: boolean
       docker-image:
         description: Identifies the Docker image by name.
         default: "pytorch/almalinux-builder"
@@ -189,6 +193,7 @@ jobs:
         id: calculate-docker-image
         uses: ./test-infra/.github/actions/calculate-docker-image
         with:
+          use-custom-docker-registry: ${{ inputs.use-custom-docker-registry }}
           docker-image-name: ${{ env.DOCKER_IMAGE }}
           docker-build-dir: ${{ inputs.docker-build-dir }}
           # This needs to be where the repository is checked out
