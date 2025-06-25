@@ -12,7 +12,6 @@ import { useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
-import { FeedbackButtons } from "./TorchAgentPage/FeedbackButtons";
 import { GrafanaEmbed } from "./TorchAgentPage/GrafanaEmbed";
 import { HeaderSection } from "./TorchAgentPage/HeaderSection";
 import {
@@ -76,7 +75,7 @@ export const TorchAgentPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg")); // Below 1200px
 
   // Constants
-  const typingSpeed = 10;
+  const typingSpeed = 30;
   const sidebarWidth = 300;
 
   const featureRequestUrl =
@@ -107,7 +106,6 @@ export const TorchAgentPage = () => {
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [feedbackVisible, setFeedbackVisible] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -286,8 +284,6 @@ export const TorchAgentPage = () => {
 
         setSelectedSession(sessionId);
         setCurrentSessionId(sessionId);
-
-        setFeedbackVisible(sessionData.status === "completed");
       } else {
         console.error("Failed to load chat session");
         setError("Failed to load chat session");
@@ -314,7 +310,6 @@ export const TorchAgentPage = () => {
     setParsedResponses([]);
     setSelectedSession(null);
     setCurrentSessionId(null);
-    setFeedbackVisible(false);
     setError("");
     setTotalTokens(0);
     setCompletedTokens(0);
@@ -337,29 +332,43 @@ export const TorchAgentPage = () => {
   useEffect(() => {
     if (!session.data?.user) return;
 
-    const hasActiveChat =
-      isLoading ||
-      currentSessionId !== null ||
-      chatHistory.some(
-        (chat) =>
-          chat.title === "New Chat..." ||
-          (chat.status && chat.status === "in_progress")
-      );
+    let timeoutId: NodeJS.Timeout;
 
-    if (hasActiveChat) {
-      const interval = setInterval(() => {
-        fetchChatHistory();
-      }, 10000);
+    const scheduleNextUpdate = () => {
+      // Only refresh history if there's an actual active streaming chat or in_progress sessions
+      const hasActiveChat =
+        isLoading || // Currently streaming a response
+        // OR there's a current session that's in progress (user sent message, waiting for response)
+        (currentSessionId &&
+          chatHistory.some(
+            (chat) =>
+              chat.sessionId === currentSessionId &&
+              chat.status === "in_progress"
+          )) ||
+        // OR there are other sessions marked as in_progress or temporary "New Chat..." entries
+        chatHistory.some(
+          (chat) =>
+            chat.title === "New Chat..." ||
+            (chat.status && chat.status === "in_progress")
+        );
 
-      return () => clearInterval(interval);
-    }
-  }, [
-    session.data?.user,
-    isLoading,
-    currentSessionId,
-    chatHistory,
-    fetchChatHistory,
-  ]);
+      if (hasActiveChat) {
+        timeoutId = setTimeout(async () => {
+          await fetchChatHistory();
+          scheduleNextUpdate(); // Schedule the next check
+        }, 10000);
+      }
+    };
+
+    // Start the first check
+    scheduleNextUpdate();
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [session.data?.user, isLoading, currentSessionId, fetchChatHistory]);
 
   useEffect(() => {
     if (!isLoading) return;
@@ -520,9 +529,6 @@ export const TorchAgentPage = () => {
       fetchControllerRef.current.abort();
       fetchControllerRef.current = null;
       setIsLoading(false);
-      if (currentSessionId) {
-        setFeedbackVisible(true);
-      }
     }
   };
 
@@ -555,7 +561,6 @@ export const TorchAgentPage = () => {
     }
 
     setQuery(""); // Clear the input immediately
-    setFeedbackVisible(false);
     setError("");
     setAllToolsExpanded(false);
     resetAutoScroll();
@@ -636,9 +641,6 @@ export const TorchAgentPage = () => {
           setCompletedTokens(finalTokens);
           setTotalTokens(finalTokens);
           setIsLoading(false);
-          if (currentSessionId) {
-            setFeedbackVisible(true);
-          }
 
           break;
         }
@@ -664,9 +666,6 @@ export const TorchAgentPage = () => {
         setError(`Error: ${err instanceof Error ? err.message : String(err)}`);
       }
       setIsLoading(false);
-      if (currentSessionId) {
-        setFeedbackVisible(true);
-      }
     }
   };
 
@@ -812,45 +811,39 @@ export const TorchAgentPage = () => {
             </div>
           ))}
 
-        {isLoading
-          ? renderLoader()
-          : (completedTokens > 0 || feedbackVisible) && (
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  alignItems: "center",
-                  mt: 3,
-                  p: 2,
-                  borderTop: "1px solid",
-                  borderTopColor: "divider",
-                  backgroundColor:
-                    theme.palette.mode === "dark"
-                      ? "rgba(30,30,30,0.95)"
-                      : "rgba(250,250,250,0.95)",
-                  borderRadius: "0 0 8px 8px",
-                  position: "sticky",
-                  bottom: 0,
-                  zIndex: 10,
-                  boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
-                }}
-              >
-                {completedTokens > 0 && (
-                  <Typography
-                    variant="body2"
-                    color="text.primary"
-                    sx={{ fontWeight: "medium" }}
-                  >
-                    Completed in {formatElapsedTime(completedTime)} • Total:{" "}
-                    {formatTokenCount(completedTokens)} tokens
-                  </Typography>
-                )}
-                <FeedbackButtons
-                  sessionId={currentSessionId}
-                  visible={feedbackVisible}
-                />
-              </Box>
-            )}
+        {isLoading && renderLoader()}
+
+        {completedTokens > 0 && !isLoading && (
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              mt: 3,
+              p: 2,
+              borderTop: "1px solid",
+              borderTopColor: "divider",
+              backgroundColor:
+                theme.palette.mode === "dark"
+                  ? "rgba(30,30,30,0.95)"
+                  : "rgba(250,250,250,0.95)",
+              borderRadius: "0 0 8px 8px",
+              position: "sticky",
+              bottom: 0,
+              zIndex: 10,
+              boxShadow: "0 -2px 10px rgba(0,0,0,0.1)",
+            }}
+          >
+            <Typography
+              variant="body2"
+              color="text.primary"
+              sx={{ fontWeight: "medium" }}
+            >
+              Completed in {formatElapsedTime(completedTime)} • Total:{" "}
+              {formatTokenCount(completedTokens)} tokens
+            </Typography>
+          </Box>
+        )}
       </div>
     );
   };
@@ -1036,6 +1029,7 @@ export const TorchAgentPage = () => {
                 onSubmit={handleSubmit}
                 onToggleDebug={() => setDebugVisible(!debugVisible)}
                 onCancel={cancelRequest}
+                currentSessionId={currentSessionId}
               />
             )}
           </TorchAgentPageContainer>
