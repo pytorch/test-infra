@@ -213,17 +213,9 @@ class CostExplorerProcessor:
             record.get("Start", "").replace("Z", "+00:00")
         )
         now = datetime.now(timezone.utc)
-        startTime = datetime.fromisoformat(
-            record.get("Start", "").replace("Z", "+00:00")
-        )
-        now = datetime.now(timezone.utc)
         if len(keys) < 2:
             logger.warning(
                 f"Expected two keys from Record, but got {len(record)} keys:{keys}, skipping the record"
-            )
-            raise Exception(
-                "Exeption mapping to Clickhouse schema: Expected two "
-                + f"keys from Record, but got {len(record)} keys:{keys}"
             )
             raise Exception(
                 "Exeption mapping to Clickhouse schema: Expected two "
@@ -350,12 +342,6 @@ class CostExplorerProcessor:
         logger.info("Completed flattening the raw data into pre-database records.")
 
         if recordList:
-            logger.info(
-                f"Peeking the first record: {json.dumps(recordList[0], default=str)}"
-            )
-            logger.info(
-                f"Peeking the last record: {json.dumps(recordList[-1], default=str)}"
-            )
             logger.info(
                 f"Peeking the first record: {json.dumps(recordList[0], default=str)}"
             )
