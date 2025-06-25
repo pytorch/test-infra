@@ -191,9 +191,7 @@ export async function scaleUpChron(event: ScheduledEvent, context: Context, call
       clearTimeout(sndMetricsTimout.setTimeout);
       sndMetricsTimout.metrics = undefined;
       sndMetricsTimout.setTimeout = undefined;
-      console.error(`Sending metrics`);
       await metrics.sendMetrics();
-      console.error(`Sent metrics`);
     } catch (e) {
       callbackOutput = `Error sending metrics: ${e}`;
     }
