@@ -35,8 +35,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password,
-    # secure=True, verify=False)
+    # return clickhouse_connect.get_client(host=host, user=user, password=password,secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -515,7 +514,7 @@ class QueueTimeProcessor:
     ):
         # TODO(elainewy): Change to misc.oss_ci_queue_time_histogram after testing
         # is completed
-        db_name = "fortesting"
+        db_name = "misc"
         db_table_name = "oss_ci_queue_time_histogram"
         logger.info(f" Insert data to db table: {db_name}.{db_table_name}")
         if len(records) == 0:
@@ -1283,10 +1282,10 @@ class TimeIntervalGenerator:
         cc: clickhouse_connect.driver.client.Client,
     ) -> str:
         query = """
-        SELECT toUnixTimestamp(MAX(time)) as latest FROM fortesting.oss_ci_queue_time_histogram
+        SELECT toUnixTimestamp(MAX(time)) as latest FROM misc.oss_ci_queue_time_histogram
         """
         logger.info(
-            " Getting lastest timestamp from fortesting.oss_ci_queue_time_histogram...."
+            " Getting lastest timestamp from misc.oss_ci_queue_time_histogram...."
         )
         res = cc.query(query, {})
 
