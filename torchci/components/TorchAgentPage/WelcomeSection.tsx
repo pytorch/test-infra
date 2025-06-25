@@ -1,6 +1,7 @@
 import { Box, Button, TextField, Typography } from "@mui/material";
 import React from "react";
 import { QuerySection } from "./styles";
+import { TipsInfoButton } from "./TipsInfoButton";
 
 interface WelcomeSectionProps {
   query: string;
@@ -59,6 +60,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 
       <Typography variant="body1" paragraph>
         What can I help you graph today?
+        <TipsInfoButton />
       </Typography>
 
       <QuerySection>
