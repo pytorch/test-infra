@@ -109,6 +109,7 @@ export const TorchAgentPage = () => {
   const [hasInsufficientPermissions, setHasInsufficientPermissions] =
     useState(false);
   const [isCheckingPermissions, setIsCheckingPermissions] = useState(false);
+  const [hasCheckedPermissions, setHasCheckedPermissions] = useState(false);
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -206,7 +207,7 @@ export const TorchAgentPage = () => {
   }, [session.data?.user]);
 
   const checkUserPermissions = useCallback(async () => {
-    if (!session.data?.user || hasAuthCookie()) return;
+    if (!session.data?.user || hasAuthCookie() || isCheckingPermissions || hasCheckedPermissions) return;
 
     setIsCheckingPermissions(true);
     try {
@@ -231,8 +232,9 @@ export const TorchAgentPage = () => {
       setHasInsufficientPermissions(true);
     } finally {
       setIsCheckingPermissions(false);
+      setHasCheckedPermissions(true);
     }
-  }, [session.data?.user]);
+  }, [session.data?.user, isCheckingPermissions, hasCheckedPermissions]);
 
   const loadChatSession = async (sessionId: string) => {
     // Cancel any active stream first
@@ -358,9 +360,12 @@ export const TorchAgentPage = () => {
   useEffect(() => {
     if (session.data?.user) {
       fetchChatHistory();
-      checkUserPermissions();
+      // Only check permissions if we haven't checked yet
+      if (!hasCheckedPermissions && !isCheckingPermissions) {
+        checkUserPermissions();
+      }
     }
-  }, [session.data?.user, fetchChatHistory, checkUserPermissions]);
+  }, [session.data?.user, fetchChatHistory, hasCheckedPermissions, isCheckingPermissions]);
 
   useEffect(() => {
     if (!session.data?.user) return;
@@ -807,6 +812,7 @@ export const TorchAgentPage = () => {
               color="secondary"
               onClick={() => {
                 setHasInsufficientPermissions(false);
+                setHasCheckedPermissions(false);
                 checkUserPermissions();
               }}
             >
