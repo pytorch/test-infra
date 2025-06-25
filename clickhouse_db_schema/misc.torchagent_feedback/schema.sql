@@ -9,4 +9,4 @@ CREATE TABLE
 PARTITION BY
     toYYYYMM (time_inserted)
 ORDER BY
-    (user, session_id, time_inserted) SETTINGS index_granularity = 8192
+    (user, session_id, history_key, time_inserted) SETTINGS index_granularity = 8192
