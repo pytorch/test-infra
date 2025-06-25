@@ -68,10 +68,30 @@ export default async function handler(
       return res.status(200).json({ sessions: [] });
     }
 
-    // Get metadata for each object to fetch the title
-    const objectsWithMetadata = await Promise.all(
-      data.Contents.filter((obj) => obj.Key && obj.Key.endsWith(".json")).map(
-        async (obj) => {
+    // Helper function to chunk array for batch processing
+    const chunkArray = <T>(array: T[], chunkSize: number): T[][] => {
+      const chunks: T[][] = [];
+      for (let i = 0; i < array.length; i += chunkSize) {
+        chunks.push(array.slice(i, i + chunkSize));
+      }
+      return chunks;
+    };
+
+    // Filter JSON files and prepare for batched metadata fetching
+    const jsonFiles = data.Contents.filter(
+      (obj) => obj.Key && obj.Key.endsWith(".json")
+    );
+
+    // Process files in batches of 10 to avoid overwhelming S3 with concurrent requests
+    const BATCH_SIZE = 10;
+    const fileChunks = chunkArray(jsonFiles, BATCH_SIZE);
+
+    const allObjectsWithMetadata: (HistorySession | null)[] = [];
+
+    // Process each batch sequentially to control concurrency
+    for (const chunk of fileChunks) {
+      const chunkResults = await Promise.all(
+        chunk.map(async (obj) => {
           try {
             const headResponse = await s3.send(
               new HeadObjectCommand({
@@ -128,11 +148,13 @@ export default async function handler(
             }
             return null;
           }
-        }
-      )
-    );
+        })
+      );
 
-    const sessions: HistorySession[] = objectsWithMetadata
+      allObjectsWithMetadata.push(...chunkResults);
+    }
+
+    const sessions: HistorySession[] = allObjectsWithMetadata
       .filter(Boolean)
       .sort((a, b) =>
         b!.timestamp.localeCompare(a!.timestamp)
