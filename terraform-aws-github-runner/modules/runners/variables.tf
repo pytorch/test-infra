@@ -66,6 +66,31 @@ variable "redis_login" {
   type        = string
 }
 
+variable "clickhouse_host" {
+  description = "ClickHouse host"
+  type        = string
+}
+
+variable "clickhouse_port" {
+  description = "ClickHouse port"
+  type        = string
+}
+
+variable "clickhouse_database" {
+  description = "ClickHouse database"
+  type        = string
+}
+
+variable "clickhouse_username" {
+  description = "ClickHouse username"
+  type        = string
+}
+
+variable "clickhouse_password" {
+  description = "ClickHouse password"
+  type        = string
+}
+
 variable "sqs_build_queue_retry" {
   description = "SQS queue to forward messages to retry requests"
   type = object({

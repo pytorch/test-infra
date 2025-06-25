@@ -58,6 +58,11 @@ resource "aws_lambda_function" "scale_down" {
       SCALE_CONFIG_REPO_PATH          = var.scale_config_repo_path
       SCALE_DOWN_CONFIG               = jsonencode(var.idle_config)
       SECRETSMANAGER_SECRETS_ID       = var.secretsmanager_secrets_id
+      CLICKHOUSE_HOST                 = var.clickhouse_host
+      CLICKHOUSE_PORT                 = var.clickhouse_port
+      CLICKHOUSE_DATABASE             = var.clickhouse_database
+      CLICKHOUSE_USERNAME             = var.clickhouse_username
+      CLICKHOUSE_PASSWORD             = var.clickhouse_password
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
         sort(distinct([

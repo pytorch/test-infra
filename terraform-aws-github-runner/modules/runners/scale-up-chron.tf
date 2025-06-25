@@ -63,6 +63,11 @@ resource "aws_lambda_function" "scale_up_chron" {
       SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
       SCALE_UP_CHRON_HUD_QUERY_URL         = var.retry_scale_up_chron_hud_query_url
       SCALE_UP_MAX_QUEUE_TIME_MINUTES      = 30
+      CLICKHOUSE_HOST                      = var.clickhouse_host
+      CLICKHOUSE_PORT                      = var.clickhouse_port
+      CLICKHOUSE_DATABASE                  = var.clickhouse_database
+      CLICKHOUSE_USERNAME                  = var.clickhouse_username
+      CLICKHOUSE_PASSWORD                  = var.clickhouse_password
 
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",

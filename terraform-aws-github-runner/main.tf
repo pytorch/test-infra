@@ -120,6 +120,12 @@ module "runners" {
 
   redis_endpoint = aws_elasticache_replication_group.es.primary_endpoint_address
   redis_login    = "${aws_elasticache_user.scale_lambda.user_name}:${random_password.es_password.result}"
+  
+  clickhouse_host     = var.clickhouse_host
+  clickhouse_port     = var.clickhouse_port
+  clickhouse_database = var.clickhouse_database
+  clickhouse_username = var.clickhouse_username
+  clickhouse_password = var.clickhouse_password
 
   sqs_build_queue                 = aws_sqs_queue.queued_builds
   sqs_build_queue_retry           = aws_sqs_queue.queued_builds_retry

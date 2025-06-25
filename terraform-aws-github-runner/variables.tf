@@ -374,6 +374,36 @@ variable "retry_scale_up_chron_hud_query_url" {
   default     = ""
 }
 
+variable "clickhouse_host" {
+  description = "ClickHouse host for metrics storage"
+  type        = string
+  default     = ""
+}
+
+variable "clickhouse_port" {
+  description = "ClickHouse port for metrics storage"
+  type        = string
+  default     = "8443"
+}
+
+variable "clickhouse_database" {
+  description = "ClickHouse database for metrics storage"
+  type        = string
+  default     = ""
+}
+
+variable "clickhouse_username" {
+  description = "ClickHouse username for metrics storage"
+  type        = string
+  default     = ""
+}
+
+variable "clickhouse_password" {
+  description = "ClickHouse password for metrics storage"
+  type        = string
+  default     = ""
+}
+
 variable "wiz_secret_arn" {
   description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
   type        = string
