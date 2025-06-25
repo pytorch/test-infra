@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { NextApiRequest, NextApiResponse } from "next";
 import { getAuthorizedUsername } from "../../../lib/getAuthorizedUsername";
 import { authOptions } from "../auth/[...nextauth]";
@@ -38,8 +37,8 @@ export default async function handler(
     return;
   }
 
-  // Get query from request body
-  const { query } = req.body;
+  // Get query and optional sessionId from request body
+  const { query, sessionId } = req.body;
 
   if (!query || typeof query !== "string") {
     console.log("Rejected: Invalid query parameter");
@@ -48,8 +47,17 @@ export default async function handler(
       .json({ error: "Query parameter is required and must be a string" });
   }
 
+  if (sessionId && typeof sessionId !== "string") {
+    console.log("Rejected: Invalid sessionId parameter");
+    return res
+      .status(400)
+      .json({ error: "SessionId parameter must be a string if provided" });
+  }
+
   console.log(
-    `Processing query (${query.length} chars) - forwarding to Lambda`
+    `Processing query (${query.length} chars) - ${
+      sessionId ? `continuing session ${sessionId}` : "new session"
+    } - forwarding to Lambda`
   );
 
   // CRITICAL STREAMING HEADERS
@@ -76,14 +84,19 @@ export default async function handler(
   };
 
   try {
-    // Generate a session ID for this user (could be made more sophisticated)
-    const userUuid = randomUUID();
-
-    console.log(`Calling Lambda with userUuid: ${userUuid}`);
+    const resumeSession = !!sessionId;
+    console.log(
+      `Calling Lambda with sessionId: ${sessionId} (${
+        resumeSession ? "resumed session" : "new session"
+      })`
+    );
     console.log("and token: ", AUTH_TOKEN);
 
     // Write initial message to start the stream
-    res.write(`{"status":"connecting","userUuid":"${userUuid}"}\n`);
+    // For continued sessions, this helps the frontend know the sessionId is being used
+    res.write(
+      `{"status":"connecting","sessionId":"${sessionId}","resumeSession":${resumeSession}}\n`
+    );
 
     flushStream(res);
 
@@ -96,7 +109,7 @@ export default async function handler(
       },
       body: JSON.stringify({
         query: query,
-        userUuid: userUuid,
+        sessionId: sessionId,
         username: username,
       }),
     });
