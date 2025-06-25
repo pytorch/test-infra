@@ -6,12 +6,22 @@ export const processMessageLine = (
   line: string,
   setParsedResponses: React.Dispatch<React.SetStateAction<ParsedContent[]>>,
   isStreaming: boolean = false,
-  json?: any
+  json?: any,
+  onSessionIdReceived?: (sessionId: string) => void
 ): void => {
   try {
     // If json is not provided, parse the line
     if (!json) {
       json = JSON.parse(line);
+    }
+
+    // Handle system messages with session_id
+    if (json.type === "system" && json.subtype === "init" && json.session_id) {
+      console.log("Received session_id from system message:", json.session_id);
+      if (onSessionIdReceived) {
+        onSessionIdReceived(json.session_id);
+      }
+      return;
     }
 
     // Handle assistant messages
@@ -249,7 +259,8 @@ export const processUserMessages = (
   setParsedResponses: React.Dispatch<React.SetStateAction<ParsedContent[]>>
 ): void => {
   messages.forEach((msg: any) => {
-    if (msg.type === "user_message" && msg.content) {
+    // Handle both "user_message" and "user" type messages
+    if ((msg.type === "user_message" || msg.type === "user") && msg.content) {
       const textContent = msg.content;
       const grafanaLinks = extractGrafanaLinks(textContent);
 
