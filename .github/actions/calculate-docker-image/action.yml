@@ -4,7 +4,7 @@ description: Determine docker image to pull, building a new one if necessary.
 
 inputs:
   use-custom-docker-registry:
-    description: "Use the custom ECR registry hosted on AWS. Only takes effect if there's a build.sh script in the docker-build-dir."
+    description: "Use the custom ECR registry. Applies only if build.sh exists in docker-build-dir."
     default: true
     type: boolean
   docker-image-name:
@@ -75,7 +75,7 @@ runs:
           echo "skip=true" >> "${GITHUB_OUTPUT}"
           echo "docker-image=${DOCKER_IMAGE_NAME}" >> "${GITHUB_OUTPUT}"
 
-          echo "There is no Docker build script in ${REPO_NAME} repo, or not using custom registry, skipping..."
+          echo "Not using custom ECR registry.  Either it was not requested or there is no Docker build script in the ${REPO_NAME} repo..."
           exit 0
         fi
 

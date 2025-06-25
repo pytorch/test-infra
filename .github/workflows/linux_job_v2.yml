@@ -59,7 +59,7 @@ on:
         default: ""
         type: string
       use-custom-docker-registry:
-        description: "Use the custom ECR registry hosted on AWS. Only takes effect if there's a build.sh script in the docker-build-dir."
+        description: "Use the custom ECR registry. Applies only if build.sh exists in docker-build-dir."
         default: true
         type: boolean
       docker-image:
