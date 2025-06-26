@@ -65,7 +65,7 @@ jobs:
           --missing-in-branch
 
     - name: Show missing reverts
-      eun: |
+      run: |
         python3 tools/analytics/github_analyze.py
           --repo-path ./pytorch \
           --remote origin \
