@@ -8,26 +8,26 @@ on:
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
+  workflow_call:
+    inputs:
+      branch:
+        description: "PyTorch release branch. e.g. release/2.7"
+        default: "release/2.8"
+        required: false
+      milestone-id:
+        description: 'Release milestone ID. e.g. 54'
+        default: 53
+        required: false
   workflow_dispatch:
     inputs:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
-        default: "release/2.7"
+        default: "release/2.8"
+        required: false
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
-        default: 54
-      repo-path:
-        description: "Path to the repository to analyze"
-        default: "./pytorch"
-      remote:
-        description: "Remote name to use for the repository"
-        default: "origin"
-      missing-in-branch:
-        description: 'bool to flag if commits are missing in the branch'
-        type: boolean
-        default: true
-
-
+        default: 53
+        required: false
 
 jobs:
   github-analyze:
@@ -55,25 +55,19 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install requests==2.31.0 tqdm==4.64.1
 
-    - name: Run GitHub Analytics
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Show outstanding milestone issues
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote origin \
-          --branch release/2.7 \
-          --milestone-id 54 \
+          --branch ${{ inputs.branch }} \
+          --milestone-id ${{ inputs.milestone-id }} \
           --missing-in-branch
 
-
-    - name: Upload analytics results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: github-analytics-results-${{ github.run_id }}
-        path: |
-          *.json
-          *.csv
-          *.log
-        retention-days: 30
+    - name: Show missing reverts
+      eun: |
+        python3 tools/analytics/github_analyze.py
+          --repo-path ./pytorch \
+          --remote origin \
+          --branch ${{ inputs.branch }} \
+          --analyze-missing-reverts-from-branch
