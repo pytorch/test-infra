@@ -75,7 +75,7 @@ export const TorchAgentPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg")); // Below 1200px
 
   // Constants
-  const typingSpeed = 30;
+  const typingSpeed = 3; // ms per character
   const sidebarWidth = 300;
 
   const featureRequestUrl =
