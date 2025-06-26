@@ -67,8 +67,8 @@ jobs:
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote origin \
-          --branch ${BRANCH} \
-          --milestone-id ${MILESTONE} \
+          --branch ${BRANCH:-release/2.8} \
+          --milestone-id ${MILESTONE:-53} \
           --missing-in-branch
 
     - name: Show missing reverts
@@ -78,5 +78,5 @@ jobs:
         python3 tools/analytics/github_analyze.py
           --repo-path ./pytorch \
           --remote origin \
-          --branch ${BRANCH} \
+          --branch ${BRANCH:-release/2.8} \
           --analyze-missing-reverts-from-branch
