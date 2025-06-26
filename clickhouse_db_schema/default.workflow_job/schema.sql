@@ -49,7 +49,6 @@ CREATE TABLE default.workflow_job
         line String,
         line_num Int64,
         rule String),
-    `will_fail` Bool,
     `torchci_classification_kg` Tuple(
         captures Array(String),
         context Array(String),
