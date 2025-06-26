@@ -146,7 +146,7 @@ function NavBar() {
     {
       name: (
         <span style={{ position: "relative" }}>
-          TorchAgent
+          Flambeau (PyTorch CI Agent)
           <span
             style={{
               marginLeft: "4px",
@@ -164,7 +164,7 @@ function NavBar() {
           </span>
         </span>
       ),
-      href: "/torchagent",
+      href: "/flambeau",
     },
   ];
 
