@@ -69,6 +69,58 @@ const hasAuthCookie = () => {
   return !!authCookie;
 };
 
+// Helper functions for permission caching
+const PERMISSION_CACHE_KEY = "torchagent_permission_state";
+const PERMISSION_CACHE_DURATION = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+const getCachedPermissionState = (userId: string) => {
+  if (typeof localStorage === "undefined") return null;
+  
+  try {
+    const cached = localStorage.getItem(PERMISSION_CACHE_KEY);
+    if (!cached) return null;
+    
+    const { userId: cachedUserId, state, timestamp } = JSON.parse(cached);
+    
+    // Check if cache is for the same user and not expired
+    if (cachedUserId === userId && Date.now() - timestamp < PERMISSION_CACHE_DURATION) {
+      return state as "sufficient" | "insufficient";
+    }
+    
+    // Clear expired or mismatched cache
+    localStorage.removeItem(PERMISSION_CACHE_KEY);
+    return null;
+  } catch {
+    localStorage.removeItem(PERMISSION_CACHE_KEY);
+    return null;
+  }
+};
+
+const setCachedPermissionState = (userId: string, state: "sufficient" | "insufficient") => {
+  if (typeof localStorage === "undefined") return;
+  
+  try {
+    const cacheData = {
+      userId,
+      state,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(PERMISSION_CACHE_KEY, JSON.stringify(cacheData));
+  } catch {
+    // Ignore localStorage errors
+  }
+};
+
+const clearCachedPermissionState = () => {
+  if (typeof localStorage === "undefined") return;
+  
+  try {
+    localStorage.removeItem(PERMISSION_CACHE_KEY);
+  } catch {
+    // Ignore localStorage errors
+  }
+};
+
 export const TorchAgentPage = () => {
   const session = useSession();
   const theme = useTheme();
@@ -205,13 +257,25 @@ export const TorchAgentPage = () => {
     }
   }, [session.data?.user]);
 
-  const checkUserPermissions = useCallback(async () => {
+  const checkUserPermissions = useCallback(async (forceCheck = false) => {
     if (
       !session.data?.user ||
       hasAuthCookie() ||
-      permissionState !== "unchecked"
+      (!forceCheck && permissionState !== "unchecked")
     )
       return;
+
+    const userId = session.data.user.email || session.data.user.id || session.data.user.name;
+    if (!userId) return;
+
+    // Check cache first unless forcing a fresh check
+    if (!forceCheck) {
+      const cachedState = getCachedPermissionState(userId);
+      if (cachedState) {
+        setPermissionState(cachedState);
+        return;
+      }
+    }
 
     setPermissionState("checking");
     try {
@@ -223,17 +287,23 @@ export const TorchAgentPage = () => {
         },
       });
 
+      let newState: "sufficient" | "insufficient";
       if (response.status === 403) {
-        setPermissionState("insufficient");
+        newState = "insufficient";
       } else if (!response.ok) {
         // For 500 errors or other issues, also show insufficient permissions
-        setPermissionState("insufficient");
+        newState = "insufficient";
       } else {
-        setPermissionState("sufficient");
+        newState = "sufficient";
       }
+
+      setPermissionState(newState);
+      setCachedPermissionState(userId, newState);
     } catch (error) {
       console.error("Error checking permissions:", error);
-      setPermissionState("insufficient");
+      const newState = "insufficient";
+      setPermissionState(newState);
+      setCachedPermissionState(userId, newState);
     }
   }, [session.data?.user, permissionState]);
 
@@ -834,7 +904,7 @@ export const TorchAgentPage = () => {
               color="secondary"
               onClick={() => {
                 setPermissionState("unchecked");
-                checkUserPermissions();
+                checkUserPermissions(true); // Force a fresh check
               }}
             >
               Try Again
