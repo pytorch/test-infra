@@ -8,7 +8,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { useSession } from "next-auth/react";
+import { signIn, useSession } from "next-auth/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AISpinner from "./AISpinner";
 import { ChatHistorySidebar } from "./TorchAgentPage/ChatHistorySidebar";
@@ -75,7 +75,7 @@ export const TorchAgentPage = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("lg")); // Below 1200px
 
   // Constants
-  const typingSpeed = 30;
+  const typingSpeed = 3; // ms per character
   const sidebarWidth = 300;
 
   const featureRequestUrl =
@@ -106,6 +106,9 @@ export const TorchAgentPage = () => {
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [permissionState, setPermissionState] = useState<
+    "unchecked" | "checking" | "sufficient" | "insufficient"
+  >("unchecked");
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -201,6 +204,38 @@ export const TorchAgentPage = () => {
       setIsHistoryLoading(false);
     }
   }, [session.data?.user]);
+
+  const checkUserPermissions = useCallback(async () => {
+    if (
+      !session.data?.user ||
+      hasAuthCookie() ||
+      permissionState !== "unchecked"
+    )
+      return;
+
+    setPermissionState("checking");
+    try {
+      // Make a simple API call to check permissions
+      const response = await fetch("/api/torchagent-check-permissions", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 403) {
+        setPermissionState("insufficient");
+      } else if (!response.ok) {
+        // For 500 errors or other issues, also show insufficient permissions
+        setPermissionState("insufficient");
+      } else {
+        setPermissionState("sufficient");
+      }
+    } catch (error) {
+      console.error("Error checking permissions:", error);
+      setPermissionState("insufficient");
+    }
+  }, [session.data?.user, permissionState]);
 
   const loadChatSession = async (sessionId: string) => {
     // Cancel any active stream first
@@ -326,8 +361,17 @@ export const TorchAgentPage = () => {
   useEffect(() => {
     if (session.data?.user) {
       fetchChatHistory();
+      // Only check permissions if we haven't checked yet
+      if (permissionState === "unchecked") {
+        checkUserPermissions();
+      }
     }
-  }, [session.data?.user, fetchChatHistory]);
+  }, [
+    session.data?.user,
+    fetchChatHistory,
+    permissionState,
+    checkUserPermissions,
+  ]);
 
   useEffect(() => {
     if (!session.data?.user) return;
@@ -610,6 +654,8 @@ export const TorchAgentPage = () => {
             "Authentication required. Please sign in to continue."
           );
         } else if (response.status === 403) {
+          // Set the insufficient permissions flag for authenticated users
+          setPermissionState("insufficient");
           throw new Error(
             "Access denied. You need write permissions to pytorch/pytorch repository to use this tool."
           );
@@ -671,13 +717,15 @@ export const TorchAgentPage = () => {
 
   const hasCookieAuth = hasAuthCookie();
 
-  if (session.status === "loading") {
+  if (session.status === "loading" || permissionState === "checking") {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
           <AISpinner />
           <Typography variant="h6" sx={{ mt: 2 }}>
-            Checking authentication...
+            {session.status === "loading"
+              ? "Checking authentication..."
+              : "Checking permissions..."}
           </Typography>
         </QuerySection>
       </TorchAgentPageContainer>
@@ -700,9 +748,98 @@ export const TorchAgentPage = () => {
             You must be logged in with write permissions to pytorch/pytorch to
             access this tool.
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Please sign in to continue.
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Please sign in with GitHub to continue.
           </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 2,
+            }}
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              onClick={() => signIn()}
+              sx={{ minWidth: "200px" }}
+            >
+              Sign In
+            </Button>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              component="a"
+              href="https://forms.gle/SoLgaCucjJqc6F647"
+              target="_blank"
+              rel="noopener noreferrer"
+              sx={{
+                textDecoration: "underline",
+                "&:hover": {
+                  textDecoration: "none",
+                },
+              }}
+            >
+              no GitHub account? request access here
+            </Typography>
+          </Box>
+        </QuerySection>
+      </TorchAgentPageContainer>
+    );
+  }
+
+  // Check if user is authenticated but has insufficient permissions
+  if (
+    session.data?.user &&
+    !hasAuthCookie() &&
+    permissionState === "insufficient"
+  ) {
+    return (
+      <TorchAgentPageContainer>
+        <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
+          <Typography variant="h4" gutterBottom>
+            Insufficient Permissions
+          </Typography>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            You are signed in as{" "}
+            <strong>{session.data.user.name || session.data.user.email}</strong>
+            , but you need write permissions to pytorch/pytorch to access this
+            tool.
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            Please request access to continue using TorchAgent.
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              gap: 2,
+              justifyContent: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <Button
+              variant="contained"
+              color="primary"
+              component="a"
+              href="https://forms.gle/SoLgaCucjJqc6F647"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Request Access
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              onClick={() => {
+                setPermissionState("unchecked");
+                checkUserPermissions();
+              }}
+            >
+              Try Again
+            </Button>
+          </Box>
         </QuerySection>
       </TorchAgentPageContainer>
     );
