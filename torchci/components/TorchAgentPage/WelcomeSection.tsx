@@ -1,6 +1,7 @@
 import { Box, Button, TextField, Typography } from "@mui/material";
 import React from "react";
 import { QuerySection } from "./styles";
+import { TipsInfoButton } from "./TipsInfoButton";
 
 interface WelcomeSectionProps {
   query: string;
@@ -34,7 +35,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
         }}
       >
         <Typography variant="body1">
-          Hi, I&apos;m TorchAgent, your intelligent assistant for PyTorch
+          Hi, I&apos;m Flambeau, your intelligent assistant for PyTorch
           infrastructure analysis and monitoring. I can help you create custom
           time-series visualizations, analyze CI/CD metrics, and gain insights
           into the PyTorch development workflow. Simply describe what you&apos;d
@@ -59,6 +60,7 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
 
       <Typography variant="body1" paragraph>
         What can I help you graph today?
+        <TipsInfoButton />
       </Typography>
 
       <QuerySection>
