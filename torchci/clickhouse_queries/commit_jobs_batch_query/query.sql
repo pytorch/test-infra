@@ -12,10 +12,7 @@ WITH job AS (
         workflow.artifacts_url AS github_artifact_url,
         job.conclusion_kg as conclusion,
         job.html_url as html_url,
-        CONCAT(
-            'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-            job.id
-        ) AS log_url,
+        job.log_url as log_url,
         DATE_DIFF(
             'SECOND',
             job.started_at,

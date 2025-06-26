@@ -5,10 +5,7 @@ SELECT DISTINCT
     j.id,
     j.conclusion_kg as conclusion,
     j.html_url AS htmlUrl,
-    CONCAT(
-        'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-        j.id
-    ) AS logUrl,
+    j.log_url as logUrl,
     DATE_DIFF('SECOND', j.started_at, j.completed_at) AS durationS,
     array(j.torchci_classification_kg. 'line') AS failureLines,
     j.torchci_classification_kg. 'captures' AS failureCaptures,
