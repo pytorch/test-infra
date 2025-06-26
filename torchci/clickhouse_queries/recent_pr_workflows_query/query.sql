@@ -44,20 +44,20 @@ SELECT
   w.head_commit.'author'.'email' as authorEmail,
   CONCAT(w.name, ' / ', j.name) AS name,
   j.name AS jobName,
-  j.conclusion as conclusion,
+  j.conclusion_kg as conclusion,
   j.completed_at as completed_at,
   j.html_url as html_url,
   j.head_branch as head_branch,
   recent_prs.number AS pr_number,
   recent_prs.sha AS head_sha,
   recent_prs.timestamp AS head_sha_timestamp,
-  j.torchci_classification.'captures' AS failure_captures,
+  j.torchci_classification_kg.'captures' AS failure_captures,
   IF(
-    j.torchci_classification.'line' = '',
+    j.torchci_classification_kg.'line' = '',
     [],
-    [j.torchci_classification.'line']
+    [j.torchci_classification_kg.'line']
   ) AS failure_lines,
-  j.torchci_classification.'context' AS failure_context,
+  j.torchci_classification_kg.'context' AS failure_context,
   j.created_at AS time
 FROM
   default.workflow_run w final

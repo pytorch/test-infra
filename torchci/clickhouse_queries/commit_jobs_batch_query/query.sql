@@ -10,7 +10,7 @@ WITH job AS (
         job.id as id,
         workflow.id AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
-        job.conclusion as conclusion,
+        job.conclusion_kg as conclusion,
         job.html_url as html_url,
         CONCAT(
             'https://ossci-raw-job-status.s3.amazonaws.com/log/',
@@ -21,10 +21,10 @@ WITH job AS (
             job.started_at,
             job.completed_at
         ) AS duration_s,
-        IF(job.torchci_classification.'line' = '', [], [job.torchci_classification.'line']) AS failure_line,
-        job.torchci_classification.'context' AS failure_context,
-        job.torchci_classification.'captures' AS failure_captures,
-        job.torchci_classification.'line_num' AS failure_line_number
+        IF(job.torchci_classification_kg.'line' = '', [], [job.torchci_classification_kg.'line']) AS failure_line,
+        job.torchci_classification_kg.'context' AS failure_context,
+        job.torchci_classification_kg.'captures' AS failure_captures,
+        job.torchci_classification_kg.'line_num' AS failure_line_number
     FROM
         default.workflow_job job final
         INNER JOIN default.workflow_run workflow final ON workflow.id = job.run_id
