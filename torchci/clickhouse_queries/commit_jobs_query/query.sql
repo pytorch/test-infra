@@ -20,19 +20,7 @@ WITH job AS (
             job.conclusion_kg
         ) as conclusion,
         job.html_url,
-        IF(
-            {repo: String } = 'pytorch/pytorch',
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                job.id:: String
-            ),
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                {repo: String },
-                '/',
-                job.id:: String
-            )
-        ) AS log_url,
+        job.log_url AS log_url,
         if(
             job.started_at = 0,
             0,
