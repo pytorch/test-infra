@@ -57,7 +57,7 @@ CREATE TABLE default.workflow_job
         line_num Int64,
         rule String) ALIAS if(tupleElement(torchci_classification, 'line') = '', torchci_classification_temp, torchci_classification) COMMENT 'Combined torchci_classification and torchci_classification_temp for easier querying for keep going',
     `conclusion_kg` String ALIAS if((conclusion = '') AND (tupleElement(torchci_classification_temp, 'line') != ''), 'failure', conclusion) COMMENT 'Altered conclusion for keep going',
-    `log_url` String ALIAS multiIf(repository_full_name != 'pytorch/pytorch', concat('https://ossci-raw-job-status.s3.amazonaws.com/log/', repository_full_name, '/', CAST(id, 'String')), (tupleElement(torchci_classification_temp, 'line') != '') AND (conclusion = ''), concat('https://ossci-raw-job-status.s3.amazonaws.com/gha-artifacts/temp_logs/', CAST(id, 'String')), concat('https://ossci-raw-job-status.s3.amazonaws.com/log/', CAST(id, 'String'))) COMMENT 'Log url for the job. Takes into account temp logs if possible',
+    `log_url` String ALIAS multiIf(repository_full_name != 'pytorch/pytorch', concat('https://ossci-raw-job-status.s3.amazonaws.com/log/', repository_full_name, '/', CAST(id, 'String')), (tupleElement(torchci_classification_temp, 'line') != '') AND (conclusion = ''), concat('https://gha-artifacts.s3.us-east-1.amazonaws.com/temp_logs/', CAST(id, 'String')), concat('https://ossci-raw-job-status.s3.amazonaws.com/log/', CAST(id, 'String'))) COMMENT 'Log url for the job. Takes into account temp logs if possible',
     INDEX status_index status TYPE bloom_filter GRANULARITY 1,
     INDEX created_at_index created_at TYPE minmax GRANULARITY 1,
     INDEX started_at_index started_at TYPE minmax GRANULARITY 1,
