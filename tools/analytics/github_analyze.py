@@ -5,6 +5,7 @@
 import enum
 import json
 import os
+import re
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List, Optional, Union
 from urllib.error import HTTPError
@@ -542,22 +543,50 @@ def analyze_stacks(repo: GitRepo) -> None:
         )
 
 
+def extract_commit_hash_from_revert(text):
+    """
+    Extract commit hash from a revert commit message.
+
+    Args:
+        text (str): The revert commit message
+
+    Returns:
+        str or None: The extracted commit hash, or None if not found
+    """
+    # Pattern to match "This reverts commit <hash>."
+    pattern = r"This reverts commit ([0-9a-f]+)\."
+
+    match = re.search(pattern, text)
+    if match:
+        return match.group(1)
+    return None
+
+
 def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
     """
     Analyze reverts applied to main branch but not applied to specified branch.
     This identifies potential missing revert commits that may need to be cherry-picked
-    to the release branch.
+    to the release branch. Also detects if reverted commits from main were cherry-picked
+    to the branch.
     """
     # Get commits from main that are not in the specified branch
     main_only_commits = build_commit_dict(repo.get_commit_list(branch, "main"))
 
     # Get commits from the specified branch that are not in main
     branch_only_commits = build_commit_dict(repo.get_commit_list("main", branch))
+    branch_only_reverts = set()
 
     print(f"Analyzing reverts in main branch not present in {branch} branch")
     print(f"Total commits in main but not in {branch}: {len(main_only_commits)}")
     print(f"Total commits in {branch} but not in main: {len(branch_only_commits)}")
     print()
+
+    for commit_hash, commit in branch_only_commits.items():
+        revert_hash = extract_commit_hash_from_revert(commit.body)
+        if revert_hash != None:
+            branch_only_reverts.add(revert_hash)
+        if is_revert(commit):
+            branch_only_reverts.add(commit_hash)
 
     # Find reverts in main that are not in the specified branch
     reverts_missing_from_branch = []
@@ -576,6 +605,26 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
     print("=" * 80)
 
     for commit in reverts_missing_from_branch:
+        # Try to identify what was reverted
+        revert_revision = get_revert_revision(commit)
+        ghf_revert_revision = get_ghf_revert_revision(commit)
+
+        reverted_commit_hash = None
+        if revert_revision:
+            print(f"Reverted Phabricator Diff: {revert_revision}")
+        elif ghf_revert_revision:
+            print(f"Reverted GitHub Commit: {ghf_revert_revision}")
+            reverted_commit_hash = ghf_revert_revision
+
+        # Check if the reverted commit was cherry-picked to the branch
+        cherry_picked_to_branch = False
+        if reverted_commit_hash:
+            if reverted_commit_hash in branch_only_reverts:
+                cherry_picked_to_branch = True
+                print(
+                    f"✅  DETECTED: The reverted commit {reverted_commit_hash} was cherry-picked to {branch}"
+                )
+
         print(f"Commit Hash: {commit.commit_hash}")
         print(f"Author: {commit.author}")
         print(f"Date: {commit.commit_date or commit.author_date}")
@@ -583,14 +632,10 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         if commit.pr_url:
             print(f"PR URL: {commit.pr_url}")
 
-        # Try to identify what was reverted
-        revert_revision = get_revert_revision(commit)
-        ghf_revert_revision = get_ghf_revert_revision(commit)
-
-        if revert_revision:
-            print(f"Reverted Phabricator Diff: {revert_revision}")
-        elif ghf_revert_revision:
-            print(f"Reverted GitHub Commit: {ghf_revert_revision}")
+        if not cherry_picked_to_branch:
+            print(
+                f"⚠️ STATUS: The reverted commit does not appear to be in {branch}, so this revert may not be needed."
+            )
 
         print(
             f"Body Preview: {commit.body[:200]}{'...' if len(commit.body) > 200 else ''}"
