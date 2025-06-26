@@ -60,18 +60,23 @@ jobs:
         python3 -m pip install requests==2.31.0 tqdm==4.64.1
 
     - name: Show outstanding milestone issues
+      env:
+          BRANCH: ${{ inputs.branch }}
+          MILESTONE: ${{ inputs.milestone-id }}
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote origin \
-          --branch ${{ github.event.inputs.branch }} \
-          --milestone-id ${{ github.event.inputs.milestone-id }} \
+          --branch ${BRANCH} \
+          --milestone-id ${MILESTONE} \
           --missing-in-branch
 
     - name: Show missing reverts
+      env:
+          BRANCH: ${{ inputs.branch }}
       run: |
         python3 tools/analytics/github_analyze.py
           --repo-path ./pytorch \
           --remote origin \
-          --branch ${{ github.event.inputs.branch }} \
+          --branch ${BRANCH} \
           --analyze-missing-reverts-from-branch
