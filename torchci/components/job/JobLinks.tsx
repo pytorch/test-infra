@@ -1,18 +1,18 @@
+import CopyLink from "components/common/CopyLink";
+import { durationDisplay, LocalTimeHuman } from "components/common/TimeUtils";
 import dayjs from "dayjs";
-import { useSession } from "next-auth/react";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
-import useSWR from "swr";
-import { isFailure, IsJobInProgress } from "../lib/JobClassifierUtil";
+import { isFailure, IsJobInProgress } from "lib/JobClassifierUtil";
 import {
   getDurationDisplay,
   isFailedJob,
   transformJobName,
-} from "../lib/jobUtils";
-import { IssueData, JobData } from "../lib/types";
-import CopyLink from "./CopyLink";
+} from "lib/jobUtils";
+import { IssueData, JobData } from "lib/types";
+import { useSession } from "next-auth/react";
+import { IssueLabelApiResponse } from "pages/api/issue/[label]";
+import useSWR from "swr";
 import styles from "./JobLinks.module.css";
 import ReproductionCommand from "./ReproductionCommand";
-import { durationDisplay, LocalTimeHuman } from "./TimeUtils";
 
 const DEFAULT_REPO = "pytorch/pytorch";
 function getRepoFromHtmlURL(htmlUrl?: string) {

@@ -1,4 +1,4 @@
-import { durationDisplay } from "components/TimeUtils";
+import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import { jaroWinkler } from "jaro-winkler-typescript";
 import {

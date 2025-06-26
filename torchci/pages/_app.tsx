@@ -1,11 +1,11 @@
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import { Analytics } from "@vercel/analytics/react";
-import AnnouncementBanner from "components/AnnouncementBanner";
-import TitleProvider from "components/DynamicTitle";
-import NavBar from "components/NavBar";
-import SevReport from "components/SevReport";
 import GitHubIncidentBanner from "components/githubIncident/GithubIncident";
+import AnnouncementBanner from "components/layout/AnnouncementBanner";
+import TitleProvider from "components/layout/DynamicTitle";
+import NavBar from "components/layout/NavBar";
+import SevReport from "components/sevReport/SevReport";
 import { DarkModeProvider } from "lib/DarkModeContext";
 import { track } from "lib/track";
 import { SessionProvider } from "next-auth/react";
