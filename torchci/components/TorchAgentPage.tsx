@@ -107,8 +107,8 @@ export const TorchAgentPage = () => {
   const [debugVisible, setDebugVisible] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [permissionState, setPermissionState] = useState<
-    'unchecked' | 'checking' | 'sufficient' | 'insufficient'
-  >('unchecked');
+    "unchecked" | "checking" | "sufficient" | "insufficient"
+  >("unchecked");
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -206,9 +206,14 @@ export const TorchAgentPage = () => {
   }, [session.data?.user]);
 
   const checkUserPermissions = useCallback(async () => {
-    if (!session.data?.user || hasAuthCookie() || permissionState !== 'unchecked') return;
+    if (
+      !session.data?.user ||
+      hasAuthCookie() ||
+      permissionState !== "unchecked"
+    )
+      return;
 
-    setPermissionState('checking');
+    setPermissionState("checking");
     try {
       // Make a simple API call to check permissions
       const response = await fetch("/api/torchagent-check-permissions", {
@@ -219,16 +224,16 @@ export const TorchAgentPage = () => {
       });
 
       if (response.status === 403) {
-        setPermissionState('insufficient');
+        setPermissionState("insufficient");
       } else if (!response.ok) {
         // For 500 errors or other issues, also show insufficient permissions
-        setPermissionState('insufficient');
+        setPermissionState("insufficient");
       } else {
-        setPermissionState('sufficient');
+        setPermissionState("sufficient");
       }
     } catch (error) {
       console.error("Error checking permissions:", error);
-      setPermissionState('insufficient');
+      setPermissionState("insufficient");
     }
   }, [session.data?.user, permissionState]);
 
@@ -357,11 +362,16 @@ export const TorchAgentPage = () => {
     if (session.data?.user) {
       fetchChatHistory();
       // Only check permissions if we haven't checked yet
-      if (permissionState === 'unchecked') {
+      if (permissionState === "unchecked") {
         checkUserPermissions();
       }
     }
-  }, [session.data?.user, fetchChatHistory, permissionState, checkUserPermissions]);
+  }, [
+    session.data?.user,
+    fetchChatHistory,
+    permissionState,
+    checkUserPermissions,
+  ]);
 
   useEffect(() => {
     if (!session.data?.user) return;
@@ -645,7 +655,7 @@ export const TorchAgentPage = () => {
           );
         } else if (response.status === 403) {
           // Set the insufficient permissions flag for authenticated users
-          setPermissionState('insufficient');
+          setPermissionState("insufficient");
           throw new Error(
             "Access denied. You need write permissions to pytorch/pytorch repository to use this tool."
           );
@@ -707,7 +717,7 @@ export const TorchAgentPage = () => {
 
   const hasCookieAuth = hasAuthCookie();
 
-  if (session.status === "loading" || permissionState === 'checking') {
+  if (session.status === "loading" || permissionState === "checking") {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
@@ -739,29 +749,41 @@ export const TorchAgentPage = () => {
             access this tool.
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Please sign in to continue.
+            Please sign in with GitHub to continue.
           </Typography>
           <Box
             sx={{
               display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
               gap: 2,
-              justifyContent: "center",
-              flexWrap: "wrap",
             }}
           >
             <Button
               variant="contained"
               color="primary"
+              size="large"
+              onClick={() => signIn()}
+              sx={{ minWidth: "200px" }}
+            >
+              Sign In
+            </Button>
+            <Typography
+              variant="body2"
+              color="text.secondary"
               component="a"
               href="https://forms.gle/SoLgaCucjJqc6F647"
               target="_blank"
               rel="noopener noreferrer"
+              sx={{
+                textDecoration: "underline",
+                "&:hover": {
+                  textDecoration: "none",
+                },
+              }}
             >
-              Request Access
-            </Button>
-            <Button variant="outlined" color="primary" onClick={() => signIn()}>
-              Sign In
-            </Button>
+              no GitHub account? request access here
+            </Typography>
           </Box>
         </QuerySection>
       </TorchAgentPageContainer>
@@ -769,7 +791,11 @@ export const TorchAgentPage = () => {
   }
 
   // Check if user is authenticated but has insufficient permissions
-  if (session.data?.user && !hasAuthCookie() && permissionState === 'insufficient') {
+  if (
+    session.data?.user &&
+    !hasAuthCookie() &&
+    permissionState === "insufficient"
+  ) {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
@@ -807,7 +833,7 @@ export const TorchAgentPage = () => {
               variant="outlined"
               color="secondary"
               onClick={() => {
-                setPermissionState('unchecked');
+                setPermissionState("unchecked");
                 checkUserPermissions();
               }}
             >
