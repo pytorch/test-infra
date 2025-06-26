@@ -106,10 +106,9 @@ export const TorchAgentPage = () => {
   const [error, setError] = useState("");
   const [debugVisible, setDebugVisible] = useState(false);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [hasInsufficientPermissions, setHasInsufficientPermissions] =
-    useState(false);
-  const [isCheckingPermissions, setIsCheckingPermissions] = useState(false);
-  const [hasCheckedPermissions, setHasCheckedPermissions] = useState(false);
+  const [permissionState, setPermissionState] = useState<
+    'unchecked' | 'checking' | 'sufficient' | 'insufficient'
+  >('unchecked');
 
   const [chatHistory, setChatHistory] = useState<ChatSession[]>([]);
   const [selectedSession, setSelectedSession] = useState<string | null>(null);
@@ -207,9 +206,9 @@ export const TorchAgentPage = () => {
   }, [session.data?.user]);
 
   const checkUserPermissions = useCallback(async () => {
-    if (!session.data?.user || hasAuthCookie() || isCheckingPermissions || hasCheckedPermissions) return;
+    if (!session.data?.user || hasAuthCookie() || permissionState !== 'unchecked') return;
 
-    setIsCheckingPermissions(true);
+    setPermissionState('checking');
     try {
       // Make a simple API call to check permissions
       const response = await fetch("/api/torchagent-check-permissions", {
@@ -220,21 +219,18 @@ export const TorchAgentPage = () => {
       });
 
       if (response.status === 403) {
-        setHasInsufficientPermissions(true);
+        setPermissionState('insufficient');
       } else if (!response.ok) {
         // For 500 errors or other issues, also show insufficient permissions
-        setHasInsufficientPermissions(true);
+        setPermissionState('insufficient');
       } else {
-        setHasInsufficientPermissions(false);
+        setPermissionState('sufficient');
       }
     } catch (error) {
       console.error("Error checking permissions:", error);
-      setHasInsufficientPermissions(true);
-    } finally {
-      setIsCheckingPermissions(false);
-      setHasCheckedPermissions(true);
+      setPermissionState('insufficient');
     }
-  }, [session.data?.user, isCheckingPermissions, hasCheckedPermissions]);
+  }, [session.data?.user, permissionState]);
 
   const loadChatSession = async (sessionId: string) => {
     // Cancel any active stream first
@@ -361,11 +357,11 @@ export const TorchAgentPage = () => {
     if (session.data?.user) {
       fetchChatHistory();
       // Only check permissions if we haven't checked yet
-      if (!hasCheckedPermissions && !isCheckingPermissions) {
+      if (permissionState === 'unchecked') {
         checkUserPermissions();
       }
     }
-  }, [session.data?.user, fetchChatHistory, hasCheckedPermissions, isCheckingPermissions]);
+  }, [session.data?.user, fetchChatHistory, permissionState, checkUserPermissions]);
 
   useEffect(() => {
     if (!session.data?.user) return;
@@ -649,7 +645,7 @@ export const TorchAgentPage = () => {
           );
         } else if (response.status === 403) {
           // Set the insufficient permissions flag for authenticated users
-          setHasInsufficientPermissions(true);
+          setPermissionState('insufficient');
           throw new Error(
             "Access denied. You need write permissions to pytorch/pytorch repository to use this tool."
           );
@@ -711,7 +707,7 @@ export const TorchAgentPage = () => {
 
   const hasCookieAuth = hasAuthCookie();
 
-  if (session.status === "loading" || isCheckingPermissions) {
+  if (session.status === "loading" || permissionState === 'checking') {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
@@ -773,7 +769,7 @@ export const TorchAgentPage = () => {
   }
 
   // Check if user is authenticated but has insufficient permissions
-  if (session.data?.user && !hasAuthCookie() && hasInsufficientPermissions) {
+  if (session.data?.user && !hasAuthCookie() && permissionState === 'insufficient') {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
@@ -811,8 +807,7 @@ export const TorchAgentPage = () => {
               variant="outlined"
               color="secondary"
               onClick={() => {
-                setHasInsufficientPermissions(false);
-                setHasCheckedPermissions(false);
+                setPermissionState('unchecked');
                 checkUserPermissions();
               }}
             >
