@@ -76,7 +76,7 @@ on:
         default: recursive
       setup-miniconda:
         description: Set to true if setup-miniconda is needed
-        required: true
+        required: false
         type: boolean
         default: true
       delocate-wheel:
