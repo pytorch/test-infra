@@ -78,7 +78,7 @@ on:
         description: Set to true if setup-miniconda is needed
         required: true
         type: boolean
-        default: false
+        default: true
       delocate-wheel:
         description: "Whether to run delocate-wheel after building."
         required: false
