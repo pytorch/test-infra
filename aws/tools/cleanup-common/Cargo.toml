@@ -1,18 +1,14 @@
 [package]
-name = "cleanup-runners"
+name = "cleanup-common"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-cleanup-common = { path = "../cleanup-common" }
 aws-config = "1.8.0"
-aws-sdk-ec2 = "1.81.0"
 clap = { version = "4.5.40", features = ["derive"] }
 tokio = { version = "1.45.1", features = ["full"] }
-reqwest = { version = "0.12", features = ["json"] }
+chrono = "0.4"
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
 
 [dev-dependencies]
 mockall = "0.12"
-http = "1.0"

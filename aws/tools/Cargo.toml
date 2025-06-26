@@ -1,0 +1,7 @@
+[workspace]
+members = [
+    "cleanup-common",
+    "cleanup-ssm", 
+    "cleanup-runners"
+]
+resolver = "2"

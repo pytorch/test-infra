@@ -1,25 +1,17 @@
 use aws_sdk_ssm::types::ParameterMetadata;
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration};
+use cleanup_common::{CleanupConfig as BaseConfig, CleanupResult, ResourceFilter, ResourceLister, ResourceProcessor, time::TimeProvider};
 
 #[cfg(test)]
 use mockall::automock;
 
 pub mod cleanup;
 pub mod client;
-pub mod filter;
 
 #[derive(Debug, Clone)]
-pub struct CleanupConfig {
-    pub region: String,
-    pub dry_run: bool,
+pub struct SsmCleanupConfig {
+    pub base: BaseConfig,
     pub older_than_days: u16,
-}
-
-#[derive(Debug)]
-pub struct CleanupResult {
-    pub parameters_found: usize,
-    pub parameters_deleted: usize,
-    pub parameters_failed: usize,
 }
 
 #[cfg_attr(test, automock)]
@@ -33,53 +25,84 @@ pub trait SsmClient {
     ) -> Result<(Vec<String>, Vec<String>), aws_sdk_ssm::Error>;
 }
 
-pub trait TimeProvider {
-    fn now(&self) -> DateTime<Utc>;
+pub struct SsmParameterFilter<T: TimeProvider> {
+    time_provider: T,
+    older_than_days: u16,
 }
 
-pub struct SystemTimeProvider;
+impl<T: TimeProvider> SsmParameterFilter<T> {
+    pub fn new(time_provider: T, older_than_days: u16) -> Self {
+        Self {
+            time_provider,
+            older_than_days,
+        }
+    }
+}
 
-impl TimeProvider for SystemTimeProvider {
-    fn now(&self) -> DateTime<Utc> {
-        Utc::now()
+impl<T: TimeProvider> ResourceFilter<ParameterMetadata> for SsmParameterFilter<T> {
+    fn should_process(&self, parameter: &ParameterMetadata) -> bool {
+        if let Some(last_modified) = parameter.last_modified_date() {
+            let threshold = self.time_provider.now() - Duration::days(self.older_than_days.into());
+            let last_modified_time = DateTime::from_timestamp(last_modified.secs(), 0)
+                .unwrap_or_else(|| DateTime::from_timestamp(0, 0).unwrap());
+            last_modified_time < threshold
+        } else {
+            false
+        }
+    }
+}
+
+pub struct SsmParameterLister<'a, C: SsmClient> {
+    client: &'a C,
+}
+
+impl<'a, C: SsmClient> SsmParameterLister<'a, C> {
+    pub fn new(client: &'a C) -> Self {
+        Self { client }
+    }
+}
+
+impl<'a, C: SsmClient> ResourceLister<ParameterMetadata> for SsmParameterLister<'a, C> {
+    type Error = aws_sdk_ssm::Error;
+    
+    async fn list_resources(&self) -> Result<Vec<ParameterMetadata>, Self::Error> {
+        self.client.describe_parameters().await
+    }
+}
+
+pub struct SsmParameterProcessor<'a, C: SsmClient> {
+    client: &'a C,
+}
+
+impl<'a, C: SsmClient> SsmParameterProcessor<'a, C> {
+    pub fn new(client: &'a C) -> Self {
+        Self { client }
+    }
+}
+
+impl<'a, C: SsmClient> ResourceProcessor<ParameterMetadata> for SsmParameterProcessor<'a, C> {
+    type Error = aws_sdk_ssm::Error;
+    
+    async fn process_batch(&self, parameters: Vec<ParameterMetadata>) -> Result<(usize, usize), Self::Error> {
+        let names: Vec<String> = parameters
+            .into_iter()
+            .filter_map(|p| p.name().map(|n| n.to_string()))
+            .collect();
+            
+        cleanup::delete_parameters_in_batches(self.client, names).await
     }
 }
 
 pub async fn cleanup_ssm_parameters<C: SsmClient, T: TimeProvider>(
     client: &C,
-    time_provider: &T,
-    config: &CleanupConfig,
+    time_provider: T,
+    config: &SsmCleanupConfig,
 ) -> Result<CleanupResult, aws_sdk_ssm::Error> {
-    let parameters = client.describe_parameters().await?;
-
-    let parameters_to_delete =
-        filter::filter_old_parameters(&parameters, time_provider, config.older_than_days);
-
-    println!("Found {} parameters to delete", parameters_to_delete.len());
-    let parameters_found = parameters_to_delete.len();
-
-    let deleted_count;
-    let failed_count;
-
-    if config.dry_run {
-        println!("Dry run mode - no parameters were deleted");
-        for name in &parameters_to_delete {
-            println!("Would delete: {}", name);
-        }
-        deleted_count = 0;
-        failed_count = 0;
-    } else {
-        let (actual_deleted, actual_failed) =
-            cleanup::delete_parameters_in_batches(client, parameters_to_delete).await?;
-        deleted_count = actual_deleted;
-        failed_count = actual_failed;
-    }
-
-    Ok(CleanupResult {
-        parameters_found,
-        parameters_deleted: deleted_count,
-        parameters_failed: failed_count,
-    })
+    let lister = SsmParameterLister::new(client);
+    let filter = SsmParameterFilter::new(time_provider, config.older_than_days);
+    let processor = SsmParameterProcessor::new(client);
+    
+    cleanup_common::run_cleanup(&lister, &filter, &processor, &config.base).await
 }
 
 #[cfg(test)]
@@ -88,6 +111,7 @@ mod tests {
     use aws_sdk_ssm::types::ParameterMetadata;
     use aws_smithy_types::DateTime as AwsDateTime;
     use chrono::{DateTime, Duration, Utc};
+    use cleanup_common::{CleanupConfig, time::TimeProvider};
 
     struct MockTimeProvider {
         fixed_time: DateTime<Utc>,
@@ -121,19 +145,25 @@ mod tests {
             .times(1)
             .returning(move || Ok(vec![parameter.clone()]));
 
+        mock_client
+            .expect_delete_parameters()
+            .times(0);
+
         let time_provider = MockTimeProvider::new(now);
-        let config = CleanupConfig {
-            region: "us-east-1".to_string(),
-            dry_run: true,
+        let config = SsmCleanupConfig {
+            base: CleanupConfig {
+                region: "us-east-1".to_string(),
+                dry_run: true,
+            },
             older_than_days: 1,
         };
 
-        let result = cleanup_ssm_parameters(&mock_client, &time_provider, &config)
+        let result = cleanup_ssm_parameters(&mock_client, time_provider, &config)
             .await
             .unwrap();
 
-        assert_eq!(result.parameters_found, 1);
-        assert_eq!(result.parameters_deleted, 0);
-        assert_eq!(result.parameters_failed, 0);
+        assert_eq!(result.items_found, 1);
+        assert_eq!(result.items_processed, 0);
+        assert_eq!(result.items_failed, 0);
     }
 }

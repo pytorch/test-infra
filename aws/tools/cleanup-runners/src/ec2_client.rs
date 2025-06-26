@@ -2,6 +2,7 @@ use crate::{Ec2Client, Ec2Instance};
 use aws_config::{BehaviorVersion, Region};
 use aws_sdk_ec2::{Client, Error};
 
+#[derive(Clone)]
 pub struct AwsEc2Client {
     client: Client,
 }

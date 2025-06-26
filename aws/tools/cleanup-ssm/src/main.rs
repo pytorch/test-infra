@@ -1,6 +1,7 @@
 use clap::Parser;
 use cleanup_ssm::client::AwsSsmClient;
-use cleanup_ssm::{cleanup_ssm_parameters, CleanupConfig, SystemTimeProvider};
+use cleanup_ssm::{cleanup_ssm_parameters, SsmCleanupConfig};
+use cleanup_common::{CleanupConfig, time::SystemTimeProvider};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -21,18 +22,20 @@ async fn main() -> Result<(), Box<aws_sdk_ssm::Error>> {
 
     let client = AwsSsmClient::new(&args.region).await?;
     let time_provider = SystemTimeProvider;
-    let config = CleanupConfig {
-        region: args.region,
-        dry_run: args.dry_run,
+    let config = SsmCleanupConfig {
+        base: CleanupConfig {
+            region: args.region,
+            dry_run: args.dry_run,
+        },
         older_than_days: args.older_than,
     };
 
-    let result = cleanup_ssm_parameters(&client, &time_provider, &config).await?;
+    let result = cleanup_ssm_parameters(&client, time_provider, &config).await.map_err(Box::new)?;
 
-    if !config.dry_run {
+    if !config.base.dry_run {
         println!(
             "Cleanup completed: {} parameters processed, {} deleted, {} failed",
-            result.parameters_found, result.parameters_deleted, result.parameters_failed
+            result.items_found, result.items_processed, result.items_failed
         );
     }
 

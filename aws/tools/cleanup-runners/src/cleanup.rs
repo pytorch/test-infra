@@ -9,7 +9,7 @@ const BASE_DELAY_MS: u64 = 1000;
 pub async fn terminate_instances_in_batches<C: Ec2Client>(
     client: &C,
     instance_ids: Vec<String>,
-) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<usize, aws_sdk_ec2::Error> {
     if instance_ids.is_empty() {
         return Ok(0);
     }
@@ -47,7 +47,7 @@ pub async fn terminate_instances_in_batches<C: Ec2Client>(
                         sleep(delay).await;
                     } else {
                         println!("Batch {} failed after {} attempts: {}", batch_num, RETRY_ATTEMPTS, e);
-                        return Err(format!("Failed to terminate batch {} after {} attempts: {}", batch_num, RETRY_ATTEMPTS, e).into());
+                        return Err(e);
                     }
                 }
             }

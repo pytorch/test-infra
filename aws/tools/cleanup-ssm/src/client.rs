@@ -4,6 +4,7 @@ use aws_config::Region;
 use aws_sdk_ssm::types::ParameterMetadata;
 use aws_sdk_ssm::{Client, Error};
 
+#[derive(Clone)]
 pub struct AwsSsmClient {
     client: Client,
 }

@@ -7,6 +7,7 @@ struct GitHubRunnersResponse {
     runners: Vec<GitHubRunner>,
 }
 
+#[derive(Clone)]
 pub struct GitHubApiClient {
     client: reqwest::Client,
 }

@@ -1,8 +1,9 @@
 use clap::Parser;
-use clear_offline_runners::{
+use cleanup_runners::{
     cleanup_offline_runners, ec2_client::AwsEc2Client, github_client::GitHubApiClient,
-    CleanupConfig,
+    RunnerCleanupConfig, RunnerCleanupError,
 };
+use cleanup_common::CleanupConfig;
 use std::env;
 
 #[derive(Parser, Debug)]
@@ -29,50 +30,56 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+async fn main() -> Result<(), RunnerCleanupError> {
     let args = Args::parse();
 
     // Get GitHub token from CLI argument or environment variable
     let github_token = args
         .github_token
         .or_else(|| env::var("GITHUB_TOKEN").ok())
-        .ok_or("GitHub token must be provided via --github-token argument or GITHUB_TOKEN environment variable")?;
+        .ok_or_else(|| RunnerCleanupError::GitHub(
+            "GitHub token must be provided via --github-token argument or GITHUB_TOKEN environment variable".into()
+        ))?;
 
-    let config = CleanupConfig {
+    let config = RunnerCleanupConfig {
+        base: CleanupConfig {
+            region: args.region.clone(),
+            dry_run: args.dry_run,
+        },
         organization: args.organization,
-        region: args.region.clone(),
-        dry_run: args.dry_run,
         runner_name: args.runner_name,
         github_token: github_token.clone(),
     };
 
     // Initialize clients
-    let github_client = GitHubApiClient::new(github_token)?;
-    let ec2_client = AwsEc2Client::new(&args.region).await?;
+    let github_client = GitHubApiClient::new(github_token)
+        .map_err(RunnerCleanupError::GitHub)?;
+    let ec2_client = AwsEc2Client::new(&args.region).await
+        .map_err(RunnerCleanupError::Ec2)?;
 
     // Perform cleanup
     let result = cleanup_offline_runners(&github_client, &ec2_client, &config).await?;
 
     // Print summary
     println!("\n=== Cleanup Summary ===");
-    println!("GitHub runners found: {}", result.github_runners_found);
-    println!("EC2 instances found: {}", result.ec2_instances_found);
-    println!("Orphaned instances identified: {}", result.orphaned_instances);
+    println!("Resources found: {}", result.items_found);
+    println!("Resources processed: {}", result.items_processed);
+    println!("Resources failed: {}", result.items_failed);
 
-    if config.dry_run {
+    if config.base.dry_run {
         println!("Dry run mode - no instances were terminated");
-        if result.orphaned_instances > 0 {
+        if result.items_found > 0 {
             println!(
                 "Run with '--dry-run false' to actually terminate {} orphaned instances",
-                result.orphaned_instances
+                result.items_found
             );
         }
     } else {
-        println!("Instances terminated: {}", result.instances_terminated);
-        if result.instances_terminated > 0 {
-            println!("✅ Successfully cleaned up {} orphaned instances", result.instances_terminated);
+        println!("Instances terminated: {}", result.items_processed);
+        if result.items_processed > 0 {
+            println!("✅ Successfully cleaned up {} orphaned instances", result.items_processed);
         }
     }
 
     Ok(())
-} 
+}

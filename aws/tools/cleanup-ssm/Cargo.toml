@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+cleanup-common = { path = "../cleanup-common" }
 aws-config = "1.8.0"
 aws-sdk-ssm = "1.81.0"
 clap = { version = "4.5.40", features = ["derive"] }
