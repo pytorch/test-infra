@@ -8,6 +8,7 @@ import {
   resetRunnersCaches,
   terminateRunner,
   tryReuseRunner,
+  terminateRunners,
 } from './runners';
 import { RunnerInfo } from './utils';
 import { ScaleUpMetrics } from './metrics';
@@ -326,10 +327,11 @@ describe('listSSMParameters', () => {
   });
 });
 
-describe('terminateRunner', () => {
+describe('terminateRunners', () => {
   beforeEach(() => {
     mockSSMdescribeParametersRet.mockClear();
     mockEC2.terminateInstances.mockClear();
+    mockSSM.deleteParameter.mockClear();
     const config = {
       environment: 'gi-ci',
       minimumRunningTimeInMinutes: 45,
@@ -339,66 +341,195 @@ describe('terminateRunner', () => {
     resetRunnersCaches();
   });
 
-  it('calls terminateInstances', async () => {
-    const runner: RunnerInfo = {
-      awsRegion: Config.Instance.awsRegion,
-      instanceId: 'i-1234',
-      environment: 'gi-ci',
-    };
+  it('terminates multiple runners in same region successfully', async () => {
+    const runners: RunnerInfo[] = [
+      {
+        awsRegion: 'us-east-1',
+        instanceId: 'i-1234',
+        environment: 'gi-ci',
+      },
+      {
+        awsRegion: 'us-east-1',
+        instanceId: 'i-5678',
+        environment: 'gi-ci',
+      },
+    ];
+
     mockSSMdescribeParametersRet.mockResolvedValueOnce({
-      Parameters: [getParameterNameForRunner(runner.environment as string, runner.instanceId)].map((s) => {
-        return { Name: s };
-      }),
+      Parameters: runners
+        .map((runner) => getParameterNameForRunner(runner.environment as string, runner.instanceId))
+        .map((s) => ({ Name: s })),
     });
-    await terminateRunner(runner, metrics);
 
+    await terminateRunners(runners, metrics);
+
+    expect(mockEC2.terminateInstances).toBeCalledTimes(1);
     expect(mockEC2.terminateInstances).toBeCalledWith({
-      InstanceIds: [runner.instanceId],
+      InstanceIds: ['i-1234', 'i-5678'],
     });
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
-    });
-  });
-
-  it('fails to terminate', async () => {
-    const errMsg = 'Error message';
-    const runner: RunnerInfo = {
-      awsRegion: Config.Instance.awsRegion,
-      instanceId: '1234',
-    };
-    mockEC2.terminateInstances.mockClear().mockReturnValue({
-      promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
-    });
-    expect(terminateRunner(runner, metrics)).rejects.toThrowError(errMsg);
-    expect(mockSSM.describeParameters).not.toBeCalled();
-    expect(mockSSM.deleteParameter).not.toBeCalled();
-  });
-
-  it('fails to list parameters on terminate, then force delete all next parameters', async () => {
-    const runner1: RunnerInfo = {
-      awsRegion: Config.Instance.awsRegion,
-      instanceId: '1234',
-      environment: 'environ',
-    };
-    const runner2: RunnerInfo = {
-      awsRegion: Config.Instance.awsRegion,
-      instanceId: '1235',
-      environment: 'environ',
-    };
-    mockSSMdescribeParametersRet.mockRejectedValueOnce('Some Error');
-    await terminateRunner(runner1, metrics);
-    await terminateRunner(runner2, metrics);
-
-    expect(mockEC2.terminateInstances).toBeCalledTimes(2);
     expect(mockSSM.describeParameters).toBeCalledTimes(1);
     expect(mockSSM.deleteParameter).toBeCalledTimes(2);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner1.environment as string, runner1.instanceId),
+  });
+
+  it('terminates runners across multiple regions', async () => {
+    const runners: RunnerInfo[] = [
+      {
+        awsRegion: 'us-east-1',
+        instanceId: 'i-1234',
+        environment: 'gi-ci',
+      },
+      {
+        awsRegion: 'us-west-2',
+        instanceId: 'i-5678',
+        environment: 'gi-ci',
+      },
+    ];
+
+    mockSSMdescribeParametersRet.mockResolvedValue({
+      Parameters: [{ Name: 'gi-ci-i-1234' }, { Name: 'gi-ci-i-5678' }],
     });
+
+    await terminateRunners(runners, metrics);
+
+    expect(mockEC2.terminateInstances).toBeCalledTimes(2);
+    expect(mockEC2.terminateInstances).toHaveBeenNthCalledWith(1, {
+      InstanceIds: ['i-1234'],
+    });
+    expect(mockEC2.terminateInstances).toHaveBeenNthCalledWith(2, {
+      InstanceIds: ['i-5678'],
+    });
+    expect(mockSSM.describeParameters).toBeCalledTimes(2);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(2);
+  });
+
+  it('handles partial failure - terminates some runners but fails on others', async () => {
+    const runners: RunnerInfo[] = [
+      {
+        awsRegion: 'us-east-1',
+        instanceId: 'i-1234',
+        environment: 'gi-ci',
+      },
+      {
+        awsRegion: 'us-east-1',
+        instanceId: 'i-5678',
+        environment: 'gi-ci',
+      },
+      {
+        awsRegion: 'us-west-2',
+        instanceId: 'i-9999',
+        environment: 'gi-ci',
+      },
+    ];
+
+    // First region succeeds
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [{ Name: 'gi-ci-i-1234' }, { Name: 'gi-ci-i-5678' }],
+    });
+
+    // Second region also gets SSM parameters but has no successful terminations to clean up
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [],
+    });
+
+    // First region succeeds, second region fails
+    mockEC2.terminateInstances
+      .mockReturnValueOnce({
+        promise: jest.fn().mockResolvedValueOnce({}),
+      })
+      .mockReturnValueOnce({
+        promise: jest.fn().mockRejectedValueOnce(new Error('Region failure')),
+      });
+
+    await expect(terminateRunners(runners, metrics)).rejects.toThrow(
+      'Failed to terminate some runners: Instance i-9999: Region failure',
+    );
+
+    expect(mockEC2.terminateInstances).toBeCalledTimes(2);
+    expect(mockSSM.describeParameters).toBeCalledTimes(2); // Called for both regions
+    expect(mockSSM.deleteParameter).toBeCalledTimes(2); // Only for successful region
+  });
+
+  it('handles large batches by splitting into chunks', async () => {
+    // Create 150 runners to test batching (should split into 2 batches of 100 and 50)
+    const runners: RunnerInfo[] = Array.from({ length: 150 }, (_, i) => ({
+      awsRegion: 'us-east-1',
+      instanceId: `i-${i.toString().padStart(4, '0')}`,
+      environment: 'gi-ci',
+    }));
+
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: runners.map((runner) => ({
+        Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
+      })),
+    });
+
+    await terminateRunners(runners, metrics);
+
+    // Should make 2 terminate calls (batches of 100 and 50)
+    expect(mockEC2.terminateInstances).toBeCalledTimes(2);
+    expect(mockEC2.terminateInstances).toHaveBeenNthCalledWith(1, {
+      InstanceIds: runners.slice(0, 100).map((r) => r.instanceId),
+    });
+    expect(mockEC2.terminateInstances).toHaveBeenNthCalledWith(2, {
+      InstanceIds: runners.slice(100, 150).map((r) => r.instanceId),
+    });
+
+    // SSM cleanup should handle all 150 parameters
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(150);
+  });
+
+  it('cleans up SSM parameters for successful batches even when later batch fails', async () => {
+    // Create runners that will be split into 2 batches
+    const runners: RunnerInfo[] = Array.from({ length: 150 }, (_, i) => ({
+      awsRegion: 'us-east-1',
+      instanceId: `i-${i.toString().padStart(4, '0')}`,
+      environment: 'gi-ci',
+    }));
+
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: runners.slice(0, 100).map((runner) => ({
+        Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
+      })),
+    });
+
+    // First batch succeeds, second batch fails
+    mockEC2.terminateInstances
+      .mockReturnValueOnce({
+        promise: jest.fn().mockResolvedValueOnce({}),
+      })
+      .mockReturnValueOnce({
+        promise: jest.fn().mockRejectedValueOnce(new Error('Batch 2 failed')),
+      });
+
+    await expect(terminateRunners(runners, metrics)).rejects.toThrow('Failed to terminate some runners');
+
+    expect(mockEC2.terminateInstances).toBeCalledTimes(2);
+    // SSM cleanup should still happen for the first 100 runners that were successfully terminated
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(100);
+  });
+
+  it('handles SSM parameter cleanup failure gracefully', async () => {
+    const runners: RunnerInfo[] = [
+      {
+        awsRegion: 'us-east-1',
+        instanceId: 'i-1234',
+        environment: 'gi-ci',
+      },
+    ];
+
+    // SSM describe fails, so it should attempt direct deletion
+    mockSSMdescribeParametersRet.mockRejectedValueOnce(new Error('SSM describe failed'));
+
+    await terminateRunners(runners, metrics);
+
+    expect(mockEC2.terminateInstances).toBeCalledTimes(1);
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    // Should still attempt direct deletion even when describe fails
+    expect(mockSSM.deleteParameter).toBeCalledTimes(1);
     expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner2.environment as string, runner2.instanceId),
+      Name: getParameterNameForRunner(runners[0].environment as string, runners[0].instanceId),
     });
   });
 });
@@ -1622,6 +1753,47 @@ describe('createRunner', () => {
 
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(8);
       expect(runnerConfigFn).toBeCalledTimes(0);
+    });
+  });
+});
+
+describe('terminateRunner', () => {
+  beforeEach(() => {
+    mockSSMdescribeParametersRet.mockClear();
+    mockEC2.terminateInstances.mockClear();
+    mockSSM.deleteParameter.mockClear();
+    const config = {
+      environment: 'gi-ci',
+      minimumRunningTimeInMinutes: 45,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+
+    resetRunnersCaches();
+  });
+
+  it('delegates to terminateRunners with single runner array', async () => {
+    const runner: RunnerInfo = {
+      awsRegion: 'us-east-1',
+      instanceId: 'i-1234',
+      environment: 'gi-ci',
+    };
+
+    // Mock terminateRunners by mocking the underlying calls
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [{ Name: 'gi-ci-i-1234' }],
+    });
+    mockEC2.terminateInstances.mockReturnValueOnce({
+      promise: jest.fn().mockResolvedValueOnce({}),
+    });
+
+    await terminateRunner(runner, metrics);
+
+    // Verify the calls match what terminateRunners would do with a single runner
+    expect(mockEC2.terminateInstances).toBeCalledWith({
+      InstanceIds: ['i-1234'],
+    });
+    expect(mockSSM.deleteParameter).toBeCalledWith({
+      Name: 'gi-ci-i-1234',
     });
   });
 });
