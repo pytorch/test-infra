@@ -63,45 +63,50 @@ export async function scaleDown(): Promise<void> {
       const ghRunnersRemovableWGHRunner: Array<[RunnerInfo, GhRunner]> = [];
       const ghRunnersRemovableNoGHRunner: Array<[RunnerInfo, GhRunner | undefined]> = [];
 
-      await Promise.all(
-        runners.map(async (ec2runner) => {
-          // REPO assigned runners
-          if (ec2runner.repo !== undefined) {
-            foundRepos.add(ec2runner.repo);
-            const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
-            // if configured to repo, don't mess with organization runners
-            if (!Config.Instance.enableOrganizationRunners) {
-              metrics.runnerFound(ec2runner);
-              if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-                if (ghRunner === undefined) {
-                  ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
-                } else {
-                  ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+      // Process runners in batches of 10 to avoid overwhelming the GitHub API
+      const batchSize = 10;
+      for (let i = 0; i < runners.length; i += batchSize) {
+        const batch = runners.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async (ec2runner) => {
+            // REPO assigned runners
+            if (ec2runner.repo !== undefined) {
+              foundRepos.add(ec2runner.repo);
+              const ghRunner = await getGHRunnerRepo(ec2runner, metrics);
+              // if configured to repo, don't mess with organization runners
+              if (!Config.Instance.enableOrganizationRunners) {
+                metrics.runnerFound(ec2runner);
+                if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+                  if (ghRunner === undefined) {
+                    ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
+                  } else {
+                    ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+                  }
                 }
               }
-            }
-            // ORG assigned runners
-          } else if (ec2runner.org !== undefined) {
-            foundOrgs.add(ec2runner.org);
-            const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
-            // if configured to org, don't mess with repo runners
-            if (Config.Instance.enableOrganizationRunners) {
-              metrics.runnerFound(ec2runner);
-              if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-                if (ghRunner === undefined) {
-                  ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
-                } else {
-                  ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+              // ORG assigned runners
+            } else if (ec2runner.org !== undefined) {
+              foundOrgs.add(ec2runner.org);
+              const ghRunner = await getGHRunnerOrg(ec2runner, metrics);
+              // if configured to org, don't mess with repo runners
+              if (Config.Instance.enableOrganizationRunners) {
+                metrics.runnerFound(ec2runner);
+                if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
+                  if (ghRunner === undefined) {
+                    ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
+                  } else {
+                    ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+                  }
                 }
               }
+            } else {
+              // This is mostly designed to send metrics and statistics for pet instances that don't have clear
+              // ownership.
+              metrics.runnerFound(ec2runner);
             }
-          } else {
-            // This is mostly designed to send metrics and statistics for pet instances that don't have clear
-            // ownership.
-            metrics.runnerFound(ec2runner);
-          }
-        })
-      );
+          })
+        );
+      }
 
       const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> =
         ghRunnersRemovableNoGHRunner.concat(ghRunnersRemovableWGHRunner);

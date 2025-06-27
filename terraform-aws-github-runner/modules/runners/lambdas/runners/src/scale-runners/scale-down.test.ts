@@ -350,6 +350,50 @@ describe('scale-down', () => {
         expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledTimes(6);
       });
 
+      it('processes runners in batches of 10', async () => {
+        const dateRef = moment(new Date());
+        // Create 25 runners to test batching (should result in 3 batches: 10, 10, 5)
+        const runners = Array.from({ length: 25 }, (_, i) => ({
+          awsRegion: baseConfig.awsRegion,
+          instanceId: `runner-${i}`,
+          repo: `owner/repo${i}`,
+          runnerType: 'test-type',
+          launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+        }));
+
+        mocked(listRunners).mockResolvedValue(runners);
+        
+        // Track concurrent calls to verify batching
+        let currentConcurrentCalls = 0;
+        let maxConcurrentCalls = 0;
+        const concurrentCallHistory: number[] = [];
+        
+        mocked(listGithubRunnersRepo).mockImplementation(async (repo, metrics) => {
+          currentConcurrentCalls++;
+          maxConcurrentCalls = Math.max(maxConcurrentCalls, currentConcurrentCalls);
+          concurrentCallHistory.push(currentConcurrentCalls);
+          
+          // Simulate API delay
+          await new Promise(resolve => setTimeout(resolve, 10));
+          
+          currentConcurrentCalls--;
+          return [{ id: 1, name: `runner-${repo.repo.slice(-4)}`, os: 'linux', busy: false, status: 'online', labels: [] }];
+        });
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        await scaleDown();
+
+        // Verify that concurrent calls never exceeded batch size (10)
+        // Adding some tolerance for offline cleanup calls
+        expect(maxConcurrentCalls).toBeLessThanOrEqual(12); // 10 + some buffer for cleanup
+        
+        // Verify all runners were processed (25 for processing + 25 for offline cleanup)
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledTimes(50);
+      });
+
       it('handles rate limit errors correctly in parallel execution', async () => {
         const dateRef = moment(new Date());
         const runners = [
