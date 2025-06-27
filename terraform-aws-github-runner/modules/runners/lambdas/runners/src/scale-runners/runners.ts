@@ -326,7 +326,10 @@ export async function terminateRunners(runners: RunnerInfo[], metrics: Metrics):
     if (!runnersByRegion.has(runner.awsRegion)) {
       runnersByRegion.set(runner.awsRegion, []);
     }
-    runnersByRegion.get(runner.awsRegion)!.push(runner);
+    const regionRunners = runnersByRegion.get(runner.awsRegion);
+    if (regionRunners) {
+      regionRunners.push(runner);
+    }
   });
 
   // Process each region

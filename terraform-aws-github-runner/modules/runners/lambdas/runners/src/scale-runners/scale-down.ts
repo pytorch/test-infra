@@ -18,7 +18,6 @@ import {
   listRunners,
   listSSMParameters,
   resetRunnersCaches,
-  terminateRunner,
   terminateRunners,
 } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';

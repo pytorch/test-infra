@@ -21,7 +21,6 @@ import {
   doDeleteSSMParameter,
   listRunners,
   resetRunnersCaches,
-  terminateRunner,
   terminateRunners,
   RunnerType,
   listSSMParameters,
