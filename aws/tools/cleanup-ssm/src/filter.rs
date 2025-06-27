@@ -5,9 +5,9 @@ use chrono::{DateTime, Duration};
 pub fn filter_old_parameters<T: TimeProvider>(
     parameters: &[ParameterMetadata],
     time_provider: &T,
-    older_than_days: u16,
+    older_than_seconds: f64,
 ) -> Vec<String> {
-    let threshold = time_provider.now() - Duration::days(older_than_days.into());
+    let threshold = time_provider.now() - Duration::seconds(older_than_seconds as i64);
     let mut parameters_to_delete = Vec::new();
 
     for parameter in parameters {
@@ -54,7 +54,7 @@ mod tests {
         let parameters = vec![];
         let time_provider = MockTimeProvider::new(Utc::now());
 
-        let result = filter_old_parameters(&parameters, &time_provider, 1);
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
@@ -72,7 +72,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 1);
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
@@ -90,7 +90,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 1);
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "old-param");
@@ -115,7 +115,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![old_parameter, recent_parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 2);
+        let result = filter_old_parameters(&parameters, &time_provider, 172800.0); // 2 days in seconds
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "old-param");
@@ -130,7 +130,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(Utc::now());
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 1);
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
@@ -147,7 +147,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 1);
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
