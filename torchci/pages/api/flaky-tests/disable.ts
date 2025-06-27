@@ -221,7 +221,7 @@ async function dedupFlakyTestIssues(
 
   // Close the issues that aren't favored
   const dedupedArrayNumbers = dedupedArray.map((i) => i.number);
-  for (const issue of issues) {
+  for (const issue of singleIssues) {
     if (!dedupedArrayNumbers.includes(issue.number) && issue.state === "open") {
       await octokit.rest.issues.update({
         owner: PYTORCH,

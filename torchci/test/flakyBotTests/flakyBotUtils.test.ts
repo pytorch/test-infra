@@ -1,3 +1,4 @@
+import { MASS_FLAKY_TEST_ISSUE_LABEL } from "lib/flakyBot/aggregateDisableIssue";
 import * as flakyBotUtils from "lib/flakyBot/utils";
 import { IssueData } from "lib/types";
 import nock from "nock";
@@ -378,5 +379,23 @@ describe("Disable Flaky Test Bot Utils Unit Tests", () => {
     ]);
     await helper([closedSmall, closedBig], closedBig, []);
     await helper([closedSmall, openSmall], openSmall, []);
+  });
+
+  test("dedupFlakyTestIssues does not touch aggregate issues", async () => {
+    const aggregateIssue: IssueData = {
+      number: 1,
+      title: "",
+      html_url: "",
+      state: "open",
+      body: "",
+      updated_at: "",
+      author_association: "MEMBER",
+      labels: [MASS_FLAKY_TEST_ISSUE_LABEL],
+    };
+
+    // Should not make any API calls either
+    expect(
+      await flakyBot.dedupFlakyTestIssues(octokit, [aggregateIssue])
+    ).toEqual([aggregateIssue]);
   });
 });
