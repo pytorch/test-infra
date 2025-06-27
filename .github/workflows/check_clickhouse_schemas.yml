@@ -27,9 +27,9 @@ jobs:
           cd tools
           python3 -m torchci.clickhouse_database_schema_updater
         env:
-          CLICKHOUSE_HUD_USER_URL: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
-          CLICKHOUSE_HUD_USER_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
-          CLICKHOUSE_HUD_USER_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
       - name: If there are changes, error
         run: |
