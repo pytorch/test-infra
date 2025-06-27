@@ -382,7 +382,7 @@ describe("Disable Flaky Test Bot Utils Unit Tests", () => {
   });
 
   test("dedupFlakyTestIssues does not touch aggregate issues", async () => {
-    const aggregateIssue: IssueData = {
+    const singleIssueToBeClosed: IssueData = {
       number: 1,
       title: "",
       html_url: "",
@@ -390,12 +390,38 @@ describe("Disable Flaky Test Bot Utils Unit Tests", () => {
       body: "",
       updated_at: "",
       author_association: "MEMBER",
+      labels: [],
+    };
+
+    const singleIssue: IssueData = {
+      ...singleIssueToBeClosed,
+      number: 2,
+    };
+
+    const aggregateIssue: IssueData = {
+      ...singleIssueToBeClosed,
       labels: [MASS_FLAKY_TEST_ISSUE_LABEL],
     };
 
+    // sanity check that it does get closed if its a single issue
+    const scope = nock("https://api.github.com");
+    scope
+      .patch(`/repos/pytorch/pytorch/issues/${singleIssueToBeClosed.number}`)
+      .reply(200);
+    expect(
+      await flakyBot.dedupFlakyTestIssues(octokit, [
+        singleIssueToBeClosed,
+        singleIssue,
+      ])
+    ).toEqual([singleIssue]);
+    scope.done();
+
     // Should not make any API calls either
     expect(
-      await flakyBot.dedupFlakyTestIssues(octokit, [aggregateIssue])
-    ).toEqual([aggregateIssue]);
+      await flakyBot.dedupFlakyTestIssues(octokit, [
+        aggregateIssue,
+        singleIssue,
+      ])
+    ).toEqual([singleIssue, aggregateIssue]);
   });
 });
