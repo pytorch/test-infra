@@ -7,7 +7,7 @@ Detects pattern where 2 recent commits have same failure and 1 older doesn't.
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .clickhouse_client_helper import CHCliFactory
 
@@ -115,6 +115,7 @@ class AutorevertPatternChecker:
             workflow_name IN {workflow_names:Array(String)}
             AND head_branch = 'main'
             AND created_at >= {lookback_time:DateTime}
+            AND dynamoKey LIKE 'pytorch/pytorch/%'
         ORDER BY
             workflow_name, workflow_created_at DESC, head_sha, name
         """
@@ -197,6 +198,26 @@ class AutorevertPatternChecker:
             for row in result.result_rows
         ]
 
+    def _find_last_commit_with_job(self, commits: Iterable[CommitJobs], job_name: str) -> Optional[Tuple[CommitJobs, List[JobResult]]]:
+        """
+        Find the last commit in the iterable that has a job with the specified name.
+
+        Args:
+            commits: Iterable of CommitJobs to search
+            job_name: The job name to look for
+
+        Returns:
+            The last CommitJobs object that contains the specified job, or None if not found
+        """
+        job_results = []
+        for commit in commits:
+            for job in commit.jobs:
+                if job.name.split('(')[0] == job_name:  # Normalize job name
+                    job_results.append(job)
+        if job_results:
+            return (commit, job_results, )
+        return None, None
+
     def detect_autorevert_pattern_workflow(self, workflow_name: str) -> List[Dict]:
         """
         Detect all autorevert patterns in commit job data for a specific workflow.
@@ -224,71 +245,55 @@ class AutorevertPatternChecker:
             if suspected_commit1.has_pending_jobs:
                 continue
 
-            for j in range(i + 1, len(commits)):
-                older_commit = commits[j]
-                if not older_commit.jobs:
-                    continue
-                if older_commit.has_pending_jobs:
-                    continue
-                break
+            suspected_failures = {(j.classification_rule, j.name.split('(')[0], ) for j in suspected_commit1.failed_jobs}
 
-            for j in range(i - 1, -1, -1):
-                newer_commit = commits[j]
-                if not newer_commit.jobs:
+            common_failures = set()
+            for suspected_failure_class_rule, suspected_failure_job_name in suspected_failures:
+                newer_commit_same_job, newer_same_jobs = self._find_last_commit_with_job(
+                    (commits[j] for j in range(i - 1, -1, -1)),
+                    suspected_failure_job_name
+                )
+                if not newer_commit_same_job or not newer_same_jobs:
+                    # No older commit with the same job found
                     continue
-                if newer_commit.has_pending_jobs:
-                    continue
-                break
 
-            if older_commit is None or newer_commit is None:
-                continue
-
-            if older_commit.has_pending_jobs or not older_commit.jobs:
-                continue
-            if newer_commit is None or not newer_commit.jobs:
-                continue
-
-            # Find common failure classifications between the 2 newer commits
-            suspected_failures = {j.classification_rule for j in suspected_commit1.failed_jobs}
-            newer_failures = {j.classification_rule for j in newer_commit.failed_jobs}
-            common_failures = suspected_failures & newer_failures
+                if any(j.classification_rule == suspected_failure_class_rule for j in newer_same_jobs):
+                    # The newer commit has the same job failing
+                    common_failures.add((suspected_failure_class_rule, suspected_failure_job_name, ))
 
             if not common_failures:
                 continue
 
-            # Check if older commit lacks these failures but has overlapping job coverage
-            older_failures = {j.classification_rule for j in older_commit.failed_jobs}
-            older_job_names = older_commit.get_job_base_names()
+            for failure_rule, job_name in common_failures:
+                last_commit_with_same_job, last_same_jobs = self._find_last_commit_with_job((commits[j] for j in range(i + 1, len(commits))), job_name)
 
-            for failure_rule in common_failures:
-                if failure_rule in older_failures:
-                    continue  # Older commit also has this failure
+                if not last_commit_with_same_job or not last_same_jobs:
+                    # No older commit with the same job found
+                    continue
 
-                # Get job names that had this failure in newer commits
-                failed_job_names = set()
-                for commit in [newer_commit, suspected_commit1]:
-                    for job in commit.failed_jobs:
-                        if job.classification_rule == failure_rule:
-                            failed_job_names.add(commit.normalize_job_name(job.name))
+                if any(j.name.split('(')[0] != job_name for j in last_commit_with_same_job.failed_jobs):
+                    # newr commit has the same job failing
+                    continue
 
-                # Check if older commit has overlapping job coverage
-                if failed_job_names & older_job_names:
-                    patterns.append(
-                        {
-                            "pattern_detected": True,
-                            "workflow_name": workflow_name,
-                            "failure_rule": failure_rule,
-                            "newer_commits": [
-                                newer_commit.head_sha,
-                                suspected_commit1.head_sha,
-                            ],
-                            "older_commit": older_commit.head_sha,
-                            "failed_job_names": list(failed_job_names),
-                            "older_job_coverage": list(
-                                older_job_names & failed_job_names
-                            ),
-                        }
-                    )
+                if any(j.classification_rule == suspected_failure_class_rule for j in last_same_jobs):
+                    # The last commit with the same job has the same failure classification
+                    continue
+
+                patterns.append(
+                    {
+                        "pattern_detected": True,
+                        "workflow_name": workflow_name,
+                        "failure_rule": failure_rule,
+                        "newer_commits": [
+                            'newer_commit_same_job.head_sha',
+                            suspected_commit1.head_sha,
+                        ],
+                        "older_commit": "last_commit_with_same_job.head_sha",
+                        "failed_job_names": list("last_same_job.name"),
+                        "older_job_coverage": []
+                    }
+                )
+                break
 
         return patterns
 
@@ -334,18 +339,18 @@ class AutorevertPatternChecker:
 
         return all_patterns
 
-    def get_commits_reverted(self) -> List[str]:
+    def get_commits_reverted(self) -> Set[str]:
         """
         Get all commits that were reverted within the lookback window.
 
         Returns:
             List of revert information dictionaries
         """
-        reverted_commits = []
+        reverted_commits = set()
         for commit in self.commit_history:
             revert_info = self.is_commit_reverted(commit["sha"])
             if revert_info:
-                reverted_commits.append(commit["sha"])
+                reverted_commits.add(commit["sha"])
         return reverted_commits
 
     def is_commit_reverted(self, target_commit_sha: str) -> Optional[Dict]:
