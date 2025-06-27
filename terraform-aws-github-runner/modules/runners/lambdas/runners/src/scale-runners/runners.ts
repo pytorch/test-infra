@@ -61,8 +61,6 @@ export interface DescribeInstancesResultRegion {
   describeInstanceResult: PromiseResult<EC2.Types.DescribeInstancesResult, AWS.AWSError>;
 }
 
-const SHOULD_NOT_TRY_LIST_SSM = 'SHOULD_NOT_TRY_LIST_SSM';
-
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
 const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTimeInMinutes * 60 * 1000) / 2 });
 
@@ -357,7 +355,6 @@ export async function terminateRunners(runners: RunnerInfo[], metrics: Metrics):
 
 async function terminateRunnersInRegion(runners: RunnerInfo[], metrics: Metrics, region: string): Promise<void> {
   const ec2 = new EC2({ region });
-  const ssm = new SSM({ region });
 
   // Keep track of runners that were successfully terminated so we can clean up their SSM parameters even
   // if a later batch fails.
@@ -411,87 +408,6 @@ async function terminateRunnersInRegion(runners: RunnerInfo[], metrics: Metrics,
   }
 }
 
-async function cleanupSSMParametersForRunners(
-  runners: RunnerInfo[],
-  metrics: Metrics,
-  region: string,
-  ssm: SSM,
-): Promise<void> {
-  const paramNames = runners.map((runner) =>
-    getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId),
-  );
-
-  const cacheName = `${SHOULD_NOT_TRY_LIST_SSM}_${region}`;
-
-  if (ssmParametersCache.has(cacheName)) {
-    // If we've had recent failures listing parameters, just try to delete them directly
-    await deleteSSMParametersInBatches(paramNames, metrics, region, ssm);
-  } else {
-    try {
-      const existingParams = await listSSMParameters(metrics, region);
-      const paramsToDelete = paramNames.filter((paramName) => existingParams.has(paramName));
-
-      if (paramsToDelete.length > 0) {
-        await deleteSSMParametersInBatches(paramsToDelete, metrics, region, ssm);
-      } else {
-        console.info(`[${region}] No SSM parameters found to delete for ${paramNames.length} runners`);
-      }
-    } catch (e) {
-      ssmParametersCache.set(cacheName, 1, 60 * 1000);
-      console.error(
-        `[terminateRunnersInRegion - listSSMParameters] [${region}] ` +
-          `Failed to list parameters, attempting direct deletion: ${e}`,
-      );
-      await deleteSSMParametersInBatches(paramNames, metrics, region, ssm);
-    }
-  }
-}
-
-async function deleteSSMParametersInBatches(
-  paramNames: string[],
-  metrics: Metrics,
-  region: string,
-  ssm: SSM,
-): Promise<void> {
-  const batches = chunkArray(paramNames, 10);
-
-  console.info(`[${region}] Processing ${paramNames.length} SSM parameters in ${batches.length} batch(es)`);
-
-  for (const [batchIndex, batch] of batches.entries()) {
-    console.info(
-      `[${region}] Processing SSM batch ${batchIndex + 1}/${batches.length} with ${
-        batch.length
-      } parameters: ${batch.join(', ')}`,
-    );
-
-    try {
-      await Promise.all(
-        batch.map((paramName) =>
-          expBackOff(() => {
-            return metrics.trackRequestRegion(
-              region,
-              metrics.ssmdeleteParameterAWSCallSuccess,
-              metrics.ssmdeleteParameterAWSCallFailure,
-              () => {
-                return ssm.deleteParameter({ Name: paramName }).promise();
-              },
-            );
-          }),
-        ),
-      );
-
-      console.info(
-        `[${region}] Successfully deleted SSM batch ${batchIndex + 1}/${batches.length}: ${batch.join(', ')}`,
-      );
-    } catch (e) {
-      console.error(
-        `[${region}] Failed to delete SSM batch ${batchIndex + 1}/${batches.length}: ${batch.join(', ')} - ${e}`,
-      );
-      // Continue with other batches even if one fails
-    }
-  }
-}
-
 function chunkArray<T>(array: T[], chunkSize: number): T[][] {
   const chunks: T[][] = [];
   for (let i = 0; i < array.length; i += chunkSize) {
@@ -537,13 +453,15 @@ async function addSSMParameterRunnerConfig(
                 // NOTE: This does need to be a string, check docs at:
                 // https://docs.aws.amazon.com/systems-manager/latest/userguide/example_ssm_PutParameter_section.html
                 // Policies must be an array, even for a single policy
-                Policies: JSON.stringify([{
-                  Type: 'Expiration',
-                  Version: '1.0',
-                  Attributes: {
-                    Timestamp: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+                Policies: JSON.stringify([
+                  {
+                    Type: 'Expiration',
+                    Version: '1.0',
+                    Attributes: {
+                      Timestamp: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+                    },
                   },
-                }]),
+                ]),
               })
               .promise();
             return parameterName;

@@ -2,8 +2,6 @@ import moment from 'moment';
 import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import {
-  getRunnerOrg,
-  getRunnerRepo,
   getRunnerTypes,
   GhRunner,
   listGithubRunnersOrg,
