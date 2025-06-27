@@ -8,6 +8,7 @@ from torchci.clickhouse import query_clickhouse
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 SCHEMA_LOCATION = REPO_ROOT / "clickhouse_db_schema"
 
+# These will need to be updated manually if the schema changes.
 EXCLUSIONS = [
     "oss_ci_benchmark_torchinductor_materialized_views",  # materialized view
     "oss_ci_utilization",  # Contains a bunch of tables, doesn't adhere to the expected structure.
