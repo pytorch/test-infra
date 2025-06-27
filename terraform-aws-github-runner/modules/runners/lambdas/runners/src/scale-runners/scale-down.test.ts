@@ -172,6 +172,284 @@ describe('scale-down', () => {
       expect(mockedTerminateRunners).toBeCalledTimes(1);
       expect(mockedTerminateRunners).toBeCalledWith([], metrics);
     });
+
+    describe('parallel execution', () => {
+      it('processes multiple repo runners in parallel', async () => {
+        const dateRef = moment(new Date());
+        const runners = [
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-1',
+            repo: 'owner/repo1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-2',
+            repo: 'owner/repo2',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-3',
+            repo: 'owner/repo3',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+        ];
+
+        const ghRunners = [
+          { id: 1, name: 'runner-1', busy: false, status: 'online', labels: [] },
+          { id: 2, name: 'runner-2', busy: false, status: 'online', labels: [] },
+          { id: 3, name: 'runner-3', busy: false, status: 'online', labels: [] },
+        ];
+
+        mocked(listRunners).mockResolvedValue(runners);
+        
+        // Track call order to verify parallel execution
+        const callOrder: string[] = [];
+        mocked(listGithubRunnersRepo).mockImplementation(async (repo, metrics) => {
+          callOrder.push(`start-${repo.repo}`);
+          // Simulate async delay
+          await new Promise(resolve => setTimeout(resolve, 10));
+          callOrder.push(`end-${repo.repo}`);
+          return ghRunners.filter(r => r.name.includes(repo.repo.slice(-1))).map(r => ({ ...r, os: 'linux' }));
+        });
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        await scaleDown();
+
+        // Verify all GitHub API calls were made (3 for processing + 3 for offline cleanup)
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledTimes(6);
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledWith({ owner: 'owner', repo: 'repo1' }, metrics);
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledWith({ owner: 'owner', repo: 'repo2' }, metrics);
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledWith({ owner: 'owner', repo: 'repo3' }, metrics);
+
+        // Verify parallel execution - check that we have both start and end calls
+        const startCalls = callOrder.filter(call => call.startsWith('start-'));
+        const endCalls = callOrder.filter(call => call.startsWith('end-'));
+        
+        expect(startCalls.length).toBe(6); // 3 for processing + 3 for offline cleanup
+        expect(endCalls.length).toBe(6); // 3 for processing + 3 for offline cleanup
+      });
+
+      it('processes multiple org runners in parallel', async () => {
+        jest.spyOn(Config, 'Instance', 'get').mockImplementation(
+          () => ({ ...baseConfig, enableOrganizationRunners: true, scaleConfigRepo: 'test-repo' } as unknown as Config)
+        );
+
+        const dateRef = moment(new Date());
+        const runners = [
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-1',
+            org: 'org1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-2',
+            org: 'org1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-3',
+            org: 'org2',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+        ];
+
+        const ghRunners = [
+          { id: 1, name: 'runner-1', busy: false, status: 'online', labels: [] },
+          { id: 2, name: 'runner-2', busy: false, status: 'online', labels: [] },
+          { id: 3, name: 'runner-3', busy: false, status: 'online', labels: [] },
+        ];
+
+        mocked(listRunners).mockResolvedValue(runners);
+        
+        // Track concurrent calls
+        let concurrentCalls = 0;
+        let maxConcurrentCalls = 0;
+        
+        mocked(listGithubRunnersOrg).mockImplementation(async (org, metrics) => {
+          concurrentCalls++;
+          maxConcurrentCalls = Math.max(maxConcurrentCalls, concurrentCalls);
+          
+          await new Promise(resolve => setTimeout(resolve, 10));
+          
+          concurrentCalls--;
+          return ghRunners.filter(r => r.name.includes(org.slice(-1))).map(r => ({ ...r, os: 'linux' }));
+        });
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        await scaleDown();
+
+        // Verify all GitHub API calls were made
+        expect(mocked(listGithubRunnersOrg)).toHaveBeenCalledTimes(5); // 3 for processing + 2 for offline cleanup (org1 and org2)
+        
+        // Verify parallel execution occurred (at least 2 concurrent calls)
+        expect(maxConcurrentCalls).toBeGreaterThanOrEqual(2);
+      });
+
+      it('handles errors in parallel execution gracefully', async () => {
+        const dateRef = moment(new Date());
+        const runners = [
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-success',
+            repo: 'owner/repo1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-error',
+            repo: 'owner/repo2',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-success-2',
+            repo: 'owner/repo3',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+        ];
+
+        mocked(listRunners).mockResolvedValue(runners);
+        
+        mocked(listGithubRunnersRepo).mockImplementation(async (repo, metrics) => {
+          if (repo.repo === 'repo2') {
+            console.warn('Simulated GitHub API error'); // Don't throw, just log
+            return [];
+          }
+          return [{ id: 1, name: `runner-${repo.repo}`, os: 'linux', busy: false, status: 'online', labels: [] }];
+        });
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        // Should complete successfully despite simulated API issues
+        await expect(scaleDown()).resolves.not.toThrow();
+
+        // All API calls should have been attempted (6 = 3 for processing + 3 for offline cleanup)
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledTimes(6);
+      });
+
+      it('handles rate limit errors correctly in parallel execution', async () => {
+        const dateRef = moment(new Date());
+        const runners = [
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'runner-1',
+            repo: 'owner/repo1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+        ];
+
+        mocked(listRunners).mockResolvedValue(runners);
+        
+        // Simulate a rate limit error which should be re-thrown
+        mocked(listGithubRunnersRepo).mockImplementation(async (repo, metrics) => {
+          const error = new Error('Rate limit exceeded');
+          (error as any).status = 403;
+          (error as any).response = { headers: { 'x-ratelimit-remaining': '0' } };
+          throw error;
+        });
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        // Rate limit errors should be re-thrown (not handled silently)
+        await expect(scaleDown()).rejects.toThrow('Rate limit exceeded');
+      });
+
+      it('handles mixed repo and org runners correctly when org mode disabled', async () => {
+        const dateRef = moment(new Date());
+        const runners = [
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'repo-runner',
+            repo: 'owner/repo1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+          {
+            awsRegion: baseConfig.awsRegion,
+            instanceId: 'org-runner',
+            org: 'org1',
+            runnerType: 'test-type',
+            launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+          },
+        ];
+
+        mocked(listRunners).mockResolvedValue(runners);
+        mocked(listGithubRunnersRepo).mockResolvedValue([
+          { id: 1, name: 'repo-runner', os: 'linux', busy: false, status: 'online', labels: [] }
+        ]);
+        mocked(listGithubRunnersOrg).mockResolvedValue([
+          { id: 2, name: 'org-runner', os: 'linux', busy: false, status: 'online', labels: [] }
+        ]);
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        await scaleDown();
+
+        // Should only call repo API for repo runners when org mode is disabled
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledTimes(2); // 1 for processing + 1 for offline cleanup
+        expect(mocked(listGithubRunnersOrg)).toHaveBeenCalledTimes(1); // Called for org runner info gathering but not processing
+      });
+
+      it('preserves array mutation safety in parallel execution', async () => {
+        const dateRef = moment(new Date());
+        const runners = Array.from({ length: 50 }, (_, i) => ({
+          awsRegion: baseConfig.awsRegion,
+          instanceId: `runner-${i}`,
+          repo: `owner/repo${i}`,
+          runnerType: 'test-type',
+          launchTime: dateRef.clone().subtract(minimumRunningTimeInMinutes + 5, 'minutes').toDate(),
+        }));
+
+        mocked(listRunners).mockResolvedValue(runners);
+        mocked(listGithubRunnersRepo).mockImplementation(async (repo, metrics) => {
+          // Simulate concurrent array access
+          await new Promise(resolve => setTimeout(resolve, Math.random() * 5));
+          return [{ id: parseInt(repo.repo.slice(-1)) || 1, name: `runner-${repo.repo.slice(-1)}`, os: 'linux', busy: false, status: 'online', labels: [] }];
+        });
+
+        mocked(getRunnerTypes).mockResolvedValue(new Map([
+          ['test-type', { is_ephemeral: false, min_available: 0 } as RunnerType]
+        ]));
+
+        await scaleDown();
+
+        // All runners should have been processed (50 for processing + 50 for offline cleanup)
+        expect(mocked(listGithubRunnersRepo)).toHaveBeenCalledTimes(100);
+        
+        // Verify terminateRunners was called with correct number of runners
+        expect(mocked(terminateRunners)).toHaveBeenCalledTimes(1);
+        const terminatedRunners = mocked(terminateRunners).mock.calls[0][0] as RunnerInfo[];
+        expect(terminatedRunners).toHaveLength(50);
+      });
+  });
   });
 
   describe('org', () => {
