@@ -12,7 +12,7 @@ pub mod filter;
 pub struct CleanupConfig {
     pub region: String,
     pub dry_run: bool,
-    pub older_than_days: u16,
+    pub older_than_seconds: f64,
 }
 
 #[derive(Debug)]
@@ -53,7 +53,7 @@ pub async fn cleanup_ssm_parameters<C: SsmClient, T: TimeProvider>(
     let parameters = client.describe_parameters().await?;
 
     let parameters_to_delete =
-        filter::filter_old_parameters(&parameters, time_provider, config.older_than_days);
+        filter::filter_old_parameters(&parameters, time_provider, config.older_than_seconds);
 
     println!("Found {} parameters to delete", parameters_to_delete.len());
     let parameters_found = parameters_to_delete.len();
@@ -125,7 +125,7 @@ mod tests {
         let config = CleanupConfig {
             region: "us-east-1".to_string(),
             dry_run: true,
-            older_than_days: 1,
+            older_than_seconds: 86400.0, // 1 day in seconds
         };
 
         let result = cleanup_ssm_parameters(&mock_client, &time_provider, &config)
