@@ -14,7 +14,7 @@ import { Octokit } from "octokit";
 
 export const NUM_HOURS = 3;
 const PYTORCH = "pytorch";
-const THRESHOLD = 5;
+const THRESHOLD = 4;
 
 export default async function handler(
   req: NextApiRequest,
