@@ -13,13 +13,7 @@ import {
   resetGHRunnersCaches,
 } from './gh-runners';
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
-import {
-  doDeleteSSMParameter,
-  listRunners,
-  listSSMParameters,
-  resetRunnersCaches,
-  terminateRunners,
-} from './runners';
+import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunners } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
 import { SSM } from 'aws-sdk';
 

@@ -432,11 +432,13 @@ describe('terminateRunners', () => {
     });
 
     // First region succeeds, second region fails
-    mockEC2.terminateInstances.mockReturnValueOnce({
-      promise: jest.fn().mockResolvedValueOnce({}),
-    }).mockReturnValueOnce({
-      promise: jest.fn().mockRejectedValueOnce(new Error('Region failure')),
-    });
+    mockEC2.terminateInstances
+      .mockReturnValueOnce({
+        promise: jest.fn().mockResolvedValueOnce({}),
+      })
+      .mockReturnValueOnce({
+        promise: jest.fn().mockRejectedValueOnce(new Error('Region failure')),
+      });
 
     await expect(terminateRunners(runners, metrics)).rejects.toThrow(
       'Failed to terminate some runners: Instance i-9999: Region failure',
