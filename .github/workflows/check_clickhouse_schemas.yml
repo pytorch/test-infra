@@ -26,6 +26,10 @@ jobs:
           python3 -m pip install clickhouse-connect==0.8.18
           cd tools
           python3 -m torchci.clickhouse_database_schema_updater
+        env:
+          CLICKHOUSE_HUD_USER_URL: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_HUD_USER_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_HUD_USER_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
 
       - name: If there are changes, error
         run: |
