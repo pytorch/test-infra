@@ -5,7 +5,7 @@ use aws_sdk_ssm::error::ProvideErrorMetadata;
 use aws_sdk_ssm::types::ParameterMetadata;
 use aws_sdk_ssm::{Client, Error};
 use indicatif::{ProgressBar, ProgressStyle};
-use tokio::time::{Duration, sleep};
+use tokio::time::{sleep, Duration};
 
 pub struct AwsSsmClient {
     client: Client,
