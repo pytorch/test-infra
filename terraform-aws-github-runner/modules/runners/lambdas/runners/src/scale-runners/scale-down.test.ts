@@ -1448,7 +1448,6 @@ describe('scale-down', () => {
 
     it('dont finds on listGithubRunnersRep, finds with getRunnerRepo, busy === false', async () => {
       const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerRepo = mocked(getRunnerRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1456,22 +1455,17 @@ describe('scale-down', () => {
         runnerType: 'runnerType-01',
         ghRunnerId: 'ghRunnerId-01',
       };
-      const theGhRunner = { name: 'instance-id-03', busy: false } as GhRunner;
 
       mockedListGithubRunnersRepo.mockResolvedValueOnce(ghRunners);
-      mockedGetRunnerRepo.mockResolvedValueOnce(theGhRunner);
 
-      expect(await getGHRunnerRepo(ec2runner, metrics)).toEqual(theGhRunner);
+      expect(await getGHRunnerRepo(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
-      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
-      expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
     });
 
     it('listGithubRunnersRep and getRunnerRepo throws exception', async () => {
       const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerRepo = mocked(getRunnerRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1481,14 +1475,11 @@ describe('scale-down', () => {
       };
 
       mockedListGithubRunnersRepo.mockRejectedValueOnce('Error');
-      mockedGetRunnerRepo.mockRejectedValueOnce('Error');
 
       expect(await getGHRunnerRepo(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
-      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
-      expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
     });
   });
 
@@ -1635,7 +1626,6 @@ describe('scale-down', () => {
 
     it('dont finds on listGithubRunnersOrg, finds with getRunnerOrg, busy === false', async () => {
       const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerOrg = mocked(getRunnerOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1643,22 +1633,17 @@ describe('scale-down', () => {
         runnerType: 'runnerType-01',
         ghRunnerId: 'ghRunnerId-01',
       };
-      const theGhRunner = { name: 'instance-id-03', busy: false } as GhRunner;
 
       mockedListGithubRunnersOrg.mockResolvedValueOnce(ghRunners);
-      mockedGetRunnerOrg.mockResolvedValueOnce(theGhRunner);
 
-      expect(await getGHRunnerOrg(ec2runner, metrics)).toEqual(theGhRunner);
+      expect(await getGHRunnerOrg(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
-      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
-      expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
     });
 
     it('listGithubRunnersRep and getRunnerRepo throws exception', async () => {
       const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerOrg = mocked(getRunnerOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1668,14 +1653,11 @@ describe('scale-down', () => {
       };
 
       mockedListGithubRunnersOrg.mockRejectedValueOnce('Error');
-      mockedGetRunnerOrg.mockRejectedValueOnce('Error');
 
       expect(await getGHRunnerOrg(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
-      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
-      expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
     });
 
     it('getRunner throws when api rate limit is hit', async () => {
