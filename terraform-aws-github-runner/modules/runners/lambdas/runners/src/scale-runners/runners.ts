@@ -356,50 +356,67 @@ async function terminateRunnersInRegion(runners: RunnerInfo[], metrics: Metrics,
   const ec2 = new EC2({ region });
   const ssm = new SSM({ region });
 
-  // Terminate instances in batches of 100
-  const instanceBatches = chunkArray(
-    runners.map((r) => r.instanceId),
-    100,
-  );
+  // Keep track of runners that were successfully terminated so we can clean up their SSM parameters even
+  // if a later batch fails.
+  const successfullyTerminated: RunnerInfo[] = [];
+
+  // Terminate instances in batches of 100 RunnerInfo objects
+  const instanceBatches = chunkArray(runners, 100);
 
   console.info(`[${region}] Processing ${runners.length} runners in ${instanceBatches.length} batch(es)`);
 
-  for (const [batchIndex, instanceBatch] of instanceBatches.entries()) {
-    console.info(
-      `[${region}] Processing batch ${batchIndex + 1}/${instanceBatches.length} with ${
-        instanceBatch.length
-      } instances: ${instanceBatch.join(', ')}`,
-    );
-
-    try {
-      await expBackOff(() => {
-        return metrics.trackRequestRegion(
-          region,
-          metrics.ec2TerminateInstancesAWSCallSuccess,
-          metrics.ec2TerminateInstancesAWSCallFailure,
-          () => {
-            return ec2.terminateInstances({ InstanceIds: instanceBatch }).promise();
-          },
-        );
-      });
-
+  // We'll attempt to terminate all batches, but if any batch throws we still want to clean up the SSM
+  // parameters for the instances that were already terminated.  To achieve this we wrap the whole
+  // operation in a try / finally block so that the cleanup always executes.
+  try {
+    for (const [batchIndex, instanceBatch] of instanceBatches.entries()) {
       console.info(
-        `[${region}] Successfully terminated batch ${batchIndex + 1}/${instanceBatches.length}: ${instanceBatch.join(
-          ', ',
-        )}`,
+        `[${region}] Processing batch ${batchIndex + 1}/${instanceBatches.length} with ${
+          instanceBatch.length
+        } instances: ${instanceBatch.map((r) => r.instanceId).join(', ')}`,
       );
-    } catch (e) {
+
+      try {
+        await expBackOff(() => {
+          return metrics.trackRequestRegion(
+            region,
+            metrics.ec2TerminateInstancesAWSCallSuccess,
+            metrics.ec2TerminateInstancesAWSCallFailure,
+            () => {
+              return ec2.terminateInstances({ InstanceIds: instanceBatch.map((r) => r.instanceId) }).promise();
+            },
+          );
+        });
+
+        console.info(
+          `[${region}] Successfully terminated batch ${batchIndex + 1}/${instanceBatches.length}: ${instanceBatch
+            .map((r) => r.instanceId)
+            .join(', ')}`,
+        );
+
+        // Record successfully terminated runners so that we can clean up their SSM parameters later.
+        successfullyTerminated.push(...instanceBatch);
+      } catch (e) {
+        console.error(
+          `[${region}] Failed to terminate batch ${batchIndex + 1}/${instanceBatches.length}: ${instanceBatch
+            .map((r) => r.instanceId)
+            .join(', ')} - ${e}`,
+        );
+        // Re-throw so that callers are aware of the failure; the finally block will still execute and
+        // attempt SSM cleanup for the instances that were already terminated.
+        throw e;
+      }
+    }
+  } finally {
+    try {
+      await cleanupSSMParametersForRunners(successfullyTerminated, metrics, region, ssm);
+    } catch (cleanupErr) {
+      // We do not want cleanup issues to mask the original termination error, just log them.
       console.error(
-        `[${region}] Failed to terminate batch ${batchIndex + 1}/${instanceBatches.length}: ${instanceBatch.join(
-          ', ',
-        )} - ${e}`,
+        `[${region}] Error during SSM parameter cleanup for ${successfullyTerminated.length} runners: ${cleanupErr}`,
       );
-      throw e;
     }
   }
-
-  // Handle SSM parameter cleanup
-  await cleanupSSMParametersForRunners(runners, metrics, region, ssm);
 }
 
 async function cleanupSSMParametersForRunners(
