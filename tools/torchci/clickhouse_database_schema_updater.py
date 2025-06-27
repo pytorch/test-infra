@@ -1,4 +1,3 @@
-# Yes this is an adhoc query
 import argparse
 from pathlib import Path
 
