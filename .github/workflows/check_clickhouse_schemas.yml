@@ -1,0 +1,40 @@
+name: Check ClickHouse Schemas
+
+on:
+  schedule:
+    # Every day
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/check_clickhouse_schemas.yml
+      - .github/scripts/check_clickhouse_schemas.py
+      - clickhouse_db_schema/**
+
+permissions:
+  contents: write
+
+jobs:
+  check-clickhouse-schemas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Check ClickHouse schemas
+        run: |
+          python3 -m pip install clickhouse-connect==0.8.18
+          cd tools
+          python3 -m torchci.clickhouse_database_schema_updater
+
+      - name: If there are changes, error
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "ClickHouse schemas are out of date. "\
+            "Please run the update script (see previous step for the commands) and commit the changes. "\
+            "If you are making a PR and the error is unrelated to your changes, you can ignore this error and merge the PR anyway. "\
+            "If you want to exclude a certain file from this check, edit the exclusion list in the script."
+            exit 1
+          else
+            echo "ClickHouse schemas are up to date."
+          fi
