@@ -78,6 +78,8 @@ export async function expBackOff<T>(
         if (expBackOffMs > maxMs) {
           throw e;
         }
+        const functionName = callback.name || 'anonymous';
+        console.warn(`[expBackOff]"${functionName}" needing to back off for function for ${expBackOffMs}ms: ${e}`);
         await new Promise((resolve) => setTimeout(resolve, expBackOffMs));
         expBackOffMs = expBackOffMs * backOffFactor;
       } else {
