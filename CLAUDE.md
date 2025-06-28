@@ -60,7 +60,34 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 
 ## Tasks to execute
-- tf scaffold with ec2 / k8s / figuring out the total architecture diagram - TO BE CONFIRMED WITH THE USER
-- figure out how the NIC works in AWS in a subregion / across us-east-1a and 1b etc. I will need to search AWS docs for this.
-- make a cli tool (python? rust?) to be able to reserve servers
-- think about auth. the user told me someting about metamates, should confirm
+- ✅ figure out how the NIC works in AWS - EFA research completed, single AZ cluster placement groups required
+- ✅ tf scaffold with ec2 / k8s / figuring out the total architecture diagram - ARCHITECTURE CONFIRMED
+- 🏗️ make terraform scaffold for us-east-2 region with 5x p5.48xlarge + EKS + networking
+- 🏗️ make a cli tool (python AND rust) to be able to reserve servers 
+- 🏗️ implement SQS + EventBridge + Lambda queue processing system
+- 🏗️ implement GitHub auth with metamates group verification
+- 🏗️ implement DynamoDB state tracking for reservations
+
+## Final Architecture Plan
+
+**Infrastructure (us-east-2):**
+- 5x p5.48xlarge instances (8 H100 GPUs each = 40 total GPUs)
+- Cluster placement group for optimal networking with EFA
+- EKS cluster with GPU-optimized node groups
+- VPC with single AZ for EFA requirements
+
+**Queue System:**
+- SQS queue for reservation requests
+- EventBridge triggers Lambda processor
+- DynamoDB for state management (servers, reservations, quotas)
+- Lambda handles allocation logic and K8s pod scheduling
+
+**GPU Allocation:**
+- K8s pods with fractional GPU allocation (1/2/4/8 GPUs per pod)
+- Reservation time limits with auto-cleanup
+- Support for multi-server (2x8 GPU) reservations
+
+**Auth & CLI:**
+- GitHub-based auth with metamates group verification
+- Both Python and Rust CLI tools for dev choice comparison
+- Public key management for server access
