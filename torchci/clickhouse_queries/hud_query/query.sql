@@ -5,30 +5,18 @@ WITH job AS (
         job.workflow_name as workflow_name,
         job.id as id,
         job.status as status,
-        job.conclusion as conclusion,
+        job.conclusion_kg as conclusion,
         job.html_url as html_url,
-        IF(
-          {repo: String} = 'pytorch/pytorch',
-          CONCAT(
-              'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-              job.id::String
-            ),
-          CONCAT(
-              'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-              {repo: String},
-              '/',
-              job.id::String
-            )
-          ) as log_url,
+        job.log_url as log_url,
         if(
             job.completed_at = 0,
             null,
             DATE_DIFF('SECOND', job.started_at, job.completed_at)
         ) AS duration_s,
         job.repository_full_name as repo,
-        job.torchci_classification.'line' as line,
-        job.torchci_classification.'captures' as captures,
-        job.torchci_classification.'line_num' as line_num,
+        job.torchci_classification_kg.'line' as line,
+        job.torchci_classification_kg.'captures' as captures,
+        job.torchci_classification_kg.'line_num' as line_num,
         annotation.annotation as annotation
     FROM
         workflow_job job final

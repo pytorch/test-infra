@@ -1,7 +1,7 @@
 WITH jobs AS (
     SELECT
-        j.torchci_classification.line AS line,
-        j.torchci_classification.captures AS captures,
+        j.torchci_classification_kg.'line' AS line,
+        j.torchci_classification_kg.'captures' AS captures,
         j.run_id
     FROM
         default.workflow_job j FINAL
@@ -12,7 +12,7 @@ WITH jobs AS (
                 created_at >= {startTime: DateTime64(3)}
                 AND created_at < {stopTime: DateTime64(3)}
         )
-        AND j.conclusion IN ('cancelled', 'failure', 'time_out')
+        AND j.conclusion_kg IN ('cancelled', 'failure', 'time_out')
 )
 
 SELECT

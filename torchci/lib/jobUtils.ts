@@ -235,6 +235,10 @@ export function removeJobNameSuffix(
 }
 
 export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
+  if (job.logUrl !== undefined && job.logUrl !== "") {
+    const res = await fetch(job.logUrl, { method: "HEAD" });
+    return res.status !== 404;
+  }
   // This is to handle the infra flaky issue where the log is not available on
   // S3 and no failure is found.
   // NB: PyTorch uses the shortcut /log/JOB_ID path while other repos require
