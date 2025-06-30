@@ -1,6 +1,8 @@
 use aws_sdk_ssm::types::ParameterMetadata;
 use chrono::{DateTime, Utc};
 
+pub const ONE_DAY_IN_SECONDS: f64 = 86400.0;
+
 #[derive(Debug)]
 pub enum CleanupError {
     Aws(aws_sdk_ssm::Error),
@@ -166,7 +168,7 @@ mod tests {
         let config = CleanupConfig {
             region: "us-east-1".to_string(),
             dry_run: true,
-            older_than_seconds: 86400.0, // 1 day in seconds
+            older_than_seconds: ONE_DAY_IN_SECONDS,
             pattern: ".*".to_string(),
         };
 
