@@ -13,10 +13,13 @@ struct Args {
     // time duration older than which to delete parameters (e.g., "1d", "2h", "30m")
     #[clap(long, default_value = "1d")]
     older_than: String,
+    // regex pattern to match parameter names for deletion
+    #[clap(long, default_value = "gh-ci-i-.*")]
+    pattern: String,
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<aws_sdk_ssm::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
 
     // Parse the human-readable time string into a Duration
@@ -36,6 +39,7 @@ async fn main() -> Result<(), Box<aws_sdk_ssm::Error>> {
         region: args.region,
         dry_run: args.dry_run,
         older_than_seconds,
+        pattern: args.pattern,
     };
 
     let result = cleanup_ssm_parameters(&client, &time_provider, &config).await?;

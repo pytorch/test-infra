@@ -1,6 +1,42 @@
 use aws_sdk_ssm::types::ParameterMetadata;
 use chrono::{DateTime, Utc};
 
+#[derive(Debug)]
+pub enum CleanupError {
+    Aws(aws_sdk_ssm::Error),
+    Regex(regex::Error),
+}
+
+impl From<aws_sdk_ssm::Error> for CleanupError {
+    fn from(err: aws_sdk_ssm::Error) -> Self {
+        CleanupError::Aws(err)
+    }
+}
+
+impl From<regex::Error> for CleanupError {
+    fn from(err: regex::Error) -> Self {
+        CleanupError::Regex(err)
+    }
+}
+
+impl std::fmt::Display for CleanupError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CleanupError::Aws(err) => write!(f, "AWS error: {}", err),
+            CleanupError::Regex(err) => write!(f, "Regex error: {}", err),
+        }
+    }
+}
+
+impl std::error::Error for CleanupError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            CleanupError::Aws(err) => Some(err),
+            CleanupError::Regex(err) => Some(err),
+        }
+    }
+}
+
 #[cfg(test)]
 use mockall::automock;
 
@@ -13,6 +49,7 @@ pub struct CleanupConfig {
     pub region: String,
     pub dry_run: bool,
     pub older_than_seconds: f64,
+    pub pattern: String,
 }
 
 #[derive(Debug)]
@@ -49,11 +86,11 @@ pub async fn cleanup_ssm_parameters<C: SsmClient, T: TimeProvider>(
     client: &C,
     time_provider: &T,
     config: &CleanupConfig,
-) -> Result<CleanupResult, aws_sdk_ssm::Error> {
+) -> Result<CleanupResult, CleanupError> {
     let parameters = client.describe_parameters().await?;
 
     let parameters_to_delete =
-        filter::filter_old_parameters(&parameters, time_provider, config.older_than_seconds);
+        filter::filter_old_parameters(&parameters, time_provider, config.older_than_seconds, &config.pattern)?;
 
     println!("Found {} parameters to delete", parameters_to_delete.len());
     let parameters_found = parameters_to_delete.len();
@@ -126,6 +163,7 @@ mod tests {
             region: "us-east-1".to_string(),
             dry_run: true,
             older_than_seconds: 86400.0, // 1 day in seconds
+            pattern: ".*".to_string(),
         };
 
         let result = cleanup_ssm_parameters(&mock_client, &time_provider, &config)
