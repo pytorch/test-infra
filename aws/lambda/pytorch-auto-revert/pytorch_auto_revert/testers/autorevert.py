@@ -1,5 +1,6 @@
+from collections import defaultdict
+
 from ..autorevert_checker import AutorevertPatternChecker
-from ..clickhouse_client_helper import CHCliFactory
 
 
 def autorevert_checker(
@@ -44,6 +45,8 @@ def autorevert_checker(
 
     # Detect patterns
     patterns = checker.detect_autorevert_pattern()
+    reverts = checker.get_commits_reverted()
+    not_found_reverts = reverts.copy()
 
     if patterns:
         print(
@@ -52,15 +55,14 @@ def autorevert_checker(
 
         # Create a revert checker (with extended lookback for finding reverts)
         revert_checker = AutorevertPatternChecker(
-            CHCliFactory().client, workflow_names=[], lookback_hours=hours * 2
+            workflow_names=[], lookback_hours=hours * 2
         )
 
         # Track reverts
         reverted_patterns = []
 
         for i, pattern in enumerate(patterns, 1):
-            if len(patterns) > 1:
-                print(f"\nPattern #{i}:")
+            print(f"\nPattern #{i}:")
 
             print(f"Failure rule: '{pattern['failure_rule']}'")
             print(
@@ -83,13 +85,14 @@ def autorevert_checker(
             revert_result = revert_checker.is_commit_reverted(second_commit)
 
             if revert_result:
+                not_found_reverts.discard(second_commit)
                 print(
                     f"✓ REVERTED: {second_commit[:8]} was reverted by {revert_result['revert_sha'][:8]} "
                     f"after {revert_result['hours_after_target']:.1f} hours"
                 )
                 reverted_patterns.append(pattern)
             else:
-                print(f"✗ NOT REVERTED: {second_commit[:8]} was not reverted")
+                print(f"✗ NOT REVERTED: {second_commit} was not reverted")
 
             if verbose:
                 print(f"Failed jobs ({len(pattern['failed_job_names'])}):")
@@ -121,10 +124,33 @@ def autorevert_checker(
         )
         print(f"Commits checked: {total_commits}")
 
-        print(f"Patterns detected: {len(patterns)}")
+        print(f"Auto revert patterns detected: {len(patterns)}")
         print(
-            f"Actual reverts: {len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
+            "Actual reverts inside auto revert patterns detected (precision): "
+            + f"{len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
         )
+        print(f"Total revert commits in period: {len(reverts)}")
+        print(
+            "Reverts that dont match any auto revert pattern detected (recall): "
+            + f"{len(not_found_reverts)} ({len(not_found_reverts)/len(reverts)*100:.1f}%)"
+        )
+
+        workflow_statistics = defaultdict(lambda: {"match_pattern": 0, "reverts": 0})
+        for pattern in patterns:
+            workflow_statistics[pattern["workflow_name"]]["match_pattern"] += 1
+            if pattern["newer_commits"][1] in reverts:
+                workflow_statistics[pattern["workflow_name"]]["reverts"] += 1
+
+        print("Per workflow precision:")
+        for workflow, stats in workflow_statistics.items():
+            precision = (
+                stats["reverts"] / stats["match_pattern"] * 100
+                if stats["match_pattern"] > 0
+                else 0.0
+            )
+            print(
+                f"  {workflow}: {stats['reverts']} reverts out of {stats['match_pattern']} patterns ({precision:.1f}%)"
+            )
 
         if reverted_patterns:
             print("\nReverted patterns:")
