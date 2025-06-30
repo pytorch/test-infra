@@ -1,13 +1,16 @@
 use crate::TimeProvider;
 use aws_sdk_ssm::types::ParameterMetadata;
 use chrono::{DateTime, Duration};
+use regex::Regex;
 
 pub fn filter_old_parameters<T: TimeProvider>(
     parameters: &[ParameterMetadata],
     time_provider: &T,
     older_than_seconds: f64,
-) -> Vec<String> {
+    pattern: &str,
+) -> Result<Vec<String>, regex::Error> {
     let threshold = time_provider.now() - Duration::seconds(older_than_seconds as i64);
+    let regex = Regex::new(pattern)?;
     let mut parameters_to_delete = Vec::new();
 
     for parameter in parameters {
@@ -17,13 +20,15 @@ pub fn filter_old_parameters<T: TimeProvider>(
 
             if last_modified_time < threshold {
                 if let Some(name) = parameter.name() {
-                    parameters_to_delete.push(name.to_string());
+                    if regex.is_match(name) {
+                        parameters_to_delete.push(name.to_string());
+                    }
                 }
             }
         }
     }
 
-    parameters_to_delete
+    Ok(parameters_to_delete)
 }
 
 #[cfg(test)]
@@ -54,7 +59,7 @@ mod tests {
         let parameters = vec![];
         let time_provider = MockTimeProvider::new(Utc::now());
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
@@ -72,7 +77,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
@@ -90,7 +95,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "old-param");
@@ -115,7 +120,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![old_parameter, recent_parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 172800.0); // 2 days in seconds
+        let result = filter_old_parameters(&parameters, &time_provider, 172800.0, ".*").unwrap(); // 2 days in seconds
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "old-param");
@@ -130,7 +135,7 @@ mod tests {
         let time_provider = MockTimeProvider::new(Utc::now());
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
@@ -147,7 +152,51 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0); // 1 day in seconds
+        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
+
+        assert_eq!(result.len(), 0);
+    }
+
+    #[test]
+    fn test_filter_old_parameters_with_pattern_match() {
+        let now = Utc::now();
+        let old_time = now - Duration::days(5);
+
+        let matching_parameter = ParameterMetadata::builder()
+            .name("gh-ci-i-test-param")
+            .last_modified_date(AwsDateTime::from_secs(old_time.timestamp()))
+            .build();
+
+        let non_matching_parameter = ParameterMetadata::builder()
+            .name("other-param")
+            .last_modified_date(AwsDateTime::from_secs(old_time.timestamp()))
+            .build();
+
+        let time_provider = MockTimeProvider::new(now);
+        let parameters = vec![matching_parameter, non_matching_parameter];
+
+        let result =
+            filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], "gh-ci-i-test-param");
+    }
+
+    #[test]
+    fn test_filter_old_parameters_with_pattern_no_match() {
+        let now = Utc::now();
+        let old_time = now - Duration::days(5);
+
+        let parameter = ParameterMetadata::builder()
+            .name("other-param")
+            .last_modified_date(AwsDateTime::from_secs(old_time.timestamp()))
+            .build();
+
+        let time_provider = MockTimeProvider::new(now);
+        let parameters = vec![parameter];
+
+        let result =
+            filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }
