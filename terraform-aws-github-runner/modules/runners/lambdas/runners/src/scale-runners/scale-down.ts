@@ -13,7 +13,7 @@ import {
   resetGHRunnersCaches,
 } from './gh-runners';
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
-import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunners } from './runners';
+import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunner } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
 import { SSM } from 'aws-sdk';
 
@@ -55,7 +55,6 @@ export async function scaleDown(): Promise<void> {
 
     const foundOrgs = new Set<string>();
     const foundRepos = new Set<string>();
-    const runnersToRemove: RunnerInfo[] = [];
 
     for (const [runnerType, runners] of shuffleArrayInPlace(Array.from(runnersDict.entries()))) {
       if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
@@ -176,16 +175,23 @@ export async function scaleDown(): Promise<void> {
 
         if (shouldRemoveEC2) {
           removedRunners += 1;
-          runnersToRemove.push(ec2runner);
+
           console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
+          try {
+            await terminateRunner(ec2runner, metrics);
+            metrics.runnerTerminateSuccess(ec2runner);
+          } catch (e) {
+            /* istanbul ignore next */
+            metrics.runnerTerminateFailure(ec2runner);
+            /* istanbul ignore next */
+            console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+          }
         } else {
           /* istanbul ignore next */
           metrics.runnerTerminateSkipped(ec2runner);
         }
       }
     }
-
-    await terminateRunners(runnersToRemove, metrics);
 
     if (Config.Instance.enableOrganizationRunners) {
       for (const org of foundOrgs) {
