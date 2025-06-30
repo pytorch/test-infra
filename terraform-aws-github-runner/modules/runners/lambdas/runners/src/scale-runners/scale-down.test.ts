@@ -5,6 +5,8 @@ import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import { RunnerInfo, Repo } from './utils';
 import {
+  getRunnerOrg,
+  getRunnerRepo,
   getRunnerTypes,
   GhRunner,
   GhRunners,
