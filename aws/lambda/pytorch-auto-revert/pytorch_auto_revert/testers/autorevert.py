@@ -1,6 +1,6 @@
 from collections import defaultdict
+
 from ..autorevert_checker import AutorevertPatternChecker
-from ..clickhouse_client_helper import CHCliFactory
 
 
 def autorevert_checker(
@@ -54,7 +54,9 @@ def autorevert_checker(
         )
 
         # Create a revert checker (with extended lookback for finding reverts)
-        revert_checker = AutorevertPatternChecker(workflow_names=[], lookback_hours=hours * 2)
+        revert_checker = AutorevertPatternChecker(
+            workflow_names=[], lookback_hours=hours * 2
+        )
 
         # Track reverts
         reverted_patterns = []
@@ -124,10 +126,14 @@ def autorevert_checker(
 
         print(f"Auto revert patterns detected: {len(patterns)}")
         print(
-            f"Actual reverts inside auto revert patterns detected (precision): {len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
+            "Actual reverts inside auto revert patterns detected (precision): "
+            + f"{len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
         )
         print(f"Total revert commits in period: {len(reverts)}")
-        print(f"Reverts that dont match any auto revert pattern detected (recall): {len(not_found_reverts)} ({len(not_found_reverts)/len(reverts)*100:.1f}%)")
+        print(
+            "Reverts that dont match any auto revert pattern detected (recall): "
+            + f"{len(not_found_reverts)} ({len(not_found_reverts)/len(reverts)*100:.1f}%)"
+        )
 
         workflow_statistics = defaultdict(lambda: {"match_pattern": 0, "reverts": 0})
         for pattern in patterns:
@@ -142,7 +148,9 @@ def autorevert_checker(
                 if stats["match_pattern"] > 0
                 else 0.0
             )
-            print(f"  {workflow}: {stats['reverts']} reverts out of {stats['match_pattern']} patterns ({precision:.1f}%)")
+            print(
+                f"  {workflow}: {stats['reverts']} reverts out of {stats['match_pattern']} patterns ({precision:.1f}%)"
+            )
 
         if reverted_patterns:
             print("\nReverted patterns:")
