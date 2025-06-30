@@ -536,14 +536,13 @@ async function addSSMParameterRunnerConfig(
                 Type: 'SecureString',
                 // NOTE: This does need to be a string, check docs at:
                 // https://docs.aws.amazon.com/systems-manager/latest/userguide/example_ssm_PutParameter_section.html
-                // Policies must be an array, even for a single policy
-                Policies: JSON.stringify([{
+                Policies: JSON.stringify({
                   Type: 'Expiration',
                   Version: '1.0',
                   Attributes: {
                     Timestamp: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
                   },
-                }]),
+                }),
               })
               .promise();
             return parameterName;

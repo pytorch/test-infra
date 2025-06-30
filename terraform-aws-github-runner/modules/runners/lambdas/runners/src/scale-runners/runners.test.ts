@@ -1346,16 +1346,16 @@ describe('createRunner', () => {
       // Verify the Policies parameter contains the correct expiration policy structure
       const putParameterCall = mockSSM.putParameter.mock.calls[0][0];
       const policies = JSON.parse(putParameterCall.Policies);
-      expect(policies).toEqual([{
+      expect(policies).toEqual({
         Type: 'Expiration',
         Version: '1.0',
         Attributes: {
           Timestamp: expect.any(String),
         },
-      }]);
+      });
 
       // Verify the timestamp is approximately 30 minutes in the future
-      const expirationTime = new Date(policies[0].Attributes.Timestamp);
+      const expirationTime = new Date(policies.Attributes.Timestamp);
       const now = Date.now();
       const timeDiff = expirationTime.getTime() - now;
       expect(timeDiff).toBeGreaterThan(25 * 60 * 1000); // at least 25 minutes (allowing for test execution time)
