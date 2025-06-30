@@ -61,8 +61,6 @@ export interface DescribeInstancesResultRegion {
   describeInstanceResult: PromiseResult<EC2.Types.DescribeInstancesResult, AWS.AWSError>;
 }
 
-const SHOULD_NOT_TRY_LIST_SSM = 'SHOULD_NOT_TRY_LIST_SSM';
-
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
 const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTimeInMinutes * 60 * 1000) / 2 });
 
@@ -314,49 +312,108 @@ export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, 
 }
 
 export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
-  try {
-    const ec2 = new EC2({ region: runner.awsRegion });
+  await terminateRunners([runner], metrics);
+}
 
-    await expBackOff(() => {
-      return metrics.trackRequestRegion(
-        runner.awsRegion,
-        metrics.ec2TerminateInstancesAWSCallSuccess,
-        metrics.ec2TerminateInstancesAWSCallFailure,
-        () => {
-          return ec2.terminateInstances({ InstanceIds: [runner.instanceId] }).promise();
-        },
-      );
-    });
-    console.info(`Runner terminated: ${runner.instanceId} ${runner.runnerType}`);
+export async function terminateRunners(runners: RunnerInfo[], metrics: Metrics): Promise<void> {
+  const errors: Array<{ instanceId: string; error: unknown }> = [];
 
-    const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
-    const cacheName = `${SHOULD_NOT_TRY_LIST_SSM}_${runner.awsRegion}`;
-
-    if (ssmParametersCache.has(cacheName)) {
-      doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-    } else {
-      try {
-        const params = await listSSMParameters(metrics, runner.awsRegion);
-
-        if (params.has(paramName)) {
-          doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-        } else {
-          /* istanbul ignore next */
-          console.info(`[${runner.awsRegion}] Parameter "${paramName}" not found in SSM, no need to delete it`);
-        }
-      } catch (e) {
-        ssmParametersCache.set(cacheName, 1, 60 * 1000);
-        console.error(
-          `[terminateRunner - listSSMParameters] [${runner.awsRegion}] ` +
-            `Failed to list parameters or check if available: ${e}`,
-        );
-        doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-      }
+  // Group runners by region for efficient AWS API calls
+  const runnersByRegion = new Map<string, RunnerInfo[]>();
+  runners.forEach((runner) => {
+    if (!runnersByRegion.has(runner.awsRegion)) {
+      runnersByRegion.set(runner.awsRegion, []);
     }
-  } catch (e) {
-    console.error(`[${runner.awsRegion}] [terminateRunner]: ${e}`);
-    throw e;
+    const regionRunners = runnersByRegion.get(runner.awsRegion);
+    if (regionRunners) {
+      regionRunners.push(runner);
+    }
+  });
+
+  // Process each region
+  for (const [region, regionRunners] of runnersByRegion) {
+    try {
+      await terminateRunnersInRegion(regionRunners, metrics, region);
+    } catch (e) {
+      // Mark all runners in this region as failed
+      regionRunners.forEach((runner) => {
+        errors.push({ instanceId: runner.instanceId, error: e });
+      });
+    }
   }
+
+  // Throw errors if any occurred
+  if (errors.length > 0) {
+    const errorMessage = errors
+      .map(
+        ({ instanceId, error }) => `Instance ${instanceId}: ${error instanceof Error ? error.message : String(error)}`,
+      )
+      .join('; ');
+    throw new Error(`Failed to terminate some runners: ${errorMessage}`);
+  }
+}
+
+async function terminateRunnersInRegion(runners: RunnerInfo[], metrics: Metrics, region: string): Promise<void> {
+  const ec2 = new EC2({ region });
+
+  // Keep track of runners that were successfully terminated so we can clean up their SSM parameters even
+  // if a later batch fails.
+  const successfullyTerminated: RunnerInfo[] = [];
+
+  // Terminate instances in batches of 100 RunnerInfo objects
+  const instanceBatches = chunkArray(runners, 100);
+
+  console.info(`[${region}] Processing ${runners.length} runners in ${instanceBatches.length} batch(es)`);
+
+  // We'll attempt to terminate all batches, but if any batch throws we still want to clean up the SSM
+  // parameters for the instances that were already terminated.  To achieve this we wrap the whole
+  // operation in a try / finally block so that the cleanup always executes.
+  for (const [batchIndex, instanceBatch] of instanceBatches.entries()) {
+    console.info(
+      `[${region}] Processing batch ${batchIndex + 1}/${instanceBatches.length} with ${
+        instanceBatch.length
+      } instances: ${instanceBatch.map((r) => r.instanceId).join(', ')}`,
+    );
+
+    try {
+      await expBackOff(() => {
+        return metrics.trackRequestRegion(
+          region,
+          metrics.ec2TerminateInstancesAWSCallSuccess,
+          metrics.ec2TerminateInstancesAWSCallFailure,
+          () => {
+            return ec2.terminateInstances({ InstanceIds: instanceBatch.map((r) => r.instanceId) }).promise();
+          },
+        );
+      });
+
+      console.info(
+        `[${region}] Successfully terminated batch ${batchIndex + 1}/${instanceBatches.length}: ${instanceBatch
+          .map((r) => r.instanceId)
+          .join(', ')}`,
+      );
+
+      // Record successfully terminated runners so that we can clean up their SSM parameters later.
+      successfullyTerminated.push(...instanceBatch);
+    } catch (e) {
+      console.error(
+        `[${region}] Failed to terminate batch ${batchIndex + 1}/${instanceBatches.length}: ${instanceBatch
+          .map((r) => r.instanceId)
+          .join(', ')} - ${e}`,
+      );
+      // Re-throw so that callers are aware of the failure; the finally block will still execute and
+      // attempt SSM cleanup for the instances that were already terminated.
+      throw e;
+    }
+  }
+}
+
+function chunkArray<T>(array: T[], chunkSize: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
 }
 
 async function addSSMParameterRunnerConfig(
@@ -393,6 +450,18 @@ async function addSSMParameterRunnerConfig(
                 Name: parameterName,
                 Value: runnerConfig,
                 Type: 'SecureString',
+                // NOTE: This does need to be a string, check docs at:
+                // https://docs.aws.amazon.com/systems-manager/latest/userguide/example_ssm_PutParameter_section.html
+                // Policies must be an array, even for a single policy
+                Policies: JSON.stringify([
+                  {
+                    Type: 'Expiration',
+                    Version: '1.0',
+                    Attributes: {
+                      Timestamp: new Date(Date.now() + 30 * 60 * 1000).toISOString(),
+                    },
+                  },
+                ]),
               })
               .promise();
             return parameterName;

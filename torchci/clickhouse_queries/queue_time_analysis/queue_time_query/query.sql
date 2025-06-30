@@ -20,7 +20,7 @@ WITH selected_data AS (
     sum(avg_queue_time * total_count) AS weighted_sum,
     sum(total_count) AS total_count_sum,
     groupArray(histogram) AS al
-  FROM fortesting.oss_ci_queue_time_histogram
+  FROM misc.oss_ci_queue_time_histogram
   WHERE time > {startTime: DateTime64}
     AND time <= {endTime: DateTime64}
     AND repo IN ({repos: Array(String)})

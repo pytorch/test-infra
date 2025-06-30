@@ -25,8 +25,8 @@ import {
   ModePicker,
   MODES,
 } from "components/benchmark/ModeAndDTypePicker";
-import CopyLink from "components/CopyLink";
-import GranularityPicker from "components/GranularityPicker";
+import CopyLink from "components/common/CopyLink";
+import GranularityPicker from "components/common/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {

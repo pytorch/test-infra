@@ -3,7 +3,6 @@ import { useRouter } from "next/router";
 import { useEffect, useReducer, useState } from "react";
 
 import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
-import LoadingPage from "components/LoadingPage";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import dayjs from "dayjs";
 import QueueTimeCharts from "./charts/QueueTimeCharts";
@@ -15,6 +14,7 @@ const FlexNoWrap = styled("div")({
 });
 
 import InfoIcon from "@mui/icons-material/Info"; // Add this import statement
+import LoadingPage from "components/common/LoadingPage";
 import QueueDataExplanation from "./QueueDataExplanation";
 
 export default function QueueTimeChartPage() {

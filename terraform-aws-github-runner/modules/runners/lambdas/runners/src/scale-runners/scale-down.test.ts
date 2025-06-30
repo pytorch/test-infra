@@ -5,8 +5,6 @@ import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import { RunnerInfo, Repo } from './utils';
 import {
-  getRunnerOrg,
-  getRunnerRepo,
   getRunnerTypes,
   GhRunner,
   GhRunners,
@@ -21,7 +19,7 @@ import {
   doDeleteSSMParameter,
   listRunners,
   resetRunnersCaches,
-  terminateRunner,
+  terminateRunners,
   RunnerType,
   listSSMParameters,
 } from './runners';
@@ -53,15 +51,19 @@ jest.mock('./gh-runners', () => ({
   resetGHRunnersCaches: jest.fn(),
 }));
 
-jest.mock('./runners', () => ({
+jest.mock('./runners', () => {
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-  ...(jest.requireActual('./runners') as any),
-  doDeleteSSMParameter: jest.fn(),
-  listRunners: jest.fn(),
-  listSSMParameters: jest.fn(),
-  resetRunnersCaches: jest.fn(),
-  terminateRunner: jest.fn(),
-}));
+  const actual = jest.requireActual('./runners') as any;
+  return {
+    ...actual,
+    doDeleteSSMParameter: jest.fn(),
+    listRunners: jest.fn(),
+    listSSMParameters: jest.fn().mockResolvedValue(new Map()),
+    resetRunnersCaches: jest.fn(),
+    terminateRunner: jest.fn(),
+    terminateRunners: jest.fn(),
+  };
+});
 
 jest.mock('./gh-auth', () => ({
   resetSecretCache: jest.fn(),
@@ -153,7 +155,7 @@ describe('scale-down', () => {
       const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
       const mockedRemoveGithubRunnerOrg = mocked(removeGithubRunnerOrg);
       const mockedRemoveGithubRunnerRepo = mocked(removeGithubRunnerRepo);
-      const mockedTerminateRunner = mocked(terminateRunner);
+      const mockedTerminateRunners = mocked(terminateRunners);
 
       await scaleDown();
 
@@ -164,7 +166,9 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).not.toBeCalled();
       expect(mockedRemoveGithubRunnerOrg).not.toBeCalled();
       expect(mockedRemoveGithubRunnerRepo).not.toBeCalled();
-      expect(mockedTerminateRunner).not.toBeCalled();
+
+      expect(mockedTerminateRunners).toBeCalledTimes(1);
+      expect(mockedTerminateRunners).toBeCalledWith([], metrics);
     });
   });
 
@@ -447,7 +451,7 @@ describe('scale-down', () => {
       const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
       const mockedGetRunnerTypes = mocked(getRunnerTypes);
       const mockedRemoveGithubRunnerOrg = mocked(removeGithubRunnerOrg);
-      const mockedTerminateRunner = mocked(terminateRunner);
+      const mockedTerminateRunners = mocked(terminateRunners);
 
       mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersOrg.mockResolvedValue(ghRunners);
@@ -490,27 +494,17 @@ describe('scale-down', () => {
         expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, theOrg, metrics);
       }
 
-      expect(mockedTerminateRunner).toBeCalledTimes(5);
-      {
-        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-01');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('keep-min-runners-oldest-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('keep-min-runners-oldest-01');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('remove-ephemeral-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
+      expect(mockedTerminateRunners).toBeCalledTimes(1);
+      const terminated = mockedTerminateRunners.mock.calls[0][0] as RunnerInfo[];
+      expect(terminated.map((r) => r.instanceId).sort()).toEqual(
+        [
+          'keep-lt-min-no-ghrunner-no-ghr-02',
+          'keep-lt-min-no-ghrunner-no-ghr-01',
+          'keep-min-runners-oldest-02',
+          'keep-min-runners-oldest-01',
+          'remove-ephemeral-02',
+        ].sort(),
+      );
     });
   });
 
@@ -789,7 +783,7 @@ describe('scale-down', () => {
       const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
       const mockedGetRunnerTypes = mocked(getRunnerTypes);
       const mockedRemoveGithubRunnerRepo = mocked(removeGithubRunnerRepo);
-      const mockedTerminateRunner = mocked(terminateRunner);
+      const mockedTerminateRunners = mocked(terminateRunners);
 
       mockedListRunners.mockResolvedValueOnce(listRunnersRet);
       mockedListGithubRunnersRepo.mockResolvedValue(ghRunners);
@@ -832,27 +826,17 @@ describe('scale-down', () => {
         expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
       }
 
-      expect(mockedTerminateRunner).toBeCalledTimes(5);
-      {
-        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('keep-lt-min-no-ghrunner-no-ghr-01');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('keep-min-runners-oldest-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('keep-min-runners-oldest-01');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
-      {
-        const { awsR } = getRunnerPair('remove-ephemeral-02');
-        expect(mockedTerminateRunner).toBeCalledWith(awsR, metrics);
-      }
+      expect(mockedTerminateRunners).toBeCalledTimes(1);
+      const terminatedRepo = mockedTerminateRunners.mock.calls[0][0] as RunnerInfo[];
+      expect(terminatedRepo.map((r) => r.instanceId).sort()).toEqual(
+        [
+          'keep-lt-min-no-ghrunner-no-ghr-02',
+          'keep-lt-min-no-ghrunner-no-ghr-01',
+          'keep-min-runners-oldest-02',
+          'keep-min-runners-oldest-01',
+          'remove-ephemeral-02',
+        ].sort(),
+      );
     });
   });
 
@@ -1462,7 +1446,6 @@ describe('scale-down', () => {
 
     it('dont finds on listGithubRunnersRep, finds with getRunnerRepo, busy === false', async () => {
       const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerRepo = mocked(getRunnerRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1470,22 +1453,17 @@ describe('scale-down', () => {
         runnerType: 'runnerType-01',
         ghRunnerId: 'ghRunnerId-01',
       };
-      const theGhRunner = { name: 'instance-id-03', busy: false } as GhRunner;
 
       mockedListGithubRunnersRepo.mockResolvedValueOnce(ghRunners);
-      mockedGetRunnerRepo.mockResolvedValueOnce(theGhRunner);
 
-      expect(await getGHRunnerRepo(ec2runner, metrics)).toEqual(theGhRunner);
+      expect(await getGHRunnerRepo(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
-      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
-      expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
     });
 
     it('listGithubRunnersRep and getRunnerRepo throws exception', async () => {
       const mockedListGithubRunnersRepo = mocked(listGithubRunnersRepo);
-      const mockedGetRunnerRepo = mocked(getRunnerRepo);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         repo: repoKey,
@@ -1495,14 +1473,11 @@ describe('scale-down', () => {
       };
 
       mockedListGithubRunnersRepo.mockRejectedValueOnce('Error');
-      mockedGetRunnerRepo.mockRejectedValueOnce('Error');
 
       expect(await getGHRunnerRepo(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersRepo).toBeCalledTimes(1);
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
-      expect(mockedGetRunnerRepo).toBeCalledTimes(1);
-      expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
     });
   });
 
@@ -1649,7 +1624,6 @@ describe('scale-down', () => {
 
     it('dont finds on listGithubRunnersOrg, finds with getRunnerOrg, busy === false', async () => {
       const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerOrg = mocked(getRunnerOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1657,22 +1631,17 @@ describe('scale-down', () => {
         runnerType: 'runnerType-01',
         ghRunnerId: 'ghRunnerId-01',
       };
-      const theGhRunner = { name: 'instance-id-03', busy: false } as GhRunner;
 
       mockedListGithubRunnersOrg.mockResolvedValueOnce(ghRunners);
-      mockedGetRunnerOrg.mockResolvedValueOnce(theGhRunner);
 
-      expect(await getGHRunnerOrg(ec2runner, metrics)).toEqual(theGhRunner);
+      expect(await getGHRunnerOrg(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
-      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
-      expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
     });
 
     it('listGithubRunnersRep and getRunnerRepo throws exception', async () => {
       const mockedListGithubRunnersOrg = mocked(listGithubRunnersOrg);
-      const mockedGetRunnerOrg = mocked(getRunnerOrg);
       const ec2runner: RunnerInfo = {
         awsRegion: baseConfig.awsRegion,
         org: org,
@@ -1682,14 +1651,11 @@ describe('scale-down', () => {
       };
 
       mockedListGithubRunnersOrg.mockRejectedValueOnce('Error');
-      mockedGetRunnerOrg.mockRejectedValueOnce('Error');
 
       expect(await getGHRunnerOrg(ec2runner, metrics)).toBeUndefined();
 
       expect(mockedListGithubRunnersOrg).toBeCalledTimes(1);
       expect(mockedListGithubRunnersOrg).toBeCalledWith(org, metrics);
-      expect(mockedGetRunnerOrg).toBeCalledTimes(1);
-      expect(mockedGetRunnerOrg).toBeCalledWith(org, ec2runner.ghRunnerId, metrics);
     });
 
     it('getRunner throws when api rate limit is hit', async () => {

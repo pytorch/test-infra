@@ -2,8 +2,6 @@ import moment from 'moment';
 import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import {
-  getRunnerOrg,
-  getRunnerRepo,
   getRunnerTypes,
   GhRunner,
   listGithubRunnersOrg,
@@ -13,7 +11,7 @@ import {
   resetGHRunnersCaches,
 } from './gh-runners';
 import { ScaleDownMetrics, sendMetricsAtTimeout, sendMetricsTimeoutVars } from './metrics';
-import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunner } from './runners';
+import { doDeleteSSMParameter, listRunners, listSSMParameters, resetRunnersCaches, terminateRunners } from './runners';
 import { getRepo, groupBy, Repo, RunnerInfo, isGHRateLimitError, shuffleArrayInPlace } from './utils';
 import { SSM } from 'aws-sdk';
 
@@ -55,6 +53,7 @@ export async function scaleDown(): Promise<void> {
 
     const foundOrgs = new Set<string>();
     const foundRepos = new Set<string>();
+    const runnersToRemove: RunnerInfo[] = [];
 
     for (const [runnerType, runners] of shuffleArrayInPlace(Array.from(runnersDict.entries()))) {
       if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
@@ -175,23 +174,16 @@ export async function scaleDown(): Promise<void> {
 
         if (shouldRemoveEC2) {
           removedRunners += 1;
-
+          runnersToRemove.push(ec2runner);
           console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
-          try {
-            await terminateRunner(ec2runner, metrics);
-            metrics.runnerTerminateSuccess(ec2runner);
-          } catch (e) {
-            /* istanbul ignore next */
-            metrics.runnerTerminateFailure(ec2runner);
-            /* istanbul ignore next */
-            console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
-          }
         } else {
           /* istanbul ignore next */
           metrics.runnerTerminateSkipped(ec2runner);
         }
       }
     }
+
+    await terminateRunners(runnersToRemove, metrics);
 
     if (Config.Instance.enableOrganizationRunners) {
       for (const org of foundOrgs) {
@@ -304,24 +296,6 @@ export async function getGHRunnerOrg(ec2runner: RunnerInfo, metrics: ScaleDownMe
     }
   }
 
-  if (ghRunner === undefined && ec2runner.ghRunnerId !== undefined) {
-    console.warn(
-      `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) not found in ` +
-        `listGithubRunnersOrg call, attempting to grab directly`,
-    );
-    try {
-      ghRunner = await getRunnerOrg(ec2runner.org as string, ec2runner.ghRunnerId, metrics);
-    } catch (e) {
-      console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${org}) error when ` +
-          `listGithubRunnersOrg call: ${e}`,
-      );
-      /* istanbul ignore next */
-      if (isGHRateLimitError(e)) {
-        throw e;
-      }
-    }
-  }
   if (ghRunner) {
     if (ghRunner.busy) {
       metrics.runnerGhFoundBusyOrg(org, ec2runner);
@@ -349,31 +323,6 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
     }
   }
 
-  if (ghRunner === undefined) {
-    if (ec2runner.ghRunnerId === undefined) {
-      console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) was neither found in ` +
-          `the list of runners returned by the listGithubRunnersRepo api call, nor did it have the ` +
-          `GithubRunnerId EC2 tag set.  This can happen if there's no runner running on the instance.`,
-      );
-    } else {
-      console.warn(
-        `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) not found in ` +
-          `listGithubRunnersRepo call, attempting to grab directly`,
-      );
-      try {
-        ghRunner = await getRunnerRepo(repo, ec2runner.ghRunnerId, metrics);
-      } catch (e) {
-        console.warn(
-          `Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}](${repo}) error when getRunnerRepo call: ${e}`,
-        );
-        /* istanbul ignore next */
-        if (isGHRateLimitError(e)) {
-          throw e;
-        }
-      }
-    }
-  }
   if (ghRunner !== undefined) {
     if (ghRunner.busy) {
       metrics.runnerGhFoundBusyRepo(repo, ec2runner);

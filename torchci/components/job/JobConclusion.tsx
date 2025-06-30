@@ -1,7 +1,7 @@
 import { getConclusionChar } from "lib/JobClassifierUtil";
 import { useContext } from "react";
-import { JobData } from "../lib/types";
-import { MonsterFailuresContext } from "../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
+import { JobData } from "../../lib/types";
+import { MonsterFailuresContext } from "../../pages/hud/[repoOwner]/[repoName]/[branch]/[[...page]]";
 import { JobStatus } from "./GroupJobConclusion";
 import styles from "./JobConclusion.module.css";
 

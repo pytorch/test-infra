@@ -14,8 +14,8 @@ import {
   QUANTIZATIONS,
 } from "components/benchmark/torchao/common";
 import { SUITES } from "components/benchmark/torchao/SuitePicker";
-import CopyLink from "components/CopyLink";
-import GranularityPicker from "components/GranularityPicker";
+import CopyLink from "components/common/CopyLink";
+import GranularityPicker from "components/common/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { convertToCompilerPerformanceData } from "lib/benchmark/compilerUtils";
