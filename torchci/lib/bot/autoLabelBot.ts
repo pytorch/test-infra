@@ -151,6 +151,7 @@ const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
     [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
     [/torch\/_inductor\/codegen\/mps.py/gi, "ciflow/mps"],
     [/torch\/csrc\/distributed\/c10d\/symm_mem/gi, "ciflow/h100-symm-mem"],
+    [/torch\/distributed\/_symmetric_memory/gi, "ciflow/h100-symm-mem"],
     [/test\/distributed\/.*mem.*/gi, "ciflow/h100-symm-mem"],
     [/test\/test_mps.py/gi, "ciflow/mps"],
     [/test\/inductor\/test_mps_basic.py/gi, "ciflow/mps"],
