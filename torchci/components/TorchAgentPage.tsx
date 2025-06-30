@@ -449,6 +449,18 @@ export const TorchAgentPage = () => {
 
     if (animatingItems.length === 0) return;
 
+    // If more than 1 item is animating, just display all without animation
+    if (animatingItems.length > 1) {
+      setParsedResponses((prev) => 
+        prev.map((item) => ({
+          ...item,
+          isAnimating: false,
+          displayedContent: item.content,
+        }))
+      );
+      return;
+    }
+
     const itemIndex = parsedResponses.findIndex((item) => item.isAnimating);
     if (itemIndex === -1) return;
 
