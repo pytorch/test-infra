@@ -34,6 +34,7 @@ pub fn filter_old_parameters<T: TimeProvider>(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ONE_DAY_IN_SECONDS;
     use aws_sdk_ssm::types::ParameterMetadata;
     use aws_smithy_types::DateTime as AwsDateTime;
     use chrono::{DateTime, Utc};
@@ -59,7 +60,8 @@ mod tests {
         let parameters = vec![];
         let time_provider = MockTimeProvider::new(Utc::now());
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, ONE_DAY_IN_SECONDS, ".*").unwrap();
 
         assert_eq!(result.len(), 0);
     }
@@ -77,7 +79,8 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, ONE_DAY_IN_SECONDS, ".*").unwrap();
 
         assert_eq!(result.len(), 0);
     }
@@ -95,7 +98,8 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, ONE_DAY_IN_SECONDS, ".*").unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "old-param");
@@ -120,7 +124,9 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![old_parameter, recent_parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 172800.0, ".*").unwrap(); // 2 days in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, ONE_DAY_IN_SECONDS * 2.0, ".*")
+                .unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "old-param");
@@ -135,7 +141,8 @@ mod tests {
         let time_provider = MockTimeProvider::new(Utc::now());
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, ONE_DAY_IN_SECONDS, ".*").unwrap();
 
         assert_eq!(result.len(), 0);
     }
@@ -152,7 +159,8 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, ".*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, ONE_DAY_IN_SECONDS, ".*").unwrap();
 
         assert_eq!(result.len(), 0);
     }
@@ -175,8 +183,13 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![matching_parameter, non_matching_parameter];
 
-        let result =
-            filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
+        let result = filter_old_parameters(
+            &parameters,
+            &time_provider,
+            ONE_DAY_IN_SECONDS,
+            "gh-ci-i-.*",
+        )
+        .unwrap();
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "gh-ci-i-test-param");
@@ -195,8 +208,13 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result =
-            filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
+        let result = filter_old_parameters(
+            &parameters,
+            &time_provider,
+            ONE_DAY_IN_SECONDS,
+            "gh-ci-i-.*",
+        )
+        .unwrap();
 
         assert_eq!(result.len(), 0);
     }
