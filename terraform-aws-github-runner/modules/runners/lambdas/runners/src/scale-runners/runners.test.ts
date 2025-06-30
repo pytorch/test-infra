@@ -355,12 +355,20 @@ describe('terminateRunners', () => {
       },
     ];
 
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: runners
+        .map((runner) => getParameterNameForRunner(runner.environment as string, runner.instanceId))
+        .map((s) => ({ Name: s })),
+    });
+
     await terminateRunners(runners, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(1);
     expect(mockEC2.terminateInstances).toBeCalledWith({
       InstanceIds: ['i-1234', 'i-5678'],
     });
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(2);
   });
 
   it('terminates runners across multiple regions', async () => {
@@ -377,6 +385,10 @@ describe('terminateRunners', () => {
       },
     ];
 
+    mockSSMdescribeParametersRet.mockResolvedValue({
+      Parameters: [{ Name: 'gi-ci-i-1234' }, { Name: 'gi-ci-i-5678' }],
+    });
+
     await terminateRunners(runners, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(2);
@@ -386,6 +398,8 @@ describe('terminateRunners', () => {
     expect(mockEC2.terminateInstances).toHaveBeenNthCalledWith(2, {
       InstanceIds: ['i-5678'],
     });
+    expect(mockSSM.describeParameters).toBeCalledTimes(2);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(2);
   });
 
   it('handles partial failure - terminates some runners but fails on others', async () => {
@@ -407,6 +421,16 @@ describe('terminateRunners', () => {
       },
     ];
 
+    // First region succeeds
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [{ Name: 'gi-ci-i-1234' }, { Name: 'gi-ci-i-5678' }],
+    });
+
+    // Second region also gets SSM parameters but has no successful terminations to clean up
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [],
+    });
+
     // First region succeeds, second region fails
     mockEC2.terminateInstances
       .mockReturnValueOnce({
@@ -421,6 +445,8 @@ describe('terminateRunners', () => {
     );
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(2);
+    expect(mockSSM.describeParameters).toBeCalledTimes(2); // Called for both regions
+    expect(mockSSM.deleteParameter).toBeCalledTimes(2); // Only for successful region
   });
 
   it('handles large batches by splitting into chunks', async () => {
@@ -430,6 +456,12 @@ describe('terminateRunners', () => {
       instanceId: `i-${i.toString().padStart(4, '0')}`,
       environment: 'gi-ci',
     }));
+
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: runners.map((runner) => ({
+        Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
+      })),
+    });
 
     await terminateRunners(runners, metrics);
 
@@ -441,6 +473,10 @@ describe('terminateRunners', () => {
     expect(mockEC2.terminateInstances).toHaveBeenNthCalledWith(2, {
       InstanceIds: runners.slice(100, 150).map((r) => r.instanceId),
     });
+
+    // SSM cleanup should handle all 150 parameters
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(150);
   });
 
   it('cleans up SSM parameters for successful batches even when later batch fails', async () => {
@@ -450,6 +486,12 @@ describe('terminateRunners', () => {
       instanceId: `i-${i.toString().padStart(4, '0')}`,
       environment: 'gi-ci',
     }));
+
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: runners.slice(0, 100).map((runner) => ({
+        Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
+      })),
+    });
 
     // First batch succeeds, second batch fails
     mockEC2.terminateInstances
@@ -463,6 +505,9 @@ describe('terminateRunners', () => {
     await expect(terminateRunners(runners, metrics)).rejects.toThrow('Failed to terminate some runners');
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(2);
+    // SSM cleanup should still happen for the first 100 runners that were successfully terminated
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    expect(mockSSM.deleteParameter).toBeCalledTimes(100);
   });
 
   it('handles SSM parameter cleanup failure gracefully', async () => {
@@ -474,9 +519,18 @@ describe('terminateRunners', () => {
       },
     ];
 
+    // SSM describe fails, so it should attempt direct deletion
+    mockSSMdescribeParametersRet.mockRejectedValueOnce(new Error('SSM describe failed'));
+
     await terminateRunners(runners, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(1);
+    expect(mockSSM.describeParameters).toBeCalledTimes(1);
+    // Should still attempt direct deletion even when describe fails
+    expect(mockSSM.deleteParameter).toBeCalledTimes(1);
+    expect(mockSSM.deleteParameter).toBeCalledWith({
+      Name: getParameterNameForRunner(runners[0].environment as string, runners[0].instanceId),
+    });
   });
 });
 
@@ -1725,6 +1779,9 @@ describe('terminateRunner', () => {
     };
 
     // Mock terminateRunners by mocking the underlying calls
+    mockSSMdescribeParametersRet.mockResolvedValueOnce({
+      Parameters: [{ Name: 'gi-ci-i-1234' }],
+    });
     mockEC2.terminateInstances.mockReturnValueOnce({
       promise: jest.fn().mockResolvedValueOnce({}),
     });
@@ -1734,6 +1791,9 @@ describe('terminateRunner', () => {
     // Verify the calls match what terminateRunners would do with a single runner
     expect(mockEC2.terminateInstances).toBeCalledWith({
       InstanceIds: ['i-1234'],
+    });
+    expect(mockSSM.deleteParameter).toBeCalledWith({
+      Name: 'gi-ci-i-1234',
     });
   });
 });
