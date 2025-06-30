@@ -175,7 +175,8 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![matching_parameter, non_matching_parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], "gh-ci-i-test-param");
@@ -194,7 +195,8 @@ mod tests {
         let time_provider = MockTimeProvider::new(now);
         let parameters = vec![parameter];
 
-        let result = filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
+        let result =
+            filter_old_parameters(&parameters, &time_provider, 86400.0, "gh-ci-i-.*").unwrap(); // 1 day in seconds
 
         assert_eq!(result.len(), 0);
     }

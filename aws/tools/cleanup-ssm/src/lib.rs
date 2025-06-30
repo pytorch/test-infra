@@ -89,8 +89,12 @@ pub async fn cleanup_ssm_parameters<C: SsmClient, T: TimeProvider>(
 ) -> Result<CleanupResult, CleanupError> {
     let parameters = client.describe_parameters().await?;
 
-    let parameters_to_delete =
-        filter::filter_old_parameters(&parameters, time_provider, config.older_than_seconds, &config.pattern)?;
+    let parameters_to_delete = filter::filter_old_parameters(
+        &parameters,
+        time_provider,
+        config.older_than_seconds,
+        &config.pattern,
+    )?;
 
     println!("Found {} parameters to delete", parameters_to_delete.len());
     let parameters_found = parameters_to_delete.len();
