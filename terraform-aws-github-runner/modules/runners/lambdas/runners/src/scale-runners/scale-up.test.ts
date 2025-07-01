@@ -1,4 +1,4 @@
-import { createRunner, tryReuseRunner } from './runners';
+import { createRunner } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -16,6 +16,7 @@ import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';
 import { getJoinedStressTestExperiment } from './cache';
 import { sleep } from './utils';
+import { tryReuseRunner } from './scale-up-try-reuse-runner-utils';
 
 jest.mock('./cache');
 jest.mock('./gh-issues');
@@ -321,6 +322,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         orgName: repo.owner,
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -406,6 +409,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -491,6 +496,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -575,6 +582,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -660,6 +669,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -745,6 +756,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -830,6 +843,8 @@ describe('scaleUp', () => {
         runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: repo.repo,
+        repositoryOwner: repo.owner,
       },
       metrics,
     );
@@ -945,10 +960,12 @@ describe('scaleUp', () => {
     expect(mockedCreateRunner).toBeCalledWith(
       {
         environment: config.environment,
-        // eslint-disable-next-line max-len
-        runnerConfig: expect.any(Function),
         repoName: 'owner/repo',
         runnerType: runnerType1,
+        repositoryName: 'repo',
+        repositoryOwner: 'owner',
+        // eslint-disable-next-line max-len
+        runnerConfig: expect.any(Function),
       },
       metrics,
     );
