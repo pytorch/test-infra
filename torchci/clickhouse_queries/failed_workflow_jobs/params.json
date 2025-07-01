@@ -5,5 +5,12 @@
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)"
   },
-  "tests": []
+  "tests": [
+    {
+      "branch": "main",
+      "repo": "pytorch/pytorch",
+      "startTime": "2025-01-01T00:00:00.000",
+      "stopTime": "2025-01-15T00:00:00.000"
+    }
+  ]
 }

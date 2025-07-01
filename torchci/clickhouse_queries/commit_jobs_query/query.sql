@@ -12,27 +12,15 @@ WITH job AS (
         workflow.id AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
         multiIf(
-            job.conclusion = ''
+            job.conclusion_kg = ''
             and status = 'queued' ,
             'queued',
-            job.conclusion = '',
+            job.conclusion_kg = '',
             'pending',
-            job.conclusion
+            job.conclusion_kg
         ) as conclusion,
         job.html_url,
-        IF(
-            {repo: String } = 'pytorch/pytorch',
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                job.id:: String
-            ),
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                {repo: String },
-                '/',
-                job.id:: String
-            )
-        ) AS log_url,
+        job.log_url AS log_url,
         if(
             job.started_at = 0,
             0,
@@ -43,10 +31,10 @@ WITH job AS (
             0,
             DATE_DIFF('SECOND', job.started_at, job.completed_at)
         ) AS duration_s,
-        job.torchci_classification.line as line,
-        job.torchci_classification.captures as captures,
-        job.torchci_classification.line_num as line_num,
-        job.torchci_classification.context as context,
+        job.torchci_classification_kg.'line' as line,
+        job.torchci_classification_kg.'captures' as captures,
+        job.torchci_classification_kg.'line_num' as line_num,
+        job.torchci_classification_kg.'context' as context,
         job.runner_name AS runner_name,
         workflow.head_commit. 'author'.'email' AS authorEmail
     FROM
