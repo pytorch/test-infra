@@ -99,7 +99,9 @@ function getDisplayName(name: string) {
   }
   if (tags[0].toLowerCase().includes("gpu")) {
     if (name.includes("mem_util")) {
-      return `gpu_${tags[1]}_mem`;
+      return `gpu_${tags[1]}_mem_bandwidth`;
+    } else if (name.includes("allocated_mem_percent")) {
+      return `gpu_${tags[1]}_allocated_mem_percent`;
     }
     return `gpu_${tags[1]}_util`;
   }

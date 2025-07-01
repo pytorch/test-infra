@@ -257,7 +257,12 @@ export function calculateAverage(data: number[]) {
 function getAllGpusStats(stats: StatsInfo[]) {
   // get all gpus stats for the test
   const gpuUtils = stats.filter((item) => item.id.includes("|util_percent"));
-  const gpuMems = stats.filter((item) => item.id.includes("|mem_util_percent"));
+  const gpuMemBWs = stats.filter((item) =>
+    item.id.includes("|mem_util_percent")
+  );
+  const gpuAllocMems = stats.filter((item) =>
+    item.id.includes("|allocated_mem")
+  );
 
   if (gpuUtils.length == 0) {
     return [];
@@ -284,18 +289,40 @@ function getAllGpusStats(stats: StatsInfo[]) {
       ],
     },
     {
-      name: "gpu_mem_all",
-      id: "gpu_mem_all",
+      name: "gpu_mem_bw_all",
+      id: "gpu_mem_bw_all",
       columns: [
-        aggregateStats(gpuMems, StatType.Average, AgggregateMethod.Average),
-        aggregateStats(gpuMems, StatType.Max, AgggregateMethod.Max),
+        aggregateStats(gpuMemBWs, StatType.Average, AgggregateMethod.Average),
+        aggregateStats(gpuMemBWs, StatType.Max, AgggregateMethod.Max),
         aggregateStats(
-          gpuMems,
+          gpuMemBWs,
           StatType.SpikeFrequency,
           AgggregateMethod.Average
         ),
         aggregateStats(
-          gpuMems,
+          gpuMemBWs,
+          StatType.SpikeAvgInterval,
+          AgggregateMethod.Max
+        ),
+      ],
+    },
+    {
+      name: "gpu_allocated_mem_all",
+      id: "gpu_allocated_mem_all",
+      columns: [
+        aggregateStats(
+          gpuAllocMems,
+          StatType.Average,
+          AgggregateMethod.Average
+        ),
+        aggregateStats(gpuAllocMems, StatType.Max, AgggregateMethod.Max),
+        aggregateStats(
+          gpuAllocMems,
+          StatType.SpikeFrequency,
+          AgggregateMethod.Average
+        ),
+        aggregateStats(
+          gpuAllocMems,
           StatType.SpikeAvgInterval,
           AgggregateMethod.Max
         ),

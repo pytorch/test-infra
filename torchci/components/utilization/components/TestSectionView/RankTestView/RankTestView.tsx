@@ -35,8 +35,12 @@ const DefaultGpuResourceValue = [
     value: "gpus_util_all",
   },
   {
-    name: "all gpu memory",
-    value: "gpu_mem_all",
+    name: "all gpu memory bandwidth",
+    value: "gpu_mem_bw_all",
+  },
+  {
+    name: "all gpu allocated memory ",
+    value: "gpu_allocated_mem_all",
   },
 ];
 

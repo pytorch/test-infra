@@ -48,6 +48,8 @@ const WorkflowUtilization = () => {
     };
   });
 
+  console.log(rows);
+
   const columns: any[] = [
     { field: "name", headerName: "Job Name", width: 400 },
     { field: "id", headerName: "Job id", width: 120 },
