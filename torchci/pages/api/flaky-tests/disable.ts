@@ -12,7 +12,7 @@ import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
 
-export const NUM_HOURS = 3;
+export const NUM_HOURS = 6;
 const PYTORCH = "pytorch";
 const THRESHOLD = 4;
 
@@ -300,7 +300,7 @@ async function handleNoLongerFlakyTests(
 function wasRecent(test: FlakyTestData) {
   if (test.eventTimes) {
     return test.eventTimes.some(
-      (value) => dayjs().diff(dayjs(value), "minutes") < NUM_HOURS * 60
+      (value) => dayjs().diff(dayjs(value), "minutes") < (NUM_HOURS - 1) * 60
     );
   }
   return true;
