@@ -460,6 +460,8 @@ async function getCreateRunnerSubnetSequence(
     .flat();
 }
 
+export async function reuseRunners(orgName: string, repoName: string, runnerType: string, metrics: Metrics) {}
+
 export async function tryReuseRunner(
   runnerParameters: RunnerInputParameters,
   metrics: ScaleUpMetrics,
@@ -901,4 +903,70 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     }
     throw e;
   }
+}
+
+export function shouldRefreshRunner(runner: RunnerInfo, prefix: string): boolean {
+  if (runner.ghRunnerId === undefined) {
+    console.debug(`[${prefix}]: Runner ${runner.instanceId} does not have a GithubRunnerID tag`);
+    return false;
+  }
+  if (runner.awsRegion === undefined) {
+    console.debug(`[${prefix}]: Runner ${runner.instanceId} does not have a region`);
+    return false;
+  }
+  if (runner.org === undefined && runner.repo === undefined) {
+    console.debug(`[${prefix}]: Runner ${runner.instanceId} does not have org or repo`);
+    return false;
+  }
+
+  const now = moment.utc();
+  if (runner.ebsVolumeReplacementRequestTimestamp !== undefined) {
+    const replaceTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp);
+    // When both `ebsVolumeReplacementRequestTimestamp` and `ephemeralRunnerFinished` are defined,
+    // we want to verify wether the runner is still in the process of being refreshed.
+    if (
+      runner.ephemeralRunnerFinished !== undefined &&
+      runner.ebsVolumeReplacementRequestTimestamp < runner.ephemeralRunnerFinished
+    ) {
+      checkRefreshForEphemeralRunnerFinished(runner);
+    } else {
+      if (replaceTime.isAfter(now.clone().subtract(6, 'minutes'))) {
+        console.debug(
+          `[${prefix}]: Runner ${
+            runner.instanceId
+          } is currently replacing root volume (started at ${replaceTime.format()})`,
+        );
+        return false;
+      }
+    }
+  } else if (runner.ephemeralRunnerFinished !== undefined) {
+    return checkRefreshForEphemeralRunnerFinished(runner);
+  } else {
+    // If neither `ebsVolumeReplacementRequestTimestamp` nor `ephemeralRunnerFinished` are defined, we don't want to refresh the runner.
+    return false;
+  }
+
+  return true;
+}
+
+function checkRefreshForEphemeralRunnerFinished(runner: RunnerInfo) {
+  if (runner.ephemeralRunnerFinished === undefined) {
+    return false;
+  }
+
+  const finishedAt = moment.unix(runner.ephemeralRunnerFinished);
+  if (finishedAt > moment(new Date()).subtract(1, 'minutes').utc()) {
+    console.debug(`[tryReuseRunner]: Runner ${runner.instanceId} finished a job less than a minute ago`);
+    return false;
+  }
+
+  if (finishedAt.add(Config.Instance.minimumRunningTimeInMinutes, 'minutes') < moment(new Date()).utc()) {
+    console.debug(
+      `[tryReuseRunner]: Runner ${runner.instanceId} has been idle for over minimumRunningTimeInMinutes time of ` +
+        `${Config.Instance.minimumRunningTimeInMinutes} mins, so it's likely to be reclaimed soon and should ` +
+        `not be reused. It's been idle since ${finishedAt.format()}`,
+    );
+    return false;
+  }
+  return true;
 }
