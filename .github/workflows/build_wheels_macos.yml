@@ -117,6 +117,9 @@ jobs:
           rm -rfv "${GITHUB_WORKSPACE}"
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
+      - name: Clean up leftover miniconda installation
+        continue-on-error: true
+        run: brew uninstall miniconda || true
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
