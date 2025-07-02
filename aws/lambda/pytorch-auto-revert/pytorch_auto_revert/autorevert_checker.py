@@ -258,7 +258,9 @@ class AutorevertPatternChecker:
                 for j in suspected_commit1.failed_jobs
             }
 
-            common_failures = set()
+            # Map to track newer commits for each failure
+            failure_to_newer_commit = {}
+
             for (
                 suspected_failure_class_rule,
                 suspected_failure_job_name,
@@ -270,7 +272,7 @@ class AutorevertPatternChecker:
                     )
                 )
                 if not newer_commit_same_job or not newer_same_jobs:
-                    # No older commit with the same job found
+                    # No newer commit with the same job found
                     continue
 
                 if any(
@@ -278,17 +280,19 @@ class AutorevertPatternChecker:
                     for j in newer_same_jobs
                 ):
                     # The newer commit has the same job failing
-                    common_failures.add(
-                        (
-                            suspected_failure_class_rule,
-                            suspected_failure_job_name,
-                        )
+                    failure_key = (
+                        suspected_failure_class_rule,
+                        suspected_failure_job_name,
                     )
+                    failure_to_newer_commit[failure_key] = newer_commit_same_job
 
-            if not common_failures:
+            if not failure_to_newer_commit:
                 continue
 
-            for failure_rule, job_name in common_failures:
+            for (
+                failure_rule,
+                job_name,
+            ), newer_commit in failure_to_newer_commit.items():
                 last_commit_with_same_job, last_same_jobs = (
                     self._find_last_commit_with_job(
                         (commits[j] for j in range(i + 1, len(commits))), job_name
@@ -319,11 +323,11 @@ class AutorevertPatternChecker:
                         "workflow_name": workflow_name,
                         "failure_rule": failure_rule,
                         "newer_commits": [
-                            "newer_commit_same_job.head_sha",
+                            newer_commit.head_sha,
                             suspected_commit1.head_sha,
                         ],
-                        "older_commit": "last_commit_with_same_job.head_sha",
-                        "failed_job_names": list("last_same_job.name"),
+                        "older_commit": last_commit_with_same_job.head_sha,
+                        "failed_job_names": [j.name for j in last_same_jobs],
                         "older_job_coverage": [],
                     }
                 )
@@ -434,3 +438,102 @@ class AutorevertPatternChecker:
                 }
 
         return None  # No revert found
+
+    def extract_revert_categories_batch(self, messages: List[str]) -> Dict[str, str]:
+        """
+        Extract categories from multiple revert commit messages in a single batch query.
+
+        Categories are specified with -c flag like:
+        - nosignal
+        - ignoredsignal
+        - landrace
+        - weird
+        - ghfirst
+
+        Args:
+            messages: List of revert commit messages
+
+        Returns:
+            Dict mapping message to category
+        """
+        # Extract all comment IDs
+        comment_ids = []
+        message_to_comment_id = {}
+
+        for message in messages:
+            comment_match = re.search(r"#issuecomment-(\d+)", message)
+            if comment_match:
+                comment_id = int(comment_match.group(1))
+                comment_ids.append(comment_id)
+                message_to_comment_id[message] = comment_id
+
+        # Batch query for all comment bodies
+        comment_id_to_category = {}
+        if comment_ids:
+            try:
+                query = """
+                SELECT id, body
+                FROM issue_comment
+                WHERE id IN {comment_ids:Array(Int64)}
+                """
+                result = CHCliFactory().client.query(
+                    query, parameters={"comment_ids": comment_ids}
+                )
+
+                for row in result.result_rows:
+                    comment_id, body = row
+                    # Look for -c flag in comment body
+                    match = re.search(r"-c\s+(\w+)", body)
+                    if match:
+                        category = match.group(1).lower()
+                        if category in [
+                            "nosignal",
+                            "ignoredsignal",
+                            "landrace",
+                            "weird",
+                            "ghfirst",
+                        ]:
+                            comment_id_to_category[comment_id] = category
+            except Exception:
+                # If query fails, continue without error
+                pass
+
+        # Map messages to categories
+        result = {}
+        for message in messages:
+            comment_id = message_to_comment_id.get(message)
+            if comment_id and comment_id in comment_id_to_category:
+                result[message] = comment_id_to_category[comment_id]
+            else:
+                result[message] = "uncategorized"
+
+        return result
+
+    def get_commits_reverted_with_info(self) -> Dict[str, Dict]:
+        """
+        Get all commits that were reverted with detailed information including categories.
+
+        Returns:
+            Dict mapping commit SHA to revert information with category
+        """
+        reverted_commits = {}
+        revert_messages = []
+
+        # First pass: collect all reverted commits and their messages
+        for commit in self.commit_history:
+            revert_info = self.is_commit_reverted(commit["sha"])
+            if revert_info:
+                reverted_commits[commit["sha"]] = revert_info
+                revert_messages.append(revert_info["revert_message"])
+
+        # Batch extract categories
+        if revert_messages:
+            message_to_category = self.extract_revert_categories_batch(revert_messages)
+
+            # Update revert info with categories
+            for _, info in reverted_commits.items():
+                info["category"] = message_to_category.get(
+                    info["revert_message"], "uncategorized"
+                )
+
+        return reverted_commits
