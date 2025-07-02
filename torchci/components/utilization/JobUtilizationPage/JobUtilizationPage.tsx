@@ -18,7 +18,8 @@ export const lineFilters: PickerConfig[] = [
     category: "gpu",
     types: [
       { name: "gpu util", tags: ["gpu", "|util_percent"] },
-      { name: "gpu mem", tags: ["gpu", "|mem_util_percent"] },
+      { name: "gpu mem bw", tags: ["gpu", "|mem_util_percent"] },
+      { name: "gpu allocated mem", tags: ["gpu", "|allocated_mem_percent"] },
     ],
   },
   { category: "cpu", types: [{ name: "cpu", tags: ["cpu"] }] },
@@ -45,6 +46,7 @@ export const JobUtilizationPage = ({
   // this makes sense for utilization to detect potential effieciency issues, later our ui
   // can support other aggregation methods for analysis, it's very disruptive to add both in UI right now.
   const aggregateType = "max";
+  const skipLineTypes = ["_mem_value", "total_mem"];
 
   useEffect(() => {
     if (!data) {
@@ -55,9 +57,15 @@ export const JobUtilizationPage = ({
     const lines = data.ts_list;
 
     // currently we only show data that is aggregated by max value during the time interval
-    const filteredLines = lines.filter((line) =>
-      line.id.includes(aggregateType)
-    );
+    const filteredLines = lines.filter((line) => {
+      const skiplineType = skipLineTypes.find((skipLineType) => {
+        return line.id.includes(skipLineType);
+      });
+      if (skiplineType) {
+        return false;
+      }
+      return line.id.includes(aggregateType);
+    });
 
     const jobStats: StatsInfo[] = processStatsData(filteredLines);
 
