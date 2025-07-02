@@ -13,10 +13,11 @@ export default function HudNavToolBar() {
       <Typography variant="h6" sx={pytorchHudAppBarTitleStyles}>
         Pytorch CI Hud
       </Typography>
-      {HudNavToolBarElement("Home", "/", "home_nav_link")}
+      {HudNavToolBarElement("Home(legacy)", "/", "home_nav_link")}
+      {HudNavToolBarElement("Home", "/v2", "home_nav_link")}
       {HudNavToolBarElement(
         "Benchmarks",
-        "/app/benchmark/v3",
+        "/v2/benchmark/v3",
         "benchmark_v3_nav_link"
       )}
     </Toolbar>
