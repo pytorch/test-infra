@@ -1,4 +1,4 @@
-import CopyLink from "components/CopyLink";
+import CopyLink from "components/common/CopyLink";
 import { objectToQueryString } from "components/utilization/UtilizationReportPage/hepler";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";

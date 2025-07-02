@@ -1,20 +1,20 @@
-import CheckBoxSelector from "components/CheckBoxSelector";
-import CopyLink from "components/CopyLink";
+import CheckBoxSelector from "components/common/CheckBoxSelector";
+import CopyLink from "components/common/CopyLink";
+import LoadingPage from "components/common/LoadingPage";
+import PageSelector from "components/common/PageSelector";
+import { LocalTimeHuman } from "components/common/TimeUtils";
+import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import styles from "components/hud.module.css";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
   passesGroupFilter,
-} from "components/GroupHudTableHeaders";
-import HudGroupedCell from "components/GroupJobConclusion";
-import styles from "components/hud.module.css";
-import JobConclusion from "components/JobConclusion";
-import JobFilterInput from "components/JobFilterInput";
-import JobTooltip from "components/JobTooltip";
-import LoadingPage from "components/LoadingPage";
-import PageSelector from "components/PageSelector";
+} from "components/hud/GroupHudTableHeaders";
+import HudGroupedCell from "components/job/GroupJobConclusion";
+import JobConclusion from "components/job/JobConclusion";
+import JobFilterInput from "components/job/JobFilterInput";
+import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
-import { LocalTimeHuman } from "components/TimeUtils";
-import TooltipTarget from "components/TooltipTarget";
 import { fetcher } from "lib/GeneralUtils";
 import {
   getGroupingData,

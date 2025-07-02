@@ -1,9 +1,9 @@
-import styles from "components/NavBar.module.css";
+import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
 import { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
+import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
-import ThemeModePicker from "./ThemeModePicker";
 
 const NavBarDropdown = ({
   title,
@@ -146,7 +146,7 @@ function NavBar() {
     {
       name: (
         <span style={{ position: "relative" }}>
-          TorchAgent
+          Flambeau (PyTorch CI Agent)
           <span
             style={{
               marginLeft: "4px",
@@ -164,7 +164,7 @@ function NavBar() {
           </span>
         </span>
       ),
-      href: "/torchagent",
+      href: "/flambeau",
     },
   ];
 

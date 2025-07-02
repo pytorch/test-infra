@@ -8,26 +8,30 @@ on:
   schedule:
     # Run daily at 2 AM UTC
     - cron: '0 2 * * *'
+  workflow_call:
+    inputs:
+      branch:
+        description: "PyTorch release branch. e.g. release/2.7"
+        default: "release/2.8"
+        required: false
+        type: string
+      milestone-id:
+        description: 'Release milestone ID. e.g. 54'
+        default: 53
+        required: false
+        type: string
   workflow_dispatch:
     inputs:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
-        default: "release/2.7"
+        default: "release/2.8"
+        required: false
+        type: string
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
-        default: 54
-      repo-path:
-        description: "Path to the repository to analyze"
-        default: "./pytorch"
-      remote:
-        description: "Remote name to use for the repository"
-        default: "origin"
-      missing-in-branch:
-        description: 'bool to flag if commits are missing in the branch'
-        type: boolean
-        default: true
-
-
+        default: 53
+        required: false
+        type: string
 
 jobs:
   github-analyze:
@@ -55,25 +59,24 @@ jobs:
         python3 -m pip install --upgrade pip
         python3 -m pip install requests==2.31.0 tqdm==4.64.1
 
-    - name: Run GitHub Analytics
+    - name: Show missing reverts
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ inputs.branch }}
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote origin \
-          --branch release/2.7 \
-          --milestone-id 54 \
+          --branch "${BRANCH:-release/2.8}" \
+          --analyze-missing-reverts-from-branch
+
+    - name: Show outstanding milestone issues
+      env:
+          BRANCH: ${{ inputs.branch }}
+          MILESTONE: ${{ inputs.milestone-id }}
+      run: |
+        python3 tools/analytics/github_analyze.py \
+          --repo-path ./pytorch \
+          --remote origin \
+          --branch "${BRANCH:-release/2.8}" \
+          --milestone-id "${MILESTONE:-53}" \
           --missing-in-branch
-
-
-    - name: Upload analytics results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: github-analytics-results-${{ github.run_id }}
-        path: |
-          *.json
-          *.csv
-          *.log
-        retention-days: 30

@@ -1,6 +1,6 @@
 import styled from "@mui/system/styled";
 import useSWR from "swr";
-import styles from "../SevReport.module.css";
+import styles from "../sevReport/SevReport.module.css";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 export default function GitHubIncidentBanner() {

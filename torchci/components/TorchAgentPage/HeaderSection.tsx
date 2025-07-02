@@ -35,7 +35,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
 
       <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
         <Typography variant="h4" sx={{ flexGrow: 1 }}>
-          TorchAgent
+          Flambeau - PyTorch CI Agent
         </Typography>
 
         <Box sx={{ display: "flex" }}>

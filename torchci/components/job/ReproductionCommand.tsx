@@ -1,7 +1,7 @@
 import { IsJobInProgress } from "lib/JobClassifierUtil";
 import { useEffect, useState } from "react";
-import { JobData } from "../lib/types";
-import CopyLink from "./CopyLink";
+import { JobData } from "../../lib/types";
+import CopyLink from "../common/CopyLink";
 import { getTestName } from "./JobLinks";
 
 export default function ReproductionCommand({ job }: { job: JobData }) {

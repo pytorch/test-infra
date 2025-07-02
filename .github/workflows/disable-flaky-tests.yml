@@ -2,8 +2,8 @@ name: Disable Flaky Tests
 
 on:
   schedule:
-    # At minute 39 past every 3rd hour Monday through Friday.
-    - cron: "39 */3 * * 1-5"
+    # At minute 39 past every 6th hour Monday through Friday.
+    - cron: "39 */6 * * 1-5"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 

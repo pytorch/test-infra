@@ -11,7 +11,7 @@ Create a new folder under this folder with the name of the lambda function, It s
 * `[Recommended]README.MD`: a README file that explains what the lambda function does and how to use it.
 * `[Recommended]tests`: you can put your tests in `aws/lambda/tests` folder. The tests will be run by the CI.
 
-refer to exmaple: [aws/lambda/oss_ci_job_queue_time](https://github.com/pytorch/test-infra/tree/main/aws/lambda/oss_ci_job_queue_time).
+Refer to exmaple: [aws/lambda/oss_ci_job_queue_time](https://github.com/pytorch/test-infra/tree/99c977d429aa2eb27bc77e1783b0578e8a83e550/aws/lambda/oss_ci_job_queue_time).
 
 #### Makefile Example
 
@@ -44,7 +44,7 @@ Add a deployment step to `.github/workflows/_lambda-do-release-runners.yml`.  If
 
 Once the release step is added, submit the code. Then go to workflow action [Create Release Tag](https://github.com/pytorch/test-infra/actions/workflows/lambda-release-tag-runners.yml) and trigger a release by creating a new tag.
 
-### Finding Release Artifacts
+#### Finding Release Artifacts
 
 From the steps such as "Run ncipollo/release-action@v1", you can see the release tag and the release name.
 
@@ -61,15 +61,20 @@ Run ncipollo/release-action@v1
 Use the release name to find your release artifacts in the release page. [pytorch/test-infra/releases](https://github.com/pytorch/test-infra/releases). If you build successfully, you can find your zip file in the release Assets.
 
 ## Setup infra resources and deploy the function to cloud
-go to [pytorch-gha-infra](https://github.com/pytorch-labs/pytorch-gha-infra)
+Go to [pytorch-gha-infra](https://github.com/pytorch-labs/pytorch-gha-infra)
 
 ### Setup Permission and Deployment for the lambda function
-   - Add your lambda function config (such as create role, func-name, and permissions), similar to [pr:set up Aws Resources for queue time histogram lambda ](https://github.com/pytorch-labs/pytorch-gha-infra/pull/647)
+   - Add your lambda function config (such as create role, func-name, and permissions), similar to [PR: set up Aws Resources for queue time histogram lambda ](https://github.com/pytorch-labs/pytorch-gha-infra/pull/647)
         -  You should only grab permission the lambda need for resource access, make sure to ask one person from pytorch dev infra team to review the permission.
-   - Update the release-tag and add your zip file name in [runners/common/Terrafile](https://github.com/pytorch-labs/pytorch-gha-infra/blob/main/runners/common/Terrafile)
+   - Update the release-tag and add your zip file name in [runners/common/Terrafile](https://github.com/pytorch-labs/pytorch-gha-infra/blob/5fde9cdadaad584de3140488adba8eb9c9fe6722/runners/common/Terrafile)
         -  During the deploy process, the workflow will download your file based on the Terrafile.
-   - If you need clichouse account permission, you need ask pytorch dev infra teammate to create a clichouse role for your lambda.
-   - you need to add the clickhouse role secret to the repo secret,  `bunnylol oss pytorch-labs/pytorch-gha-infra` and update it in settings-> secrets.
+   - If you need ClickHouse account permission, you need ask pytorch dev infra teammate to create a ClickHouse role for your lambda.
+       - Add the ClickHouse role secret to the repo secret,  `bunnylol oss pytorch-labs/pytorch-gha-infra` and update it in settings-> secrets.
 
 ### Deploy the lambda
 Once the pr is submitted, go to [Runners Do Terraform Release (apply)](https://github.com/pytorch-labs/pytorch-gha-infra/actions/workflows/runners-on-dispatch-release.yml), and click Run workflow.
+
+
+Page maintainers: @pytorch/pytorch-dev-infra
+<br>
+Last verified: 2025-06-27

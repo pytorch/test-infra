@@ -1,5 +1,5 @@
-import CommitStatus from "components/CommitStatus";
-import { useSetTitle } from "components/DynamicTitle";
+import CommitStatus from "components/commit/CommitStatus";
+import { useSetTitle } from "components/layout/DynamicTitle";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
 import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
