@@ -16,7 +16,7 @@ export default function HudNavToolBar() {
       {HudNavToolBarElement("Home", "/", "home_nav_link")}
       {HudNavToolBarElement(
         "Benchmarks",
-        "/app/benchmarks/v3",
+        "/app/benchmark/v3",
         "benchmark_v3_nav_link"
       )}
     </Toolbar>
