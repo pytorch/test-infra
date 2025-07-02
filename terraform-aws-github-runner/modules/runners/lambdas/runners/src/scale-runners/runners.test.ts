@@ -8,6 +8,8 @@ import {
   resetRunnersCaches,
   terminateRunner,
   tryReuseRunner,
+  isRunnerEligibleForRecycling,
+  performRunnerRecycling,
 } from './runners';
 import { RunnerInfo } from './utils';
 import { ScaleUpMetrics } from './metrics';
@@ -1623,5 +1625,265 @@ describe('createRunner', () => {
       expect(mockEC2.runInstances).toHaveBeenCalledTimes(8);
       expect(runnerConfigFn).toBeCalledTimes(0);
     });
+  });
+});
+
+describe('isRunnerEligibleForRecycling', () => {
+  const baseRunner: RunnerInfo = {
+    awsRegion: 'us-east-1',
+    instanceId: 'i-1234567890abcdef0',
+    ghRunnerId: '123456',
+    org: 'test-org',
+    repo: 'test-repo',
+  };
+
+  it('returns true for eligible runner with org', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      ephemeralRunnerFinished: Math.floor(moment(new Date()).subtract(5, 'minutes').utc().toDate().getTime() / 1000),
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(true);
+  });
+
+  it('returns true for eligible runner with repo only', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      org: undefined,
+      ephemeralRunnerFinished: Math.floor(moment(new Date()).subtract(5, 'minutes').utc().toDate().getTime() / 1000),
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(true);
+  });
+
+  it('returns false when ghRunnerId is undefined', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      ghRunnerId: undefined,
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(false);
+  });
+
+  it('returns false when awsRegion is undefined', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      awsRegion: undefined as unknown as string,
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(false);
+  });
+
+  it('returns false when both org and repo are undefined', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      org: undefined,
+      repo: undefined,
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(false);
+  });
+
+  it('returns false when ephemeralRunnerFinished is less than 1 minute ago', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      ephemeralRunnerFinished: Math.floor(moment(new Date()).subtract(30, 'seconds').utc().toDate().getTime() / 1000),
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(false);
+  });
+
+  it('returns false when ephemeralRunnerFinished is more than minimumRunningTimeInMinutes ago', () => {
+    const config = {
+      minimumRunningTimeInMinutes: 60,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      ephemeralRunnerFinished: Math.floor(
+        moment(new Date()).subtract(70, 'minutes').utc().toDate().getTime() / 1000,
+      ),
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(false);
+  });
+
+  it('returns true when ephemeralRunnerFinished is within valid time window', () => {
+    const config = {
+      minimumRunningTimeInMinutes: 60,
+    };
+    jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
+
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      ephemeralRunnerFinished: Math.floor(moment(new Date()).subtract(30, 'minutes').utc().toDate().getTime() / 1000),
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(true);
+  });
+
+  it('returns true when ephemeralRunnerFinished is undefined', () => {
+    const runner: RunnerInfo = {
+      ...baseRunner,
+      ephemeralRunnerFinished: undefined,
+    };
+
+    expect(isRunnerEligibleForRecycling(runner)).toBe(true);
+  });
+});
+
+describe('performRunnerRecycling', () => {
+  const baseRunner: RunnerInfo = {
+    awsRegion: 'us-east-1',
+    instanceId: 'i-1234567890abcdef0',
+    ghRunnerId: '123456',
+    org: 'test-org',
+    repo: 'test-repo',
+  };
+
+  const runnerParameters: RunnerInputParameters = {
+    runnerConfig: runnerConfigFn,
+    environment: 'test-env',
+    orgName: 'test-org',
+    runnerType: {
+      instance_type: 'c5.large',
+      os: 'linux',
+      disk_size: 100,
+      runnerTypeName: 'test-runner',
+      is_ephemeral: true,
+    },
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockEC2.createTags.mockReturnValue({ promise: jest.fn().mockResolvedValue({}) });
+    mockEC2.deleteTags.mockReturnValue({ promise: jest.fn().mockResolvedValue({}) });
+    mockEC2.createReplaceRootVolumeTask.mockReturnValue({ promise: jest.fn().mockResolvedValue({}) });
+    mockSSM.putParameter.mockReturnValue({ promise: jest.fn().mockResolvedValue({}) });
+  });
+
+  it('successfully performs all recycling operations', async () => {
+    await performRunnerRecycling(baseRunner, runnerParameters, metrics);
+
+    // Verify EBSVolumeReplacementRequestTm tag creation
+    expect(mockEC2.createTags).toHaveBeenCalledWith({
+      Resources: [baseRunner.instanceId],
+      Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: expect.any(String) }],
+    });
+
+    // Verify tag deletion
+    expect(mockEC2.deleteTags).toHaveBeenCalledWith({
+      Resources: [baseRunner.instanceId],
+      Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
+    });
+
+    // Verify volume replacement task creation
+    expect(mockEC2.createReplaceRootVolumeTask).toHaveBeenCalledWith({
+      InstanceId: baseRunner.instanceId,
+      DeleteReplacedRootVolume: true,
+    });
+
+    // Verify SSM parameter creation
+    expect(mockSSM.putParameter).toHaveBeenCalled();
+  });
+
+  it('handles EC2 createTags failure', async () => {
+    mockEC2.createTags.mockReturnValue({
+      promise: jest.fn().mockRejectedValue(new Error('CreateTags failed')),
+    });
+
+    await expect(performRunnerRecycling(baseRunner, runnerParameters, metrics)).rejects.toThrow('CreateTags failed');
+
+    expect(mockEC2.createTags).toHaveBeenCalled();
+    // Should not proceed to other operations if first one fails
+    expect(mockEC2.deleteTags).not.toHaveBeenCalled();
+  });
+
+  it('handles EC2 deleteTags failure', async () => {
+    mockEC2.deleteTags.mockReturnValue({
+      promise: jest.fn().mockRejectedValue(new Error('DeleteTags failed')),
+    });
+
+    await expect(performRunnerRecycling(baseRunner, runnerParameters, metrics)).rejects.toThrow('DeleteTags failed');
+
+    expect(mockEC2.createTags).toHaveBeenCalled();
+    expect(mockEC2.deleteTags).toHaveBeenCalled();
+    // Should not proceed to volume replacement if tag deletion fails
+    expect(mockEC2.createReplaceRootVolumeTask).not.toHaveBeenCalled();
+  });
+
+  it('handles createReplaceRootVolumeTask failure', async () => {
+    mockEC2.createReplaceRootVolumeTask.mockReturnValue({
+      promise: jest.fn().mockRejectedValue(new Error('VolumeReplacement failed')),
+    });
+
+    await expect(performRunnerRecycling(baseRunner, runnerParameters, metrics)).rejects.toThrow(
+      'VolumeReplacement failed',
+    );
+
+    expect(mockEC2.createTags).toHaveBeenCalled();
+    expect(mockEC2.deleteTags).toHaveBeenCalled();
+    expect(mockEC2.createReplaceRootVolumeTask).toHaveBeenCalled();
+    // Should not proceed to SSM parameter creation if volume replacement fails
+    expect(mockSSM.putParameter).not.toHaveBeenCalled();
+  });
+
+  it('handles SSM putParameter failure', async () => {
+    mockSSM.putParameter.mockReturnValue({
+      promise: jest.fn().mockRejectedValue(new Error('SSM failed')),
+    });
+
+    await expect(performRunnerRecycling(baseRunner, runnerParameters, metrics)).rejects.toThrow('SSM failed');
+
+    expect(mockEC2.createTags).toHaveBeenCalled();
+    expect(mockEC2.deleteTags).toHaveBeenCalled();
+    expect(mockEC2.createReplaceRootVolumeTask).toHaveBeenCalled();
+    expect(mockSSM.putParameter).toHaveBeenCalled();
+  });
+
+  it('creates correct EBSVolumeReplacementRequestTm timestamp', async () => {
+    const mockTimestamp = 1234567890;
+    Date.now = jest.fn(() => mockTimestamp * 1000);
+
+    await performRunnerRecycling(baseRunner, runnerParameters, metrics);
+
+    expect(mockEC2.createTags).toHaveBeenCalledWith({
+      Resources: [baseRunner.instanceId],
+      Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: mockTimestamp.toString() }],
+    });
+  });
+
+  it('tracks metrics for all AWS operations', async () => {
+    const trackRequestRegionSpy = jest.spyOn(metrics, 'trackRequestRegion');
+
+    await performRunnerRecycling(baseRunner, runnerParameters, metrics);
+
+    // Should track metrics for createTags, deleteTags, createReplaceRootVolumeTask, and SSM putParameter
+    expect(trackRequestRegionSpy).toHaveBeenCalledTimes(4);
+    expect(trackRequestRegionSpy).toHaveBeenCalledWith(
+      baseRunner.awsRegion,
+      metrics.ec2CreateTagsAWSCallSuccess,
+      metrics.ec2CreateTagsAWSCallFailure,
+      expect.any(Function),
+    );
+    expect(trackRequestRegionSpy).toHaveBeenCalledWith(
+      baseRunner.awsRegion,
+      metrics.ec2DeleteTagsAWSCallSuccess,
+      metrics.ec2DeleteTagsAWSCallFailure,
+      expect.any(Function),
+    );
+    expect(trackRequestRegionSpy).toHaveBeenCalledWith(
+      baseRunner.awsRegion,
+      metrics.ec2CreateReplaceRootVolumeTaskSuccess,
+      metrics.ec2CreateReplaceRootVolumeTaskFailure,
+      expect.any(Function),
+    );
+    expect(trackRequestRegionSpy).toHaveBeenCalledWith(
+      baseRunner.awsRegion,
+      metrics.ssmPutParameterAWSCallSuccess,
+      metrics.ssmPutParameterAWSCallFailure,
+      expect.any(Function),
+    );
   });
 });
