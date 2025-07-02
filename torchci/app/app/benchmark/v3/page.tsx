@@ -1,11 +1,4 @@
-import {
-  Card,
-  CardContent,
-  Grid2,
-  Typography
-} from "@mui/material";
-
-
+import { Card, CardContent, Grid2, Typography } from "@mui/material";
 
 export default function Page() {
   const list = ["torhchAo", "vllm", "torch compiler"];
