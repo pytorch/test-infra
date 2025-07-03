@@ -1263,7 +1263,27 @@ describe('createRunner', () => {
         Name: 'wg113-i-1234',
         Value: 'us-east-1-BLAH',
         Type: 'SecureString',
+        Policies: expect.any(String),
       });
+      // Verify the Policies parameter contains the correct expiration policy structure
+      const putParameterCall = mockSSM.putParameter.mock.calls[0][0];
+      const policies = JSON.parse(putParameterCall.Policies);
+      expect(policies).toEqual([
+        {
+          Type: 'Expiration',
+          Version: '1.0',
+          Attributes: {
+            Timestamp: expect.any(String),
+          },
+        },
+      ]);
+
+      // Verify the timestamp is approximately 30 minutes in the future
+      const expirationTime = new Date(policies[0].Attributes.Timestamp);
+      const now = Date.now();
+      const timeDiff = expirationTime.getTime() - now;
+      expect(timeDiff).toBeGreaterThan(25 * 60 * 1000); // at least 25 minutes (allowing for test execution time)
+      expect(timeDiff).toBeLessThan(35 * 60 * 1000); // at most 35 minutes (allowing for clock differences)
     });
 
     it('creates ssm experiment parameters when joining experiment', async () => {
@@ -1307,6 +1327,7 @@ describe('createRunner', () => {
         Name: 'wg113-i-1234',
         Value: 'us-east-1-BLAH #ON_AMI_EXPERIMENT',
         Type: 'SecureString',
+        Policies: expect.any(String),
       });
       expect(mockEC2.runInstances).toBeCalledTimes(1);
       expect(mockEC2.runInstances).toBeCalledWith(
