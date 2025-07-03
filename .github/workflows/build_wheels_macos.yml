@@ -121,6 +121,7 @@ jobs:
         continue-on-error: true
         shell: bash -l {0}
         run: |
+          echo ${PATH}
           conda deactivate
           conda config --remove-key "auto_activate_base"
           conda init bash --reverse
