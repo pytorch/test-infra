@@ -395,14 +395,16 @@ async function addSSMParameterRunnerConfig(
                 Type: 'SecureString',
                 // NOTE: This does need to be an stringified JSON array of objects, check docs at:
                 // https://docs.aws.amazon.com/systems-manager/latest/userguide/example_ssm_PutParameter_section.html
-                Policies: JSON.stringify([{
-                  "Type": "Expiration",
-                  "Version": "1.0",
-                  "Attributes": {
-                    //  Expire after 30 minutes from present time
-                    "Timestamp": new Date(Date.now() + 1000 * 60 * 30).toISOString()
-                  }
-                }])
+                Policies: JSON.stringify([
+                  {
+                    Type: 'Expiration',
+                    Version: '1.0',
+                    Attributes: {
+                      //  Expire after 30 minutes from present time
+                      Timestamp: new Date(Date.now() + 1000 * 60 * 30).toISOString(),
+                    },
+                  },
+                ]),
               })
               .promise();
             return parameterName;
