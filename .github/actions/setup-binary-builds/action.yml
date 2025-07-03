@@ -88,6 +88,8 @@ runs:
         if: ${{ inputs.setup-miniconda == 'true' }}
         uses: conda-incubator/setup-miniconda@v3.1.1
         with:
+          auto-activate-base: true
+          activate-environment: ""
           miniconda-version: "latest"
           python-version: 3.9
       - name: Clean conda environment
