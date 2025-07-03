@@ -158,6 +158,7 @@ jobs:
         if: ${{ inputs.delocate-wheel }}
         run: |
           set -euxo pipefail
+          conda info
           ${CONDA_RUN} python3 -m pip install delocate==0.10.7
       - name: Install torch dependency
         run: |
