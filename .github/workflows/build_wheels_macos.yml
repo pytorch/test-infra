@@ -159,6 +159,7 @@ jobs:
         run: |
           set -euxo pipefail
           conda info
+          conda env list
           ${CONDA_RUN} python3 -m pip install delocate==0.10.7
       - name: Install torch dependency
         run: |
