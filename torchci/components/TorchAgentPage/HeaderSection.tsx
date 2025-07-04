@@ -34,13 +34,6 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
 }) => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
 
-  const handleShareClick = () => {
-    setShareModalOpen(true);
-  };
-
-  const handleViewSharedClick = () => {
-    setShareModalOpen(true);
-  };
   return (
     <>
       {showScrollButton && (
@@ -69,7 +62,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
                   <Button
                     variant="contained"
                     color="success"
-                    onClick={handleViewSharedClick}
+                    onClick={() => setShareModalOpen(true)}
                     sx={{ mr: 1, minWidth: "auto", p: 1 }}
                   >
                     <ShareIcon />
@@ -79,7 +72,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
                 <Tooltip title="Share this chat">
                   <Button
                     variant="outlined"
-                    onClick={handleShareClick}
+                    onClick={() => setShareModalOpen(true)}
                     sx={{ mr: 1, minWidth: "auto", p: 1 }}
                   >
                     <ShareIcon />
