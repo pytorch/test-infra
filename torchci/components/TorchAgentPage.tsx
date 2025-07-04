@@ -20,7 +20,6 @@ import {
   useThinkingMessages,
   useTokenCalculator,
 } from "./TorchAgentPage/hooks";
-import { useMessageProcessor } from "./TorchAgentPage/useMessageProcessor";
 import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
 import {
   processContentBlockDelta,
@@ -39,9 +38,8 @@ import {
 } from "./TorchAgentPage/styles";
 import { TodoList } from "./TorchAgentPage/TodoList";
 import { ToolUse } from "./TorchAgentPage/ToolUse";
-import { ParsedContent } from "./TorchAgentPage/types";
+import { useMessageProcessor } from "./TorchAgentPage/useMessageProcessor";
 import {
-  extractGrafanaLinks,
   formatElapsedTime,
   formatTokenCount,
   renderMarkdownWithLinks,
@@ -107,10 +105,16 @@ export const TorchAgentPage = ({
 
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // Use message processor hook for handling chat data
   const messageProcessor = useMessageProcessor();
-  const { parsedResponses, response, setParsedResponses, setResponse, processSessionData } = messageProcessor;
+  const {
+    parsedResponses,
+    response,
+    setParsedResponses,
+    setResponse,
+    processSessionData,
+  } = messageProcessor;
   const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>(
     {}
   );
