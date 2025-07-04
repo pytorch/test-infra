@@ -1047,7 +1047,7 @@ export const TorchAgentPage = ({
         ) : (
           <TorchAgentPageContainer
             ref={contentRef}
-            drawerOpen={drawerOpen && !isMobile}
+            drawerOpen={!isSharedView && drawerOpen && !isMobile}
             sidebarWidth={sidebarWidth}
           >
             <HeaderSection
