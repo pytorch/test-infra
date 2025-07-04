@@ -89,6 +89,41 @@ class AutorevertPatternChecker:
             self._fetch_commit_history()
         return self._commit_history or []
 
+    def get_revert_patterns_training_data(self) -> List[Dict]:
+        """
+        Get training data for autorevert detection.
+        """
+        if hasattr(self, "_training_data"):
+            # If already computed, return cached training data
+            return self._training_data
+
+        # Initialize training data
+        self._training_data = []
+
+        reverts = self.get_commits_reverted()
+        reverts_with_info = self.get_commits_reverted_with_info()
+        self.detect_autorevert_pattern()
+        if not hasattr(self, "_all_autorevert_patterns"):
+            raise Exception("fix this gambiarra here as well")
+
+        for pattern in self._all_autorevert_patterns:
+            is_reverted = pattern["newer_commits"][1] in reverts
+            sha = pattern["newer_commits"][1]
+            self._training_data.append(
+                {
+                    "sha": sha,
+                    "workflow_name": pattern["workflow_name"],
+                    "job_name": pattern["job_name"],
+                    "failure_rule": pattern["failure_rule"],
+                    "newer_failure_rules": pattern["newer_failure_rules"],
+                    "repeated_failure": pattern["failure_rule"] in pattern["newer_failure_rules"],
+                    "is_reverted": sha in reverts,
+                    "is_reverted_non_ghfirst": is_reverted and reverts_with_info.get(sha, {}).get("category", "uncategorized") != "ghfirst",
+                }
+            )
+
+        return self._training_data
+
     def _fetch_workflow_data(self):
         """Fetch workflow job data from ClickHouse for all workflows in batch."""
         if not self.workflow_names:
@@ -275,24 +310,27 @@ class AutorevertPatternChecker:
                     # No newer commit with the same job found
                     continue
 
-                if any(
-                    j.classification_rule == suspected_failure_class_rule
-                    for j in newer_same_jobs
-                ):
-                    # The newer commit has the same job failing
-                    failure_key = (
-                        suspected_failure_class_rule,
-                        suspected_failure_job_name,
-                    )
-                    failure_to_newer_commit[failure_key] = newer_commit_same_job
+                # if any(
+                #     j.classification_rule == suspected_failure_class_rule
+                #     for j in newer_same_jobs
+                # ):
+                #     # The newer commit has the same job failing
+                failure_key = (
+                    suspected_failure_class_rule,
+                    suspected_failure_job_name,
+                )
+                failures = {j.classification_rule for j in newer_same_jobs if j.conclusion == "failure" and j.classification_rule != ""}
+                failure_to_newer_commit[failure_key] = (newer_commit_same_job, failures, )
 
             if not failure_to_newer_commit:
                 continue
 
+            jobs_failures = set()
+
             for (
                 failure_rule,
                 job_name,
-            ), newer_commit in failure_to_newer_commit.items():
+            ), (newer_commit, newer_failures, ) in failure_to_newer_commit.items():
                 last_commit_with_same_job, last_same_jobs = (
                     self._find_last_commit_with_job(
                         (commits[j] for j in range(i + 1, len(commits))), job_name
@@ -304,30 +342,31 @@ class AutorevertPatternChecker:
                     continue
 
                 if any(
-                    j.name.split("(")[0] != job_name
+                    j.name.split("(")[0] == job_name
                     for j in last_commit_with_same_job.failed_jobs
                 ):
-                    # newr commit has the same job failing
+                    # last commit has the same job failing
                     continue
 
-                if any(
-                    j.classification_rule == suspected_failure_class_rule
-                    for j in last_same_jobs
-                ):
-                    # The last commit with the same job has the same failure classification
+                if (failure_rule, job_name, ) in jobs_failures:
+                    # Already processed this failure rule and job name
                     continue
+                jobs_failures.add((failure_rule, job_name, ))
 
                 patterns.append(
                     {
                         "pattern_detected": True,
                         "workflow_name": workflow_name,
+                        "additional_workflows": [],
                         "failure_rule": failure_rule,
+                        "newer_failure_rules": list(newer_failures),
+                        "job_name": job_name,
                         "newer_commits": [
                             newer_commit.head_sha,
                             suspected_commit1.head_sha,
                         ],
                         "older_commit": last_commit_with_same_job.head_sha,
-                        "failed_job_names": [j.name for j in last_same_jobs],
+                        "failed_job_names": list({j.name for j in last_same_jobs}),
                         "older_job_coverage": [],
                     }
                 )
@@ -346,23 +385,26 @@ class AutorevertPatternChecker:
         Returns:
             List of all detected patterns from all workflows (deduplicated)
         """
-        all_patterns = []
+        if hasattr(self, "_autorevert_patterns"):
+            # If already computed, return cached patterns
+            return self._autorevert_patterns
+
+        self._autorevert_patterns = []
+        self._all_autorevert_patterns = []
         seen_commit_pairs = {}  # Map of (commit1, commit2) -> pattern index
 
         for workflow_name in self.workflow_names:
-            patterns = self.detect_autorevert_pattern_workflow(workflow_name)
+            autorevert = self.detect_autorevert_pattern_workflow(workflow_name)
+            self._all_autorevert_patterns.extend(autorevert)
 
-            for pattern in patterns:
+            for pattern in autorevert:
                 # Create a key from the two newer commits (order-independent)
                 commit_pair = tuple(sorted(pattern["newer_commits"]))
 
                 if commit_pair in seen_commit_pairs:
                     # Add this workflow to the existing pattern's additional_workflows
                     pattern_idx = seen_commit_pairs[commit_pair]
-                    existing_pattern = all_patterns[pattern_idx]
-
-                    if "additional_workflows" not in existing_pattern:
-                        existing_pattern["additional_workflows"] = []
+                    existing_pattern = self._autorevert_patterns[pattern_idx]
 
                     existing_pattern["additional_workflows"].append(
                         {
@@ -372,10 +414,10 @@ class AutorevertPatternChecker:
                     )
                 else:
                     # First time seeing this commit pair
-                    seen_commit_pairs[commit_pair] = len(all_patterns)
-                    all_patterns.append(pattern)
+                    seen_commit_pairs[commit_pair] = len(self._autorevert_patterns)
+                    self._autorevert_patterns.append(pattern)
 
-        return all_patterns
+        return self._autorevert_patterns
 
     def get_commits_reverted(self) -> Set[str]:
         """
@@ -384,12 +426,17 @@ class AutorevertPatternChecker:
         Returns:
             List of revert information dictionaries
         """
-        reverted_commits = set()
+        if not hasattr(self, "_reverted_commits"):
+            # If already computed, return cached reverted commits
+            self._reverted_commits = set()
+
+        self._reverted_commits = set()
         for commit in self.commit_history:
             revert_info = self.is_commit_reverted(commit["sha"])
             if revert_info:
-                reverted_commits.add(commit["sha"])
-        return reverted_commits
+                self._reverted_commits.add(commit["sha"])
+
+        return self._reverted_commits
 
     def is_commit_reverted(self, target_commit_sha: str) -> Optional[Dict]:
         """
@@ -516,14 +563,18 @@ class AutorevertPatternChecker:
         Returns:
             Dict mapping commit SHA to revert information with category
         """
-        reverted_commits = {}
+        if hasattr(self, "_reverted_commits_with_info"):
+            # If already computed, return cached reverted commits with info
+            return self._reverted_commits_with_info
+
+        self._reverted_commits_with_info = {}
         revert_messages = []
 
         # First pass: collect all reverted commits and their messages
         for commit in self.commit_history:
             revert_info = self.is_commit_reverted(commit["sha"])
             if revert_info:
-                reverted_commits[commit["sha"]] = revert_info
+                self._reverted_commits_with_info[commit["sha"]] = revert_info
                 revert_messages.append(revert_info["revert_message"])
 
         # Batch extract categories
@@ -531,9 +582,9 @@ class AutorevertPatternChecker:
             message_to_category = self.extract_revert_categories_batch(revert_messages)
 
             # Update revert info with categories
-            for _, info in reverted_commits.items():
+            for _, info in self._reverted_commits_with_info.items():
                 info["category"] = message_to_category.get(
                     info["revert_message"], "uncategorized"
                 )
 
-        return reverted_commits
+        return self._reverted_commits_with_info

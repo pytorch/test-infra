@@ -1,10 +1,11 @@
 from collections import defaultdict
+import csv
+import os
 
 from ..autorevert_checker import AutorevertPatternChecker
 
-
 def autorevert_checker(
-    workflow_names: list[str], hours: int = 48, verbose: bool = False
+    workflow_names: list[str], hours: int = 48, verbose: bool = False, generate_commit_data_csv: bool = False
 ):
     # Initialize checker
     checker = AutorevertPatternChecker(workflow_names, hours)
@@ -47,6 +48,26 @@ def autorevert_checker(
     patterns = checker.detect_autorevert_pattern()
     reverts = checker.get_commits_reverted()
     reverts_with_info = checker.get_commits_reverted_with_info()
+    if generate_commit_data_csv:
+        revert_patterns = checker.get_revert_patterns_training_data()
+        # Generate CSV file with commit data
+        csv_file = "autorevert_patterns.csv"
+        fieldnames = list(revert_patterns[0].keys()) if revert_patterns else []
+        if not fieldnames:
+            print("No patterns found to generate CSV.")
+        fieldnames.sort()
+
+        with open(csv_file, mode="w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(
+                file,
+                fieldnames=fieldnames,
+                extrasaction="ignore",  # Ignore any extra fields not in fieldnames
+            )
+            writer.writeheader()
+            for pattern in revert_patterns:
+                writer.writerow(pattern)
+
+        print(f"Generated commit data CSV: {csv_file}")
 
     # Categorize reverts
     reverts_by_category = defaultdict(set)

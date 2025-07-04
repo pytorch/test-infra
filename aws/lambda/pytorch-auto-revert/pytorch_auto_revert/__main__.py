@@ -84,6 +84,11 @@ def get_opts() -> argparse.Namespace:
         action="store_true",
         help="Show detailed output including commit summaries",
     )
+    workflow_parser.add_argument(
+        "--generate-commit-data-csv",
+        action="store_true",
+        help="generate a CSV file with the commit data for analysis",
+    )
 
     # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
@@ -146,7 +151,12 @@ def main(*args, **kwargs) -> None:
     if opts.subcommand == "lambda":
         print("TODO: run lambda flow")
     elif opts.subcommand == "autorevert-checker":
-        autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
+        autorevert_checker(
+            opts.workflows,
+            hours=opts.hours,
+            verbose=opts.verbose,
+            generate_commit_data_csv=opts.generate_commit_data_csv,
+        )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "do-restart":
