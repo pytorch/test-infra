@@ -9,6 +9,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+import pandas as pd
+from joblib import load
+import ast
+import numpy as np
+from sklearn.preprocessing import MultiLabelBinarizer
+
 from .clickhouse_client_helper import CHCliFactory
 
 
@@ -68,6 +74,23 @@ class AutorevertPatternChecker:
         self.lookback_hours = lookback_hours
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
+
+        MODEL_PATH = "model.joblib"  # Update this path to the actual location of model.joblib
+        METADATA_PATH = "multilabel_binarizers.joblib"  # Update path if needed
+        
+        try:
+            self._pattern_model = load(MODEL_PATH)
+            
+            # Load metadata with binarizers and threshold
+            metadata = load(METADATA_PATH)
+            self._mlb_failure_newer = metadata['mlb_failure_newer']
+            self._mlb_rules = metadata['mlb_rules']
+            self._optimal_threshold = metadata.get('optimal_threshold', 0.5)
+            self._failure_combo_names = metadata['feature_names']['failure_combo']
+            self._rules_names = metadata['feature_names']['rules']
+        except Exception as e:
+            print(f"Failed to load model or metadata: {e}")
+            self._pattern_model = None  # Fallback if model loading fails
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
         """Get workflow commits for a specific workflow, fetching if needed."""
@@ -342,6 +365,61 @@ class AutorevertPatternChecker:
                 ):
                     # last commit has the same job failing
                     continue
+
+                if self._pattern_model:
+                    failure_job = f"{failure_rule}||{job_name}"
+                    failure_newer_list = [f"{failure_rule}||{nf}" for nf in newer_failures]
+
+                    # Create base dataframe with features
+                    model_input = pd.DataFrame({
+                        "failure_rule": [failure_rule],
+                        "job_name": [job_name],
+                        "workflow_name": [workflow_name],
+                        "failure_job": [failure_job],
+                        "repeated_failure": [failure_rule in newer_failures],
+                        "newer_failure_rules": [newer_failures],
+                        "failure_newer": [failure_newer_list],
+                        "intercept": [1.0],  # Add intercept term
+                    })
+
+                    try:
+                        # Apply multi-hot encoding for failure_newer - create dataframe
+                        failure_newer_binary = self._mlb_failure_newer.transform([failure_newer_list])
+                        failure_combo_df = pd.DataFrame(
+                            failure_newer_binary, 
+                            columns=self._failure_combo_names,
+                            index=model_input.index
+                        )
+                            
+                        # Apply multi-hot encoding for newer_failure_rules - create dataframe
+                        rules_binary = self._mlb_rules.transform([newer_failures])
+                        rules_df = pd.DataFrame(
+                            rules_binary, 
+                            columns=self._rules_names,
+                            index=model_input.index
+                        )
+                            
+                        # Concatenate all dataframes at once instead of adding columns one by one
+                        model_input = pd.concat(
+                            [model_input.drop(columns=["failure_newer", "newer_failure_rules"]), 
+                             failure_combo_df, 
+                             rules_df], 
+                            axis=1
+                        )
+                        
+                        # Get probability from model
+                        probability = self._pattern_model.predict_proba(model_input)[0, 1]
+                        
+                        # Use optimal threshold for decision
+                        is_pattern_detected = probability >= self._optimal_threshold
+                        
+                    except Exception as e:
+                        # Log only critical errors
+                        print(f"Model inference failed: {e}")
+                        is_pattern_detected = False
+
+                    if not is_pattern_detected:
+                        continue
 
                 if (failure_rule, job_name, ) in jobs_failures:
                     # Already processed this failure rule and job name
