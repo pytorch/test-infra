@@ -55,6 +55,11 @@ interface ChatSession {
   key: string;
   title?: string;
   status?: string;
+  shared?: {
+    uuid: string;
+    sharedAt: string;
+    shareUrl: string;
+  };
 }
 
 // Helper function to check for special auth cookie (presence only)
@@ -75,10 +80,10 @@ interface TorchAgentPageProps {
   shareId?: string;
 }
 
-export const TorchAgentPage = ({ 
-  initialChatData, 
-  isSharedView = false, 
-  shareId 
+export const TorchAgentPage = ({
+  initialChatData,
+  isSharedView = false,
+  shareId,
 }: TorchAgentPageProps = {}) => {
   const session = useSession();
   const theme = useTheme();
@@ -126,6 +131,11 @@ export const TorchAgentPage = ({
   const [isSessionLoading, setIsSessionLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [headerHeight, setHeaderHeight] = useState(80); // Default fallback
+  const [currentSessionSharedInfo, setCurrentSessionSharedInfo] = useState<{
+    uuid: string;
+    sharedAt: string;
+    shareUrl: string;
+  } | null>(null);
 
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -273,6 +283,9 @@ export const TorchAgentPage = ({
       if (response.ok) {
         const sessionData = await response.json();
 
+        // Update shared info for current session
+        setCurrentSessionSharedInfo(sessionData.shared || null);
+
         if (sessionData.messages && Array.isArray(sessionData.messages)) {
           setParsedResponses([]);
 
@@ -355,6 +368,7 @@ export const TorchAgentPage = ({
     setParsedResponses([]);
     setSelectedSession(null);
     setCurrentSessionId(null);
+    setCurrentSessionSharedInfo(null);
     setError("");
     setTotalTokens(0);
     setCompletedTokens(0);
@@ -743,7 +757,7 @@ export const TorchAgentPage = ({
   useEffect(() => {
     if (isSharedView && initialChatData) {
       console.log("Loading shared chat data:", initialChatData);
-      
+
       // Set up the shared chat data using the same logic as loadChatSession
       if (initialChatData.messages && Array.isArray(initialChatData.messages)) {
         setParsedResponses([]);
@@ -798,13 +812,16 @@ export const TorchAgentPage = ({
           }
         });
       }
-      
+
       setSelectedSession(shareId || "shared");
       setCurrentSessionId(shareId || "shared");
     }
   }, [isSharedView, initialChatData, shareId]);
 
-  if (!isSharedView && (session.status === "loading" || permissionState === "checking")) {
+  if (
+    !isSharedView &&
+    (session.status === "loading" || permissionState === "checking")
+  ) {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
@@ -1118,7 +1135,8 @@ export const TorchAgentPage = ({
 
       <ChatMain
         sx={{
-          marginLeft: !isSharedView && drawerOpen && !isMobile ? `${sidebarWidth}px` : 0,
+          marginLeft:
+            !isSharedView && drawerOpen && !isMobile ? `${sidebarWidth}px` : 0,
           transition: "margin-left 0.3s ease",
         }}
       >
@@ -1141,8 +1159,19 @@ export const TorchAgentPage = ({
               featureRequestUrl={featureRequestUrl}
               bugReportUrl={bugReportUrl}
               currentSessionId={currentSessionId}
-              chatTitle={selectedSession ? chatHistory.find(session => session.sessionId === selectedSession)?.displayedTitle || chatHistory.find(session => session.sessionId === selectedSession)?.title || "Current Chat" : "Current Chat"}
+              chatTitle={
+                selectedSession
+                  ? chatHistory.find(
+                      (session) => session.sessionId === selectedSession
+                    )?.displayedTitle ||
+                    chatHistory.find(
+                      (session) => session.sessionId === selectedSession
+                    )?.title ||
+                    "Current Chat"
+                  : "Current Chat"
+              }
               isSharedView={isSharedView}
+              sharedInfo={currentSessionSharedInfo}
             />
 
             <ChatMessages ref={chatContainerRef}>
@@ -1266,16 +1295,19 @@ export const TorchAgentPage = ({
 
             {/* Show shared view banner */}
             {isSharedView && (
-              <Box sx={{ 
-                p: 2, 
-                bgcolor: 'primary.main', 
-                color: 'primary.contrastText',
-                textAlign: 'center',
-                borderRadius: 1,
-                mb: 2
-              }}>
+              <Box
+                sx={{
+                  p: 2,
+                  bgcolor: "primary.main",
+                  color: "primary.contrastText",
+                  textAlign: "center",
+                  borderRadius: 1,
+                  mb: 2,
+                }}
+              >
                 <Typography variant="body2">
-                  This is a shared read-only chat. You can view the conversation but cannot interact with it.
+                  This is a shared read-only chat. You can view the conversation
+                  but cannot interact with it.
                 </Typography>
               </Box>
             )}

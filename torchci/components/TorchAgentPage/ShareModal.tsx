@@ -1,19 +1,19 @@
-import React, { useState } from "react";
+import CloseIcon from "@mui/icons-material/Close";
+import ShareIcon from "@mui/icons-material/Share";
 import {
+  Alert,
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   IconButton,
-  Typography,
-  CircularProgress,
   TextField,
-  Alert,
+  Typography,
 } from "@mui/material";
-import CloseIcon from "@mui/icons-material/Close";
-import ShareIcon from "@mui/icons-material/Share";
+import React, { useState } from "react";
 
 interface ShareModalProps {
   open: boolean;
@@ -92,10 +92,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         {!shareUrl && (
           <>
             <Alert severity="warning" sx={{ mb: 2 }}>
-              Sharing this chat will make it accessible to everyone with the link.
+              Sharing this chat will make it accessible to everyone with the
+              link.
             </Alert>
             <Typography variant="body2" color="text.secondary">
-              This will create a public, read-only version of your chat that anyone can view.
+              This will create a public, read-only version of your chat that
+              anyone can view.
             </Typography>
           </>
         )}
@@ -132,7 +134,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             onClick={handleShare}
             variant="contained"
             disabled={isSharing}
-            startIcon={isSharing ? <CircularProgress size={16} /> : <ShareIcon />}
+            startIcon={
+              isSharing ? <CircularProgress size={16} /> : <ShareIcon />
+            }
           >
             {isSharing ? "Sharing..." : "Make Public"}
           </Button>

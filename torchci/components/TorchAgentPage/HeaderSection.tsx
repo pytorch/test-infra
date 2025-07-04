@@ -4,8 +4,8 @@ import LightbulbIcon from "@mui/icons-material/Lightbulb";
 import ShareIcon from "@mui/icons-material/Share";
 import { Box, Button, Tooltip, Typography } from "@mui/material";
 import React, { useState } from "react";
-import { ScrollToBottomButton } from "./styles";
 import { ShareModal } from "./ShareModal";
+import { ScrollToBottomButton } from "./styles";
 
 interface HeaderSectionProps {
   showScrollButton: boolean;
@@ -15,6 +15,11 @@ interface HeaderSectionProps {
   currentSessionId?: string | null;
   chatTitle?: string;
   isSharedView?: boolean;
+  sharedInfo?: {
+    uuid: string;
+    sharedAt: string;
+    shareUrl: string;
+  };
 }
 
 export const HeaderSection: React.FC<HeaderSectionProps> = ({
@@ -25,11 +30,18 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
   currentSessionId,
   chatTitle,
   isSharedView = false,
+  sharedInfo,
 }) => {
   const [shareModalOpen, setShareModalOpen] = useState(false);
 
   const handleShareClick = () => {
     setShareModalOpen(true);
+  };
+
+  const handleViewSharedClick = () => {
+    if (sharedInfo?.shareUrl) {
+      window.open(sharedInfo.shareUrl, '_blank');
+    }
   };
   return (
     <>
@@ -53,15 +65,30 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
 
         <Box sx={{ display: "flex" }}>
           {!isSharedView && currentSessionId && (
-            <Tooltip title="Share this chat">
-              <Button
-                variant="outlined"
-                onClick={handleShareClick}
-                sx={{ mr: 1, minWidth: "auto", p: 1 }}
-              >
-                <ShareIcon />
-              </Button>
-            </Tooltip>
+            <>
+              {sharedInfo ? (
+                <Tooltip title="View shared link">
+                  <Button
+                    variant="contained"
+                    color="success"
+                    onClick={handleViewSharedClick}
+                    sx={{ mr: 1, minWidth: "auto", p: 1 }}
+                  >
+                    <ShareIcon />
+                  </Button>
+                </Tooltip>
+              ) : (
+                <Tooltip title="Share this chat">
+                  <Button
+                    variant="outlined"
+                    onClick={handleShareClick}
+                    sx={{ mr: 1, minWidth: "auto", p: 1 }}
+                  >
+                    <ShareIcon />
+                  </Button>
+                </Tooltip>
+              )}
+            </>
           )}
           <Tooltip title="Create feature request">
             <Button

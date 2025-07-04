@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import { Alert, Box, CircularProgress, Typography } from "@mui/material";
 import { GetServerSideProps } from "next";
-import { Box, CircularProgress, Typography, Alert } from "@mui/material";
+import { useEffect, useState } from "react";
 import { TorchAgentPage } from "../../../components/TorchAgentPage";
 
 interface SharedChatPageProps {
@@ -9,7 +9,11 @@ interface SharedChatPageProps {
   error?: string;
 }
 
-export default function SharedChatPage({ uuid, initialData, error }: SharedChatPageProps) {
+export default function SharedChatPage({
+  uuid,
+  initialData,
+  error,
+}: SharedChatPageProps) {
   const [chatData, setChatData] = useState(initialData);
   const [loading, setLoading] = useState(!initialData && !error);
   const [fetchError, setFetchError] = useState(error);
@@ -24,15 +28,17 @@ export default function SharedChatPage({ uuid, initialData, error }: SharedChatP
     try {
       setLoading(true);
       const response = await fetch(`/api/torchagent-get-shared/${uuid}`);
-      
+
       if (!response.ok) {
         throw new Error("Failed to load shared chat");
       }
-      
+
       const data = await response.json();
       setChatData(data);
     } catch (err) {
-      setFetchError(err instanceof Error ? err.message : "Failed to load shared chat");
+      setFetchError(
+        err instanceof Error ? err.message : "Failed to load shared chat"
+      );
     } finally {
       setLoading(false);
     }
@@ -69,16 +75,14 @@ export default function SharedChatPage({ uuid, initialData, error }: SharedChatP
           <Typography variant="h6" gutterBottom>
             Chat Not Found
           </Typography>
-          <Typography variant="body2">
-            {fetchError}
-          </Typography>
+          <Typography variant="body2">{fetchError}</Typography>
         </Alert>
       </Box>
     );
   }
 
   return (
-    <TorchAgentPage 
+    <TorchAgentPage
       initialChatData={chatData}
       isSharedView={true}
       shareId={uuid}
@@ -91,8 +95,10 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
 
   try {
     // Try to fetch the shared chat data server-side for better SEO and initial load
-    const response = await fetch(`${process.env.NEXTAUTH_URL}/api/torchagent-get-shared/${uuid}`);
-    
+    const response = await fetch(
+      `${process.env.NEXTAUTH_URL}/api/torchagent-get-shared/${uuid}`
+    );
+
     if (!response.ok) {
       return {
         props: {
@@ -103,7 +109,7 @@ export const getServerSideProps: GetServerSideProps = async (context) => {
     }
 
     const data = await response.json();
-    
+
     return {
       props: {
         uuid,

@@ -111,10 +111,29 @@ export default async function handler(
     const putCommand = new PutObjectCommand(putParams);
     await s3.send(putCommand);
 
-    // Generate the public URL, based on current url
-    const currentUrl = req.headers.host;
+    // Create a separate tracking file to avoid race conditions with the original session
+    const sharedTrackingKey = `shared-tracking/${username}/${sessionId}.json`;
+    const sharedTrackingData = {
+      originalSessionId: sessionId,
+      originalUsername: username,
+      shareUuid: shareUuid,
+      sharedAt: new Date().toISOString(),
+      shareUrl: `https://${req.headers.host}/flambeau/s/${shareUuid}`,
+      originalFileKey: sessionFile.Key,
+    };
 
-    const shareUrl = `https://${currentUrl}/flambeau/s/${shareUuid}`;
+    const trackingParams = {
+      Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
+      Key: sharedTrackingKey,
+      Body: JSON.stringify(sharedTrackingData, null, 2),
+      ContentType: "application/json",
+    };
+
+    const trackingCommand = new PutObjectCommand(trackingParams);
+    await s3.send(trackingCommand);
+
+    // Generate the public URL, based on current url
+    const shareUrl = `https://${req.headers.host}/flambeau/s/${shareUuid}`;
 
     console.log(
       `Shared session ${sessionId} as ${shareUuid} for user ${username}`
