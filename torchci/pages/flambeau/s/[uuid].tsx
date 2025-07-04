@@ -1,28 +1,20 @@
 import { Alert, Box, CircularProgress, Typography } from "@mui/material";
-import { GetServerSideProps } from "next";
+import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { TorchAgentPage } from "../../../components/TorchAgentPage";
 
-interface SharedChatPageProps {
-  uuid: string;
-  initialData?: any;
-  error?: string;
-}
-
-export default function SharedChatPage({
-  uuid,
-  initialData,
-  error,
-}: SharedChatPageProps) {
-  const [chatData, setChatData] = useState(initialData);
-  const [loading, setLoading] = useState(!initialData && !error);
-  const [fetchError, setFetchError] = useState(error);
+export default function SharedChatPage() {
+  const router = useRouter();
+  const { uuid } = router.query as { uuid: string };
+  const [chatData, setChatData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!initialData && !error) {
+    if (uuid) {
       fetchSharedChat();
     }
-  }, [uuid, initialData, error]);
+  }, [uuid]);
 
   const fetchSharedChat = async () => {
     try {
@@ -89,39 +81,3 @@ export default function SharedChatPage({
     />
   );
 }
-
-export const getServerSideProps: GetServerSideProps = async (context) => {
-  const { uuid } = context.params as { uuid: string };
-
-  try {
-    // Try to fetch the shared chat data server-side for better SEO and initial load
-    const response = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/torchagent-get-shared/${uuid}`
-    );
-
-    if (!response.ok) {
-      return {
-        props: {
-          uuid,
-          error: "Shared chat not found",
-        },
-      };
-    }
-
-    const data = await response.json();
-
-    return {
-      props: {
-        uuid,
-        initialData: data,
-      },
-    };
-  } catch (error) {
-    return {
-      props: {
-        uuid,
-        error: "Failed to load shared chat",
-      },
-    };
-  }
-};
