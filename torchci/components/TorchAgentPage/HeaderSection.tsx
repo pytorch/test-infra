@@ -1,3 +1,4 @@
+import AddIcon from "@mui/icons-material/Add";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
@@ -55,6 +56,20 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
         </Typography>
 
         <Box sx={{ display: "flex" }}>
+          {isSharedView && (
+            <Tooltip title="Start a new chat">
+              <Button
+                variant="contained"
+                color="primary"
+                component="a"
+                href="/flambeau"
+                startIcon={<AddIcon />}
+                sx={{ mr: 1 }}
+              >
+                New Chat
+              </Button>
+            </Tooltip>
+          )}
           {!isSharedView && currentSessionId && (
             <>
               {sharedInfo ? (

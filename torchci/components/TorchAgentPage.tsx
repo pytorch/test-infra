@@ -1209,7 +1209,22 @@ export const TorchAgentPage = ({
               >
                 <Typography variant="body2">
                   This is a shared read-only chat. You can view the conversation
-                  but cannot interact with it.
+                  but cannot interact with it.{" "}
+                  <Typography
+                    component="a"
+                    href="/flambeau"
+                    sx={{
+                      color: "primary.contrastText",
+                      textDecoration: "underline",
+                      fontWeight: "bold",
+                      "&:hover": {
+                        textDecoration: "none",
+                      },
+                    }}
+                  >
+                    Click here to start a new chat
+                  </Typography>
+                  .
                 </Typography>
               </Box>
             )}
