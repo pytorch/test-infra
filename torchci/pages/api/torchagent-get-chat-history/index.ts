@@ -115,7 +115,7 @@ export default async function handler(
 
       if (sharedTrackingData.Body) {
         const sharedContent = await sharedTrackingData.Body.transformToString();
-        const trackingData = JSON.parse(sharedContent || '{}');
+        const trackingData = JSON.parse(sharedContent || "{}");
         sharedInfo = {
           uuid: trackingData.shareUuid,
           sharedAt: trackingData.sharedAt,
@@ -130,10 +130,14 @@ export default async function handler(
     // Add shared info to session data if it exists
     const responseData = {
       ...sessionData,
-      ...(sharedInfo && { shared: sharedInfo })
+      ...(sharedInfo && { shared: sharedInfo }),
     };
 
-    console.log(`Retrieved session ${sessionId} for user ${username}, shared: ${sharedInfo ? 'yes' : 'no'}`);
+    console.log(
+      `Retrieved session ${sessionId} for user ${username}, shared: ${
+        sharedInfo ? "yes" : "no"
+      }`
+    );
 
     res.status(200).json(responseData);
   } catch (error) {

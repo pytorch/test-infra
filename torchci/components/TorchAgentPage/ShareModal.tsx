@@ -32,7 +32,9 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   existingShareUrl,
 }) => {
   const [isSharing, setIsSharing] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(existingShareUrl || null);
+  const [shareUrl, setShareUrl] = useState<string | null>(
+    existingShareUrl || null
+  );
   const [error, setError] = useState<string | null>(null);
   const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
 
@@ -69,7 +71,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         setShowCopiedFeedback(true);
         setTimeout(() => setShowCopiedFeedback(false), 1000);
       } catch (err) {
-        console.error('Failed to copy to clipboard:', err);
+        console.error("Failed to copy to clipboard:", err);
       }
     }
   };
@@ -163,7 +165,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
       <Snackbar
         open={showCopiedFeedback}
         message="Copied to clipboard!"
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
         autoHideDuration={1000}
       />
     </Dialog>
