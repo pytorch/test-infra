@@ -10,6 +10,7 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  Snackbar,
   TextField,
   Typography,
 } from "@mui/material";
@@ -20,6 +21,7 @@ interface ShareModalProps {
   onClose: () => void;
   sessionId: string;
   chatTitle: string;
+  existingShareUrl?: string;
 }
 
 export const ShareModal: React.FC<ShareModalProps> = ({
@@ -27,10 +29,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
   onClose,
   sessionId,
   chatTitle,
+  existingShareUrl,
 }) => {
   const [isSharing, setIsSharing] = useState(false);
-  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [shareUrl, setShareUrl] = useState<string | null>(existingShareUrl || null);
   const [error, setError] = useState<string | null>(null);
+  const [showCopiedFeedback, setShowCopiedFeedback] = useState(false);
 
   const handleShare = async () => {
     setIsSharing(true);
@@ -58,15 +62,24 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     }
   };
 
-  const handleCopyLink = () => {
+  const handleCopyLink = async () => {
     if (shareUrl) {
-      navigator.clipboard.writeText(shareUrl);
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShowCopiedFeedback(true);
+        setTimeout(() => setShowCopiedFeedback(false), 1000);
+      } catch (err) {
+        console.error('Failed to copy to clipboard:', err);
+      }
     }
   };
 
   const handleClose = () => {
-    setShareUrl(null);
+    if (!existingShareUrl) {
+      setShareUrl(null);
+    }
     setError(null);
+    setShowCopiedFeedback(false);
     onClose();
   };
 
@@ -147,6 +160,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
           </Button>
         )}
       </DialogActions>
+      <Snackbar
+        open={showCopiedFeedback}
+        message="Copied to clipboard!"
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        autoHideDuration={1000}
+      />
     </Dialog>
   );
 };

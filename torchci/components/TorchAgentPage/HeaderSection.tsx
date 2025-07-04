@@ -39,9 +39,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
   };
 
   const handleViewSharedClick = () => {
-    if (sharedInfo?.shareUrl) {
-      window.open(sharedInfo.shareUrl, '_blank');
-    }
+    setShareModalOpen(true);
   };
   return (
     <>
@@ -67,7 +65,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
           {!isSharedView && currentSessionId && (
             <>
               {sharedInfo ? (
-                <Tooltip title="View shared link">
+                <Tooltip title="Chat is shared - click to view/copy link">
                   <Button
                     variant="contained"
                     color="success"
@@ -120,6 +118,7 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
         onClose={() => setShareModalOpen(false)}
         sessionId={currentSessionId || ""}
         chatTitle={chatTitle || ""}
+        existingShareUrl={sharedInfo?.shareUrl}
       />
     </>
   );
