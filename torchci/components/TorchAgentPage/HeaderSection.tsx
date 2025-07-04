@@ -1,15 +1,20 @@
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import BugReportIcon from "@mui/icons-material/BugReport";
 import LightbulbIcon from "@mui/icons-material/Lightbulb";
+import ShareIcon from "@mui/icons-material/Share";
 import { Box, Button, Tooltip, Typography } from "@mui/material";
-import React from "react";
+import React, { useState } from "react";
 import { ScrollToBottomButton } from "./styles";
+import { ShareModal } from "./ShareModal";
 
 interface HeaderSectionProps {
   showScrollButton: boolean;
   onScrollToBottom: () => void;
   featureRequestUrl: string;
   bugReportUrl: string;
+  currentSessionId?: string | null;
+  chatTitle?: string;
+  isSharedView?: boolean;
 }
 
 export const HeaderSection: React.FC<HeaderSectionProps> = ({
@@ -17,7 +22,15 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
   onScrollToBottom,
   featureRequestUrl,
   bugReportUrl,
+  currentSessionId,
+  chatTitle,
+  isSharedView = false,
 }) => {
+  const [shareModalOpen, setShareModalOpen] = useState(false);
+
+  const handleShareClick = () => {
+    setShareModalOpen(true);
+  };
   return (
     <>
       {showScrollButton && (
@@ -39,6 +52,17 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
         </Typography>
 
         <Box sx={{ display: "flex" }}>
+          {!isSharedView && currentSessionId && (
+            <Tooltip title="Share this chat">
+              <Button
+                variant="outlined"
+                onClick={handleShareClick}
+                sx={{ mr: 1, minWidth: "auto", p: 1 }}
+              >
+                <ShareIcon />
+              </Button>
+            </Tooltip>
+          )}
           <Tooltip title="Create feature request">
             <Button
               variant="outlined"
@@ -64,6 +88,12 @@ export const HeaderSection: React.FC<HeaderSectionProps> = ({
           </Tooltip>
         </Box>
       </Box>
+      <ShareModal
+        open={shareModalOpen}
+        onClose={() => setShareModalOpen(false)}
+        sessionId={currentSessionId || ""}
+        chatTitle={chatTitle || ""}
+      />
     </>
   );
 };

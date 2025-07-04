@@ -69,7 +69,17 @@ const hasAuthCookie = () => {
   return !!authCookie;
 };
 
-export const TorchAgentPage = () => {
+interface TorchAgentPageProps {
+  initialChatData?: any;
+  isSharedView?: boolean;
+  shareId?: string;
+}
+
+export const TorchAgentPage = ({ 
+  initialChatData, 
+  isSharedView = false, 
+  shareId 
+}: TorchAgentPageProps = {}) => {
   const session = useSession();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("lg")); // Below 1200px
@@ -729,7 +739,72 @@ export const TorchAgentPage = () => {
 
   const hasCookieAuth = hasAuthCookie();
 
-  if (session.status === "loading" || permissionState === "checking") {
+  // Initialize shared view data if provided
+  useEffect(() => {
+    if (isSharedView && initialChatData) {
+      console.log("Loading shared chat data:", initialChatData);
+      
+      // Set up the shared chat data using the same logic as loadChatSession
+      if (initialChatData.messages && Array.isArray(initialChatData.messages)) {
+        setParsedResponses([]);
+
+        let fullResponse = "";
+        initialChatData.messages.forEach((msg: any) => {
+          if (msg.content) {
+            fullResponse += msg.content + "\n";
+          }
+        });
+        setResponse(fullResponse);
+
+        // Process all messages in chronological order
+        initialChatData.messages.forEach((msg: any) => {
+          if (msg.type === "user_message" || msg.type === "user") {
+            // Process user message
+            const textContent = msg.content;
+            const grafanaLinks = extractGrafanaLinks(textContent);
+
+            setParsedResponses((prev) => [
+              ...prev,
+              {
+                type: "user_message",
+                content: textContent,
+                displayedContent: textContent,
+                isAnimating: false,
+                timestamp: Date.now(),
+                grafanaLinks:
+                  grafanaLinks.length > 0 ? grafanaLinks : undefined,
+              },
+            ]);
+          } else if (msg.content) {
+            // Process assistant message content line by line
+            const lines = msg.content
+              .split("\n")
+              .filter((line: string) => line.trim());
+            lines.forEach((line: string) => {
+              processMessageLine(
+                line,
+                setParsedResponses,
+                false,
+                undefined,
+                (sessionId: string) => {
+                  console.log(
+                    "Setting session ID from shared view:",
+                    sessionId
+                  );
+                  setCurrentSessionId(sessionId);
+                }
+              );
+            });
+          }
+        });
+      }
+      
+      setSelectedSession(shareId || "shared");
+      setCurrentSessionId(shareId || "shared");
+    }
+  }, [isSharedView, initialChatData, shareId]);
+
+  if (!isSharedView && (session.status === "loading" || permissionState === "checking")) {
     return (
       <TorchAgentPageContainer>
         <QuerySection sx={{ padding: "20px", textAlign: "center" }}>
@@ -745,6 +820,7 @@ export const TorchAgentPage = () => {
   }
 
   if (
+    !isSharedView &&
     !hasCookieAuth &&
     (session.status === "unauthenticated" ||
       !session.data?.user ||
@@ -804,6 +880,7 @@ export const TorchAgentPage = () => {
 
   // Check if user is authenticated but has insufficient permissions
   if (
+    !isSharedView &&
     session.data?.user &&
     !hasAuthCookie() &&
     permissionState === "insufficient"
@@ -1000,7 +1077,7 @@ export const TorchAgentPage = () => {
   return (
     <Box sx={{ display: "flex", height: "100vh" }}>
       {/* Hamburger button for collapsed sidebar */}
-      {!drawerOpen && (
+      {!isSharedView && !drawerOpen && (
         <Box
           sx={{
             position: "fixed",
@@ -1024,22 +1101,24 @@ export const TorchAgentPage = () => {
         </Box>
       )}
 
-      <ChatHistorySidebar
-        drawerOpen={drawerOpen}
-        sidebarWidth={sidebarWidth}
-        chatHistory={chatHistory}
-        selectedSession={selectedSession}
-        isHistoryLoading={isHistoryLoading}
-        isMobile={isMobile}
-        headerHeight={headerHeight}
-        onStartNewChat={startNewChat}
-        onLoadChatSession={loadChatSession}
-        onToggleSidebar={toggleSidebar}
-      />
+      {!isSharedView && (
+        <ChatHistorySidebar
+          drawerOpen={drawerOpen}
+          sidebarWidth={sidebarWidth}
+          chatHistory={chatHistory}
+          selectedSession={selectedSession}
+          isHistoryLoading={isHistoryLoading}
+          isMobile={isMobile}
+          headerHeight={headerHeight}
+          onStartNewChat={startNewChat}
+          onLoadChatSession={loadChatSession}
+          onToggleSidebar={toggleSidebar}
+        />
+      )}
 
       <ChatMain
         sx={{
-          marginLeft: drawerOpen && !isMobile ? `${sidebarWidth}px` : 0,
+          marginLeft: !isSharedView && drawerOpen && !isMobile ? `${sidebarWidth}px` : 0,
           transition: "margin-left 0.3s ease",
         }}
       >
@@ -1061,6 +1140,9 @@ export const TorchAgentPage = () => {
               onScrollToBottom={scrollToBottomAndEnable}
               featureRequestUrl={featureRequestUrl}
               bugReportUrl={bugReportUrl}
+              currentSessionId={currentSessionId}
+              chatTitle={selectedSession ? chatHistory.find(session => session.sessionId === selectedSession)?.displayedTitle || chatHistory.find(session => session.sessionId === selectedSession)?.title || "Current Chat" : "Current Chat"}
+              isSharedView={isSharedView}
             />
 
             <ChatMessages ref={chatContainerRef}>
@@ -1156,7 +1238,7 @@ export const TorchAgentPage = () => {
             </ChatMessages>
 
             {/* Show welcome message for completely new chats */}
-            {!selectedSession && (
+            {!isSharedView && !selectedSession && (
               <WelcomeSection
                 query={query}
                 isLoading={isLoading}
@@ -1169,7 +1251,7 @@ export const TorchAgentPage = () => {
             )}
 
             {/* Show query input for active chats (read-only for history) */}
-            {selectedSession && (
+            {!isSharedView && selectedSession && (
               <QueryInputSection
                 query={query}
                 isLoading={isLoading}
@@ -1180,6 +1262,22 @@ export const TorchAgentPage = () => {
                 onCancel={cancelRequest}
                 currentSessionId={currentSessionId}
               />
+            )}
+
+            {/* Show shared view banner */}
+            {isSharedView && (
+              <Box sx={{ 
+                p: 2, 
+                bgcolor: 'primary.main', 
+                color: 'primary.contrastText',
+                textAlign: 'center',
+                borderRadius: 1,
+                mb: 2
+              }}>
+                <Typography variant="body2">
+                  This is a shared read-only chat. You can view the conversation but cannot interact with it.
+                </Typography>
+              </Box>
             )}
           </TorchAgentPageContainer>
         )}
