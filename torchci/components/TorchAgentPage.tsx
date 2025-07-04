@@ -53,6 +53,7 @@ interface ChatSession {
   filename: string;
   key: string;
   title?: string;
+  displayedTitle?: string;
   status?: string;
   shared?: {
     uuid: string;

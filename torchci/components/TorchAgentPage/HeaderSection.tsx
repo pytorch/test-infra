@@ -19,7 +19,7 @@ interface HeaderSectionProps {
     uuid: string;
     sharedAt: string;
     shareUrl: string;
-  };
+  } | null;
 }
 
 export const HeaderSection: React.FC<HeaderSectionProps> = ({
