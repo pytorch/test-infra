@@ -20,6 +20,7 @@ import {
   useThinkingMessages,
   useTokenCalculator,
 } from "./TorchAgentPage/hooks";
+import { useMessageProcessor } from "./TorchAgentPage/useMessageProcessor";
 import { LoadingDisplay } from "./TorchAgentPage/LoadingDisplay";
 import {
   processContentBlockDelta,
@@ -106,8 +107,10 @@ export const TorchAgentPage = ({
 
   const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [response, setResponse] = useState("");
-  const [parsedResponses, setParsedResponses] = useState<ParsedContent[]>([]);
+  
+  // Use message processor hook for handling chat data
+  const messageProcessor = useMessageProcessor();
+  const { parsedResponses, response, setParsedResponses, setResponse, processSessionData } = messageProcessor;
   const [expandedTools, setExpandedTools] = useState<Record<number, boolean>>(
     {}
   );
@@ -286,59 +289,8 @@ export const TorchAgentPage = ({
         // Update shared info for current session
         setCurrentSessionSharedInfo(sessionData.shared || null);
 
-        if (sessionData.messages && Array.isArray(sessionData.messages)) {
-          setParsedResponses([]);
-
-          let fullResponse = "";
-          sessionData.messages.forEach((msg: any) => {
-            if (msg.content) {
-              fullResponse += msg.content + "\n";
-            }
-          });
-          setResponse(fullResponse);
-
-          // Process all messages in chronological order
-          sessionData.messages.forEach((msg: any) => {
-            if (msg.type === "user_message" || msg.type === "user") {
-              // Process user message
-              const textContent = msg.content;
-              const grafanaLinks = extractGrafanaLinks(textContent);
-
-              setParsedResponses((prev) => [
-                ...prev,
-                {
-                  type: "user_message",
-                  content: textContent,
-                  displayedContent: textContent,
-                  isAnimating: false,
-                  timestamp: Date.now(),
-                  grafanaLinks:
-                    grafanaLinks.length > 0 ? grafanaLinks : undefined,
-                },
-              ]);
-            } else if (msg.content) {
-              // Process assistant message content line by line
-              const lines = msg.content
-                .split("\n")
-                .filter((line: string) => line.trim());
-              lines.forEach((line: string) => {
-                processMessageLine(
-                  line,
-                  setParsedResponses,
-                  false,
-                  undefined,
-                  (sessionId: string) => {
-                    console.log(
-                      "Setting session ID from loadChatSession:",
-                      sessionId
-                    );
-                    setCurrentSessionId(sessionId);
-                  }
-                );
-              });
-            }
-          });
-        }
+        // Process session data using the message processor
+        processSessionData(sessionData, setCurrentSessionId);
 
         setSelectedSession(sessionId);
         setCurrentSessionId(sessionId);
@@ -757,66 +709,11 @@ export const TorchAgentPage = ({
   useEffect(() => {
     if (isSharedView && initialChatData) {
       console.log("Loading shared chat data:", initialChatData);
-
-      // Set up the shared chat data using the same logic as loadChatSession
-      if (initialChatData.messages && Array.isArray(initialChatData.messages)) {
-        setParsedResponses([]);
-
-        let fullResponse = "";
-        initialChatData.messages.forEach((msg: any) => {
-          if (msg.content) {
-            fullResponse += msg.content + "\n";
-          }
-        });
-        setResponse(fullResponse);
-
-        // Process all messages in chronological order
-        initialChatData.messages.forEach((msg: any) => {
-          if (msg.type === "user_message" || msg.type === "user") {
-            // Process user message
-            const textContent = msg.content;
-            const grafanaLinks = extractGrafanaLinks(textContent);
-
-            setParsedResponses((prev) => [
-              ...prev,
-              {
-                type: "user_message",
-                content: textContent,
-                displayedContent: textContent,
-                isAnimating: false,
-                timestamp: Date.now(),
-                grafanaLinks:
-                  grafanaLinks.length > 0 ? grafanaLinks : undefined,
-              },
-            ]);
-          } else if (msg.content) {
-            // Process assistant message content line by line
-            const lines = msg.content
-              .split("\n")
-              .filter((line: string) => line.trim());
-            lines.forEach((line: string) => {
-              processMessageLine(
-                line,
-                setParsedResponses,
-                false,
-                undefined,
-                (sessionId: string) => {
-                  console.log(
-                    "Setting session ID from shared view:",
-                    sessionId
-                  );
-                  setCurrentSessionId(sessionId);
-                }
-              );
-            });
-          }
-        });
-      }
-
+      processSessionData(initialChatData, setCurrentSessionId);
       setSelectedSession(shareId || "shared");
       setCurrentSessionId(shareId || "shared");
     }
-  }, [isSharedView, initialChatData, shareId]);
+  }, [isSharedView, initialChatData, shareId, processSessionData]);
 
   if (
     !isSharedView &&
