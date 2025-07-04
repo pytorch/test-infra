@@ -310,11 +310,6 @@ class AutorevertPatternChecker:
                     # No newer commit with the same job found
                     continue
 
-                # if any(
-                #     j.classification_rule == suspected_failure_class_rule
-                #     for j in newer_same_jobs
-                # ):
-                #     # The newer commit has the same job failing
                 failure_key = (
                     suspected_failure_class_rule,
                     suspected_failure_job_name,

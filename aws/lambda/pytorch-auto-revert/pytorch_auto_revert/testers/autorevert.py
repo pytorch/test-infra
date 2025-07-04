@@ -45,11 +45,29 @@ def autorevert_checker(
                 print(f"  {workflow}: {len(commits)} commits")
 
     # Detect patterns
+    if verbose:
+        print(f"\nDetecting autorevert patterns in last {hours} hours...")
     patterns = checker.detect_autorevert_pattern()
+    if verbose:
+        print(f"Found {len(patterns)} patterns in last {hours} hours")
+        print("\nChecking for reverts of detected patterns...")
+
     reverts = checker.get_commits_reverted()
+    if verbose:
+        print(f"Found {len(reverts)} reverts in last {hours} hours")
+        print("Fetching revert information...")
+
     reverts_with_info = checker.get_commits_reverted_with_info()
+    if verbose:
+        print(f"Found {len(reverts_with_info)} reverts with additional info")
+
     if generate_commit_data_csv:
+        if verbose:
+            print("Generating commit data CSV for autorevert patterns...")
         revert_patterns = checker.get_revert_patterns_training_data()
+        if verbose:
+            print(f"Found {len(revert_patterns)} revert patterns for CSV generation")
+
         # Generate CSV file with commit data
         csv_file = "autorevert_patterns.csv"
         fieldnames = list(revert_patterns[0].keys()) if revert_patterns else []
