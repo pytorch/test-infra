@@ -75,23 +75,58 @@ class AutorevertPatternChecker:
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
 
-        MODEL_PATH = "model.joblib"  # Update this path to the actual location of model.joblib
-        METADATA_PATH = "multilabel_binarizers.joblib"  # Update path if needed
+        MODEL_PATH = "improved_model.joblib"  # Path to the improved model with rarity buckets
+        METADATA_PATH = "improved_metadata.joblib"  # Path to the improved metadata
         
         try:
+            # Load model and extract/print expected feature names
             self._pattern_model = load(MODEL_PATH)
+            self._expected_features = None
+            
+            if hasattr(self._pattern_model, 'feature_names_in_'):
+                self._expected_features = self._pattern_model.feature_names_in_
+                print(f"Model has {len(self._pattern_model.feature_names_in_)} features")
+                print(f"First 10 model features: {self._pattern_model.feature_names_in_[:10]}")
+            elif hasattr(self._pattern_model, '_final_estimator') and hasattr(self._pattern_model._final_estimator, 'feature_names_in_'):
+                self._expected_features = self._pattern_model._final_estimator.feature_names_in_
+                print(f"Found {len(self._expected_features)} features in final estimator")
+            elif hasattr(self._pattern_model, 'named_steps'):
+                # Try to find feature names in the pipeline steps
+                for name, step in self._pattern_model.named_steps.items():
+                    if hasattr(step, 'feature_names_in_'):
+                        self._expected_features = step.feature_names_in_
+                        print(f"Found {len(self._expected_features)} features in {name} step")
+                        break
+            
+            if self._expected_features is not None:
+                print(f"Saved {len(self._expected_features)} expected feature names")
             
             # Load metadata with binarizers and threshold
             metadata = load(METADATA_PATH)
+            self._mlbs = metadata.get('mlbs', {})
             self._mlb_failure_newer = metadata['mlb_failure_newer']
             self._mlb_rules = metadata['mlb_rules']
             self._optimal_threshold = metadata.get('optimal_threshold', 0.5)
             self._failure_combo_names = metadata['feature_names']['failure_combo']
             self._rules_names = metadata['feature_names']['rules']
+            self._feature_id_maps = metadata.get('feature_id_maps', {})
             
-            # Load rarity dictionaries if available
-            self._failure_rarity = metadata.get('failure_rarity', {})
-            self._failure_job_rarity = metadata.get('failure_job_rarity', {})
+            # Debug feature counts
+            print(f"MLBs count: {len(self._mlbs)}")
+            print(f"Failure combo features: {len(self._failure_combo_names)}")
+            print(f"Rules features: {len(self._rules_names)}")
+            
+            # Load bucket information
+            self._bucket_info = metadata.get('bucket_info', {})
+            self._num_buckets = metadata.get('num_buckets', 10)
+            
+            # Pre-compute mappings
+            self._failure_rule_buckets = self._bucket_info.get('failure_rule_buckets', {})
+            self._failure_job_buckets = self._bucket_info.get('failure_job_buckets', {})
+            
+            # Pre-compute bucket column names for faster feature creation
+            self._failure_rule_bucket_columns = [f"failure_rule_bucket_{i}" for i in range(self._num_buckets)]
+            self._failure_job_bucket_columns = [f"failure_job_bucket_{i}" for i in range(self._num_buckets)]
         except Exception as e:
             print(f"Failed to load model or metadata: {e}")
             self._pattern_model = None  # Fallback if model loading fails
@@ -373,57 +408,105 @@ class AutorevertPatternChecker:
                 if self._pattern_model:
                     failure_job = f"{failure_rule}||{job_name}"
                     failure_newer_list = [f"{failure_rule}||{nf}" for nf in newer_failures]
-
-                    # Create base dataframe with features
-                    model_input = pd.DataFrame({
+                    
+                    # Prepare categorical features
+                    categorical_values = {
                         "failure_rule": [failure_rule],
                         "job_name": [job_name],
                         "workflow_name": [workflow_name],
-                        "failure_job": [failure_job],
-                        "repeated_failure": [failure_rule in newer_failures],
-                        "newer_failure_rules": [newer_failures],
-                        "failure_newer": [failure_newer_list],
-                        "intercept": [1.0],  # Add intercept term
-                    })
+                        "failure_job": [failure_job]
+                    }
                     
-                    # Add rarity features if available
-                    if hasattr(self, '_failure_rarity') and hasattr(self, '_failure_job_rarity'):
-                        # Default values if keys don't exist
-                        failure_rule_rarity = self._failure_rarity.get(failure_rule, 0.5)
-                        failure_job_rarity = self._failure_job_rarity.get(failure_job, 0.5)
+                    # Create bucket features
+                    bucket_features = {}
+                    
+                    # Set bucket features for failure rule using pre-computed mappings
+                    if failure_rule in self._failure_rule_buckets:
+                        bucket = self._failure_rule_buckets[failure_rule]
+                        bucket_features[f"failure_rule_bucket_{bucket}"] = [1]
+                    
+                    # Create the base dataframe with non-categorical features
+                    # Important: maintain same feature order as in training
+                    feature_dict = {
+                        "repeated_failure": [failure_rule in newer_failures],
+                    }
+                    
+                    # Add bucket features in order
+                    for col in self._failure_rule_bucket_columns + self._failure_job_bucket_columns:
+                        feature_dict[col] = bucket_features.get(col, [0])
                         
-                        # Add rarity features
-                        model_input["failure_rule_rarity"] = failure_rule_rarity
-                        model_input["failure_job_rarity"] = failure_job_rarity
-                        
-                        # Add log rarity features
-                        model_input["failure_rule_rarity_log"] = np.log1p(failure_rule_rarity)
-                        model_input["failure_job_rarity_log"] = np.log1p(failure_job_rarity)
+                    # Add intercept as last feature
+                    feature_dict["intercept"] = [1.0]
+                    
+                    model_input = pd.DataFrame(feature_dict)
 
                     try:
-                        # Apply multi-hot encoding for failure_newer - create dataframe
+                        # Process categorical features efficiently with a dictionary
+                        # This prevents DataFrame fragmentation
+                        feature_dict = {}
+                        
+                        # Process categorical features in fixed order
+                        categorical_order = ["failure_rule", "job_name", "workflow_name", "failure_job"]
+                        for feature in categorical_order:
+                            if feature in self._mlbs and feature in categorical_values:
+                                mlb = self._mlbs[feature]
+                                binary_matrix = mlb.transform([categorical_values[feature]])
+                                feature_names = [f"{feature}_{i}" for i in range(binary_matrix.shape[1])]
+                                for i, name in enumerate(feature_names):
+                                    feature_dict[name] = [binary_matrix[0][i]]
+                        
+                        # Add failure_newer features
                         failure_newer_binary = self._mlb_failure_newer.transform([failure_newer_list])
-                        failure_combo_df = pd.DataFrame(
-                            failure_newer_binary, 
-                            columns=self._failure_combo_names,
-                            index=model_input.index
-                        )
-                            
-                        # Apply multi-hot encoding for newer_failure_rules - create dataframe
+                        for i, name in enumerate(self._failure_combo_names):
+                            feature_dict[name] = [failure_newer_binary[0][i]]
+                        
+                        # Add rules features
                         rules_binary = self._mlb_rules.transform([newer_failures])
-                        rules_df = pd.DataFrame(
-                            rules_binary, 
-                            columns=self._rules_names,
-                            index=model_input.index
-                        )
+                        for i, name in enumerate(self._rules_names):
+                            feature_dict[name] = [rules_binary[0][i]]
+                        
+                        # Create a new DataFrame with all features at once
+                        categorical_df = pd.DataFrame(feature_dict)
+                        
+                        # Debug categorical features
+                        if len(categorical_df.columns) > 0:
+                            print(f"First 10 categorical features: {list(categorical_df.columns[:10])}")
+                        
+                        # Debug feature names
+                        print(f"Base feature count: {len(model_input.columns)}")
+                        print(f"Categorical feature count: {len(categorical_df.columns)}")
+                        
+                        # Concatenate with the base dataframe
+                        model_input = pd.concat([model_input, categorical_df], axis=1)
+                        
+                        # Debug final feature names
+                        print(f"Final feature count: {len(model_input.columns)}")
+                        print(f"First 10 feature names: {list(model_input.columns[:10])}")
+                        
+                        # Debug final model input
+                        print(f"Final model input shape: {model_input.shape}")
+                        
+                        # Save expected feature names if available
+                        expected_features = None
+                        if hasattr(self._pattern_model, 'feature_names_in_'):
+                            expected_features = self._pattern_model.feature_names_in_
+                        elif hasattr(self._pattern_model, '_final_estimator') and hasattr(self._pattern_model._final_estimator, 'feature_names_in_'):
+                            expected_features = self._pattern_model._final_estimator.feature_names_in_
+                        
+                        # If we have expected features, let's reindex the dataframe to match
+                        if expected_features is not None:
+                            print(f"Expected {len(expected_features)} features, we have {len(model_input.columns)}")
+                            # Check if we're missing any features
+                            missing_features = [f for f in expected_features if f not in model_input.columns]
+                            if missing_features:
+                                print(f"Missing {len(missing_features)} features, like: {missing_features[:5]}")
+                                # Add missing features with zero values
+                                for feature in missing_features:
+                                    model_input[feature] = 0
                             
-                        # Concatenate all dataframes at once instead of adding columns one by one
-                        model_input = pd.concat(
-                            [model_input.drop(columns=["failure_newer", "newer_failure_rules"]), 
-                             failure_combo_df, 
-                             rules_df], 
-                            axis=1
-                        )
+                            # Now reindex to ensure the exact order matches
+                            model_input = model_input.reindex(columns=expected_features)
+                            print(f"Reindexed dataframe to expected feature order")
                         
                         # Get probability from model
                         probability = self._pattern_model.predict_proba(model_input)[0, 1]
