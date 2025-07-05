@@ -262,6 +262,7 @@ jobs:
           ${CONDA_RUN} python -m pip install build==1.2.2
           echo "Successfully installed Python build package"
 
+          export BUILD_AGAINST_ALL_FFMPEG_FROM_S3=1
           if [[ -z "${ENV_SCRIPT}" ]]; then
             ${CONDA_RUN} ${{ inputs.build-command }}
           else
