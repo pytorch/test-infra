@@ -289,8 +289,8 @@ jobs:
           else
             ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
           fi
-      - name: Build the wheel (python-build-package) Arm64
-        if: ${{ inputs.architecture == 'arm64' }}
+      - name: Build the wheel (bdist_wheel) Arm64
+        if: inputs.architecture == 'arm64'
         env:
           SRC_DIR: ${{ inputs.repository }}
           DEPENDENCIES_DIR: c:\temp\dependencies\
@@ -306,9 +306,6 @@ jobs:
           call .venv\Scripts\activate.bat
 
           pip install --upgrade setuptools==72.1.0
-          pip install build==1.2.2
-          echo Successfully installed Python build package
-          ${{ inputs.build-command }}
       - name: Run post-script
         working-directory: ${{ inputs.repository }}
         env:
