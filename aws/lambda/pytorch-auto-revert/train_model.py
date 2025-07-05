@@ -1,6 +1,6 @@
 import pandas as pd
 import ast
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, SGDClassifier
 from sklearn.metrics import precision_score, recall_score, f1_score
 from sklearn.feature_selection import SelectFromModel
 from sklearn.model_selection import train_test_split
@@ -9,6 +9,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer, make_column_transformer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MultiLabelBinarizer
+import numpy as np
 import joblib
 
 # Load CSV
@@ -18,6 +19,34 @@ df = pd.read_csv("autorevert_patterns.csv")
 df["newer_failure_rules"] = df["newer_failure_rules"].apply(ast.literal_eval)
 
 df["failure_job"] = df["failure_rule"] + "||" + df["job_name"]
+
+# Calculate failure rarity metrics
+print("\nGenerating failure rarity features...")
+
+# Count occurrences of each failure rule
+failure_counts = df["failure_rule"].value_counts()
+total_failures = len(df)
+
+# Calculate rarity scores (inverse of frequency)
+failure_rarity = 1 / (failure_counts / total_failures)
+failure_rarity = failure_rarity / failure_rarity.max()  # Normalize to 0-1
+
+# Calculate failure-job combination rarity
+failure_job_counts = df["failure_job"].value_counts()
+failure_job_rarity = 1 / (failure_job_counts / total_failures)
+failure_job_rarity = failure_job_rarity / failure_job_rarity.max()  # Normalize to 0-1
+
+# Add rarity scores to the dataframe
+df["failure_rule_rarity"] = df["failure_rule"].map(lambda x: failure_rarity[x])
+df["failure_job_rarity"] = df["failure_job"].map(lambda x: failure_job_rarity[x])
+
+# Calculate log of rarity for better numerical properties
+df["failure_rule_rarity_log"] = np.log1p(df["failure_rule_rarity"])
+df["failure_job_rarity_log"] = np.log1p(df["failure_job_rarity"])
+
+print("Rarity statistics:")
+print(f"Failure rule rarity - min: {df['failure_rule_rarity'].min():.4f}, max: {df['failure_rule_rarity'].max():.4f}, mean: {df['failure_rule_rarity'].mean():.4f}")
+print(f"Failure job rarity - min: {df['failure_job_rarity'].min():.4f}, max: {df['failure_job_rarity'].max():.4f}, mean: {df['failure_job_rarity'].mean():.4f}")
 
 # Step 1: Generate the list of failure_rule||newer_failure_rule combos per row
 df["failure_newer"] = df.apply(
@@ -61,7 +90,7 @@ failure_newer_df = pd.DataFrame(
 )
 
 rules_df = pd.DataFrame(
-    mlb_rules_result, 
+    mlb_rules_result,
     columns=mlb_rules_names,
     index=X.index
 )
@@ -90,26 +119,30 @@ if y.value_counts().shape[0] > 1:
     }
     print(f"Using class weights: {class_weight}")
 
-# Define model with feature selection and class weights
+# Define model with feature selection and advanced optimization
 model = Pipeline(steps=[
     ("preprocessor", preprocessor),
     ("feature_selection", SelectFromModel(
         estimator=LogisticRegression(
-            penalty="l1", 
-            C=0.05, 
+            penalty="l1",
+            C=0.05,
             solver='liblinear',
             max_iter=10000,
             class_weight=class_weight
         ),
-        threshold="median"  # Select features with importance > median
+        threshold="median"
     )),
-    ("classifier", LogisticRegression(
-        penalty="elasticnet", 
-        solver="saga", 
-        l1_ratio=0.5, 
+    ("classifier", SGDClassifier(
+        loss="modified_huber",
+        penalty="l2",
+        learning_rate="adaptive",
+        eta0=0.1,
         max_iter=10000,
         class_weight=class_weight,
-        C=0.1  # Increase regularization
+        random_state=42,
+        n_jobs=-1,
+        verbose=1,
+        early_stopping=False,
     )),
 ])
 
@@ -135,22 +168,7 @@ try:
     print("Fitted model successfully")
 except Exception as e:
     print(f"Error fitting model: {e}")
-    print("Trying a simpler model...")
-    
-    # Try a simpler model if the first one fails
-    from sklearn.linear_model import SGDClassifier
-    model = Pipeline(steps=[
-        ("preprocessor", preprocessor),
-        ("classifier", SGDClassifier(
-            loss="modified_huber", 
-            penalty="l2",
-            max_iter=1000, 
-            class_weight="balanced",
-            random_state=42
-        )),
-    ])
-    model.fit(X_train, y_train)
-    print("Fitted simpler model successfully")
+    raise
 
 # Add some diagnostics to understand the data and model predictions
 print("\nDiagnostics:")
@@ -181,7 +199,7 @@ if y_pred_proba.shape[1] > 1:
         recall = recall_score(y_test, y_pred_threshold, zero_division=0)
         f1 = f1_score(y_test, y_pred_threshold, zero_division=0)
         threshold_results.append((threshold, precision, recall, f1))
-        
+
         if f1 > best_f1:
             best_f1 = f1
             best_threshold = threshold
@@ -219,7 +237,7 @@ if 'best_threshold' in locals():
     optimal_precision = precision_score(y_test, y_pred_optimal, zero_division=0)
     optimal_recall = recall_score(y_test, y_pred_optimal, zero_division=0)
     optimal_f1 = f1_score(y_test, y_pred_optimal, zero_division=0)
-    
+
     print(f"\nOptimal threshold ({best_threshold:.4f}) metrics:")
     print(f"Testing Precision: {optimal_precision:.4f}")
     print(f"Testing Recall: {optimal_recall:.4f}")
@@ -245,7 +263,7 @@ if 'best_threshold' in locals():
     optimal_precision_full = precision_score(y, y_pred_optimal_full, zero_division=0)
     optimal_recall_full = recall_score(y, y_pred_optimal_full, zero_division=0)
     optimal_f1_full = f1_score(y, y_pred_optimal_full, zero_division=0)
-    
+
     print(f"\nFull Dataset (optimal threshold {best_threshold:.4f}):")
     print(f"Precision: {optimal_precision_full:.4f}")
     print(f"Recall: {optimal_recall_full:.4f}")
@@ -258,15 +276,15 @@ try:
     print("\nFeature selection information:")
     feature_selector = model.named_steps['feature_selection']
     selected_mask = feature_selector.get_support()
-    
+
     # Get original feature names from the preprocessor plus our binary encoded features
     try:
         original_feature_names = list(preprocessor.get_feature_names_out()) + list(mlb_failure_newer_names) + list(mlb_rules_names)
-        
+
         # Number of selected features
         n_selected = sum(selected_mask)
         print(f"Number of features selected: {n_selected} out of {len(selected_mask)}")
-        
+
         # Get the selected feature names
         selected_features = [name for name, selected in zip(original_feature_names, selected_mask) if selected]
         print(f"\nTop 20 selected features (alphabetical):")
@@ -274,18 +292,18 @@ try:
             print(f"- {feature}")
     except Exception as e:
         print(f"Could not get selected feature names: {e}")
-    
+
     # Get coefficients from the final classifier
     coefficients = model.named_steps['classifier'].coef_[0]
-    
+
     # For the final model, we need to get the feature names after selection
     # Since we can't directly access these, we'll display coefficients by their magnitude
     sorted_coef_idx = sorted(range(len(coefficients)), key=lambda i: abs(coefficients[i]), reverse=True)
-    
+
     print("\nTop 10 most important features by coefficient magnitude:")
     for i in sorted_coef_idx[:10]:
         print(f"Feature #{i}: {coefficients[i]:.4f}")
-    
+
     print("\nBottom 10 features by coefficient magnitude:")
     for i in sorted_coef_idx[-10:]:
         print(f"Feature #{i}: {coefficients[i]:.4f}")
@@ -296,6 +314,11 @@ except Exception as e:
 # Save model and the multilabel binarizers for later use
 print("\nSaving model and metadata...")
 joblib.dump(model, "model.joblib")
+
+# Convert Series to dictionaries for storage
+failure_rarity_dict = failure_rarity.to_dict()
+failure_job_rarity_dict = failure_job_rarity.to_dict()
+
 joblib.dump({
     'mlb_failure_newer': mlb_failure_newer,
     'mlb_rules': mlb_rules,
@@ -303,7 +326,9 @@ joblib.dump({
         'failure_combo': mlb_failure_newer_names,
         'rules': mlb_rules_names
     },
-    'optimal_threshold': best_threshold if 'best_threshold' in locals() else 0.5
+    'optimal_threshold': best_threshold if 'best_threshold' in locals() else 0.5,
+    'failure_rarity': failure_rarity_dict,
+    'failure_job_rarity': failure_job_rarity_dict
 }, "multilabel_binarizers.joblib")
 
 print("Done. Model and metadata saved to disk.")

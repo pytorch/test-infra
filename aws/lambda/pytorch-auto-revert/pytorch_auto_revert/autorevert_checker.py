@@ -88,6 +88,10 @@ class AutorevertPatternChecker:
             self._optimal_threshold = metadata.get('optimal_threshold', 0.5)
             self._failure_combo_names = metadata['feature_names']['failure_combo']
             self._rules_names = metadata['feature_names']['rules']
+            
+            # Load rarity dictionaries if available
+            self._failure_rarity = metadata.get('failure_rarity', {})
+            self._failure_job_rarity = metadata.get('failure_job_rarity', {})
         except Exception as e:
             print(f"Failed to load model or metadata: {e}")
             self._pattern_model = None  # Fallback if model loading fails
@@ -381,6 +385,20 @@ class AutorevertPatternChecker:
                         "failure_newer": [failure_newer_list],
                         "intercept": [1.0],  # Add intercept term
                     })
+                    
+                    # Add rarity features if available
+                    if hasattr(self, '_failure_rarity') and hasattr(self, '_failure_job_rarity'):
+                        # Default values if keys don't exist
+                        failure_rule_rarity = self._failure_rarity.get(failure_rule, 0.5)
+                        failure_job_rarity = self._failure_job_rarity.get(failure_job, 0.5)
+                        
+                        # Add rarity features
+                        model_input["failure_rule_rarity"] = failure_rule_rarity
+                        model_input["failure_job_rarity"] = failure_job_rarity
+                        
+                        # Add log rarity features
+                        model_input["failure_rule_rarity_log"] = np.log1p(failure_rule_rarity)
+                        model_input["failure_job_rarity_log"] = np.log1p(failure_job_rarity)
 
                     try:
                         # Apply multi-hot encoding for failure_newer - create dataframe
