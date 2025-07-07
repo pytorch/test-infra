@@ -374,6 +374,24 @@ variable "retry_scale_up_chron_hud_query_url" {
   default     = ""
 }
 
+variable "enable_scale_cycle" {
+  description = "Enable the scale cycle lambda for runner reuse."
+  type        = bool
+  default     = false
+}
+
+variable "scale_cycle_schedule_expression" {
+  description = "Scheduler expression for runner reuse cycle."
+  type        = string
+  default     = "cron(*/5 * * * ? *)" # every 5 minutes
+}
+
+variable "lambda_timeout_scale_cycle" {
+  description = "Time out for the scale cycle lambda in seconds."
+  type        = number
+  default     = 900
+}
+
 variable "wiz_secret_arn" {
   description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
   type        = string
