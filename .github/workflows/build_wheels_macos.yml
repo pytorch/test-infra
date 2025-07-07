@@ -165,6 +165,7 @@ jobs:
           conda info
           ${CONDA_RUN} python3 -m pip install delocate==0.10.7
       - name: Install torch dependency
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
@@ -208,6 +209,7 @@ jobs:
       - name: Build the wheel (setup-py)
         if: ${{ inputs.build-platform == 'setup-py' }}
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
@@ -223,6 +225,7 @@ jobs:
       - name: Delocate wheel
         if: ${{ inputs.delocate-wheel }}
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           ${CONDA_RUN} DYLD_FALLBACK_LIBRARY_PATH="${CONDA_ENV}/lib" delocate-wheel -v --ignore-missing-dependencies dist/*.whl
