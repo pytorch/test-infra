@@ -332,27 +332,63 @@ batch_size = 200
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-# Define PyTorch model - linear SVM
-class LinearSVM(nn.Module):
-    def __init__(self, input_dim):
-        super(LinearSVM, self).__init__()
-
-        # Single linear layer for linear SVM
-        self.linear = nn.Linear(input_dim, 1)
-
-        # Initialize weights using Xavier initialization
-        nn.init.xavier_uniform_(self.linear.weight)
+# Define PyTorch model - kernel SVM with RBF kernel
+class KernelSVM(nn.Module):
+    def __init__(self, input_dim, num_support_vectors=100, gamma=0.01):
+        super(KernelSVM, self).__init__()
         
-        # Initialize bias to zero
-        nn.init.zeros_(self.linear.bias)
-
+        # Number of support vectors to use (randomly initialized and learned)
+        self.num_support_vectors = num_support_vectors
+        
+        # Gamma parameter for RBF kernel (controls the 'width' of the Gaussian)
+        self.gamma = gamma
+        
+        # Initialize support vectors randomly from N(0, 0.1)
+        # These will be learned during training
+        self.support_vectors = nn.Parameter(torch.randn(num_support_vectors, input_dim) * 0.1)
+        
+        # Initialize weights for each support vector
+        self.weights = nn.Parameter(torch.randn(num_support_vectors, 1) * 0.01)
+        
+        # Initialize bias
+        self.bias = nn.Parameter(torch.zeros(1))
+        
+    def rbf_kernel(self, x, support_vectors):
+        # Calculate squared Euclidean distance between each pair of points
+        # Shape: [batch_size, num_support_vectors]
+        batch_size = x.size(0)
+        x_norm = torch.sum(x**2, dim=1).view(batch_size, 1)
+        sv_norm = torch.sum(support_vectors**2, dim=1).view(1, self.num_support_vectors)
+        
+        # ||x-y||² = ||x||² + ||y||² - 2*x·y
+        distances = x_norm + sv_norm - 2.0 * torch.mm(x, support_vectors.t())
+        
+        # RBF kernel: K(x,y) = exp(-gamma * ||x-y||²)
+        kernel_values = torch.exp(-self.gamma * distances)
+        return kernel_values
+    
     def forward(self, x):
-        # Raw output - no activation function for SVM
-        return self.linear(x)
+        # Apply RBF kernel between input and support vectors
+        # Output shape: [batch_size, num_support_vectors]
+        kernel_outputs = self.rbf_kernel(x, self.support_vectors)
+        
+        # Calculate final output: sum(kernel_outputs * weights) + bias
+        # Shape: [batch_size, 1]
+        outputs = torch.mm(kernel_outputs, self.weights) + self.bias
+        
+        return outputs
 
 # Set input dimension based on the number of features
 input_dim = X_train.shape[1]
-model = LinearSVM(input_dim).to(device)
+
+# Create kernel SVM model with appropriate hyperparameters
+# - num_support_vectors: controls model capacity (higher = more complex model)
+# - gamma: controls the width of the Gaussian kernel (higher = narrower kernels)
+model = KernelSVM(
+    input_dim=input_dim, 
+    num_support_vectors=min(200, int(X_train.shape[0] * 0.1)),  # Use 10% of training samples or max 200
+    gamma=0.01  # Start with moderate gamma value
+).to(device)
 
 # Define hinge loss for SVM
 class HingeLoss(nn.Module):
@@ -378,23 +414,28 @@ class HingeLoss(nn.Module):
 pos_weight = sum(1-y_train.values)/sum(y_train.values)
 criterion = HingeLoss(class_weight=pos_weight)
 
-# SGD optimizer optimized for SVM training
-# - Lower learning rate for stability
-# - Higher momentum to escape local minima
-# - Stronger L2 regularization (weight_decay) to prevent overfitting on high-dim data
-optimizer = optim.SGD(model.parameters(), lr=0.005, momentum=0.95, weight_decay=1e-3, nesterov=True)
-
-# More responsive learning rate scheduler with cosine annealing
-# This helps escape plateaus and local minima more effectively
-scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
-    optimizer, 
-    T_0=20,        # Initial restart period
-    T_mult=2,      # Increase period after each restart
-    eta_min=1e-5   # Minimum learning rate
+# Use Adam optimizer for kernel SVM - better for optimizing the support vectors
+# - Adaptive learning rates per parameter
+# - Momentum-based optimization built-in
+# - Lower learning rate for stability with complex kernel calculations
+optimizer = optim.Adam(
+    model.parameters(), 
+    lr=0.001,              # Lower learning rate for stability
+    betas=(0.9, 0.999),    # Default momentum parameters
+    weight_decay=1e-4      # L2 regularization to prevent overfitting
 )
 
-# Training function optimized for SVM with cosine annealing
-def train_model(model, train_loader, criterion, optimizer, epochs=2000):
+# Learning rate scheduler with warm restarts for kernel SVM
+# Slightly longer initial period to allow more exploration of support vector space
+scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    optimizer, 
+    T_0=30,        # Initial restart period (longer for kernel SVM)
+    T_mult=2,      # Increase period after each restart
+    eta_min=1e-6   # Lower minimum learning rate
+)
+
+# Training function optimized for kernel SVM with memory management
+def train_model(model, train_loader, criterion, optimizer, epochs=1000):
     model.train()
     epoch_losses = []
     best_val_loss = float('inf')
@@ -428,8 +469,14 @@ def train_model(model, train_loader, criterion, optimizer, epochs=2000):
         if (epoch + 1) % 5 == 0:
             print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, LR: {optimizer.param_groups[0]['lr']:.2e}")
             
-            # Calculate validation loss
+                # Calculate validation loss
             val_loss = validate_model(model, test_loader, criterion)
+            
+            # Log support vector norms for diagnostic purposes
+            if hasattr(model, 'support_vectors'):
+                sv_norm = torch.norm(model.support_vectors, dim=1).mean().item()
+                w_norm = torch.norm(model.weights).item()
+                print(f"    Support vector avg norm: {sv_norm:.4f}, Weight norm: {w_norm:.4f}")
             
             # Early stopping with patience
             if val_loss < best_val_loss * (1 - no_improvement_threshold):
@@ -461,8 +508,19 @@ def validate_model(model, test_loader, criterion):
 def evaluate_model(model, X_tensor, y_tensor, threshold=0.5):
     model.eval()
     with torch.no_grad():
-        # Apply sigmoid since our model now outputs logits
-        y_pred_logits = model(X_tensor).squeeze().cpu().numpy()
+        # Use batching for kernel SVM to avoid memory issues
+        batch_size = 500
+        num_samples = X_tensor.shape[0]
+        y_pred_logits = []
+        
+        # Process in batches for kernel method memory efficiency
+        for i in range(0, num_samples, batch_size):
+            batch_end = min(i + batch_size, num_samples)
+            batch_output = model(X_tensor[i:batch_end]).squeeze().cpu().numpy()
+            y_pred_logits.append(batch_output)
+            
+        # Combine batch results    
+        y_pred_logits = np.concatenate(y_pred_logits)
         y_pred_proba = 1 / (1 + np.exp(-y_pred_logits))  # sigmoid
         y_pred = (y_pred_proba >= threshold).astype(int)
         y_true = y_tensor.cpu().numpy()
@@ -483,8 +541,19 @@ def evaluate_model(model, X_tensor, y_tensor, threshold=0.5):
 def find_optimal_threshold(model, X_tensor, y_tensor):
     model.eval()
     with torch.no_grad():
-        # Apply sigmoid since our model now outputs logits
-        y_pred_logits = model(X_tensor).squeeze().cpu().numpy()
+        # Use batching for kernel SVM to avoid memory issues
+        batch_size = 500
+        num_samples = X_tensor.shape[0]
+        y_pred_logits = []
+        
+        # Process in batches for kernel method memory efficiency
+        for i in range(0, num_samples, batch_size):
+            batch_end = min(i + batch_size, num_samples)
+            batch_output = model(X_tensor[i:batch_end]).squeeze().cpu().numpy()
+            y_pred_logits.append(batch_output)
+            
+        # Combine batch results    
+        y_pred_logits = np.concatenate(y_pred_logits)
         y_pred_proba = 1 / (1 + np.exp(-y_pred_logits))  # sigmoid
         y_true = y_tensor.cpu().numpy()
 
@@ -512,8 +581,14 @@ print(f"Training: {y_train.value_counts()}")
 print(f"Testing: {y_test.value_counts()}")
 
 # Train the model
-print("\nTraining PyTorch model...")
-train_losses = train_model(model, train_loader, criterion, optimizer, epochs=2000)  # More epochs for convergence
+print("\nTraining PyTorch kernel SVM model...")
+
+# Clear CUDA cache if using GPU to free memory before training
+if torch.cuda.is_available():
+    torch.cuda.empty_cache()
+    
+# Run training with smaller epoch limit for kernel SVM (more compute-intensive)
+train_losses = train_model(model, train_loader, criterion, optimizer, epochs=1000)
 
 # Evaluate on test set
 print("\nEvaluating model on test set...")
