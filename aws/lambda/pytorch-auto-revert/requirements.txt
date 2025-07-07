@@ -2,7 +2,7 @@ clickhouse-connect==0.8.14
 PyGithub==2.6.1
 python-dotenv>=1.0.0
 
-joblib
-pandas
 scikit-learn
-scipy
+pandas
+numpy
+torch
