@@ -115,6 +115,10 @@ module "runners" {
 
   retry_scale_up_chron_hud_query_url = var.retry_scale_up_chron_hud_query_url
 
+  enable_scale_cycle               = var.enable_scale_cycle
+  scale_cycle_schedule_expression  = var.scale_cycle_schedule_expression
+  lambda_timeout_scale_cycle       = var.lambda_timeout_scale_cycle
+
   must_have_issues_labels = var.must_have_issues_labels
   cant_have_issues_labels = var.cant_have_issues_labels
 
