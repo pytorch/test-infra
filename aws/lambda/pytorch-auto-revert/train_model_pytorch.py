@@ -332,32 +332,54 @@ batch_size = 200
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-# Define PyTorch model - simple logistic regression model
-class LogisticRegression(nn.Module):
+# Define PyTorch model - linear SVM
+class LinearSVM(nn.Module):
     def __init__(self, input_dim):
-        super(LogisticRegression, self).__init__()
+        super(LinearSVM, self).__init__()
 
-        # Single linear layer without activation (will use BCEWithLogitsLoss)
+        # Single linear layer for linear SVM
         self.linear = nn.Linear(input_dim, 1)
 
         # Initialize weights using Xavier initialization
         nn.init.xavier_uniform_(self.linear.weight)
+        
+        # Initialize bias to zero
+        nn.init.zeros_(self.linear.bias)
 
     def forward(self, x):
-        # No sigmoid here - we'll use BCEWithLogitsLoss which applies sigmoid internally
+        # Raw output - no activation function for SVM
         return self.linear(x)
 
 # Set input dimension based on the number of features
 input_dim = X_train.shape[1]
-model = LogisticRegression(input_dim).to(device)
+model = LinearSVM(input_dim).to(device)
 
-# Define loss function and optimizer
-# Use BCELoss for binary classification with class weights
-pos_weight = torch.tensor([sum(1-y_train.values)/sum(y_train.values)]).to(device)
-criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+# Define hinge loss for SVM
+class HingeLoss(nn.Module):
+    def __init__(self, class_weight=None):
+        super(HingeLoss, self).__init__()
+        self.class_weight = class_weight
+        
+    def forward(self, outputs, targets):
+        # Convert binary targets from 0/1 to -1/1 as required for SVM
+        targets = 2 * targets - 1
+        # Calculate hinge loss: max(0, 1 - y * f(x))
+        loss = torch.max(torch.zeros_like(outputs), 1 - targets * outputs)
+        
+        # Apply class weights if provided
+        if self.class_weight is not None:
+            weight_mask = torch.ones_like(targets)
+            weight_mask[targets > 0] = self.class_weight
+            loss = loss * weight_mask
+            
+        return loss.mean()
 
-# Adam optimizer with L2 regularization
-optimizer = optim.Adam(model.parameters(), lr=0.005, weight_decay=1e-4)  # weight_decay is L2 regularization
+# Calculate class weight for imbalanced dataset
+pos_weight = sum(1-y_train.values)/sum(y_train.values)
+criterion = HingeLoss(class_weight=pos_weight)
+
+# SGD optimizer which is better for SVMs with L2 regularization
+optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
 
 # Learning rate scheduler to reduce LR on plateau - removing verbose parameter for compatibility
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.5)
