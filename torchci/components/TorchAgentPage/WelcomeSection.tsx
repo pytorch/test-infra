@@ -72,10 +72,18 @@ export const WelcomeSection: React.FC<WelcomeSectionProps> = ({
             onChange={onQueryChange}
             margin="normal"
             multiline
-            rows={3}
+            minRows={3}
+            maxRows={10}
             placeholder="Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
             variant="outlined"
             disabled={isLoading}
+            sx={{
+              "& .MuiInputBase-root": {
+                "& textarea": {
+                  resize: "vertical",
+                },
+              },
+            }}
             onKeyDown={(e) => {
               if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
                 e.preventDefault();
