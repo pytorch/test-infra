@@ -159,7 +159,7 @@ jobs:
           cat "${{ inputs.env-var-script }}" >> "${BUILD_ENV_FILE}"
       - name: Install delocate-wheel
         if: ${{ inputs.delocate-wheel }}
-	shell: bash -l {0}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           conda info
