@@ -100,6 +100,12 @@ variable "scale_up_chron_schedule_expression" {
   default     = "cron(*/10 * * * ? *)" # every 10 minutes
 }
 
+variable "scale_cycle_schedule_expression" {
+  description = "Scheduler expression for EBS volume replacement cycle."
+  type        = string
+  default     = "cron(*/5 * * * ? *)" # every 5 minutes
+}
+
 variable "minimum_running_time_in_minutes" {
   description = "The time an ec2 action runner should be running at minimum before terminated if non busy."
   type        = number
@@ -120,6 +126,12 @@ variable "lambda_timeout_scale_up" {
 
 variable "lambda_timeout_scale_up_chron" {
   description = "Time out for the scale up chron lambda in seconds."
+  type        = number
+  default     = 900
+}
+
+variable "lambda_timeout_scale_cycle" {
+  description = "Time out for the scale cycle lambda in seconds."
   type        = number
   default     = 900
 }
@@ -322,4 +334,10 @@ variable "min_available_runners" {
 variable "retry_scale_up_chron_hud_query_url" {
   description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
   type        = string
+}
+
+variable "enable_scale_cycle" {
+  description = "Enable the scale cycle lambda for EBS volume replacement."
+  type        = bool
+  default     = false
 }
