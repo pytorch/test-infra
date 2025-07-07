@@ -182,6 +182,7 @@ jobs:
           script: ${{ inputs.pre-script }}
       - name: Build clean
         working-directory: ${{ inputs.repository }}
+        shell: bash -l {0}
         run: |
           set -euxo pipefail
           # shellcheck disable=SC1090
