@@ -189,7 +189,7 @@ jobs:
           source "${BUILD_ENV_FILE}"
           ${CONDA_RUN} which python3
           ${CONDA_RUN} conda list
-          ${CONDA_RUN} python3 setup.py clean
+          ${CONDA_RUN} python setup.py clean
       - name: Build the wheel (python-build-package)
         if: ${{ inputs.build-platform == 'python-build-package' }}
         working-directory: ${{ inputs.repository }}
