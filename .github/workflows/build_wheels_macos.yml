@@ -171,7 +171,7 @@ jobs:
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
-          ${CONDA_RUN} ${PIP_INSTALL_TORCH}
+          ${CONDA_RUN} ${PIP_INSTALL_TORCH} 
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -187,6 +187,8 @@ jobs:
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} which python3
+          ${CONDA_RUN} conda list
           ${CONDA_RUN} python3 setup.py clean
       - name: Build the wheel (python-build-package)
         if: ${{ inputs.build-platform == 'python-build-package' }}
