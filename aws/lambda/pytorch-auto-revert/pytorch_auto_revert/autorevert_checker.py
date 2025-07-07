@@ -79,27 +79,21 @@ class AutorevertPatternChecker:
         METADATA_PATH = "improved_metadata.joblib"  # Path to the improved metadata
         
         try:
-            # Load model and extract/print expected feature names
+            # Load model and extract expected feature names
             self._pattern_model = load(MODEL_PATH)
             self._expected_features = None
             
+            # Find the expected feature names from the model
             if hasattr(self._pattern_model, 'feature_names_in_'):
                 self._expected_features = self._pattern_model.feature_names_in_
-                print(f"Model has {len(self._pattern_model.feature_names_in_)} features")
-                print(f"First 10 model features: {self._pattern_model.feature_names_in_[:10]}")
             elif hasattr(self._pattern_model, '_final_estimator') and hasattr(self._pattern_model._final_estimator, 'feature_names_in_'):
                 self._expected_features = self._pattern_model._final_estimator.feature_names_in_
-                print(f"Found {len(self._expected_features)} features in final estimator")
             elif hasattr(self._pattern_model, 'named_steps'):
                 # Try to find feature names in the pipeline steps
                 for name, step in self._pattern_model.named_steps.items():
                     if hasattr(step, 'feature_names_in_'):
                         self._expected_features = step.feature_names_in_
-                        print(f"Found {len(self._expected_features)} features in {name} step")
                         break
-            
-            if self._expected_features is not None:
-                print(f"Saved {len(self._expected_features)} expected feature names")
             
             # Load metadata with binarizers and threshold
             metadata = load(METADATA_PATH)
@@ -110,11 +104,6 @@ class AutorevertPatternChecker:
             self._failure_combo_names = metadata['feature_names']['failure_combo']
             self._rules_names = metadata['feature_names']['rules']
             self._feature_id_maps = metadata.get('feature_id_maps', {})
-            
-            # Debug feature counts
-            print(f"MLBs count: {len(self._mlbs)}")
-            print(f"Failure combo features: {len(self._failure_combo_names)}")
-            print(f"Rules features: {len(self._rules_names)}")
             
             # Load bucket information
             self._bucket_info = metadata.get('bucket_info', {})
@@ -468,45 +457,20 @@ class AutorevertPatternChecker:
                         # Create a new DataFrame with all features at once
                         categorical_df = pd.DataFrame(feature_dict)
                         
-                        # Debug categorical features
-                        if len(categorical_df.columns) > 0:
-                            print(f"First 10 categorical features: {list(categorical_df.columns[:10])}")
-                        
-                        # Debug feature names
-                        print(f"Base feature count: {len(model_input.columns)}")
-                        print(f"Categorical feature count: {len(categorical_df.columns)}")
+                        # Categorical DataFrame is ready
                         
                         # Concatenate with the base dataframe
                         model_input = pd.concat([model_input, categorical_df], axis=1)
                         
-                        # Debug final feature names
-                        print(f"Final feature count: {len(model_input.columns)}")
-                        print(f"First 10 feature names: {list(model_input.columns[:10])}")
-                        
-                        # Debug final model input
-                        print(f"Final model input shape: {model_input.shape}")
-                        
-                        # Save expected feature names if available
-                        expected_features = None
-                        if hasattr(self._pattern_model, 'feature_names_in_'):
-                            expected_features = self._pattern_model.feature_names_in_
-                        elif hasattr(self._pattern_model, '_final_estimator') and hasattr(self._pattern_model._final_estimator, 'feature_names_in_'):
-                            expected_features = self._pattern_model._final_estimator.feature_names_in_
-                        
-                        # If we have expected features, let's reindex the dataframe to match
-                        if expected_features is not None:
-                            print(f"Expected {len(expected_features)} features, we have {len(model_input.columns)}")
-                            # Check if we're missing any features
-                            missing_features = [f for f in expected_features if f not in model_input.columns]
-                            if missing_features:
-                                print(f"Missing {len(missing_features)} features, like: {missing_features[:5]}")
-                                # Add missing features with zero values
-                                for feature in missing_features:
-                                    model_input[feature] = 0
+                        # Ensure feature order matches what the model expects
+                        if hasattr(self, '_expected_features') and self._expected_features is not None:
+                            # Add any missing features with zero values
+                            missing_features = [f for f in self._expected_features if f not in model_input.columns]
+                            for feature in missing_features:
+                                model_input[feature] = 0
                             
-                            # Now reindex to ensure the exact order matches
-                            model_input = model_input.reindex(columns=expected_features)
-                            print(f"Reindexed dataframe to expected feature order")
+                            # Reindex to ensure the exact order matches
+                            model_input = model_input.reindex(columns=self._expected_features)
                         
                         # Get probability from model
                         probability = self._pattern_model.predict_proba(model_input)[0, 1]

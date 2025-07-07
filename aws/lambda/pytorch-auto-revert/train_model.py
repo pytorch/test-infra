@@ -107,18 +107,6 @@ preprocessor = make_column_transformer(
     remainder="passthrough"  # includes boolean fields and our new binary features
 )
 
-# Check class distribution
-print("\nClass distribution:")
-print(y.value_counts())
-class_weight = None
-if y.value_counts().shape[0] > 1:
-    # Calculate class weights
-    class_weight = {
-        0: 1.0,
-        1: y.value_counts()[0] / y.value_counts()[1]  # Weight positive examples more if there are fewer
-    }
-    print(f"Using class weights: {class_weight}")
-
 # Define model with feature selection and advanced optimization
 model = Pipeline(steps=[
     ("preprocessor", preprocessor),
@@ -128,7 +116,7 @@ model = Pipeline(steps=[
             C=0.05,
             solver='liblinear',
             max_iter=10000,
-            class_weight=class_weight
+            class_weight="balanced"
         ),
         threshold="median"
     )),
@@ -138,7 +126,7 @@ model = Pipeline(steps=[
         learning_rate="adaptive",
         eta0=0.1,
         max_iter=10000,
-        class_weight=class_weight,
+        class_weight="balanced",
         random_state=42,
         n_jobs=-1,
         verbose=1,

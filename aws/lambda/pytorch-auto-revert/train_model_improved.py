@@ -39,16 +39,17 @@ for sha, group in sha_groups:
     for feature in categorical_features:
         values = group[feature].unique()
         sha_categorical_values[sha][feature].update(values)
-    
+
     # Handle newer_failure_rules (already a list in each row)
     for _, row in group.iterrows():
         sha_newer_failure_rules[sha].update(row["newer_failure_rules"])
-        
-        # Create failure_newer combinations for this SHA
-        failure_rules = row["failure_rule"]
-        for rule in row["newer_failure_rules"]:
-            sha_failure_newer[sha].add(f"{failure_rules}||{rule}")
-    
+
+    # Process each row for this SHA and create failure_newer combinations based on that row's failure_rule
+    for _, row in group.iterrows():
+        failure_rule = row["failure_rule"]
+        for newer_rule in row["newer_failure_rules"]:
+            sha_failure_newer[sha].add(f"{failure_rule}||{newer_rule}")
+
 # Create new DataFrame with one row per SHA
 improved_rows = []
 
@@ -57,21 +58,21 @@ for sha, groups in sha_groups:
     # All rows for the same SHA should have the same target value
     is_reverted = groups['is_reverted_non_ghfirst'].iloc[0]
     is_reverted_simple = groups['is_reverted'].iloc[0]
-    
+
     # Get all categorical values for this SHA
     feature_values = {}
     for feature in categorical_features:
         feature_values[feature] = list(sha_categorical_values[sha][feature])
-    
+
     # Get all newer_failure_rules for this SHA
     newer_failure_rules = list(sha_newer_failure_rules[sha])
-    
+
     # Get all failure_newer combinations for this SHA
     failure_newer = list(sha_failure_newer[sha])
-    
+
     # Get repeated_failure status - if any row has repeated_failure=True, set it to True
     repeated_failure = groups['repeated_failure'].any()
-    
+
     # Create a new row
     row = {
         'sha': sha,
@@ -107,11 +108,27 @@ failure_job_counts = df["failure_job"].value_counts()
 failure_job_rarity = 1 / (failure_job_counts / total_failures)
 failure_job_rarity = failure_job_rarity / failure_job_rarity.max()  # Normalize to 0-1
 
-# Create buckets for rarity values (10 buckets)
-print("Creating rarity buckets...")
+# Create quantile-based buckets for rarity values (10 buckets)
+print("Creating quantile-based rarity buckets...")
 NUM_BUCKETS = 10
-failure_rule_bucket_edges = np.linspace(0, 1, NUM_BUCKETS+1)
-failure_job_bucket_edges = np.linspace(0, 1, NUM_BUCKETS+1)
+
+# Extract all rarity values from the original dataset
+failure_rule_rarities = [failure_rarity[rule] for rule in df["failure_rule"]]
+failure_job_rarities = [failure_job_rarity[job] for job in df["failure_job"]]
+
+# Create quantile-based bucket edges
+failure_rule_bucket_edges = np.quantile(failure_rule_rarities, np.linspace(0, 1, NUM_BUCKETS+1))
+failure_job_bucket_edges = np.quantile(failure_job_rarities, np.linspace(0, 1, NUM_BUCKETS+1))
+
+# Ensure the first edge is 0 and the last edge is slightly above the maximum value
+failure_rule_bucket_edges[0] = 0
+failure_rule_bucket_edges[-1] = max(failure_rule_rarities) * 1.001
+
+failure_job_bucket_edges[0] = 0
+failure_job_bucket_edges[-1] = max(failure_job_rarities) * 1.001
+
+print(f"Rule rarity bucket edges: {failure_rule_bucket_edges}")
+print(f"Job rarity bucket edges: {failure_job_bucket_edges}")
 
 # Function to assign a value to a bucket
 def get_bucket(value, edges):
@@ -121,7 +138,7 @@ def get_bucket(value, edges):
     return len(edges)-2  # Last bucket for value == 1
 
 # Map rarity values to bucket indexes
-failure_rule_buckets = {rule: get_bucket(rarity, failure_rule_bucket_edges) 
+failure_rule_buckets = {rule: get_bucket(rarity, failure_rule_bucket_edges)
                        for rule, rarity in failure_rarity.items()}
 failure_job_buckets = {job: get_bucket(rarity, failure_job_bucket_edges)
                       for job, rarity in failure_job_rarity.items()}
@@ -138,24 +155,24 @@ for col in rarity_bucket_cols_rule + rarity_bucket_cols_job:
 # Fill bucket columns with 1s when a SHA has a failure_rule or failure_job in that bucket
 for i, row in improved_df.iterrows():
     sha = row['sha']
-    
+
     # Set bucket features for failure rules
     buckets_seen_rule = set()
     for failure_rule in row['failure_rule']:
         if failure_rule in failure_rule_buckets:
             bucket = failure_rule_buckets[failure_rule]
             buckets_seen_rule.add(bucket)
-    
+
     for bucket in buckets_seen_rule:
         improved_df.at[i, f"failure_rule_bucket_{bucket}"] = 1
-    
+
     # Set bucket features for failure jobs
     buckets_seen_job = set()
     for failure_job in row['failure_job']:
         if failure_job in failure_job_buckets:
             bucket = failure_job_buckets[failure_job]
             buckets_seen_job.add(bucket)
-    
+
     for bucket in buckets_seen_job:
         improved_df.at[i, f"failure_job_bucket_{bucket}"] = 1
 
@@ -163,6 +180,8 @@ print(f"Created {NUM_BUCKETS} rarity bucket features for failure rules and {NUM_
 
 # Create clean dataset for training by removing unnecessary columns
 train_df = improved_df.drop(columns=['sha', 'is_reverted'])
+
+# We're not adding rarity features as they didn't improve model performance
 
 print("\nSample data:")
 print(train_df.head())
@@ -181,14 +200,16 @@ print("\nCreating binary features for categorical lists...")
 for feature in categorical_features:
     mlb = MultiLabelBinarizer()
     binary_matrix = mlb.fit_transform(X[feature])
-    feature_names = [f"{feature}_{i}" for i in range(binary_matrix.shape[1])]
-    
+
+    # Use actual category values in column names for better interpretability
+    feature_names = [f"{feature}_{value}" for value in mlb.classes_]
+
     binary_df = pd.DataFrame(
         binary_matrix,
         columns=feature_names,
         index=X.index
     )
-    
+
     mlbs[feature] = mlb
     binary_dfs[feature] = binary_df
     print(f"Created {len(feature_names)} binary features for {feature}")
@@ -196,7 +217,9 @@ for feature in categorical_features:
 # Handle newer_failure_rules
 mlb_rules = MultiLabelBinarizer()
 rules_binary = mlb_rules.fit_transform(X["newer_failure_rules"])
-rules_names = [f"rule_{i}" for i in range(rules_binary.shape[1])]
+
+# Use actual rule values in column names
+rules_names = [f"rule_{rule}" for rule in mlb_rules.classes_]
 rules_df = pd.DataFrame(
     rules_binary,
     columns=rules_names,
@@ -207,6 +230,8 @@ print(f"Created {len(rules_names)} binary features for newer_failure_rules")
 # Handle failure_newer combinations
 mlb_failure_newer = MultiLabelBinarizer()
 failure_newer_binary = mlb_failure_newer.fit_transform(X["failure_newer"])
+
+# Use indices for failure_combo since the values might be too long for column names
 failure_combo_names = [f"failure_combo_{i}" for i in range(failure_newer_binary.shape[1])]
 failure_combo_df = pd.DataFrame(
     failure_newer_binary,
@@ -227,18 +252,6 @@ X['intercept'] = 1.0
 
 print(f"\nFinal dataset dimensions: {X.shape}")
 
-# Check class distribution
-print("\nClass distribution:")
-print(y.value_counts())
-class_weight = None
-if y.value_counts().shape[0] > 1:
-    # Calculate class weights
-    class_weight = {
-        0: 1.0,
-        1: y.value_counts()[0] / y.value_counts()[1]  # Weight positive examples more if there are fewer
-    }
-    print(f"Using class weights: {class_weight}")
-
 # Define model with feature selection and advanced optimization
 model = Pipeline(steps=[
     ("feature_selection", SelectFromModel(
@@ -246,22 +259,23 @@ model = Pipeline(steps=[
             penalty="l1",
             C=0.05,
             solver='liblinear',
-            max_iter=10000,
-            class_weight=class_weight
+            max_iter=20000,
+            class_weight="balanced"
         ),
         threshold="median"
     )),
     ("classifier", SGDClassifier(
         loss="modified_huber",
         penalty="l2",
-        learning_rate="adaptive",
-        eta0=0.1,
-        max_iter=10000,
-        class_weight=class_weight,
+        learning_rate="optimal",
+        average=10,
+        alpha=0.0001,
+        max_iter=200000,
+        tol=1e-15,
+        class_weight="balanced",
         random_state=42,
         n_jobs=-1,
         verbose=1,
-        early_stopping=False,
     )),
 ])
 
@@ -422,6 +436,7 @@ except Exception as e:
 print("\nSaving model and metadata...")
 joblib.dump(model, "improved_model.joblib")
 
+
 # Create a lookup map from internal feature ID to human-readable name
 feature_id_maps = {}
 for feature in categorical_features:
@@ -450,7 +465,18 @@ metadata = {
     'feature_id_maps': feature_id_maps,
     'optimal_threshold': best_threshold if 'best_threshold' in locals() else 0.5,
     'bucket_info': bucket_info,
-    'num_buckets': NUM_BUCKETS
+    'num_buckets': NUM_BUCKETS,
+    'version': '1.3',  # Increment version to track model changes
+    'optimizer_config': {
+        'learning_rate': 'optimal',
+        'average': 10,
+        'alpha': 0.0001,
+        'max_iter': 200000,
+        'tol': 1e-6,
+        'early_stopping': False,
+        'warm_start': True,
+        'shuffle': True
+    }
 }
 
 joblib.dump(metadata, "improved_metadata.joblib")
