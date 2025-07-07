@@ -378,23 +378,36 @@ class HingeLoss(nn.Module):
 pos_weight = sum(1-y_train.values)/sum(y_train.values)
 criterion = HingeLoss(class_weight=pos_weight)
 
-# SGD optimizer which is better for SVMs with L2 regularization
-optimizer = optim.SGD(model.parameters(), lr=0.01, momentum=0.9, weight_decay=1e-4)
+# SGD optimizer optimized for SVM training
+# - Lower learning rate for stability
+# - Higher momentum to escape local minima
+# - Stronger L2 regularization (weight_decay) to prevent overfitting on high-dim data
+optimizer = optim.SGD(model.parameters(), lr=0.005, momentum=0.95, weight_decay=1e-3, nesterov=True)
 
-# Learning rate scheduler to reduce LR on plateau - removing verbose parameter for compatibility
-scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 'min', patience=5, factor=0.5)
+# More responsive learning rate scheduler with cosine annealing
+# This helps escape plateaus and local minima more effectively
+scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    optimizer, 
+    T_0=20,        # Initial restart period
+    T_mult=2,      # Increase period after each restart
+    eta_min=1e-5   # Minimum learning rate
+)
 
-# Training function
-def train_model(model, train_loader, criterion, optimizer, epochs=100):
+# Training function optimized for SVM with cosine annealing
+def train_model(model, train_loader, criterion, optimizer, epochs=2000):
     model.train()
     epoch_losses = []
+    best_val_loss = float('inf')
+    patience = 50  # Allow more epochs without improvement before early stopping
+    patience_counter = 0
+    no_improvement_threshold = 0.001  # Minimum improvement to reset patience counter
 
     for epoch in range(epochs):
         running_loss = 0.0
         for inputs, labels in train_loader:
             optimizer.zero_grad()
 
-            # Forward pass
+            # Forward pass with SVM
             outputs = model(inputs).squeeze()
             loss = criterion(outputs, labels)
 
@@ -402,25 +415,31 @@ def train_model(model, train_loader, criterion, optimizer, epochs=100):
             loss.backward()
             optimizer.step()
 
+            # Accumulate loss
             running_loss += loss.item() * inputs.size(0)
-
+        
+        # Update learning rate with cosine schedule (each epoch)
+        scheduler.step()
+            
         epoch_loss = running_loss / len(train_loader.dataset)
         epoch_losses.append(epoch_loss)
 
-        # Print statistics
-        if (epoch + 1) % 10 == 0:
-            print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}")
-
-            # Validate and update learning rate
+        # Print statistics more frequently to monitor training
+        if (epoch + 1) % 5 == 0:
+            print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, LR: {optimizer.param_groups[0]['lr']:.2e}")
+            
+            # Calculate validation loss
             val_loss = validate_model(model, test_loader, criterion)
-            scheduler.step(val_loss)
-
-            # Print learning rate for debugging
-            print(f"Current learning rate: {optimizer.param_groups[0]['lr']:.2e}")
-
-            # Check early stopping
-            if optimizer.param_groups[0]['lr'] < 1e-6:
-                print("Learning rate too small, stopping training")
+            
+            # Early stopping with patience
+            if val_loss < best_val_loss * (1 - no_improvement_threshold):
+                best_val_loss = val_loss
+                patience_counter = 0
+            else:
+                patience_counter += 1
+                
+            if patience_counter >= patience:
+                print(f"No improvement for {patience} epochs. Early stopping.")
                 break
 
     return epoch_losses
