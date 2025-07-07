@@ -1825,12 +1825,18 @@ export class ScaleCycleMetrics extends ScaleUpMetrics {
   }
 
   scaleCycleRunnerReuseFoundOrg(org: string, runnerType: string) {
-    const dimensions = new Map([['Org', org], ['RunnerType', runnerType]]);
+    const dimensions = new Map([
+      ['Org', org],
+      ['RunnerType', runnerType],
+    ]);
     this.countEntry('run.scaleCycle.runnerReuse.found.org', 1, dimensions);
   }
 
   scaleCycleRunnerReuseFoundRepo(repo: string, runnerType: string) {
-    const dimensions = new Map([['Repo', repo], ['RunnerType', runnerType]]);
+    const dimensions = new Map([
+      ['Repo', repo],
+      ['RunnerType', runnerType],
+    ]);
     this.countEntry('run.scaleCycle.runnerReuse.found.repo', 1, dimensions);
   }
 }

@@ -1,6 +1,6 @@
 import { Config } from './config';
-import { listRunners, RunnerInputParameters, RunnerType, tryReuseRunner } from './runners';
-import { getRepo, getRepoKey, Repo } from './utils';
+import { listRunners, RunnerInputParameters, tryReuseRunner } from './runners';
+import { getRepo, getRepoKey } from './utils';
 import { ScaleCycleMetrics } from './metrics';
 import { getRunnerTypes } from './gh-runners';
 import { createRunnerConfigArgument } from './scale-up';
@@ -15,12 +15,12 @@ export async function scaleCycle(metrics: ScaleCycleMetrics) {
 
   // Make separate calls for each runner type to filter at EC2 level
   const allRunners = await Promise.all(
-    validRunnerTypeNames.map(runnerTypeName => 
+    validRunnerTypeNames.map((runnerTypeName) =>
       listRunners(metrics, {
         containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished', 'RunnerType'],
         runnerType: runnerTypeName,
-      })
-    )
+      }),
+    ),
   );
 
   // Flatten the results

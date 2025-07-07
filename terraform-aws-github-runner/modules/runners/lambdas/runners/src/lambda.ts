@@ -14,7 +14,7 @@ import { scaleDown as scaleDownR } from './scale-runners/scale-down';
 import { scaleUpChron as scaleUpChronR } from './scale-runners/scale-up-chron';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 import { scaleCycle as scaleCycleR } from './scale-runners/scale-cycle';
-  
+
 async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean, number]>, metrics: ScaleUpMetrics) {
   console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
   metrics.exception();
@@ -205,6 +205,7 @@ export async function scaleUpChron(event: ScheduledEvent, context: Context, call
   callback(callbackOutput);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function scaleCycle(event: ScheduledEvent, context: Context, callback: any) {
   // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
   context.callbackWaitsForEmptyEventLoop = false;
@@ -220,8 +221,8 @@ export async function scaleCycle(event: ScheduledEvent, context: Context, callba
 
   let callbackOutput: string | null = null;
 
-  try { 
-    await scaleCycleR(metrics); 
+  try {
+    await scaleCycleR(metrics);
   } catch (e) {
     console.error(e);
     callbackOutput = `Failed to scale cycle: ${e}`;
