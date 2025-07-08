@@ -117,19 +117,6 @@ jobs:
           rm -rfv "${GITHUB_WORKSPACE}"
           mkdir -p "${GITHUB_WORKSPACE}"
           echo "::endgroup::"
-      - name: Clean up leftover miniconda installation
-        continue-on-error: true
-        shell: bash -l {0}
-        run: |
-          brew uninstall --cask --zap --force miniconda || true
-          sed -i '' '/# >>> conda initialize >>>/,/# <<< conda initialize <<</d' ~/.zshrc
-          source ~/.zshrc
-      - name: Test conda removal
-        continue-on-error: true
-        shell: bash -l {0}
-        run: |
-          set -euxo pipefail
-          conda info
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
@@ -226,7 +213,6 @@ jobs:
           fi
           PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           export PYTORCH_VERSION
-          sleep 3600
           
           ${CONDA_RUN} python3 -c "import torch"  
           ${CONDA_RUN} python3 setup.py bdist_wheel
