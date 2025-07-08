@@ -14,8 +14,13 @@ from re import match, search, sub
 from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar
 
 import boto3
-import botocore
-from packaging.version import InvalidVersion, parse as _parse_version, Version
+import botocore  # type: ignore[import]
+from packaging.version import (
+    InvalidVersion,
+    LegacyVersion,
+    parse as _parse_version,
+    Version,
+)
 
 
 S3 = boto3.resource("s3")
@@ -238,7 +243,7 @@ class S3Object:
         return self.key < other.key
 
 
-def safe_parse_version(ver_str: str) -> Version:
+def safe_parse_version(ver_str: str) -> LegacyVersion | Version:
     try:
         return _parse_version(ver_str)
     except InvalidVersion:
@@ -246,7 +251,7 @@ def safe_parse_version(ver_str: str) -> Version:
 
 
 class S3Index:
-    def __init__(self: S3IndexType, objects: List[S3Object], prefix: str) -> None:
+    def __init__(self, objects: List[S3Object], prefix: str) -> None:
         self.objects = objects
         self.prefix = prefix.rstrip("/")
         self.html_name = "index.html"
@@ -256,7 +261,7 @@ class S3Index:
             path.dirname(obj.key) for obj in objects if path.dirname != prefix
         }
 
-    def nightly_packages_to_show(self: S3IndexType) -> List[S3Object]:
+    def nightly_packages_to_show(self) -> List[S3Object]:
         """Finding packages to show based on a threshold we specify
 
         Basically takes our S3 packages, normalizes the version for easier
@@ -326,7 +331,7 @@ class S3Index:
             {self.obj_to_package_name(obj) for obj in self.gen_file_list(subdir)}
         )
 
-    def normalize_package_version(self: S3IndexType, obj: S3Object) -> str:
+    def normalize_package_version(self, obj: S3Object) -> str:
         # removes the GPU specifier from the package name as well as
         # unnecessary things like the file extension, architecture name, etc.
         return sub(r"%2B.*", "", "-".join(path.basename(obj.key).split("-")[:2]))
@@ -498,7 +503,7 @@ class S3Index:
             )
 
     @classmethod
-    def has_public_read(cls: Type[S3IndexType], key: str) -> bool:
+    def has_public_read(cls, key: str) -> bool:
         def is_all_users_group(o) -> bool:
             return (
                 o.get("Grantee", {}).get("URI")
@@ -512,11 +517,11 @@ class S3Index:
         return any(is_all_users_group(x) and can_read(x) for x in acl_grants)
 
     @classmethod
-    def grant_public_read(cls: Type[S3IndexType], key: str) -> None:
+    def grant_public_read(cls, key: str) -> None:
         CLIENT.put_object_acl(Bucket=BUCKET.name, Key=key, ACL="public-read")
 
     @classmethod
-    def fetch_object_names(cls: Type[S3IndexType], prefix: str) -> List[str]:
+    def fetch_object_names(cls, prefix: str) -> List[str]:
         obj_names = []
         for obj in BUCKET.objects.filter(Prefix=prefix):
             is_acceptable = any(
@@ -531,7 +536,7 @@ class S3Index:
             obj_names.append(obj.key)
         return obj_names
 
-    def fetch_metadata(self: S3IndexType) -> None:
+    def fetch_metadata(self) -> None:
         # Add PEP 503-compatible hashes to URLs to allow clients to avoid spurious downloads, if possible.
         regex_multipart_upload = r"^[A-Za-z0-9+/=]+=-[0-9]+$"
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
@@ -565,7 +570,7 @@ class S3Index:
                 if size := response.get("ContentLength"):
                     self.objects[idx].size = int(size)
 
-    def fetch_pep658(self: S3IndexType) -> None:
+    def fetch_pep658(self) -> None:
         def _fetch_metadata(key: str) -> str:
             try:
                 response = CLIENT.head_object(
@@ -573,9 +578,9 @@ class S3Index:
                 )
                 sha256 = base64.b64decode(response.get("ChecksumSHA256")).hex()
                 return sha256
-            except botocore.exceptions.ClientError as e:
+            except botocore.exceptions.ClientError as e:  # type: ignore
                 if e.response["Error"]["Code"] == "404":
-                    return None
+                    return ""
                 raise
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
@@ -592,9 +597,7 @@ class S3Index:
                     self.objects[idx].pep658 = response
 
     @classmethod
-    def from_S3(
-        cls: Type[S3IndexType], prefix: str, with_metadata: bool = True
-    ) -> S3IndexType:
+    def from_S3(cls, prefix: str, with_metadata: bool = True) -> "S3Index":
         prefix = prefix.rstrip("/")
         obj_names = cls.fetch_object_names(prefix)
 
@@ -622,7 +625,7 @@ class S3Index:
         return rc
 
     @classmethod
-    def undelete_prefix(cls: Type[S3IndexType], prefix: str) -> None:
+    def undelete_prefix(cls, prefix: str) -> None:
         paginator = CLIENT.get_paginator("list_object_versions")
         for page in paginator.paginate(Bucket=BUCKET.name, Prefix=prefix):
             for obj in page.get("DeleteMarkers", []):
