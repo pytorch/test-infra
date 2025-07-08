@@ -11,9 +11,9 @@ from contextlib import suppress
 from datetime import datetime
 from os import makedirs, path
 from re import match, search, sub
-from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar
+from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar, Union
 
-import boto3
+import boto3  # type: ignore[import]
 import botocore  # type: ignore[import]
 from packaging.version import (
     InvalidVersion,
@@ -243,7 +243,7 @@ class S3Object:
         return self.key < other.key
 
 
-def safe_parse_version(ver_str: str) -> LegacyVersion | Version:
+def safe_parse_version(ver_str: str) -> Union[LegacyVersion, Version]:
     try:
         return _parse_version(ver_str)
     except InvalidVersion:
