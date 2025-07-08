@@ -578,7 +578,7 @@ class S3Index:
                 )
                 sha256 = base64.b64decode(response.get("ChecksumSHA256")).hex()
                 return sha256
-            except botocore.exceptions.ClientError as e:  # type: ignore
+            except botocore.exceptions.ClientError as e:  # type: ignore[attr-defined]
                 if e.response["Error"]["Code"] == "404":
                     return ""
                 raise
