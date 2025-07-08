@@ -15,12 +15,7 @@ from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar, Union
 
 import boto3  # type: ignore[import]
 import botocore  # type: ignore[import]
-from packaging.version import (
-    InvalidVersion,
-    LegacyVersion,
-    parse as _parse_version,
-    Version,
-)
+from packaging.version import InvalidVersion, parse as _parse_version, Version
 
 
 S3 = boto3.resource("s3")
@@ -243,9 +238,9 @@ class S3Object:
         return self.key < other.key
 
 
-def safe_parse_version(ver_str: str) -> Union[LegacyVersion, Version]:
+def safe_parse_version(ver_str: str) -> Version:
     try:
-        return _parse_version(ver_str)
+        return _parse_version(ver_str)  # type: ignore[return-value]
     except InvalidVersion:
         return Version("0.0.0")
 
