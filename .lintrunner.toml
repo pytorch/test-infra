@@ -295,9 +295,6 @@ code = 'PYFMT'
 include_patterns = [
     '**/*.py',
 ]
-exclude_patterns = [
-    's3_management/**',
-]
 command = [
     'python3',
     'tools/linter/adapters/pyfmt_linter.py',
