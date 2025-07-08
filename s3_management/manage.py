@@ -206,18 +206,10 @@ PACKAGE_ALLOW_LIST = {x.lower() for x in [
     "wheel",
 ]}
 
-# Should match torch-2.0.0.dev20221221+cu118-cp310-cp310-linux_x86_64.whl as:
-# Group 1: torch-2.0.0.dev
-# Group 2: 20221221
-PACKAGE_DATE_REGEX = r"([a-zA-z]*-[0-9.]*.dev)([0-9]*)"
 
 # How many packages should we keep of a specific package?
 KEEP_THRESHOLD = 60
 
-# TODO (huydhn): Clean this up afte https://github.com/pytorch/pytorch/pull/152238
-# is in the release branch, be it via cherry picking to the next release branch
-# cut
-KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH = {datetime(2025, 3, 10, 0, 0)}
 
 S3IndexType = TypeVar('S3IndexType', bound='S3Index')
 
@@ -242,21 +234,6 @@ class S3Object:
 
     def __lt__(self, other):
         return self.key < other.key
-
-
-def extract_package_build_time(full_package_name: str) -> datetime:
-    result = search(PACKAGE_DATE_REGEX, full_package_name)
-    if result is not None:
-        with suppress(ValueError):
-            # Ignore any value errors since they probably shouldn't be hidden anyways
-            return datetime.strptime(result.group(2), "%Y%m%d")
-    return datetime.now()
-
-
-def between_bad_dates(package_build_time: datetime):
-    start_bad = datetime(year=2022, month=8, day=17)
-    end_bad = datetime(year=2022, month=12, day=30)
-    return start_bad <= package_build_time <= end_bad
 
 
 def safe_parse_version(ver_str: str) -> Version:
@@ -301,15 +278,11 @@ class S3Index:
         for obj in all_sorted_packages:
             full_package_name = path.basename(obj)
             package_name = full_package_name.split('-')[0]
-            package_build_time = extract_package_build_time(full_package_name)
             # Hard pass on packages that are included in our allow list
             if package_name.lower() not in PACKAGE_ALLOW_LIST:
                 to_hide.add(obj)
                 continue
-            if package_build_time not in KEEP_NIGHTLY_PACKAGES_FOR_EXECUTORCH and (
-                packages[package_name] >= KEEP_THRESHOLD
-                or between_bad_dates(package_build_time)
-            ):
+            if packages[package_name] >= KEEP_THRESHOLD:
                 to_hide.add(obj)
             else:
                 packages[package_name] += 1
