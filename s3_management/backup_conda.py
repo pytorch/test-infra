@@ -7,11 +7,11 @@
 import argparse
 import hashlib
 import os
-import urllib
+import urllib.request
 from typing import List, Optional
 
-import boto3
-import conda.api
+import boto3  # type: ignore[import-untyped]
+import conda.api  # type: ignore[import-not-found]
 
 
 S3 = boto3.resource("s3")

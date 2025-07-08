@@ -1,7 +1,7 @@
 import re
 from typing import Dict, List
 
-import boto3
+import boto3  # type: ignore[import-untyped]
 
 
 S3 = boto3.resource("s3")
@@ -225,7 +225,7 @@ def upload_missing_whls(
 
     pypi_latest_packages = get_wheels_of_version(pypi_idx, selected_version)
 
-    download_latest_packages = []
+    download_latest_packages: Dict[str, str] = {}
     if not only_pypi:
         download_idx = parse_simple_idx(
             f"https://download.pytorch.org/{prefix}/{pkg_name}"

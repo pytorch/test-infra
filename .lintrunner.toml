@@ -46,6 +46,7 @@ include_patterns = [
     'tools/**/*.pyi',
     'torchci/**/*.py',
     'torchci/**/*.pyi',
+    's3_management/*.py',
 ]
 exclude_patterns = [
     'aws/lambda/servicelab-ingestor/**',
