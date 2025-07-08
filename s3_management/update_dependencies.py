@@ -8,158 +8,147 @@ S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
 
-PACKAGES_PER_PROJECT = [
-    {"package": "sympy", "version": "latest", "project": "torch"},
-    {"package": "mpmath", "version": "latest", "project": "torch"},
-    {"package": "pillow", "version": "latest", "project": "torch"},
-    {"package": "networkx", "version": "latest", "project": "torch"},
-    {"package": "numpy", "version": "latest", "project": "torch"},
-    {"package": "jinja2", "version": "latest", "project": "torch"},
-    {"package": "filelock", "version": "latest", "project": "torch"},
-    {"package": "fsspec", "version": "latest", "project": "torch"},
-    {"package": "nvidia-cudnn-cu11", "version": "latest", "project": "torch"},
-    {"package": "nvidia-cudnn-cu12", "version": "latest", "project": "torch"},
-    {"package": "typing-extensions", "version": "latest", "project": "torch"},
-    {
-        "package": "nvidia-cuda-nvrtc-cu12",
+PACKAGES_PER_PROJECT = {
+    "sympy": {"version": "latest", "project": "torch"},
+    "mpmath": {"version": "latest", "project": "torch"},
+    "pillow": {"version": "latest", "project": "torch"},
+    "networkx": {"version": "latest", "project": "torch"},
+    "numpy": {"version": "latest", "project": "torch"},
+    "jinja2": {"version": "latest", "project": "torch"},
+    "filelock": {"version": "latest", "project": "torch"},
+    "fsspec": {"version": "latest", "project": "torch"},
+    "nvidia-cudnn-cu11": {"version": "latest", "project": "torch"},
+    "nvidia-cudnn-cu12": {"version": "latest", "project": "torch"},
+    "typing-extensions": {"version": "latest", "project": "torch"},
+    "nvidia-cuda-nvrtc-cu12": {
         "version": "12.9.86",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cuda-runtime-cu12",
+    "nvidia-cuda-runtime-cu12": {
         "version": "12.9.79",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cuda-cupti-cu12",
+    "nvidia-cuda-cupti-cu12": {
         "version": "12.9.79",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cublas-cu12",
+    "nvidia-cublas-cu12": {
         "version": "12.9.1.4",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cufft-cu12",
+    "nvidia-cufft-cu12": {
         "version": "11.4.1.4",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-curand-cu12",
+    "nvidia-curand-cu12": {
         "version": "10.3.10.19",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cusolver-cu12",
+    "nvidia-cusolver-cu12": {
         "version": "11.7.5.82",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cusparse-cu12",
+    "nvidia-cusparse-cu12": {
         "version": "12.5.10.65",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-nvtx-cu12",
+    "nvidia-nvtx-cu12": {
         "version": "12.9.79",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-nvjitlink-cu12",
+    "nvidia-nvjitlink-cu12": {
         "version": "12.9.86",
         "project": "torch",
         "target": "cu129",
     },
-    {
-        "package": "nvidia-cufile-cu12",
+    "nvidia-cufile-cu12": {
         "version": "1.14.1.1",
         "project": "torch",
         "target": "cu129",
     },
-    {"package": "arpeggio", "version": "latest", "project": "triton"},
-    {"package": "caliper-reader", "version": "latest", "project": "triton"},
-    {"package": "contourpy", "version": "latest", "project": "triton"},
-    {"package": "cycler", "version": "latest", "project": "triton"},
-    {"package": "dill", "version": "latest", "project": "triton"},
-    {"package": "fonttools", "version": "latest", "project": "triton"},
-    {"package": "kiwisolver", "version": "latest", "project": "triton"},
-    {"package": "llnl-hatchet", "version": "latest", "project": "triton"},
-    {"package": "matplotlib", "version": "latest", "project": "triton"},
-    {"package": "pandas", "version": "latest", "project": "triton"},
-    {"package": "pydot", "version": "latest", "project": "triton"},
-    {"package": "pyparsing", "version": "latest", "project": "triton"},
-    {"package": "pytz", "version": "latest", "project": "triton"},
-    {"package": "textX", "version": "latest", "project": "triton"},
-    {"package": "tzdata", "version": "latest", "project": "triton"},
-    {"package": "importlib-metadata", "version": "latest", "project": "triton"},
-    {"package": "importlib-resources", "version": "latest", "project": "triton"},
-    {"package": "zipp", "version": "latest", "project": "triton"},
-    {"package": "aiohttp", "version": "latest", "project": "torchtune"},
-    {"package": "aiosignal", "version": "latest", "project": "torchtune"},
-    {"package": "antlr4-python3-runtime", "version": "latest", "project": "torchtune"},
-    {"package": "attrs", "version": "latest", "project": "torchtune"},
-    {"package": "blobfile", "version": "latest", "project": "torchtune"},
-    {"package": "certifi", "version": "latest", "project": "torchtune"},
-    {"package": "charset-normalizer", "version": "latest", "project": "torchtune"},
-    {"package": "datasets", "version": "latest", "project": "torchtune"},
-    {"package": "dill", "version": "latest", "project": "torchtune"},
-    {"package": "frozenlist", "version": "latest", "project": "torchtune"},
-    {"package": "huggingface-hub", "version": "latest", "project": "torchtune"},
-    {"package": "idna", "version": "latest", "project": "torchtune"},
-    {"package": "lxml", "version": "latest", "project": "torchtune"},
-    {"package": "markupsafe", "version": "latest", "project": "torchtune"},
-    {"package": "multidict", "version": "latest", "project": "torchtune"},
-    {"package": "multiprocess", "version": "latest", "project": "torchtune"},
-    {"package": "omegaconf", "version": "latest", "project": "torchtune"},
-    {"package": "pandas", "version": "latest", "project": "torchtune"},
-    {"package": "pyarrow", "version": "latest", "project": "torchtune"},
-    {"package": "pyarrow-hotfix", "version": "latest", "project": "torchtune"},
-    {"package": "pycryptodomex", "version": "latest", "project": "torchtune"},
-    {"package": "python-dateutil", "version": "latest", "project": "torchtune"},
-    {"package": "pytz", "version": "latest", "project": "torchtune"},
-    {"package": "pyyaml", "version": "latest", "project": "torchtune"},
-    {"package": "regex", "version": "latest", "project": "torchtune"},
-    {"package": "requests", "version": "latest", "project": "torchtune"},
-    {"package": "safetensors", "version": "latest", "project": "torchtune"},
-    {"package": "sentencepiece", "version": "latest", "project": "torchtune"},
-    {"package": "six", "version": "latest", "project": "torchtune"},
-    {"package": "tiktoken", "version": "latest", "project": "torchtune"},
-    {"package": "tqdm", "version": "latest", "project": "torchtune"},
-    {"package": "tzdata", "version": "latest", "project": "torchtune"},
-    {"package": "urllib3", "version": "latest", "project": "torchtune"},
-    {"package": "xxhash", "version": "latest", "project": "torchtune"},
-    {"package": "yarl", "version": "latest", "project": "torchtune"},
-    {"package": "dpcpp-cpp-rt", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-cmplr-lib-rt", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-cmplr-lib-ur", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-cmplr-lic-rt", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-opencl-rt", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-sycl-rt", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-openmp", "version": "latest", "project": "torch_xpu"},
-    {"package": "tcmlib", "version": "latest", "project": "torch_xpu"},
-    {"package": "umf", "version": "latest", "project": "torch_xpu"},
-    {"package": "intel-pti", "version": "latest", "project": "torch_xpu"},
-    {"package": "tbb", "version": "latest", "project": "torch_xpu"},
-    {"package": "oneccl-devel", "version": "latest", "project": "torch_xpu"},
-    {"package": "oneccl", "version": "latest", "project": "torch_xpu"},
-    {"package": "impi-rt", "version": "latest", "project": "torch_xpu"},
-    {"package": "onemkl-sycl-blas", "version": "latest", "project": "torch_xpu"},
-    {"package": "onemkl-sycl-dft", "version": "latest", "project": "torch_xpu"},
-    {"package": "onemkl-sycl-lapack", "version": "latest", "project": "torch_xpu"},
-    {"package": "onemkl-sycl-sparse", "version": "latest", "project": "torch_xpu"},
-    {"package": "onemkl-sycl-rng", "version": "latest", "project": "torch_xpu"},
-    {"package": "mkl", "version": "latest", "project": "torch_xpu"},
-]
+    "arpeggio": {"version": "latest", "project": "triton"},
+    "caliper-reader": {"version": "latest", "project": "triton"},
+    "contourpy": {"version": "latest", "project": "triton"},
+    "cycler": {"version": "latest", "project": "triton"},
+    "dill": {"version": "latest", "project": "triton"},
+    "fonttools": {"version": "latest", "project": "triton"},
+    "kiwisolver": {"version": "latest", "project": "triton"},
+    "llnl-hatchet": {"version": "latest", "project": "triton"},
+    "matplotlib": {"version": "latest", "project": "triton"},
+    "pandas": {"version": "latest", "project": "triton"},
+    "pydot": {"version": "latest", "project": "triton"},
+    "pyparsing": {"version": "latest", "project": "triton"},
+    "pytz": {"version": "latest", "project": "triton"},
+    "textX": {"version": "latest", "project": "triton"},
+    "tzdata": {"version": "latest", "project": "triton"},
+    "importlib-metadata": {"version": "latest", "project": "triton"},
+    "importlib-resources": {"version": "latest", "project": "triton"},
+    "zipp": {"version": "latest", "project": "triton"},
+    "aiohttp": {"version": "latest", "project": "torchtune"},
+    "aiosignal": {"version": "latest", "project": "torchtune"},
+    "antlr4-python3-runtime": {"version": "latest", "project": "torchtune"},
+    "attrs": {"version": "latest", "project": "torchtune"},
+    "blobfile": {"version": "latest", "project": "torchtune"},
+    "certifi": {"version": "latest", "project": "torchtune"},
+    "charset-normalizer": {"version": "latest", "project": "torchtune"},
+    "datasets": {"version": "latest", "project": "torchtune"},
+    "dill": {"version": "latest", "project": "torchtune"},
+    "frozenlist": {"version": "latest", "project": "torchtune"},
+    "huggingface-hub": {"version": "latest", "project": "torchtune"},
+    "idna": {"version": "latest", "project": "torchtune"},
+    "lxml": {"version": "latest", "project": "torchtune"},
+    "markupsafe": {"version": "latest", "project": "torchtune"},
+    "multidict": {"version": "latest", "project": "torchtune"},
+    "multiprocess": {"version": "latest", "project": "torchtune"},
+    "omegaconf": {"version": "latest", "project": "torchtune"},
+    "pandas": {"version": "latest", "project": "torchtune"},
+    "pyarrow": {"version": "latest", "project": "torchtune"},
+    "pyarrow-hotfix": {"version": "latest", "project": "torchtune"},
+    "pycryptodomex": {"version": "latest", "project": "torchtune"},
+    "python-dateutil": {"version": "latest", "project": "torchtune"},
+    "pytz": {"version": "latest", "project": "torchtune"},
+    "pyyaml": {"version": "latest", "project": "torchtune"},
+    "regex": {"version": "latest", "project": "torchtune"},
+    "requests": {"version": "latest", "project": "torchtune"},
+    "safetensors": {"version": "latest", "project": "torchtune"},
+    "sentencepiece": {"version": "latest", "project": "torchtune"},
+    "six": {"version": "latest", "project": "torchtune"},
+    "tiktoken": {"version": "latest", "project": "torchtune"},
+    "tqdm": {"version": "latest", "project": "torchtune"},
+    "tzdata": {"version": "latest", "project": "torchtune"},
+    "urllib3": {"version": "latest", "project": "torchtune"},
+    "xxhash": {"version": "latest", "project": "torchtune"},
+    "yarl": {"version": "latest", "project": "torchtune"},
+    "dpcpp-cpp-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-cmplr-lib-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-cmplr-lib-ur": {"version": "latest", "project": "torch_xpu"},
+    "intel-cmplr-lic-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-opencl-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-sycl-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-openmp": {"version": "latest", "project": "torch_xpu"},
+    "tcmlib": {"version": "latest", "project": "torch_xpu"},
+    "umf": {"version": "latest", "project": "torch_xpu"},
+    "intel-pti": {"version": "latest", "project": "torch_xpu"},
+    "tbb": {"version": "latest", "project": "torch_xpu"},
+    "oneccl-devel": {"version": "latest", "project": "torch_xpu"},
+    "oneccl": {"version": "latest", "project": "torch_xpu"},
+    "impi-rt": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-blas": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-dft": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-lapack": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-sparse": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-rng": {"version": "latest", "project": "torch_xpu"},
+    "mkl": {"version": "latest", "project": "torch_xpu"},
+}
 
 
 def download(url: str) -> bytes:
@@ -265,7 +254,9 @@ def main() -> None:
 
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     # Get unique paths from the packages list
-    project_paths = list(set(pkg["project"] for pkg in PACKAGES_PER_PROJECT))
+    project_paths = list(
+        set(pkg_info["project"] for pkg_info in PACKAGES_PER_PROJECT.values())
+    )
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
@@ -278,17 +269,19 @@ def main() -> None:
 
     for prefix in SUBFOLDERS:
         # Filter packages by the selected project path
-        selected_packages = [
-            pkg for pkg in PACKAGES_PER_PROJECT if pkg["project"] == args.package
-        ]
-        for pkg_info in selected_packages:
-            if hasattr(pkg_info, "target") and pkg_info["target"] != "":
+        selected_packages = {
+            pkg_name: pkg_info
+            for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
+            if pkg_info["project"] == args.package
+        }
+        for pkg_name, pkg_info in selected_packages.items():
+            if "target" in pkg_info and pkg_info["target"] != "":
                 full_path = f'{prefix}/{pkg_info["target"]}'
             else:
                 full_path = f"{prefix}"
 
             upload_missing_whls(
-                pkg_info["package"],
+                pkg_name,
                 full_path,
                 dry_run=args.dry_run,
                 only_pypi=args.only_pypi,
