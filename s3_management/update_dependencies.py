@@ -254,7 +254,9 @@ def main() -> None:
 
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     # Get unique paths from the packages list
-    project_paths = list(set(pkg_info["project"] for pkg_info in PACKAGES_PER_PROJECT.values()))
+    project_paths = list(
+        set(pkg_info["project"] for pkg_info in PACKAGES_PER_PROJECT.values())
+    )
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
@@ -268,7 +270,8 @@ def main() -> None:
     for prefix in SUBFOLDERS:
         # Filter packages by the selected project path
         selected_packages = {
-            pkg_name: pkg_info for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
+            pkg_name: pkg_info
+            for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
             if pkg_info["project"] == args.package
         }
         for pkg_name, pkg_info in selected_packages.items():
