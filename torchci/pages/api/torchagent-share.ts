@@ -1,12 +1,13 @@
 import {
   GetObjectCommand,
   ListObjectsV2Command,
+  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
-import { getAuthorizedUsername } from "../../../lib/getAuthorizedUsername";
-import { authOptions } from "../auth/[...nextauth]";
+import { v4 as uuidv4 } from "uuid";
+import { getAuthorizedUsername } from "../../lib/getAuthorizedUsername";
+import { authOptions } from "./auth/[...nextauth]";
 
 // Configure AWS S3
 const s3 = new S3Client({
@@ -20,45 +21,34 @@ const s3 = new S3Client({
 const TORCHAGENT_SESSION_BUCKET_NAME =
   process.env.TORCHAGENT_SESSION_BUCKET_NAME || "torchci-session-history";
 
-// Auth token for cookie bypass
-const AUTH_TOKEN = process.env.GRAFANA_MCP_AUTH_TOKEN || "";
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  console.log("Get chat history API endpoint called");
+  console.log("Share chat API endpoint called");
 
-  // Only allow GET method
-  if (req.method !== "GET") {
+  // Only allow POST method
+  if (req.method !== "POST") {
     console.log("Rejected: Method not allowed");
     return res.status(405).json({ error: "Method not allowed" });
   }
 
   // Check authentication
-  // @ts-ignore
-  const session = await getServerSession(req, res, authOptions);
-  if (!session?.user || !session?.accessToken) {
-    console.log("Rejected: User not authenticated");
-    return res.status(401).json({ error: "Authentication required" });
-  }
-
-  // Get sessionId from query parameters
-  const { sessionId } = req.query;
-  if (!sessionId || typeof sessionId !== "string") {
-    return res.status(400).json({ error: "Session ID is required" });
-  }
-
   const username = await getAuthorizedUsername(req, res, authOptions);
   if (!username) {
     return;
   }
 
+  // Get sessionId from request body
+  const { sessionId } = req.body;
+  if (!sessionId || typeof sessionId !== "string") {
+    return res.status(400).json({ error: "Session ID is required" });
+  }
+
   try {
     // Find the specific session file
     const prefix = `history/${username}/`;
-
-    console.log(`Fetching specific session ${sessionId} for user ${username}`);
+    console.log(`Finding session ${sessionId} for user ${username}`);
 
     const listParams = {
       Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
@@ -100,48 +90,62 @@ export default async function handler(
     const content = await fileData.Body?.transformToString();
     const sessionData = JSON.parse(content || "{}");
 
-    // Check if this session has been shared by looking for a tracking file
-    const sharedTrackingKey = `shared-tracking/${username}/${sessionId}.json`;
-    let sharedInfo = null;
+    // Generate a unique UUID for the shared session
+    const shareUuid = uuidv4();
 
-    try {
-      const sharedTrackingParams = {
-        Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
-        Key: sharedTrackingKey,
-      };
+    // Copy the session to the shared location
+    const sharedKey = `shared/${shareUuid}.json`;
 
-      const sharedTrackingCommand = new GetObjectCommand(sharedTrackingParams);
-      const sharedTrackingData = await s3.send(sharedTrackingCommand);
-
-      if (sharedTrackingData.Body) {
-        const sharedContent = await sharedTrackingData.Body.transformToString();
-        const trackingData = JSON.parse(sharedContent || "{}");
-        sharedInfo = {
-          uuid: trackingData.shareUuid,
-          sharedAt: trackingData.sharedAt,
-          shareUrl: trackingData.shareUrl,
-        };
-      }
-    } catch (error) {
-      // No shared tracking file exists, which is fine
-      console.log(`No shared tracking found for session ${sessionId}`);
-    }
-
-    // Add shared info to session data if it exists
-    const responseData = {
-      ...sessionData,
-      ...(sharedInfo && { shared: sharedInfo }),
+    const putParams = {
+      Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
+      Key: sharedKey,
+      Body: content,
+      ContentType: "application/json",
+      Metadata: {
+        originalSessionId: sessionId,
+        originalUsername: username,
+        sharedAt: new Date().toISOString(),
+      },
     };
 
+    const putCommand = new PutObjectCommand(putParams);
+    await s3.send(putCommand);
+
+    // Create a separate tracking file to avoid race conditions with the original session
+    const sharedTrackingKey = `shared-tracking/${username}/${sessionId}.json`;
+    const sharedTrackingData = {
+      originalSessionId: sessionId,
+      originalUsername: username,
+      shareUuid: shareUuid,
+      sharedAt: new Date().toISOString(),
+      shareUrl: `https://${req.headers.host}/flambeau/s/${shareUuid}`,
+      originalFileKey: sessionFile.Key,
+    };
+
+    const trackingParams = {
+      Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
+      Key: sharedTrackingKey,
+      Body: JSON.stringify(sharedTrackingData, null, 2),
+      ContentType: "application/json",
+    };
+
+    const trackingCommand = new PutObjectCommand(trackingParams);
+    await s3.send(trackingCommand);
+
+    // Generate the public URL, based on current url
+    const shareUrl = `https://${req.headers.host}/flambeau/s/${shareUuid}`;
+
     console.log(
-      `Retrieved session ${sessionId} for user ${username}, shared: ${
-        sharedInfo ? "yes" : "no"
-      }`
+      `Shared session ${sessionId} as ${shareUuid} for user ${username}`
     );
 
-    res.status(200).json(responseData);
+    res.status(200).json({
+      success: true,
+      shareUrl,
+      shareId: shareUuid,
+    });
   } catch (error) {
-    console.error("Error fetching chat history:", error);
-    res.status(500).json({ error: "Failed to fetch chat history" });
+    console.error("Error sharing chat:", error);
+    res.status(500).json({ error: "Failed to share chat" });
   }
 }
