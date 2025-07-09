@@ -6,34 +6,38 @@ Determines which reverts were caused by bad TD exclusions for reverts in the
 past year.  It expects the folder setup to have test-infra and pytorch in the
 same folder, and will use whatever branch is currently checked out on pytorch.
 """
-from functools import lru_cache
-import requests
-from torchci.utils import run_command
-from torchci.clickhouse import query_clickhouse
-import re
-from dataclasses import dataclass
-from concurrent.futures import ThreadPoolExecutor
+
 import argparse
+import re
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
+from functools import lru_cache
+from typing import Optional
+
+import requests
+from torchci.clickhouse import query_clickhouse
+from torchci.utils import run_command
+
 
 @dataclass
 class JobFailure:
-    torchci_classification_line: str | None = None
-    job_name: str | None = None
-    failed_test: str | None = None
+    torchci_classification_line: str
+    job_name: str
+    failed_test: Optional[str] = None
 
 
 @dataclass
 class CommitInfo:
     id: str
-    last_pr_sha: str | None = None
-    merge_commit_sha: str | None = None
-    merge_commit_sha_prev: str | None = None
-    revert_commit_sha: str | None = None
-    revert_commit_sha_prev: str | None = None
+    last_pr_sha: Optional[str] = None
+    merge_commit_sha: str
+    merge_commit_sha_prev: str
+    revert_commit_sha: str
+    revert_commit_sha_prev: str
     timestamp_of_revert: int = 0
     timestamp_of_merge: int = 0
     pr_num: int = 0
-    run_id: str | None = None
+    run_id: Optional[int] = None
 
 
 class IndentPrinter:
@@ -62,13 +66,13 @@ class IndentPrinter:
 p = IndentPrinter()
 
 # Match against things like Reverted https://github.com/pytorch/pytorch/pull/155998 on behalf of https://github.com/malfet due to
-REVERT_REGEX = (
-    r"(?s)This reverts commit (.*)\..*Reverted https:\/\/github.com\/pytorch\/pytorch\/pull\/(\d+) on behalf of"
-)
+REVERT_REGEX = r"(?s)This reverts commit (.*)\..*Reverted https:\/\/github.com\/pytorch\/pytorch\/pull\/(\d+) on behalf of"
 # Matches stuff like FAILED [2.1965s] inductor/test_analysis.py::TestAnalysisCUDA::test_augment_trace_against_flop_counter_maxat0_cuda_float16 - IndexError: list index out of range
 FAILED_TEST_REGEX = r"FAILED \[.*\] (.*)\.py::.*"
 # Matches stuff like The following tests failed consistently: ['test/inductor/test_distributed_patterns.py::DistributedPatternTests::test_nn_param_return3']
-CONSISTENTLY_FAILED_TEST_REGEX = r"The following tests failed consistently: \['test/(.*).py::.*'\]"
+CONSISTENTLY_FAILED_TEST_REGEX = (
+    r"The following tests failed consistently: \['test/(.*).py::.*'\]"
+)
 
 JOB_NAME_REGEX = r"(.*) / test \(([^,]*), .*\)"
 
@@ -146,7 +150,7 @@ where
 """
 
 
-def get_git_log() -> None:
+def get_git_log() -> list[tuple[str, int, str]]:
     """Fetches commit sha and message for all commits"""
     return [
         line.split(" ", 2)
@@ -171,7 +175,7 @@ def get_td_exclusions(run_id: int) -> dict:
     return {}
 
 
-def get_test_file(torchci_classification_line: str) -> str | None:
+def get_test_file(torchci_classification_line: str) -> Optional[str]:
     """Extracts the test file from the torchci classification line."""
     match = re.search(FAILED_TEST_REGEX, torchci_classification_line)
     if match:
@@ -188,7 +192,7 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
     commits_reverted: list[CommitInfo] = []
     sha_to_idx = {sha[0]: i for i, sha in enumerate(shas)}
 
-    def process_sha(i: int) -> CommitInfo | None:
+    def process_sha(i: int) -> Optional[CommitInfo]:
         item = shas[i]
         sha, timestamp, message = item
         if not message.startswith('Revert "') or not message.endswith('"'):
@@ -198,7 +202,9 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
             reverted_sha = x.group(1)
             reverted_pr = x.group(2)
             if reverted_sha not in sha_to_idx:
-                p.print(f"Reverted commit {reverted_sha} not found in the log, skipping revert commit {sha}")
+                p.print(
+                    f"Reverted commit {reverted_sha} not found in the log, skipping revert commit {sha}"
+                )
                 return None
             return CommitInfo(
                 id=sha,
@@ -210,6 +216,7 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
                 pr_num=int(reverted_pr),
                 timestamp_of_merge=int(shas[sha_to_idx[reverted_sha]][1]),
             )
+        return None
 
     with ThreadPoolExecutor(max_workers=8) as executor:
         results = list(executor.map(process_sha, range(num_to_process)))
@@ -236,11 +243,15 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
         while commit.merge_commit_sha not in run_ids_present:
             commit.merge_commit_sha = shas[sha_to_idx[commit.merge_commit_sha] - 1][0]
         while commit.merge_commit_sha_prev not in run_ids_present:
-            commit.merge_commit_sha_prev = shas[sha_to_idx[commit.merge_commit_sha_prev] + 1][0]
+            commit.merge_commit_sha_prev = shas[
+                sha_to_idx[commit.merge_commit_sha_prev] + 1
+            ][0]
         while commit.revert_commit_sha not in run_ids_present:
             commit.revert_commit_sha = shas[sha_to_idx[commit.revert_commit_sha] - 1][0]
         while commit.revert_commit_sha_prev not in run_ids_present:
-            commit.revert_commit_sha_prev = shas[sha_to_idx[commit.revert_commit_sha_prev] + 1][0]
+            commit.revert_commit_sha_prev = shas[
+                sha_to_idx[commit.revert_commit_sha_prev] + 1
+            ][0]
 
     # For ghstacked PRs, we might not have info about which sha got merged
     # because it was merged as a stack, so we query to the most recent workflow
@@ -254,7 +265,10 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
         alt_last_pr_sha = ("", 0)
         for row in ghstack_last_pr_commits:
             timestamp = int(row["timestamp"])
-            if int(row["pr_number"]) == commit.pr_num and alt_last_pr_sha[1] < timestamp < commit.timestamp_of_merge:
+            if (
+                int(row["pr_number"]) == commit.pr_num
+                and alt_last_pr_sha[1] < timestamp < commit.timestamp_of_merge
+            ):
                 alt_last_pr_sha = (row["head_sha"], timestamp)
         if alt_last_pr_sha[0] != commit.last_pr_sha and commit.last_pr_sha is not None:
             p.print(
@@ -263,20 +277,29 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
             bad += 1
         if commit.last_pr_sha is None:
             commit.last_pr_sha = alt_last_pr_sha[0]
-    p.print(f"Found {bad}, {bad / len(commits_reverted):<.2%} where last pr sha != alt last pr sha")
+    p.print(
+        f"Found {bad}, {bad / len(commits_reverted):<.2%} where last pr sha != alt last pr sha"
+    )
 
     # Get the run_id for the jobs on the pr
     run_ids = query_clickhouse(
         WORKFLOW_ID_QUERY,
-        {"shas": [x.last_pr_sha for x in commits_reverted if x.last_pr_sha is not None]},
+        {
+            "shas": [
+                x.last_pr_sha for x in commits_reverted if x.last_pr_sha is not None
+            ]
+        },
     )
     for row in run_ids:
         run_id = row["id"]
         head_sha = row["head_sha"]
         created_at = row["created_at"]
         for commit in commits_reverted:
-            if commit.last_pr_sha == head_sha and created_at < commit.timestamp_of_merge:
-                commit.run_id = run_id
+            if (
+                commit.last_pr_sha == head_sha
+                and created_at < commit.timestamp_of_merge
+            ):
+                commit.run_id = int(run_id)
 
     return commits_reverted
 
@@ -306,7 +329,11 @@ def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
             if head_sha not in failures_dict:
                 failures_dict[head_sha] = []
             failures_dict[head_sha].append(
-                JobFailure(torchci_classification_line=line, job_name=job_name, failed_test=get_test_file(line))
+                JobFailure(
+                    torchci_classification_line=line,
+                    job_name=job_name,
+                    failed_test=get_test_file(line),
+                )
             )
     return failures_dict
 
@@ -315,18 +342,24 @@ def check_failure_in_td_exclusion(f: JobFailure, run_id: int) -> bool:
     """True if the commit is bad (excluded in TD)"""
     x = re.search(JOB_NAME_REGEX, f.job_name)
     if x is None:
-        p.print(f"Failed to parse job name {f.job_name} for failure {f.torchci_classification_line}")
+        p.print(
+            f"Failed to parse job name {f.job_name} for failure {f.torchci_classification_line}"
+        )
         return False
 
     td_exclusions = get_td_exclusions(run_id)
     build_env = x.group(1)
     test_config = x.group(2)
-    p.print(f"Build environment: {build_env}, Test config: {test_config}, len(td_exclusions): {len(td_exclusions)}")
+    p.print(
+        f"Build environment: {build_env}, Test config: {test_config}, len(td_exclusions): {len(td_exclusions)}"
+    )
     if len(td_exclusions) == 0:
         p.print(f"No TD exclusions found for run {run_id}")
         return False
     if build_env not in td_exclusions:
-        p.print(f"Build environment {build_env} not found in TD exclusions for run {run_id}")
+        p.print(
+            f"Build environment {build_env} not found in TD exclusions for run {run_id}"
+        )
     elif test_config not in td_exclusions[build_env]:
         p.print(f"Test {test_config} not found in TD exclusions for run {run_id}")
     elif f.failed_test in td_exclusions[build_env][test_config]:
@@ -337,7 +370,9 @@ def check_failure_in_td_exclusion(f: JobFailure, run_id: int) -> bool:
     return False
 
 
-def check_on_commit(sha: str, job_name: str, test_file: str, failures: dict[str, list[JobFailure]]) -> bool:
+def check_on_commit(
+    sha: str, job_name: str, test_file: str, failures: dict[str, list[JobFailure]]
+) -> bool:
     """True if the test failed on the given commit."""
     for failure in failures.get(sha, []):
         if failure.failed_test == test_file:
@@ -383,15 +418,26 @@ def main() -> None:
             any_bad = False
             for f in job_failures.get(s.merge_commit_sha, []):
                 with p:
-                    p.print(f"Failure: {f.job_name}, {f.torchci_classification_line}, {f.failed_test}")
+                    p.print(
+                        f"Failure: {f.job_name}, {f.torchci_classification_line}, {f.failed_test}"
+                    )
 
                     if f.failed_test is None:
                         continue
                     with p:
-                        if check_on_commit(s.revert_commit_sha, f.job_name, f.failed_test, job_failures):
-                            p.print(f"Failure {f.failed_test} is present on the revert commit {s.revert_commit_sha}")
+                        if check_on_commit(
+                            s.revert_commit_sha, f.job_name, f.failed_test, job_failures
+                        ):
+                            p.print(
+                                f"Failure {f.failed_test} is present on the revert commit {s.revert_commit_sha}"
+                            )
                             continue
-                        if check_on_commit(s.merge_commit_sha_prev, f.job_name, f.failed_test, job_failures):
+                        if check_on_commit(
+                            s.merge_commit_sha_prev,
+                            f.job_name,
+                            f.failed_test,
+                            job_failures,
+                        ):
                             p.print(
                                 f"Failure {f.failed_test} is present on commit before the merge {s.merge_commit_sha_prev}"
                             )
@@ -400,36 +446,47 @@ def main() -> None:
                         any_bad |= check_failure_in_td_exclusion(f, s.run_id)
             if any_bad:
                 caused_by_bad_td.append(s)
-                p.print(f"Commit {s.last_pr_sha} with run_id {s.run_id} is caused by bad TD")
-        p.print(f"CAUSED BY BAD TD: {len(caused_by_bad_td)} / {i + 1} = {len(caused_by_bad_td) / (i + 1):.2%}")
-        p.print(f"Unable to check (lack run id) on PR: {unable_to_check} / {i + 1} = {unable_to_check / (i + 1):.2%}")
+                p.print(
+                    f"Commit {s.last_pr_sha} with run_id {s.run_id} is caused by bad TD"
+                )
+        p.print(
+            f"CAUSED BY BAD TD: {len(caused_by_bad_td)} / {i + 1} = {len(caused_by_bad_td) / (i + 1):.2%}"
+        )
+        p.print(
+            f"Unable to check (lack run id) on PR: {unable_to_check} / {i + 1} = {unable_to_check / (i + 1):.2%}"
+        )
 
-    p.print(f"Total caused by bad TD: {len(caused_by_bad_td)} / {len(commits_reverted)} = {len(caused_by_bad_td) / len(commits_reverted):.2%}")
+    p.print(
+        f"Total caused by bad TD: {len(caused_by_bad_td)} / {len(commits_reverted)} = {len(caused_by_bad_td) / len(commits_reverted):.2%}"
+    )
     # Group by month, this is a massive oversimplification, but we'll take it
     month_groups = {}
     for commit in caused_by_bad_td:
         month = commit.timestamp_of_revert // (30 * 24 * 60 * 60)
         if month not in month_groups:
-            month_groups[month] = (0,0)
+            month_groups[month] = (0, 0)
         month_groups[month] = (month_groups[month][0] + 1, month_groups[month][1])
     for commit in commits_reverted:
         month = commit.timestamp_of_merge // (30 * 24 * 60 * 60)
         if month not in month_groups:
-            month_groups[month] = (0,0)
+            month_groups[month] = (0, 0)
         month_groups[month] = (month_groups[month][0], month_groups[month][1] + 1)
 
     for month, (bad_td_count, total_count) in sorted(month_groups.items()):
-        p.print(f"Month {month}: {bad_td_count} bad TD / {total_count} total = {bad_td_count / total_count:.2%}")
+        p.print(
+            f"Month {month}: {bad_td_count} bad TD / {total_count} total = {bad_td_count / total_count:.2%}"
+        )
+
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Get reverts caused by bad TD exclusions.")
+    parser = argparse.ArgumentParser(
+        description="Get reverts caused by bad TD exclusions."
+    )
     parser.add_argument(
-        "--num",
-        type=int,
-        default=2000,
-        help="Number of commits to examine"
+        "--num", type=int, default=2000, help="Number of commits to examine"
     )
     return parser.parse_args()
+
 
 if __name__ == "__main__":
     main()
