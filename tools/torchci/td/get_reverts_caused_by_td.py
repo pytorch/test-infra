@@ -29,7 +29,6 @@ class JobFailure:
 @dataclass
 class CommitInfo:
     id: str
-    last_pr_sha: Optional[str] = None
     merge_commit_sha: str
     merge_commit_sha_prev: str
     revert_commit_sha: str
@@ -37,6 +36,7 @@ class CommitInfo:
     timestamp_of_revert: int = 0
     timestamp_of_merge: int = 0
     pr_num: int = 0
+    last_pr_sha: Optional[str] = None
     run_id: Optional[int] = None
 
 
