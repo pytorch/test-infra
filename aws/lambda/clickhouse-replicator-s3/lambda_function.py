@@ -552,7 +552,7 @@ def cloudwatch_metrics_adapter(table, bucket, key):
     `namespace` LowCardinality(String),
     `metric_name` LowCardinality(String),
     `dimensions` Map(String, String),
-    `timestamp` DateTime,
+    `timestamp` DateTime64,
     `value` Tuple(
         max Float32,
         min Float32,
