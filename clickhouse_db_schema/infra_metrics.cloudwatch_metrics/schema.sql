@@ -6,7 +6,7 @@ CREATE TABLE infra_metrics.cloudwatch_metrics
     `namespace` LowCardinality(String),
     `metric_name` LowCardinality(String),
     `dimensions` Map(String, String),
-    `timestamp` DateTime,
+    `timestamp` DateTime64,
     `value` Tuple(
         max Float32,
         min Float32,
@@ -20,5 +20,5 @@ CREATE TABLE infra_metrics.cloudwatch_metrics
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(timestamp)
 ORDER BY (namespace, metric_name, timestamp, dimensions)
-TTL timestamp + toIntervalMonth(12)
+TTL toDateTime(timestamp) + toIntervalMonth(12)
 SETTINGS index_granularity = 8192
