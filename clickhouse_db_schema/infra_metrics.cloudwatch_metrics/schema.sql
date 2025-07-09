@@ -1,4 +1,4 @@
-CREATE or replace TABLE infra_metrics.cloudwatch_metrics
+CREATE TABLE infra_metrics.cloudwatch_metrics
 (
     `metric_stream_name` LowCardinality(String),
     `account_id` LowCardinality(String),
