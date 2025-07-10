@@ -103,6 +103,7 @@ class FileInfo(NamedTuple):
     filename: str
     lines_added: int
     lines_deleted: int
+    status: str  # 'A' for added, 'M' for modified, 'D' for deleted
 
 
 class CommitInfo(NamedTuple):
@@ -115,7 +116,7 @@ def get_file_names(
     cwd: Optional[str] = None,
     path_filter: Optional[str] = None,
 ) -> List[CommitInfo]:
-    cmd = "git log --date=short --pretty='format:%h;%ad' --numstat"
+    cmd = "git log --date=short --pretty='format:%h;%ad' --numstat --name-status"
     if path_filter:
         cmd += f" -- {path_filter}"
     lines = run_command(
@@ -129,17 +130,34 @@ def get_file_names(
         line = line.strip()
         if not line:
             continue
-        elif len(line.split("\t")) != 3:
+        elif ";" in line:
             commit_hash, date = line.split(";")
             rc.append(CommitInfo(commit_hash, date, []))
         else:
-            added, deleted, name = line.split("\t")
-            # Special casing for binary files
-            if added == "-":
-                assert deleted == "-"
-                rc[-1].files.append(FileInfo(name, -1, -1))
-            else:
-                rc[-1].files.append(FileInfo(name, int(added), int(deleted)))
+            parts = line.split("\t")
+            # Check if this is a numstat line (first part can be converted to int)
+            try:
+                added = int(parts[0])
+                deleted = int(parts[1])
+                name = parts[2]
+                rc[-1].files.append(
+                    FileInfo(name, added, deleted, "M")
+                )  # Default to modified
+            except ValueError:
+                # This is a name-status line
+                status = parts[0]
+                name = parts[1]
+                # Find if we already have this file in the current commit
+                for i, file_info in enumerate(rc[-1].files):
+                    if file_info.filename == name:
+                        # Update the status of the existing file
+                        rc[-1].files[i] = FileInfo(
+                            name, file_info.lines_added, file_info.lines_deleted, status
+                        )
+                        break
+                else:
+                    # File not found, add it with status only
+                    rc[-1].files.append(FileInfo(name, 0, 0, status))
     return rc
 
 
@@ -153,6 +171,7 @@ def convert_to_dict(
             "filename": i.filename,
             "lines_added": i.lines_added,
             "lines_deleted": i.lines_deleted,
+            "status": i.status,
         }
         for i in entry.files
     ]
