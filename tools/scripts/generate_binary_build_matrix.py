@@ -99,7 +99,7 @@ WIN_ARM64_RUNNER = "windows-11-arm64"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
-PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
+PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch torchvision"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
 
@@ -314,18 +314,18 @@ def get_wheel_install_command(
         )
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
-    elif os == WINDOWS_ARM64:
-        whl_install_command = (
-            f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"
-        )
-        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
     else:
-        whl_install_command = (
-            f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
-            if channel == "nightly"
-            else f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
-        )
-        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"
+        whl_install_command = ""
+        if os == WINDOWS_ARM64:
+            # winarm64 has only nightly torch and torchvision package for now
+            whl_install_command = (
+                f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
+            )
+        elif channel == "nightly":
+            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
+        else:
+            whl_install_command = f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+        return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
 
 
 def generate_libtorch_matrix(
