@@ -1,13 +1,14 @@
-from functools import lru_cache
 import json
 import os
+import urllib
 from collections import defaultdict
 from enum import Enum
+from functools import lru_cache
 from typing import Any, Dict, List, Optional
 from warnings import warn
+
 import clickhouse_connect
-import urllib
-import argparse
+
 
 CLICKHOUSE_ENDPOINT = os.getenv("CLICKHOUSE_ENDPOINT", "")
 CLICKHOUSE_USERNAME = os.getenv("CLICKHOUSE_USERNAME", "default")
@@ -532,6 +533,36 @@ def stable_pushes_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def disabled_tests_historical_adapter(table, bucket, key):
+    schema = """
+    `day` Date,
+    `timestamp` DateTime,
+    `name` String,
+    `issueNumber` Int32,
+    `platforms` Array(String)
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
+def cloudwatch_metrics_adapter(table, bucket, key):
+    schema = """
+    `metric_stream_name` LowCardinality(String),
+    `account_id` LowCardinality(String),
+    `region` LowCardinality(String),
+    `namespace` LowCardinality(String),
+    `metric_name` LowCardinality(String),
+    `dimensions` Map(String, String),
+    `timestamp` DateTime64,
+    `value` Tuple(
+        max Float32,
+        min Float32,
+        sum Float32,
+        count Float32),
+    `unit` LowCardinality(String)
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -549,8 +580,11 @@ SUPPORTED_PATHS = {
     "v3": "benchmark.oss_ci_benchmark_v3",
     "debug_util_metadata": "fortesting.oss_ci_utilization_metadata",
     "debug_util_timeseries": "fortesting.oss_ci_time_series",
-    "util_metadata":"misc.oss_ci_utilization_metadata",
-    "util_timeseries":"misc.oss_ci_time_series",
+    "util_metadata": "misc.oss_ci_utilization_metadata",
+    "util_timeseries": "misc.oss_ci_time_series",
+    "disabled_tests_historical": "misc.disabled_tests_historical",
+    # fbossci-cloudwatch-metrics bucket
+    "ghci-related": "infra_metrics.cloudwatch_metrics",
 }
 
 OBJECT_CONVERTER = {
@@ -572,6 +606,8 @@ OBJECT_CONVERTER = {
     "fortesting.oss_ci_time_series": oss_ci_util_time_series_adapter,
     "misc.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
     "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
+    "misc.disabled_tests_historical": disabled_tests_historical_adapter,
+    "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
 }
 
 

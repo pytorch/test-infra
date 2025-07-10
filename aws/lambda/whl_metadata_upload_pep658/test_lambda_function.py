@@ -1,10 +1,10 @@
 import argparse
 import json
-import os
 from pathlib import Path
 from typing import Generator
 
 from lambda_function import get_client, lambda_handler
+
 
 GENERATE_EVENT_HELP_TEXT = """
 Generate an test_event.json for all files in this s3 path and test the lambda

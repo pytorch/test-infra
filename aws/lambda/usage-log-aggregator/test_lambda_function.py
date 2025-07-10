@@ -10,6 +10,7 @@ from lambda_function import (
     PYTORCH,
 )
 
+
 TEST_SAMPLES_DIR = "test_samples"
 NUMBER_OF_SAMPLES = 2
 TEST_PREFIX = "test_usage_log"
@@ -92,7 +93,7 @@ async def test_get_usage_log():
     m = AsyncMock()
     m.get_object.side_effect = _effect
 
-    async for (_, job_id, content) in get_usage_log(
+    async for _, job_id, content in get_usage_log(
         s3_client=m,
         owner=PYTORCH,
         repo=PYTORCH,

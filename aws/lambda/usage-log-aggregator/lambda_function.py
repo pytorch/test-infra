@@ -1,19 +1,20 @@
 """
 Aggregate usage logs on S3 GHA artifacts bucket for fun and profit!
 """
+
 import asyncio
 import io
-
-from warnings import warn
 import json
 import os
 import re
 import zipfile
 from json import JSONDecodeError
 from typing import Any, AsyncGenerator, Dict, List, Tuple
+from warnings import warn
 
 import pandas as pd
 from aiobotocore.session import get_session
+
 
 ARTIFACTS_S3_BUCKET = "gha-artifacts"
 USAGE_LOG_FILENAME = "usage_log.txt"
@@ -47,9 +48,7 @@ async def get_usage_log(
 
         content = {}
         for run_attempt in range(1, MAX_RUN_ATTEMPT_TO_SCAN):
-            s3_path = (
-                f"{owner}/{repo}/{workflow_id}/{run_attempt}/artifact/{prefix}_{job_id}.zip"
-            )
+            s3_path = f"{owner}/{repo}/{workflow_id}/{run_attempt}/artifact/{prefix}_{job_id}.zip"
             print(f"Checking {s3_path}")
 
             try:

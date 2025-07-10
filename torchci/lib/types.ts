@@ -46,6 +46,7 @@ export interface RecentWorkflowsData extends BasicJobData {
   id: number;
   completed_at: string;
   html_url: string;
+  logUrl?: string;
   head_sha: string;
   head_sha_timestamp: string;
   head_branch: string;
@@ -225,6 +226,7 @@ export interface BenchmarkData {
   metric: string;
   model: string;
   quantization?: string;
+  backend?: string;
   suite: string;
   value: number;
   workflow_id: number;

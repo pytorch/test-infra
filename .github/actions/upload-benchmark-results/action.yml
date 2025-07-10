@@ -6,9 +6,8 @@ inputs:
     required: True
   dry-run:
     default: 'true'
-  # TODO (huydhn): Use this to gate the migration to oss_ci_benchmark_v3 on S3
   schema-version:
-    default: 'v2'
+    default: 'v3'
   github-token:
     default: ''
 
@@ -19,10 +18,29 @@ runs:
       shell: bash
       run: |
         set -eux
-        python3 -mpip install boto3==1.35.33
+        python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
+
+        DEVICE_NAME=""
+        DEVICE_TYPE=""
+
+        if command -v nvidia-smi; then
+          # NB: I'm using PyTorch here to get the device name, however, it needs to
+          # install the correct version of PyTorch manually for now. Any PyTorch
+          # version is fine, I just use 2.7.1 to satify PYPIDEP linter
+          python3 -mpip install torch==2.7.1
+        elif command -v rocminfo; then
+          # NB: Installing torch on ROCm runner with pip here causes CI to fail
+          # with a memoryview is too large error only on MI300 runners. Is pip
+          # version on ROCm runner there too old? As a workaround, let's use the
+          # GPU device name coming from rocminfo instead
+          DEVICE_NAME=rocm
+          DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
+        fi
+
+        echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
+        echo "DEVICE_TYPE=$DEVICE_TYPE" >> $GITHUB_ENV
 
     - name: Check that GITHUB_TOKEN is defined
-      if: ${{ inputs.schema-version != 'v2' }}
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}
       shell: bash
@@ -72,8 +90,7 @@ runs:
       run: |
         set -eux
 
-        # TODO (huydhn): Implement this part
-        echo "runners=[]" >> "${GITHUB_OUTPUT}"
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmarks/gather_runners_info.py"
 
     - name: Gather the dependencies information
       id: gather-dependencies

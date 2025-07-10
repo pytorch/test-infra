@@ -50,6 +50,9 @@ export default function QueueTimeCategoryPicker({
         <MenuItem sx={sx} value={"machine_type"}>
           machine type
         </MenuItem>
+        <MenuItem sx={sx} value={"runner_label"}>
+          runner label
+        </MenuItem>
       </Select>
       <FormHelperText>
         {" "}

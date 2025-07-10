@@ -1,3 +1,4 @@
+import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import { jaroWinkler } from "jaro-winkler-typescript";
 import {
@@ -234,6 +235,10 @@ export function removeJobNameSuffix(
 }
 
 export async function hasS3Log(job: RecentWorkflowsData): Promise<boolean> {
+  if (job.logUrl !== undefined && job.logUrl !== "") {
+    const res = await fetch(job.logUrl, { method: "HEAD" });
+    return res.status !== 404;
+  }
   // This is to handle the infra flaky issue where the log is not available on
   // S3 and no failure is found.
   // NB: PyTorch uses the shortcut /log/JOB_ID path while other repos require
@@ -434,4 +439,17 @@ export function removeCancelledJobAfterRetry<T extends BasicJobData>(
   }
 
   return filteredJobs;
+}
+
+export function getDurationDisplay(job: JobData) {
+  // Returns a string with either the running time if the job is still running
+  // or it's duration
+  if (job.durationS === undefined) {
+  } else if (job.durationS > 0) {
+    return `Duration: ${durationDisplay(job.durationS)}`;
+  } else if (job.durationS === 0) {
+    return `Running: ${durationDisplay(
+      dayjs().diff(dayjs(job.time), "seconds")
+    )}`;
+  }
 }

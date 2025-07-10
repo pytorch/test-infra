@@ -187,9 +187,10 @@ export default function Kpis() {
           queryName={"disabled_test_historical"}
           queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
           granularity={"day"}
-          timeFieldName={"granularity_bucket"}
-          yAxisFieldName={"number_of_open_disabled_tests"}
+          timeFieldName={"day"}
+          yAxisFieldName={"count"}
           yAxisRenderer={(duration) => duration}
+          fillMissingData={false}
         />
       </Grid2>
     </Grid2>

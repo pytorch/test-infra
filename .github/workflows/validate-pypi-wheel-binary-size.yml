@@ -40,4 +40,4 @@ jobs:
           # shellcheck disable=SC2086
           python tools/binary_size_validation/binary_size_validation.py \
               --url https://download.pytorch.org/whl/${CHANNEL}/cu${CUDA_VERSION_NODOT}/torch/ \
-              --include "manylinux" --only-latest-version --threshold 750
+              --include "manylinux" --only-latest-version --threshold 850

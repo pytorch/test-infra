@@ -467,12 +467,25 @@ export function isRunnerRemovable(
 export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   let baseTime: moment.Moment;
   let reason: string;
-  if (runner.ephemeralRunnerFinished !== undefined) {
+  if (runner.ebsVolumeReplacementRequestTimestamp !== undefined) {
+    // When both `ebsVolumeReplacementRequestTimestamp` and `ephemeralRunnerFinished` are defined,
+    // we want to use the more recent timestamp to ensure that we don't scale down a runner
+    // that is still in the process of being refreshed.
+    if (
+      runner.ephemeralRunnerFinished !== undefined &&
+      runner.ebsVolumeReplacementRequestTimestamp < runner.ephemeralRunnerFinished
+    ) {
+      baseTime = moment.unix(runner.ephemeralRunnerFinished);
+      reason = `is an ephemeral runner that finished at ${baseTime}`;
+    } else {
+      // Add 5 minutes to the EBS volume replacement request timestamp to account
+      // for the time it takes to replace the volume and start the runner.
+      baseTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp).add(5, 'minutes');
+      reason = `had an EBS volume replacement request started at ${baseTime}`;
+    }
+  } else if (runner.ephemeralRunnerFinished !== undefined) {
     baseTime = moment.unix(runner.ephemeralRunnerFinished);
     reason = `is an ephemeral runner that finished at ${baseTime}`;
-  } else if (runner.ebsVolumeReplacementRequestTimestamp !== undefined) {
-    baseTime = moment.unix(runner.ebsVolumeReplacementRequestTimestamp);
-    reason = `had an EBS volume replacement request started at ${baseTime}`;
   } else {
     baseTime = moment(runner.launchTime || new Date()).utc();
     reason = `was launched at ${baseTime}`;

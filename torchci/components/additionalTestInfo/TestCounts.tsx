@@ -1,5 +1,5 @@
 import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
-import { durationDisplay } from "components/TimeUtils";
+import { durationDisplay } from "components/common/TimeUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import _ from "lodash";

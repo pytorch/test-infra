@@ -126,9 +126,6 @@ runs:
           fi
 
           CONDA_EXTRA_FLAGS=""
-          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
-            CONDA_EXTRA_FLAGS=" -c pytorch-nightly"
-          fi
 
           # Print the conda we are using here in case we need debugging information
           CONDA_RUNTIME=$(which conda)
@@ -190,12 +187,7 @@ runs:
 
           echo "CONDA_PREFIX=${CONDA_PREFIX}" >> "${GITHUB_ENV}"
           echo "CONDA_RUN=${CONDA_RUNTIME} run -p ${CONDA_PREFIX} --no-capture-output" >> "${GITHUB_ENV}"
-          if [[ "${PYTHON_VERSION}" == "3.11" ]]; then
-            # TODO: Remove me, when more packages will be available on default channel
-            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_PREFIX} -c pytorch-nightly" >> "${GITHUB_ENV}"
-          else
-            echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_PREFIX}" >> "${GITHUB_ENV}"
-          fi
+          echo "CONDA_INSTALL=${CONDA_RUNTIME} install --yes --quiet -p ${CONDA_PREFIX}" >> "${GITHUB_ENV}"
 
       - name: Reset channel priority
         shell: bash

@@ -6,13 +6,13 @@ import {
   Typography,
 } from "@mui/material";
 import { GridEventListener } from "@mui/x-data-grid";
-import GranularityPicker from "components/GranularityPicker";
+import GranularityPicker from "components/common/GranularityPicker";
+import { formatTimeForCharts } from "components/common/TimeUtils";
 import TablePanel from "components/metrics/panels/TablePanel";
 import {
   Granularity,
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
-import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";

@@ -157,6 +157,11 @@ runner_types:
     instance_type: m7g.4xlarge
     is_ephemeral: true
     os: linux
+  lf.linux.arm64.m8g.4xlarge:
+    disk_size: 256
+    instance_type: m8g.4xlarge
+    is_ephemeral: true
+    os: linux
   lf.linux.arm64.2xlarge.ephemeral:
     disk_size: 256
     instance_type: t4g.2xlarge
@@ -165,6 +170,11 @@ runner_types:
   lf.linux.arm64.m7g.4xlarge.ephemeral:
     disk_size: 256
     instance_type: m7g.4xlarge
+    is_ephemeral: true
+    os: linux
+  lf.linux.arm64.m8g.4xlarge.ephemeral:
+    disk_size: 256
+    instance_type: m8g.4xlarge
     is_ephemeral: true
     os: linux
   lf.linux.arm64.m7g.metal:
@@ -177,36 +187,73 @@ runner_types:
     instance_type: g4dn.xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.windows.g4dn.xlarge.nonephemeral:
     disk_size: 256
     instance_type: g4dn.xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.windows.4xlarge:
     disk_size: 256
     instance_type: c5d.4xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.windows.4xlarge.nonephemeral:
     disk_size: 256
     instance_type: c5d.4xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
+  lf.windows.16xlarge.memory:
+    disk_size: 256
+    instance_type: r5n.16xlarge
+    is_ephemeral: true
+    os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
+  lf.windows.16xlarge.memory.nonephemeral:
+    disk_size: 256
+    instance_type: r5n.16xlarge
+    is_ephemeral: true
+    os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.windows.8xlarge.nvidia.gpu:
     disk_size: 256
     instance_type: p3.2xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.windows.8xlarge.nvidia.gpu.nonephemeral:
     disk_size: 256
     instance_type: p3.2xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.windows.g5.4xlarge.nvidia.gpu:
     disk_size: 256
     instance_type: g5.4xlarge
     is_ephemeral: true
     os: windows
+    variants:
+      wincanary:
+        ami: Windows 2019 GHA CI - 20250526202723
   lf.linux.2xlarge.memory:
     disk_size: 200
     instance_type: r5.2xlarge
@@ -225,6 +272,16 @@ runner_types:
   lf.linux.12xlarge.memory:
     disk_size: 600
     instance_type: r5.12xlarge
+    is_ephemeral: true
+    os: linux
+  lf.linux.16xlarge.memory:
+    disk_size: 600
+    instance_type: r5.16xlarge
+    is_ephemeral: true
+    os: linux
+  lf.linux.24xlarge.memory:
+    disk_size: 800
+    instance_type: r5.24xlarge
     is_ephemeral: true
     os: linux
   lf.linux.12xlarge.memory.ephemeral:

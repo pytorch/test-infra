@@ -1,6 +1,7 @@
 import { Grid2, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
-import GranularityPicker from "components/GranularityPicker";
+import GranularityPicker from "components/common/GranularityPicker";
+import { formatTimeForCharts } from "components/common/TimeUtils";
 import styles from "components/hud.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import {
@@ -8,7 +9,6 @@ import {
   Granularity,
   seriesWithInterpolatedTimes,
 } from "components/metrics/panels/TimeSeriesPanel";
-import { formatTimeForCharts } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";

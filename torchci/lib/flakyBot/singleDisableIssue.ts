@@ -1,19 +1,18 @@
 import dayjs from "dayjs";
-import {
-  validationCommentEnd,
-  validationCommentStart,
-} from "lib/bot/verifyDisableTestIssueBot";
 import { DisabledNonFlakyTestData, FlakyTestData, IssueData } from "lib/types";
 import _ from "lodash";
 import { Octokit } from "octokit";
 import { NUM_HOURS } from "pages/api/flaky-tests/disable";
+import { Context } from "probot";
 import {
+  genReenableValidationSection,
   getLatestTrunkJobURL,
   getPlatformLabels,
   getPlatformsAffected,
   getTestOwnerLabels,
   getWorkflowJobNames,
   NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING,
+  parseTestName,
   supportedPlatforms,
 } from "./utils";
 
@@ -21,13 +20,17 @@ export const PYTORCH: string = "pytorch";
 const NUM_HOURS_ACROSS_JOBS = 72;
 
 // MARK: create issue
-export function getIssueTitle(testName: string, testSuite: string) {
+export function formatTestNameForTitle(testName: string, testSuite: string) {
   let suite = testSuite;
   // If the test class is not a subclass, it belongs to __main__
   if (testSuite.indexOf(".") < 0) {
     suite = "__main__." + suite;
   }
-  return `DISABLED ${testName} (${suite})`;
+  return `${testName} (${suite})`;
+}
+
+function getIssueTitle(testName: string, testSuite: string) {
+  return `DISABLED ${formatTestNameForTitle(testName, testSuite)}`;
 }
 
 export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
@@ -89,7 +92,7 @@ export function getIssueBodyForFlakyTest(test: FlakyTestData): string {
   For all disabled tests (by GitHub issue), see https://hud.pytorch.org/disabled.`;
 }
 
-export async function createIssueFromFlakyTest(
+export async function createNewSingleIssue(
   test: FlakyTestData,
   octokit: Octokit
 ): Promise<void> {
@@ -109,6 +112,22 @@ export async function createIssueFromFlakyTest(
 }
 
 // MARK: update issue
+
+function testMatchesIssue(
+  issue: IssueData,
+  name: string,
+  suite: string
+): boolean {
+  const title = getIssueTitle(name, suite);
+  return issue.title === title;
+}
+
+export function matchesSingleFlakyTestIssue(
+  issue: IssueData,
+  test: FlakyTestData
+): boolean {
+  return testMatchesIssue(issue, test.name, test.suite);
+}
 
 export async function updateExistingIssueForFlakyTest(
   octokit: Octokit,
@@ -166,61 +185,67 @@ export async function updateExistingIssueForFlakyTest(
     });
   }
 }
+
 // MARK: close issue
-export async function handleNonFlakyTest(
+
+export function nonFlakyTestMatchesIssue(
+  issue: IssueData,
+  test: DisabledNonFlakyTestData
+): boolean {
+  return testMatchesIssue(issue, test.name, test.classname);
+}
+
+/**
+ * Handle the case where a test is no longer flaky and the issue is still open.
+ * The issue should be open and the test should correspond to the issue.
+ *
+ * @param test
+ * @param issue
+ * @param octokit
+ * @returns
+ */
+export async function handleNoLongerFlakyTest(
   test: DisabledNonFlakyTestData,
-  issues: IssueData[],
+  issue: IssueData,
   octokit: Octokit
 ) {
-  const issueTitle = getIssueTitle(test.name, test.classname);
-  const matchingIssues = issues.filter((issue) => issue.title === issueTitle);
+  const updatedAt = dayjs(issue.updated_at);
+  const daysSinceLastUpdate: number = NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
 
-  if (matchingIssues.length === 0) {
+  // Only close the issue if the issue is not flaky and hasn't been updated in
+  // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
+  if (
+    updatedAt.isAfter(
+      dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour")
+    )
+  ) {
+    console.log(`${issue.number} is not flaky but is too recent.`);
     return;
   }
+  console.log(`${issue.number} is not longer flaky`);
 
-  const matchingIssue = matchingIssues[0];
+  const body =
+    `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
+    `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
+    `issue to re-disable the test if you think this is a false positive`;
+  await octokit.rest.issues.createComment({
+    owner: PYTORCH,
+    repo: PYTORCH,
+    issue_number: issue.number,
+    body,
+  });
 
-  if (matchingIssue.state === "open") {
-    const updatedAt = dayjs(matchingIssue.updated_at);
-    const daysSinceLastUpdate: number =
-      NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING / 24;
-
-    // Only close the issue if the issue is not flaky and hasn't been updated in
-    // NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING hours, defaults to 2 weeks
-    if (
-      updatedAt.isAfter(
-        dayjs().subtract(NUM_HOURS_NOT_UPDATED_BEFORE_CLOSING, "hour")
-      )
-    ) {
-      console.log(`${matchingIssue.number} is not flaky but is too recent.`);
-      return;
-    }
-    console.log(`${matchingIssue.number} is not longer flaky`);
-
-    const body =
-      `Resolving the issue because the test is not flaky anymore after ${test.num_green} reruns without ` +
-      `any failures and the issue hasn't been updated in ${daysSinceLastUpdate} days. Please reopen the ` +
-      `issue to re-disable the test if you think this is a false positive`;
-    await octokit.rest.issues.createComment({
-      owner: PYTORCH,
-      repo: PYTORCH,
-      issue_number: matchingIssue.number,
-      body,
-    });
-
-    // Close the issue
-    await octokit.rest.issues.update({
-      owner: PYTORCH,
-      repo: PYTORCH,
-      issue_number: matchingIssue.number,
-      state: "closed",
-    });
-  }
+  // Close the issue
+  await octokit.rest.issues.update({
+    owner: PYTORCH,
+    repo: PYTORCH,
+    issue_number: issue.number,
+    state: "closed",
+  });
 }
 // MARK: parse issue
 
-export function parseBody(body: string) {
+export const parseBody = _.memoize((body: string) => {
   if (body === "") {
     return {
       platformsToSkip: [],
@@ -258,31 +283,25 @@ export function parseBody(body: string) {
     ),
     bodyWithoutPlatforms: bodyWithoutPlatforms.join(""),
   };
-}
+});
 
 // MARK: validation
 
-function testNameIsExpected(testName: string): boolean {
-  const split = testName.split(/\s+/);
-  if (split.length !== 2) {
-    return false;
-  }
-
-  const testSuite = split[1].split(".");
-  if (testSuite.length < 2) {
-    return false;
-  }
-  return true;
+export function isSingleIssue(title: string): boolean {
+  const prefix = "DISABLED ";
+  return (
+    title.startsWith(prefix) &&
+    parseTestName(title.substring(prefix.length)) !== undefined
+  );
 }
 
 export function formValidationComment(
-  username: string,
-  authorized: boolean,
-  testName: string,
-  platformsToSkip: string[],
-  invalidPlatforms: string[],
-  issueNumber: number
+  issue: Context<"issues">["payload"]["issue"],
+  authorized: boolean
 ): string {
+  const username = issue.user.login;
+  const { platformsToSkip, invalidPlatforms } = parseBody(issue.body || "");
+  const testName = parseTestName(issue.title.slice("DISABLED ".length));
   const platformMsg =
     platformsToSkip.length === 0
       ? "none parsed, defaulting to ALL platforms"
@@ -311,26 +330,16 @@ export function formValidationComment(
   if (!authorized) {
     body += `<b>ERROR!</b> You (${username}) don't have permission to disable ${testName} on ${platformMsg}.\n\n`;
     body += "</body>";
-    return validationCommentStart + body + validationCommentEnd;
+    return body;
   }
 
-  if (!testNameIsExpected(testName)) {
-    body +=
-      "<b>ERROR!</b> As you can see above, I could not properly parse the test ";
-    body +=
-      "information and determine which test to disable. Please modify the ";
-    body +=
-      "title to be of the format: DISABLED test_case_name (test.ClassName), ";
-    body += "for example, `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
-  } else {
-    body += `Within ~15 minutes, \`${testName}\` will be disabled in PyTorch CI for `;
-    body +=
-      platformsToSkip.length === 0
-        ? "all platforms"
-        : `these platforms: ${platformsToSkip.join(", ")}`;
-    body +=
-      ". Please verify that your test name looks correct, e.g., `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
-  }
+  body += `Within ~15 minutes, \`${testName}\` will be disabled in PyTorch CI for `;
+  body +=
+    platformsToSkip.length === 0
+      ? "all platforms"
+      : `these platforms: ${platformsToSkip.join(", ")}`;
+  body +=
+    ". Please verify that your test name looks correct, e.g., `test_cuda_assert_async (__main__.TestCuda)`.\n\n";
 
   body +=
     "To modify the platforms list, please include a line in the issue body, like below. The default ";
@@ -342,34 +351,65 @@ export function formValidationComment(
     .sort((a, b) => a.localeCompare(b))
     .join(", ")}.\n\n`;
 
-  body += `
-### How to re-enable a test
-To re-enable the test globally, close the issue. To re-enable a test for only a subset of platforms, remove the platforms from the list in the issue body. This may take some time to propagate. To re-enable a test only for a PR, put \`Fixes #${issueNumber}\` in the PR body and rerun the test jobs. Note that if a test is flaky, it maybe be difficult to tell if the test is still flaky on the PR.
-`;
+  body += genReenableValidationSection(issue.number);
 
   body += "</body>";
-  return validationCommentStart + body + validationCommentEnd;
+  return body;
 }
 
 // Returns the platform module labels that are expected, and invalid labels that we do not expect to be there
-export function getExpectedPlatformModuleLabels(
-  platforms: string[],
+function getExpectedLabels(
+  issueBody: string | null,
   labels: string[]
-): [string[], string[]] {
+): string[] {
   let supportedPlatformLabels = Array.from(supportedPlatforms.values())
     .flat()
     // Quick hack to make sure oncall: pt2 doesn't get deleted.
     // TODO: figure out a better way to differentiate between labels that should
     // stay and labels that shouldn't
     .filter((label) => label.startsWith("module: "));
-  let existingPlatformLabels = labels.filter((label) =>
-    supportedPlatformLabels.includes(label)
+  let existingNonPlatformLabels = labels.filter(
+    (label) => !supportedPlatformLabels.includes(label)
   );
-  let expectedPlatformLabels = getPlatformLabels(platforms);
-  // everything in labels that's not in expectedLabels is invalid
-  let invalidPlatformLabels = _.difference(
-    existingPlatformLabels,
-    expectedPlatformLabels
+  let expectedPlatformLabels = getPlatformLabels(
+    parseBody(issueBody || "").platformsToSkip
   );
-  return [expectedPlatformLabels, invalidPlatformLabels];
+  return expectedPlatformLabels.concat(existingNonPlatformLabels);
 }
+
+export async function fixLabels(context: Context<"issues">) {
+  const labels = context.payload.issue.labels?.map((label) => label.name) || [];
+  const owner = context.payload.repository.owner.login;
+  const repo = context.payload.repository.name;
+  const number = context.payload.issue.number;
+  // check labels, add labels as needed
+  let expectedLabels = getExpectedLabels(context.payload.issue.body, labels);
+  const toAdd = expectedLabels.filter((label) => !labels.includes(label));
+  if (toAdd.length > 0) {
+    await context.octokit.issues.addLabels({
+      owner,
+      repo,
+      issue_number: number,
+      labels: toAdd,
+    });
+  }
+  // remove invalid labels
+  let toRemove = labels.filter((label) => !expectedLabels.includes(label));
+  for (const invalidLabel of toRemove) {
+    await context.octokit.issues.removeLabel({
+      owner,
+      repo,
+      issue_number: number,
+      name: invalidLabel,
+    });
+  }
+}
+
+export const __forTesting__ = {
+  getIssueTitle,
+  getIssueBodyForFlakyTest,
+  parseBody,
+  getExpectedLabels,
+  isSingleIssue,
+  parseTestName,
+};

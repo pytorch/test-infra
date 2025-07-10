@@ -27,30 +27,30 @@ PYTHON_ARCHES_DICT = {
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["11.8", "12.6", "12.8"],
-    "test": ["11.8", "12.6", "12.8"],
+    "nightly": ["12.6", "12.8", "12.9"],
+    "test": ["12.6", "12.8", "12.9"],
     "release": ["11.8", "12.6", "12.8"],
 }
 ROCM_ARCHES_DICT = {
     "nightly": ["6.3", "6.4"],
-    "test": ["6.2.4", "6.3"],
+    "test": ["6.3", "6.4"],
     "release": ["6.2.4", "6.3"],
 }
 
 CUDA_CUDNN_VERSIONS = {
     "11.8": {"cuda": "11.8.0", "cudnn": "9"},
-    "12.4": {"cuda": "12.4.1", "cudnn": "9"},
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
+    "12.9": {"cuda": "12.9.1", "cudnn": "9"},
 }
 
 STABLE_CUDA_VERSIONS = {
-    "nightly": "12.6",
-    "test": "12.6",
+    "nightly": "12.8",
+    "test": "12.8",
     "release": "12.6",
 }
 
-CUDA_AARCH64_ARCHES = ["12.8-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.9-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -75,9 +75,9 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.8.0"
-CURRENT_CANDIDATE_VERSION = "2.7.1"
-CURRENT_STABLE_VERSION = "2.7.0"
+CURRENT_NIGHTLY_VERSION = "2.9.0"
+CURRENT_CANDIDATE_VERSION = "2.8.0"
+CURRENT_STABLE_VERSION = "2.7.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -176,9 +176,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         },
         CPU: "pytorch/manylinux2_28-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
-        # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
         CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
-        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.6",
     }
     LIBTORCH_CONTAINER_IMAGES = {
         **{

@@ -16,19 +16,19 @@ SELECT
   CONCAT(j.workflow_name, ' / ', j.name) AS name,
   j.runner_name AS runnerName,
   w.authorEmail as authorEmail,
-  j.conclusion as conclusion,
+  j.conclusion_kg as conclusion,
   j.completed_at as completed_at,
   j.html_url as html_url,
   j.head_sha as head_sha,
   w.head_sha_timestamp AS head_sha_timestamp,
   j.head_branch as head_branch,
-  j.torchci_classification.'captures' AS failure_captures,
-  IF(j.torchci_classification.'line' = '', [], [j.torchci_classification.'line']) AS failure_lines,
-  j.torchci_classification.'context' AS failure_context,
+  j.torchci_classification_kg.'captures' AS failure_captures,
+  IF(j.torchci_classification_kg.'line' = '', [], [j.torchci_classification_kg.'line']) AS failure_lines,
+  j.torchci_classification_kg.'context' AS failure_context,
   j.created_at AS time
 FROM
   default.workflow_job j final
   JOIN runs w on w.id = j.run_id
 WHERE
   j.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
-  AND j.conclusion IN ('failure', 'cancelled')
+  AND j.conclusion_kg IN ('failure', 'cancelled')

@@ -1,0 +1,2 @@
+clickhouse_connect==0.8.5
+boto3==1.35.33

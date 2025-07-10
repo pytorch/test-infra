@@ -3,6 +3,7 @@ SELECT
         {granularity:String} = 'day', toDate(time),
         {granularity:String} = 'week', toStartOfWeek(time),
         {granularity:String} = 'month', toStartOfMonth(time),
+        {granularity:String} = 'all', NULL,
         toDate(time)
     ) AS time_group,
 
@@ -10,12 +11,6 @@ SELECT
     countDistinctMerge(run_counts) AS total_runs,
     group_key,
     {group_by:String} AS group_field,
-
-    avgMerge(cpu_avg_state) AS cpu_avg,
-    avgMerge(memory_avg_state) AS memory_avg,
-    avgMerge(gpu_avg_state) AS gpu_avg,
-    avgMerge(gpu_mem_state) AS gpu_mem_avg,
-
     map(
         'cpu_avg', avgMerge(cpu_avg_state),
         'memory_avg', avgMerge(memory_avg_state),
@@ -51,10 +46,12 @@ SELECT
         quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_mem_p_state)[4],
         'gpu_mem_p98',
         quantilesTDigestMerge(0.1, 0.5, 0.9, 0.95, 0.98) (gpu_mem_p_state)[5]
-    ) AS metrics
+    ) AS metrics,
 
-FROM fortesting.oss_ci_utilization_summary_report_v1
+    min(time) AS earliest_ts,
+    max(time) AS latest_ts
 
+FROM misc.oss_ci_utilization_summary_report_v1
 WHERE
     time >= toDate({start_time:String})
     AND time <= toDate({end_time:String})

@@ -71,7 +71,7 @@ variable "scale_down_schedule_expression" {
 variable "minimum_running_time_in_minutes" {
   description = "The time an ec2 action runner should be running at minimum before terminated if non busy."
   type        = number
-  default     = 45
+  default     = 5
 }
 
 variable "runner_extra_labels" {
@@ -371,5 +371,19 @@ variable "min_available_runners" {
 variable "retry_scale_up_chron_hud_query_url" {
   description = "URL used in scale-up-chron to query HUD for queued jobs, if empty scale up cron will not run."
   type        = string
-  default     =""
+  default     = ""
+}
+
+variable "wiz_secret_arn" {
+  description = "ARN of AWS Secrets Manager secret that the runner role should have access to"
+  type        = string
+  default     = null
+  sensitive   = true
+}
+
+variable "wiz_secret_kms_key_arn" {
+  description = "ARN of KMS key used to encrypt the secret specified in wiz_secret_arn. Must be provided if wiz_secret_arn is specified."
+  type        = string
+  default     = null
+  sensitive   = true
 }

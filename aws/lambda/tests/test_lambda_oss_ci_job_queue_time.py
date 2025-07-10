@@ -1,19 +1,23 @@
-from math import exp
+import logging
 import unittest
-import os
-import gzip
-
-from typing import Any, List, Tuple, Dict
-from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
+from typing import Any, List, Tuple
+from unittest.mock import MagicMock, patch
+
 from oss_ci_job_queue_time.lambda_function import (
-    QueueTimeProcessor,
-    QueuedJobHistogramGenerator,
-    WorkerPoolHandler,
     lambda_handler,
     local_run,
+    QueuedJobHistogramGenerator,
+    QueueTimeProcessor,
     TimeIntervalGenerator,
+    WorkerPoolHandler,
 )
+
+from .common import MockClickHouseQuery, setup_mock_db_client
+
+
+logger = logging.getLogger(__name__)
+
 
 # ------------------------ MOCKS START ----------------------------------
 _TEST_DATETIME_1M1D0030 = datetime(2025, 1, 1, 0, 30, 0)
@@ -148,7 +152,7 @@ def get_mock_queue_time_processor_process(start_time: datetime):
     }
 
 
-class MockQuery:
+class QueueTimeClickHouseMockQuery(MockClickHouseQuery):
     def __init__(
         self,
         rows_in_queue: List[Tuple] = get_default_result_rows(),
@@ -156,16 +160,19 @@ class MockQuery:
         rows_max_historagram: List[Tuple] = [(_TEST_DATETIME_1M1D0030.isoformat(),)],
         rows_max_workflow_job: List[Tuple] = [(_TEST_DATETIME_1M1D0100.isoformat(),)],
     ) -> None:
+        super().__init__()
         self.rows_in_queue = rows_in_queue
         self.rows_picked = rows_picked
         self.rows_max_historagram = rows_max_historagram
         self.rows_max_workflow_job = rows_max_workflow_job
+        logger.info(f"yang test rows_in_queue: {self.rows_in_queue}")
 
-    def mock_query_result(self, query: str, parameters: str) -> Any:
-        result = MagicMock()
+    def get_response_for_query(
+        self, query: str, parameters: None, type: str = ""
+    ) -> Tuple[Tuple[str, ...], List[Tuple]]:
         column_names = ()
         rows = []
-        if "latest FROM fortesting.oss_ci_queue_time_histogram" in query:
+        if "latest FROM misc.oss_ci_queue_time_histogram" in query:
             column_names = ("latest",)
             rows = self.rows_max_historagram
         elif "latest from default.workflow_job" in query:
@@ -177,12 +184,7 @@ class MockQuery:
         elif "LENGTH(job.steps) != 0'" in query:
             column_names = get_default_result_columns()
             rows = self.rows_picked
-        print(f"yang  test {column_names}, {rows}, {len(rows)}")
-
-        result.column_names = column_names
-        result.result_rows = rows
-        result.row_count = len(rows)
-        return result
+        return column_names, rows
 
 
 def mock_s3_resource_put(mock_s3_resource: Any) -> None:
@@ -199,20 +201,6 @@ def get_mock_db_query(mock: Any):
     return mock.return_value.query
 
 
-def setup_mock_db_client(
-    mock: Any,
-    mock_query: MockQuery = MockQuery(),
-    is_patch: bool = True,  # wether the mock is setup as patch method
-) -> None:
-    if is_patch:
-        mock_client = mock.return_value
-    else:
-        mock_client = mock
-    mock_client.query.side_effect = (
-        lambda query, parameters: mock_query.mock_query_result(query, parameters)
-    )
-
-
 def get_default_environment_variables():
     return {
         "CLICKHOUSE_ENDPOINT": "test",
@@ -225,7 +213,9 @@ def get_default_environment_variables():
 class EnvironmentBaseTest(unittest.TestCase):
     def setUp(self) -> None:
         # set up patchers since we are not passing in the s3 instance and clickhouse client instance in lambda_run()
-        patcher2 = patch("oss_ci_job_queue_time.lambda_function.get_clickhouse_client")
+        get_clickhouse_client_patcher = patch(
+            "oss_ci_job_queue_time.lambda_function.get_clickhouse_client"
+        )
         patcher3 = patch("oss_ci_job_queue_time.lambda_function.get_runner_config")
         patcher4 = patch("oss_ci_job_queue_time.lambda_function.get_config_retrievers")
         envs_patcher = patch(
@@ -233,7 +223,12 @@ class EnvironmentBaseTest(unittest.TestCase):
             new=get_default_environment_variables(),
         )
 
-        self.mock_get_client = patcher2.start()
+        self.mock_get_cc = get_clickhouse_client_patcher.start()
+
+        self.mock_cc = MagicMock()
+        setup_mock_db_client(self.mock_cc, QueueTimeClickHouseMockQuery(), "", False)
+        self.mock_get_cc.return_value = self.mock_cc
+
         self.mock_get_runner_config = patcher3.start()
         self.mock_get_config_retrievers = patcher4.start()
         self.mock_envs = envs_patcher.start()
@@ -246,7 +241,7 @@ class EnvironmentBaseTest(unittest.TestCase):
             "lf": MagicMock(),
             "old_lf": MagicMock(),
         }
-        self.addCleanup(patcher2.stop)
+        self.addCleanup(get_clickhouse_client_patcher.stop)
         self.addCleanup(patcher3.stop)
         self.addCleanup(patcher4.stop)
         self.addCleanup(envs_patcher.stop)
@@ -482,7 +477,7 @@ class TestQueuedJobHistogramGenerator(unittest.TestCase):
 class TestTimeIntervalGenerator(unittest.TestCase):
     def test_time_interval_generator_happy_flow_then_success(self):
         mock = MagicMock()
-        setup_mock_db_client(mock, is_patch=False)
+        setup_mock_db_client(mock, QueueTimeClickHouseMockQuery(), is_patch=False)
 
         time_interval_generator = TimeIntervalGenerator()
         time_interval_generator.generate(mock)
@@ -493,7 +488,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
         self,
     ):
         mock = MagicMock()
-        mq = MockQuery(
+        mq = QueueTimeClickHouseMockQuery(
             rows_max_historagram=[],
         )
         setup_mock_db_client(mock, mq, is_patch=False)
@@ -508,7 +503,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
         self,
     ):
         mock = MagicMock()
-        mq = MockQuery(
+        mq = QueueTimeClickHouseMockQuery(
             rows_max_workflow_job=[],
         )
         setup_mock_db_client(mock, mq, is_patch=False)
@@ -560,7 +555,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
                 mock = MagicMock()
                 start_time = x[1]
                 end_time = x[2]
-                mq = MockQuery(
+                mq = QueueTimeClickHouseMockQuery(
                     rows_max_historagram=[
                         (start_time,),
                     ],
@@ -644,7 +639,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
                 mock = MagicMock()
                 start_time = x[1]
                 end_time = x[2]
-                mq = MockQuery(
+                mq = QueueTimeClickHouseMockQuery(
                     rows_max_historagram=[
                         (start_time,),
                     ],
@@ -671,7 +666,7 @@ class TestTimeIntervalGenerator(unittest.TestCase):
 class TestQueueTimeProcessor(EnvironmentBaseTest):
     def test_queue_time_processor_when_happy_flow_then_success(self):
         # execute
-        setup_mock_db_client(self.mock_get_client)
+        setup_mock_db_client(self.mock_get_cc, QueueTimeClickHouseMockQuery())
         processor = QueueTimeProcessor()
         processor.process(
             MagicMock(),
@@ -683,13 +678,13 @@ class TestQueueTimeProcessor(EnvironmentBaseTest):
 
         # assert
         # assert clickhouse client
-        self.mock_get_client.assert_called()  # Generic check
-        self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
-        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 1)
+        self.mock_get_cc.assert_called()  # Generic check
+        self.assertEqual(self.mock_get_cc.return_value.query.call_count, 3)
+        self.assertEqual(self.mock_get_cc.return_value.insert.call_count, 1)
 
     def test_queue_time_processor_when_row_result_is_empty_then_success(self):
-        mq = MockQuery(rows_in_queue=[], rows_picked=[])
-        setup_mock_db_client(self.mock_get_client, mq)
+        mq = QueueTimeClickHouseMockQuery(rows_in_queue=[], rows_picked=[])
+        setup_mock_db_client(self.mock_cc, mq, is_patch=False)
 
         # execute
         processor = QueueTimeProcessor()
@@ -702,9 +697,9 @@ class TestQueueTimeProcessor(EnvironmentBaseTest):
         )
 
         # assert
-        self.mock_get_client.assert_called()  # Generic check
-        self.assertEqual(self.mock_get_client.return_value.query.call_count, 3)
-        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 0)
+        self.mock_get_cc.assert_called()  # Generic check
+        self.mock_cc.query.assert_called()  # Generic check
+        self.mock_cc.insert.assert_not_called()
 
 
 class TestWorkerPoolHandler(unittest.TestCase):
@@ -811,7 +806,7 @@ class TestLambdaHanlder(EnvironmentBaseTest):
         for x in test_cases:
             with self.subTest(f"Test Environment {x}", x=x):
                 # prepare
-                self.mock_get_client.reset_mock(return_value=True)
+                self.mock_get_cc.reset_mock(return_value=True)
                 self.mock_envs[x] = ""
 
                 # execute
@@ -820,7 +815,7 @@ class TestLambdaHanlder(EnvironmentBaseTest):
 
                 # assert
                 self.assertTrue(x in str(context.exception))
-                self.mock_get_client.return_value.query.assert_not_called()
+                self.mock_get_cc.return_value.query.assert_not_called()
 
                 # reset
                 # manually reset the envs, todo: find a better way to do this,maybe use parameterized
@@ -830,16 +825,16 @@ class TestLambdaHanlder(EnvironmentBaseTest):
         self,
     ):
         # prepare
-        setup_mock_db_client(self.mock_get_client)
+        setup_mock_db_client(self.mock_get_cc, QueueTimeClickHouseMockQuery())
 
         # execute
         lambda_handler(None, None)
 
         # assert
         # assert clickhouse client
-        self.assertEqual(self.mock_get_client.call_count, 2)
-        self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
-        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 1)
+        self.assertEqual(self.mock_get_cc.call_count, 2)
+        self.assertEqual(self.mock_get_cc.return_value.query.call_count, 5)
+        self.assertEqual(self.mock_get_cc.return_value.insert.call_count, 1)
 
 
 class TestLocalRun(EnvironmentBaseTest):
@@ -847,16 +842,16 @@ class TestLocalRun(EnvironmentBaseTest):
         self,
     ):
         # prepare
-        setup_mock_db_client(self.mock_get_client)
+        setup_mock_db_client(self.mock_cc, QueueTimeClickHouseMockQuery())
 
         # execute
         local_run()
 
         # assert
         # assert clickhouse client
-        self.assertEqual(self.mock_get_client.call_count, 2)
-        self.assertEqual(self.mock_get_client.return_value.query.call_count, 5)
-        self.assertEqual(self.mock_get_client.return_value.insert.call_count, 0)
+        self.assertEqual(self.mock_get_cc.call_count, 2)
+        self.assertEqual(self.mock_cc.query.call_count, 5)
+        self.assertEqual(self.mock_cc.insert.call_count, 0)
 
 
 # ------------------------ ENVIRONMENT UNIT TESTS END ----------------------------------
