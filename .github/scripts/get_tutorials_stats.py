@@ -116,7 +116,7 @@ def get_file_names(
     cwd: Optional[str] = None,
     path_filter: Optional[str] = None,
 ) -> List[CommitInfo]:
-    cmd = "git log --date=short --pretty='format:%h;%ad' --numstat --name-status"
+    cmd = "git log --date=short --pretty='format:%h;%ad' --numstat"
     if path_filter:
         cmd += f" -- {path_filter}"
     lines = run_command(
@@ -124,40 +124,68 @@ def get_file_names(
         cwd=cwd,
         env={"TZ": "UTC"},
     ).split("\n")
-    rc: List[CommitInfo] = []
 
+    # Get name-status for file status (A/M/D)
+    status_cmd = "git log --date=short --pretty='format:%h;%ad' --name-status"
+    if path_filter:
+        status_cmd += f" -- {path_filter}"
+    status_lines = run_command(
+        status_cmd,
+        cwd=cwd,
+        env={"TZ": "UTC"},
+    ).split("\n")
+
+    # Process numstat output
+    rc: List[CommitInfo] = []
     for line in lines:
         line = line.strip()
         if not line:
             continue
-        elif ";" in line:
+        elif len(line.split("\t")) != 3:
             commit_hash, date = line.split(";")
             rc.append(CommitInfo(commit_hash, date, []))
         else:
+            added, deleted, name = line.split("\t")
+            # Special casing for binary files
+            if added == "-":
+                assert deleted == "-"
+                rc[-1].files.append(FileInfo(name, -1, -1, ""))  # Empty status for now
+            else:
+                rc[-1].files.append(FileInfo(name, int(added), int(deleted), ""))
+    # Process name-status output to add status information
+    current_commit = None
+    status_map = {}  # Maps commit_id -> {filename -> status}
+
+    for line in status_lines:
+        line = line.strip()
+        if not line:
+            continue
+        elif ";" in line:  # This is a commit line
+            commit_hash, date = line.split(";")
+            current_commit = commit_hash
+            status_map[current_commit] = {}
+        else:  # This is a file status line
             parts = line.split("\t")
-            # Check if this is a numstat line (first part can be converted to int)
-            try:
-                added = int(parts[0])
-                deleted = int(parts[1])
-                name = parts[2]
-                rc[-1].files.append(
-                    FileInfo(name, added, deleted, "M")
-                )  # Default to modified
-            except ValueError:
-                # This is a name-status line
-                status = parts[0]
-                name = parts[1]
-                # Find if we already have this file in the current commit
-                for i, file_info in enumerate(rc[-1].files):
-                    if file_info.filename == name:
-                        # Update the status of the existing file
-                        rc[-1].files[i] = FileInfo(
-                            name, file_info.lines_added, file_info.lines_deleted, status
-                        )
-                        break
-                else:
-                    # File not found, add it with status only
-                    rc[-1].files.append(FileInfo(name, 0, 0, status))
+            status = parts[0]
+            filename = parts[1] if len(parts) > 1 else ""
+            if filename:
+                status_map.setdefault(current_commit, {})[filename] = status
+
+    # Update file statuses
+    for commit in rc:
+        for i, file_info in enumerate(commit.files):
+            if (
+                commit.commit_id in status_map
+                and file_info.filename in status_map[commit.commit_id]
+            ):
+                # Replace the FileInfo with a new one that includes the status
+                commit.files[i] = FileInfo(
+                    file_info.filename,
+                    file_info.lines_added,
+                    file_info.lines_deleted,
+                    status_map[commit.commit_id][file_info.filename],
+                )
+
     return rc
 
 
