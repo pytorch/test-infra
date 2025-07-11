@@ -162,8 +162,8 @@ def get_file_names(
             continue
         elif ";" in line:  # This is a commit line
             commit_hash, date = line.split(";")
-            current_commit = commit_hash
-            status_map[current_commit] = {}
+            if current_commit is not None and filename:
+                status_map.setdefault(current_commit, {})[filename] = status
         else:  # This is a file status line
             parts = line.split("\t")
             status = parts[0]
