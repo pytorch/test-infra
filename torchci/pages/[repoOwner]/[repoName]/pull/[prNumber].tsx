@@ -48,7 +48,7 @@ function CommitInfo({
   if (commitData === undefined) {
     return <div>Loading...</div>;
   }
-  const { commit, jobs } = commitData;
+  const { commit, jobs, workflowIdsByName } = commitData;
 
   return (
     <CommitStatus
@@ -56,6 +56,7 @@ function CommitInfo({
       repoName={repoName}
       commit={commit}
       jobs={jobs}
+      workflowIdsByName={workflowIdsByName}
       isCommitPage={false}
       unstableIssues={unstableIssuesData ?? []}
     />
