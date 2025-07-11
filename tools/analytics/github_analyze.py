@@ -139,6 +139,7 @@ def parse_medium_format(lines: Union[str, List[str]]) -> GitCommit:
         author_date=datetime.fromtimestamp(int(lines[2].split(":", 1)[1].strip())),
         title=lines[4].strip(),
         body="\n".join(lines[5:]),
+        pr_url="",
     )
 
 
@@ -589,7 +590,9 @@ def analyze_reverts_missing_from_branch(
     branch_only_commits = build_commit_dict(repo.get_commit_list("main", branch))
 
     # Get all commits in the branch to check original PR presence
-    all_branch_commits = build_commit_dict(repo._run_git_log(f"orig/{branch}"))
+    all_branch_commits = build_commit_dict(
+        repo._run_git_log(f"{repo.remote}/orig/{branch}")
+    )
 
     branch_only_reverts = set()
     branch_commit_hashes = set(all_branch_commits.keys())
