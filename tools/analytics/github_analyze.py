@@ -451,11 +451,127 @@ def print_contributor_stats(commits, delta: Optional[timedelta] = None) -> None:
 
 
 def commits_missing_in_branch(
+    repo: GitRepo, branch: str, orig_branch: str, milestone_idx: int
+) -> None:
+    def get_commits_dict(x, y):
+        return build_commit_dict(repo.get_commit_list(x, y))
+
+    main_commits = get_commits_dict(orig_branch, "main")
+    release_commits = get_commits_dict(orig_branch, branch)
+    print(f"len(main_commits)={len(main_commits)}")
+    print(f"len(release_commits)={len(release_commits)}")
+    print("URL;Title;Status")
+    for issue in gh_get_milestone_issues(
+        "pytorch", "pytorch", milestone_idx, IssueState.ALL
+    ):
+        issue_url, state = issue["html_url"], issue["state"]
+        # Skip closed states if they were landed before merge date
+        if state == "closed":
+            mentioned_after_cut = any(
+                commit.is_issue_mentioned(issue_url) for commit in main_commits.values()
+            )
+            # If issue is not mentioned after cut, that it must be present in release branch
+            if not mentioned_after_cut:
+                continue
+            mentioned_in_release = any(
+                commit.is_issue_mentioned(issue_url)
+                for commit in release_commits.values()
+            )
+            # if Issue is mentioned is release branch, than it was picked already
+            if mentioned_in_release:
+                continue
+        print(f'{issue_url};{issue["title"]};{state}')
+
+
+def commits_missing_in_release(
     repo: GitRepo,
     branch: str,
     orig_branch: str,
+    minor_release: str,
     milestone_idx: int,
-    fork_cut_date: Optional[datetime] = None,
+    cut_off_date: datetime,
+    issue_num: int,
+) -> None:
+    def get_commits_dict(x, y):
+        return build_commit_dict(repo.get_commit_list(x, y))
+
+    main_commits = get_commits_dict(minor_release, "main")
+    prev_release_commits = get_commits_dict(orig_branch, branch)
+    current_issue_comments = get_issue_comments(
+        "pytorch", "pytorch", issue_num
+    )  # issue comments for the release tracker as cherry picks
+    print(f"len(main_commits)={len(main_commits)}")
+    print(f"len(prev_release_commits)={len(prev_release_commits)}")
+    print(f"len(current_issue_comments)={len(current_issue_comments)}")
+    print(f"issue_num: {issue_num}, len(issue_comments)={len(current_issue_comments)}")
+    print("URL;Title;Status")
+
+    # Iterate over the previous release branch to find potentially missing cherry picks in the current issue.
+    for commit in prev_release_commits.values():
+        not_cherry_picked_in_current_issue = any(
+            commit.pr_url not in issue_comment["body"]
+            for issue_comment in current_issue_comments
+        )
+        for main_commit in main_commits.values():
+            if main_commit.pr_url == commit.pr_url:
+                mentioned_after_cut_off_date = cut_off_date < main_commit.commit_date
+                if not_cherry_picked_in_current_issue and mentioned_after_cut_off_date:
+                    # Commits that are release only, which exist in previous release branch and not in main.
+                    print(f"{commit.pr_url};{commit.title};{commit.commit_date}")
+                break
+
+
+def analyze_stacks(repo: GitRepo) -> None:
+    from tqdm.contrib.concurrent import thread_map
+
+    branches = repo.get_ghstack_orig_branches()
+    stacks_by_author: Dict[str, List[int]] = {}
+    for branch, rv_commits in thread_map(
+        lambda x: (x, repo.rev_list(x)), branches, max_workers=10
+    ):
+        author = branch.split("/")[2]
+        if author not in stacks_by_author:
+            stacks_by_author[author] = []
+        stacks_by_author[author].append(len(rv_commits))
+    for author, slen in sorted(
+        stacks_by_author.items(), key=lambda x: len(x[1]), reverse=True
+    ):
+        if len(slen) == 1:
+            print(f"{author} has 1 stack of depth {slen[0]}")
+            continue
+        print(
+            f"{author} has {len(slen)} stacks max depth is {max(slen)} avg depth is {sum(slen)/len(slen):.2f} mean is {slen[len(slen)//2]}"
+        )
+
+
+def extract_commit_hash_from_revert(text):
+    """
+    Extract commit hash from a revert commit message.
+
+    Args:
+        text (str): The revert commit message
+
+    Returns:
+        str or None: The extracted commit hash, or None if not found
+    """
+    # Enhanced patterns to match various PyTorch revert formats
+    patterns = [
+        r"This reverts commit ([0-9a-f]{40})\.",  # Full 40-char hash
+        r"This reverts commit ([0-9a-f]{7,40})\.",  # Variable length hash
+        r"reverts commit ([0-9a-f]{7,40})",  # Case insensitive
+        r"Revert.*commit ([0-9a-f]{7,40})",  # Flexible revert format
+        r"Back out.*([0-9a-f]{7,40})",  # Back out format
+    ]
+
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1)
+    return None
+
+
+def analyze_reverts_missing_from_branch(
+    repo: GitRepo, branch: str, fork_cut_date: Optional[datetime] = None
 ) -> None:
     """
     Analyze reverts applied to main branch but not applied to specified branch.
@@ -465,8 +581,6 @@ def commits_missing_in_branch(
     Args:
         repo: GitRepo instance
         branch: Target branch to analyze (e.g., release branch)
-        orig_branch: Original branch reference (unused in new implementation)
-        milestone_idx: Milestone index (unused in new implementation)
         fork_cut_date: Optional date when fork was created from main
     """
     # Get commits from main that are not in the specified branch
@@ -613,93 +727,6 @@ def commits_missing_in_branch(
         print("-" * 80)
 
 
-def commits_missing_in_release(
-    repo: GitRepo,
-    branch: str,
-    orig_branch: str,
-    minor_release: str,
-    milestone_idx: int,
-    cut_off_date: datetime,
-    issue_num: int,
-) -> None:
-    def get_commits_dict(x, y):
-        return build_commit_dict(repo.get_commit_list(x, y))
-
-    main_commits = get_commits_dict(minor_release, "main")
-    prev_release_commits = get_commits_dict(orig_branch, branch)
-    current_issue_comments = get_issue_comments(
-        "pytorch", "pytorch", issue_num
-    )  # issue comments for the release tracker as cherry picks
-    print(f"len(main_commits)={len(main_commits)}")
-    print(f"len(prev_release_commits)={len(prev_release_commits)}")
-    print(f"len(current_issue_comments)={len(current_issue_comments)}")
-    print(f"issue_num: {issue_num}, len(issue_comments)={len(current_issue_comments)}")
-    print("URL;Title;Status")
-
-    # Iterate over the previous release branch to find potentially missing cherry picks in the current issue.
-    for commit in prev_release_commits.values():
-        not_cherry_picked_in_current_issue = any(
-            commit.pr_url not in issue_comment["body"]
-            for issue_comment in current_issue_comments
-        )
-        for main_commit in main_commits.values():
-            if main_commit.pr_url == commit.pr_url:
-                mentioned_after_cut_off_date = cut_off_date < main_commit.commit_date
-                if not_cherry_picked_in_current_issue and mentioned_after_cut_off_date:
-                    # Commits that are release only, which exist in previous release branch and not in main.
-                    print(f"{commit.pr_url};{commit.title};{commit.commit_date}")
-                break
-
-
-def analyze_stacks(repo: GitRepo) -> None:
-    from tqdm.contrib.concurrent import thread_map
-
-    branches = repo.get_ghstack_orig_branches()
-    stacks_by_author: Dict[str, List[int]] = {}
-    for branch, rv_commits in thread_map(
-        lambda x: (x, repo.rev_list(x)), branches, max_workers=10
-    ):
-        author = branch.split("/")[2]
-        if author not in stacks_by_author:
-            stacks_by_author[author] = []
-        stacks_by_author[author].append(len(rv_commits))
-    for author, slen in sorted(
-        stacks_by_author.items(), key=lambda x: len(x[1]), reverse=True
-    ):
-        if len(slen) == 1:
-            print(f"{author} has 1 stack of depth {slen[0]}")
-            continue
-        print(
-            f"{author} has {len(slen)} stacks max depth is {max(slen)} avg depth is {sum(slen)/len(slen):.2f} mean is {slen[len(slen)//2]}"
-        )
-
-
-def extract_commit_hash_from_revert(text):
-    """
-    Extract commit hash from a revert commit message.
-
-    Args:
-        text (str): The revert commit message
-
-    Returns:
-        str or None: The extracted commit hash, or None if not found
-    """
-    # Enhanced patterns to match various PyTorch revert formats
-    patterns = [
-        r"This reverts commit ([0-9a-f]{40})\.",  # Full 40-char hash
-        r"This reverts commit ([0-9a-f]{7,40})\.",  # Variable length hash
-        r"reverts commit ([0-9a-f]{7,40})",  # Case insensitive
-        r"Revert.*commit ([0-9a-f]{7,40})",  # Flexible revert format
-        r"Back out.*([0-9a-f]{7,40})",  # Back out format
-    ]
-
-    for pattern in patterns:
-        match = re.search(pattern, text, re.IGNORECASE)
-        if match:
-            return match.group(1)
-    return None
-
-
 def parse_arguments():
     from argparse import ArgumentParser
 
@@ -720,6 +747,11 @@ def parse_arguments():
     parser.add_argument("--missing-in-branch", action="store_true")
     parser.add_argument("--missing-in-release", action="store_true")
     parser.add_argument("--analyze-stacks", action="store_true")
+    parser.add_argument(
+        "--analyze-missing-reverts-from-branch",
+        action="store_true",
+        help="Analyze reverts applied to main branch but not applied to specified branch",
+    )
     parser.add_argument(
         "--fork-cut-date",
         type=lambda d: datetime.strptime(d, "%Y-%m-%d"),
@@ -749,25 +781,32 @@ def main():
         analyze_stacks(repo)
         return
 
-    # Use milestone idx or search it along milestone titles (still needed for other functions)
-    milestone_idx = 0  # Default value for missing_in_branch revert analysis
-    if args.milestone_id:
-        try:
-            milestone_idx = int(args.milestone_id)
-        except ValueError:
-            milestone_idx = -1
-            milestones = gh_get_milestones()
-            for milestone in milestones:
-                if milestone.get("title", "") == args.milestone_id:
-                    milestone_idx = int(milestone.get("number", "-2"))
-            if milestone_idx < 0:
-                print(f"Could not find milestone {args.milestone_id}")
-                return
+    if args.analyze_missing_reverts_from_branch:
+        if not args.branch:
+            print(
+                "Error: --branch argument is required for --analyze-missing-reverts-from-branch"
+            )
+            return
+        fork_cut_date = getattr(args, "fork_cut_date", None)
+        analyze_reverts_missing_from_branch(repo, args.branch, fork_cut_date)
+        return
+
+    # Use milestone idx or search it along milestone titles
+    try:
+        milestone_idx = int(args.milestone_id)
+    except ValueError:
+        milestone_idx = -1
+        milestones = gh_get_milestones()
+        for milestone in milestones:
+            if milestone.get("title", "") == args.milestone_id:
+                milestone_idx = int(milestone.get("number", "-2"))
+        if milestone_idx < 0:
+            print(f"Could not find milestone {args.milestone_id}")
+            return
 
     if args.missing_in_branch:
-        fork_cut_date = getattr(args, "fork_cut_date", None)
         commits_missing_in_branch(
-            repo, args.branch, f"orig/{args.branch}", milestone_idx, fork_cut_date
+            repo, args.branch, f"orig/{args.branch}", milestone_idx
         )
         return
 
