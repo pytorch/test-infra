@@ -68,6 +68,8 @@ jobs:
           --remote origin \
           --branch "${BRANCH:-release/2.8}" \
           --analyze-missing-reverts-from-branch
+          --fork-cut-date 2024-06-24
+
 
     - name: Show outstanding milestone issues
       env:
@@ -79,5 +81,3 @@ jobs:
           --remote origin \
           --branch "${BRANCH:-release/2.8}" \
           --milestone-id "${MILESTONE:-53}" \
-          --fork-cut-date 2024-06-24
-          --analyze-missing-reverts-from-branch
