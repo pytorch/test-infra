@@ -44,7 +44,7 @@ export default function CommitInfo({
   if (isLoading) {
     return <div>Loading...</div>;
   }
-  const { commit, jobs } = commitData!;
+  const { commit, jobs, workflowIdsByName } = commitData!;
 
   return (
     <CommitStatus
@@ -52,6 +52,7 @@ export default function CommitInfo({
       repoName={repoName}
       commit={commit}
       jobs={jobs}
+      workflowIdsByName={workflowIdsByName}
       isCommitPage={false}
       unstableIssues={unstableIssuesData ?? []}
     />

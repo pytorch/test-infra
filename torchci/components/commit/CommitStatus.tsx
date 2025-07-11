@@ -54,10 +54,12 @@ function getBoxOrdering(jobs: JobData[], wideBoxes: Set<string>) {
 function WorkflowsContainer({
   jobs,
   unstableIssues,
+  workflowIdsByName,
   repoFullName,
 }: {
   jobs: JobData[];
   unstableIssues: IssueData[];
+  workflowIdsByName: Record<string, number[]>;
   repoFullName: string;
 }) {
   useScrollTo();
@@ -81,6 +83,7 @@ function WorkflowsContainer({
               repoFullName={repoFullName}
               key={workflowName}
               workflowName={workflowName}
+              allWorkflowIds={workflowIdsByName[workflowName] || []}
               jobs={jobs}
               unstableIssues={unstableIssues}
               wide={wideBoxes.has(workflowName)}
@@ -106,6 +109,7 @@ export default function CommitStatus({
   repoName,
   commit,
   jobs,
+  workflowIdsByName,
   isCommitPage,
   unstableIssues,
 }: {
@@ -113,6 +117,7 @@ export default function CommitStatus({
   repoName: string;
   commit: CommitData;
   jobs: JobData[];
+  workflowIdsByName: Record<string, number[]>;
   isCommitPage: boolean;
   unstableIssues: IssueData[];
 }) {
@@ -174,6 +179,7 @@ export default function CommitStatus({
       />
       <WorkflowsContainer
         jobs={jobs}
+        workflowIdsByName={workflowIdsByName}
         unstableIssues={unstableIssues}
         repoFullName={`${repoOwner}/${repoName}`}
       />
