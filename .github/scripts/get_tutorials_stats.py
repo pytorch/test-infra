@@ -154,7 +154,7 @@ def get_file_names(
                 rc[-1].files.append(FileInfo(name, int(added), int(deleted), ""))
     # Process name-status output to add status information
     current_commit = None
-    status_map = {}  # Maps commit_id -> {filename -> status}
+    status_map: Dict[str, Dict[str, str]] = {}  # Maps commit_id -> {filename -> status}
 
     for line in status_lines:
         line = line.strip()
