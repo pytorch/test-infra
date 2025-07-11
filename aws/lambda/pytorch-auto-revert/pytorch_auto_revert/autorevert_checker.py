@@ -13,6 +13,8 @@ import pandas as pd
 from joblib import load
 import ast
 import numpy as np
+import torch
+import torch.nn as nn
 from sklearn.preprocessing import MultiLabelBinarizer
 
 from .clickhouse_client_helper import CHCliFactory
@@ -27,6 +29,9 @@ class JobResult:
     conclusion: str
     status: str
     classification_rule: str
+    error_context: str
+    error_line: str
+    error_captures: str
     workflow_created_at: datetime
 
 
@@ -75,45 +80,111 @@ class AutorevertPatternChecker:
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
 
-        MODEL_PATH = "improved_model.joblib"  # Path to the improved model with rarity buckets
-        METADATA_PATH = "improved_metadata.joblib"  # Path to the improved metadata
-        
+        # Support both the scikit-learn model and the PyTorch kernel SVM model
+        SKLEARN_MODEL_PATH = "improved_model.joblib"  # Original scikit-learn model
+        SKLEARN_METADATA_PATH = "improved_metadata.joblib"  # Original metadata
+
+        # New PyTorch kernel SVM model paths
+        PT_MODEL_PATH = "kernel_svm_model.pt"  # PyTorch model state dict
+        PT_METADATA_PATH = "kernel_svm_metadata.joblib"  # PyTorch model metadata
+
         try:
-            # Load model and extract expected feature names
-            self._pattern_model = load(MODEL_PATH)
-            self._expected_features = None
-            
-            # Find the expected feature names from the model
-            if hasattr(self._pattern_model, 'feature_names_in_'):
-                self._expected_features = self._pattern_model.feature_names_in_
-            elif hasattr(self._pattern_model, '_final_estimator') and hasattr(self._pattern_model._final_estimator, 'feature_names_in_'):
-                self._expected_features = self._pattern_model._final_estimator.feature_names_in_
-            elif hasattr(self._pattern_model, 'named_steps'):
-                # Try to find feature names in the pipeline steps
-                for name, step in self._pattern_model.named_steps.items():
-                    if hasattr(step, 'feature_names_in_'):
-                        self._expected_features = step.feature_names_in_
-                        break
-            
-            # Load metadata with binarizers and threshold
-            metadata = load(METADATA_PATH)
-            self._mlbs = metadata.get('mlbs', {})
-            self._mlb_failure_newer = metadata['mlb_failure_newer']
-            self._mlb_rules = metadata['mlb_rules']
-            self._optimal_threshold = metadata.get('optimal_threshold', 0.5)
-            self._failure_combo_names = metadata['feature_names']['failure_combo']
-            self._rules_names = metadata['feature_names']['rules']
-            self._feature_id_maps = metadata.get('feature_id_maps', {})
-            
-            # Load bucket information
-            self._bucket_info = metadata.get('bucket_info', {})
-            self._num_buckets = metadata.get('num_buckets', 10)
-            
-            # Pre-compute mappings
-            self._failure_rule_buckets = self._bucket_info.get('failure_rule_buckets', {})
-            self._failure_job_buckets = self._bucket_info.get('failure_job_buckets', {})
-            
-            # Pre-compute bucket column names for faster feature creation
+            # First, try loading the PyTorch kernel SVM model
+            try:
+                # Load the kernel SVM metadata
+                pt_metadata = load(PT_METADATA_PATH)
+                self._is_pytorch_model = True
+                self._model_type = 'kernel_svm'
+
+                # Create the PyTorch kernel SVM model
+                class KernelSVM(nn.Module):
+                    def __init__(self, input_dim, num_support_vectors=100, gamma=0.01):
+                        super(KernelSVM, self).__init__()
+                        self.num_support_vectors = num_support_vectors
+                        self.gamma = gamma
+                        self.support_vectors = nn.Parameter(torch.randn(num_support_vectors, input_dim) * 0.1)
+                        self.weights = nn.Parameter(torch.randn(num_support_vectors, 1) * 0.01)
+                        self.bias = nn.Parameter(torch.zeros(1))
+
+                    def rbf_kernel(self, x, support_vectors):
+                        batch_size = x.size(0)
+                        x_norm = torch.sum(x**2, dim=1).view(batch_size, 1)
+                        sv_norm = torch.sum(support_vectors**2, dim=1).view(1, self.num_support_vectors)
+                        distances = x_norm + sv_norm - 2.0 * torch.mm(x, support_vectors.t())
+                        kernel_values = torch.exp(-self.gamma * distances)
+                        return kernel_values
+
+                    def forward(self, x):
+                        kernel_outputs = self.rbf_kernel(x, self.support_vectors)
+                        outputs = torch.mm(kernel_outputs, self.weights) + self.bias
+                        return outputs
+
+                # Initialize model with parameters from metadata
+                input_dim = pt_metadata['input_dim']
+                num_support_vectors = pt_metadata['num_support_vectors']
+                gamma = pt_metadata['gamma']
+
+                self._pattern_model = KernelSVM(input_dim, num_support_vectors, gamma)
+
+                # Load the trained model parameters
+                device = torch.device('cpu')  # Always use CPU for inference
+                self._pattern_model.load_state_dict(torch.load(PT_MODEL_PATH, map_location=device))
+                self._pattern_model.eval()  # Set model to evaluation mode
+
+                # Extract metadata for feature processing
+                self._expected_features = pt_metadata['feature_columns']
+                self._mlbs = pt_metadata['mlbs']
+                self._mlb_failure_newer = pt_metadata['mlb_failure_newer']
+                self._mlb_rules = pt_metadata['mlb_rules']
+                self._optimal_threshold = pt_metadata['optimal_threshold']
+                self._failure_combo_names = pt_metadata['feature_names']['failure_combo']
+                self._rules_names = pt_metadata['feature_names']['rules']
+
+                # Load bucket information
+                self._bucket_info = pt_metadata['bucket_info']
+                self._num_buckets = self._bucket_info.get('num_buckets', 10)
+
+                # Pre-compute mappings
+                self._failure_rule_buckets = self._bucket_info.get('failure_rule_buckets', {})
+                self._failure_job_buckets = self._bucket_info.get('failure_job_buckets', {})
+
+                print(f"Loaded PyTorch Kernel SVM model with {num_support_vectors} support vectors")
+
+            except (FileNotFoundError, Exception) as e:
+                # Fall back to the scikit-learn model
+                print(f"PyTorch model loading failed: {e}, falling back to scikit-learn model")
+                self._is_pytorch_model = False
+                self._model_type = 'sklearn'
+
+                # Load scikit-learn model and extract expected feature names
+                self._pattern_model = load(SKLEARN_MODEL_PATH)
+                self._expected_features = None
+
+                # Find the expected feature names from the model
+                if hasattr(self._pattern_model, 'feature_names_in_'):
+                    self._expected_features = self._pattern_model.feature_names_in_
+                elif hasattr(self._pattern_model, '_final_estimator') and hasattr(self._pattern_model._final_estimator, 'feature_names_in_'):
+                    self._expected_features = self._pattern_model._final_estimator.feature_names_in_
+                elif hasattr(self._pattern_model, 'named_steps'):
+                    # Try to find feature names in the pipeline steps
+                    for name, step in self._pattern_model.named_steps.items():
+                        if hasattr(step, 'feature_names_in_'):
+                            self._expected_features = step.feature_names_in_
+                            break
+
+                # Load metadata with binarizers and threshold
+                metadata = load(SKLEARN_METADATA_PATH)
+                self._mlbs = metadata.get('mlbs', {})
+                self._mlb_failure_newer = metadata['mlb_failure_newer']
+                self._mlb_rules = metadata['mlb_rules']
+                self._optimal_threshold = metadata.get('optimal_threshold', 0.5)
+                self._failure_combo_names = metadata['feature_names']['failure_combo']
+                self._rules_names = metadata['feature_names']['rules']
+                self._feature_id_maps = metadata.get('feature_id_maps', {})
+
+                print("Loaded scikit-learn model as fallback")
+
+            # Pre-compute bucket column names for faster feature creation (common for both models)
             self._failure_rule_bucket_columns = [f"failure_rule_bucket_{i}" for i in range(self._num_buckets)]
             self._failure_job_bucket_columns = [f"failure_job_bucket_{i}" for i in range(self._num_buckets)]
         except Exception as e:
@@ -193,6 +264,9 @@ class AutorevertPatternChecker:
             name,
             conclusion,
             status,
+            torchci_classification.captures AS error_captures,
+            torchci_classification.context AS error_context,
+            torchci_classification.line AS error_line,
             torchci_classification.rule AS classification_rule,
             created_at AS workflow_created_at
         FROM
@@ -224,6 +298,9 @@ class AutorevertPatternChecker:
                 conclusion,
                 status,
                 classification_rule,
+                error_line,
+                error_context,
+                error_captures,
                 created_at,
             ) = row
 
@@ -242,6 +319,9 @@ class AutorevertPatternChecker:
                     conclusion=conclusion,
                     status=status,
                     classification_rule=classification_rule or "",
+                    error_line=error_line or "",
+                    error_context=error_context or "",
+                    error_captures=error_captures or [],
                     workflow_created_at=created_at,
                 )
             )
@@ -394,97 +474,126 @@ class AutorevertPatternChecker:
                     # last commit has the same job failing
                     continue
 
-                if self._pattern_model:
-                    failure_job = f"{failure_rule}||{job_name}"
-                    failure_newer_list = [f"{failure_rule}||{nf}" for nf in newer_failures]
-                    
-                    # Prepare categorical features
-                    categorical_values = {
-                        "failure_rule": [failure_rule],
-                        "job_name": [job_name],
-                        "workflow_name": [workflow_name],
-                        "failure_job": [failure_job]
-                    }
-                    
-                    # Create bucket features
-                    bucket_features = {}
-                    
-                    # Set bucket features for failure rule using pre-computed mappings
-                    if failure_rule in self._failure_rule_buckets:
-                        bucket = self._failure_rule_buckets[failure_rule]
-                        bucket_features[f"failure_rule_bucket_{bucket}"] = [1]
-                    
-                    # Create the base dataframe with non-categorical features
-                    # Important: maintain same feature order as in training
-                    feature_dict = {
-                        "repeated_failure": [failure_rule in newer_failures],
-                    }
-                    
-                    # Add bucket features in order
-                    for col in self._failure_rule_bucket_columns + self._failure_job_bucket_columns:
-                        feature_dict[col] = bucket_features.get(col, [0])
-                        
-                    # Add intercept as last feature
-                    feature_dict["intercept"] = [1.0]
-                    
-                    model_input = pd.DataFrame(feature_dict)
+                # if self._pattern_model:
+                #     failure_job = f"{failure_rule}||{job_name}"
+                #     failure_newer_list = [f"{failure_rule}||{nf}" for nf in newer_failures]
 
-                    try:
-                        # Process categorical features efficiently with a dictionary
-                        # This prevents DataFrame fragmentation
-                        feature_dict = {}
-                        
-                        # Process categorical features in fixed order
-                        categorical_order = ["failure_rule", "job_name", "workflow_name", "failure_job"]
-                        for feature in categorical_order:
-                            if feature in self._mlbs and feature in categorical_values:
-                                mlb = self._mlbs[feature]
-                                binary_matrix = mlb.transform([categorical_values[feature]])
-                                feature_names = [f"{feature}_{i}" for i in range(binary_matrix.shape[1])]
-                                for i, name in enumerate(feature_names):
-                                    feature_dict[name] = [binary_matrix[0][i]]
-                        
-                        # Add failure_newer features
-                        failure_newer_binary = self._mlb_failure_newer.transform([failure_newer_list])
-                        for i, name in enumerate(self._failure_combo_names):
-                            feature_dict[name] = [failure_newer_binary[0][i]]
-                        
-                        # Add rules features
-                        rules_binary = self._mlb_rules.transform([newer_failures])
-                        for i, name in enumerate(self._rules_names):
-                            feature_dict[name] = [rules_binary[0][i]]
-                        
-                        # Create a new DataFrame with all features at once
-                        categorical_df = pd.DataFrame(feature_dict)
-                        
-                        # Categorical DataFrame is ready
-                        
-                        # Concatenate with the base dataframe
-                        model_input = pd.concat([model_input, categorical_df], axis=1)
-                        
-                        # Ensure feature order matches what the model expects
-                        if hasattr(self, '_expected_features') and self._expected_features is not None:
-                            # Add any missing features with zero values
-                            missing_features = [f for f in self._expected_features if f not in model_input.columns]
-                            for feature in missing_features:
-                                model_input[feature] = 0
-                            
-                            # Reindex to ensure the exact order matches
-                            model_input = model_input.reindex(columns=self._expected_features)
-                        
-                        # Get probability from model
-                        probability = self._pattern_model.predict_proba(model_input)[0, 1]
-                        
-                        # Use optimal threshold for decision
-                        is_pattern_detected = probability >= self._optimal_threshold
-                        
-                    except Exception as e:
-                        # Log only critical errors
-                        print(f"Model inference failed: {e}")
-                        is_pattern_detected = False
+                #     # Prepare categorical features
+                #     categorical_values = {
+                #         "failure_rule": [failure_rule],
+                #         "job_name": [job_name],
+                #         "workflow_name": [workflow_name],
+                #         "failure_job": [failure_job]
+                #     }
 
-                    if not is_pattern_detected:
-                        continue
+                #     # Create bucket features
+                #     bucket_features = {}
+
+                #     # Set bucket features for failure rule using pre-computed mappings
+                #     if failure_rule in self._failure_rule_buckets:
+                #         bucket = self._failure_rule_buckets[failure_rule]
+                #         bucket_features[f"failure_rule_bucket_{bucket}"] = [1]
+
+                #     # Create the base dataframe with non-categorical features
+                #     # Important: maintain same feature order as in training
+                #     feature_dict = {
+                #         "repeated_failure": [failure_rule in newer_failures],
+                #     }
+
+                #     # Add bucket features in order
+                #     for col in self._failure_rule_bucket_columns + self._failure_job_bucket_columns:
+                #         feature_dict[col] = bucket_features.get(col, [0])
+
+                #     # Add intercept as last feature
+                #     feature_dict["intercept"] = [1.0]
+
+                #     model_input = pd.DataFrame(feature_dict)
+
+                #     try:
+                #         # Process categorical features efficiently with a dictionary
+                #         # This prevents DataFrame fragmentation
+                #         feature_dict = {}
+
+                #         # Process categorical features in fixed order
+                #         categorical_order = ["failure_rule", "job_name", "workflow_name", "failure_job"]
+                #         for feature in categorical_order:
+                #             if feature in self._mlbs and feature in categorical_values:
+                #                 mlb = self._mlbs[feature]
+                #                 binary_matrix = mlb.transform([categorical_values[feature]])
+                #                 feature_names = [f"{feature}_{i}" for i in range(binary_matrix.shape[1])]
+                #                 for i, name in enumerate(feature_names):
+                #                     feature_dict[name] = [binary_matrix[0][i]]
+
+                #         # Add failure_newer features
+                #         failure_newer_binary = self._mlb_failure_newer.transform([failure_newer_list])
+                #         for i, name in enumerate(self._failure_combo_names):
+                #             feature_dict[name] = [failure_newer_binary[0][i]]
+
+                #         # Add rules features
+                #         rules_binary = self._mlb_rules.transform([newer_failures])
+                #         for i, name in enumerate(self._rules_names):
+                #             feature_dict[name] = [rules_binary[0][i]]
+
+                #         # Create a new DataFrame with all features at once
+                #         categorical_df = pd.DataFrame(feature_dict)
+
+                #         # Categorical DataFrame is ready
+
+                #         # Concatenate with the base dataframe
+                #         model_input = pd.concat([model_input, categorical_df], axis=1)
+
+                #         # Ensure feature order matches what the model expects
+                #         if hasattr(self, '_expected_features') and self._expected_features is not None:
+                #             # Add any missing features with zeros and ensure correct order in a single operation
+                #             # This avoids DataFrame fragmentation from multiple insertions
+                #             missing_dict = {f: [0] for f in self._expected_features if f not in model_input.columns}
+
+                #             if missing_dict:  # Only create a new DataFrame if there are missing columns
+                #                 missing_df = pd.DataFrame(missing_dict)
+                #                 model_input = pd.concat([model_input, missing_df], axis=1)
+
+                #             # Reindex to ensure the exact order matches the model's expectations
+                #             model_input = model_input.reindex(columns=self._expected_features)
+
+                #         # Handle different model types for prediction
+                #         if self._is_pytorch_model:
+                #             try:
+                #                 # First convert to numpy array with explicit float32 dtype
+                #                 # Handle any object type columns by forcing them to float
+                #                 input_np = model_input.astype(float).values.astype(np.float32)
+
+                #                 # Convert clean numpy array to tensor
+                #                 input_tensor = torch.tensor(input_np, dtype=torch.float32)
+
+                #                 # Run prediction in eval mode and without gradients
+                #                 with torch.no_grad():
+                #                     # Get raw output score
+                #                     raw_output = self._pattern_model(input_tensor).item()
+                #                     # Convert to probability using sigmoid
+                #                     probability = 1 / (1 + np.exp(-raw_output))
+                #             except Exception as e:
+                #                 print(f"Tensor conversion error: {e}")
+                #                 print(f"Input types: {model_input.dtypes.value_counts()}")
+                #                 # Fall back to random prediction if conversion fails
+                #                 probability = 0.0  # Default to not detecting a pattern
+                #         else:
+                #             # Use scikit-learn model's predict_proba method
+                #             probability = self._pattern_model.predict_proba(model_input)[0, 1]
+
+                #         # Use optimal threshold for decision
+                #         is_pattern_detected = probability >= self._optimal_threshold
+
+                #         # Print debug info for important patterns
+                #         if probability > 0.7:
+                #             print(f"High confidence pattern ({probability:.4f}): {failure_rule} in {job_name}")
+
+                #     except Exception as e:
+                #         # Log only critical errors
+                #         print(f"Model inference failed: {e}")
+                #         is_pattern_detected = False
+
+                #     if not is_pattern_detected:
+                #         continue
 
                 if (failure_rule, job_name, ) in jobs_failures:
                     # Already processed this failure rule and job name
@@ -498,6 +607,9 @@ class AutorevertPatternChecker:
                         "additional_workflows": [],
                         "failure_rule": failure_rule,
                         "newer_failure_rules": list(newer_failures),
+                        "error_context": "",
+                        "error_line": "",
+                        "error_captures": [],
                         "job_name": job_name,
                         "newer_commits": [
                             newer_commit.head_sha,

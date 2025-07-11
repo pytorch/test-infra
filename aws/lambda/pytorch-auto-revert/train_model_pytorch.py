@@ -1,6 +1,8 @@
 import pandas as pd
 import ast
 import numpy as np
+import datetime
+import joblib
 from collections import defaultdict
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MultiLabelBinarizer
@@ -115,7 +117,7 @@ failure_job_rarity = failure_job_rarity / failure_job_rarity.max()  # Normalize 
 
 # Create quantile-based buckets for rarity values (10 buckets)
 print("Creating quantile-based rarity buckets...")
-NUM_BUCKETS = 10
+NUM_BUCKETS = 20
 
 # Extract all rarity values from the original dataset
 failure_rule_rarities = [failure_rarity[rule] for rule in df["failure_rule"]]
@@ -336,46 +338,46 @@ test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 class KernelSVM(nn.Module):
     def __init__(self, input_dim, num_support_vectors=100, gamma=0.01):
         super(KernelSVM, self).__init__()
-        
+
         # Number of support vectors to use (randomly initialized and learned)
         self.num_support_vectors = num_support_vectors
-        
+
         # Gamma parameter for RBF kernel (controls the 'width' of the Gaussian)
         self.gamma = gamma
-        
+
         # Initialize support vectors randomly from N(0, 0.1)
         # These will be learned during training
         self.support_vectors = nn.Parameter(torch.randn(num_support_vectors, input_dim) * 0.1)
-        
+
         # Initialize weights for each support vector
         self.weights = nn.Parameter(torch.randn(num_support_vectors, 1) * 0.01)
-        
+
         # Initialize bias
         self.bias = nn.Parameter(torch.zeros(1))
-        
+
     def rbf_kernel(self, x, support_vectors):
         # Calculate squared Euclidean distance between each pair of points
         # Shape: [batch_size, num_support_vectors]
         batch_size = x.size(0)
         x_norm = torch.sum(x**2, dim=1).view(batch_size, 1)
         sv_norm = torch.sum(support_vectors**2, dim=1).view(1, self.num_support_vectors)
-        
+
         # ||x-y||² = ||x||² + ||y||² - 2*x·y
         distances = x_norm + sv_norm - 2.0 * torch.mm(x, support_vectors.t())
-        
+
         # RBF kernel: K(x,y) = exp(-gamma * ||x-y||²)
         kernel_values = torch.exp(-self.gamma * distances)
         return kernel_values
-    
+
     def forward(self, x):
         # Apply RBF kernel between input and support vectors
         # Output shape: [batch_size, num_support_vectors]
         kernel_outputs = self.rbf_kernel(x, self.support_vectors)
-        
+
         # Calculate final output: sum(kernel_outputs * weights) + bias
         # Shape: [batch_size, 1]
         outputs = torch.mm(kernel_outputs, self.weights) + self.bias
-        
+
         return outputs
 
 # Set input dimension based on the number of features
@@ -385,7 +387,7 @@ input_dim = X_train.shape[1]
 # - num_support_vectors: controls model capacity (higher = more complex model)
 # - gamma: controls the width of the Gaussian kernel (higher = narrower kernels)
 model = KernelSVM(
-    input_dim=input_dim, 
+    input_dim=input_dim,
     num_support_vectors=min(200, int(X_train.shape[0] * 0.1)),  # Use 10% of training samples or max 200
     gamma=0.01  # Start with moderate gamma value
 ).to(device)
@@ -395,19 +397,19 @@ class HingeLoss(nn.Module):
     def __init__(self, class_weight=None):
         super(HingeLoss, self).__init__()
         self.class_weight = class_weight
-        
+
     def forward(self, outputs, targets):
         # Convert binary targets from 0/1 to -1/1 as required for SVM
         targets = 2 * targets - 1
         # Calculate hinge loss: max(0, 1 - y * f(x))
         loss = torch.max(torch.zeros_like(outputs), 1 - targets * outputs)
-        
+
         # Apply class weights if provided
         if self.class_weight is not None:
             weight_mask = torch.ones_like(targets)
             weight_mask[targets > 0] = self.class_weight
             loss = loss * weight_mask
-            
+
         return loss.mean()
 
 # Calculate class weight for imbalanced dataset
@@ -419,7 +421,7 @@ criterion = HingeLoss(class_weight=pos_weight)
 # - Momentum-based optimization built-in
 # - Lower learning rate for stability with complex kernel calculations
 optimizer = optim.Adam(
-    model.parameters(), 
+    model.parameters(),
     lr=0.001,              # Lower learning rate for stability
     betas=(0.9, 0.999),    # Default momentum parameters
     weight_decay=1e-4      # L2 regularization to prevent overfitting
@@ -428,20 +430,20 @@ optimizer = optim.Adam(
 # Learning rate scheduler with warm restarts for kernel SVM
 # Slightly longer initial period to allow more exploration of support vector space
 scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
-    optimizer, 
+    optimizer,
     T_0=30,        # Initial restart period (longer for kernel SVM)
     T_mult=2,      # Increase period after each restart
     eta_min=1e-6   # Lower minimum learning rate
 )
 
 # Training function optimized for kernel SVM with memory management
-def train_model(model, train_loader, criterion, optimizer, epochs=1000):
+def train_model(model, train_loader, criterion, optimizer, epochs=2000):
     model.train()
     epoch_losses = []
     best_val_loss = float('inf')
     patience = 50  # Allow more epochs without improvement before early stopping
     patience_counter = 0
-    no_improvement_threshold = 0.001  # Minimum improvement to reset patience counter
+    no_improvement_threshold = 0.00001  # Minimum improvement to reset patience counter
 
     for epoch in range(epochs):
         running_loss = 0.0
@@ -458,33 +460,33 @@ def train_model(model, train_loader, criterion, optimizer, epochs=1000):
 
             # Accumulate loss
             running_loss += loss.item() * inputs.size(0)
-        
+
         # Update learning rate with cosine schedule (each epoch)
         scheduler.step()
-            
+
         epoch_loss = running_loss / len(train_loader.dataset)
         epoch_losses.append(epoch_loss)
 
         # Print statistics more frequently to monitor training
         if (epoch + 1) % 5 == 0:
             print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, LR: {optimizer.param_groups[0]['lr']:.2e}")
-            
+
                 # Calculate validation loss
             val_loss = validate_model(model, test_loader, criterion)
-            
+
             # Log support vector norms for diagnostic purposes
             if hasattr(model, 'support_vectors'):
                 sv_norm = torch.norm(model.support_vectors, dim=1).mean().item()
                 w_norm = torch.norm(model.weights).item()
                 print(f"    Support vector avg norm: {sv_norm:.4f}, Weight norm: {w_norm:.4f}")
-            
+
             # Early stopping with patience
             if val_loss < best_val_loss * (1 - no_improvement_threshold):
                 best_val_loss = val_loss
                 patience_counter = 0
             else:
                 patience_counter += 1
-                
+
             if patience_counter >= patience:
                 print(f"No improvement for {patience} epochs. Early stopping.")
                 break
@@ -512,14 +514,14 @@ def evaluate_model(model, X_tensor, y_tensor, threshold=0.5):
         batch_size = 500
         num_samples = X_tensor.shape[0]
         y_pred_logits = []
-        
+
         # Process in batches for kernel method memory efficiency
         for i in range(0, num_samples, batch_size):
             batch_end = min(i + batch_size, num_samples)
             batch_output = model(X_tensor[i:batch_end]).squeeze().cpu().numpy()
             y_pred_logits.append(batch_output)
-            
-        # Combine batch results    
+
+        # Combine batch results
         y_pred_logits = np.concatenate(y_pred_logits)
         y_pred_proba = 1 / (1 + np.exp(-y_pred_logits))  # sigmoid
         y_pred = (y_pred_proba >= threshold).astype(int)
@@ -545,14 +547,14 @@ def find_optimal_threshold(model, X_tensor, y_tensor):
         batch_size = 500
         num_samples = X_tensor.shape[0]
         y_pred_logits = []
-        
+
         # Process in batches for kernel method memory efficiency
         for i in range(0, num_samples, batch_size):
             batch_end = min(i + batch_size, num_samples)
             batch_output = model(X_tensor[i:batch_end]).squeeze().cpu().numpy()
             y_pred_logits.append(batch_output)
-            
-        # Combine batch results    
+
+        # Combine batch results
         y_pred_logits = np.concatenate(y_pred_logits)
         y_pred_proba = 1 / (1 + np.exp(-y_pred_logits))  # sigmoid
         y_true = y_tensor.cpu().numpy()
@@ -586,9 +588,9 @@ print("\nTraining PyTorch kernel SVM model...")
 # Clear CUDA cache if using GPU to free memory before training
 if torch.cuda.is_available():
     torch.cuda.empty_cache()
-    
+
 # Run training with smaller epoch limit for kernel SVM (more compute-intensive)
-train_losses = train_model(model, train_loader, criterion, optimizer, epochs=1000)
+train_losses = train_model(model, train_loader, criterion, optimizer, epochs=2000)
 
 # Evaluate on test set
 print("\nEvaluating model on test set...")
@@ -617,4 +619,46 @@ print(f"Testing Recall: {default_metrics['recall']:.4f}")
 print(f"Testing F1 Score: {default_metrics['f1']:.4f}")
 print(f"Predictions sum: {sum((default_metrics['probabilities'] >= 0.5).astype(int))}, Total: {len(default_metrics['probabilities'])}")
 
-print("\nDone.")
+# Save the model and metadata for production use
+print("\nSaving kernel SVM model and metadata...")
+
+# Save the PyTorch model using torch.save instead of joblib
+torch.save(model.state_dict(), "kernel_svm_model.pt")
+
+# Save additional model configuration as metadata
+metadata = {
+    'input_dim': input_dim,
+    'num_support_vectors': model.num_support_vectors,
+    'gamma': model.gamma,
+    'optimal_threshold': best_threshold,
+    'model_type': 'KernelSVM',
+    'feature_columns': X_train.columns.tolist(),
+    'categorical_features': categorical_features,
+    'mlbs': mlbs,
+    'mlb_rules': mlb_rules,
+    'mlb_failure_newer': mlb_failure_newer,
+    'feature_names': {
+        'failure_combo': failure_combo_names,
+        'rules': rules_names
+    },
+    'bucket_info': {
+        'failure_rule_bucket_edges': failure_rule_bucket_edges.tolist(),
+        'failure_job_bucket_edges': failure_job_bucket_edges.tolist(),
+        'failure_rule_buckets': failure_rule_buckets,
+        'failure_job_buckets': failure_job_buckets,
+        'num_buckets': NUM_BUCKETS
+    },
+    'optimizer_config': {
+        'name': 'Adam',
+        'lr': 0.001,
+        'betas': (0.9, 0.999),
+        'weight_decay': 1e-4
+    },
+    'created_at': datetime.datetime.now().isoformat(),
+    'pytorch_version': torch.__version__
+}
+
+# Save metadata using joblib
+joblib.dump(metadata, "kernel_svm_metadata.joblib")
+
+print("Done. Model and metadata saved to disk.")
