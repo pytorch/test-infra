@@ -1,66 +1,13 @@
 import { Stack } from "@mui/material";
-import CommitStatus from "components/commit/CommitStatus";
+import CommitInfo from "components/commit/CommitInfo";
 import DrCIButton from "components/common/DrCIButton";
 import ErrorBoundary from "components/common/ErrorBoundary";
 import { useSetTitle } from "components/layout/DynamicTitle";
+import { fetcher } from "lib/GeneralUtils";
 import { PRData } from "lib/types";
 import { useRouter } from "next/router";
-import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
-import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import { useEffect, useState } from "react";
 import useSWR from "swr";
-
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-function CommitInfo({
-  repoOwner,
-  repoName,
-  sha,
-}: {
-  repoOwner: string;
-  repoName: string;
-  sha: string;
-}) {
-  const { data: commitData, error } = useSWR<CommitApiResponse>(
-    sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
-    fetcher,
-    {
-      refreshInterval: 60 * 1000, // refresh every minute
-      // Refresh even when the user isn't looking, so that switching to the tab
-      // will always have fresh info.
-      refreshWhenHidden: true,
-    }
-  );
-
-  const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
-    `/api/issue/unstable`,
-    fetcher,
-    {
-      dedupingInterval: 300 * 1000,
-      refreshInterval: 300 * 1000, // refresh every 5 minutes
-    }
-  );
-
-  if (error != null) {
-    return <div>Error occurred</div>;
-  }
-
-  if (commitData === undefined) {
-    return <div>Loading...</div>;
-  }
-  const { commit, jobs } = commitData;
-
-  return (
-    <CommitStatus
-      repoOwner={repoOwner}
-      repoName={repoName}
-      commit={commit}
-      jobs={jobs}
-      isCommitPage={false}
-      unstableIssues={unstableIssuesData ?? []}
-    />
-  );
-}
 
 function CommitHeader({
   repoOwner,
