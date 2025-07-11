@@ -146,12 +146,16 @@ def get_file_names(
             rc.append(CommitInfo(commit_hash, date, []))
         else:
             added, deleted, name = line.split("\t")
+            # Handle renamed files (containing =>)
+            if " => " in name:
+                name = name.split(" => ")[1]  # Use only the new filename
             # Special casing for binary files
             if added == "-":
                 assert deleted == "-"
-                rc[-1].files.append(FileInfo(name, -1, -1, ""))  # Empty status for now
+                rc[-1].files.append(FileInfo(name, -1, -1, ""))
             else:
                 rc[-1].files.append(FileInfo(name, int(added), int(deleted), ""))
+
     # Process name-status output to add status information
     current_commit = None
     status_map: Dict[str, Dict[str, str]] = {}  # Maps commit_id -> {filename -> status}
@@ -162,14 +166,23 @@ def get_file_names(
             continue
         elif ";" in line:  # This is a commit line
             commit_hash, date = line.split(";")
-            if current_commit is not None and filename:
-                status_map.setdefault(current_commit, {})[filename] = status
+            current_commit = commit_hash  # Update current_commit here
         else:  # This is a file status line
             parts = line.split("\t")
             status = parts[0]
-            filename = parts[1] if len(parts) > 1 else ""
-            if filename:
-                status_map.setdefault(current_commit, {})[filename] = status
+            if status.startswith("R") or status.startswith("C"):
+                # Handle renamed/copied files
+                old_filename = parts[1]
+                new_filename = parts[2]
+                if current_commit is not None:
+                    standardized_status = status[0]  # Just take first character
+                    status_map.setdefault(current_commit, {})[new_filename] = (
+                        standardized_status
+                    )
+            else:
+                filename = parts[1] if len(parts) > 1 else ""
+                if current_commit is not None and filename:
+                    status_map.setdefault(current_commit, {})[filename] = status
 
     # Update file statuses
     for commit in rc:
