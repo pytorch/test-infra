@@ -79,6 +79,5 @@ jobs:
           --remote origin \
           --branch "${BRANCH:-release/2.8}" \
           --milestone-id "${MILESTONE:-53}" \
-          --missing-in-branch
           --fork-cut-date 2024-06-24
           --analyze-missing-reverts-from-branch
