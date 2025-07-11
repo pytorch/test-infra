@@ -1,14 +1,21 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
+import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
-import { CommitData, JobData } from "./types";
+import { JobData } from "./types";
 
-async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
+async function fetchDatabaseInfo(
+  owner: string,
+  repo: string,
+  sha: string,
+  workflowId: number
+) {
   const response = await queryClickhouseSaved("commit_jobs_query", {
     repo: `${owner}/${repo}`,
     sha: sha,
+    workflowId,
   });
 
   for (const row of response) {
@@ -20,20 +27,52 @@ async function fetchDatabaseInfo(owner: string, repo: string, sha: string) {
   return response;
 }
 
+/**
+ * Get a mapping of workflow names to all workflow IDs from a list of job data.
+ * @param jobs
+ * @returns
+ */
+function getWorkflowIdsByName(jobs: JobData[]): Record<string, number[]> {
+  return _(jobs)
+    .groupBy((job) => job.workflowName)
+    .map((jobs, key) => {
+      const workflowIds = _(jobs)
+        .map((job) => job.workflowId)
+        .filter((id) => id !== null && id !== undefined)
+        .uniq()
+        .value();
+      return [key, workflowIds];
+    })
+    .fromPairs()
+    .value();
+}
+
+/**
+ *
+ * @param owner
+ * @param repo
+ * @param sha
+ * @param workflowId Optional workflow ID to filter jobs by. If not provided,
+ * all jobs for the commit will be returned.
+ * @returns
+ */
 export default async function fetchCommit(
   owner: string,
   repo: string,
-  sha: string
-): Promise<{ commit: CommitData; jobs: JobData[] }> {
+  sha: string,
+  workflowId: number = 0
+): Promise<CommitApiResponse> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
 
   const [githubResponse, response] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
-    await fetchDatabaseInfo(owner, repo, sha),
+    await fetchDatabaseInfo(owner, repo, sha, workflowId),
   ]);
 
   let jobs = response as any[];
+
+  const workflowIdsByName = getWorkflowIdsByName(jobs);
 
   // Subtle: we need to unique jobs by name, taking the most recent job. This is
   // because there might be many periodic jobs with the same name, and we want
@@ -65,6 +104,7 @@ export default async function fetchCommit(
   return {
     commit: commitDataFromResponse(githubResponse.data),
     jobs: _.concat(filteredJobs, badWorkflows),
+    workflowIdsByName,
   };
 }
 
