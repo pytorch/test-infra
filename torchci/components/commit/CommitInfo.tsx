@@ -13,7 +13,11 @@ export default function CommitInfo({
   repoName: string;
   sha: string;
 }) {
-  const { data: commitData, error } = useSWR<CommitApiResponse>(
+  const {
+    data: commitData,
+    error,
+    isLoading,
+  } = useSWR<CommitApiResponse>(
     sha != null ? `/api/${repoOwner}/${repoName}/commit/${sha}` : null,
     fetcher,
     {
@@ -37,10 +41,10 @@ export default function CommitInfo({
     return <div>Error occurred</div>;
   }
 
-  if (commitData === undefined) {
+  if (isLoading) {
     return <div>Loading...</div>;
   }
-  const { commit, jobs } = commitData;
+  const { commit, jobs } = commitData!;
 
   return (
     <CommitStatus
