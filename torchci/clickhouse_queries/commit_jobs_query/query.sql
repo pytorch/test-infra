@@ -46,6 +46,10 @@ WITH job AS (
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
+        AND (
+            {workflowId: Int64} = 0
+            OR workflow.id = {workflowId: Int64} -- If a specific workflow ID is provided, filter by it
+        )
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha = {sha: String})
         AND workflow.repository. 'full_name' = {repo: String } --         UNION
         AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
@@ -84,6 +88,10 @@ WITH job AS (
         workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
+        AND (
+            {workflowId: Int64} = 0
+            OR workflow.id = {workflowId: Int64} -- If a specific workflow ID is provided, filter by it
+        )
         AND workflow.repository.full_name = {repo: String }
         AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
 )
