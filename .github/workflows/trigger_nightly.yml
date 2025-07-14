@@ -20,6 +20,7 @@ on:
           - data
           - fbgemm
           - executorch
+          - torchtitan
           - torchtune
           - torchcodec
           - torchvision-extra-decoders
