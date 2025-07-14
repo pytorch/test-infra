@@ -181,12 +181,11 @@ jobs:
           source /opt/conda/etc/profile.d/conda.sh
           conda config --set ssl_verify False
           echo "/opt/conda/bin" >> $GITHUB_PATH
-      - uses: ./test-infra/.github/actions/set-channel
       - name: Set PYTORCH_VERSION
-        if: ${{ env.CHANNEL == 'test' }}
         run: |
           # When building RC, set the version to be the current candidate version,
           # otherwise, leave it alone so nightly will pick up the latest
+          echo "CHANNEL=test" >> "$GITHUB_ENV"
           echo "PYTORCH_VERSION=${{ matrix.stable_version }}" >> "${GITHUB_ENV}"
       - uses: ./test-infra/.github/actions/setup-binary-builds
         env:
