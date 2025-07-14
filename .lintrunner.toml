@@ -298,13 +298,20 @@ include_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/pyfmt_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=pyfmt_linter.py',
     '--',
     '@{{PATHSFILE}}'
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/pip_init.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-init',
+    '--init-name=pip_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/test-infra/main/tools/linter/adapters/pip_init.py',
+    '--lint-name=pyfmt_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/test-infra/main/tools/linter/adapters/pyfmt_linter.py',
+    '--',
     '--dry-run={{DRYRUN}}',
     '--no-black-binary',
     'black==23.12.1',
