@@ -524,7 +524,9 @@ def handle_flaky_tests_alert(
 def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
     if job_name_regex:
         return [
-            job_name for job_name in job_names if re.match(job_name_regex, job_name, re.IGNORECASE)
+            job_name
+            for job_name in job_names
+            if re.match(job_name_regex, job_name, re.IGNORECASE)
         ]
     return job_names
 
