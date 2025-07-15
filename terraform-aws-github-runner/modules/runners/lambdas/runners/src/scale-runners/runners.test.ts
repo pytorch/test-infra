@@ -2,7 +2,6 @@ import {
   RunnerInputParameters,
   createRunner,
   findAmiID,
-  getParameterNameForRunner,
   listRunners,
   listSSMParameters,
   resetRunnersCaches,
