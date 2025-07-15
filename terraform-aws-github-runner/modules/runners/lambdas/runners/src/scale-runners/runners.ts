@@ -190,7 +190,6 @@ export async function listRunners(
                           `.describeInstances({ Filters: ${JSON.stringify(ec2Filters)} }) = ` +
                           `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
                       );
-                      console.debug(`[listRunners]: ${listOfRunnersIdType.join('\n ')}`);
                       return { describeInstanceResult, awsRegion };
                     });
                 },
