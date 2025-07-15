@@ -61,8 +61,6 @@ export interface DescribeInstancesResultRegion {
   describeInstanceResult: PromiseResult<EC2.Types.DescribeInstancesResult, AWS.AWSError>;
 }
 
-const SHOULD_NOT_TRY_LIST_SSM = 'SHOULD_NOT_TRY_LIST_SSM';
-
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
 const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTimeInMinutes * 60 * 1000) / 2 });
 
@@ -174,7 +172,7 @@ export async function listRunners(
                     .describeInstances({ Filters: ec2Filters })
                     .promise()
                     .then((describeInstanceResult): DescribeInstancesResultRegion => {
-                      const listOfRunnersIdType: string[] = (
+                      (
                         describeInstanceResult?.Reservations?.flatMap((reservation) => {
                           return (
                             reservation.Instances?.map((instance) => {

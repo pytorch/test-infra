@@ -345,20 +345,10 @@ describe('terminateRunner', () => {
       instanceId: 'i-1234',
       environment: 'gi-ci',
     };
-    mockSSMdescribeParametersRet.mockResolvedValueOnce({
-      Parameters: [getParameterNameForRunner(runner.environment as string, runner.instanceId)].map((s) => {
-        return { Name: s };
-      }),
-    });
     await terminateRunner(runner, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledWith({
       InstanceIds: [runner.instanceId],
-    });
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
     });
   });
 
@@ -372,11 +362,9 @@ describe('terminateRunner', () => {
       promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
     });
     expect(terminateRunner(runner, metrics)).rejects.toThrowError(errMsg);
-    expect(mockSSM.describeParameters).not.toBeCalled();
-    expect(mockSSM.deleteParameter).not.toBeCalled();
   });
 
-  it('fails to list parameters on terminate, then force delete all next parameters', async () => {
+  it('terminates multiple runners', async () => {
     const runner1: RunnerInfo = {
       awsRegion: Config.Instance.awsRegion,
       instanceId: '1234',
@@ -387,19 +375,10 @@ describe('terminateRunner', () => {
       instanceId: '1235',
       environment: 'environ',
     };
-    mockSSMdescribeParametersRet.mockRejectedValueOnce('Some Error');
     await terminateRunner(runner1, metrics);
     await terminateRunner(runner2, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(2);
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(2);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner1.environment as string, runner1.instanceId),
-    });
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner2.environment as string, runner2.instanceId),
-    });
   });
 });
 

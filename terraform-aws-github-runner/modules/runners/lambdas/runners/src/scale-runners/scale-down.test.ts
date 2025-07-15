@@ -17,16 +17,8 @@ import {
   resetGHRunnersCaches,
 } from './gh-runners';
 import * as MetricsModule from './metrics';
+import { listRunners, resetRunnersCaches, terminateRunner, RunnerType } from './runners';
 import {
-  doDeleteSSMParameter,
-  listRunners,
-  resetRunnersCaches,
-  terminateRunner,
-  RunnerType,
-  listSSMParameters,
-} from './runners';
-import {
-  cleanupOldSSMParameters,
   getGHRunnerOrg,
   getGHRunnerRepo,
   isEphemeralRunner,
@@ -38,7 +30,6 @@ import {
   sortSSMParametersByUpdateTime,
 } from './scale-down';
 import { RequestError } from '@octokit/request-error';
-import { SSM } from 'aws-sdk';
 
 jest.mock('./gh-runners', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
@@ -56,9 +47,7 @@ jest.mock('./gh-runners', () => ({
 jest.mock('./runners', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./runners') as any),
-  doDeleteSSMParameter: jest.fn(),
   listRunners: jest.fn(),
-  listSSMParameters: jest.fn(),
   resetRunnersCaches: jest.fn(),
   terminateRunner: jest.fn(),
 }));
@@ -79,8 +68,6 @@ const mockRunner = (runnerDef: any) => {
   return runnerDef as GhRunner;
 };
 
-const MAX_SSM_PARAMETERS = 25;
-
 const metrics = new MetricsModule.ScaleDownMetrics();
 
 const minimumRunningTimeInMinutes = 10;
@@ -95,8 +82,6 @@ const baseConfig = {
   shuffledSubnetIdsForAwsRegion: jest.fn().mockImplementation((awsRegion: string) => {
     return Array.from(subnetIds.get(awsRegion) ?? []).sort();
   }),
-  sSMParamCleanupAgeDays: 7,
-  sSMParamMaxCleanupAllowance: MAX_SSM_PARAMETERS, // Easier to test
 };
 
 describe('scale-down', () => {
@@ -1503,122 +1488,6 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersRepo).toBeCalledWith(repo, metrics);
       expect(mockedGetRunnerRepo).toBeCalledTimes(1);
       expect(mockedGetRunnerRepo).toBeCalledWith(repo, ec2runner.ghRunnerId, metrics);
-    });
-  });
-
-  describe('cleanupOldSSMParameters', () => {
-    it('Stops when LastModifiedDate === undefined', async () => {
-      const oldDt = moment()
-        .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
-        .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
-      ssmParameters.set('WG113', { Name: 'WG113', LastModifiedDate: undefined });
-      ssmParameters.set('WG115', { Name: 'WG115', LastModifiedDate: oldDt });
-      ssmParameters.set('WG116', { Name: 'WG116', LastModifiedDate: oldDt });
-
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
-
-      mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
-      mockedDoDeleteSSMParameter.mockResolvedValue(true);
-
-      await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
-
-      expect(mockedDoDeleteSSMParameter).toBeCalledTimes(2);
-      expect(mockedDoDeleteSSMParameter).toBeCalledWith('WG115', metrics, 'us-east-1');
-      expect(mockedDoDeleteSSMParameter).toBeCalledWith('WG116', metrics, 'us-east-1');
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
-    });
-
-    it('Stops when LastModifiedDate is < Config.Instance.sSMParamCleanupAgeDays', async () => {
-      const oldDt = moment()
-        .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
-        .toDate();
-      const olderDt = moment()
-        .subtract(Config.Instance.sSMParamCleanupAgeDays - 1, 'days')
-        .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
-      ssmParameters.set('WG113', { Name: 'WG113', LastModifiedDate: undefined });
-      ssmParameters.set('WG115', { Name: 'WG115', LastModifiedDate: oldDt });
-      ssmParameters.set('WG116', { Name: 'WG116', LastModifiedDate: olderDt });
-
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
-
-      mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
-      mockedDoDeleteSSMParameter.mockResolvedValue(true);
-
-      await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
-
-      expect(mockedDoDeleteSSMParameter).toBeCalledTimes(1);
-      expect(mockedDoDeleteSSMParameter).toBeCalledWith('WG115', metrics, 'us-east-1');
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
-    });
-
-    it('Stops when deleted >= Config.Instance.sSMParamMaxCleanupAllowance', async () => {
-      const oldDt = moment()
-        .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
-        .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
-      [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
-        const name = `AGDGADUWG113-${i}`;
-        ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
-      });
-
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
-
-      mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
-      mockedDoDeleteSSMParameter.mockResolvedValue(true);
-
-      await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
-
-      expect(mockedDoDeleteSSMParameter).toBeCalledTimes(MAX_SSM_PARAMETERS);
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
-    });
-
-    it('Breaks when deleted >= Config.Instance.sSMParamMaxCleanupAllowance', async () => {
-      const oldDt = moment()
-        .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
-        .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
-      [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
-        const name = `AGDGADUWG113-${i}`;
-        ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
-      });
-
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
-
-      mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
-      mockedDoDeleteSSMParameter.mockResolvedValue(true);
-
-      await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
-
-      expect(mockedDoDeleteSSMParameter).toBeCalledTimes(MAX_SSM_PARAMETERS);
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
-    });
-
-    it('Dont count failed to delete', async () => {
-      const oldDt = moment()
-        .subtract(Config.Instance.sSMParamCleanupAgeDays + 1, 'days')
-        .toDate();
-      const ssmParameters = new Map<string, SSM.ParameterMetadata>();
-      [...Array(MAX_SSM_PARAMETERS + 5).keys()].forEach((i) => {
-        const name = `AGDGADUWG113-${i}`;
-        ssmParameters.set(name, { Name: name, LastModifiedDate: oldDt });
-      });
-
-      const mockedDoDeleteSSMParameter = mocked(doDeleteSSMParameter);
-      const mockedListSSMParameters = mocked(listSSMParameters);
-
-      mockedListSSMParameters.mockResolvedValueOnce(ssmParameters);
-      mockedDoDeleteSSMParameter.mockResolvedValue(false);
-
-      await cleanupOldSSMParameters(new Set(['us-east-1']), metrics);
-
-      expect(mockedDoDeleteSSMParameter).toBeCalledTimes(MAX_SSM_PARAMETERS + 5);
-      expect(mockedListSSMParameters).toBeCalledTimes(1);
     });
   });
 
