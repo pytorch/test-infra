@@ -20,7 +20,7 @@ jobs:
           - repo: pytorch/pytorch
             branch: main
             with_flaky_test_alerting: YES
-            job_filter_regex: ""
+            job_filter_regex: "^(pull|trunk|lint|linux-binary-)"
           - repo: pytorch/pytorch
             branch: nightly
             with_flaky_test_alerting: NO
