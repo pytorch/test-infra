@@ -524,7 +524,7 @@ def handle_flaky_tests_alert(
 def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
     if job_name_regex:
         return [
-            job_name for job_name in job_names if re.match(job_name_regex, job_name)
+            job_name for job_name in job_names if re.match(job_name_regex, job_name, re.IGNORECASE)
         ]
     return job_names
 
@@ -545,7 +545,7 @@ def check_for_recurrently_failing_jobs_alert(
         elif len(filtered_job_names) == len(job_names):
             print("All jobs matched the regex")
         else:
-            print("\n".join(filtered_job_names))
+            print("\n".join(sorted(filtered_job_names)))
 
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(
         job_names, sha_grid, filtered_job_names
