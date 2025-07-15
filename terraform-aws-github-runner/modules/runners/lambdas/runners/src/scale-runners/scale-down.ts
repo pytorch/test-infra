@@ -49,7 +49,7 @@ export async function scaleDown(): Promise<void> {
     );
 
     if (runnersDict.size === 0) {
-      console.debug(`No active runners found for environment: '${Config.Instance.environment}'`);
+      console.info(`No active runners found for environment: '${Config.Instance.environment}'`);
       return;
     }
 
@@ -345,26 +345,26 @@ export function isRunnerRemovable(
 ): boolean {
   /* istanbul ignore next */
   if (ec2runner.instanceManagement?.toLowerCase() === 'pet') {
-    console.debug(`Runner ${ec2runner.instanceId} is a pet instance and cannot be removed.`);
+    console.info(`Runner ${ec2runner.instanceId} is a pet instance and cannot be removed.`);
     return false;
   }
 
   if (ghRunner !== undefined && ghRunner.busy) {
-    console.debug(`Runner ${ec2runner.instanceId} is busy and cannot be removed.`);
+    console.info(`Runner ${ec2runner.instanceId} is busy and cannot be removed.`);
     return false;
   }
 
   if (!runnerMinimumTimeExceeded(ec2runner)) {
-    console.debug(`Runner ${ec2runner.instanceId} has not exceeded the minimum running time.`);
+    console.info(`Runner ${ec2runner.instanceId} has not exceeded the minimum running time.`);
     metrics.runnerLessMinimumTime(ec2runner);
     return false;
   }
 
   if (ghRunner === undefined) {
-    console.debug(`Runner ${ec2runner.instanceId} was not found on GitHub. It might not be running an agent`);
+    console.info(`Runner ${ec2runner.instanceId} was not found on GitHub. It might not be running an agent`);
   }
 
-  console.debug(`Runner ${ec2runner.instanceId} is removable.`);
+  console.info(`Runner ${ec2runner.instanceId} is removable.`);
   metrics.runnerIsRemovable(ec2runner);
   return true;
 }
@@ -405,7 +405,7 @@ export function runnerMinimumTimeExceeded(runner: RunnerInfo): boolean {
   const maxTime = moment(new Date()).subtract(Config.Instance.minimumRunningTimeInMinutes, 'minutes').utc();
   const minTimeExceeded = baseTime < maxTime;
   if (minTimeExceeded) {
-    console.debug(
+    console.info(
       `[runnerMinimumTimeExceeded] Instance ${runner.instanceId} ${reason} and has ` +
         `exceeded the minimum running time of ${Config.Instance.minimumRunningTimeInMinutes} mins ` +
         `by ${maxTime.diff(baseTime, 'minutes')} mins.`,
@@ -460,7 +460,7 @@ async function removeRunner(
 
   if (ghRunner !== undefined) {
     if (Config.Instance.enableOrganizationRunners) {
-      console.debug(
+      console.info(
         `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
           `[${ec2runner.runnerType}] will be removed.`,
       );
@@ -484,7 +484,7 @@ async function removeRunner(
       }
     } else {
       const repo = getRepo(ec2runner.repo as string);
-      console.debug(
+      console.info(
         `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
           `[${ec2runner.runnerType}] will be removed.`,
       );
