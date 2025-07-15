@@ -59,8 +59,7 @@ export async function scaleDown(): Promise<void> {
     for (const [runnerType, runners] of shuffleArrayInPlace(Array.from(runnersDict.entries()))) {
       if (runners.length < 1 || runners[0].runnerType === undefined || runnerType === undefined) continue;
 
-      const ghRunnersRemovableWGHRunner: Array<[RunnerInfo, GhRunner]> = [];
-      const ghRunnersRemovableNoGHRunner: Array<[RunnerInfo, GhRunner | undefined]> = [];
+      let removedRunners = 0;
 
       for (const ec2runner of runners) {
         // REPO assigned runners
@@ -71,10 +70,12 @@ export async function scaleDown(): Promise<void> {
           if (!Config.Instance.enableOrganizationRunners) {
             metrics.runnerFound(ec2runner);
             if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-              if (ghRunner === undefined) {
-                ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
-              } else {
-                ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+              // Process removal immediately instead of adding to array
+              if (await shouldSkipRemoval(ghRunner, ec2runner, removedRunners, runners.length, metrics)) {
+                continue;
+              }
+              if (await removeRunner(ec2runner, ghRunner, metrics)) {
+                removedRunners += 1;
               }
             }
           }
@@ -86,10 +87,12 @@ export async function scaleDown(): Promise<void> {
           if (Config.Instance.enableOrganizationRunners) {
             metrics.runnerFound(ec2runner);
             if (isRunnerRemovable(ghRunner, ec2runner, metrics)) {
-              if (ghRunner === undefined) {
-                ghRunnersRemovableNoGHRunner.push([ec2runner, undefined]);
-              } else {
-                ghRunnersRemovableWGHRunner.push([ec2runner, ghRunner]);
+              // Process removal immediately instead of adding to array
+              if (await shouldSkipRemoval(ghRunner, ec2runner, removedRunners, runners.length, metrics)) {
+                continue;
+              }
+              if (await removeRunner(ec2runner, ghRunner, metrics)) {
+                removedRunners += 1;
               }
             }
           }
@@ -97,98 +100,6 @@ export async function scaleDown(): Promise<void> {
           // This is mostly designed to send metrics and statistics for pet instances that don't have clear
           // ownership.
           metrics.runnerFound(ec2runner);
-        }
-      }
-
-      const ghRunnersRemovable: Array<[RunnerInfo, GhRunner | undefined]> =
-        ghRunnersRemovableNoGHRunner.concat(ghRunnersRemovableWGHRunner);
-
-      let removedRunners = 0;
-      for (const [ec2runner, ghRunner] of ghRunnersRemovable) {
-        // We only limit the number of removed instances here for the reason: while sorting and getting info
-        // on getRunner[Org|Repo] we send statistics that are relevant for monitoring
-        if (
-          ghRunnersRemovable.length - removedRunners <= (await minRunners(ec2runner, metrics)) &&
-          ghRunner !== undefined &&
-          ec2runner.applicationDeployDatetime == Config.Instance.datetimeDeploy
-        ) {
-          continue;
-        }
-
-        let shouldRemoveEC2 = true;
-        if (ghRunner !== undefined) {
-          if (Config.Instance.enableOrganizationRunners) {
-            console.debug(
-              `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
-                `[${ec2runner.runnerType}] will be removed.`,
-            );
-            try {
-              await removeGithubRunnerOrg(ghRunner.id, ec2runner.org as string, metrics);
-              metrics.runnerGhTerminateSuccessOrg(ec2runner.org as string, ec2runner);
-              console.info(
-                `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
-                  `[${ec2runner.runnerType}] successfuly removed.`,
-              );
-            } catch (e) {
-              /* istanbul ignore next */
-              console.warn(
-                `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
-                  `[${ec2runner.runnerType}] failed to be removed. ${e}`,
-              );
-              /* istanbul ignore next */
-              metrics.runnerGhTerminateFailureOrg(ec2runner.org as string, ec2runner);
-              /* istanbul ignore next */
-              shouldRemoveEC2 = false;
-            }
-          } else {
-            const repo = getRepo(ec2runner.repo as string);
-            console.debug(
-              `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
-                `[${ec2runner.runnerType}] will be removed.`,
-            );
-            try {
-              await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
-              metrics.runnerGhTerminateSuccessRepo(repo, ec2runner);
-              console.info(
-                `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
-                  `[${ec2runner.runnerType}] successfuly removed.`,
-              );
-            } catch (e) {
-              /* istanbul ignore next */
-              console.warn(
-                `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
-                  `[${ec2runner.runnerType}] failed to be removed. ${e}`,
-              );
-              /* istanbul ignore next */
-              metrics.runnerGhTerminateFailureRepo(repo, ec2runner);
-              /* istanbul ignore next */
-              shouldRemoveEC2 = false;
-            }
-          }
-        } else {
-          if (Config.Instance.enableOrganizationRunners) {
-            metrics.runnerGhTerminateNotFoundOrg(ec2runner.org as string, ec2runner);
-          } else {
-            metrics.runnerGhTerminateFailureRepo(getRepo(ec2runner.repo as string), ec2runner);
-          }
-        }
-
-        if (shouldRemoveEC2) {
-          removedRunners += 1;
-
-          console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
-          try {
-            await terminateRunner(ec2runner, metrics);
-            metrics.runnerTerminateSuccess(ec2runner);
-          } catch (e) {
-            /* istanbul ignore next */
-            metrics.runnerTerminateFailure(ec2runner);
-            /* istanbul ignore next */
-            console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
-          }
-        } else {
-          /* istanbul ignore next */
-          metrics.runnerTerminateSkipped(ec2runner);
         }
       }
     }
@@ -524,4 +435,102 @@ export function sortSSMParametersByUpdateTime(ssmParams: Array<SSM.ParameterMeta
     if (a.LastModifiedDate > b.LastModifiedDate) return 1;
     return 0;
   });
+}
+
+async function shouldSkipRemoval(
+  ghRunner: GhRunner | undefined,
+  ec2runner: RunnerInfo,
+  removedRunners: number,
+  totalRunners: number,
+  metrics: ScaleDownMetrics,
+): Promise<boolean> {
+  return (
+    totalRunners - removedRunners <= (await minRunners(ec2runner, metrics)) &&
+    ghRunner !== undefined &&
+    ec2runner.applicationDeployDatetime == Config.Instance.datetimeDeploy
+  );
+}
+
+async function removeRunner(
+  ec2runner: RunnerInfo,
+  ghRunner: GhRunner | undefined,
+  metrics: ScaleDownMetrics,
+): Promise<boolean> {
+  let shouldRemoveEC2 = true;
+
+  if (ghRunner !== undefined) {
+    if (Config.Instance.enableOrganizationRunners) {
+      console.debug(
+        `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
+          `[${ec2runner.runnerType}] will be removed.`,
+      );
+      try {
+        await removeGithubRunnerOrg(ghRunner.id, ec2runner.org as string, metrics);
+        metrics.runnerGhTerminateSuccessOrg(ec2runner.org as string, ec2runner);
+        console.info(
+          `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
+            `[${ec2runner.runnerType}] successfuly removed.`,
+        );
+      } catch (e) {
+        /* istanbul ignore next */
+        console.warn(
+          `GH Runner instance '${ghRunner.id}'[${ec2runner.org}] for EC2 '${ec2runner.instanceId}' ` +
+            `[${ec2runner.runnerType}] failed to be removed. ${e}`,
+        );
+        /* istanbul ignore next */
+        metrics.runnerGhTerminateFailureOrg(ec2runner.org as string, ec2runner);
+        /* istanbul ignore next */
+        shouldRemoveEC2 = false;
+      }
+    } else {
+      const repo = getRepo(ec2runner.repo as string);
+      console.debug(
+        `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
+          `[${ec2runner.runnerType}] will be removed.`,
+      );
+      try {
+        await removeGithubRunnerRepo(ghRunner.id, repo, metrics);
+        metrics.runnerGhTerminateSuccessRepo(repo, ec2runner);
+        console.info(
+          `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
+            `[${ec2runner.runnerType}] successfuly removed.`,
+        );
+      } catch (e) {
+        /* istanbul ignore next */
+        console.warn(
+          `GH Runner instance '${ghRunner.id}'[${ec2runner.repo}] for EC2 '${ec2runner.instanceId}' ` +
+            `[${ec2runner.runnerType}] failed to be removed. ${e}`,
+        );
+        /* istanbul ignore next */
+        metrics.runnerGhTerminateFailureRepo(repo, ec2runner);
+        /* istanbul ignore next */
+        shouldRemoveEC2 = false;
+      }
+    }
+  } else {
+    if (Config.Instance.enableOrganizationRunners) {
+      metrics.runnerGhTerminateNotFoundOrg(ec2runner.org as string, ec2runner);
+    } else {
+      metrics.runnerGhTerminateFailureRepo(getRepo(ec2runner.repo as string), ec2runner);
+    }
+  }
+
+  if (shouldRemoveEC2) {
+    console.info(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] will be removed.`);
+    try {
+      await terminateRunner(ec2runner, metrics);
+      metrics.runnerTerminateSuccess(ec2runner);
+      return true;
+    } catch (e) {
+      /* istanbul ignore next */
+      metrics.runnerTerminateFailure(ec2runner);
+      /* istanbul ignore next */
+      console.error(`Runner '${ec2runner.instanceId}' [${ec2runner.runnerType}] cannot be removed: ${e}`);
+    }
+  } else {
+    /* istanbul ignore next */
+    metrics.runnerTerminateSkipped(ec2runner);
+  }
+
+  return false;
 }
