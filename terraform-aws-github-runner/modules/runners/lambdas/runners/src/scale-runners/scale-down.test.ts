@@ -472,7 +472,7 @@ describe('scale-down', () => {
       expect(mockedGetRunnerTypes).toBeCalledTimes(9);
       expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, metrics);
 
-      expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(4);
+      expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
       {
         const { awsR, ghR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedRemoveGithubRunnerOrg).toBeCalledWith(ghR.id, awsR.org as string, metrics);
@@ -814,7 +814,7 @@ describe('scale-down', () => {
       expect(mockedGetRunnerTypes).toBeCalledTimes(9);
       expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
 
-      expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(4);
+      expect(mockedRemoveGithubRunnerRepo).toBeCalledTimes(5);
       {
         const { ghR } = getRunnerPair('keep-min-runners-oldest-02');
         expect(mockedRemoveGithubRunnerRepo).toBeCalledWith(ghR.id, repo, metrics);
