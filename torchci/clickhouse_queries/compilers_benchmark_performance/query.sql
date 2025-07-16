@@ -76,7 +76,7 @@ WHERE
     -- in 6 months
     AND (
         (
-            {arch: String } = ''
+            ({arch: String } = '' OR {arch: String } = 'a100')
             AND output LIKE CONCAT(
                 '%_',
                 {dtype: String },
