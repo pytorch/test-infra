@@ -57,6 +57,7 @@ def main() -> None:
     args = parse_args()
 
     location = REPO_ROOT / ".lintbin" / "from_link" / "adapters"
+    location.mkdir(parents=True, exist_ok=True)
 
     if args.lint_link:
         download_file(args.lint_link, location / args.lint_name)
@@ -65,7 +66,6 @@ def main() -> None:
         download_file(args.init_link, location / args.init_name)
 
     if args.run_init:
-        location.mkdir(parents=True, exist_ok=True)
         # Save the content to a file named after the name argument
         subprocess_args = ["python3", location / args.init_name] + args.args_for_file
         subprocess.run(subprocess_args, check=True)
