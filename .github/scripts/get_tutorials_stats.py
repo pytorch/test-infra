@@ -8,16 +8,14 @@ from functools import lru_cache
 from subprocess import check_output
 from typing import Any, Dict, List, NamedTuple, Optional, Union
 
-import boto3  # type: ignore[import-not-found]
+import boto3  # type: ignore[import-not-found,import-untyped]
 
 
 METADATA_PATH = "ossci_tutorials_stats/metadata.csv"
 FILENAMES_PATH = "ossci_tutorials_stats/filenames.csv"
 
 
-def run_command(
-    cmd: str, cwd: Optional[str] = None, env=Optional[Dict[str, str]]
-) -> str:
+def run_command(cmd: str, cwd: Optional[str] = None, env=Optional[Dict[str, str]]):
     """
     Run a shell command.
 

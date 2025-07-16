@@ -14,13 +14,21 @@ exclude_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/flake8_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=flake8_linter.py',
     '--',
     '@{{PATHSFILE}}'
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/pip_init.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-init',
+    '--init-name=pip_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/pip_init.py',
+    '--lint-name=flake8_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/flake8_linter.py',
+    '--',
     '--dry-run={{DRYRUN}}',
     'flake8==6.1.0',
     'flake8-bugbear==23.3.23',
@@ -55,14 +63,23 @@ exclude_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/mypy_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=mypy_linter.py',
+    '--',
     '--config=mypy.ini',
     '--',
     '@{{PATHSFILE}}'
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/pip_init.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-init',
+    '--init-name=pip_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/pip_init.py',
+    '--lint-name=mypy_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/mypy_linter.py',
+    '--',
     '--dry-run={{DRYRUN}}',
     "boto3==1.38.29",
     "botocore==1.38.29",
@@ -93,9 +110,20 @@ exclude_patterns = [
     "tools/stronghold/src/api/types.py",
     "tools/stronghold/tests/api/test_ast_param_types.py",
 ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=grep_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/grep_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/grep_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=grep_linter.py',
+    '--',
     '--pattern=# type:\s*ignore([^\[]|$)',
     '--linter-name=TYPEIGNORE',
     '--error-name=unqualified type: ignore',
@@ -110,9 +138,20 @@ command = [
 [[linter]]
 code = 'NOQA'
 include_patterns = ['**/*.py', '**/*.pyi']
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=grep_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/grep_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/grep_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=grep_linter.py',
+    '--',
     '--pattern=# noqa([^:]|$)',
     '--linter-name=NOQA',
     '--error-name=unqualified noqa',
@@ -139,9 +178,19 @@ exclude_patterns=[
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
     'tools/clang-tidy-checks/*-patches/**',
 ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=newlines_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/newlines_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/newlines_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=newlines_linter.py',
     '--',
     '@{{PATHSFILE}}',
 ]
@@ -159,9 +208,20 @@ exclude_patterns = [
     '.github/actions/setup-ssh/index.js',
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
 ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=newlines_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/newlines_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/grep_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=grep_linter.py',
+    '--',
     '--pattern=[[:blank:]]$',
     '--linter-name=SPACES',
     '--error-name=trailing spaces',
@@ -189,9 +249,20 @@ exclude_patterns = [
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
 ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=newlines_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/newlines_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/grep_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=grep_linter.py',
+    '--',
     # @lint-ignore TXT2
     '--pattern=	',
     '--linter-name=TABS',
@@ -222,9 +293,20 @@ exclude_patterns = [
     ".github/workflows/validate-linux-binaries.yml",
     ".github/workflows/validate-repackaged-binary-sizes.yml",
 ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=grep_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/grep_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/grep_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=grep_linter.py',
+    '--',
     """--pattern=\
     (pip|pip3|python -m pip|python3 -m pip|python3 -mpip|python -mpip) \
     install ([a-zA-Z0-9][A-Za-z0-9\\._\\-]+)([^/=<>~!]+)[A-Za-z0-9\\._\\-\\*\\+\\!]*$\
@@ -257,9 +339,19 @@ exclude_patterns = [
     # Putting this exclusion just to get the linter running.
     "tools/stronghold/bin/build-check-api-compatibility",
 ]
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=exec_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/exec_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/exec_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=exec_linter.py',
     '--',
     '@{{PATHSFILE}}',
 ]
@@ -275,14 +367,23 @@ include_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/actionlint_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=actionlint_linter.py',
+    '--',
     '--binary=.lintbin/actionlint',
     '--',
     '@{{PATHSFILE}}',
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/s3_init.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-init',
+    '--init-name=s3_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/pytorch/b8b840be3d03cf2f7dc4a373f9b0a95f1411cb89/tools/linter/adapters/s3_init.py',
+    '--lint-name=actionlint_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/actionlint_linter.py',
+    '--',
     '--config-json=tools/linter/adapters/s3_init_config.json',
     '--linter=actionlint',
     '--dry-run={{DRYRUN}}',
@@ -299,6 +400,7 @@ include_patterns = [
 command = [
     'python3',
     'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
     '--lint-name=pyfmt_linter.py',
     '--',
     '@{{PATHSFILE}}'
@@ -308,9 +410,9 @@ init_command = [
     'tools/linter/adapters/run_from_link_linter.py',
     '--run-init',
     '--init-name=pip_init.py',
-    '--init-link=https://raw.githubusercontent.com/pytorch/test-infra/main/tools/linter/adapters/pip_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/pip_init.py',
     '--lint-name=pyfmt_linter.py',
-    '--lint-link=https://raw.githubusercontent.com/pytorch/test-infra/main/tools/linter/adapters/pyfmt_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/pyfmt_linter.py',
     '--',
     '--dry-run={{DRYRUN}}',
     '--no-black-binary',
@@ -325,9 +427,20 @@ is_formatter = true
 code = 'COPYRIGHT'
 include_patterns = ['**']
 exclude_patterns = ['.lintrunner.toml', '**/fixtures/**']
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=grep_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/grep_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/grep_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=grep_linter.py',
+    '--',
     '--pattern=Confidential and proprietary',
     '--linter-name=COPYRIGHT',
     '--error-name=Confidential Code',
@@ -342,9 +455,19 @@ command = [
 [[linter]]
 code = 'LINTRUNNER_VERSION'
 include_patterns = ['**']
+init_command = [
+    'python3',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--lint-name=lintrunner_version_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/267f82b860ccdf32df3dcb92e2435b64ba0f117a/tools/linter/adapters/lintrunner_version_linter.py',
+    '--',
+    '--dry-run={{DRYRUN}}',
+]
 command = [
     'python3',
-    'tools/linter/adapters/lintrunner_version_linter.py'
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=lintrunner_version_linter.py',
 ]
 
 [[linter]]
@@ -360,7 +483,10 @@ exclude_patterns = [
 ]
 command = [
     'python3',
-    'tools/linter/adapters/ruff_linter.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-lint',
+    '--lint-name=ruff_linter.py',
+    '--',
     '--config=pyproject.toml',
     '--show-disable',
     '--',
@@ -368,7 +494,13 @@ command = [
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/pip_init.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-init',
+    '--init-name=pip_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/pip_init.py',
+    '--lint-name=ruff_linter.py',
+    '--lint-link=https://raw.githubusercontent.com/pytorch/pytorch/d0b98746039990d9f82f2c72d7256f89ac69875a/tools/linter/adapters/ruff_linter.py',
+    '--',
     '--dry-run={{DRYRUN}}',
     'ruff==0.8.4',  # sync with PYFMT
 ]
@@ -384,7 +516,11 @@ command = [
 ]
 init_command = [
     'python3',
-    'tools/linter/adapters/pip_init.py',
+    'tools/linter/adapters/run_from_link_linter.py',
+    '--run-init',
+    '--init-name=pip_init.py',
+    '--init-link=https://raw.githubusercontent.com/pytorch/pytorch/b8895df8db23213a0db50fe833930dd1f4e4b5a5/tools/linter/adapters/pip_init.py',
+    '--',
     '--dry-run={{DRYRUN}}',
     'sqlfluff==3.3.0',
 ]
