@@ -43,7 +43,7 @@ export function CommitInfo({
     return <div>Loading...</div>;
   }
 
-  const { commit, jobs } = commitData;
+  const { commit, jobs, workflowIdsByName } = commitData;
 
   return (
     <div>
@@ -53,6 +53,7 @@ export function CommitInfo({
         repoName={repoName}
         commit={commit}
         jobs={jobs}
+        workflowIdsByName={workflowIdsByName}
         isCommitPage={isCommitPage}
         unstableIssues={unstableIssuesData ?? []}
       />

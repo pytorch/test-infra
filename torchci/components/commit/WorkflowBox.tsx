@@ -1,4 +1,4 @@
-import { Button, Stack, styled, Typography } from "@mui/material";
+import { Button, Stack, styled, Tooltip, Typography } from "@mui/material";
 import { TestInfo } from "components/additionalTestInfo/TestInfo";
 import styles from "components/commit/commit.module.css";
 import LogViewer, { SearchLogViewer } from "components/common/log/LogViewer";
@@ -14,7 +14,10 @@ import {
   ListUtilizationMetadataInfoAPIResponse,
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
+import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import React, { useEffect, useState } from "react";
+import { FaInfoCircle } from "react-icons/fa";
+import useSWR from "swr";
 import useSWRImmutable from "swr/immutable";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
@@ -140,16 +143,32 @@ export default function WorkflowBox({
   unstableIssues,
   wide,
   setWide,
+  allWorkflowIds,
   repoFullName,
 }: {
   workflowName: string;
   jobs: JobData[];
   unstableIssues: IssueData[];
   wide: boolean;
+  allWorkflowIds: number[];
   setWide: any;
   repoFullName: string;
 }) {
-  const workflowId = jobs[0].workflowId;
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState<
+    string | undefined
+  >(undefined);
+  const workflowId = selectedWorkflowId || jobs[0].workflowId;
+
+  const { data: jobsFromSelectedWorkflowId } = useSWR<CommitApiResponse>(
+    selectedWorkflowId &&
+      `/api/${repoFullName}/commit/${jobs[0].sha}?workflowId=${selectedWorkflowId}`,
+    fetcher
+  );
+
+  if (selectedWorkflowId) {
+    jobs = jobsFromSelectedWorkflowId?.jobs || [];
+  }
+
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
     ? styles.workflowBoxFail
@@ -163,6 +182,7 @@ export default function WorkflowBox({
   const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
+
   const [searchString, setSearchString] = useState("");
   const [searchRes, setSearchRes] = useState<{
     results: Map<string, LogSearchResult>;
@@ -196,7 +216,28 @@ export default function WorkflowBox({
             Job Status
           </Typography>
         </Stack>
-        <Stack direction="column" spacing={1} paddingTop={6}>
+        <Stack direction="column" spacing={1}>
+          <Stack direction="row" spacing={1}>
+            <select
+              value={selectedWorkflowId}
+              onChange={(e) => {
+                setSelectedWorkflowId(e.target.value);
+              }}
+              style={{ width: "100%" }}
+            >
+              <option value={""}>Select Workflow ID</option>
+              {allWorkflowIds.sort().map((id) => (
+                <option key={id} value={id}>
+                  {id}
+                </option>
+              ))}
+            </select>
+            <Tooltip title="By default the box will show what it believes to be the latest jobs. Use this to select a specific workflow ID if it's wrong.">
+              <Typography>
+                <FaInfoCircle />
+              </Typography>
+            </Tooltip>
+          </Stack>
           <div>
             {repoFullName == "pytorch/pytorch" && (
               <button
