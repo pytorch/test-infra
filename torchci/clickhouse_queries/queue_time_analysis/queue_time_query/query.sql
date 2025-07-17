@@ -37,7 +37,7 @@ WITH selected_data AS (
     AND (
     {runnerLabels: Array(String)} = [] OR hasAny(runner_labels, {runnerLabels: Array(String)})
   )
-  GROUP BY truncated_time,job_name, time_divisor
+  GROUP BY truncated_time, job_name, time_divisor
 ),
 final AS (
   SELECT
