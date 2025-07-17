@@ -61,6 +61,7 @@ export const DEFAULT_DEVICE_NAME = "cuda (h100)";
 export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (a100)": "cuda",
   "cuda (h100)": "cuda",
+  "cuda (b200)": "cuda",
   "cpu (x86_64)": "cpu",
   "cpu (x86_zen)": "cpu",
   "cpu (aarch64)": "cpu",
@@ -70,6 +71,7 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
 export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
   "cuda (a100)": "a100",
   "cuda (h100)": "h100",
+  "cuda (b200)": "b200",
   "cpu (x86_64)": "x86_64",
   "cpu (x86_zen)": "x86_zen",
   "cpu (aarch64)": "aarch64",
@@ -80,6 +82,7 @@ export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a100)": "inductor-A100-perf-nightly",
   "cuda (h100)": "inductor-perf-nightly-h100",
+  "cuda (b200)": "inductor-perf-b200",
   "cpu (x86)": "inductor-perf-nightly-x86",
   "cpu (x86_zen)": "inductor-perf-nightly-x86-zen",
   "cpu (aarch64)": "inductor-perf-nightly-aarch64",

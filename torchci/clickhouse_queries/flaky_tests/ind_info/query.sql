@@ -16,15 +16,15 @@ WITH failed_test_runs AS (
 
 failed_jobs AS (
     SELECT
-        j.conclusion AS conclusion,
+        j.conclusion_kg AS conclusion,
         j.id AS id,
         j.run_id AS run_id,
         j.name AS name,
         j.html_url AS html_url,
         j.started_at AS started_at,
-        tupleElement(j.torchci_classification, 'line') AS line,
-        tupleElement(j.torchci_classification, 'line_num') AS line_num,
-        tupleElement(j.torchci_classification, 'captures') AS captures,
+        tupleElement(j.torchci_classification_kg, 'line') AS line,
+        tupleElement(j.torchci_classification_kg, 'line_num') AS line_num,
+        tupleElement(j.torchci_classification_kg, 'captures') AS captures,
         j.head_sha AS head_sha
     FROM default.workflow_job AS j
     WHERE

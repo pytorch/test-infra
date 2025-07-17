@@ -23,6 +23,7 @@ on:
           - torchtune
           - torchcodec
           - torchvision-extra-decoders
+          - torchtitan
           - all
 jobs:
   trigger:
@@ -119,3 +120,11 @@ jobs:
           repository: pytorch-labs/torchvision-extra-decoders
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: torchvision-extra-decoders
+      - name: Trigger nightly torchtitan
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchtitan' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: pytorch/torchtitan
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchtitan

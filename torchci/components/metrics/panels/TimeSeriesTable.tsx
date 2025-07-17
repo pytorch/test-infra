@@ -5,7 +5,7 @@ import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import FileDownloadIcon from "@mui/icons-material/FileDownload";
 import { IconButton, Paper, Stack, Tooltip } from "@mui/material";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { formatTimeForCharts } from "components/TimeUtils";
+import { formatTimeForCharts } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetcher } from "lib/GeneralUtils";

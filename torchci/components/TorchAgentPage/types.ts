@@ -46,6 +46,8 @@ export interface MessageWrapper {
   is_error?: boolean;
   result?: string;
   session_id?: string;
+  sessionId?: string;
+  resumeSession?: boolean;
   usage?: {
     output_tokens: number;
     input_tokens?: number;

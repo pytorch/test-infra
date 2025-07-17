@@ -75,7 +75,7 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.8.0"
+CURRENT_NIGHTLY_VERSION = "2.9.0"
 CURRENT_CANDIDATE_VERSION = "2.8.0"
 CURRENT_STABLE_VERSION = "2.7.1"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
@@ -176,9 +176,7 @@ def initialize_globals(channel: str, build_python_only: bool) -> None:
         },
         CPU: "pytorch/manylinux2_28-builder:cpu",
         XPU: "pytorch/manylinux2_28-builder:xpu",
-        # TODO: Migrate CUDA_AARCH64 image to manylinux2_28_aarch64-builder:cuda12.4
         CPU_AARCH64: "pytorch/manylinux2_28_aarch64-builder:cpu-aarch64",
-        CUDA_AARCH64: "pytorch/manylinuxaarch64-builder:cuda12.6",
     }
     LIBTORCH_CONTAINER_IMAGES = {
         **{
@@ -445,9 +443,6 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
-                # todo: remove once windows cuda 12.9 binaries are available
-                if channel == NIGHTLY and os != LINUX:
-                    arches.remove("12.9")
             elif os == LINUX_AARCH64:
                 arches += CUDA_AARCH64_ARCHES
 

@@ -3,7 +3,10 @@
  */
 
 import { Paper, Skeleton } from "@mui/material";
-import { formatTimeForCharts, TIME_DISPLAY_FORMAT } from "components/TimeUtils";
+import {
+  formatTimeForCharts,
+  TIME_DISPLAY_FORMAT,
+} from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { EChartsOption } from "echarts";

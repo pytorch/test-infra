@@ -1,12 +1,12 @@
 import { Grid2, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
-import CopyLink from "components/CopyLink";
+import CopyLink from "components/common/CopyLink";
+import ValuePicker from "components/common/ValuePicker";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel, {
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
-import ValuePicker from "components/ValuePicker";
 import dayjs from "dayjs";
 import { encodeParams, useClickHouseAPI } from "lib/GeneralUtils";
 import _ from "lodash";

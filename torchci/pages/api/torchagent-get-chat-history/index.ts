@@ -100,9 +100,46 @@ export default async function handler(
     const content = await fileData.Body?.transformToString();
     const sessionData = JSON.parse(content || "{}");
 
-    console.log(`Retrieved session ${sessionId} for user ${username}`);
+    // Check if this session has been shared by looking for a tracking file
+    const sharedTrackingKey = `shared-tracking/${username}/${sessionId}.json`;
+    let sharedInfo = null;
 
-    res.status(200).json(sessionData);
+    try {
+      const sharedTrackingParams = {
+        Bucket: TORCHAGENT_SESSION_BUCKET_NAME,
+        Key: sharedTrackingKey,
+      };
+
+      const sharedTrackingCommand = new GetObjectCommand(sharedTrackingParams);
+      const sharedTrackingData = await s3.send(sharedTrackingCommand);
+
+      if (sharedTrackingData.Body) {
+        const sharedContent = await sharedTrackingData.Body.transformToString();
+        const trackingData = JSON.parse(sharedContent || "{}");
+        sharedInfo = {
+          uuid: trackingData.shareUuid,
+          sharedAt: trackingData.sharedAt,
+          shareUrl: trackingData.shareUrl,
+        };
+      }
+    } catch (error) {
+      // No shared tracking file exists, which is fine
+      console.log(`No shared tracking found for session ${sessionId}`);
+    }
+
+    // Add shared info to session data if it exists
+    const responseData = {
+      ...sessionData,
+      ...(sharedInfo && { shared: sharedInfo }),
+    };
+
+    console.log(
+      `Retrieved session ${sessionId} for user ${username}, shared: ${
+        sharedInfo ? "yes" : "no"
+      }`
+    );
+
+    res.status(200).json(responseData);
   } catch (error) {
     console.error("Error fetching chat history:", error);
     res.status(500).json({ error: "Failed to fetch chat history" });

@@ -61,8 +61,6 @@ export interface DescribeInstancesResultRegion {
   describeInstanceResult: PromiseResult<EC2.Types.DescribeInstancesResult, AWS.AWSError>;
 }
 
-const SHOULD_NOT_TRY_LIST_SSM = 'SHOULD_NOT_TRY_LIST_SSM';
-
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
 const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTimeInMinutes * 60 * 1000) / 2 });
 
@@ -174,7 +172,7 @@ export async function listRunners(
                     .describeInstances({ Filters: ec2Filters })
                     .promise()
                     .then((describeInstanceResult): DescribeInstancesResultRegion => {
-                      const listOfRunnersIdType: string[] = (
+                      (
                         describeInstanceResult?.Reservations?.flatMap((reservation) => {
                           return (
                             reservation.Instances?.map((instance) => {
@@ -190,7 +188,6 @@ export async function listRunners(
                           `.describeInstances({ Filters: ${JSON.stringify(ec2Filters)} }) = ` +
                           `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
                       );
-                      console.debug(`[listRunners]: ${listOfRunnersIdType.join('\n ')}`);
                       return { describeInstanceResult, awsRegion };
                     });
                 },
@@ -328,31 +325,6 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
       );
     });
     console.info(`Runner terminated: ${runner.instanceId} ${runner.runnerType}`);
-
-    const paramName = getParameterNameForRunner(runner.environment || Config.Instance.environment, runner.instanceId);
-    const cacheName = `${SHOULD_NOT_TRY_LIST_SSM}_${runner.awsRegion}`;
-
-    if (ssmParametersCache.has(cacheName)) {
-      doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-    } else {
-      try {
-        const params = await listSSMParameters(metrics, runner.awsRegion);
-
-        if (params.has(paramName)) {
-          doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-        } else {
-          /* istanbul ignore next */
-          console.info(`[${runner.awsRegion}] Parameter "${paramName}" not found in SSM, no need to delete it`);
-        }
-      } catch (e) {
-        ssmParametersCache.set(cacheName, 1, 60 * 1000);
-        console.error(
-          `[terminateRunner - listSSMParameters] [${runner.awsRegion}] ` +
-            `Failed to list parameters or check if available: ${e}`,
-        );
-        doDeleteSSMParameter(paramName, metrics, runner.awsRegion);
-      }
-    }
   } catch (e) {
     console.error(`[${runner.awsRegion}] [terminateRunner]: ${e}`);
     throw e;
@@ -393,6 +365,18 @@ async function addSSMParameterRunnerConfig(
                 Name: parameterName,
                 Value: runnerConfig,
                 Type: 'SecureString',
+                // NOTE: This does need to be an stringified JSON array of objects, check docs at:
+                // https://docs.aws.amazon.com/systems-manager/latest/userguide/example_ssm_PutParameter_section.html
+                Policies: JSON.stringify([
+                  {
+                    Type: 'Expiration',
+                    Version: '1.0',
+                    Attributes: {
+                      //  Expire after 30 minutes from present time
+                      Timestamp: new Date(Date.now() + 1000 * 60 * 30).toISOString(),
+                    },
+                  },
+                ]),
               })
               .promise();
             return parameterName;

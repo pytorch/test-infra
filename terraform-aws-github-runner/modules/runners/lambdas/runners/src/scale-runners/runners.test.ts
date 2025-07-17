@@ -2,7 +2,6 @@ import {
   RunnerInputParameters,
   createRunner,
   findAmiID,
-  getParameterNameForRunner,
   listRunners,
   listSSMParameters,
   resetRunnersCaches,
@@ -345,20 +344,10 @@ describe('terminateRunner', () => {
       instanceId: 'i-1234',
       environment: 'gi-ci',
     };
-    mockSSMdescribeParametersRet.mockResolvedValueOnce({
-      Parameters: [getParameterNameForRunner(runner.environment as string, runner.instanceId)].map((s) => {
-        return { Name: s };
-      }),
-    });
     await terminateRunner(runner, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledWith({
       InstanceIds: [runner.instanceId],
-    });
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner.environment as string, runner.instanceId),
     });
   });
 
@@ -372,11 +361,9 @@ describe('terminateRunner', () => {
       promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
     });
     expect(terminateRunner(runner, metrics)).rejects.toThrowError(errMsg);
-    expect(mockSSM.describeParameters).not.toBeCalled();
-    expect(mockSSM.deleteParameter).not.toBeCalled();
   });
 
-  it('fails to list parameters on terminate, then force delete all next parameters', async () => {
+  it('terminates multiple runners', async () => {
     const runner1: RunnerInfo = {
       awsRegion: Config.Instance.awsRegion,
       instanceId: '1234',
@@ -387,19 +374,10 @@ describe('terminateRunner', () => {
       instanceId: '1235',
       environment: 'environ',
     };
-    mockSSMdescribeParametersRet.mockRejectedValueOnce('Some Error');
     await terminateRunner(runner1, metrics);
     await terminateRunner(runner2, metrics);
 
     expect(mockEC2.terminateInstances).toBeCalledTimes(2);
-    expect(mockSSM.describeParameters).toBeCalledTimes(1);
-    expect(mockSSM.deleteParameter).toBeCalledTimes(2);
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner1.environment as string, runner1.instanceId),
-    });
-    expect(mockSSM.deleteParameter).toBeCalledWith({
-      Name: getParameterNameForRunner(runner2.environment as string, runner2.instanceId),
-    });
   });
 });
 
@@ -1263,7 +1241,27 @@ describe('createRunner', () => {
         Name: 'wg113-i-1234',
         Value: 'us-east-1-BLAH',
         Type: 'SecureString',
+        Policies: expect.any(String),
       });
+      // Verify the Policies parameter contains the correct expiration policy structure
+      const putParameterCall = mockSSM.putParameter.mock.calls[0][0];
+      const policies = JSON.parse(putParameterCall.Policies);
+      expect(policies).toEqual([
+        {
+          Type: 'Expiration',
+          Version: '1.0',
+          Attributes: {
+            Timestamp: expect.any(String),
+          },
+        },
+      ]);
+
+      // Verify the timestamp is approximately 30 minutes in the future
+      const expirationTime = new Date(policies[0].Attributes.Timestamp);
+      const now = Date.now();
+      const timeDiff = expirationTime.getTime() - now;
+      expect(timeDiff).toBeGreaterThan(25 * 60 * 1000); // at least 25 minutes (allowing for test execution time)
+      expect(timeDiff).toBeLessThan(35 * 60 * 1000); // at most 35 minutes (allowing for clock differences)
     });
 
     it('creates ssm experiment parameters when joining experiment', async () => {
@@ -1307,6 +1305,7 @@ describe('createRunner', () => {
         Name: 'wg113-i-1234',
         Value: 'us-east-1-BLAH #ON_AMI_EXPERIMENT',
         Type: 'SecureString',
+        Policies: expect.any(String),
       });
       expect(mockEC2.runInstances).toBeCalledTimes(1);
       expect(mockEC2.runInstances).toBeCalledWith(

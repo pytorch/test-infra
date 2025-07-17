@@ -7,7 +7,7 @@ Detects pattern where 2 recent commits have same failure and 1 older doesn't.
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Set
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .clickhouse_client_helper import CHCliFactory
 
@@ -47,7 +47,7 @@ class CommitJobs:
     @property
     def job_base_names(self) -> Set[str]:
         if not hasattr(self, "_job_base_names"):
-            self._job_base_names = self._get_job_base_names()
+            self._job_base_names = self.get_job_base_names()
         return self._job_base_names
 
     def normalize_job_name(self, name: str) -> str:
@@ -55,7 +55,7 @@ class CommitJobs:
         # Remove patterns like ", 1, 1, " or ", 2, 3, " from job names
         return re.sub(r", \d+, \d+, ", ", ", name)
 
-    def _get_job_base_names(self) -> Set[str]:
+    def get_job_base_names(self) -> Set[str]:
         """Get normalized job names (without shard info)."""
         return {self.normalize_job_name(j.name) for j in self.jobs}
 
@@ -107,13 +107,17 @@ class AutorevertPatternChecker:
             name,
             conclusion,
             status,
-            torchci_classification.rule as classification_rule,
-            workflow_created_at
-        FROM workflow_job FINAL
-        WHERE workflow_name IN {workflow_names:Array(String)}
-          AND head_branch = 'main'
-          AND workflow_created_at >= {lookback_time:DateTime}
-        ORDER BY workflow_name, workflow_created_at DESC, head_sha, name
+            torchci_classification.rule AS classification_rule,
+            created_at AS workflow_created_at
+        FROM
+            workflow_job FINAL
+        WHERE
+            workflow_name IN {workflow_names:Array(String)}
+            AND head_branch = 'main'
+            AND created_at >= {lookback_time:DateTime}
+            AND dynamoKey LIKE 'pytorch/pytorch/%'
+        ORDER BY
+            workflow_name, workflow_created_at DESC, head_sha, name
         """
 
         result = CHCliFactory().client.query(
@@ -194,6 +198,31 @@ class AutorevertPatternChecker:
             for row in result.result_rows
         ]
 
+    def _find_last_commit_with_job(
+        self, commits: Iterable[CommitJobs], job_name: str
+    ) -> Optional[Tuple[CommitJobs, List[JobResult]]]:
+        """
+        Find the last commit in the iterable that has a job with the specified name.
+
+        Args:
+            commits: Iterable of CommitJobs to search
+            job_name: The job name to look for
+
+        Returns:
+            The last CommitJobs object that contains the specified job, or None if not found
+        """
+        job_results = []
+        for commit in commits:
+            for job in commit.jobs:
+                if job.name.split("(")[0] == job_name:  # Normalize job name
+                    job_results.append(job)
+        if job_results:
+            return (
+                commit,
+                job_results,
+            )
+        return None, None
+
     def detect_autorevert_pattern_workflow(self, workflow_name: str) -> List[Dict]:
         """
         Detect all autorevert patterns in commit job data for a specific workflow.
@@ -215,60 +244,94 @@ class AutorevertPatternChecker:
 
         patterns = []
 
-        for i in range(len(commits) - 2):
-            newer_commit1 = commits[i]  # Most recent
-            newer_commit2 = commits[i + 1]  # Second most recent
-            older_commit = commits[i + 2]  # Third most recent
+        for i in range(1, len(commits) - 1):
+            suspected_commit1 = commits[i]  # The commit we want to check for failure
 
-            # All commits must have jobs (signal)
-            if not all(c.jobs for c in [newer_commit1, newer_commit2, older_commit]):
+            if suspected_commit1.has_pending_jobs:
                 continue
 
-            # Oldest commit cannot have pending jobs
-            if older_commit.has_pending_jobs:
-                continue
+            suspected_failures = {
+                (
+                    j.classification_rule,
+                    j.name.split("(")[0],
+                )
+                for j in suspected_commit1.failed_jobs
+            }
 
-            # Find common failure classifications between the 2 newer commits
-            newer1_failures = {j.classification_rule for j in newer_commit1.failed_jobs}
-            newer2_failures = {j.classification_rule for j in newer_commit2.failed_jobs}
-            common_failures = newer1_failures & newer2_failures
+            # Map to track newer commits for each failure
+            failure_to_newer_commit = {}
 
-            if not common_failures:
-                continue
-
-            # Check if older commit lacks these failures but has overlapping job coverage
-            older_failures = {j.classification_rule for j in older_commit.failed_jobs}
-            older_job_names = older_commit.get_job_base_names()
-
-            for failure_rule in common_failures:
-                if failure_rule in older_failures:
-                    continue  # Older commit also has this failure
-
-                # Get job names that had this failure in newer commits
-                failed_job_names = set()
-                for commit in [newer_commit1, newer_commit2]:
-                    for job in commit.failed_jobs:
-                        if job.classification_rule == failure_rule:
-                            failed_job_names.add(commit.normalize_job_name(job.name))
-
-                # Check if older commit has overlapping job coverage
-                if failed_job_names & older_job_names:
-                    patterns.append(
-                        {
-                            "pattern_detected": True,
-                            "workflow_name": workflow_name,
-                            "failure_rule": failure_rule,
-                            "newer_commits": [
-                                newer_commit1.head_sha,
-                                newer_commit2.head_sha,
-                            ],
-                            "older_commit": older_commit.head_sha,
-                            "failed_job_names": list(failed_job_names),
-                            "older_job_coverage": list(
-                                older_job_names & failed_job_names
-                            ),
-                        }
+            for (
+                suspected_failure_class_rule,
+                suspected_failure_job_name,
+            ) in suspected_failures:
+                newer_commit_same_job, newer_same_jobs = (
+                    self._find_last_commit_with_job(
+                        (commits[j] for j in range(i - 1, -1, -1)),
+                        suspected_failure_job_name,
                     )
+                )
+                if not newer_commit_same_job or not newer_same_jobs:
+                    # No newer commit with the same job found
+                    continue
+
+                if any(
+                    j.classification_rule == suspected_failure_class_rule
+                    for j in newer_same_jobs
+                ):
+                    # The newer commit has the same job failing
+                    failure_key = (
+                        suspected_failure_class_rule,
+                        suspected_failure_job_name,
+                    )
+                    failure_to_newer_commit[failure_key] = newer_commit_same_job
+
+            if not failure_to_newer_commit:
+                continue
+
+            for (
+                failure_rule,
+                job_name,
+            ), newer_commit in failure_to_newer_commit.items():
+                last_commit_with_same_job, last_same_jobs = (
+                    self._find_last_commit_with_job(
+                        (commits[j] for j in range(i + 1, len(commits))), job_name
+                    )
+                )
+
+                if not last_commit_with_same_job or not last_same_jobs:
+                    # No older commit with the same job found
+                    continue
+
+                if any(
+                    j.name.split("(")[0] != job_name
+                    for j in last_commit_with_same_job.failed_jobs
+                ):
+                    # newr commit has the same job failing
+                    continue
+
+                if any(
+                    j.classification_rule == suspected_failure_class_rule
+                    for j in last_same_jobs
+                ):
+                    # The last commit with the same job has the same failure classification
+                    continue
+
+                patterns.append(
+                    {
+                        "pattern_detected": True,
+                        "workflow_name": workflow_name,
+                        "failure_rule": failure_rule,
+                        "newer_commits": [
+                            newer_commit.head_sha,
+                            suspected_commit1.head_sha,
+                        ],
+                        "older_commit": last_commit_with_same_job.head_sha,
+                        "failed_job_names": [j.name for j in last_same_jobs],
+                        "older_job_coverage": [],
+                    }
+                )
+                break
 
         return patterns
 
@@ -313,6 +376,20 @@ class AutorevertPatternChecker:
                     all_patterns.append(pattern)
 
         return all_patterns
+
+    def get_commits_reverted(self) -> Set[str]:
+        """
+        Get all commits that were reverted within the lookback window.
+
+        Returns:
+            List of revert information dictionaries
+        """
+        reverted_commits = set()
+        for commit in self.commit_history:
+            revert_info = self.is_commit_reverted(commit["sha"])
+            if revert_info:
+                reverted_commits.add(commit["sha"])
+        return reverted_commits
 
     def is_commit_reverted(self, target_commit_sha: str) -> Optional[Dict]:
         """
@@ -361,3 +438,102 @@ class AutorevertPatternChecker:
                 }
 
         return None  # No revert found
+
+    def extract_revert_categories_batch(self, messages: List[str]) -> Dict[str, str]:
+        """
+        Extract categories from multiple revert commit messages in a single batch query.
+
+        Categories are specified with -c flag like:
+        - nosignal
+        - ignoredsignal
+        - landrace
+        - weird
+        - ghfirst
+
+        Args:
+            messages: List of revert commit messages
+
+        Returns:
+            Dict mapping message to category
+        """
+        # Extract all comment IDs
+        comment_ids = []
+        message_to_comment_id = {}
+
+        for message in messages:
+            comment_match = re.search(r"#issuecomment-(\d+)", message)
+            if comment_match:
+                comment_id = int(comment_match.group(1))
+                comment_ids.append(comment_id)
+                message_to_comment_id[message] = comment_id
+
+        # Batch query for all comment bodies
+        comment_id_to_category = {}
+        if comment_ids:
+            try:
+                query = """
+                SELECT id, body
+                FROM issue_comment
+                WHERE id IN {comment_ids:Array(Int64)}
+                """
+                result = CHCliFactory().client.query(
+                    query, parameters={"comment_ids": comment_ids}
+                )
+
+                for row in result.result_rows:
+                    comment_id, body = row
+                    # Look for -c flag in comment body
+                    match = re.search(r"-c\s+(\w+)", body)
+                    if match:
+                        category = match.group(1).lower()
+                        if category in [
+                            "nosignal",
+                            "ignoredsignal",
+                            "landrace",
+                            "weird",
+                            "ghfirst",
+                        ]:
+                            comment_id_to_category[comment_id] = category
+            except Exception:
+                # If query fails, continue without error
+                pass
+
+        # Map messages to categories
+        result = {}
+        for message in messages:
+            comment_id = message_to_comment_id.get(message)
+            if comment_id and comment_id in comment_id_to_category:
+                result[message] = comment_id_to_category[comment_id]
+            else:
+                result[message] = "uncategorized"
+
+        return result
+
+    def get_commits_reverted_with_info(self) -> Dict[str, Dict]:
+        """
+        Get all commits that were reverted with detailed information including categories.
+
+        Returns:
+            Dict mapping commit SHA to revert information with category
+        """
+        reverted_commits = {}
+        revert_messages = []
+
+        # First pass: collect all reverted commits and their messages
+        for commit in self.commit_history:
+            revert_info = self.is_commit_reverted(commit["sha"])
+            if revert_info:
+                reverted_commits[commit["sha"]] = revert_info
+                revert_messages.append(revert_info["revert_message"])
+
+        # Batch extract categories
+        if revert_messages:
+            message_to_category = self.extract_revert_categories_batch(revert_messages)
+
+            # Update revert info with categories
+            for _, info in reverted_commits.items():
+                info["category"] = message_to_category.get(
+                    info["revert_message"], "uncategorized"
+                )
+
+        return reverted_commits

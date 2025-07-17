@@ -1,5 +1,6 @@
+from collections import defaultdict
+
 from ..autorevert_checker import AutorevertPatternChecker
-from ..clickhouse_client_helper import CHCliFactory
 
 
 def autorevert_checker(
@@ -31,7 +32,7 @@ def autorevert_checker(
                 total_count = len(commit.jobs)
                 pending = " (PENDING)" if commit.has_pending_jobs else ""
                 print(
-                    f"  {i+1:2d}. {commit.head_sha[:8]} ({commit.created_at.strftime('%m-%d %H:%M')}) - "
+                    f"  {i + 1:2d}. {commit.head_sha[:8]} ({commit.created_at.strftime('%m-%d %H:%M')}) - "
                     f"{failed_count:2d}/{total_count:2d} failed{pending}"
                 )
     else:
@@ -44,6 +45,17 @@ def autorevert_checker(
 
     # Detect patterns
     patterns = checker.detect_autorevert_pattern()
+    reverts = checker.get_commits_reverted()
+    reverts_with_info = checker.get_commits_reverted_with_info()
+
+    # Categorize reverts
+    reverts_by_category = defaultdict(set)
+    for sha, info in reverts_with_info.items():
+        category = info.get("category", "uncategorized")
+        reverts_by_category[category].add(sha)
+
+    # For recall calculation, we only consider non-ghfirst reverts
+    not_found_reverts = reverts.copy()
 
     if patterns:
         print(
@@ -52,15 +64,14 @@ def autorevert_checker(
 
         # Create a revert checker (with extended lookback for finding reverts)
         revert_checker = AutorevertPatternChecker(
-            CHCliFactory().client, workflow_names=[], lookback_hours=hours * 2
+            workflow_names=[], lookback_hours=hours * 2
         )
 
         # Track reverts
         reverted_patterns = []
 
         for i, pattern in enumerate(patterns, 1):
-            if len(patterns) > 1:
-                print(f"\nPattern #{i}:")
+            print(f"\nPattern #{i}:")
 
             print(f"Failure rule: '{pattern['failure_rule']}'")
             print(
@@ -83,13 +94,17 @@ def autorevert_checker(
             revert_result = revert_checker.is_commit_reverted(second_commit)
 
             if revert_result:
+                not_found_reverts.discard(second_commit)
+                category = reverts_with_info.get(second_commit, {}).get(
+                    "category", "uncategorized"
+                )
                 print(
-                    f"✓ REVERTED: {second_commit[:8]} was reverted by {revert_result['revert_sha'][:8]} "
+                    f"✓ REVERTED ({category}): {second_commit[:8]} was reverted by {revert_result['revert_sha'][:8]} "
                     f"after {revert_result['hours_after_target']:.1f} hours"
                 )
                 reverted_patterns.append(pattern)
             else:
-                print(f"✗ NOT REVERTED: {second_commit[:8]} was not reverted")
+                print(f"✗ NOT REVERTED: {second_commit} was not reverted")
 
             if verbose:
                 print(f"Failed jobs ({len(pattern['failed_job_names'])}):")
@@ -121,16 +136,84 @@ def autorevert_checker(
         )
         print(f"Commits checked: {total_commits}")
 
-        print(f"Patterns detected: {len(patterns)}")
+        print(f"Auto revert patterns detected: {len(patterns)}")
         print(
-            f"Actual reverts: {len(reverted_patterns)} ({len(reverted_patterns)/len(patterns)*100:.1f}%)"
+            "Actual reverts inside auto revert patterns detected (precision): "
+            + f"{len(reverted_patterns)} ({len(reverted_patterns) / len(patterns) * 100:.1f}%)"
         )
+        print(f"Total revert commits in period: {len(reverts)}")
+
+        # Show breakdown by category
+        if reverts_by_category:
+            print("\nRevert categories:")
+            for category, shas in sorted(
+                reverts_by_category.items(), key=lambda x: len(x[1]), reverse=True
+            ):
+                percentage = len(shas) / len(reverts) * 100
+                print(f"  {category}: {len(shas)} ({percentage:.1f}%)")
+
+        # Calculate non-ghfirst metrics
+        non_ghfirst_reverts = set()
+        for sha in reverts:
+            if (
+                reverts_with_info.get(sha, {}).get("category", "uncategorized")
+                != "ghfirst"
+            ):
+                non_ghfirst_reverts.add(sha)
+
+        not_found_non_ghfirst = not_found_reverts & non_ghfirst_reverts
+
+        print(f"\nTotal reverts excluding ghfirst: {len(non_ghfirst_reverts)}")
+
+        # Calculate recall based on non-ghfirst reverts only
+        if non_ghfirst_reverts:
+            print(
+                "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (recall): "
+                + f"{len(not_found_non_ghfirst)} ({len(not_found_non_ghfirst) / len(non_ghfirst_reverts) * 100:.1f}%)"
+            )
+        else:
+            print("No non-ghfirst reverts found in the period")
+
+        workflow_statistics = defaultdict(
+            lambda: {"match_pattern": 0, "reverts": 0, "reverts_non_ghfirst": 0}
+        )
+        for pattern in patterns:
+            workflow_statistics[pattern["workflow_name"]]["match_pattern"] += 1
+            second_commit = pattern["newer_commits"][1]
+            if second_commit in reverts:
+                workflow_statistics[pattern["workflow_name"]]["reverts"] += 1
+                # Check if it's non-ghfirst
+                if second_commit in non_ghfirst_reverts:
+                    workflow_statistics[pattern["workflow_name"]][
+                        "reverts_non_ghfirst"
+                    ] += 1
+
+        print("Per workflow precision:")
+        for workflow, stats in workflow_statistics.items():
+            precision = (
+                stats["reverts"] / stats["match_pattern"] * 100
+                if stats["match_pattern"] > 0
+                else 0.0
+            )
+            precision_non_ghfirst = (
+                stats["reverts_non_ghfirst"] / stats["match_pattern"] * 100
+                if stats["match_pattern"] > 0
+                else 0.0
+            )
+            print(
+                f"  {workflow}: {stats['reverts']} reverts out of {stats['match_pattern']} patterns ({precision:.1f}%)"
+                f" [excluding ghfirst: {stats['reverts_non_ghfirst']} ({precision_non_ghfirst:.1f}%)]"
+            )
 
         if reverted_patterns:
             print("\nReverted patterns:")
             for pattern in reverted_patterns:
+                second_commit = pattern["newer_commits"][1]
+                category = reverts_with_info.get(second_commit, {}).get(
+                    "category", "uncategorized"
+                )
                 print(
-                    f"  - {pattern['failure_rule']}: {pattern['newer_commits'][1][:8]}"
+                    f"  - {pattern['failure_rule']}: {second_commit[:8]} ({category})"
                 )
 
     else:
@@ -147,7 +230,7 @@ def autorevert_checker(
                         if j.classification_rule
                     }
                     print(
-                        f"  {i+1}. {commit.head_sha[:8]}: {len(failures)} unique failure types"
+                        f"  {i + 1}. {commit.head_sha[:8]}: {len(failures)} unique failure types"
                     )
                     if failures:
                         for rule in list(failures)[:2]:

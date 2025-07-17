@@ -1,5 +1,6 @@
 import AddIcon from "@mui/icons-material/Add";
 import ChatIcon from "@mui/icons-material/Chat";
+import MenuIcon from "@mui/icons-material/Menu";
 import {
   Box,
   CircularProgress,
@@ -31,8 +32,11 @@ interface ChatHistorySidebarProps {
   chatHistory: ChatSession[];
   selectedSession: string | null;
   isHistoryLoading: boolean;
+  isMobile: boolean;
+  headerHeight: number;
   onStartNewChat: () => void;
   onLoadChatSession: (sessionId: string) => void;
+  onToggleSidebar: () => void;
 }
 
 export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
@@ -41,22 +45,30 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
   chatHistory,
   selectedSession,
   isHistoryLoading,
+  isMobile,
+  headerHeight,
   onStartNewChat,
   onLoadChatSession,
+  onToggleSidebar,
 }) => {
   return (
     <Drawer
-      variant="persistent"
+      variant={isMobile ? "temporary" : "persistent"}
       anchor="left"
       open={drawerOpen}
+      onClose={isMobile ? onToggleSidebar : undefined}
       sx={{
-        width: sidebarWidth,
+        width: drawerOpen && !isMobile ? sidebarWidth : 0,
         flexShrink: 0,
+        transition: "width 0.3s ease",
         "& .MuiDrawer-paper": {
           width: sidebarWidth,
           boxSizing: "border-box",
-          position: "relative",
-          height: "100%",
+          position: "fixed",
+          height: `calc(100vh - ${headerHeight}px)`,
+          top: `${headerHeight}px`,
+          left: 0,
+          transition: "transform 0.3s ease",
         },
       }}
     >
@@ -69,7 +81,18 @@ export const ChatHistorySidebar: React.FC<ChatHistorySidebarProps> = ({
             mb: 2,
           }}
         >
-          <Typography variant="h6">Chat History</Typography>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Tooltip title="Toggle sidebar">
+              <IconButton
+                onClick={onToggleSidebar}
+                sx={{ mr: 1 }}
+                aria-label="Toggle sidebar"
+              >
+                <MenuIcon />
+              </IconButton>
+            </Tooltip>
+            <Typography variant="h6">Chat History</Typography>
+          </Box>
           <Tooltip title="New Chat">
             <IconButton onClick={onStartNewChat} color="primary">
               <AddIcon />

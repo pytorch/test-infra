@@ -103,6 +103,7 @@ class FileInfo(NamedTuple):
     filename: str
     lines_added: int
     lines_deleted: int
+    status: str  # 'A' for added, 'M' for modified, 'D' for deleted
 
 
 class CommitInfo(NamedTuple):
@@ -123,8 +124,19 @@ def get_file_names(
         cwd=cwd,
         env={"TZ": "UTC"},
     ).split("\n")
-    rc: List[CommitInfo] = []
 
+    # Get name-status for file status (A/M/D)
+    status_cmd = "git log --date=short --pretty='format:%h;%ad' --name-status"
+    if path_filter:
+        status_cmd += f" -- {path_filter}"
+    status_lines = run_command(
+        status_cmd,
+        cwd=cwd,
+        env={"TZ": "UTC"},
+    ).split("\n")
+
+    # Process numstat output
+    rc: List[CommitInfo] = []
     for line in lines:
         line = line.strip()
         if not line:
@@ -134,12 +146,59 @@ def get_file_names(
             rc.append(CommitInfo(commit_hash, date, []))
         else:
             added, deleted, name = line.split("\t")
+            # Handle renamed files (containing =>)
+            if " => " in name:
+                name = name.split(" => ")[1]  # Use only the new filename
             # Special casing for binary files
             if added == "-":
                 assert deleted == "-"
-                rc[-1].files.append(FileInfo(name, -1, -1))
+                rc[-1].files.append(FileInfo(name, -1, -1, ""))
             else:
-                rc[-1].files.append(FileInfo(name, int(added), int(deleted)))
+                rc[-1].files.append(FileInfo(name, int(added), int(deleted), ""))
+
+    # Process name-status output to add status information
+    current_commit = None
+    status_map: Dict[str, Dict[str, str]] = {}  # Maps commit_id -> {filename -> status}
+
+    for line in status_lines:
+        line = line.strip()
+        if not line:
+            continue
+        elif ";" in line:  # This is a commit line
+            commit_hash, date = line.split(";")
+            current_commit = commit_hash  # Update current_commit here
+        else:  # This is a file status line
+            parts = line.split("\t")
+            status = parts[0]
+            if status.startswith("R") or status.startswith("C"):
+                # Handle renamed/copied files
+                old_filename = parts[1]
+                new_filename = parts[2]
+                if current_commit is not None:
+                    standardized_status = status[0]  # Just take first character
+                    status_map.setdefault(current_commit, {})[new_filename] = (
+                        standardized_status
+                    )
+            else:
+                filename = parts[1] if len(parts) > 1 else ""
+                if current_commit is not None and filename:
+                    status_map.setdefault(current_commit, {})[filename] = status
+
+    # Update file statuses
+    for commit in rc:
+        for i, file_info in enumerate(commit.files):
+            if (
+                commit.commit_id in status_map
+                and file_info.filename in status_map[commit.commit_id]
+            ):
+                # Replace the FileInfo with a new one that includes the status
+                commit.files[i] = FileInfo(
+                    file_info.filename,
+                    file_info.lines_added,
+                    file_info.lines_deleted,
+                    status_map[commit.commit_id][file_info.filename],
+                )
+
     return rc
 
 
@@ -153,6 +212,7 @@ def convert_to_dict(
             "filename": i.filename,
             "lines_added": i.lines_added,
             "lines_deleted": i.lines_deleted,
+            "status": i.status,
         }
         for i in entry.files
     ]

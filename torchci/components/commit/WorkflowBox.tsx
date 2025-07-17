@@ -1,6 +1,12 @@
-import { Button, styled } from "@mui/material";
-import styles from "components/commit.module.css";
+import { Button, Stack, styled, Typography } from "@mui/material";
+import { TestInfo } from "components/additionalTestInfo/TestInfo";
+import styles from "components/commit/commit.module.css";
+import LogViewer, { SearchLogViewer } from "components/common/log/LogViewer";
+import { durationDisplay } from "components/common/TimeUtils";
+import JobArtifact from "components/job/JobArtifact";
+import JobSummary from "components/job/JobSummary";
 import { fetcher } from "lib/GeneralUtils";
+import { getConclusionSeverityForSorting } from "lib/JobClassifierUtil";
 import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
 import { getSearchRes, LogSearchResult } from "lib/searchLogs";
 import { Artifact, IssueData, JobData } from "lib/types";
@@ -10,12 +16,6 @@ import {
 } from "lib/utilization/types";
 import React, { useEffect, useState } from "react";
 import useSWRImmutable from "swr/immutable";
-import { getConclusionSeverityForSorting } from "../lib/JobClassifierUtil";
-import { TestInfo } from "./additionalTestInfo/TestInfo";
-import JobArtifact from "./JobArtifact";
-import JobSummary from "./JobSummary";
-import LogViewer, { SearchLogViewer } from "./LogViewer";
-import { durationDisplay } from "./TimeUtils";
 
 function sortJobsByConclusion(jobA: JobData, jobB: JobData): number {
   // Show failed jobs first, then pending jobs, then successful jobs
@@ -182,16 +182,22 @@ export default function WorkflowBox({
       className={workflowClass}
       style={wide ? { gridColumn: "1 / -1" } : {}}
     >
-      <h3>{workflowName}</h3>
-      <div>
-        <div
-          // Similar styling to an h4
-          style={{ float: "left", marginBottom: "1.33em", fontWeight: "bold" }}
-        >
-          Job Status
-        </div>
-        <div style={{ float: "right" }}>
-          <div style={{ margin: ".5em 0em" }}>
+      <Stack direction="row" spacing={1} justifyContent={"space-between"}>
+        <Stack direction="column" spacing={1}>
+          <Typography
+            variant="h6"
+            fontWeight="bold"
+            paddingTop={2}
+            paddingBottom={2}
+          >
+            {workflowName}
+          </Typography>
+          <Typography fontWeight="bold" paddingBottom={2}>
+            Job Status
+          </Typography>
+        </Stack>
+        <Stack direction="column" spacing={1} paddingTop={6}>
+          <div>
             {repoFullName == "pytorch/pytorch" && (
               <button
                 onClick={() => {
@@ -206,7 +212,6 @@ export default function WorkflowBox({
             )}
           </div>
           <form
-            style={{ float: "right", paddingBottom: ".5em" }}
             onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
               e.preventDefault();
               // @ts-ignore
@@ -221,21 +226,9 @@ export default function WorkflowBox({
             ></input>
             <input type="submit" value="Search"></input>
           </form>
-          <div
-            style={{
-              // Ensures elements after this div are actually below it (due to float)
-              clear: "both",
-            }}
-          ></div>
-          {searchString && <div>{searchRes.info}</div>}
-        </div>
-        <div
-          style={{
-            // Ensures elements after this div are actually below it (due to float)
-            clear: "both",
-          }}
-        ></div>
-      </div>
+          <div>{searchRes.info}</div>
+        </Stack>
+      </Stack>
       {wide && (
         <TestInfo workflowId={workflowId!} runAttempt={"1"} jobs={jobs} />
       )}

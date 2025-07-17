@@ -14,7 +14,7 @@ WHERE
     -- in 6 months
     AND (
         (
-            {arch: String } = ''
+            ({arch: String } = '' OR {arch: String } = 'a100')
             AND benchmark_extra_info['output'] LIKE CONCAT(
                 '%_',
                 {dtype: String },

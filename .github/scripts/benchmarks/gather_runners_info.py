@@ -13,7 +13,7 @@ import socket
 from logging import info
 from typing import Any, Dict
 
-import psutil
+import psutil  # type: ignore[import-untyped]
 
 
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,7 @@ def get_runner_info() -> Dict[str, Any]:
     device_type = ""
 
     try:
-        import torch
+        import torch  # type: ignore[import-not-found]
 
         if torch.cuda.is_available():
             if torch.version.hip:

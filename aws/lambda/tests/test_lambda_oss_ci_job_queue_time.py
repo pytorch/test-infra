@@ -172,7 +172,7 @@ class QueueTimeClickHouseMockQuery(MockClickHouseQuery):
     ) -> Tuple[Tuple[str, ...], List[Tuple]]:
         column_names = ()
         rows = []
-        if "latest FROM fortesting.oss_ci_queue_time_histogram" in query:
+        if "latest FROM misc.oss_ci_queue_time_histogram" in query:
             column_names = ("latest",)
             rows = self.rows_max_historagram
         elif "latest from default.workflow_job" in query:
