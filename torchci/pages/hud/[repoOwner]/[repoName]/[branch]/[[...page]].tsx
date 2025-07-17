@@ -28,7 +28,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { ParamSelector } from "lib/ParamSelector";
-import { track } from "lib/track";
+import { track } from "lib/tracking/track";
 import {
   formatHudUrlForRoute,
   Highlight,

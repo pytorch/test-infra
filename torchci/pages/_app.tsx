@@ -7,25 +7,37 @@ import TitleProvider from "components/layout/DynamicTitle";
 import NavBar from "components/layout/NavBar";
 import SevReport from "components/sevReport/SevReport";
 import { DarkModeProvider } from "lib/DarkModeContext";
-import { track } from "lib/track";
+import { setupGAAttributeEventTracking } from "lib/tracking/eventTrackingHandler";
+import { initGaAnalytics, trackRouteEvent } from "lib/tracking/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
-import ReactGA from "react-ga4";
 import { useAppTheme } from "styles/MuiThemeOverrides";
 import "styles/globals.css";
 import("lib/chartTheme");
 
 function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  useEffect(() => {
-    // GA records page views on its own, but I want to see how it differs with
-    // this one.
-    track(router, "pageview", {});
-  }, [router, router.pathname]);
 
-  ReactGA.initialize("G-HZEXJ323ZF");
+  useEffect(() => {
+    // initializes the GA with session id
+    initGaAnalytics(true);
+  }, []);
+
+  useEffect(() => {
+    // globally tracking the ga automatically if the attribute is set.
+    const teardown = setupGAAttributeEventTracking(["click"]);
+    return teardown; // cleanup on unmount
+  }, []);
+
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      trackRouteEvent(router, "pageview", {});
+    }
+  }, [router.asPath]);
+
 
   // Wrap everything in DarkModeProvider
   return (
