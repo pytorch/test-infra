@@ -65,15 +65,15 @@ Supported data attributes:
 - `data-ga-label` (optional): GA label
 - `data-ga-event-types` (optional): comma-separated list of allowed event types for this element (e.g. "click,submit")
 
-```
+````
 #### using trackEventWithContext
 using trackEventWithContext to provide extra content.
 
-```
+```tsx
 trackEventWithContext(
-  action: string,
-  category?: string,
-  label?: string,
-  extra?: Record<string, any>
+action: string,
+category?: string,
+label?: string,
+extra?: Record<string, any>
 )
-```
+````

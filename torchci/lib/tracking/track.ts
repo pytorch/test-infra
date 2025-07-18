@@ -55,10 +55,10 @@ export const initGaAnalytics = (withSessionId = false) => {
   }
 
   ReactGA.initialize(GA_MEASUREMENT_ID, {
-    // The `gaOptions` and `gtagOptions` are for more advanced configurations
-    // directly passed to the underlying GA/Gtag library.
     // For enabling debug mode for GA4, the primary option is `debug: true`
     // passed directly to ReactGA.initialize.
+    // The `gaOptions` and `gtagOptions` are for more advanced configurations
+    // directly passed to the underlying GA/Gtag library.
     debug: isDebugMode(),
     gaOptions: {
       debug_mode: isDebugMode(),

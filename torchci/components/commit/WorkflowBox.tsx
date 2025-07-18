@@ -103,6 +103,10 @@ function WorkflowJobSummary({
         <JobButton
           variant="outlined"
           href={`/utilization/${m.workflow_id}/${m.job_id}/${m.run_attempt}`}
+          data-ga-action="utilization_report_click"
+          data-ga-label="nav_button"
+          data-ga-category="user_interaction"
+          data-ga-event-types="click"
         >
           Utilization Report{" "}
         </JobButton>
