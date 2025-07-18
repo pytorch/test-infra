@@ -291,7 +291,7 @@ function NavBar() {
           <li>
             <ThemeModePicker />
           </li>
-          <li style={{ padding: "0 1rem" }}>
+          <li>
             <LoginSection></LoginSection>
           </li>
         </ul>
