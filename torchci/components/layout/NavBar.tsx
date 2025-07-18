@@ -1,6 +1,6 @@
 import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
-import { useState } from "react";
+import React, { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
@@ -16,16 +16,53 @@ const NavBarDropdown = ({
   const dropdownStyle = dropdown ? { display: "block" } : {};
   const firstItemHref = items.length > 0 ? items[0].href : "#";
 
+  // Check if device is touch-enabled
+  const isTouchDevice = React.useMemo(() =>
+    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
+  , []);
+
+  // Set dropdown state only on non-touch devices
+  const setDropdownIfNotTouch = (value: boolean) => {
+    if (!isTouchDevice) {
+      setDropdown(value);
+    }
+  };
+
+  // Close dropdown when clicking outside
+  React.useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest(`.${styles.dropdownContainer}`)) {
+        setDropdown(false);
+      }
+    };
+
+    if (dropdown) {
+      document.addEventListener('click', handleClickOutside);
+      return () => {
+        document.removeEventListener('click', handleClickOutside);
+      };
+    }
+  }, [dropdown]);
+
   return (
     <li
-      onMouseEnter={() => setDropdown(true)}
-      onMouseLeave={() => setDropdown(false)}
+      onMouseEnter={() => setDropdownIfNotTouch(true)}
+      onMouseLeave={() => setDropdownIfNotTouch(false)}
       style={{ padding: 0 }}
+      className={`${styles.dropdownContainer} ${dropdown ? styles.dropdownOpen : ''}`}
     >
       <Link
         href={firstItemHref}
         prefetch={false}
         className={styles.dropdowntitle}
+        onClick={(e) => {
+          if (isTouchDevice) {
+            // otherwise the menu will close immediately on touch devices
+            e.preventDefault();
+          }
+          setDropdown(!dropdown);
+        }}
       >
         {title} ▾
       </Link>
