@@ -1,6 +1,6 @@
 .navbar {
   display: flex;
-  padding: 0 1rem;
+  padding: 0 clamp(0.5rem, 1vw, 1rem);
   font: bold;
   background: var(--navbar-bg);
   box-shadow: var(--navbar-shadow);
@@ -11,10 +11,13 @@
   z-index: 1000;
   backdrop-filter: blur(1px);
   -webkit-backdrop-filter: blur(1px);
+  flex-wrap: wrap;
+  gap: clamp(0.5rem, 2vw, 1.5rem);
+  font-size: clamp(14px, 1vw, 16px);
 }
 
 .navbar li {
-  padding: 0.9rem 1rem;
+  padding: clamp(0.5rem, 0.8vw, 0.7rem) clamp(0.6rem, 1vw, 0.8rem);
   position: relative;
   display: flex;
   align-items: center;
@@ -53,7 +56,7 @@
 }
 
 .dropdowntitle {
-  padding: 0.7rem 1rem;
+  padding: clamp(0.4rem, 0.8vw, 0.6rem) clamp(0.6rem, 1vw, 0.8rem);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -70,4 +73,20 @@
   background-color: var(--dropdown-bg);
   display: none;
   border-radius: 4px;
+}
+
+/* Responsive wrapping */
+@media screen and (max-width: 1350px) {
+  .navbar > div:first-child {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  .navbar > div:last-child {
+    width: 100%;
+  }
+
+  .navbarlinkslist {
+    flex-wrap: wrap;
+  }
 }
