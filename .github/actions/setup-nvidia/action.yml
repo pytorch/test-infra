@@ -42,10 +42,10 @@ runs:
                   sudo yum-config-manager --add-repo "${YUM_REPO_URL}"
                   sudo yum install -y \
                     nvidia-docker2 \
-                    nvidia-container-toolkit-1.16.2 \
-                    libnvidia-container-tools-1.16.2 \
-                    libnvidia-container1-1.16.2 \
-                    nvidia-container-toolkit-base-1.16.2
+                    nvidia-container-toolkit-1.16.8 \
+                    libnvidia-container-tools-1.16.8 \
+                    libnvidia-container1-1.16.8 \
+                    nvidia-container-toolkit-base-1.16.8
                   sudo systemctl restart docker
               )
           }
