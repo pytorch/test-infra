@@ -8,7 +8,11 @@ import NavBar from "components/layout/NavBar";
 import SevReport from "components/sevReport/SevReport";
 import { DarkModeProvider } from "lib/DarkModeContext";
 import { setupGAAttributeEventTracking } from "lib/tracking/eventTrackingHandler";
-import { initGaAnalytics, trackRouteEvent } from "lib/tracking/track";
+import {
+  initGaAnalytics,
+  isGaInitialized,
+  trackRouteEvent,
+} from "lib/tracking/track";
 import { SessionProvider } from "next-auth/react";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
@@ -21,23 +25,24 @@ function MyApp({ Component, pageProps }: AppProps) {
   const router = useRouter();
 
   useEffect(() => {
-    // initializes the GA with session id
+    let cleanup: (() => void) | undefined;
     initGaAnalytics(true);
-  }, []);
-
-  useEffect(() => {
-    // globally tracking the ga automatically if the attribute is set.
-    const teardown = setupGAAttributeEventTracking(["click"]);
-    return teardown; // cleanup on unmount
-  }, []);
-
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      trackRouteEvent(router, "pageview", {});
+    if (isGaInitialized()) {
+      cleanup = setupGAAttributeEventTracking(["click"]);
+    } else {
+      console.warn(
+        "GA not initialized, skipping attribute event tracking setup."
+      );
     }
-  }, [router.asPath]);
+    return () => {
+      if (cleanup) cleanup();
+    };
+  }, []);
 
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    trackRouteEvent(router, "pageview", {});
+  }, [router.asPath]);
 
   // Wrap everything in DarkModeProvider
   return (

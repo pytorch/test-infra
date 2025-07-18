@@ -1,4 +1,4 @@
-import ReactGA from "react-ga4";
+import { trackEventWithContext } from "./track";
 
 /**
  * Sets up global GA event tracking for DOM elements using `data-ga-*` attributes.
@@ -12,7 +12,7 @@ import ReactGA from "react-ga4";
  *     return teardown; // cleanup on unmount
  *   }, []);
  *
- * Example JSX usage:
+ * Example usage:
  *   <button
  *     data-ga-action="signup_click"
  *     data-ga-label="nav_button"
@@ -45,7 +45,9 @@ export function setupGAAttributeEventTracking(
     if (!action) return;
 
     // Check if this element has a restricted set of allowed event types
-    const allowedTypes = el.dataset.gaEventTypes?.split(",").map(t => t.trim());
+    const allowedTypes = el.dataset.gaEventTypes
+      ?.split(",")
+      .map((t) => t.trim());
     if (allowedTypes && !allowedTypes.includes(e.type)) {
       return; // This event type is not allowed for this element
     }
@@ -54,14 +56,14 @@ export function setupGAAttributeEventTracking(
     const category = el.dataset.gaCategory || e.type; // Default category to event type if not provided
 
     // Construct event parameters for GA4
-    const eventParams: { [key: string]: string | undefined } = {
-      event_category: category,
-      event_label: label,
-      session_id: 
+    const eventParams = {
+      category,
+      label,
+      url: window.location.href,
+      windowPathname: window.location.pathname,
     };
 
-    // Send the event to GA4
-    ReactGA.event(action, eventParams);
+    trackEventWithContext(action, category, label);
   };
 
   // Add event listeners

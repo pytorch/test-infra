@@ -28,7 +28,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { ParamSelector } from "lib/ParamSelector";
-import { track } from "lib/tracking/track";
+import { trackRouteEvent } from "lib/tracking/track";
 import {
   formatHudUrlForRoute,
   Highlight,
@@ -618,7 +618,7 @@ function GroupedHudTable({
   useEffect(() => {
     // Only run on component mount, this assumes that the user's preference is
     // the value in local storage
-    track(router, "groupingPreference", { useGrouping: useGrouping });
+    trackRouteEvent(router, "groupingPreference", { useGrouping: useGrouping });
   }, [router, useGrouping]);
 
   const groupNames = Array.from(groupNameMapping.keys());

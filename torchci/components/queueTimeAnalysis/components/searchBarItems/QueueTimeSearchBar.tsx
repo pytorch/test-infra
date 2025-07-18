@@ -5,6 +5,7 @@ import { propsReducer } from "components/benchmark/llms/context/BenchmarkProps";
 import { DateRangePicker } from "components/queueTimeAnalysis/components/pickers/DateRangePicker";
 import { TimeGranuityPicker } from "components/queueTimeAnalysis/components/pickers/TimeGranuityPicker";
 import dayjs from "dayjs";
+import { trackEventWithContext } from "lib/tracking/track";
 import { cloneDeep } from "lodash";
 import { NextRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
@@ -232,6 +233,9 @@ export default function QueueTimeSearchBar({
 
   const onSearch = () => {
     const newprops = cloneDeep(props);
+    trackEventWithContext("qta_search", "user_interaction", "button_click", {
+      data: newprops.category,
+    });
     updateSearch({ type: "UPDATE_FIELDS", payload: newprops });
   };
 
@@ -330,7 +334,15 @@ export default function QueueTimeSearchBar({
           </ScrollBar>
           <SearchButton>
             <Box sx={{ borderBottom: "1px solid #eee", padding: "0 0" }} />
-            <RainbowButton onClick={onSearch}>Search</RainbowButton>
+            <RainbowButton
+              data-ga-action="qta_search_click"
+              data-ga-label="search_button"
+              data-ga-category="cta"
+              data-ga-event-types="click"
+              onClick={onSearch}
+            >
+              Search
+            </RainbowButton>
             <FormHelperText>
               <span style={{ color: "red" }}>*</span> Click to apply filter
               changes
