@@ -17,9 +17,12 @@ const NavBarDropdown = ({
   const firstItemHref = items.length > 0 ? items[0].href : "#";
 
   // Check if device is touch-enabled
-  const isTouchDevice = React.useMemo(() =>
-    typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0)
-  , []);
+  const isTouchDevice = React.useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      ("ontouchstart" in window || navigator.maxTouchPoints > 0),
+    []
+  );
 
   // Set dropdown state only on non-touch devices
   const setDropdownIfNotTouch = (value: boolean) => {
@@ -38,9 +41,9 @@ const NavBarDropdown = ({
     };
 
     if (dropdown) {
-      document.addEventListener('click', handleClickOutside);
+      document.addEventListener("click", handleClickOutside);
       return () => {
-        document.removeEventListener('click', handleClickOutside);
+        document.removeEventListener("click", handleClickOutside);
       };
     }
   }, [dropdown]);
@@ -50,7 +53,9 @@ const NavBarDropdown = ({
       onMouseEnter={() => setDropdownIfNotTouch(true)}
       onMouseLeave={() => setDropdownIfNotTouch(false)}
       style={{ padding: 0 }}
-      className={`${styles.dropdownContainer} ${dropdown ? styles.dropdownOpen : ''}`}
+      className={`${styles.dropdownContainer} ${
+        dropdown ? styles.dropdownOpen : ""
+      }`}
     >
       <Link
         href={firstItemHref}
