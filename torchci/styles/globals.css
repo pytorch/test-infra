@@ -2,7 +2,11 @@
   --background-color: #ffffff;
   --text-color: #212529;
   --link-color: #0064cf;
-  --navbar-bg: linear-gradient(326deg, rgb(255 246 246), rgb(255 247 236));
+  --navbar-bg: linear-gradient(
+    326deg,
+    rgba(255, 246, 246, 0.5),
+    rgba(255, 247, 236, 0.5)
+  );
   --navbar-shadow: 0 -4px 20px 0px #c2c2c2;
   --dropdown-bg: white;
   --code-bg: aliceblue;
@@ -74,7 +78,11 @@
   --background-color: #1e1e1e;
   --text-color: #e0e0e0;
   --link-color: #4a90e2;
-  --navbar-bg: linear-gradient(326deg, #2a2a2a, #2d2d2d);
+  --navbar-bg: linear-gradient(
+    326deg,
+    rgba(42, 42, 42, 0.8),
+    rgba(45, 45, 45, 0.8)
+  );
   --navbar-shadow: 0 -4px 20px 0px rgba(0, 0, 0, 0.4);
   --dropdown-bg: #2a2a2a;
   --code-bg: #2a2a2a;

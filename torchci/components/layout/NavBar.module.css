@@ -7,12 +7,15 @@
   width: 100%;
   min-height: 60px;
   align-items: center;
+  position: relative;
+  z-index: 1000;
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
 }
 
 .navbar li {
   padding: 0.9rem 1rem;
   position: relative;
-  z-index: 9999;
   display: flex;
   align-items: center;
 }
