@@ -59,6 +59,7 @@ export const initGaAnalytics = (withSessionId = false) => {
     // passed directly to ReactGA.initialize.
     // The `gaOptions` and `gtagOptions` are for more advanced configurations
     // directly passed to the underlying GA/Gtag library.
+    // @ts-ignore
     debug: isDebugMode(),
     gaOptions: {
       debug_mode: isDebugMode(),
@@ -97,6 +98,7 @@ export function trackRouteEvent(
     windowPathname: window.location.pathname,
     routerPathname: router.pathname,
     routerPath: router.asPath,
+    ...(isDebugMode() ? { debug_mode: true } : {}),
   };
 
   ReactGA.event(eventName.toLowerCase(), payload);
@@ -125,7 +127,8 @@ export function trackEventWithContext(
     event_time: new Date().toISOString(),
     page_title: document.title,
     session_id: sessionStorage.getItem(GA_SESSION_ID) ?? undefined,
-    ...extra,
+
+    ...(isDebugMode() ? { debug_mode: true } : {}),
   };
   ReactGA.event(action, payload);
 }
