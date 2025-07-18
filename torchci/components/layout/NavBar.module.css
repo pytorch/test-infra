@@ -7,6 +7,10 @@
   width: 100%;
   min-height: 60px;
   align-items: center;
+  position: relative;
+  z-index: 1000;
+  backdrop-filter: blur(1px);
+  -webkit-backdrop-filter: blur(1px);
 }
 
 .navbar li {
