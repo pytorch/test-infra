@@ -1,70 +1,8 @@
 .navbar {
-  display: flex;
-  padding: 0 1rem;
-  font: bold;
   background: var(--navbar-bg);
   box-shadow: var(--navbar-shadow);
-  width: 100%;
-  min-height: 60px;
-  align-items: center;
-}
-
-.navbar li {
-  padding: 0.9rem 1rem;
-  position: relative;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
 }
 
 .navbar a {
-  display: block;
-}
-
-.navbar span {
-  padding: 0;
-  margin: 0;
-}
-
-.navbar ul {
-  list-style: none;
-}
-
-.navbar {
-  margin: 0;
   z-index: 100;
-}
-
-.navbarlinkslist {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  margin: 0;
-  padding: 0;
-  height: 100%;
-}
-
-.homeLink {
-  font-weight: bold;
-  padding-right: 10px;
-}
-
-.dropdowntitle {
-  padding: 0.7rem 1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-}
-
-.dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  box-shadow: var(--dropdown-shadow);
-  z-index: 9999;
-  min-width: 12rem;
-  padding: 0.5rem 0;
-  background-color: var(--dropdown-bg);
-  display: none;
-  border-radius: 4px;
 }
