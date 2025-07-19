@@ -222,6 +222,7 @@ jobs:
           ALL_SECRETS: ${{ toJSON(secrets) }}
           DOCKER_IMAGE: ${{ steps.calculate-docker-image.outputs.docker-image }}
         run: |
+          echo '::group::setup docker'
           set -ex
           {
             echo "#!/usr/bin/env bash";
@@ -229,6 +230,7 @@ jobs:
             # shellcheck disable=SC2016
             echo 'eval "$(conda shell.bash hook)"';
             echo "set -x";
+            echo $'echo \'::endgroup::\''
             echo "${SCRIPT}";
           } > "${RUNNER_TEMP}/exec_script"
           chmod +x "${RUNNER_TEMP}/exec_script"
