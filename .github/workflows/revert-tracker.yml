@@ -35,7 +35,7 @@ jobs:
 
       - name: Push file to this repository
         if: steps.generate-reverts-file.outputs.revert_file != 'None'
-        uses: dmnemec/copy_file_to_another_repo_action@5f40763ccee2954067adba7fb8326e4df33bcb92
+        uses: dmnemec/copy_file_to_another_repo_action@bbebd3da22e4a37d04dca5f782edd5201cb97083
         env:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
