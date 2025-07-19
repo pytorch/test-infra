@@ -159,14 +159,6 @@ jobs:
         with:
           python-version: ${{ matrix.python_version }}
           architecture: arm64
-      - name: Bootstrap Build Tools
-        if: inputs.architecture == 'arm64'
-        env:
-          DOWNLOADS_DIR: c:\temp\downloads\
-          DEPENDENCIES_DIR: c:\temp\dependencies\
-          SCRIPTS_DIR: test-infra\\.github\\scripts\\winarm64
-        run: |
-          "${{ env.SCRIPTS_DIR }}\bootstrap_buildtools.sh"
       - name: Install torch dependency
         if: inputs.architecture == 'x64'
         run: |
@@ -192,7 +184,7 @@ jobs:
           PRE_SCRIPT: ${{ inputs.pre-script }}
         shell: cmd
         run: |
-          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
           set GIT_BASH=%DEPENDENCIES_DIR%\git\usr\bin\bash.exe
 
           cd %SRC_DIR%
@@ -264,7 +256,7 @@ jobs:
           set CONDA_PREFIX=%DEPENDENCIES_DIR%
           set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
           set DISTUTILS_USE_SDK=1
-          set VS_PATH=%DEPENDENCIES_DIR%\VSBuildTools\VC\Auxiliary\Build\vcvarsall.bat
+          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
 
           call "%VS_PATH%" arm64
           cd %SRC_DIR%
