@@ -363,11 +363,16 @@ function GroupFilterableHudTable({
             onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
           />
         </div>
-        <table className={styles.hudTable} style={{ overflow: "auto" }}>
-          <GroupHudTableColumns names={headerNames} />
-          <GroupHudTableHeader names={headerNames} />
-          {children}
-        </table>
+        {/* Table wrapper with custom class for extended background */}
+        <div style={{ overflowX: "auto" }}>
+          <div className={styles.hudTableContainer}>
+            <table className={styles.hudTable}>
+              <GroupHudTableColumns names={headerNames} />
+              <GroupHudTableHeader names={headerNames} />
+              {children}
+            </table>
+          </div>
+        </div>
       </div>
     </>
   );
