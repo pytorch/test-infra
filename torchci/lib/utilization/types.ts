@@ -85,10 +85,13 @@ export interface UtilizationAggreStats {
   memory_p90: number;
   gpu_max?: number;
   gpu_avg?: number;
-  gpu_memory_max?: number;
-  gpu_memory_avg?: number;
   gpu_p90?: number;
-  gpu_memmory_p90?: number;
+  gpu_memory_bandwidth_max?: number;
+  gpu_memory_bandwidth_avg?: number;
+  gpu_memory_bandwidth_p90?: number;
+  gpu_allocated_memory_max?: number;
+  gpu_allocated_memory_avg?: number;
+  gpu_allocated_memory_p90?: number;
 }
 
 /**
