@@ -37,7 +37,7 @@ function isGAEnabled(): boolean {
 
 /**
  * initialize google analytics
- * if withUserId is set, we generate random userId to track action sequence for a single page.
+ * if withUserId is set, we generate random sessionId to track action sequence for a single page flow.
  * Notice, we use session storage, if user create a new page tab due to navigation, it's considered new session
  * @param withUserId
  * @returns
