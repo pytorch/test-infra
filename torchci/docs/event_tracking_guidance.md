@@ -15,7 +15,7 @@ This guide explains how to enable Google Analytics 4 (GA4) debug mode during loc
 - TorchCI front-end development environment is set up and running locally
 - Chrome browser installed
 - Install chrome extension [Google Analytics Debugger](https://chrome.google.com/webstore/detail/jnkmfdileelhofjcijamephohjechhna)
-- Make sure you have permission to the GCP project `pytorch-hud` as admin. If not, reach out to `oss support` or `pytorch dev infra team` to add you
+- Make sure you have permission to the GCP project `pytorch-hud` as admin. If not, reach out to `oss support (internal only)` or @pytorch/pytorch-dev-infra to add you
 
 ## Steps
 
