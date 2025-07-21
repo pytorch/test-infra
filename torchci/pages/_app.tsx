@@ -40,7 +40,6 @@ function MyApp({ Component, pageProps }: AppProps) {
   }, []);
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
     trackRouteEvent(router, "pageview", {});
   }, [router.asPath]);
 

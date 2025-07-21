@@ -66,6 +66,7 @@ Supported data attributes:
 - `data-ga-event-types` (optional): comma-separated list of allowed event types for this element (e.g. "click,submit")
 
 #### using trackEventWithContext
+
 using trackEventWithContext to provide extra content.
 
 ```tsx
@@ -75,4 +76,4 @@ category?: string,
 label?: string,
 extra?: Record<string, any>
 )
-````
+```
