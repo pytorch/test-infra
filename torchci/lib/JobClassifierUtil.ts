@@ -144,7 +144,7 @@ export const groups = [
     // Excluding linux-binary-* jobs because they are already grouped further up
     regex: /(pull)|(trunk)/,
     name: GROUP_OTHER_VIABLE_STRICT_BLOCKING,
-  }
+  },
 ];
 
 // Jobs on HUD home page will be sorted according to this list, with anything left off at the end
