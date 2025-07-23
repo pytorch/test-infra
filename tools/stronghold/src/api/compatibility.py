@@ -6,6 +6,7 @@ import difflib
 import pathlib
 import tempfile
 from collections.abc import Iterable, Mapping, Sequence
+import ast
 
 import api
 import api.ast
@@ -71,9 +72,24 @@ def check(
     before_api = api.ast.extract(before)
     after_api = api.ast.extract(after)
 
+    before_raw = api.ast.extract_raw(before)
+    after_raw = api.ast.extract_raw(after)
+
+    disabled_funcs = {
+        name
+        for name, node in before_raw.items()
+        if _decorator_disables(node)
+    } | {
+        name
+        for name, node in after_raw.items()
+        if _decorator_disables(node)
+    }
+
     violations: list[api.violations.Violation] = []
     for name, before_def in before_api.items():
         if any(token.startswith("_") for token in name.split(".")):
+            continue
+        if name in disabled_funcs:
             continue
 
         after_def = after_api.get(name)
@@ -320,3 +336,43 @@ def _check_type_compatibility(
                 return False
 
     return True
+
+
+def _decorator_disables(node: ast.FunctionDef) -> bool:
+    """Returns True if the bc_linter.check_compat decorator disables checks."""
+
+    for deco in node.decorator_list:
+        name = _decorator_name(deco)
+        if name != "bc_linter.check_compat":
+            continue
+
+        enable = True
+        if isinstance(deco, ast.Call):
+            # Look for keyword argument ``enable`` first
+            for kw in deco.keywords:
+                if kw.arg == "enable" and isinstance(kw.value, ast.Constant):
+                    enable = bool(kw.value.value)
+                    break
+            else:
+                if len(deco.args) == 1 and isinstance(deco.args[0], ast.Constant):
+                    enable = bool(deco.args[0].value)
+
+        return not enable
+
+    return False
+
+
+def _decorator_name(expr: ast.expr) -> str | None:
+    """Returns dotted name of decorator if easily determined."""
+
+    if isinstance(expr, ast.Call):
+        expr = expr.func
+
+    if isinstance(expr, ast.Name):
+        return expr.id
+    if isinstance(expr, ast.Attribute):
+        value = _decorator_name(expr.value)
+        if value is None:
+            return None
+        return value + "." + expr.attr
+    return None

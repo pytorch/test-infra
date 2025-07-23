@@ -6,6 +6,7 @@ import api.compatibility
 import api.violations
 import pytest
 from testing import git, source
+import bc_linter
 
 
 def test_deleted_function(tmp_path: pathlib.Path) -> None:
@@ -520,3 +521,36 @@ def test_check_range(git_repo: api.git.Repository) -> None:
             api.violations.FunctionDeleted(func="will_be_deleted", line=1)
         ],
     }
+
+
+def test_check_disable_decorator(tmp_path: pathlib.Path) -> None:
+    @bc_linter.check_compat(enable=False)
+    def func(x: int) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    @bc_linter.check_compat(enable=False)
+    def func(x: int, y: int) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == []
+
+def test_check_enable_decorator(tmp_path: pathlib.Path) -> None:
+    @bc_linter.check_compat(enable=True)
+    def func(x: int) -> None:
+        pass  # pragma: no cover
+
+    before = source.make_file(tmp_path, func)
+
+    @bc_linter.check_compat(enable=True)
+    def func(x: int, y: int) -> None:  # type: ignore[no-redef]
+        pass  # pragma: no cover
+
+    after = source.make_file(tmp_path, func)
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.ParameterNowRequired(func=func.__name__, parameter="y", line=2)
+    ]
