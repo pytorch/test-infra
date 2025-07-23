@@ -238,9 +238,7 @@ def get_libtorch_install_command(
         else libtorch_variant
     )
     build_name = (
-        f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip"
-        if devtoolset == "cxx11-abi"
-        else f"{prefix}-{_libtorch_variant}-latest.zip"
+        f"{prefix}-{_libtorch_variant}-latest.zip"
     )
 
     if os == MACOS_ARM64:
@@ -251,9 +249,7 @@ def get_libtorch_install_command(
 
     elif os == LINUX and (channel in (RELEASE, TEST)):
         build_name = (
-            f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
-            if devtoolset == "cxx11-abi"
-            else f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+            f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
         )
     elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
