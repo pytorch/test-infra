@@ -237,9 +237,7 @@ def get_libtorch_install_command(
         if libtorch_config == "debug"
         else libtorch_variant
     )
-    build_name = (
-        f"{prefix}-{_libtorch_variant}-latest.zip"
-    )
+    build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
 
     if os == MACOS_ARM64:
         arch = "arm64"
