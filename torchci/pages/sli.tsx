@@ -263,9 +263,9 @@ export default function Page() {
 
   useEffect(() => {
     if (!router.isReady) return;
-    
+
     // Only update URL if we're still on the SLI page
-    if (router.pathname !== '/sli') return;
+    if (router.pathname !== "/sli") return;
 
     const params = new URLSearchParams();
 
@@ -289,10 +289,14 @@ export default function Page() {
       params.set("ttsPercentile", initialTtsPercentile);
     }
 
-    router.push({
-      pathname: router.pathname,
-      query: params.toString(),
-    }, undefined, { shallow: true });
+    router.push(
+      {
+        pathname: router.pathname,
+        query: params.toString(),
+      },
+      undefined,
+      { shallow: true }
+    );
   }, [
     initialTtsPercentile,
     initialWorkerTypes,
