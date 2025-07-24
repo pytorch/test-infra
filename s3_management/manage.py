@@ -194,6 +194,7 @@ PACKAGE_ALLOW_LIST = {
         "torchrec",
         "torchtext",
         "torchtune",
+        "torchtitan",
         "torchvision",
         "torchvision_extra_decoders",
         "triton",
