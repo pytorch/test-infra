@@ -6,7 +6,7 @@ import api.compatibility
 import api.violations
 import pytest
 from testing import git, source
-import bc_linter
+import tests.bc_linter_example as bc_linter
 
 
 def test_deleted_function(tmp_path: pathlib.Path) -> None:
@@ -524,13 +524,13 @@ def test_check_range(git_repo: api.git.Repository) -> None:
 
 
 def test_check_disable_decorator(tmp_path: pathlib.Path) -> None:
-    @bc_linter.check_compat(enable=False)
+    @bc_linter.skip
     def func(x: int) -> None:
         pass  # pragma: no cover
 
     before = source.make_file(tmp_path, func)
 
-    @bc_linter.check_compat(enable=False)
+    @bc_linter.skip
     def func(x: int, y: int) -> None:  # type: ignore[no-redef]
         pass  # pragma: no cover
 

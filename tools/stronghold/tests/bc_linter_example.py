@@ -15,8 +15,11 @@ def check_compat(*, enable: bool = True) -> Callable[[F], F]:
     """
 
     def decorator(func: F) -> F:
+        # Not used in the linter, but useful for debugging.
         setattr(func, "_bc_linter_enable", enable)
         return func
 
     return decorator
 
+# Alias decorator to unconditionally disable the backward compatibility linter.
+skip: Callable[[F], F] = check_compat(enable=False)

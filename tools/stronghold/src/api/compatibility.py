@@ -69,11 +69,8 @@ def check(
     before: pathlib.Path, after: pathlib.Path
 ) -> Sequence[api.violations.Violation]:
     """Identifies API compatibility issues between two files."""
-    before_api = api.ast.extract(before)
-    after_api = api.ast.extract(after)
-
-    before_raw = api.ast.extract_raw(before)
-    after_raw = api.ast.extract_raw(after)
+    before_api, before_raw = api.ast.extract_all(before)
+    after_api, after_raw = api.ast.extract_all(after)
 
     disabled_funcs = {
         name
@@ -343,6 +340,8 @@ def _decorator_disables(node: ast.FunctionDef) -> bool:
 
     for deco in node.decorator_list:
         name = _decorator_name(deco)
+        if name == "bc_linter.skip":
+            return True
         if name != "bc_linter.check_compat":
             continue
 
