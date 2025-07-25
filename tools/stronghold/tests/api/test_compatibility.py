@@ -51,7 +51,7 @@ def test_deleted_method(tmp_path: pathlib.Path) -> None:
     after = source.make_file(tmp_path, lambda: None)
 
     assert api.compatibility.check(before, after) == [
-        api.violations.FunctionDeleted(func="Class.func", line=1)
+        api.violations.FunctionDeleted(func="Class.func", line=1),
     ]
 
 
@@ -520,3 +520,149 @@ def test_check_range(git_repo: api.git.Repository) -> None:
             api.violations.FunctionDeleted(func="will_be_deleted", line=1)
         ],
     }
+
+
+def test_class_field_removed(tmp_path: pathlib.Path) -> None:
+    before = tmp_path / "before_cls.py"
+    before.write_text(
+        textwrap.dedent(
+            """
+            class Class:
+                a = 1
+                b = 2
+            """
+        )
+    )
+
+    after = tmp_path / "after_cls.py"
+    after.write_text(
+        textwrap.dedent(
+            """
+            class Class:
+                a = 1
+            """
+        )
+    )
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.FieldRemoved(func="Class", parameter="b", line=2)
+    ]
+
+
+def test_dataclass_field_removed(tmp_path: pathlib.Path) -> None:
+    before = tmp_path / "before.py"
+    before.write_text(
+        textwrap.dedent(
+            """
+            @dataclasses.dataclass
+            class Class:
+                a: int
+                b: int
+            """
+        )
+    )
+
+    after = tmp_path / "after.py"
+    after.write_text(
+        textwrap.dedent(
+            """
+            @dataclasses.dataclass
+            class Class:
+                a: int
+            """
+        )
+    )
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.FieldRemoved(func="Class", parameter="b", line=3)
+    ]
+
+
+def test_dataclass_field_type_changed(tmp_path: pathlib.Path) -> None:
+    before = tmp_path / "before_type.py"
+    before.write_text(
+        textwrap.dedent(
+            """
+            @dataclasses.dataclass
+            class Class:
+                a: int
+            """
+        )
+    )
+
+    after = tmp_path / "after_type.py"
+    after.write_text(
+        textwrap.dedent(
+            """
+            @dataclasses.dataclass
+            class Class:
+                a: str
+            """
+        )
+    )
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.FieldTypeChanged(
+            func="Class",
+            parameter="a",
+            line=4,
+            type_before="int",
+            type_after="str",
+        )
+    ]
+
+
+def test_class_field_added(tmp_path: pathlib.Path) -> None:
+    before = tmp_path / "before_cls_add.py"
+    before.write_text(
+        textwrap.dedent(
+            """
+            class Class:
+                a = 1
+            """
+        )
+    )
+
+    after = tmp_path / "after_cls_add.py"
+    after.write_text(
+        textwrap.dedent(
+            """
+            class Class:
+                a = 1
+                b = 2
+            """
+        )
+    )
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.FieldAdded(func="Class", parameter="b", line=4)
+    ]
+
+
+def test_dataclass_field_added(tmp_path: pathlib.Path) -> None:
+    before = tmp_path / "before_dc_add.py"
+    before.write_text(
+        textwrap.dedent(
+            """
+            @dataclasses.dataclass
+            class Class:
+                a: int
+            """
+        )
+    )
+
+    after = tmp_path / "after_dc_add.py"
+    after.write_text(
+        textwrap.dedent(
+            """
+            @dataclasses.dataclass
+            class Class:
+                a: int
+                b: int
+            """
+        )
+    )
+
+    assert api.compatibility.check(before, after) == [
+        api.violations.FieldAdded(func="Class", parameter="b", line=5)
+    ]
