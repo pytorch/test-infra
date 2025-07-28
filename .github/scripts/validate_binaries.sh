@@ -73,8 +73,8 @@ else
         pip3 uninstall -y torch torchaudio torchvision
     fi
     
-    pip install --extra-index-url=https://download.pytorch.org/whl/test/variant/ pep-xxx-wheel-variants 
-    pip install  torch --index-url=https://download.pytorch.org/whl/test/variant/
+    pip install pep-xxx-wheel-variants  --extra-index-url https://download.pytorch.org/whl/test/variant/ 
+    pip install torch --index-url https://download.pytorch.org/whl/test/variant/
     # eval $INSTALLATION
 
     # test with numpy 1.x installation needs to happen after torch install
