@@ -30,6 +30,7 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         and job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         and workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
 ),
