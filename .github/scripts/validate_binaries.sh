@@ -73,9 +73,8 @@ else
         pip3 uninstall -y torch torchaudio torchvision
     fi
     
-    pip3 install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant/ 
-    pip3 install -v torch --index-url https://download.pytorch.org/whl/test/variant/
-    # eval $INSTALLATION
+    pip3 install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant
+    pip3 install -v torch --index-url https://download.pytorch.org/whl/test/variant
 
     # test with numpy 1.x installation needs to happen after torch install
     MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
