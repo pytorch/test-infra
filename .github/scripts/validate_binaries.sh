@@ -72,7 +72,10 @@ else
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 uninstall -y torch torchaudio torchvision
     fi
-    eval $INSTALLATION
+    
+    pip install --extra-index-url=https://download.pytorch.org/whl/test/variant/ pep-xxx-wheel-variants 
+    pip install  torch --index-url=https://download.pytorch.org/whl/test/variant/
+    # eval $INSTALLATION
 
     # test with numpy 1.x installation needs to happen after torch install
     MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
