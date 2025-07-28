@@ -81,9 +81,14 @@ else
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.9'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
     fi
-    
-    pip3 install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant
-    pip3 install -v torch --index-url https://download.pytorch.org/whl/test/variant
+
+    if [[ ${TARGET_OS} == 'windows' ]]; then
+        ${PYTHON_RUN} -m pip install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant
+        ${PYTHON_RUN} -m pip install -v torch --index-url https://download.pytorch.org/whl/test/variant
+    else
+        pip3 install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant
+        pip3 install -v torch --index-url https://download.pytorch.org/whl/test/variant
+    fi
 
     # test with numpy 1.x installation needs to happen after torch install
     MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
