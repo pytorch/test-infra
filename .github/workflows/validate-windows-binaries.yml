@@ -97,7 +97,7 @@ jobs:
       os: windows
       channel: ${{ inputs.channel }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
-      with-xpu: enable
+      with-xpu: disable
 
   win:
     needs: generate-windows-matrix
