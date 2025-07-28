@@ -73,11 +73,13 @@ else
         pip3 uninstall -y torch torchaudio torchvision
     fi
 
-    if [[ ${TARGET_OS} == 'linux' && ${MATRIX_GPU_ARCH_VERSION} == '12.6' ]]; then
+    nvidia-smi
+    
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.6' ]]; then
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.6'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
     fi
-    if [[ ${TARGET_OS} == 'linux' && ${MATRIX_GPU_ARCH_VERSION} == '12.9' ]]; then
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.9' ]]; then
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.9'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
     fi
