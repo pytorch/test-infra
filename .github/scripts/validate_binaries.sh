@@ -73,7 +73,7 @@ else
         pip3 uninstall -y torch torchaudio torchvision
     fi
     
-    pip3 install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant/ 
+    pip3 install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant/ 
     pip3 install -v torch --index-url https://download.pytorch.org/whl/test/variant/
     # eval $INSTALLATION
 
