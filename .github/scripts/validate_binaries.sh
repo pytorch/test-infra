@@ -93,6 +93,7 @@ else
     if [[ ${TARGET_OS} == 'windows' ]]; then
         export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
         powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+        export PATH="${HOME}/.local/bin/:${PATH}"
         uv pip install torch --index-url https://download.pytorch.org/whl/test/variant
     else
         export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
