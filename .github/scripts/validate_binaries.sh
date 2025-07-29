@@ -91,8 +91,9 @@ else
 
     
     if [[ ${TARGET_OS} == 'windows' ]]; then
-        ${PYTHON_RUN} -m pip install -v pep-xxx-wheel-variants --extra-index-url https://download.pytorch.org/whl/test/variant
-        ${PYTHON_RUN} -m pip install -v torch --index-url https://download.pytorch.org/whl/test/variant
+        export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
+        powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+        uv pip install torch --index-url https://download.pytorch.org/whl/test/variant
     else
         export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
         curl -LsSf https://astral.sh/uv/install.sh | sh
