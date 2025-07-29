@@ -9,6 +9,13 @@ import { getJoinedStressTestExperiment, redisCached, redisLocked } from './cache
 import moment from 'moment';
 import { RetryableScalingError } from './scale-up';
 
+export class NoRunnersAvailable extends Error {
+  constructor() {
+    super('No runners available');
+    this.name = 'NoRunnersAvailable';
+  }
+}
+
 export interface ListRunnerFilters {
   applicationDeployDatetime?: string;
   containsTags?: Array<string>;
@@ -649,7 +656,7 @@ export async function tryReuseRunner(
     );
   }
 
-  throw new Error('No runners available');
+  throw new NoRunnersAvailable();
 }
 
 export async function createRunner(runnerParameters: RunnerInputParameters, metrics: Metrics): Promise<string> {
