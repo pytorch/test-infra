@@ -764,6 +764,28 @@ export default function Page() {
             spacing={1}
           >
             <ScalarPanel
+              title={"PR landing time (avg)"}
+              queryName={"pr_landing_time_avg"}
+              metricName={"avg_hours"}
+              valueRenderer={(value) => value.toFixed(1) + "h"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 24} // 24 hours
+            />
+          </Stack>
+        </Grid2>
+
+        <Grid2
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
+            <ScalarPanel
               title={"Merge retry rate (avg)"}
               queryName={"merge_retry_rate"}
               metricName={"avg_retry_rate"}
