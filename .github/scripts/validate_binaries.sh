@@ -96,6 +96,7 @@ else
     else
         export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
         curl -LsSf https://astral.sh/uv/install.sh | sh
+        source $HOME/.local/bin/env
         uv pip install torch--index-url https://download.pytorch.org/whl/test/variant
     fi
 
