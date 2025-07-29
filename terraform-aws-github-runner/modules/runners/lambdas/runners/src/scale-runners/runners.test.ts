@@ -8,6 +8,7 @@ import {
   resetRunnersCaches,
   terminateRunner,
   tryReuseRunner,
+  NoRunnersAvailable,
 } from './runners';
 import { RunnerInfo } from './utils';
 import { ScaleUpMetrics } from './metrics';
@@ -522,7 +523,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
       expect(mockEC2.describeInstances).toBeCalledWith({
         Filters: [
@@ -585,7 +586,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
       expect(mockEC2.describeInstances).toBeCalledWith({
         Filters: [
@@ -652,7 +653,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
       expect(mockEC2.describeInstances).toBeCalledWith({
         Filters: [
@@ -794,7 +795,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
       expect(mockEC2.describeInstances).toBeCalledWith({
         Filters: [
@@ -853,7 +854,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
       expect(mockEC2.describeInstances).toBeCalledWith({
         Filters: [
@@ -996,7 +997,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
       expect(mockEC2.describeInstances).toBeCalledWith({
         Filters: [
