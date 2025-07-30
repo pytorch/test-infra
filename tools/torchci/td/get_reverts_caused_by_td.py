@@ -12,7 +12,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from torchci.clickhouse import query_clickhouse
@@ -23,6 +23,7 @@ from torchci.utils import run_command
 class JobFailure:
     torchci_classification_line: str
     job_name: str
+    run_id: int
     failed_test: Optional[str] = None
 
 
@@ -89,6 +90,7 @@ where
 TORCHCI_CLASSIFICATION_QUERY = """
 select
     name as job_name,
+    run_id as run_id,
     torchci_classification.line as line,
     head_sha
 from
@@ -96,7 +98,7 @@ from
 where
     head_sha in {shas: Array(String)}
     and conclusion = 'failure'
-    and workflow_name = 'pull'
+    and workflow_name in ('pull', 'trunk', 'periodic', 'slow')
 """
 
 WORKFLOW_ID_QUERY = """
@@ -108,7 +110,7 @@ from
     default .workflow_run
 where
     head_sha in {shas: Array(String) }
-    and name = 'pull'
+    and name in ('pull', 'trunk', 'periodic', 'slow')
 """
 
 
@@ -170,6 +172,19 @@ def get_td_exclusions(run_id: int) -> dict:
         response = requests.get(
             f"https://ossci-raw-job-status.s3.amazonaws.com/additional_info/td_exclusions/{run_id}/{i + 1}"
         )
+        if response.status_code == 200:
+            return response.json()
+    return {}
+
+
+@lru_cache
+def get_failures_additional_test_info(
+    run_id: int,
+) -> dict[str, Any]:
+    """Fetches additional test info for failures in the given run_id."""
+    for i in range(3):
+        url = f"https://ossci-raw-job-status.s3.amazonaws.com/additional_info/reruns/{run_id}/{i + 1}"
+        response = requests.get(url)
         if response.status_code == 200:
             return response.json()
     return {}
@@ -272,7 +287,11 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
                 alt_last_pr_sha = (row["head_sha"], timestamp)
         if alt_last_pr_sha[0] != commit.last_pr_sha and commit.last_pr_sha is not None:
             p.print(
-                f"for commit {commit.id} with pr {commit.pr_num}, found last pr sha != alt, {commit.last_pr_sha} != {alt_last_pr_sha[0]}"
+                f"commit={commit.id} "
+                f"pr={commit.pr_num} "
+                f"merge={commit.merge_commit_sha} "
+                f"timestamp_of_merge={commit.timestamp_of_merge} "
+                f"found last pr sha != alt, {commit.last_pr_sha} != {alt_last_pr_sha[0]}"
             )
             bad += 1
         if commit.last_pr_sha is None:
@@ -325,6 +344,7 @@ def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
         for row in job_failures:
             head_sha = row["head_sha"]
             job_name = row["job_name"]
+            run_id = row["run_id"]
             line = row["line"]
             if head_sha not in failures_dict:
                 failures_dict[head_sha] = []
@@ -332,10 +352,49 @@ def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
                 JobFailure(
                     torchci_classification_line=line,
                     job_name=job_name,
+                    run_id=int(run_id),
                     failed_test=get_test_file(line),
                 )
             )
+    del futures
+
+    futures2 = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for sha, failures in failures_dict.items():
+            run_ids = set(f.run_id for f in failures if f.run_id is not None)
+            for run_id in run_ids:
+                futures2.append((sha, executor.submit(get_failures_for_run_id, run_id)))
+    for sha, future in futures2:
+        additional_failures = future.result()
+        failures_dict[sha].extend(additional_failures)
     return failures_dict
+
+
+@lru_cache
+def get_failures_for_run_id(run_id: int) -> list[JobFailure]:
+    """Fetches the failures for the given run_id."""
+    failures = get_failures_additional_test_info(run_id)
+    job_failures = []
+    for build, d in failures.items():
+        for test_config, dd in d.items():
+            for test_file, ddd in dd.items():
+                for test_class, dddd in ddd.items():
+                    for test_name, info in dddd.items():
+                        failed = True
+                        for i in info:
+                            if "failure" not in i:
+                                failed = False
+                        if failed:
+                            job_failures.append(
+                                JobFailure(
+                                    torchci_classification_line=f"{test_file}::{test_class}::{test_name}",
+                                    job_name=f"{build} / test ({test_config}, 1, 1, runner)",
+                                    run_id=run_id,
+                                    failed_test=f"{test_file}",
+                                )
+                            )
+
+    return job_failures
 
 
 def check_failure_in_td_exclusion(f: JobFailure, run_id: int) -> bool:
