@@ -49,7 +49,7 @@ queued_jobs AS (
     WHERE
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
-        AND workflow.repository.owner.login IN ('pytorch', 'pytorch-labs')
+        AND workflow.repository.owner.login IN ('pytorch', 'pytorch-labs', 'meta-pytorch')
         AND job.status = 'queued'
         /* These two conditions are workarounds for GitHub's broken API. Sometimes */
         /* jobs get stuck in a permanently "queued" state but definitely ran. We can */
