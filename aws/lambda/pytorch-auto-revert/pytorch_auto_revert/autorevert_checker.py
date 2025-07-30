@@ -116,6 +116,7 @@ class AutorevertPatternChecker:
             AND head_branch = 'main'
             AND created_at >= {lookback_time:DateTime}
             AND dynamoKey LIKE 'pytorch/pytorch/%'
+            AND workflow_event != 'workflow_dispatch'  -- Exclude restart jobs
         ORDER BY
             workflow_name, workflow_created_at DESC, head_sha, name
         """
