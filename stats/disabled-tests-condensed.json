@@ -856,6 +856,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_nn_functional_interpolate_bilinear_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
+    "147057",
+    "https://github.com/pytorch/pytorch/issues/147057",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_nn_functional_interpolate_linear_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "147058",
     "https://github.com/pytorch/pytorch/issues/147058",
@@ -2430,34 +2437,6 @@
       "asan"
     ]
   ],
-  "test_no_autograd_kernel_mode_nothing (__main__.TestAutogradFallback)": [
-    "158735",
-    "https://github.com/pytorch/pytorch/issues/158735",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_no_autograd_kernel_mode_warn (__main__.TestAutogradFallback)": [
-    "158763",
-    "https://github.com/pytorch/pytorch/issues/158763",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_no_grad_mode_nothing (__main__.TestAutogradFallback)": [
-    "158841",
-    "https://github.com/pytorch/pytorch/issues/158841",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_no_grad_mode_warn (__main__.TestAutogradFallback)": [
-    "158910",
-    "https://github.com/pytorch/pytorch/issues/158910",
-    [
-      "dynamo"
-    ]
-  ],
   "test_non_contiguous_tensors_nn_ConvTranspose1d_cuda_complex32 (__main__.TestModuleCUDA)": [
     "81732",
     "https://github.com/pytorch/pytorch/issues/81732",
@@ -2688,34 +2667,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_post_autograd_returns_leaf_mode_nothing (__main__.TestAutogradFallback)": [
-    "159040",
-    "https://github.com/pytorch/pytorch/issues/159040",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_post_autograd_returns_leaf_mode_warn (__main__.TestAutogradFallback)": [
-    "159114",
-    "https://github.com/pytorch/pytorch/issues/159114",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_post_autograd_returns_mix_of_requires_grad_tensors_mode_nothing (__main__.TestAutogradFallback)": [
-    "159153",
-    "https://github.com/pytorch/pytorch/issues/159153",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_post_autograd_returns_mix_of_requires_grad_tensors_mode_warn (__main__.TestAutogradFallback)": [
-    "159237",
-    "https://github.com/pytorch/pytorch/issues/159237",
-    [
-      "dynamo"
     ]
   ],
   "test_prim_grad_undefined (test_jit.TestScript)": [
@@ -3444,20 +3395,6 @@
   "test_sum_all_cpu_float64 (__main__.TestReductionsCPU)": [
     "158664",
     "https://github.com/pytorch/pytorch/issues/158664",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_supports_tensor_lists_mode_nothing (__main__.TestAutogradFallback)": [
-    "159254",
-    "https://github.com/pytorch/pytorch/issues/159254",
-    [
-      "dynamo"
-    ]
-  ],
-  "test_supports_tensor_lists_mode_warn (__main__.TestAutogradFallback)": [
-    "159349",
-    "https://github.com/pytorch/pytorch/issues/159349",
     [
       "dynamo"
     ]
