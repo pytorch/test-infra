@@ -1,4 +1,12 @@
 {
+  "RecordDebugHandles.Basic (__main__.test_jit)": [
+    "pytorch-bot",
+    "160387",
+    "https://github.com/pytorch/pytorch/issues/160387",
+    "RecordDebugHandles.Basic (__main__.test_jit)",
+    "",
+    ""
+  ],
   "distributed/_composable/fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing": [
     "jithunnair-amd",
     "120945",

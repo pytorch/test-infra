@@ -23,6 +23,14 @@
     "Lint URLs",
     "linux-job"
   ],
+  "inductor-periodic / cuda12.8-py3.10-gcc9-sm80 / test (inductor_torchbench_smoketest_perf)": [
+    "zou3519",
+    "161295",
+    "https://github.com/pytorch/pytorch/issues/161295",
+    "inductor-periodic",
+    "cuda12.8-py3.10-gcc9-sm80",
+    "test (inductor_torchbench_smoketest_perf)"
+  ],
   "pull / linux-jammy-py3_9-clang9-xla / test (xla)": [
     "ZainRizvi",
     "158876",
