@@ -1,6 +1,6 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
 import { Repo, getRepoKey, sleep } from './utils';
-import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner } from './runners';
+import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner, NoRunnersAvailable } from './runners';
 import {
   createRegistrationTokenOrg,
   createRegistrationTokenRepo,
@@ -126,7 +126,11 @@ export async function scaleUp(
             await tryReuseRunner(createRunnerParams, metrics);
             continue; // Runner successfuly reused, no need to create a new one, continue to next runner
           } catch (e) {
-            console.error(`Error reusing runner: ${e}`);
+            if (e instanceof NoRunnersAvailable) {
+              console.info(`No runners available for reuse`);
+            } else {
+              console.error(`Error reusing runner: ${e}`);
+            }
           }
         }
 
