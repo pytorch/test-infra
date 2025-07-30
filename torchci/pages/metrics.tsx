@@ -763,6 +763,28 @@ export default function Page() {
             flexWrap="wrap"
             spacing={1}
           >
+            <ScalarPanel
+              title={"Merge retry rate (avg)"}
+              queryName={"merge_retry_rate"}
+              metricName={"avg_retry_rate"}
+              valueRenderer={(value) => value.toFixed(2) + "x"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 2.0} // 2.0 average retries
+            />
+          </Stack>
+        </Grid2>
+
+        <Grid2
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <WorkflowDuration
               percentile={ttsPercentile}
               timeParams={timeParams}
