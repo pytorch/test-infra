@@ -863,6 +863,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_nn_functional_interpolate_linear_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
+    "147058",
+    "https://github.com/pytorch/pytorch/issues/147058",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
     "117732",
     "https://github.com/pytorch/pytorch/issues/117732",
