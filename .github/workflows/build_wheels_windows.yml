@@ -164,8 +164,7 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
           # shellcheck disable=SC2086
-          curl -O curl -O https://pytorch.s3.us-east-1.amazonaws.com/whl/test/windows/torch-2.8.0%2Bcpu-cp39-cp39-win_amd64.whl
-          ${CONDA_RUN} pip install torch-2.8.0%2Bcpu-cp39-cp39-win_amd64.whl
+          ${CONDA_RUN} pip install https://download.pytorch.org/whl/test/windows/torch-2.8.0%2Bcpu-cp39-cp39-win_amd64.whl
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' && inputs.architecture == 'x64' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
