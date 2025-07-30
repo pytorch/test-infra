@@ -856,6 +856,13 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_nn_functional_interpolate_bilinear_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
+    "147057",
+    "https://github.com/pytorch/pytorch/issues/147057",
+    [
+      "inductor"
+    ]
+  ],
   "test_comprehensive_nn_functional_interpolate_linear_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "147058",
     "https://github.com/pytorch/pytorch/issues/147058",
