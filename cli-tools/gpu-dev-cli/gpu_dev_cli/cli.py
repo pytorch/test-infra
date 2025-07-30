@@ -14,14 +14,20 @@ from rich import print as rprint
 from .auth import authenticate_user, get_user_info
 from .reservations import ReservationManager
 from .config import Config, load_config
+from .test_state import TestStateManager
 
 console = Console()
 
 @click.group()
+@click.option('--test', is_flag=True, help='Run in test mode with dummy state')
 @click.version_option()
-def main() -> None:
+@click.pass_context
+def main(ctx: click.Context, test: bool) -> None:
     """GPU Developer CLI - Reserve and manage GPU development servers"""
-    pass
+    ctx.ensure_object(dict)
+    ctx.obj['test_mode'] = test
+    if test:
+        rprint("[yellow]🧪 Running in TEST MODE - using dummy state[/yellow]")
 
 @main.command()
 @click.option('--gpus', '-g', type=click.Choice(['1', '2', '4', '8', '16']), default='1', 
@@ -32,38 +38,57 @@ def main() -> None:
               help='Optional name for the reservation')
 @click.option('--dry-run', is_flag=True, 
               help='Show what would be reserved without actually reserving')
-def reserve(gpus: str, hours: int, name: Optional[str], dry_run: bool) -> None:
+@click.pass_context
+def reserve(ctx: click.Context, gpus: str, hours: int, name: Optional[str], dry_run: bool) -> None:
     """Reserve GPU development server(s)"""
     try:
-        config = load_config()
-        
-        # Authenticate user
-        user_info = authenticate_user(config)
-        if not user_info:
-            rprint("[red]❌ Authentication failed[/red]")
-            return
+        test_mode = ctx.obj.get('test_mode', False)
+        gpu_count = int(gpus)
         
         # Validate parameters
-        gpu_count = int(gpus)
         if hours > 24:
             rprint("[red]❌ Maximum reservation time is 24 hours[/red]")
             return
         
-        # Create reservation request
-        reservation_mgr = ReservationManager(config)
-        
-        if dry_run:
-            rprint(f"[yellow]🔍 DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]")
-            rprint(f"[yellow]User: {user_info['login']}[/yellow]")
-            return
-        
-        # Submit reservation
-        reservation_id = reservation_mgr.create_reservation(
-            user_id=user_info['login'],
-            gpu_count=gpu_count,
-            duration_hours=hours,
-            name=name
-        )
+        if test_mode:
+            # Test mode with dummy auth
+            user_info = {'login': 'test-user'}
+            test_mgr = TestStateManager()
+            
+            if dry_run:
+                rprint(f"[yellow]🔍 TEST DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]")
+                rprint(f"[yellow]User: {user_info['login']}[/yellow]")
+                return
+            
+            reservation_id = test_mgr.create_reservation(
+                user_id=user_info['login'],
+                gpu_count=gpu_count,
+                duration_hours=hours,
+                name=name
+            )
+        else:
+            # Production mode
+            config = load_config()
+            
+            # Authenticate user
+            user_info = authenticate_user(config)
+            if not user_info:
+                rprint("[red]❌ Authentication failed[/red]")
+                return
+            
+            if dry_run:
+                rprint(f"[yellow]🔍 DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]")
+                rprint(f"[yellow]User: {user_info['login']}[/yellow]")
+                return
+            
+            # Submit reservation
+            reservation_mgr = ReservationManager(config)
+            reservation_id = reservation_mgr.create_reservation(
+                user_id=user_info['login'],
+                gpu_count=gpu_count,
+                duration_hours=hours,
+                name=name
+            )
         
         if reservation_id:
             rprint(f"[green]✅ Reservation created: {reservation_id}[/green]")
@@ -78,19 +103,26 @@ def reserve(gpus: str, hours: int, name: Optional[str], dry_run: bool) -> None:
 @click.option('--user', '-u', type=str, help='Filter by user (optional)')
 @click.option('--status', '-s', type=click.Choice(['active', 'expired', 'cancelled']), 
               help='Filter by status (optional)')
-def list(user: Optional[str], status: Optional[str]) -> None:
+@click.pass_context
+def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None:
     """List GPU reservations"""
     try:
-        config = load_config()
+        test_mode = ctx.obj.get('test_mode', False)
         
-        # Authenticate user
-        user_info = authenticate_user(config)
-        if not user_info:
-            rprint("[red]❌ Authentication failed[/red]")
-            return
-        
-        reservation_mgr = ReservationManager(config)
-        reservations = reservation_mgr.list_reservations(user_filter=user, status_filter=status)
+        if test_mode:
+            test_mgr = TestStateManager()
+            reservations = test_mgr.list_reservations(user_filter=user, status_filter=status)
+        else:
+            config = load_config()
+            
+            # Authenticate user
+            user_info = authenticate_user(config)
+            if not user_info:
+                rprint("[red]❌ Authentication failed[/red]")
+                return
+            
+            reservation_mgr = ReservationManager(config)
+            reservations = reservation_mgr.list_reservations(user_filter=user, status_filter=status)
         
         if not reservations:
             rprint("[yellow]📋 No reservations found[/yellow]")
@@ -122,19 +154,26 @@ def list(user: Optional[str], status: Optional[str]) -> None:
 
 @main.command()
 @click.argument('reservation_id')
-def cancel(reservation_id: str) -> None:
+@click.pass_context
+def cancel(ctx: click.Context, reservation_id: str) -> None:
     """Cancel a GPU reservation"""
     try:
-        config = load_config()
+        test_mode = ctx.obj.get('test_mode', False)
         
-        # Authenticate user
-        user_info = authenticate_user(config)
-        if not user_info:
-            rprint("[red]❌ Authentication failed[/red]")
-            return
-        
-        reservation_mgr = ReservationManager(config)
-        success = reservation_mgr.cancel_reservation(reservation_id, user_info['login'])
+        if test_mode:
+            test_mgr = TestStateManager()
+            success = test_mgr.cancel_reservation(reservation_id, 'test-user')
+        else:
+            config = load_config()
+            
+            # Authenticate user
+            user_info = authenticate_user(config)
+            if not user_info:
+                rprint("[red]❌ Authentication failed[/red]")
+                return
+            
+            reservation_mgr = ReservationManager(config)
+            success = reservation_mgr.cancel_reservation(reservation_id, user_info['login'])
         
         if success:
             rprint(f"[green]✅ Reservation {reservation_id} cancelled[/green]")
@@ -146,19 +185,26 @@ def cancel(reservation_id: str) -> None:
 
 @main.command()
 @click.argument('reservation_id')
-def connect(reservation_id: str) -> None:
+@click.pass_context
+def connect(ctx: click.Context, reservation_id: str) -> None:
     """Get SSH connection details for a reservation"""
     try:
-        config = load_config()
+        test_mode = ctx.obj.get('test_mode', False)
         
-        # Authenticate user
-        user_info = authenticate_user(config)
-        if not user_info:
-            rprint("[red]❌ Authentication failed[/red]")
-            return
-        
-        reservation_mgr = ReservationManager(config)
-        connection_info = reservation_mgr.get_connection_info(reservation_id, user_info['login'])
+        if test_mode:
+            test_mgr = TestStateManager()
+            connection_info = test_mgr.get_connection_info(reservation_id, 'test-user')
+        else:
+            config = load_config()
+            
+            # Authenticate user
+            user_info = authenticate_user(config)
+            if not user_info:
+                rprint("[red]❌ Authentication failed[/red]")
+                return
+            
+            reservation_mgr = ReservationManager(config)
+            connection_info = reservation_mgr.get_connection_info(reservation_id, user_info['login'])
         
         if connection_info:
             panel = Panel.fit(
@@ -177,19 +223,26 @@ def connect(reservation_id: str) -> None:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
 
 @main.command()
-def status() -> None:
+@click.pass_context
+def status(ctx: click.Context) -> None:
     """Show overall GPU cluster status"""
     try:
-        config = load_config()
+        test_mode = ctx.obj.get('test_mode', False)
         
-        # Authenticate user
-        user_info = authenticate_user(config)
-        if not user_info:
-            rprint("[red]❌ Authentication failed[/red]")
-            return
-        
-        reservation_mgr = ReservationManager(config)
-        cluster_status = reservation_mgr.get_cluster_status()
+        if test_mode:
+            test_mgr = TestStateManager()
+            cluster_status = test_mgr.get_cluster_status()
+        else:
+            config = load_config()
+            
+            # Authenticate user
+            user_info = authenticate_user(config)
+            if not user_info:
+                rprint("[red]❌ Authentication failed[/red]")
+                return
+            
+            reservation_mgr = ReservationManager(config)
+            cluster_status = reservation_mgr.get_cluster_status()
         
         if cluster_status:
             table = Table(title="GPU Cluster Status")
@@ -227,6 +280,40 @@ def config() -> None:
         
     except Exception as e:
         rprint(f"[red]❌ Error loading config: {str(e)}[/red]")
+
+# Test utilities
+@main.group()
+def test() -> None:
+    """Test utilities for the CLI"""
+    pass
+
+@test.command()
+def reset() -> None:
+    """Reset test state to defaults"""
+    test_mgr = TestStateManager()
+    test_mgr.reset_state()
+
+@test.command()
+def demo() -> None:
+    """Run a demo scenario with test reservations"""
+    test_mgr = TestStateManager()
+    test_mgr.reset_state()
+    
+    rprint("[yellow]🧪 Creating demo test reservations...[/yellow]")
+    
+    # Create some demo reservations
+    reservations = [
+        ("alice", 2, 4, "ML training"),
+        ("bob", 1, 8, None),
+        ("charlie", 4, 2, "inference testing")
+    ]
+    
+    for user, gpus, hours, name in reservations:
+        res_id = test_mgr.create_reservation(user, gpus, hours, name)
+        if res_id:
+            rprint(f"[green]✅ Created demo reservation {res_id[:8]} for {user}[/green]")
+    
+    rprint("[blue]📋 Demo data created! Try: gpu-dev --test list[/blue]")
 
 if __name__ == '__main__':
     main()

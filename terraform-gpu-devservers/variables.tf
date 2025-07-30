@@ -33,13 +33,33 @@ variable "subnet_cidr" {
 variable "gpu_instance_count" {
   description = "Number of GPU instances to provision"
   type        = number
-  default     = 5
+  default     = 2  # Start with 2 for testing, scale to 5 for production
+  # default     = 5  # Production setup
 }
 
 variable "instance_type" {
   description = "EC2 instance type for GPU servers"
   type        = string
-  default     = "p5.48xlarge"
+  default     = "g4dn.2xlarge"  # Cheap for testing: 1x T4 GPU, ~$0.75/hour
+  # default     = "g5.2xlarge"    # Mid-range: 1x A10G GPU, ~$1.21/hour  
+  # default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$98/hour
+  
+  validation {
+    condition = contains([
+      "g4dn.xlarge",     # 1x T4, ~$0.53/hour (cheapest)
+      "g4dn.2xlarge",    # 1x T4, ~$0.75/hour
+      "g4dn.4xlarge",    # 1x T4, ~$1.20/hour
+      "g5.xlarge",       # 1x A10G, ~$1.00/hour
+      "g5.2xlarge",      # 1x A10G, ~$1.21/hour
+      "g5.4xlarge",      # 1x A10G, ~$1.64/hour
+      "g5.8xlarge",      # 1x A10G, ~$2.18/hour
+      "p3.2xlarge",      # 1x V100, ~$3.06/hour
+      "p3.8xlarge",      # 4x V100, ~$12.24/hour
+      "p4d.24xlarge",    # 8x A100, ~$32.77/hour
+      "p5.48xlarge",     # 8x H100, ~$98/hour
+    ], var.instance_type)
+    error_message = "Instance type must be a supported GPU instance type."
+  }
 }
 
 variable "key_pair_name" {
@@ -88,3 +108,4 @@ variable "queue_message_retention" {
   type        = number
   default     = 1209600  # 14 days
 }
+

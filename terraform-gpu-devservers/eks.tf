@@ -103,12 +103,12 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
     min_size     = 0
   }
 
-  # Enable EFA networking
+  # SSH access
   remote_access {
     ec2_ssh_key = var.key_pair_name
   }
 
-  # Placement group for optimal networking
+  # Launch template for custom configuration (EFA, spot instances, etc.)
   launch_template {
     name    = aws_launch_template.gpu_dev_launch_template.name
     version = aws_launch_template.gpu_dev_launch_template.latest_version
