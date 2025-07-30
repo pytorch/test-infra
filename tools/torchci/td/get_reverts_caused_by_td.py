@@ -9,10 +9,11 @@ same folder, and will use whatever branch is currently checked out on pytorch.
 
 import argparse
 import re
+from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Optional
 
 import requests
 from torchci.clickhouse import query_clickhouse
@@ -23,6 +24,7 @@ from torchci.utils import run_command
 class JobFailure:
     torchci_classification_line: str
     job_name: str
+    run_id: int
     failed_test: Optional[str] = None
 
 
@@ -37,7 +39,7 @@ class CommitInfo:
     timestamp_of_merge: int = 0
     pr_num: int = 0
     last_pr_sha: Optional[str] = None
-    run_id: Optional[int] = None
+    run_ids: list[int] = field(default_factory=list)
 
 
 class IndentPrinter:
@@ -89,6 +91,7 @@ where
 TORCHCI_CLASSIFICATION_QUERY = """
 select
     name as job_name,
+    run_id as run_id,
     torchci_classification.line as line,
     head_sha
 from
@@ -96,7 +99,7 @@ from
 where
     head_sha in {shas: Array(String)}
     and conclusion = 'failure'
-    and workflow_name = 'pull'
+    and workflow_name in ('pull', 'trunk', 'periodic', 'slow')
 """
 
 WORKFLOW_ID_QUERY = """
@@ -108,7 +111,7 @@ from
     default .workflow_run
 where
     head_sha in {shas: Array(String) }
-    and name = 'pull'
+    and name in ('pull', 'trunk', 'periodic', 'slow')
 """
 
 
@@ -164,12 +167,29 @@ def get_full_commit_message(sha: str) -> str:
 
 
 @lru_cache
-def get_td_exclusions(run_id: int) -> dict:
-    """Fetches the TD exclusions for a given run_id"""
+def get_td_exclusions(run_ids: tuple[int]) -> dict:
+    """Fetches the TD exclusions for some run ids."""
+    exclusions = defaultdict(lambda: defaultdict(list))
+    for run_id in run_ids:
+        for i in range(3):
+            response = requests.get(
+                f"https://ossci-raw-job-status.s3.amazonaws.com/additional_info/td_exclusions/{run_id}/{i + 1}"
+            )
+            if response.status_code == 200:
+                for build_env, test_configs in response.json().items():
+                    for test_config, tests in test_configs.items():
+                        exclusions[build_env][test_config].extend(tests)
+    return dict(exclusions)
+
+
+@lru_cache
+def get_failures_additional_test_info(
+    run_id: int,
+) -> dict[str, Any]:
+    """Fetches additional test info for failures in the given run_id."""
     for i in range(3):
-        response = requests.get(
-            f"https://ossci-raw-job-status.s3.amazonaws.com/additional_info/td_exclusions/{run_id}/{i + 1}"
-        )
+        url = f"https://ossci-raw-job-status.s3.amazonaws.com/additional_info/reruns/{run_id}/{i + 1}"
+        response = requests.get(url)
         if response.status_code == 200:
             return response.json()
     return {}
@@ -272,7 +292,11 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
                 alt_last_pr_sha = (row["head_sha"], timestamp)
         if alt_last_pr_sha[0] != commit.last_pr_sha and commit.last_pr_sha is not None:
             p.print(
-                f"for commit {commit.id} with pr {commit.pr_num}, found last pr sha != alt, {commit.last_pr_sha} != {alt_last_pr_sha[0]}"
+                f"commit={commit.id} "
+                f"pr={commit.pr_num} "
+                f"merge={commit.merge_commit_sha} "
+                f"timestamp_of_merge={commit.timestamp_of_merge} "
+                f"found last pr sha != alt, {commit.last_pr_sha} != {alt_last_pr_sha[0]}"
             )
             bad += 1
         if commit.last_pr_sha is None:
@@ -299,14 +323,13 @@ def get_commit_info(num_to_process: int) -> list[CommitInfo]:
                 commit.last_pr_sha == head_sha
                 and created_at < commit.timestamp_of_merge
             ):
-                commit.run_id = int(run_id)
-
+                commit.run_ids.append(int(run_id))
     return commits_reverted
 
 
 def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
     """Fetches job failures for the given SHAs."""
-    # Need to batch b/c too many shas
+    # Need to batch in case too many SHAs
     batch_size = 500
     failures_dict: dict[str, list[JobFailure]] = {}
     with ThreadPoolExecutor(max_workers=8) as executor:
@@ -325,6 +348,7 @@ def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
         for row in job_failures:
             head_sha = row["head_sha"]
             job_name = row["job_name"]
+            run_id = row["run_id"]
             line = row["line"]
             if head_sha not in failures_dict:
                 failures_dict[head_sha] = []
@@ -332,13 +356,52 @@ def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
                 JobFailure(
                     torchci_classification_line=line,
                     job_name=job_name,
+                    run_id=int(run_id),
                     failed_test=get_test_file(line),
                 )
             )
+    del futures
+
+    futures2 = []
+    with ThreadPoolExecutor(max_workers=8) as executor:
+        for sha, failures in failures_dict.items():
+            run_ids = set(f.run_id for f in failures if f.run_id is not None)
+            for run_id in run_ids:
+                futures2.append((sha, executor.submit(get_failures_for_run_id, run_id)))
+    for sha, future in futures2:
+        additional_failures = future.result()
+        failures_dict[sha].extend(additional_failures)
     return failures_dict
 
 
-def check_failure_in_td_exclusion(f: JobFailure, run_id: int) -> bool:
+@lru_cache
+def get_failures_for_run_id(run_id: int) -> list[JobFailure]:
+    """Fetches the failures for the given run_id."""
+    failures = get_failures_additional_test_info(run_id)
+    job_failures = []
+    for build, d in failures.items():
+        for test_config, dd in d.items():
+            for test_file, ddd in dd.items():
+                for test_class, dddd in ddd.items():
+                    for test_name, info in dddd.items():
+                        failed = True
+                        for i in info:
+                            if "failure" not in i:
+                                failed = False
+                        if failed:
+                            job_failures.append(
+                                JobFailure(
+                                    torchci_classification_line=f"{test_file}::{test_class}::{test_name}",
+                                    job_name=f"{build} / test ({test_config}, 1, 1, runner)",
+                                    run_id=run_id,
+                                    failed_test=f"{test_file}",
+                                )
+                            )
+
+    return job_failures
+
+
+def check_failure_in_td_exclusion(f: JobFailure, run_ids: list[int]) -> bool:
     """True if the commit is bad (excluded in TD)"""
     x = re.search(JOB_NAME_REGEX, f.job_name)
     if x is None:
@@ -347,26 +410,26 @@ def check_failure_in_td_exclusion(f: JobFailure, run_id: int) -> bool:
         )
         return False
 
-    td_exclusions = get_td_exclusions(run_id)
+    td_exclusions = get_td_exclusions(tuple(run_ids))
     build_env = x.group(1)
     test_config = x.group(2)
     p.print(
         f"Build environment: {build_env}, Test config: {test_config}, len(td_exclusions): {len(td_exclusions)}"
     )
     if len(td_exclusions) == 0:
-        p.print(f"No TD exclusions found for run {run_id}")
+        p.print(f"No TD exclusions found for run {run_ids}")
         return False
     if build_env not in td_exclusions:
         p.print(
-            f"Build environment {build_env} not found in TD exclusions for run {run_id}"
+            f"Build environment {build_env} not found in TD exclusions for run {run_ids}"
         )
     elif test_config not in td_exclusions[build_env]:
-        p.print(f"Test {test_config} not found in TD exclusions for run {run_id}")
+        p.print(f"Test {test_config} not found in TD exclusions for run {run_ids}")
     elif f.failed_test in td_exclusions[build_env][test_config]:
-        p.print(f"Test {f.failed_test} is excluded in TD for run {run_id}")
+        p.print(f"Test {f.failed_test} is excluded in TD for run {run_ids}")
         return True
     else:
-        p.print(f"Test {f.failed_test} is not excluded in TD for run {run_id}")
+        p.print(f"Test {f.failed_test} is not excluded in TD for run {run_ids}")
     return False
 
 
@@ -410,8 +473,8 @@ def main() -> None:
             p.print(f"Merge commit: {s.merge_commit_sha}")
             p.print(f"Merge commit prev: {s.merge_commit_sha_prev}")
             p.print(f"Last PR sha: {s.last_pr_sha}")
-            p.print(f"Run ID: {s.run_id}")
-            if s.run_id is None:
+            p.print(f"Run ID: {s.run_ids}")
+            if len(s.run_ids) == 0:
                 p.print(f"Run ID is None for commit {s.last_pr_sha}, skipping")
                 unable_to_check += 1
                 continue
@@ -443,11 +506,11 @@ def main() -> None:
                             )
                             continue
 
-                        any_bad |= check_failure_in_td_exclusion(f, s.run_id)
+                        any_bad |= check_failure_in_td_exclusion(f, s.run_ids)
             if any_bad:
                 caused_by_bad_td.append(s)
                 p.print(
-                    f"Commit {s.last_pr_sha} with run_id {s.run_id} is caused by bad TD"
+                    f"Commit {s.last_pr_sha} with run_id {s.run_ids} is caused by bad TD"
                 )
         p.print(
             f"CAUSED BY BAD TD: {len(caused_by_bad_td)} / {i + 1} = {len(caused_by_bad_td) / (i + 1):.2%}"
