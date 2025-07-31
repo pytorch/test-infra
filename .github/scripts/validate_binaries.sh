@@ -94,12 +94,12 @@ else
         export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
         powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
         export PATH="${HOME}/.local/bin/:${PATH}"
-        uv pip install torch --index-url https://download.pytorch.org/whl/test/variant
+        uv pip install torch torchvision --index-url https://download.pytorch.org/whl/test/variant
     else
         export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
         curl -LsSf https://astral.sh/uv/install.sh | sh
         source $HOME/.local/bin/env
-        uv pip install torch --index-url https://download.pytorch.org/whl/test/variant
+        uv pip install torch torchvision --index-url https://download.pytorch.org/whl/test/variant
     fi
 
     # test with numpy 1.x installation needs to happen after torch install
