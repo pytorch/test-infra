@@ -79,6 +79,12 @@ logging.basicConfig(
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 ORG_NAME = None  # Will be set by argparse
 
+# GitHub API headers
+HEADERS = {
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json",
+}
+
 # List of repositories to exclude in the format 'org/repo'
 EXCLUDED_REPOS = [
     "pytorch/pytorch",
@@ -150,7 +156,7 @@ def get_repos(org: str) -> List[str]:
     while True:
         url = f"{BASE_URL}/orgs/{org}/repos?per_page=100&page={page}"
         logging.debug(f"[get_repos] Requesting URL: {url}")
-        data = make_cached_request(url)
+        data = make_cached_request(url, HEADERS)
         if data is None:
             logging.error(f"[get_repos] Failed to fetch page {page} for org: {org}")
             break
@@ -186,7 +192,7 @@ def get_workflow_runs(org: str, repo: str) -> List[Dict]:
     while True:
         url = f"{BASE_URL}/repos/{org}/{repo}/actions/runs?per_page=100&page={page}&created=>={WORKFLOW_RUN_LOOKBACK}"
         logging.debug(f"[get_workflow_runs] Requesting URL: {url}")
-        response_data = make_cached_request(url)
+        response_data = make_cached_request(url, HEADERS)
         if response_data is None:
             logging.error(
                 f"[get_workflow_runs] Failed to fetch page {page} for repo: {repo}"
@@ -271,7 +277,7 @@ def get_jobs_for_run(
     )
     url = f"{BASE_URL}/repos/{org}/{repo}/actions/runs/{run_id}/jobs"
     logging.debug(f"[get_jobs_for_run] Requesting URL: {url}")
-    response_data = make_cached_request(url)
+    response_data = make_cached_request(url, HEADERS)
     if response_data is None:
         logging.error(
             f"[get_jobs_for_run] Failed to fetch jobs for run {run_id} in repo: {repo}"

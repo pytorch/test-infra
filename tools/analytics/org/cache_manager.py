@@ -130,21 +130,15 @@ def clear_cache():
         logging.info(f"[clear_cache] Cache directory does not exist: {CACHE_DIR}")
 
 
-HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json",
-}
-
-
 def make_cached_request(
-    url: str, headers: Optional[Dict[str, str]] = None
+    url: str, headers: Dict[str, str]
 ) -> Optional[Dict]:
     """
     Make an HTTP request with caching. Returns the JSON response if successful.
 
     Args:
         url: The URL to request
-        headers: Optional headers for the request
+        headers: Headers for the request (required)
 
     Returns:
         JSON response data if successful, None if failed
@@ -158,7 +152,7 @@ def make_cached_request(
     # Make actual HTTP request
     logging.info(f"[make_cached_request] Making HTTP request to: {url}")
     try:
-        response = requests.get(url, headers=headers or HEADERS)
+        response = requests.get(url, headers=headers)
         response.raise_for_status()
         data = response.json()
 
