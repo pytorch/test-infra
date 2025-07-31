@@ -130,9 +130,7 @@ def clear_cache():
         logging.info(f"[clear_cache] Cache directory does not exist: {CACHE_DIR}")
 
 
-def make_cached_request(
-    url: str, headers: Dict[str, str]
-) -> Optional[Dict]:
+def make_cached_request(url: str, headers: Dict[str, str]) -> Optional[Dict]:
     """
     Make an HTTP request with caching. Returns the JSON response if successful.
 

@@ -36,4 +36,3 @@ The tools in this directory help us understand how GitHub Actions runners are be
 - Intelligent cache invalidation
 - Rate limit optimization
 - Reduces redundant API calls during analysis
-
