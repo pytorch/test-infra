@@ -12,6 +12,7 @@ TEST_TIME_PER_FILE_QUERY_NAME = "test_times/per_file"
 TEST_TIME_PER_FILE_PERIODIC_JOBS_QUERY_NAME = "test_times/per_file_periodic_jobs"
 TEST_TIME_PER_CLASS_QUERY_NAME = "test_times/per_class"
 TEST_TIME_PER_CLASS_PERIODIC_JOBS_QUERY_NAME = "test_times/per_class_periodic_jobs"
+JOB_NAMES_PAST_MONTH_QUERY_NAME = "test_times/job_names_past_month"
 
 
 def get_file_data_from_db():
@@ -77,6 +78,16 @@ def convert_test_class_times_to_default_dict(d):
     return new_d
 
 
+def clean_up_test_times(test_times) -> None:
+    # Remove old environments that no longer run jobs
+    job_names_past_month = query_clickhouse_saved(JOB_NAMES_PAST_MONTH_QUERY_NAME, {})
+    job_names = {row["base_name"] for row in job_names_past_month}
+    job_names.add("default")  # Add default to job names
+    for env in list(test_times.keys()):
+        if env not in job_names:
+            del test_times[env]
+
+
 def gen_test_file_times(db_results, old_test_times):
     # Use old test times because sometimes we want to manually edit the test
     # times json and want those changes to persist.  Unfortunately this means
@@ -107,6 +118,8 @@ def gen_test_file_times(db_results, old_test_times):
         # Replace default's default with our own to account for tests that aren't
         # usually in the default test config like distributed
         test_times["default"]["default"] = test_times_no_test_config
+
+    clean_up_test_times(test_times)
 
     return test_times
 
@@ -152,6 +165,8 @@ def gen_test_class_times(db_results, old_test_times):
         # Replace default's default with our own to account for tests that aren't
         # usually in the default test config like distributed
         test_times["default"]["default"] = test_times_no_test_config
+
+    clean_up_test_times(test_times)
 
     return test_times
 

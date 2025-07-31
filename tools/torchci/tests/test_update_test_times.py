@@ -1,8 +1,10 @@
 import unittest
+from unittest.mock import patch
 
 from torchci.update_test_times import gen_test_class_times, gen_test_file_times
 
 
+@patch("torchci.update_test_times.clean_up_test_times", lambda x: x)
 class TestUpdateTestTimesFile(unittest.TestCase):
     def make_db_row(self, job: str, config: str, file: str, time: float):
         return {"base_name": job, "test_config": config, "file": file, "time": time}
@@ -98,6 +100,7 @@ class TestUpdateTestTimesFile(unittest.TestCase):
         self.assertDictEqual(res, expected)
 
 
+@patch("torchci.update_test_times.clean_up_test_times", lambda x: x)
 class TestUpdateTestTimesClass(unittest.TestCase):
     def make_db_row(
         self, job: str, config: str, file: str, classname: str, time: float
@@ -213,6 +216,36 @@ class TestUpdateTestTimesClass(unittest.TestCase):
             },
         }
         self.assertDictEqual(res, expected)
+
+
+class TestCleanUpOldBuildEnvs(unittest.TestCase):
+    def make_db_row(self, job: str, config: str, file: str, time: float):
+        return {"base_name": job, "test_config": config, "file": file, "time": time}
+
+    def test_clean_up_simple(self) -> None:
+        # Simple test to make sure the other build envs are removed
+        data = [
+            self.make_db_row("job1", "config", "a", 1),
+            self.make_db_row("job2", "config", "a", 1),
+            self.make_db_row("job3", "config", "a", 1),
+        ]
+        with patch(
+            "torchci.update_test_times.query_clickhouse_saved",
+            return_value=[{"base_name": "job1"}],
+        ):
+            res = gen_test_file_times(data, {})
+            expected = {
+                "job1": {"config": {"a": 1}},
+                "default": {
+                    "config": {
+                        "a": 1.0,
+                    },
+                    "default": {
+                        "a": 1.0,
+                    },
+                },
+            }
+            self.assertDictEqual(res, expected)
 
 
 if __name__ == "__main__":
