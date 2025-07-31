@@ -200,5 +200,8 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu${CUDA_VERSION_NODOT}"
         fi
 
-        python3 -m pip install torch --progress-bar off --index-url ${DWN_PYTORCH_ORG}
+        export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        source $HOME/.local/bin/env
+        uv pip install torch --index-url https://download.pytorch.org/whl/test/variant
         python3 .ci/pytorch/smoke_test/smoke_test.py --package torchonly
