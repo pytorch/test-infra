@@ -80,9 +80,7 @@ def convert_test_class_times_to_default_dict(d):
 
 def clean_up_test_times(test_times) -> None:
     # Remove old environments that no longer run jobs
-    job_names_past_month = query_clickhouse_saved(
-        JOB_NAMES_PAST_MONTH_QUERY_NAME, {}
-    )
+    job_names_past_month = query_clickhouse_saved(JOB_NAMES_PAST_MONTH_QUERY_NAME, {})
     job_names = {row["base_name"] for row in job_names_past_month}
     job_names.add("default")  # Add default to job names
     for env in list(test_times.keys()):
