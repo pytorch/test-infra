@@ -1,0 +1,5 @@
+# Stores cached data for GitHub API responses
+cache/
+
+# Gets temporarily created by the script
+scale-config.yml

@@ -67,7 +67,7 @@ import requests
 import yaml
 from dotenv import load_dotenv
 
-from tools.analytics.cache_manager import CACHE_DIR, CacheManager
+from cache_manager import CACHE_DIR, CacheManager
 
 
 load_dotenv()
