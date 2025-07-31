@@ -91,6 +91,8 @@ EXCLUDED_REPOS = [
     "pytorch/cppdocs",
     "pytorch/pytorch.github.io",
     "pytorch/examples",
+    # archived but not marked as such in github repo settings
+    "pytorch/serve",
     # proposed
     "pytorch/builder",
     "pytorch/xla",
@@ -101,8 +103,6 @@ EXCLUDED_REPOS = [
 # List of runner labels to exclude from "runners not in scale-config" analysis
 # These are typically GitHub-hosted runners or other known external runners
 GITHUB_RUNNER_LABELS = [
-    "linux.24_04.4x",
-    "linux.24_04.16x",
     "ubuntu-latest",
     "ubuntu-22.04",
     "ubuntu-24.04",
@@ -110,17 +110,33 @@ GITHUB_RUNNER_LABELS = [
     "ubuntu-18.04",
     "windows-latest",
     "windows-2022",
-    "windows-11-arm64",
     "macos-latest",
     "macos-14",
+    "macos-14-xlarge",
     "macos-13",
     "macos-12",
-    "macos-14-xlarge",
+    # Offered at Meta enterprise level
+    "8-core-ubuntu",
+    "4-core-ubuntu",
+    "windows-8-core",
+    "4-core-ubuntu-gpu-t4",
+    "4-core-windows-gpu-t4",
+    "32-core-ubuntu",
+    "16-core-ubuntu",
+    "2-core-ubuntu-arm",
+    "4-core-ubuntu-arm",
+    "8-core-ubuntu-22.04",
+    "4-core-ubuntu-24.04",
+    # needs special access
+    "linux.24_04.4x",
+    "linux.24_04.16x",
+    "windows-11-arm64",
     # Add more runner labels to exclude here as needed
 ]
 
 USELESS_RUNNER_LABELS = [
-    "self-hosted",  # really, a useless label we want to ignoreß
+    "self-hosted",  # really, a useless label we want to ignore
+    "linux.g5.4xlarge.nvidia.cpu", # a nonexistent label used by a repo
 ]
 
 HEADERS = {
@@ -681,6 +697,20 @@ def main():
         if repos_by_github_runner:
             output_data["repos_by_github_runner"] = dict(repos_by_github_runner)
 
+        # --- SORT OUTPUT ALPHABETICALLY FOR CONSISTENCY (except top-level keys) ---
+        def deep_sort(obj, sort_keys=True):
+            if isinstance(obj, dict):
+                keys = sorted(obj) if sort_keys else obj.keys()
+                return {k: deep_sort(obj[k]) for k in keys}
+            elif isinstance(obj, list):
+                # If list of dicts with 'repo' key, sort by 'repo', else sort normally
+                if obj and isinstance(obj[0], dict) and 'repo' in obj[0]:
+                    return sorted([deep_sort(x) for x in obj], key=lambda x: x['repo'])
+                return sorted(deep_sort(x) for x in obj)
+            else:
+                return obj
+
+        output_data = deep_sort(output_data, sort_keys=False)
         save_to_yaml(output_data)
 
         # Show final cache stats
