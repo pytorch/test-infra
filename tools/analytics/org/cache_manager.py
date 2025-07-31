@@ -4,6 +4,8 @@ import re
 from pathlib import Path
 from typing import Dict, Optional
 
+import requests
+
 
 # Cache configuration
 CACHE_DIR = Path("cache")
@@ -96,3 +98,80 @@ class CacheManager:
             logging.debug(f"[CacheManager] Cached response for URL: {url}")
         except IOError as e:
             logging.error(f"[CacheManager] Failed to write cache for {url}: {e}")
+
+
+# Global cache manager instance
+cache_manager = CacheManager()
+
+
+def get_cache_stats():
+    """Get statistics about the cache."""
+    if not CACHE_DIR.exists():
+        return {"total_files": 0, "total_size_mb": 0}
+
+    cache_files = list(CACHE_DIR.glob("*.json"))
+    total_size = sum(f.stat().st_size for f in cache_files)
+
+    return {
+        "total_files": len(cache_files),
+        "total_size_mb": round(total_size / (1024 * 1024), 2),
+    }
+
+
+def clear_cache():
+    """Clear all cached data."""
+    import shutil
+
+    if CACHE_DIR.exists():
+        shutil.rmtree(CACHE_DIR)
+        CACHE_DIR.mkdir(exist_ok=True)
+        logging.info(f"[clear_cache] Cleared cache directory: {CACHE_DIR}")
+    else:
+        logging.info(f"[clear_cache] Cache directory does not exist: {CACHE_DIR}")
+
+
+HEADERS = {
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json",
+}
+
+
+def make_cached_request(
+    url: str, headers: Optional[Dict[str, str]] = None
+) -> Optional[Dict]:
+    """
+    Make an HTTP request with caching. Returns the JSON response if successful.
+
+    Args:
+        url: The URL to request
+        headers: Optional headers for the request
+
+    Returns:
+        JSON response data if successful, None if failed
+    """
+    # Check cache first
+    cached_response = cache_manager.get(url)
+    if cached_response:
+        logging.info(f"[make_cached_request] Using cached response for: {url}")
+        return cached_response
+
+    # Make actual HTTP request
+    logging.info(f"[make_cached_request] Making HTTP request to: {url}")
+    try:
+        response = requests.get(url, headers=headers or HEADERS)
+        response.raise_for_status()
+        data = response.json()
+
+        # Cache successful response
+        cache_manager.set(url, data)
+        logging.info(f"[make_cached_request] Successfully cached response for: {url}")
+        return data
+
+    except requests.exceptions.RequestException as e:
+        logging.error(f"[make_cached_request] HTTP request failed for {url}: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        logging.error(
+            f"[make_cached_request] Failed to parse JSON response for {url}: {e}"
+        )
+        return None
