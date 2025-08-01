@@ -91,7 +91,7 @@ else
 
     
     if [[ ${TARGET_OS} == 'windows' ]]; then
-        powershell -ExecutionPolicy Bypass -c {$env:INSTALLER_DOWNLOAD_URL='https://wheelnext.astral.sh'; irm https://astral.sh/uv/install.ps1 | iex}
+        powershell -ExecutionPolicy Bypass -c "$env:INSTALLER_DOWNLOAD_URL='https://wheelnext.astral.sh'; irm https://astral.sh/uv/install.ps1 | iex"
         export PATH="${HOME}/.local/bin/:${PATH}"
         uv pip install torch torchvision
     else
