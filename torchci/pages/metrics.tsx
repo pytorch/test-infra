@@ -771,7 +771,7 @@ export default function Page() {
               queryParams={timeParams}
               badThreshold={(value) => value > 2.0} // 2.0 average retries
             />
-             <ScalarPanel
+            <ScalarPanel
               title={"PR landing time (avg)"}
               queryName={"pr_landing_time_avg"}
               metricName={"avg_hours"}
