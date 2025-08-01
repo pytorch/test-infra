@@ -130,7 +130,7 @@ jobs:
     uses: ./.github/workflows/linux_job_v2.yml
     name: ${{ matrix.build_name }}
     with:
-      runner: ${{ matrix.validation_runner }}
+      runner: linux.p3.8xlarge.nvidia.gpu
       repository: "pytorch/pytorch"
       ref: main
       job-name: ${{ matrix.build_name }}
