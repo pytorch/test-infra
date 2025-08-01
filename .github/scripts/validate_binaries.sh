@@ -91,15 +91,15 @@ else
 
     
     if [[ ${TARGET_OS} == 'windows' ]]; then
-        export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
+        export UV_DOWNLOAD_URL=https://wheelnext.astral.sh
         powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
         export PATH="${HOME}/.local/bin/:${PATH}"
-        uv pip install torch torchvision --index-url https://download.pytorch.org/whl/variant
+        uv pip install torch torchvision
     else
-        export INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh
+        export UV_DOWNLOAD_URL=https://wheelnext.astral.sh
         curl -LsSf https://astral.sh/uv/install.sh | sh
         source $HOME/.local/bin/env
-        uv pip install torch torchvision --index-url https://download.pytorch.org/whl/variant
+        uv pip install torch torchvision
     fi
 
     # test with numpy 1.x installation needs to happen after torch install
