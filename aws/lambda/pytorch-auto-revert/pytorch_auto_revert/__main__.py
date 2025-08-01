@@ -84,6 +84,16 @@ def get_opts() -> argparse.Namespace:
         action="store_true",
         help="Show detailed output including commit summaries",
     )
+    workflow_parser.add_argument(
+        "--do-restart",
+        action="store_true",
+        help="Actually restart workflows for detected autorevert patterns",
+    )
+    workflow_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be restarted without actually doing it (use with --do-restart)",
+    )
 
     # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
@@ -146,7 +156,13 @@ def main(*args, **kwargs) -> None:
     if opts.subcommand == "lambda":
         print("TODO: run lambda flow")
     elif opts.subcommand == "autorevert-checker":
-        autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
+        autorevert_checker(
+            opts.workflows,
+            hours=opts.hours,
+            verbose=opts.verbose,
+            do_restart=opts.do_restart,
+            dry_run=opts.dry_run,
+        )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "do-restart":

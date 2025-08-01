@@ -1,10 +1,15 @@
 from collections import defaultdict
 
 from ..autorevert_checker import AutorevertPatternChecker
+from ..workflow_checker import WorkflowRestartChecker
 
 
 def autorevert_checker(
-    workflow_names: list[str], hours: int = 48, verbose: bool = False
+    workflow_names: list[str],
+    hours: int = 48,
+    verbose: bool = False,
+    do_restart: bool = False,
+    dry_run: bool = False,
 ):
     # Initialize checker
     checker = AutorevertPatternChecker(workflow_names, hours)
@@ -67,6 +72,10 @@ def autorevert_checker(
             workflow_names=[], lookback_hours=hours * 2
         )
 
+        # Initialize workflow restart checker if needed
+        restart_checker = WorkflowRestartChecker() if do_restart else None
+        restarted_commits = []
+
         # Track reverts
         reverted_patterns = []
 
@@ -105,6 +114,37 @@ def autorevert_checker(
                 reverted_patterns.append(pattern)
             else:
                 print(f"✗ NOT REVERTED: {second_commit} was not reverted")
+
+                # Try to restart workflow if --do-restart flag is set and not already reverted
+                if do_restart and restart_checker:
+                    # Restart for the second commit (older of the two failures)
+                    workflow_name = pattern["workflow_name"]
+
+                    # Check if already restarted
+                    if restart_checker.has_restarted_workflow(
+                        workflow_name, second_commit
+                    ):
+                        print(
+                            f"  ⟳ ALREADY RESTARTED: {workflow_name} for {second_commit[:8]}"
+                        )
+                    elif dry_run:
+                        print(
+                            f"  ⟳ DRY RUN: Would restart {workflow_name} for {second_commit[:8]}"
+                        )
+                        restarted_commits.append((workflow_name, second_commit))
+                    else:
+                        success = restart_checker.restart_workflow(
+                            workflow_name, second_commit
+                        )
+                        if success:
+                            print(
+                                f"  ✓ RESTARTED: {workflow_name} for {second_commit[:8]}"
+                            )
+                            restarted_commits.append((workflow_name, second_commit))
+                        else:
+                            print(
+                                f"  ✗ FAILED TO RESTART: {workflow_name} for {second_commit[:8]}"
+                            )
 
             if verbose:
                 print(f"Failed jobs ({len(pattern['failed_job_names'])}):")
@@ -215,6 +255,12 @@ def autorevert_checker(
                 print(
                     f"  - {pattern['failure_rule']}: {second_commit[:8]} ({category})"
                 )
+
+        # Show restart summary if applicable
+        if do_restart and restarted_commits:
+            print(f"\nRestarted workflows: {len(restarted_commits)}")
+            for workflow, commit in restarted_commits:
+                print(f"  - {workflow} for {commit[:8]}")
 
     else:
         print("✗ No autorevert patterns detected")
