@@ -13,7 +13,7 @@ def extract_parameter_types(
     tmp_path: pathlib.Path,
 ) -> List[Optional[api.types.TypeHint]]:
     """Extracts the parameter types from a function definition."""
-    funcs = api.ast.extract(tmp_path)
+    funcs = api.ast.extract(tmp_path).functions
     if not funcs:
         return []
     return [
