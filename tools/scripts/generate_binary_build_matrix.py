@@ -95,7 +95,7 @@ LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.g4dn.xlarge"
 WIN_CPU_RUNNER = "windows.4xlarge"
-WIN_ARM64_RUNNER = "windows-11-arm64"
+WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
@@ -237,11 +237,7 @@ def get_libtorch_install_command(
         if libtorch_config == "debug"
         else libtorch_variant
     )
-    build_name = (
-        f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip"
-        if devtoolset == "cxx11-abi"
-        else f"{prefix}-{_libtorch_variant}-latest.zip"
-    )
+    build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
 
     if os == MACOS_ARM64:
         arch = "arm64"
@@ -251,9 +247,7 @@ def get_libtorch_install_command(
 
     elif os == LINUX and (channel in (RELEASE, TEST)):
         build_name = (
-            f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
-            if devtoolset == "cxx11-abi"
-            else f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+            f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
         )
     elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (

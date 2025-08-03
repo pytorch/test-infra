@@ -20,15 +20,11 @@ jobs:
           - repo: pytorch/pytorch
             branch: main
             with_flaky_test_alerting: YES
-            job_filter_regex: ""
+            job_filter_regex: "^(pull|trunk|lint|linux-binary-)"
           - repo: pytorch/pytorch
             branch: nightly
             with_flaky_test_alerting: NO
             job_filter_regex: ""
-          - repo: pytorch/builder
-            branch: main
-            with_flaky_test_alerting: NO
-            job_filter_regex: ".*nightly.pypi.binary.size.validation|cron / release /"
     env:
       REPO_TO_CHECK: ${{ matrix.repo }}
       BRANCH_TO_CHECK: ${{ matrix.branch }}

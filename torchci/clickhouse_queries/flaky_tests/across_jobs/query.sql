@@ -37,6 +37,7 @@ with failed_jobs as (
         and w.name in ('trunk', 'pull')
         and job.name not like '%mem_leak_check%'
         and job.name not like '%rerun_disabled_tests%'
+        and w.event != 'workflow_dispatch'  -- Filter out restart jobs
     order by
         job._event_time
 ),
