@@ -234,7 +234,7 @@ jobs:
               ${CONDA_RUN} ${ENV_SCRIPT} python setup.py clean
             fi
           fi
-      - name: Set PyTorch version
+      - name: Set PYTORCH_VERSION on x64
         if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
         run: |
@@ -246,7 +246,6 @@ jobs:
           else
             export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           fi
-          echo "PYTORCH_VERSION=${PYTORCH_VERSION}" >> "${GITHUB_ENV}"
       - name: Build the wheel (python-build-package) X64
         if: ${{ inputs.build-platform == 'python-build-package' && inputs.architecture == 'x64' }}
         working-directory: ${{ inputs.repository }}
