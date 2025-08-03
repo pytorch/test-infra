@@ -234,6 +234,19 @@ jobs:
               ${CONDA_RUN} ${ENV_SCRIPT} python setup.py clean
             fi
           fi
+      - name: Set PyTorch version
+        if: inputs.architecture == 'x64'
+        working-directory: ${{ inputs.repository }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          if [[ "$CU_VERSION" == "cpu" ]]; then
+          # CUDA and CPU are ABI compatible on the CPU-only parts, so strip
+          # in this case
+            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
+          else
+            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
+          fi
+          echo "PYTORCH_VERSION=${PYTORCH_VERSION}" >> "${GITHUB_ENV}"
       - name: Build the wheel (python-build-package) X64
         if: ${{ inputs.build-platform == 'python-build-package' && inputs.architecture == 'x64' }}
         working-directory: ${{ inputs.repository }}
@@ -242,18 +255,8 @@ jobs:
           BUILD_PARAMS: ${{ inputs.wheel-build-params }}
         run: |
           source "${BUILD_ENV_FILE}"
-
-          if [[ "$CU_VERSION" == "cpu" ]]; then
-          # CUDA and CPU are ABI compatible on the CPU-only parts, so strip
-          # in this case
-            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          else
-            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
-          fi
-
           ${CONDA_RUN} python -m pip install build==1.2.2
           echo "Successfully installed Python build package"
-
           export BUILD_AGAINST_ALL_FFMPEG_FROM_S3=1
           if [[ -z "${ENV_SCRIPT}" ]]; then
             ${CONDA_RUN} ${{ inputs.build-command }}
@@ -268,15 +271,6 @@ jobs:
           BUILD_PARAMS: ${{ inputs.wheel-build-params }}
         run: |
           source "${BUILD_ENV_FILE}"
-
-          if [[ "$CU_VERSION" == "cpu" ]]; then
-          # CUDA and CPU are ABI compatible on the CPU-only parts, so strip
-          # in this case
-            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//' | sed 's/+.\+//')"
-          else
-            export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
-          fi
-
           if [[ -z "${ENV_SCRIPT}" ]]; then
             ${CONDA_RUN} python setup.py bdist_wheel
           else
