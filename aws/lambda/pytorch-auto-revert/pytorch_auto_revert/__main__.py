@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import logging
 import os
 
@@ -133,7 +134,7 @@ def main(*args, **kwargs) -> None:
     )
     GHClientFactory.setup_client(
         opts.github_app_id,
-        opts.github_app_secret,
+        base64.b64decode(opts.github_app_secret).decode("utf-8") if opts.github_app_secret else "",
         opts.github_installation_id,
         opts.github_access_token,
     )
