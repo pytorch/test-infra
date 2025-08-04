@@ -7,10 +7,10 @@ $VS_VERSION_major = [int] ${env:VS_VERSION}.split(".")[0]
 
 $VS_DOWNLOAD_LINK = "https://aka.ms/vs/$VS_VERSION_major/release/vs_BuildTools.exe"
 
-# Pin to older vs_buildtools version for cuda 11.8 and 12.1 builds
-# see issue: https://github.com/nerfstudio-project/nerfstudio/issues/3157
+# Select latest LTSC version: 17.12, from https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history
+# The early version which fixed illegal instruction is 17.9.4, from https://github.com/pytorch/pytorch/issues/145702#issuecomment-2863244306
 if ( ${env:VS_YEAR} -eq "2022" ) {
-    $VS_DOWNLOAD_LINK = "https://aka.ms/vs/17/release.ltsc.17.8/vs_buildtools.exe"
+    $VS_DOWNLOAD_LINK = "https://aka.ms/vs/17/release.ltsc.17.12/vs_buildtools.exe"
 }
 
 $COLLECT_DOWNLOAD_LINK = "https://aka.ms/vscollect.exe"
