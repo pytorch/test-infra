@@ -1,101 +1,68 @@
-"""Configuration management for GPU Dev CLI"""
+"""Minimal configuration for GPU Dev CLI - Zero setup required"""
 
 import os
-import json
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
-from pathlib import Path
+import boto3
+from typing import Dict, Any
 
-class Config(BaseModel):
-    """Configuration model for GPU Dev CLI"""
+class Config:
+    """Zero-config AWS-based configuration"""
     
-    aws_region: str = Field(default="us-east-2")
-    queue_url: str = Field(...)
-    reservations_table: str = Field(...)
-    servers_table: str = Field(...)
-    cluster_name: str = Field(...)
-    github_org: str = Field(default="pytorch")
-    github_repo: str = Field(default="pytorch")
-    github_team: str = Field(default="metamates")
-    github_token: Optional[str] = Field(default=None)
+    def __init__(self):
+        # Get region from AWS env or default
+        self.aws_region = os.getenv('AWS_REGION', os.getenv('AWS_DEFAULT_REGION', 'us-east-2'))
+        
+        # Resource naming convention - no config needed!
+        self.prefix = "pytorch-gpu-dev"
+        
+        # Construct ARNs from convention
+        self.queue_name = f"{self.prefix}-reservation-queue"
+        self.reservations_table = f"{self.prefix}-reservations"
+        self.servers_table = f"{self.prefix}-servers"
+        self.cluster_name = f"{self.prefix}-cluster"
+        
+        # AWS clients
+        self._sts_client = None
+        self._sqs_client = None
+        self._dynamodb = None
+        
+    @property
+    def sts_client(self):
+        if self._sts_client is None:
+            self._sts_client = boto3.client('sts', region_name=self.aws_region)
+        return self._sts_client
     
-    class Config:
-        env_prefix = "GPU_DEV_"
-
-def get_config_path() -> Path:
-    """Get the configuration file path"""
-    config_dir = Path.home() / ".config" / "gpu-dev-cli"
-    config_dir.mkdir(parents=True, exist_ok=True)
-    return config_dir / "config.json"
+    @property 
+    def sqs_client(self):
+        if self._sqs_client is None:
+            self._sqs_client = boto3.client('sqs', region_name=self.aws_region)
+        return self._sqs_client
+    
+    @property
+    def dynamodb(self):
+        if self._dynamodb is None:
+            self._dynamodb = boto3.resource('dynamodb', region_name=self.aws_region)
+        return self._dynamodb
+    
+    def get_queue_url(self) -> str:
+        """Get SQS queue URL by name"""
+        try:
+            response = self.sqs_client.get_queue_url(QueueName=self.queue_name)
+            return response['QueueUrl']
+        except Exception as e:
+            raise RuntimeError(f"Cannot access SQS queue {self.queue_name}. Check AWS permissions: {e}")
+    
+    def get_user_identity(self) -> Dict[str, Any]:
+        """Get current AWS user identity"""
+        try:
+            response = self.sts_client.get_caller_identity()
+            return {
+                'user_id': response['UserId'],
+                'account': response['Account'],
+                'arn': response['Arn']
+            }
+        except Exception as e:
+            raise RuntimeError(f"Cannot get AWS caller identity. Check AWS credentials: {e}")
 
 def load_config() -> Config:
-    """Load configuration from file and environment"""
-    config_path = get_config_path()
-    
-    config_data = {}
-    
-    # Load from file if exists
-    if config_path.exists():
-        with open(config_path, 'r') as f:
-            config_data = json.load(f)
-    
-    # Override with environment variables
-    env_vars = {
-        'aws_region': os.getenv('GPU_DEV_AWS_REGION', os.getenv('AWS_REGION')),
-        'queue_url': os.getenv('GPU_DEV_QUEUE_URL'),
-        'reservations_table': os.getenv('GPU_DEV_RESERVATIONS_TABLE'),
-        'servers_table': os.getenv('GPU_DEV_SERVERS_TABLE'),
-        'cluster_name': os.getenv('GPU_DEV_CLUSTER_NAME'),
-        'github_org': os.getenv('GPU_DEV_GITHUB_ORG'),
-        'github_repo': os.getenv('GPU_DEV_GITHUB_REPO'),
-        'github_team': os.getenv('GPU_DEV_GITHUB_TEAM'),
-        'github_token': os.getenv('GPU_DEV_GITHUB_TOKEN', os.getenv('GITHUB_TOKEN')),
-    }
-    
-    # Update config_data with non-None environment variables
-    for key, value in env_vars.items():
-        if value is not None:
-            config_data[key] = value
-    
-    return Config(**config_data)
-
-def save_config(config: Config) -> None:
-    """Save configuration to file"""
-    config_path = get_config_path()
-    
-    with open(config_path, 'w') as f:
-        json.dump(config.dict(exclude_none=True), f, indent=2)
-
-def init_config() -> Config:
-    """Initialize configuration with prompts"""
-    import click
-    
-    click.echo("🚀 Initializing GPU Dev CLI configuration...")
-    
-    # Get required values
-    queue_url = click.prompt("SQS Queue URL")
-    reservations_table = click.prompt("Reservations DynamoDB Table")
-    servers_table = click.prompt("Servers DynamoDB Table")
-    cluster_name = click.prompt("EKS Cluster Name")
-    
-    # Optional values
-    aws_region = click.prompt("AWS Region", default="us-east-2")
-    github_org = click.prompt("GitHub Organization", default="pytorch")
-    github_repo = click.prompt("GitHub Repository", default="pytorch")
-    github_team = click.prompt("GitHub Team", default="metamates")
-    
-    config = Config(
-        aws_region=aws_region,
-        queue_url=queue_url,
-        reservations_table=reservations_table,
-        servers_table=servers_table,
-        cluster_name=cluster_name,
-        github_org=github_org,
-        github_repo=github_repo,
-        github_team=github_team
-    )
-    
-    save_config(config)
-    click.echo("✅ Configuration saved!")
-    
-    return config
+    """Load zero-config setup"""
+    return Config()

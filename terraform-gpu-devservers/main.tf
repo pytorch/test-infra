@@ -44,7 +44,7 @@ resource "aws_internet_gateway" "gpu_dev_igw" {
   }
 }
 
-# Single AZ subnet for EFA requirements
+# Primary subnet for EFA requirements (GPU nodes)
 resource "aws_subnet" "gpu_dev_subnet" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
   cidr_block              = var.subnet_cidr
@@ -53,6 +53,19 @@ resource "aws_subnet" "gpu_dev_subnet" {
 
   tags = {
     Name        = "${var.prefix}-gpu-dev-subnet"
+    Environment = var.environment
+  }
+}
+
+# Secondary subnet for EKS control plane (different AZ)
+resource "aws_subnet" "gpu_dev_subnet_secondary" {
+  vpc_id                  = aws_vpc.gpu_dev_vpc.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = data.aws_availability_zones.available.names[1]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name        = "${var.prefix}-gpu-dev-subnet-secondary"
     Environment = var.environment
   }
 }
@@ -74,6 +87,11 @@ resource "aws_route_table" "gpu_dev_rt" {
 
 resource "aws_route_table_association" "gpu_dev_rta" {
   subnet_id      = aws_subnet.gpu_dev_subnet.id
+  route_table_id = aws_route_table.gpu_dev_rt.id
+}
+
+resource "aws_route_table_association" "gpu_dev_rta_secondary" {
+  subnet_id      = aws_subnet.gpu_dev_subnet_secondary.id
   route_table_id = aws_route_table.gpu_dev_rt.id
 }
 

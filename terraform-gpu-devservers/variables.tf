@@ -16,7 +16,7 @@ variable "prefix" {
   description = "Prefix for resource names"
   type        = string
   default     = "pytorch-gpu-dev"
-}
+} 
 
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
@@ -55,8 +55,9 @@ variable "instance_type" {
       "g5.8xlarge",      # 1x A10G, ~$2.18/hour
       "p3.2xlarge",      # 1x V100, ~$3.06/hour
       "p3.8xlarge",      # 4x V100, ~$12.24/hour
-      "p4d.24xlarge",    # 8x A100, ~$32.77/hour
-      "p5.48xlarge",     # 8x H100, ~$98/hour
+      "p4d.24xlarge",    # 8x A100, ~$24.77/hour
+      "p5.48xlarge",     # 8x H100, ~$55/hour
+      "p6-b200.48xlarge" # 8x B200, ~$114/hour
     ], var.instance_type)
     error_message = "Instance type must be a supported GPU instance type."
   }
@@ -65,6 +66,7 @@ variable "instance_type" {
 variable "key_pair_name" {
   description = "Name of the EC2 Key Pair for SSH access"
   type        = string
+  default     = "pet-instances-skeleton-key-v2"
 }
 
 variable "github_org" {

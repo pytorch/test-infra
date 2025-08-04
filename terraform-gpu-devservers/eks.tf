@@ -72,7 +72,10 @@ resource "aws_eks_cluster" "gpu_dev_cluster" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
-    subnet_ids = [aws_subnet.gpu_dev_subnet.id]
+    subnet_ids = [
+      aws_subnet.gpu_dev_subnet.id,
+      aws_subnet.gpu_dev_subnet_secondary.id
+    ]
   }
 
   depends_on = [
@@ -92,20 +95,14 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = [aws_subnet.gpu_dev_subnet.id]
 
-  # Use GPU-optimized AMI
-  ami_type       = "AL2_x86_64_GPU"
-  instance_types = [var.instance_type]
-  capacity_type  = "ON_DEMAND"
+  # Use CUSTOM AMI type when launch template specifies image_id
+  ami_type      = "CUSTOM"
+  capacity_type = "ON_DEMAND"
 
   scaling_config {
     desired_size = var.gpu_instance_count
     max_size     = var.gpu_instance_count
     min_size     = 0
-  }
-
-  # SSH access
-  remote_access {
-    ec2_ssh_key = var.key_pair_name
   }
 
   # Launch template for custom configuration (EFA, spot instances, etc.)
@@ -131,18 +128,17 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   name_prefix   = "${var.prefix}-gpu-lt-"
   image_id      = data.aws_ami.eks_gpu_ami.id
   instance_type = var.instance_type
-
-  vpc_security_group_ids = [aws_security_group.gpu_dev_sg.id]
+  key_name      = var.key_pair_name
 
   placement {
     group_name = aws_placement_group.gpu_dev_pg.name
   }
 
-  # Enable EFA
+  # Network interface (EFA only for supported instance types like p5.48xlarge)
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    interface_type              = "efa"
+    interface_type              = can(regex("^(p5\\.48xlarge|p6-b200\\.48xlarge)$", var.instance_type)) ? "efa" : "interface"
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data.sh", {

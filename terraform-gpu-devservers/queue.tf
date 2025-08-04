@@ -107,11 +107,13 @@ resource "aws_dynamodb_table" "gpu_reservations" {
   global_secondary_index {
     name     = "UserIndex"
     hash_key = "user_id"
+    projection_type = "ALL"
   }
 
   global_secondary_index {
     name     = "StatusIndex"
     hash_key = "status"
+    projection_type = "ALL"
   }
 
   ttl {
@@ -144,6 +146,7 @@ resource "aws_dynamodb_table" "gpu_servers" {
   global_secondary_index {
     name     = "StatusIndex"
     hash_key = "status"
+    projection_type = "ALL"
   }
 
   tags = {
