@@ -47,6 +47,16 @@ on:
         description: "Name of the actual python package that is imported"
         default: ""
         type: string
+      build-platform:
+        description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
+        required: false
+        type: string
+        default: 'setup-py'
+      build-command:
+        description: The build command to use if build-platform is python-build-package
+        required: false
+        default: "python -m build --wheel"
+        type: string
       trigger-event:
         description: "Trigger Event in caller that determines whether or not to upload"
         default: ""
@@ -224,15 +234,11 @@ jobs:
               ${CONDA_RUN} ${ENV_SCRIPT} python setup.py clean
             fi
           fi
-      - name: Build the wheel (bdist_wheel) X64
+      - name: Set PYTORCH_VERSION on x64
         if: inputs.architecture == 'x64'
         working-directory: ${{ inputs.repository }}
-        env:
-          ENV_SCRIPT: ${{ inputs.env-script }}
-          BUILD_PARAMS: ${{ inputs.wheel-build-params }}
         run: |
           source "${BUILD_ENV_FILE}"
-
           if [[ "$CU_VERSION" == "cpu" ]]; then
           # CUDA and CPU are ABI compatible on the CPU-only parts, so strip
           # in this case
@@ -240,7 +246,29 @@ jobs:
           else
             export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version:  *//')"
           fi
-
+      - name: Build the wheel (python-build-package) X64
+        if: ${{ inputs.build-platform == 'python-build-package' && inputs.architecture == 'x64' }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          ENV_SCRIPT: ${{ inputs.env-script }}
+          BUILD_PARAMS: ${{ inputs.wheel-build-params }}
+        run: |
+          source "${BUILD_ENV_FILE}"
+          ${CONDA_RUN} python -m pip install build==1.2.2
+          echo "Successfully installed Python build package"
+          if [[ -z "${ENV_SCRIPT}" ]]; then
+            ${CONDA_RUN} ${{ inputs.build-command }}
+          else
+            ${CONDA_RUN} ${ENV_SCRIPT} ${{ inputs.build-command }}
+          fi
+      - name: Build the wheel (setup-py) X64
+        if: ${{ inputs.build-platform == 'setup-py' && inputs.architecture == 'x64' }}
+        working-directory: ${{ inputs.repository }}
+        env:
+          ENV_SCRIPT: ${{ inputs.env-script }}
+          BUILD_PARAMS: ${{ inputs.wheel-build-params }}
+        run: |
+          source "${BUILD_ENV_FILE}"
           if [[ -z "${ENV_SCRIPT}" ]]; then
             ${CONDA_RUN} python setup.py bdist_wheel
           else
