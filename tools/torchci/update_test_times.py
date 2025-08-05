@@ -8,10 +8,10 @@ from torchci.clickhouse import query_clickhouse_saved  # type: ignore[import-not
 TEST_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-times.json"
 TEST_CLASS_TIMES_URL = "https://raw.githubusercontent.com/pytorch/test-infra/generated-stats/stats/test-class-times.json"
 
-TEST_TIME_PER_FILE_QUERY_NAME = "test_time_per_file"
-TEST_TIME_PER_FILE_PERIODIC_JOBS_QUERY_NAME = "test_time_per_file_periodic_jobs"
-TEST_TIME_PER_CLASS_QUERY_NAME = "test_time_per_class"
-TEST_TIME_PER_CLASS_PERIODIC_JOBS_QUERY_NAME = "test_time_per_class_periodic_jobs"
+TEST_TIME_PER_FILE_QUERY_NAME = "test_times/per_file"
+TEST_TIME_PER_FILE_PERIODIC_JOBS_QUERY_NAME = "test_times/per_file_periodic_jobs"
+TEST_TIME_PER_CLASS_QUERY_NAME = "test_times/per_class"
+TEST_TIME_PER_CLASS_PERIODIC_JOBS_QUERY_NAME = "test_times/per_class_periodic_jobs"
 
 
 def get_file_data_from_db():
