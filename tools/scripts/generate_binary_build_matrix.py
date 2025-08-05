@@ -99,6 +99,7 @@ WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
@@ -274,10 +275,16 @@ def get_wheel_install_command(
     python_version: str,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
+    getting_started: bool = False,
 ) -> str:
+    PACKAGES_TO_INSTALL = (
+        PACKAGES_TO_INSTALL_GETTING_STARTED_WHL
+        if getting_started
+        else PACKAGES_TO_INSTALL_WHL
+    )
     if use_split_build:
         if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
-            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"  # noqa: E501
+            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"  # noqa: E501
         else:
             raise ValueError(
                 "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.4, 12.6 on Linux nightly builds."  # noqa: E501
@@ -291,7 +298,7 @@ def get_wheel_install_command(
             or (os == LINUX_AARCH64)
         )
     ):
-        return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+        return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
     else:
         whl_install_command = ""
         if os == WINDOWS_ARM64:
@@ -300,9 +307,9 @@ def get_wheel_install_command(
                 f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
             )
         elif channel == "nightly":
-            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
+            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL}"
         else:
-            whl_install_command = f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+            whl_install_command = f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
 
 
@@ -409,6 +416,7 @@ def generate_wheels_matrix(
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
+    getting_started: bool = False,
     python_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -483,6 +491,8 @@ def generate_wheels_matrix(
                     desired_cuda,
                     python_version,
                     use_only_dl_pytorch_org,
+                    use_split_build,
+                    getting_started,
                 ),
                 "channel": channel,
                 "upload_to_base_bucket": upload_to_base_bucket,
@@ -526,6 +536,7 @@ def generate_build_matrix(
     use_only_dl_pytorch_org: str,
     build_python_only: str,
     use_split_build: str = "false",
+    getting_started: str = "false",
     python_versions: Optional[List[str]] = None,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
@@ -550,6 +561,7 @@ def generate_build_matrix(
                     limit_pr_builds == "true",
                     use_only_dl_pytorch_org == "true",
                     use_split_build == "true",
+                    getting_started == "true",
                     python_versions,
                 )
             )
@@ -646,6 +658,14 @@ def main(args: List[str]) -> None:
     )
 
     parser.add_argument(
+        "--getting-started",
+        help="Matrix for getting started page",
+        type=str,
+        choices=["true", "false"],
+        default=os.getenv("GETTING_STARTED", "false"),
+    )
+
+    parser.add_argument(
         "--python-versions",
         help="Only build the select JSON-encoded list of python versions",
         type=str,
@@ -674,6 +694,7 @@ def main(args: List[str]) -> None:
         options.use_only_dl_pytorch_org,
         options.build_python_only,
         options.use_split_build,
+        options.getting_started,
         python_versions,
     )
 
