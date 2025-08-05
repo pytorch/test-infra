@@ -7,8 +7,6 @@ import os
 from datetime import datetime, timedelta
 from typing import Dict, Set
 
-import requests
-
 from .clickhouse_client_helper import CHCliFactory
 
 
@@ -125,20 +123,20 @@ class WorkflowRestartChecker:
             )
             return False
 
-        # Use GitHub token from environment or client
-        github_token = os.getenv("GITHUB_TOKEN")
-        if not github_token:
-            # Try to get from GitHub client if available
-            try:
-                from .github_client_helper import GHClientFactory
+        # Get GitHub client
+        try:
+            from .github_client_helper import GHClientFactory
 
-                if GHClientFactory().token_auth_provided:
-                    github_token = GHClientFactory()._token
-            except Exception:
-                pass
+            if not (
+                GHClientFactory().token_auth_provided
+                or GHClientFactory().key_auth_provided
+            ):
+                logging.error("GitHub authentication not configured")
+                return False
 
-        if not github_token:
-            logging.error("GITHUB_TOKEN not available for workflow dispatch")
+            client = GHClientFactory().client
+        except Exception as e:
+            logging.error(f"Failed to get GitHub client: {e}")
             return False
 
         repo_owner = os.getenv("GITHUB_REPO_OWNER", "pytorch")
@@ -148,43 +146,32 @@ class WorkflowRestartChecker:
             # Use trunk/{sha} tag format
             tag_ref = f"trunk/{commit_sha}"
 
-            # Add .yml extension for API call
+            # Add .yml extension for workflow name
             workflow_file_name = f"{normalized_workflow_name}.yml"
 
-            url = (
-                f"https://api.github.com/repos/{repo_owner}/{repo_name}"
-                f"/actions/workflows/{workflow_file_name}/dispatches"
+            # Get repo and workflow objects
+            repo = client.get_repo(f"{repo_owner}/{repo_name}")
+            workflow = repo.get_workflow(workflow_file_name)
+
+            # Dispatch the workflow
+            workflow.create_dispatch(ref=tag_ref, inputs={})
+
+            # Construct the workflow runs URL
+            workflow_url = (
+                f"https://github.com/{repo_owner}/{repo_name}"
+                f"/actions/workflows/{workflow_file_name}"
+                f"?query=branch%3Atrunk%2F{commit_sha}"
             )
-            headers = {
-                "Authorization": f"token {github_token}",
-                "Accept": "application/vnd.github.v3+json",
-            }
-            data = {"ref": tag_ref, "inputs": {}}
+            logging.info(
+                f"Successfully dispatched workflow {normalized_workflow_name} for commit {commit_sha}\n"
+                f"  View at: {workflow_url}"
+            )
 
-            response = requests.post(url, headers=headers, json=data)
-
-            if response.status_code == 204:
-                # Construct the workflow runs URL
-                workflow_url = (
-                    f"https://github.com/{repo_owner}/{repo_name}"
-                    f"/actions/workflows/{workflow_file_name}"
-                    f"?query=branch%3Atrunk%2F{commit_sha}"
-                )
-                logging.info(
-                    f"Successfully dispatched workflow {normalized_workflow_name} for commit {commit_sha}\n"
-                    f"  View at: {workflow_url}"
-                )
-
-                # Invalidate cache for this workflow/commit
-                cache_key = f"{normalized_workflow_name}:{commit_sha}"
-                if cache_key in self._cache:
-                    del self._cache[cache_key]
-                return True
-            else:
-                logging.error(
-                    f"Failed to dispatch workflow: {response.status_code} - {response.text}"
-                )
-                return False
+            # Invalidate cache for this workflow/commit
+            cache_key = f"{normalized_workflow_name}:{commit_sha}"
+            if cache_key in self._cache:
+                del self._cache[cache_key]
+            return True
 
         except Exception as e:
             logging.error(f"Error dispatching workflow {normalized_workflow_name}: {e}")
