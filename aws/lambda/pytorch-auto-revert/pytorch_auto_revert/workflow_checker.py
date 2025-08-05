@@ -3,7 +3,6 @@ WorkflowRestartChecker for querying restarted workflows via ClickHouse.
 """
 
 import logging
-import os
 from datetime import datetime, timedelta
 from typing import Dict, Set
 
@@ -13,8 +12,10 @@ from .clickhouse_client_helper import CHCliFactory
 class WorkflowRestartChecker:
     """Check if workflows have been restarted using ClickHouse."""
 
-    def __init__(self):
+    def __init__(self, repo_owner: str = "pytorch", repo_name: str = "pytorch"):
         self._cache: Dict[str, bool] = {}
+        self.repo_owner = repo_owner
+        self.repo_name = repo_name
 
     def has_restarted_workflow(self, workflow_name: str, commit_sha: str) -> bool:
         """
@@ -139,9 +140,6 @@ class WorkflowRestartChecker:
             logging.error(f"Failed to get GitHub client: {e}")
             return False
 
-        repo_owner = os.getenv("GITHUB_REPO_OWNER", "pytorch")
-        repo_name = os.getenv("GITHUB_REPO_NAME", "pytorch")
-
         try:
             # Use trunk/{sha} tag format
             tag_ref = f"trunk/{commit_sha}"
@@ -150,7 +148,7 @@ class WorkflowRestartChecker:
             workflow_file_name = f"{normalized_workflow_name}.yml"
 
             # Get repo and workflow objects
-            repo = client.get_repo(f"{repo_owner}/{repo_name}")
+            repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
             workflow = repo.get_workflow(workflow_file_name)
 
             # Dispatch the workflow
@@ -158,7 +156,7 @@ class WorkflowRestartChecker:
 
             # Construct the workflow runs URL
             workflow_url = (
-                f"https://github.com/{repo_owner}/{repo_name}"
+                f"https://github.com/{self.repo_owner}/{self.repo_name}"
                 f"/actions/workflows/{workflow_file_name}"
                 f"?query=branch%3Atrunk%2F{commit_sha}"
             )
