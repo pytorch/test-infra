@@ -237,7 +237,16 @@ def get_libtorch_install_command(
         if libtorch_config == "debug"
         else libtorch_variant
     )
-    build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
+
+    # Temporary until we release 2.8.0
+    if (
+        CURRENT_STABLE_VERSION == "2.7.1"
+        and channel == RELEASE
+        and devtoolset == "cxx11-abi"
+    ):
+        build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip"
+    else:
+        build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
 
     if os == MACOS_ARM64:
         arch = "arm64"
@@ -246,9 +255,17 @@ def get_libtorch_install_command(
             build_name = f"libtorch-macos-{arch}-{CURRENT_VERSION}.zip"
 
     elif os == LINUX and (channel in (RELEASE, TEST)):
-        build_name = (
-            f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
-        )
+        if (
+            CURRENT_STABLE_VERSION == "2.7.1"
+            and channel == RELEASE
+            and devtoolset == "cxx11-abi"
+        ):
+            build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+        else:
+            build_name = (
+                f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+            )
+
     elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-shared-with-deps-debug-{CURRENT_VERSION}%2B{desired_cuda}.zip"
