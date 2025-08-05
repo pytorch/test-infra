@@ -359,7 +359,7 @@ def generate_libtorch_matrix(
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
 
-    if abi_versions is None:
+    if abi_versions is None or len(abi_versions) == 0:
         if os == WINDOWS:
             abi_versions = [RELEASE, DEBUG]
         elif os == LINUX:
