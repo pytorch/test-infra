@@ -63,11 +63,12 @@ class CommitJobs:
 class AutorevertPatternChecker:
     """Detects autorevert patterns in workflow job failures."""
 
-    def __init__(self, workflow_names: List[str] = None, lookback_hours: int = 48):
+    def __init__(self, workflow_names: List[str] = None, lookback_hours: int = 48, ignore_classication_rules: Set[str] = set()):
         self.workflow_names = workflow_names or []
         self.lookback_hours = lookback_hours
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
+        self._ignore_classification_rules = ignore_classication_rules
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
         """Get workflow commits for a specific workflow, fetching if needed. From newer to older"""
@@ -266,6 +267,10 @@ class AutorevertPatternChecker:
                 suspected_failure_class_rule,
                 suspected_failure_job_name,
             ) in suspected_failures:
+                if suspected_failure_class_rule in self._ignore_classification_rules:
+                    # Skip ignored classification rules
+                    continue
+
                 newer_commit_same_job, newer_same_jobs = (
                     self._find_last_commit_with_job(
                         (commits[j] for j in range(i - 1, -1, -1)),

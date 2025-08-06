@@ -10,9 +10,20 @@ def autorevert_checker(
     verbose: bool = False,
     do_restart: bool = False,
     dry_run: bool = False,
+    ignore_common_errors = True
 ):
+    common_errors = {
+        "GHA error",
+        "GHA timeout",
+        "sccache error",
+    }
+
     # Initialize checker
-    checker = AutorevertPatternChecker(workflow_names, hours)
+    checker = AutorevertPatternChecker(
+        workflow_names,
+        hours,
+        ignore_classication_rules=common_errors if ignore_common_errors else set()
+    )
 
     # Fetch data
     if verbose:
