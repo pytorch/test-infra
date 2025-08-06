@@ -29,12 +29,13 @@ PYTHON_ARCHES_DICT = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "12.9"],
     "test": ["12.6", "12.8", "12.9"],
-    "release": ["11.8", "12.6", "12.8"],
+    "release": ["12.6", "12.8", "12.9"],
 }
+
 ROCM_ARCHES_DICT = {
     "nightly": ["6.3", "6.4"],
     "test": ["6.3", "6.4"],
-    "release": ["6.2.4", "6.3"],
+    "release": ["6.3", "6.4"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -47,7 +48,7 @@ CUDA_CUDNN_VERSIONS = {
 STABLE_CUDA_VERSIONS = {
     "nightly": "12.8",
     "test": "12.8",
-    "release": "12.6",
+    "release": "12.8",
 }
 
 CUDA_AARCH64_ARCHES = ["12.9-aarch64"]
@@ -77,7 +78,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.9.0"
 CURRENT_CANDIDATE_VERSION = "2.8.0"
-CURRENT_STABLE_VERSION = "2.7.1"
+CURRENT_STABLE_VERSION = "2.8.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -228,7 +229,6 @@ def get_libtorch_install_command(
     channel: str,
     gpu_arch_type: str,
     libtorch_variant: str,
-    devtoolset: str,
     desired_cuda: str,
     libtorch_config: str,
 ) -> str:
@@ -238,16 +238,7 @@ def get_libtorch_install_command(
         if libtorch_config == "debug"
         else libtorch_variant
     )
-
-    # Temporary until we release 2.8.0
-    if (
-        CURRENT_STABLE_VERSION == "2.7.1"
-        and channel == RELEASE
-        and devtoolset == "cxx11-abi"
-    ):
-        build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip"
-    else:
-        build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
+    build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
 
     if os == MACOS_ARM64:
         arch = "arm64"
@@ -256,16 +247,9 @@ def get_libtorch_install_command(
             build_name = f"libtorch-macos-{arch}-{CURRENT_VERSION}.zip"
 
     elif os == LINUX and (channel in (RELEASE, TEST)):
-        if (
-            CURRENT_STABLE_VERSION == "2.7.1"
-            and channel == RELEASE
-            and devtoolset == "cxx11-abi"
-        ):
-            build_name = f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
-        else:
-            build_name = (
-                f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
-            )
+        build_name = (
+            f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+        )
 
     elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
@@ -412,7 +396,6 @@ def generate_libtorch_matrix(
                             channel,
                             gpu_arch_type,
                             libtorch_variant,
-                            devtoolset,
                             desired_cuda,
                             libtorch_config,
                         ),
