@@ -186,7 +186,7 @@ def main(*args, **kwargs) -> None:
             verbose=opts.verbose,
             do_restart=opts.do_restart,
             dry_run=opts.dry_run,
-            ignore_common_errors=opts.ignore_common_errors
+            ignore_common_errors=opts.ignore_common_errors,
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)

@@ -10,7 +10,7 @@ def autorevert_checker(
     verbose: bool = False,
     do_restart: bool = False,
     dry_run: bool = False,
-    ignore_common_errors = True
+    ignore_common_errors=True,
 ):
     common_errors = {
         "GHA error",
@@ -22,7 +22,7 @@ def autorevert_checker(
     checker = AutorevertPatternChecker(
         workflow_names,
         hours,
-        ignore_classication_rules=common_errors if ignore_common_errors else set()
+        ignore_classication_rules=common_errors if ignore_common_errors else set(),
     )
 
     # Fetch data
