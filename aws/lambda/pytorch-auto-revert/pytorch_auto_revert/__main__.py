@@ -161,7 +161,13 @@ def main(*args, **kwargs) -> None:
 
     if opts.subcommand is None:
         autorevert_checker(
-            ["Lint", "trunk", "pull", "inductor", "linux-binary-manywheel", ],
+            [
+                "Lint",
+                "trunk",
+                "pull",
+                "inductor",
+                "linux-binary-manywheel",
+            ],
             hours=2,
             verbose=True,
             do_restart=True,
