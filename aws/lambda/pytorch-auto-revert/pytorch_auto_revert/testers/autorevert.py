@@ -108,7 +108,7 @@ def autorevert_checker(
                     "category", "uncategorized"
                 )
                 print(
-                    f"✓ REVERTED ({category}): {second_commit[:8]} was reverted by {revert_result['revert_sha'][:8]} "
+                    f"✓ REVERTED ({category}): {second_commit} was reverted by {revert_result['revert_sha'][:8]} "
                     f"after {revert_result['hours_after_target']:.1f} hours"
                 )
                 reverted_patterns.append(pattern)

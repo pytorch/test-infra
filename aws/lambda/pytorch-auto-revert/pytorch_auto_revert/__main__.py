@@ -159,8 +159,14 @@ def main(*args, **kwargs) -> None:
             "ClickHouse connection test failed. Please check your configuration."
         )
 
-    if opts.subcommand == "lambda":
-        print("TODO: run lambda flow")
+    if opts.subcommand is None:
+        autorevert_checker(
+            ["Lint", "trunk", "pull", "inductor", "linux-binary-manywheel", ],
+            hours=2,
+            verbose=True,
+            do_restart=True,
+            dry_run=False,
+        )
     elif opts.subcommand == "autorevert-checker":
         autorevert_checker(
             opts.workflows,

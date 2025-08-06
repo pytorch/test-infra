@@ -70,7 +70,7 @@ class AutorevertPatternChecker:
         self._commit_history = None
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
-        """Get workflow commits for a specific workflow, fetching if needed."""
+        """Get workflow commits for a specific workflow, fetching if needed. From newer to older"""
         if workflow_name not in self._workflow_commits_cache:
             self._fetch_workflow_data()
         return self._workflow_commits_cache.get(workflow_name, [])
@@ -90,7 +90,7 @@ class AutorevertPatternChecker:
         return self._commit_history or []
 
     def _fetch_workflow_data(self):
-        """Fetch workflow job data from ClickHouse for all workflows in batch."""
+        """Fetch workflow job data from ClickHouse for all workflows in batch. From newer to older"""
         if not self.workflow_names:
             return
 
@@ -217,11 +217,11 @@ class AutorevertPatternChecker:
             for job in commit.jobs:
                 if job.name.split("(")[0] == job_name:  # Normalize job name
                     job_results.append(job)
-        if job_results:
-            return (
-                commit,
-                job_results,
-            )
+            if job_results:
+                return (
+                    commit,
+                    job_results,
+                )
         return None, None
 
     def detect_autorevert_pattern_workflow(self, workflow_name: str) -> List[Dict]:
@@ -305,17 +305,10 @@ class AutorevertPatternChecker:
                     continue
 
                 if any(
-                    j.name.split("(")[0] != job_name
-                    for j in last_commit_with_same_job.failed_jobs
-                ):
-                    # newr commit has the same job failing
-                    continue
-
-                if any(
                     j.classification_rule == suspected_failure_class_rule
                     for j in last_same_jobs
                 ):
-                    # The last commit with the same job has the same failure classification
+                    # The older commit has the same job failing with same rule
                     continue
 
                 patterns.append(
