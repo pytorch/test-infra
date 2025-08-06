@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import logging
 import os
 
@@ -133,6 +134,11 @@ def get_opts() -> argparse.Namespace:
 def main(*args, **kwargs) -> None:
     load_dotenv()
     opts = get_opts()
+
+    gh_app_secret = ""
+    if opts.github_app_secret:
+        gh_app_secret = base64.b64decode(opts.github_app_secret).decode("utf-8")
+
     setup_logging(opts.log_level)
     CHCliFactory.setup_client(
         opts.clickhouse_host,
@@ -143,7 +149,7 @@ def main(*args, **kwargs) -> None:
     )
     GHClientFactory.setup_client(
         opts.github_app_id,
-        opts.github_app_secret,
+        gh_app_secret,
         opts.github_installation_id,
         opts.github_access_token,
     )
