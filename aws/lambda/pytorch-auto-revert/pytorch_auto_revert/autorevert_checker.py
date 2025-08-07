@@ -314,10 +314,7 @@ class AutorevertPatternChecker:
                     # No older commit with the same job found
                     continue
 
-                if any(
-                    j.classification_rule == failure_rule
-                    for j in last_same_jobs
-                ):
+                if any(j.classification_rule == failure_rule for j in last_same_jobs):
                     # The older commit has the same job failing with same rule
                     continue
 
