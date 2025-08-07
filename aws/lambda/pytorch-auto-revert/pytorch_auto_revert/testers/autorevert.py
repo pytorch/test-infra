@@ -22,7 +22,7 @@ def autorevert_checker(
     checker = AutorevertPatternChecker(
         workflow_names,
         hours,
-        ignore_classication_rules=common_errors if ignore_common_errors else set(),
+        ignore_classification_rules=common_errors if ignore_common_errors else set(),
     )
 
     # Fetch data

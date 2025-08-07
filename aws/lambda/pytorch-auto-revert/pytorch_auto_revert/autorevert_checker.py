@@ -67,13 +67,13 @@ class AutorevertPatternChecker:
         self,
         workflow_names: List[str] = None,
         lookback_hours: int = 48,
-        ignore_classication_rules: Set[str] = None,
+        ignore_classification_rules: Set[str] = None,
     ):
         self.workflow_names = workflow_names or []
         self.lookback_hours = lookback_hours
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
-        self._ignore_classification_rules = ignore_classication_rules or set()
+        self._ignore_classification_rules = ignore_classification_rules or set()
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
         """Get workflow commits for a specific workflow, fetching if needed. From newer to older"""
@@ -209,14 +209,14 @@ class AutorevertPatternChecker:
         self, commits: Iterable[CommitJobs], job_name: str
     ) -> Optional[Tuple[CommitJobs, List[JobResult]]]:
         """
-        Find the last commit in the iterable that has a job with the specified name.
+        Find the first commit (in the provided iteration order) that has a job with the specified name.
 
         Args:
             commits: Iterable of CommitJobs to search
             job_name: The job name to look for
 
         Returns:
-            The last CommitJobs object that contains the specified job, or None if not found
+            The first CommitJobs object (per the iterable's order) that contains the specified job, or None if not found
         """
         job_results = []
         for commit in commits:
@@ -315,7 +315,7 @@ class AutorevertPatternChecker:
                     continue
 
                 if any(
-                    j.classification_rule == suspected_failure_class_rule
+                    j.classification_rule == failure_rule
                     for j in last_same_jobs
                 ):
                     # The older commit has the same job failing with same rule
