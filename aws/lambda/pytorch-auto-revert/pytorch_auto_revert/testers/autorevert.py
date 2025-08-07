@@ -10,9 +10,20 @@ def autorevert_checker(
     verbose: bool = False,
     do_restart: bool = False,
     dry_run: bool = False,
+    ignore_common_errors=True,
 ):
+    common_errors = {
+        "GHA error",
+        "GHA timeout",
+        "sccache error",
+    }
+
     # Initialize checker
-    checker = AutorevertPatternChecker(workflow_names, hours)
+    checker = AutorevertPatternChecker(
+        workflow_names,
+        hours,
+        ignore_classification_rules=common_errors if ignore_common_errors else set(),
+    )
 
     # Fetch data
     if verbose:
@@ -108,7 +119,7 @@ def autorevert_checker(
                     "category", "uncategorized"
                 )
                 print(
-                    f"✓ REVERTED ({category}): {second_commit[:8]} was reverted by {revert_result['revert_sha'][:8]} "
+                    f"✓ REVERTED ({category}): {second_commit} was reverted by {revert_result['revert_sha'][:8]} "
                     f"after {revert_result['hours_after_target']:.1f} hours"
                 )
                 reverted_patterns.append(pattern)

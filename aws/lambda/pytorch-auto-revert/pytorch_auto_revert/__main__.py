@@ -95,6 +95,11 @@ def get_opts() -> argparse.Namespace:
         action="store_true",
         help="Show what would be restarted without actually doing it (use with --do-restart)",
     )
+    workflow_parser.add_argument(
+        "--ignore-common-errors",
+        action="store_true",
+        help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
+    )
 
     # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
@@ -159,8 +164,21 @@ def main(*args, **kwargs) -> None:
             "ClickHouse connection test failed. Please check your configuration."
         )
 
-    if opts.subcommand == "lambda":
-        print("TODO: run lambda flow")
+    if opts.subcommand is None:
+        autorevert_checker(
+            [
+                "Lint",
+                "trunk",
+                "pull",
+                "inductor",
+                "linux-binary-manywheel",
+            ],
+            hours=2,
+            verbose=True,
+            do_restart=True,
+            dry_run=False,
+            ignore_common_errors=True,
+        )
     elif opts.subcommand == "autorevert-checker":
         autorevert_checker(
             opts.workflows,
@@ -168,6 +186,7 @@ def main(*args, **kwargs) -> None:
             verbose=opts.verbose,
             do_restart=opts.do_restart,
             dry_run=opts.dry_run,
+            ignore_common_errors=opts.ignore_common_errors,
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)

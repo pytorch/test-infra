@@ -63,14 +63,20 @@ class CommitJobs:
 class AutorevertPatternChecker:
     """Detects autorevert patterns in workflow job failures."""
 
-    def __init__(self, workflow_names: List[str] = None, lookback_hours: int = 48):
+    def __init__(
+        self,
+        workflow_names: List[str] = None,
+        lookback_hours: int = 48,
+        ignore_classification_rules: Set[str] = None,
+    ):
         self.workflow_names = workflow_names or []
         self.lookback_hours = lookback_hours
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
         self._commit_history = None
+        self._ignore_classification_rules = ignore_classification_rules or set()
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
-        """Get workflow commits for a specific workflow, fetching if needed."""
+        """Get workflow commits for a specific workflow, fetching if needed. From newer to older"""
         if workflow_name not in self._workflow_commits_cache:
             self._fetch_workflow_data()
         return self._workflow_commits_cache.get(workflow_name, [])
@@ -90,7 +96,7 @@ class AutorevertPatternChecker:
         return self._commit_history or []
 
     def _fetch_workflow_data(self):
-        """Fetch workflow job data from ClickHouse for all workflows in batch."""
+        """Fetch workflow job data from ClickHouse for all workflows in batch. From newer to older"""
         if not self.workflow_names:
             return
 
@@ -203,25 +209,25 @@ class AutorevertPatternChecker:
         self, commits: Iterable[CommitJobs], job_name: str
     ) -> Optional[Tuple[CommitJobs, List[JobResult]]]:
         """
-        Find the last commit in the iterable that has a job with the specified name.
+        Find the first commit (in the provided iteration order) that has a job with the specified name.
 
         Args:
             commits: Iterable of CommitJobs to search
             job_name: The job name to look for
 
         Returns:
-            The last CommitJobs object that contains the specified job, or None if not found
+            The first CommitJobs object (per the iterable's order) that contains the specified job, or None if not found
         """
         job_results = []
         for commit in commits:
             for job in commit.jobs:
                 if job.name.split("(")[0] == job_name:  # Normalize job name
                     job_results.append(job)
-        if job_results:
-            return (
-                commit,
-                job_results,
-            )
+            if job_results:
+                return (
+                    commit,
+                    job_results,
+                )
         return None, None
 
     def detect_autorevert_pattern_workflow(self, workflow_name: str) -> List[Dict]:
@@ -266,6 +272,10 @@ class AutorevertPatternChecker:
                 suspected_failure_class_rule,
                 suspected_failure_job_name,
             ) in suspected_failures:
+                if suspected_failure_class_rule in self._ignore_classification_rules:
+                    # Skip ignored classification rules
+                    continue
+
                 newer_commit_same_job, newer_same_jobs = (
                     self._find_last_commit_with_job(
                         (commits[j] for j in range(i - 1, -1, -1)),
@@ -304,18 +314,8 @@ class AutorevertPatternChecker:
                     # No older commit with the same job found
                     continue
 
-                if any(
-                    j.name.split("(")[0] != job_name
-                    for j in last_commit_with_same_job.failed_jobs
-                ):
-                    # newr commit has the same job failing
-                    continue
-
-                if any(
-                    j.classification_rule == suspected_failure_class_rule
-                    for j in last_same_jobs
-                ):
-                    # The last commit with the same job has the same failure classification
+                if any(j.classification_rule == failure_rule for j in last_same_jobs):
+                    # The older commit has the same job failing with same rule
                     continue
 
                 patterns.append(
