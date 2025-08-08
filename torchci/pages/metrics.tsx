@@ -813,10 +813,33 @@ export default function Page() {
                 headerName: "Queue time",
                 flex: 1,
                 valueFormatter: (params: number) => durationDisplay(params),
+                cellClassName: (params) => {
+                  const queueTimeHours = params.value / 3600;
+                  if (queueTimeHours >= 4) return "queue-time-red";
+                  if (queueTimeHours >= 1) return "queue-time-yellow";
+                  return "";
+                },
               },
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el.machine_type }}
+            dataGridProps={{
+              getRowId: (el: any) => el.machine_type,
+              initialState: {
+                sorting: {
+                  sortModel: [{ field: "avg_queue_s", sort: "desc" }],
+                },
+              },
+              sx: {
+                "& .queue-time-yellow": {
+                  backgroundColor: "#B8860B", // Dark goldenrod
+                  color: "white",
+                },
+                "& .queue-time-red": {
+                  backgroundColor: "#B22222", // Fire brick red
+                  color: "white",
+                },
+              },
+            }}
           />
         </Grid2>
 
