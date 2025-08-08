@@ -322,7 +322,7 @@ export function TtsPercentilePicker({
           Percentile
         </InputLabel>
         <Select
-          defaultValue={ttsPercentile}
+          value={ttsPercentile}
           label="Percentile"
           labelId="tts-percentile-picker-select-label"
           onChange={handleChange}
