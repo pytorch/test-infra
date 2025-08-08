@@ -91,6 +91,11 @@ def get_opts() -> argparse.Namespace:
         help="Actually restart workflows for detected autorevert patterns",
     )
     workflow_parser.add_argument(
+        "--do-revert",
+        action="store_true",
+        help="When restarts complete and secondary pattern matches, log REVERT",
+    )
+    workflow_parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Show what would be restarted without actually doing it (use with --do-restart)",
@@ -185,6 +190,7 @@ def main(*args, **kwargs) -> None:
             hours=opts.hours,
             verbose=opts.verbose,
             do_restart=opts.do_restart,
+            do_revert=opts.do_revert,
             dry_run=opts.dry_run,
             ignore_common_errors=opts.ignore_common_errors,
         )

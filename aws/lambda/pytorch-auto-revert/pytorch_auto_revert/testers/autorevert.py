@@ -1,4 +1,5 @@
 from collections import defaultdict
+from contextlib import suppress
 
 from ..autorevert_checker import AutorevertPatternChecker
 from ..workflow_checker import WorkflowRestartChecker
@@ -9,6 +10,7 @@ def autorevert_checker(
     hours: int = 48,
     verbose: bool = False,
     do_restart: bool = False,
+    do_revert: bool = False,
     dry_run: bool = False,
     ignore_common_errors=True,
 ):
@@ -109,53 +111,72 @@ def autorevert_checker(
                         f"  - {additional['workflow_name']}: {additional['failure_rule']}"
                     )
 
-            # Check if the second commit (older of the two failures) was reverted
-            second_commit = pattern["newer_commits"][1]
-            revert_result = revert_checker.is_commit_reverted(second_commit)
+            # For clarity in naming
+            workflow_name = pattern["workflow_name"]
+            first_failing = pattern["newer_commits"][
+                1
+            ]  # the older of the two failing commits
+            previous_commit = pattern[
+                "older_commit"
+            ]  # previously successful commit for the matched job
+            revert_result = revert_checker.is_commit_reverted(first_failing)
 
             if revert_result:
-                not_found_reverts.discard(second_commit)
-                category = reverts_with_info.get(second_commit, {}).get(
+                not_found_reverts.discard(first_failing)
+                category = reverts_with_info.get(first_failing, {}).get(
                     "category", "uncategorized"
                 )
                 print(
-                    f"✓ REVERTED ({category}): {second_commit} was reverted by {revert_result['revert_sha'][:8]} "
+                    f"✓ REVERTED ({category}): {first_failing} was reverted by {revert_result['revert_sha'][:8]} "
                     f"after {revert_result['hours_after_target']:.1f} hours"
                 )
                 reverted_patterns.append(pattern)
             else:
-                print(f"✗ NOT REVERTED: {second_commit} was not reverted")
+                print(f"✗ NOT REVERTED: {first_failing} was not reverted")
 
                 # Try to restart workflow if --do-restart flag is set and not already reverted
                 if do_restart and restart_checker:
-                    # Restart for the second commit (older of the two failures)
-                    workflow_name = pattern["workflow_name"]
-
-                    # Check if already restarted
-                    if restart_checker.has_restarted_workflow(
-                        workflow_name, second_commit
-                    ):
-                        print(
-                            f"  ⟳ ALREADY RESTARTED: {workflow_name} for {second_commit[:8]}"
-                        )
-                    elif dry_run:
-                        print(
-                            f"  ⟳ DRY RUN: Would restart {workflow_name} for {second_commit[:8]}"
-                        )
-                        restarted_commits.append((workflow_name, second_commit))
-                    else:
-                        success = restart_checker.restart_workflow(
-                            workflow_name, second_commit
-                        )
-                        if success:
+                    # Restart the first failing (older failing) and the previous (successful) commit
+                    for target_commit in (first_failing, previous_commit):
+                        if restart_checker.has_restarted_workflow(
+                            workflow_name, target_commit
+                        ):
                             print(
-                                f"  ✓ RESTARTED: {workflow_name} for {second_commit[:8]}"
+                                f"  ⟳ ALREADY RESTARTED: {workflow_name} for {target_commit[:8]}"
                             )
-                            restarted_commits.append((workflow_name, second_commit))
+                            continue
+                        if dry_run:
+                            print(
+                                f"  ⟳ DRY RUN: Would restart {workflow_name} for {target_commit[:8]}"
+                            )
+                            restarted_commits.append((workflow_name, target_commit))
                         else:
-                            print(
-                                f"  ✗ FAILED TO RESTART: {workflow_name} for {second_commit[:8]}"
+                            success = restart_checker.restart_workflow(
+                                workflow_name, target_commit
                             )
+                            if success:
+                                print(
+                                    f"  ✓ RESTARTED: {workflow_name} for {target_commit[:8]}"
+                                )
+                                restarted_commits.append((workflow_name, target_commit))
+                            else:
+                                print(
+                                    f"  ✗ FAILED TO RESTART: {workflow_name} for {target_commit[:8]}"
+                                )
+
+                # Secondary verification: compare first failing vs previous on restarted runs.
+                if do_revert:
+                    # Best-effort; skip if query fails or restarted runs not yet present
+                    with suppress(Exception):
+                        if checker.confirm_commit_caused_failure_on_restarted(pattern):
+                            if dry_run:
+                                print(
+                                    f"  ⚠ DRY RUN: Would record REVERT for {first_failing[:8]} ({workflow_name})"
+                                )
+                            else:
+                                print(
+                                    f"  ⚠ REVERT recorded for {first_failing[:8]} ({workflow_name})"
+                                )
 
             if verbose:
                 print(f"Failed jobs ({len(pattern['failed_job_names'])}):")
