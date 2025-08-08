@@ -20,8 +20,13 @@ export function includesCaseInsensitive(
   useRegex: boolean
 ): boolean {
   if (useRegex) {
-    const regex = new RegExp(pattern, "i");
-    return regex.test(value);
+    try {
+      const regex = new RegExp(pattern, "i");
+      return regex.test(value);
+    } catch (error) {
+      console.error("Invalid regex pattern:", error);
+      return false;
+    }
   }
   return value.toLowerCase().includes(pattern.toLowerCase());
 }
