@@ -84,8 +84,6 @@ export default function Page() {
   const repoOwner: string = (router.query.repoOwner as string) ?? "pytorch";
   const repoName: string = (router.query.repoName as string) ?? "pytorch";
   const branch: string = (router.query.branch as string) ?? "main";
-  const jobNamesCompressed: string =
-    (router.query.jobNamesCompressed as string) ?? "";
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [granularity, setGranularity] = useState<Granularity>("day");
@@ -94,6 +92,58 @@ export default function Page() {
   const [selectedJobs, setSelectedJobs] = useState<{
     [key: string]: boolean;
   }>({});
+
+  useEffect(() => {
+    if (router.query.jobName) {
+      setSelectedJobs((prev) => ({
+        ...prev,
+        [router.query.jobName as string]: true,
+      }));
+    }
+    if (router.query.startTime) {
+      setStartTime(dayjs(router.query.startTime as string));
+    }
+    if (router.query.stopTime) {
+      setStopTime(dayjs(router.query.stopTime as string));
+    }
+    if (router.query.granularity) {
+      setGranularity(router.query.granularity as string as Granularity);
+    }
+    if (router.query.timeRange) {
+      setTimeRange(parseInt(router.query.timeRange as string) || 7);
+    }
+    if (router.query.ttsPercentile) {
+      setTtsPercentile(parseFloat(router.query.ttsPercentile as string) || 0.5);
+    }
+
+    const jobNamesFromLink = JSON.parse(
+      router.query.jobNamesCompressed
+        ? decompressFromEncodedURIComponent(
+            router.query.jobNamesCompressed as string
+          )
+        : "[]"
+    );
+
+    if (router.query.jobName) {
+      jobNamesFromLink.push(router.query.jobName as string);
+    }
+
+    if (tts_true_series.length > 0) {
+      setSelectedJobs(
+        tts_true_series.reduce((acc: any, item: any) => {
+          acc[item.name] = jobNamesFromLink.includes(item.name);
+          return acc;
+        }, {} as any)
+      );
+    } else {
+      setSelectedJobs(
+        jobNamesFromLink.reduce((acc: any, item: any) => {
+          acc[item] = true;
+          return acc;
+        }, {} as any)
+      );
+    }
+  }, [router.query]);
 
   const GRAPHS_HEIGHT = 800;
 
@@ -127,6 +177,19 @@ export default function Page() {
     fetcher
   );
 
+  useEffect(() => {
+    if (data != undefined) {
+      const jobNames = data.map((item) => item.full_name);
+      setSelectedJobs((prev) => {
+        const newJobs = jobNames.reduce((acc: any, jobName: string) => {
+          acc[jobName] = false;
+          return acc;
+        }, {});
+        return { ...newJobs, ...prev };
+      });
+    }
+  }, [data]);
+
   const timeFieldName = "granularity_bucket";
   const groupByFieldName = "full_name";
   const tts_true_series = seriesWithInterpolatedTimes(
@@ -155,34 +218,6 @@ export default function Page() {
     (item: any) => selectedJobs[item["name"]]
   );
 
-  useEffect(() => {
-    const jobNamesFromLink = JSON.parse(
-      jobNamesCompressed != ""
-        ? decompressFromEncodedURIComponent(jobNamesCompressed)
-        : "[]"
-    );
-
-    if (router.query.jobName) {
-      jobNamesFromLink.push(router.query.jobName as string);
-    }
-
-    if (tts_true_series.length > 0) {
-      setSelectedJobs(
-        tts_true_series.reduce((acc: any, item: any) => {
-          acc[item.name] = jobNamesFromLink.includes(item.name);
-          return acc;
-        }, {} as any)
-      );
-    } else {
-      setSelectedJobs(
-        jobNamesFromLink.reduce((acc: any, item: any) => {
-          acc[item] = true;
-          return acc;
-        }, {} as any)
-      );
-    }
-  }, [data, jobNamesCompressed, router.query.jobName]);
-
   const permalink =
     typeof window !== "undefined" &&
     `${window.location.protocol}/${window.location.host}${router.asPath.replace(
@@ -194,6 +229,11 @@ export default function Page() {
           Object.keys(selectedJobs).filter((key) => selectedJobs[key])
         )
       ),
+      startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+      granularity: granularity,
+      timeRange: timeRange.toString(),
+      ttsPercentile: ttsPercentile.toString(),
     })}`;
 
   return (
