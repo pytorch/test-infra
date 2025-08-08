@@ -9,7 +9,7 @@ import {
   tryReuseRunner,
   NoRunnersAvailable,
 } from './runners';
-import { RunnerInfo } from './utils';
+import { RunnerInfo, stripUndefined } from './utils';
 import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
@@ -89,7 +89,17 @@ function createExpectedRunInstancesLinux(
   const tags = [
     { Key: 'Application', Value: 'github-action-runner' },
     { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+    { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+    { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
   ];
+
+  if (runnerParameters.runnerType.labels) {
+    tags.push({
+      Key: 'RunnerTypeLabels',
+      Value: runnerParameters.runnerType.labels.join(','),
+    });
+  }
+
   if (enableOrg) {
     tags.push({
       Key: 'Org',
@@ -479,6 +489,8 @@ describe('tryReuseRunner', () => {
         runnerTypeName: 'linuxCpu',
         is_ephemeral: true,
       },
+      repositoryOwner: 'jeanschmidt',
+      repositoryName: 'regularizationTheory',
     };
 
     it('does not have any runner', async () => {
@@ -623,6 +635,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -652,6 +665,63 @@ describe('tryReuseRunner', () => {
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
     });
 
+    it('has a runner, but still in replacement volume mode', async () => {
+      // SSM putParameter
+      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //createTags
+      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //deleteTags
+      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      //createReplaceRootVolumeTask
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+
+      // describeInstances
+      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const ephemeralRunnerFinished = Math.floor(
+        moment(new Date())
+          .subtract(Config.Instance.minimumRunningTimeInMinutes + 10, 'minutes')
+          .utc()
+          .toDate()
+          .getTime() / 1000,
+      );
+      const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
+      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+        Reservations: [
+          {
+            Instances: [
+              {
+                LaunchTime: launchTime,
+                InstanceId: 'i-0113',
+                Placement: {
+                  AvailabilityZone: 'us-east-1a',
+                },
+                Tags: [
+                  { Key: 'Repo', Value: 'jeanschmidt/regularizationTheory' },
+                  { Key: 'Application', Value: 'github-action-runner' },
+                  { Key: 'GithubRunnerID', Value: '1234' },
+                  { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
+                  { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+                ],
+              },
+            ],
+          },
+        ],
+      };
+      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+
+      await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrowError('No runners available');
+
+      expect(mockEC2.describeInstances).toBeCalled();
+      expect(mockSSM.putParameter).not.toBeCalled();
+      expect(mockEC2.createTags).not.toBeCalled();
+      expect(mockEC2.deleteTags).not.toBeCalled();
+      expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
+    });
+
+    //
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
       mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
@@ -686,6 +756,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -694,7 +765,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
+      expect(stripUndefined(await tryReuseRunner(runnerParameters, metrics))).toEqual({
         awsRegion: 'us-east-1',
         az: 'us-east-1a',
         ephemeralRunnerFinished: ephemeralRunnerFinished,
@@ -702,6 +773,7 @@ describe('tryReuseRunner', () => {
         ghRunnerId: '1234',
         instanceId: 'i-0113',
         repo: 'jeanschmidt/regularizationTheory',
+        stage: 'RunnerFinished',
       });
 
       expect(mockEC2.describeInstances).toBeCalledWith({
@@ -719,7 +791,10 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [
+          { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+        ],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
         Resources: ['i-0113'],
@@ -765,6 +840,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -790,7 +866,10 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [
+          { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+        ],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
@@ -810,6 +889,8 @@ describe('tryReuseRunner', () => {
         runnerTypeName: 'linuxCpu',
         is_ephemeral: true,
       },
+      repositoryOwner: 'jeanschmidt',
+      repositoryName: 'test-repo',
     };
 
     it('does not have any runner', async () => {
@@ -888,6 +969,7 @@ describe('tryReuseRunner', () => {
                   { Key: 'Application', Value: 'github-action-runner' },
                   { Key: 'GithubRunnerID', Value: '1234' },
                   { Key: 'EphemeralRunnerFinished', Value: ephemeralRunnerFinished.toString() },
+                  { Key: 'Stage', Value: 'RunnerFinished' },
                 ],
               },
             ],
@@ -896,7 +978,7 @@ describe('tryReuseRunner', () => {
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
-      expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
+      expect(stripUndefined(await tryReuseRunner(runnerParameters, metrics))).toEqual({
         awsRegion: 'us-east-1',
         az: 'us-east-1a',
         ephemeralRunnerFinished: ephemeralRunnerFinished,
@@ -904,6 +986,7 @@ describe('tryReuseRunner', () => {
         instanceId: 'i-0113',
         launchTime: launchTime,
         repo: 'jeanschmidt/regularizationTheory',
+        stage: 'RunnerFinished',
       });
 
       expect(mockEC2.describeInstances).toBeCalledWith({
@@ -921,7 +1004,10 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [
+          { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+        ],
       });
       expect(mockEC2.deleteTags).toBeCalledWith({
         Resources: ['i-0113'],
@@ -992,7 +1078,10 @@ describe('tryReuseRunner', () => {
       });
       expect(mockEC2.createTags).toBeCalledWith({
         Resources: ['i-0113'],
-        Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' }],
+        Tags: [
+          { Key: 'EBSVolumeReplacementRequestTm', Value: '1653609600' },
+          { Key: 'Stage', Value: 'RunnerReplaceEBSVolume' },
+        ],
       });
       expect(mockEC2.deleteTags).not.toBeCalled();
       expect(mockEC2.createReplaceRootVolumeTask).not.toBeCalled();
@@ -1104,7 +1193,7 @@ describe('createRunner', () => {
     });
 
     it('calls run instances with the correct config for repo && linux', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1117,6 +1206,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       await createRunner(runnerParameters, metrics);
@@ -1128,7 +1219,7 @@ describe('createRunner', () => {
     });
 
     it('calls run instances with the correct config for repo && linux && organization', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: undefined,
@@ -1141,6 +1232,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu.nvidia.gpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'test-repo',
       };
 
       await createRunner(runnerParameters, metrics);
@@ -1152,7 +1245,7 @@ describe('createRunner', () => {
     });
 
     it('calls run instances with the correct config for repo && windows', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1165,6 +1258,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       await createRunner(runnerParameters, metrics);
@@ -1207,6 +1302,87 @@ describe('createRunner', () => {
             Tags: [
               { Key: 'Application', Value: 'github-action-runner' },
               { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+              { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
+              {
+                Key: 'Repo',
+                Value: runnerParameters.repoName,
+              },
+            ],
+          },
+        ],
+      });
+    });
+
+    it('creates does not create for extraTypeLabels and runnerGroupName if set', async () => {
+      // Custom config for this test
+      const customConfig = {
+        ...config,
+        runnerGroupName: 'CustomRunnerGroup',
+        runnersExtraLabels: 'CustomExtraLabels',
+      };
+      // Override the Config.Instance for this test
+      jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => customConfig as unknown as Config);
+
+      const runnerParameters: RunnerInputParameters = {
+        runnerConfig: runnerConfigFn,
+        environment: 'wg113',
+        repoName: 'SomeAwesomeCoder/some-amazing-library',
+        orgName: undefined,
+        runnerType: {
+          instance_type: 'c5.2xlarge',
+          os: 'windows',
+          max_available: 200,
+          disk_size: 100,
+          runnerTypeName: 'linuxCpu',
+          is_ephemeral: true,
+        },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
+      };
+
+      await createRunner(runnerParameters, metrics);
+
+      expect(runnerConfigFn).toBeCalledTimes(1);
+      expect(runnerConfigFn).toBeCalledWith(config.awsRegion, false);
+      expect(mockEC2.runInstances).toHaveBeenCalledTimes(1);
+      const secGroup = Config.Instance.vpcIdToSecurityGroupIds.get('vpc-agdgaduwg113') || [];
+      expect(mockEC2.runInstances).toBeCalledWith({
+        MaxCount: 1,
+        MinCount: 1,
+        LaunchTemplate: {
+          LaunchTemplateName: Config.Instance.launchTemplateNameWindows,
+          Version: Config.Instance.launchTemplateVersionWindows,
+        },
+        InstanceType: runnerParameters.runnerType.instance_type,
+        BlockDeviceMappings: [
+          {
+            DeviceName: '/dev/sda1',
+            Ebs: {
+              VolumeSize: runnerParameters.runnerType.disk_size,
+              VolumeType: 'gp3',
+              Encrypted: true,
+              DeleteOnTermination: true,
+            },
+          },
+        ],
+        NetworkInterfaces: [
+          {
+            Ipv6AddressCount: 1,
+            AssociatePublicIpAddress: true,
+            SubnetId: 'sub-0113',
+            Groups: secGroup,
+            DeviceIndex: 0,
+          },
+        ],
+        TagSpecifications: [
+          {
+            ResourceType: 'instance',
+            Tags: [
+              { Key: 'Application', Value: 'github-action-runner' },
+              { Key: 'RunnerType', Value: runnerParameters.runnerType.runnerTypeName },
+              { Key: 'RepositoryName', Value: runnerParameters.repositoryName },
+              { Key: 'RepositoryOwner', Value: runnerParameters.repositoryOwner },
               {
                 Key: 'Repo',
                 Value: runnerParameters.repoName,
@@ -1224,6 +1400,8 @@ describe('createRunner', () => {
           environment: 'wg113',
           repoName: 'SomeAwesomeCoder/some-amazing-library',
           orgName: undefined,
+          repositoryName: 'some-amazing-library',
+          repositoryOwner: 'SomeAwesomeCoder',
           runnerType: {
             instance_type: 'c5.2xlarge',
             os: 'linux',
@@ -1266,7 +1444,7 @@ describe('createRunner', () => {
     });
 
     it('creates ssm experiment parameters when joining experiment', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1283,6 +1461,8 @@ describe('createRunner', () => {
             percentage: 0.1,
           },
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
       jest.spyOn(global.Math, 'random').mockReturnValueOnce(0.0999);
 
@@ -1323,6 +1503,8 @@ describe('createRunner', () => {
           {
             runnerConfig: runnerConfigFn,
             environment: 'wg113',
+            repositoryName: 'some-amazing-library',
+            repositoryOwner: 'SomeAwesomeCoder',
             repoName: 'SomeAwesomeCoder/some-amazing-library',
             orgName: undefined,
             runnerType: {
@@ -1344,7 +1526,7 @@ describe('createRunner', () => {
     it('fails to attach to any network and raises exception', async () => {
       const errorMsg = 'test error msg ASDF';
       mockRunInstances.promise.mockClear().mockRejectedValue(new Error(errorMsg));
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1357,6 +1539,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       await expect(createRunner(runnerParameters, metrics)).rejects.toThrow();
@@ -1495,7 +1679,7 @@ describe('createRunner', () => {
     });
 
     it('succeed in the first try, first subnet and region', async () => {
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1508,6 +1692,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
@@ -1522,7 +1708,7 @@ describe('createRunner', () => {
       mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1535,6 +1721,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[0]);
@@ -1556,7 +1744,7 @@ describe('createRunner', () => {
       }
       mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1569,6 +1757,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       expect(await createRunner(runnerParameters, metrics)).toEqual(config.shuffledAwsRegionInstances[1]);
@@ -1603,7 +1793,7 @@ describe('createRunner', () => {
         mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       }
 
-      const runnerParameters = {
+      const runnerParameters: RunnerInputParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
         repoName: 'SomeAwesomeCoder/some-amazing-library',
@@ -1616,6 +1806,8 @@ describe('createRunner', () => {
           runnerTypeName: 'linuxCpu',
           is_ephemeral: true,
         },
+        repositoryOwner: 'SomeAwesomeCoder',
+        repositoryName: 'some-amazing-library',
       };
 
       await expect(createRunner(runnerParameters, metrics)).rejects.toThrow();
