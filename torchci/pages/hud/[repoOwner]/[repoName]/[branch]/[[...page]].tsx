@@ -391,16 +391,6 @@ export function MonsterFailuresCheckbox() {
   );
 }
 
-function HudTable({ params }: { params: HudParams }) {
-  const data = useHudData(params);
-  return (
-    <div style={{ position: "relative", clear: "both" }}>
-      <FiltersAndSettings />
-      {data === undefined ? <LoadingPage /> : <GroupedHudTable data={data} />}
-    </div>
-  );
-}
-
 function HudHeader({ params }: { params: HudParams }) {
   function handleBranchSubmit(branch: string) {
     window.location.href = formatHudUrlForRoute("hud", { ...params, branch });
@@ -498,7 +488,10 @@ export default function Hud() {
                     style={{ marginLeft: "10px" }}
                   />
                 </div>
-                <HudTable params={params} />
+                <div style={{ position: "relative", clear: "both" }}>
+                  <FiltersAndSettings />
+                  <GroupedHudTable params={params} />
+                </div>
                 <PageSelector params={params} baseUrl="hud" />
                 <br />
                 <div>
@@ -549,9 +542,9 @@ function CopyPermanentLink({
   return <CopyLink textToCopy={url} compressed={false} style={style} />;
 }
 
-function GroupedHudTable({ data }: { data: RowData[] }) {
+function GroupedHudTable({ params }: { params: HudParams }) {
   const router = useRouter();
-  const params = packHudParams(router.query);
+  const data = useHudData(params);
   const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
     `/api/issue/unstable`,
     fetcher,
@@ -561,19 +554,16 @@ function GroupedHudTable({ data }: { data: RowData[] }) {
     }
   );
   const jobNames = new Set(
-    data.flatMap((row) => Array.from(row.nameToJobs.keys()))
+    data?.flatMap((row) => Array.from(row.nameToJobs.keys()))
   );
 
-  const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
-  const [hideGreenColumns, setHideGreenColumns] =
-    useHideGreenColumnsPreference();
-  const [useGrouping, setUseGrouping] = useGroupingPreference(
-    params.nameFilter
-  );
+  const [hideUnstable] = usePreference("hideUnstable");
+  const [hideGreenColumns] = useHideGreenColumnsPreference();
+  const [useGrouping] = useGroupingPreference(params.nameFilter);
 
   const { shaGrid, groupNameMapping, jobsWithFailures, groupsWithFailures } =
     getGroupingData(
-      data,
+      data ?? [],
       jobNames,
       (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
       unstableIssuesData ?? []
@@ -648,6 +638,10 @@ function GroupedHudTable({ data }: { data: RowData[] }) {
 
     return true;
   });
+
+  if (data === undefined) {
+    return <LoadingPage />;
+  }
 
   return (
     <GroupingContext.Provider
