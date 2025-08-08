@@ -215,8 +215,9 @@ jobs:
           set -euxo pipefail
           # shellcheck disable=SC1090
           source "${BUILD_ENV_FILE}"
+          source ${VIRTUAL_ENV}/bin/activate
           # shellcheck disable=SC2086
-          ${CONDA_RUN} ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
+          uv ${PIP_INSTALL_TORCH} ${{ inputs.pip-install-torch-extra-args }}
       - name: Run Pre-Script with Caching
         if: ${{ inputs.pre-script != '' }}
         uses: ./test-infra/.github/actions/run-script-with-cache
@@ -232,8 +233,9 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python -m pip install build==1.2.2
+          source ${VIRTUAL_ENV}/bin/activate
+          export PYTORCH_VERSION="$(uv pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
+          uv pip install build==1.2.2
           echo "Successfully installed Python build package"
           ${CONDA_RUN} ${{ inputs.build-command }}
       - name: Build the wheel (setup-py)
@@ -243,10 +245,11 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
-          export PYTORCH_VERSION="$(${CONDA_RUN} pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
-          ${CONDA_RUN} python setup.py clean
+          source ${VIRTUAL_ENV}/bin/activate
+          export PYTORCH_VERSION="$(uv pip show torch | grep ^Version: | sed 's/Version: *//' | sed 's/+.\+//')"
+          python setup.py clean
           echo "Successfully ran `python setup.py clean`"
-          ${CONDA_RUN} python setup.py bdist_wheel
+          python setup.py bdist_wheel
       - name: Repair Manylinux_2_28 Wheel
         shell: bash -l {0}
         env:
@@ -255,6 +258,7 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          source ${VIRTUAL_ENV}/bin/activate
           for pkg in ${{ inputs.repository }}/dist/*-linux_*.whl; do
             # if the glob didn't match anything
             if [[ ! -e $pkg ]]; then
@@ -277,10 +281,11 @@ jobs:
         run: |
           set -euxo pipefail
           source "${BUILD_ENV_FILE}"
+          source ${VIRTUAL_ENV}/bin/activate
           WHEEL_NAME=$(ls "${{ inputs.repository }}/dist/")
           echo "$WHEEL_NAME"
 
-          ${CONDA_RUN} pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
+          uv pip install "${{ inputs.repository }}/dist/$WHEEL_NAME"
           # Checking that we have a pinned version of torch in our dependency tree
           (
             pushd "${RUNNER_TEMP}"
@@ -295,13 +300,13 @@ jobs:
               # Special case for torchrec temporarily since __version__ does not
               # work correctly on main in torchrec. This block will be
               # removed once we fix it.
-              ${CONDA_RUN} python -c "import ${PACKAGE_NAME}"
+              python -c "import ${PACKAGE_NAME}"
             else
-              ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
+              python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
             fi
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
-            ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
+            python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
           fi
       # NB: Only upload to GitHub after passing smoke tests
 
