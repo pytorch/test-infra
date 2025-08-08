@@ -261,11 +261,8 @@ def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str)
 
 
 def generate_failed_job_hud_link(failed_job: JobStatus) -> str:
-    # TODO: I don't think minihud is universal across multiple repositories
-    #       would be good to just replace this with something that is
-    hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
-        failed_job.job_name
-    )
+    # TODO: Handle other branches/repos
+    hud_link = f"https://hud.pytorch.org/hud/pytorch/pytorch/main/1?per_page=100&name_filter={urllib.parse.quote(failed_job.job_name)}&mergeEphemeralLF=true"
     return f"[{failed_job.job_name}]({hud_link})"
 
 

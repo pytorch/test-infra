@@ -641,7 +641,7 @@ describe("merge-bot", () => {
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     const reason =
       "--breaks master: " +
-      "https://hud.pytorch.org/minihud?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
+      "https://hud.pytorch.org/pytorch/pytorch/main/1?name_filter=trunk%20/%20ios-12-5-1-x86-64-coreml%20/%20build";
 
     event.payload.comment.body = `@pytorchbot revert -m='${reason}' -c landrace`;
 
