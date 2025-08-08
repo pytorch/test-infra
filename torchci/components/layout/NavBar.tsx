@@ -220,11 +220,6 @@ function NavBar() {
             </Link>
           </li>
           <li>
-            <Link prefetch={false} href="/minihud">
-              MiniHUD
-            </Link>
-          </li>
-          <li>
             <Link prefetch={false} href="/hud/pytorch/pytorch/main">
               PyTorch
             </Link>
