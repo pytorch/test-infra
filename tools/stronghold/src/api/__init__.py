@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence
+from collections.abc import Sequence, Mapping
 from typing import Optional
 
 import api.types
@@ -41,3 +41,30 @@ class Parameter:
     line: int
     # Type annotation (relies on ast.annotation types)
     type_annotation: Optional[api.types.TypeHint] = None
+
+
+@dataclasses.dataclass
+class Field:
+    """Represents a dataclass or class attribute."""
+
+    name: str
+    required: bool
+    line: int
+    type_annotation: Optional[api.types.TypeHint] = None
+
+
+@dataclasses.dataclass
+class Class:
+    """Represents a class or dataclass."""
+
+    fields: Sequence[Field]
+    line: int
+    dataclass: bool = False
+
+
+@dataclasses.dataclass
+class API:
+    """Represents extracted API information."""
+
+    functions: Mapping[str, Parameters]
+    classes: Mapping[str, Class]
