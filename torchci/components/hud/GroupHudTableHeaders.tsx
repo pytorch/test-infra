@@ -7,9 +7,13 @@ import {
 import React, { useContext } from "react";
 import { BsFillCaretDownFill, BsFillCaretRightFill } from "react-icons/bs";
 
-function groupingIncludesJobFilter(jobNames: string[], filter: string) {
+function groupingIncludesJobFilter(
+  jobNames: string[],
+  filter: string,
+  useRegex: boolean
+) {
   for (const jobName of jobNames) {
-    if (includesCaseInsensitive(jobName, filter)) {
+    if (includesCaseInsensitive(jobName, filter, useRegex)) {
       return true;
     }
   }
@@ -19,12 +23,17 @@ function groupingIncludesJobFilter(jobNames: string[], filter: string) {
 export function passesGroupFilter(
   filter: string | null,
   name: string,
-  groupNameMapping: Map<string, string[]>
+  groupNameMapping: Map<string, string[]>,
+  useRegex: boolean
 ) {
   return (
     filter === null ||
-    includesCaseInsensitive(name, filter) ||
-    groupingIncludesJobFilter(groupNameMapping.get(name) ?? [], filter)
+    includesCaseInsensitive(name, filter, useRegex) ||
+    groupingIncludesJobFilter(
+      groupNameMapping.get(name) ?? [],
+      filter,
+      useRegex
+    )
   );
 }
 

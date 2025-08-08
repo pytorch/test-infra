@@ -662,7 +662,14 @@ function GroupedHudTable({
 
   names = names.filter((name) => {
     // Filter by job filter text first
-    if (!passesGroupFilter(jobFilter, name, groupNameMapping)) {
+    if (
+      !passesGroupFilter(
+        jobFilter,
+        name,
+        groupNameMapping,
+        params.useRegexFilter || false
+      )
+    ) {
       return false;
     }
 
