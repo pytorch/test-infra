@@ -69,112 +69,76 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 **K8s Decision:** EKS with GPU-optimized EC2 node groups (Fargate has no GPU support)
 
-## Tasks to execute
+## Implementation Status (Jan 8, 2025)
 
-- ✅ figure out how the NIC works in AWS - EFA research completed, single AZ cluster placement groups required
-- ✅ tf scaffold with ec2 / k8s / figuring out the total architecture diagram - ARCHITECTURE CONFIRMED
-- ✅ make terraform scaffold for us-east-2 region with 2x g4dn.2xlarge + EKS + networking (testing setup)
-- ✅ make a cli tool (python) to be able to reserve servers - Python CLI complete, Rust CLI on hold
-- ✅ implement SQS + EventBridge + Lambda queue processing system
-- ✅ implement DynamoDB state tracking for reservations
-- 🏗️ initialize gpu-servers DynamoDB table with g4dn.2xlarge instances (2x nodes, 1 GPU each)
-- 🏗️ implement reservation expiry logic with warnings and graceful shutdown
+### ✅ Completed and Working
+- EKS cluster with GPU node groups (g4dn.12xlarge, 4 GPUs each)
+- Python CLI tool for reservations with GitHub username config
+- SQS + Lambda queue processing system
+- DynamoDB state tracking for reservations and servers
+- Kubernetes pod creation with GPU resource allocation
+- NVIDIA device plugin for GPU exposure
+- NodePort services for SSH access to pods
+- GitHub public key injection for SSH authentication
+- Real SSH commands with copy-pasteable format
+- Lambda EKS authentication via AWS STS signing
+- aws-auth ConfigMap with proper Lambda role permissions
+- Reservation expiry logic with pod cleanup
 
-## Current Issues Found (Jan 8, 2025)
+### 🐛 Current Issue (Jan 8, 2025)
 
-### 1. Pod Assignment Missing
-- The `allocate_gpu_resources()` function in reservation_processor just logs but doesn't create actual K8s pods
-- Need to implement proper Kubernetes client integration for pod creation
-- Pods need GPU resource limits, SSH setup, and proper networking
+**SSH Connection Refused:**
+- Pods are successfully created and scheduled
+- NodePort services are created with correct port mappings
+- Security groups allow NodePort traffic (30000-32767)
+- SSH connection gets "Connection refused" instead of hanging
+- Likely issue: SSH server not starting properly in PyTorch container
 
-### 2. SSH Command Bogus  
-- Current SSH command: `ssh user@gpu-dev-{id}.cluster.local` is a placeholder
-- Need to implement:
-  - Node port service or LoadBalancer for pod SSH access
-  - GitHub public key injection into pods
-  - Real SSH connection string with correct host/port
+**Debugging Steps:**
+- Security group updated to allow NodePort range ✅
+- Need to check pod logs to verify SSH daemon startup
+- May need to adjust container SSH installation/startup process
 
-### 3. Pod Cleanup Logic Missing
-- Expiry Lambda has `cleanup_pod()` but it's just a placeholder
-- Need actual kubectl integration to delete pods gracefully
-- Need `wall` command integration for shutdown warnings
+### 📋 Next Steps
 
-### 4. Connection Info Not Updated
-- Reservation table has placeholder connection info
-- Need to update with real pod IP/port after creation
+1. **Debug SSH connectivity** - Check pod logs for SSH daemon startup issues
+2. **Test complete workflow** - Verify end-to-end reservation → SSH → cleanup flow  
+3. **Production deployment** - Switch to p5.48xlarge instances for production
+4. **Add features**:
+   - Multi-server (16 GPU) reservations
+   - GitHub organization/team verification
+   - Reservation extensions
+   - Usage monitoring and quotas
 
-## Implementation Plan
+### 🔧 Known Issues to Address
 
-**SSH Access Strategy:**
-- Each pod gets NodePort service (30000+ port range)
-- SSH command: `ssh -p 30001 user@<node-public-ip>`
-- User's GitHub public key injected into authorized_keys
-- Pod has SSH server running on port 22 (mapped to NodePort)
+**GPU Allocation State:**
+- Initialize Lambda resets available_gpus without checking active reservations
+- Could cause inconsistent state during infrastructure updates
+- Need reconciliation logic to preserve active reservations
 
-**Pod Creation Flow:**
-1. Lambda creates K8s pod with GPU resources
-2. Creates NodePort service for SSH access  
-3. Waits for pod to be ready
-4. Updates reservation with real SSH command
-5. Injects user's GitHub public key via init container
-
-**Cleanup Flow:**
-1. Send wall message to pod before termination
-2. Grace period for user to save work
-3. Delete pod and NodePort service
-4. Update server GPU allocation
-
-## Current Implementation Status (Jan 8, 2025)
-
-### ✅ Implemented but Not Tested
-- Real Kubernetes pod creation with GPU resources and SSH setup
-- GitHub public key fetching and injection into pods
-- Copy-pasteable SSH commands with NodePort services
-- Wall message notifications for expiry warnings
-- Pod cleanup logic in expiry Lambda with graceful shutdown
-- Connection info updates in reservation table
-- Kubernetes namespace and RBAC setup
-- Enhanced Lambda IAM permissions for EKS access
-
-### 🐛 Issues to Fix
-
-**GPU Allocation State Bug:**
-- On `terraform apply`, the `initialize_lambda` updates gpu-servers table
-- Available GPU count gets reset to default values (ignoring current allocations)
-- Active reservations still exist in reservations table but GPU tracking becomes inconsistent
-- Users should be able to stay on their dev servers during infrastructure updates
-- Need to check existing allocations before resetting available_gpus column
-- Possible solutions:
-  1. Initialize lambda should query reservations table first
-  2. Calculate actual available GPUs = total_gpus - sum(active_reservation_gpus)
-  3. Only reset if no active reservations exist
-  4. Add reconciliation logic to detect and fix allocation mismatches
-
-## Final Architecture Plan
+## Current Working Architecture
 
 **Infrastructure (us-east-2):**
+- **Testing**: 2x g4dn.12xlarge instances (4 GPUs each = 8 total GPUs)
+- **Production plan**: 5x p5.48xlarge instances (8 H100 GPUs each = 40 total GPUs)
+- EKS cluster with GPU-optimized node groups
+- NVIDIA device plugin for GPU resource exposure
+- Single AZ deployment with cluster placement groups
 
-- Testing: 2x g4dn.12xlarge instances (4 GPUs each = 8 total GPUs)
-- Production plan: 5x p5.48xlarge instances (8 H100 GPUs each = 40 total GPUs)
-- Cluster placement group for optimal networking with EFA
-- EKS cluster with GPU-optimized node groups (min/max 2 for testing)
-- VPC with single AZ for EFA requirements
+**Reservation System:**
+- SQS queue for async reservation requests
+- Lambda functions for pod creation and expiry management
+- DynamoDB for reservation and server state tracking
+- Kubernetes pods with GPU resource allocation (1/2/4 GPUs)
+- NodePort services for SSH access to pods
 
-**Queue System:**
+**Authentication & Access:**
+- GitHub username configuration for SSH key fetching
+- Public key injection into pods via init containers
+- Copy-pasteable SSH commands with NodePort access
 
-- SQS queue for reservation requests
-- EventBridge triggers Lambda processor
-- DynamoDB for state management (servers, reservations, quotas)
-- Lambda handles allocation logic and K8s pod scheduling
-
-**GPU Allocation:**
-
-- K8s pods with fractional GPU allocation (1/2/4/8 GPUs per pod)
-- Reservation time limits with auto-cleanup
-- Support for multi-server (2x8 GPU) reservations
-
-**Auth & CLI:**
-
-- GitHub-based auth with metamates group verification
-- Both Python and Rust CLI tools for dev choice comparison
-- Public key management for server access
+**CLI Tool:**
+- Python CLI with config at `~/.gpu-dev-config`
+- Commands: `reserve`, `list`, `config`
+- Real-time polling until reservation is ready

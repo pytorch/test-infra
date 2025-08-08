@@ -4,11 +4,11 @@ A command-line tool for reserving and managing PyTorch GPU development servers.
 
 ## Features
 
-- 🚀 Reserve 1, 2, 4, 8, or 16 GPUs (H100s)
-- 📋 List and manage your reservations
-- 🔐 GitHub authentication with team verification
+- 🚀 Reserve 1, 2, or 4 GPUs (T4s for testing, H100s for production)
+- 📋 List and manage your reservations  
+- 🔐 GitHub authentication with SSH key injection
 - 📊 View cluster status and availability
-- ⚡ Built on AWS EKS with EFA networking
+- ⚡ Built on AWS EKS with Kubernetes pods
 
 ## Installation
 
@@ -26,27 +26,25 @@ pip install -e .
 
 ## Configuration
 
-Set up your configuration with environment variables:
+Configure your GitHub username for SSH key fetching:
 
 ```bash
-export GPU_DEV_QUEUE_URL="https://sqs.us-east-2.amazonaws.com/..."
-export GPU_DEV_RESERVATIONS_TABLE="pytorch-gpu-dev-reservations"
-export GPU_DEV_SERVERS_TABLE="pytorch-gpu-dev-servers"
-export GPU_DEV_CLUSTER_NAME="pytorch-gpu-dev-cluster"
-export GITHUB_TOKEN="your_github_token"
+# Set your GitHub username (required for SSH access)
+gpu-dev config set github_user your-github-username
+
+# View current configuration
+gpu-dev config show
 ```
 
-Or create a config file at `~/.config/gpu-dev-cli/config.json`:
+Configuration is stored at `~/.gpu-dev-config`:
 
 ```json
 {
-  "aws_region": "us-east-2",
-  "queue_url": "https://sqs.us-east-2.amazonaws.com/...",
-  "reservations_table": "pytorch-gpu-dev-reservations",
-  "servers_table": "pytorch-gpu-dev-servers",
-  "cluster_name": "pytorch-gpu-dev-cluster"
+  "github_user": "your-github-username"
 }
 ```
+
+**AWS Configuration**: The CLI uses your AWS credentials and automatically discovers the infrastructure resources.
 
 ## Usage
 
@@ -56,14 +54,11 @@ Or create a config file at `~/.config/gpu-dev-cli/config.json`:
 # Reserve 1 GPU for 8 hours (default)
 gpu-dev reserve
 
-# Reserve 4 GPUs for 12 hours
-gpu-dev reserve --gpus 4 --hours 12
+# Reserve 2 GPUs for 4 hours  
+gpu-dev reserve --gpus 2 --hours 4
 
-# Reserve 16 GPUs (2x8 setup) for 4 hours with a name
-gpu-dev reserve --gpus 16 --hours 4 --name "distributed-training"
-
-# Dry run to see what would be reserved
-gpu-dev reserve --gpus 8 --dry-run
+# Reserve 4 GPUs for 12 hours with a name
+gpu-dev reserve --gpus 4 --hours 12 --name "multi-gpu-training"
 ```
 
 ### List Reservations
@@ -79,41 +74,45 @@ gpu-dev list --user username
 gpu-dev list --status active
 ```
 
-### Manage Reservations
+### Connect to Your Server
+
+Once your reservation is active, you'll get an SSH command:
 
 ```bash
-# Get connection info for a reservation
-gpu-dev connect abc12345
-
-# Cancel a reservation
-gpu-dev cancel abc12345
+# Example output from successful reservation:
+✅ Reservation complete!
+📋 Reservation ID: abc12345-1234-5678-9abc-def012345678
+🕐 Valid for: 4 hours
+💻 Connect with: ssh -p 30508 dev@3.17.78.115
 ```
 
-### Cluster Status
+Just copy and paste the SSH command to connect!
+
+### List Reservations
 
 ```bash
-# View overall cluster status
-gpu-dev status
-
-# View current configuration
-gpu-dev config
+# List your active reservations
+gpu-dev list
 ```
 
 ## GPU Options
 
-- **1 GPU**: Single H100 for development
-- **2 GPUs**: Dual H100 setup
-- **4 GPUs**: Quad H100 setup  
+**Testing Environment (g4dn.12xlarge instances):**
+- **1 GPU**: Single T4 for development  
+- **2 GPUs**: Dual T4 setup
+- **4 GPUs**: Full g4dn.12xlarge instance (4x T4)
+
+**Production Environment (planned - p5.48xlarge instances):**
 - **8 GPUs**: Full p5.48xlarge instance (8x H100)
-- **16 GPUs**: 2x p5.48xlarge instances with EFA networking
 
 ## Authentication
 
 The CLI requires:
 
-1. GitHub personal access token with `repo` and `read:org` scopes
-2. Membership in the `pytorch/metamates` team
-3. Write access to the `pytorch/pytorch` repository
+1. **AWS credentials** configured (via `aws configure` or IAM role)
+2. **GitHub username** configured (for SSH key fetching): `gpu-dev config set github_user your-username`
+3. **Public SSH key** on your GitHub profile (used for server access)
+
 
 ## Development
 
@@ -136,7 +135,8 @@ poetry run mypy .
 
 The CLI communicates with:
 
-- **SQS Queue**: For reservation requests
-- **DynamoDB**: For reservation and server state
-- **EKS Cluster**: For GPU pod management
-- **GitHub API**: For authentication and team verification
+- **SQS Queue**: For async reservation processing
+- **DynamoDB**: For reservation and server state tracking
+- **Lambda Functions**: For pod creation and management
+- **EKS Cluster**: For GPU pod scheduling
+- **GitHub API**: For SSH public key fetching

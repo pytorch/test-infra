@@ -1,122 +1,98 @@
 # GPU Developer Servers Infrastructure
 
-Terraform configuration for PyTorch GPU development servers with cost-flexible instance types.
+Terraform configuration for PyTorch GPU development servers using AWS EKS with Kubernetes pod scheduling.
 
 ## Quick Start
 
-### 1. Testing Setup (Cheap)
+### 1. Testing Setup (Current Default)
+
 ```bash
-# Deploy with cheap T4 instances for testing
+# Deploy with 4x T4 instances for testing (default configuration)
 terraform init
-terraform plan -var="instance_type=g4dn.2xlarge" -var="gpu_instance_count=2"
-terraform apply -var="instance_type=g4dn.2xlarge" -var="gpu_instance_count=2"
+terraform plan
+terraform apply
 ```
 
-### 2. Mid-Range Setup  
-```bash
-# Deploy with A10G instances for development
-terraform plan -var="instance_type=g5.2xlarge" -var="gpu_instance_count=3"
-terraform apply -var="instance_type=g5.2xlarge" -var="gpu_instance_count=3"
-```
+### 2. Production Setup (Future)
 
-### 3. Production Setup
 ```bash
 # Deploy with H100 instances for production
 terraform plan -var="instance_type=p5.48xlarge" -var="gpu_instance_count=5"
 terraform apply -var="instance_type=p5.48xlarge" -var="gpu_instance_count=5"
 ```
 
-## Instance Types & Costs
+## Current Configuration
 
-| Instance Type | GPUs | GPU Type | Cost/Hour | Use Case |
-|---------------|------|----------|-----------|----------|
-| `g4dn.xlarge` | 1x | T4 | ~$0.53 | Basic testing |
-| `g4dn.2xlarge` | 1x | T4 | ~$0.75 | **Testing (default)** |
-| `g5.2xlarge` | 1x | A10G | ~$1.21 | Development |
-| `g5.4xlarge` | 1x | A10G | ~$1.64 | Mid-range |
-| `p3.2xlarge` | 1x | V100 | ~$3.06 | Training |
-| `p5.48xlarge` | 8x | H100 | ~$98.00 | **Production** |
+**Testing Environment:**
+- **Instance Type**: `g4dn.12xlarge` (4x T4 GPUs per instance)
+- **Node Count**: 2 instances
+- **Total GPUs**: 8x T4 GPUs available
+- **Cost**: ~$7.82/hour total for cluster
+
+**Production Plan:**
+- **Instance Type**: `p5.48xlarge` (8x H100 GPUs per instance)
+- **Node Count**: 5 instances  
+- **Total GPUs**: 40x H100 GPUs available
+- **Cost**: ~$490/hour total for cluster
 
 ## Configuration Options
 
-### Environment Variables
+### Customization Variables
+
 ```bash
-export TF_VAR_instance_type="g4dn.2xlarge"
+# Override instance type
+export TF_VAR_instance_type="g4dn.12xlarge"
+
+# Override instance count
 export TF_VAR_gpu_instance_count=2
-export TF_VAR_key_pair_name="your-key-pair"
+
+# Override region
+export TF_VAR_aws_region="us-east-2"
 ```
 
-### Terraform Variables File
-Create `terraform.tfvars`:
-```hcl
-# Testing configuration
-instance_type = "g4dn.2xlarge"
-gpu_instance_count = 2
-key_pair_name = "your-key-pair"
+## Development - Connect to Kubernetes
 
-# Production configuration (commented out)
-# instance_type = "p5.48xlarge" 
-# gpu_instance_count = 5
-```
-
-## Features by Instance Type
-
-### Testing Instances (g4dn, g5)
-- Basic GPU compute
-- Standard networking
-- Cost-effective for development
-- Single GPU per instance
-
-### Production Instances (p5.48xlarge)
-- 8x H100 GPUs per instance
-- EFA networking for multi-node
-- Cluster placement groups
-- Optimized for AI/ML workloads
-
-## Deployment Commands
+To debug pods and services, configure kubectl to connect to your EKS cluster:
 
 ```bash
-# Initialize
-terraform init
+# Install kubectl (macOS)
+brew install kubectl
 
-# Plan with specific instance type
-terraform plan -var="instance_type=g4dn.2xlarge"
+# Configure kubectl for your EKS cluster
+aws eks update-kubeconfig --region us-east-2 --name pytorch-gpu-dev-cluster
 
-# Apply
-terraform apply -var="instance_type=g4dn.2xlarge"
+# Test connectivity
+kubectl get nodes
+kubectl get pods -n gpu-dev
+kubectl get svc -n gpu-dev
 
-# Destroy when done
-terraform destroy
+# Debug a specific pod
+kubectl logs <pod-name> -n gpu-dev
+kubectl exec -it <pod-name> -n gpu-dev -- /bin/bash
 ```
 
-## CLI Testing
+## Architecture
 
-Both Python and Rust CLIs support test mode:
+The infrastructure includes:
+
+- **EKS Cluster**: Kubernetes cluster for GPU pod scheduling
+- **Node Groups**: GPU-enabled EC2 instances (g4dn.12xlarge)
+- **Lambda Functions**: Process reservations and handle expiry
+- **DynamoDB**: Store reservation and server state
+- **SQS**: Queue system for async processing
+- **NVIDIA Device Plugin**: Expose GPU resources to Kubernetes
+
+## CLI Usage
+
+Once deployed, use the CLI to make reservations:
 
 ```bash
-# Python CLI test mode
-gpu-dev --test reserve --gpus 2 --hours 4
-gpu-dev --test list
-gpu-dev --test status
+# Configure your GitHub username for SSH access
+gpu-dev config set github_user your-github-username
 
-# Rust CLI test mode  
-gpu-dev --test reserve --gpus 2 --hours 4
-gpu-dev --test list
-gpu-dev --test status
+# Reserve GPUs
+gpu-dev reserve --gpus 2 --hours 4
+
+# List your reservations
+gpu-dev list
 ```
-
-## Cost Management
-
-- Start with `g4dn.2xlarge` for testing (~$1.50/hour for 2 instances)
-- Scale to `g5.2xlarge` for development (~$3.63/hour for 3 instances)
-- Use `p5.48xlarge` only for production (~$490/hour for 5 instances)
-
-## Outputs
-
-After deployment, you'll get:
-- EKS cluster name
-- SQS queue URL
-- DynamoDB table names
-- CLI configuration values
-
-Use these outputs to configure your CLI tools.

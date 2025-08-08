@@ -128,6 +128,15 @@ resource "aws_security_group" "gpu_dev_sg" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # NodePort range for SSH services to pods
+  ingress {
+    from_port   = 30000
+    to_port     = 32767
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "Kubernetes NodePort range for pod SSH access"
+  }
+
   # All traffic within VPC for EFA
   ingress {
     from_port = 0

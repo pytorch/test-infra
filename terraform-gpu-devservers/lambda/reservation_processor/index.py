@@ -80,7 +80,7 @@ def process_reservation_request(record: Dict[str, Any]) -> bool:
             reservation_id = reservation_request.get('reservation_id')
             if reservation_id:
                 update_reservation_status(reservation_id, 'preparing', 'Preparing GPU resources')
-            
+
             # Create reservation
             reservation_id = create_reservation(reservation_request)
             logger.info(f"Created reservation: {reservation_id}")
@@ -92,7 +92,7 @@ def process_reservation_request(record: Dict[str, Any]) -> bool:
             # Insufficient resources - update status and retry logic
             receive_count = int(record.get('attributes', {}).get('ApproximateReceiveCount', '1'))
             reservation_id = reservation_request.get('reservation_id')
-            
+
             if receive_count == 1:
                 # First attempt failed - update status to queued
                 if reservation_id:
@@ -100,19 +100,20 @@ def process_reservation_request(record: Dict[str, Any]) -> bool:
                 logger.info(f"Insufficient resources, attempt {receive_count}/3. Will retry.")
             elif receive_count == 2:
                 # Second attempt - still queued
-                logger.warning(f"Insufficient resources on attempt {receive_count}/3. Message will be re-added to queue for retry.")
+                logger.warning(
+                    f"Insufficient resources on attempt {receive_count}/3. Message will be re-added to queue for retry.")
             elif receive_count >= 3:
                 logger.error(f"FINAL ATTEMPT: Insufficient resources after 3 attempts. SQS will move to DLQ.")
                 # Update reservation status before SQS moves to DLQ
                 if reservation_id:
-                    update_reservation_status(reservation_id, 'failed', 
-                                            f"Insufficient resources after 3 attempts")
-            
+                    update_reservation_status(reservation_id, 'failed',
+                                              f"Insufficient resources after 3 attempts")
+
             return False  # Don't delete - let SQS handle retry/DLQ
 
     except Exception as e:
         logger.error(f"Error processing reservation request: {str(e)}")
-        
+
         # Try to update reservation status to failed before raising exception
         try:
             # Try to get reservation_id from the parsed request or record
@@ -122,12 +123,12 @@ def process_reservation_request(record: Dict[str, Any]) -> bool:
                 reservation_id = reservation_request.get('reservation_id')
             except Exception:
                 pass
-                
+
             if reservation_id:
                 update_reservation_status(reservation_id, 'failed', f"Processing error: {str(e)}")
         except Exception as status_error:
             logger.error(f"Failed to update reservation status: {str(status_error)}")
-        
+
         # Let processing errors (like JSON parsing) go to DLQ
         raise
 
@@ -225,7 +226,7 @@ def allocate_gpu_resources(reservation_id: str, request: Dict[str, Any]) -> None
         gpu_count = request['gpu_count']
         user_id = request['user_id']
         pod_name = f"gpu-dev-{reservation_id[:8]}"
-        
+
         logger.info(f"Allocating {gpu_count} GPUs for reservation {reservation_id}")
         logger.info(f"Pod name: {pod_name}")
 
@@ -238,17 +239,17 @@ def allocate_gpu_resources(reservation_id: str, request: Dict[str, Any]) -> None
         # Create Kubernetes pod and service
         node_port = create_kubernetes_resources(
             pod_name=pod_name,
-            gpu_count=gpu_count, 
+            gpu_count=gpu_count,
             github_public_key=github_public_key,
             reservation_id=reservation_id
         )
-        
+
         # Get node public IP
         node_public_ip = get_node_public_ip()
-        
+
         # Generate SSH command
         ssh_command = f"ssh -p {node_port} dev@{node_public_ip}"
-        
+
         # Update reservation with connection details
         update_reservation_connection_info(
             reservation_id=reservation_id,
@@ -335,8 +336,6 @@ def delete_sqs_message(record: Dict[str, Any]) -> None:
         logger.error(f"Error deleting SQS message: {str(e)}")
 
 
-
-
 def update_reservation_status(reservation_id: str, status: str, reason: str = None) -> None:
     """Update reservation status in DynamoDB"""
     try:
@@ -384,21 +383,21 @@ def create_kubernetes_resources(pod_name: str, gpu_count: int, github_public_key
     try:
         # Configure Kubernetes client
         k8s_client = setup_kubernetes_client()
-        
+
         # Find available node port (30000-32767 range)
         node_port = find_available_node_port(k8s_client)
-        
+
         # Create pod
         create_pod(k8s_client, pod_name, gpu_count, github_public_key)
-        
+
         # Create service
         create_service(k8s_client, pod_name, node_port)
-        
+
         # Wait for pod to be ready
         wait_for_pod_ready(k8s_client, pod_name)
-        
+
         return node_port
-        
+
     except Exception as e:
         logger.error(f"Error creating Kubernetes resources: {str(e)}")
         raise
@@ -410,7 +409,7 @@ def get_bearer_token():
     import re
     import boto3
     from botocore.signers import RequestSigner
-    
+
     STS_TOKEN_EXPIRES_IN = 60
     session = boto3.session.Session(region_name=REGION)
 
@@ -454,29 +453,29 @@ def setup_kubernetes_client():
         from kubernetes import client
         import boto3
         import base64
-        
+
         # Get EKS cluster info
         eks = boto3.client('eks', region_name=REGION)
         cluster_info = eks.describe_cluster(name=EKS_CLUSTER_NAME)
         cluster = cluster_info['cluster']
-        
+
         # Get cluster endpoint and certificate
         cluster_endpoint = cluster['endpoint']
         cert_authority = cluster['certificateAuthority']['data']
-        
+
         # Write CA cert to temp file
         with open('/tmp/ca.crt', 'wb') as f:
             f.write(base64.b64decode(cert_authority))
-        
+
         # Create configuration
         configuration = client.Configuration()
         configuration.api_key = {'authorization': get_bearer_token()}
         configuration.api_key_prefix = {'authorization': 'Bearer'}
         configuration.host = cluster_endpoint
         configuration.ssl_ca_cert = '/tmp/ca.crt'
-        
+
         return client.ApiClient(configuration)
-        
+
     except Exception as e:
         logger.error(f"Failed to configure Kubernetes client: {str(e)}")
         raise
@@ -487,31 +486,31 @@ def find_available_node_port(k8s_client) -> int:
     try:
         from kubernetes import client
         import random
-        
+
         # Get all services to check used ports
         v1 = client.CoreV1Api(k8s_client)
         services = v1.list_service_for_all_namespaces()
-        
+
         used_ports = set()
         for svc in services.items:
             if svc.spec.ports:
                 for port in svc.spec.ports:
                     if port.node_port:
                         used_ports.add(port.node_port)
-        
+
         # NodePort range: 30000-32767
         for _ in range(10):  # Try 10 random ports
             port = random.randint(30000, 32767)
             if port not in used_ports:
                 return port
-                
+
         # Fallback to sequential search
         for port in range(30000, 32768):
             if port not in used_ports:
                 return port
-                
+
         raise ValueError("No available NodePort found")
-        
+
     except Exception as e:
         logger.error(f"Error finding available node port: {str(e)}")
         # Fallback to random port if can't check
@@ -523,9 +522,9 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Create pod spec
         pod_spec = client.V1PodSpec(
             restart_policy="Never",
@@ -552,7 +551,7 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
             containers=[
                 client.V1Container(
                     name="gpu-dev",
-                    image="pytorch/pytorch:2.1.0-cuda12.1-devel-ubuntu20.04",
+                    image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
                     command=["/bin/bash"],
                     args=[
                         "-c",
@@ -589,7 +588,7 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
             volumes=[
                 client.V1Volume(name="dev-home", empty_dir=client.V1EmptyDirVolumeSource()),
                 client.V1Volume(
-                    name="shared-workspace", 
+                    name="shared-workspace",
                     empty_dir=client.V1EmptyDirVolumeSource(size_limit="100Gi")
                 )
             ],
@@ -601,20 +600,20 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
                 )
             ]
         )
-        
+
         # Create pod metadata
         pod_metadata = client.V1ObjectMeta(
             name=pod_name,
             namespace="gpu-dev",
             labels={"app": "gpu-dev-pod", "reservation": pod_name}
         )
-        
+
         # Create pod
         pod = client.V1Pod(metadata=pod_metadata, spec=pod_spec)
         v1.create_namespaced_pod(namespace="gpu-dev", body=pod)
-        
+
         logger.info(f"Created pod {pod_name}")
-        
+
     except Exception as e:
         logger.error(f"Error creating pod {pod_name}: {str(e)}")
         raise
@@ -624,9 +623,9 @@ def create_service(k8s_client, pod_name: str, node_port: int):
     """Create NodePort service for SSH access"""
     try:
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Create service spec
         service_spec = client.V1ServiceSpec(
             type="NodePort",
@@ -640,19 +639,19 @@ def create_service(k8s_client, pod_name: str, node_port: int):
             ],
             selector={"reservation": pod_name}
         )
-        
+
         # Create service metadata
         service_metadata = client.V1ObjectMeta(
             name=f"{pod_name}-ssh",
             namespace="gpu-dev"
         )
-        
+
         # Create service
         service = client.V1Service(metadata=service_metadata, spec=service_spec)
         v1.create_namespaced_service(namespace="gpu-dev", body=service)
-        
+
         logger.info(f"Created service {pod_name}-ssh on port {node_port}")
-        
+
     except Exception as e:
         logger.error(f"Error creating service for {pod_name}: {str(e)}")
         raise
@@ -688,7 +687,8 @@ spec:
       mountPath: /home/dev
   containers:
   - name: gpu-dev
-    image: pytorch/pytorch:2.1.0-cuda12.1-devel-ubuntu20.04
+    image: pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime
+
     command: ["/bin/bash"]
     args:
     - -c
@@ -760,11 +760,11 @@ def apply_kubernetes_yaml(yaml_content: str, filename: str):
         with tempfile.NamedTemporaryFile(mode='w', suffix='.yaml', delete=False) as f:
             f.write(yaml_content)
             f.flush()
-            
+
             cmd = ['kubectl', 'apply', '-f', f.name]
             result = subprocess.run(cmd, check=True, capture_output=True, text=True)
             logger.info(f"Applied {filename}: {result.stdout.strip()}")
-            
+
     except subprocess.CalledProcessError as e:
         logger.error(f"Failed to apply {filename}: {e.stderr.decode()}")
         raise
@@ -780,28 +780,28 @@ def wait_for_pod_ready(k8s_client, pod_name: str, timeout_seconds: int = 300):
     try:
         from kubernetes import client
         import time
-        
+
         v1 = client.CoreV1Api(k8s_client)
-        
+
         start_time = time.time()
         while time.time() - start_time < timeout_seconds:
             try:
                 pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
-                
+
                 # Check if pod is ready
                 if pod.status.conditions:
                     for condition in pod.status.conditions:
                         if condition.type == 'Ready' and condition.status == 'True':
                             logger.info(f"Pod {pod_name} is ready")
                             return
-                            
+
             except Exception as e:
                 logger.warning(f"Error checking pod status: {str(e)}")
-                
+
             time.sleep(10)
-            
+
         raise TimeoutError(f"Pod {pod_name} did not become ready within {timeout_seconds} seconds")
-        
+
     except Exception as e:
         logger.error(f"Error waiting for pod ready: {str(e)}")
         raise
@@ -813,25 +813,25 @@ def get_node_public_ip() -> str:
         # Get node information using Kubernetes client
         k8s_client = setup_kubernetes_client()
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
         nodes = v1.list_node()
-        
+
         for node in nodes.items:
             if node.status.addresses:
                 for addr in node.status.addresses:
                     if addr.type == 'ExternalIP':
                         return addr.address
-                        
+
         # Fallback: try to get from instance metadata
         instance_id = get_node_instance_id()
         if instance_id:
             response = ec2_client.describe_instances(InstanceIds=[instance_id])
             instance = response['Reservations'][0]['Instances'][0]
             return instance.get('PublicIpAddress', '')
-            
+
         raise ValueError("Could not determine node public IP")
-        
+
     except Exception as e:
         logger.error(f"Error getting node public IP: {str(e)}")
         raise
@@ -842,19 +842,19 @@ def get_node_instance_id() -> str:
     try:
         k8s_client = setup_kubernetes_client()
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
         nodes = v1.list_node()
-        
+
         for node in nodes.items:
             if node.spec.provider_id:
                 provider_id = node.spec.provider_id
                 if 'aws:///' in provider_id:
                     # Extract instance ID from providerID like "aws:///us-east-2a/i-1234567890abcdef0"
                     return provider_id.split('/')[-1]
-                
+
         return None
-        
+
     except Exception as e:
         logger.error(f"Error getting node instance ID: {str(e)}")
         return None
@@ -883,7 +883,7 @@ def update_reservation_connection_info(reservation_id: str, ssh_command: str, po
             }
         )
         logger.info(f"Updated reservation {reservation_id} with connection info")
-        
+
     except Exception as e:
         logger.error(f"Error updating reservation connection info: {str(e)}")
         raise

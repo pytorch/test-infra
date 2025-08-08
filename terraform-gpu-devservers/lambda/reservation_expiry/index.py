@@ -33,7 +33,7 @@ def handler(event, context):
     """Main Lambda handler"""
     try:
         logger.info("Running reservation expiry and cleanup check")
-        
+
         # Get all active reservations
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         response = reservations_table.query(
@@ -42,10 +42,10 @@ def handler(event, context):
             ExpressionAttributeNames={'#status': 'status'},
             ExpressionAttributeValues={':status': 'active'}
         )
-        
+
         active_reservations = response.get('Items', [])
         logger.info(f"Found {len(active_reservations)} active reservations")
-        
+
         # Also check for stale queued/pending reservations
         stale_statuses = ['queued', 'pending']
         stale_reservations = []
@@ -57,40 +57,40 @@ def handler(event, context):
                 ExpressionAttributeValues={':status': status}
             )
             stale_reservations.extend(response.get('Items', []))
-        
+
         logger.info(f"Found {len(stale_reservations)} queued/pending reservations")
-        
+
         current_time = int(time.time())
         warning_threshold = current_time + (WARNING_MINUTES * 60)
         stale_threshold = current_time - (5 * 60)  # 5 minutes ago
-        
+
         warned_count = 0
         expired_count = 0
         stale_cancelled_count = 0
-        
+
         # Process active reservations for expiry
         for reservation in active_reservations:
             expires_at = int(reservation.get('expires_at', 0))
             reservation_id = reservation['reservation_id']
             user_id = reservation['user_id']
-            
+
             # Check if reservation has already expired (with grace period)
             if expires_at + GRACE_PERIOD_SECONDS < current_time:
                 logger.info(f"Expiring reservation {reservation_id} (expired at {expires_at})")
                 expire_reservation(reservation)
                 expired_count += 1
-                
+
             # Check if reservation is within warning window and hasn't been warned yet
             elif expires_at < warning_threshold and not reservation.get('warning_sent'):
                 logger.info(f"Warning user about expiring reservation {reservation_id}")
                 warn_user_expiring(reservation)
                 warned_count += 1
-        
+
         # Process stale queued/pending reservations
         for reservation in stale_reservations:
             created_at = reservation.get('created_at', '')
             reservation_id = reservation['reservation_id']
-            
+
             # Parse created_at timestamp
             try:
                 if isinstance(created_at, str):
@@ -101,13 +101,13 @@ def handler(event, context):
             except:
                 logger.warning(f"Could not parse created_at for reservation {reservation_id}")
                 continue
-            
+
             # Cancel if stale (>5 minutes in queued/pending state)
             if created_timestamp < stale_threshold:
                 logger.info(f"Cancelling stale {reservation['status']} reservation {reservation_id}")
                 cancel_stale_reservation(reservation)
                 stale_cancelled_count += 1
-        
+
         return {
             'statusCode': 200,
             'body': json.dumps({
@@ -117,7 +117,7 @@ def handler(event, context):
                 'stale_cancelled': stale_cancelled_count
             })
         }
-        
+
     except Exception as e:
         logger.error(f"Error in expiry check: {str(e)}")
         raise
@@ -130,21 +130,21 @@ def warn_user_expiring(reservation: Dict[str, Any]) -> None:
         user_id = reservation['user_id']
         expires_at = int(reservation.get('expires_at', 0))
         pod_name = reservation.get('pod_name')
-        
+
         # Calculate time until expiry
         current_time = int(time.time())
         minutes_left = (expires_at - current_time) // 60
-        
+
         # Send warning to the pod
         warning_message = create_warning_message(reservation, minutes_left)
-        
+
         if pod_name:
             # Send wall message to pod
             send_wall_message_to_pod(pod_name, warning_message)
-            
+
             # Also create a visible file in the workspace
             create_warning_file_in_pod(pod_name, warning_message, minutes_left)
-        
+
         # Update reservation to mark warning as sent
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         reservations_table.update_item(
@@ -155,9 +155,9 @@ def warn_user_expiring(reservation: Dict[str, Any]) -> None:
                 ':warning_time': current_time
             }
         )
-        
+
         logger.info(f"Warning sent for reservation {reservation_id}")
-        
+
     except Exception as e:
         logger.error(f"Error warning user for reservation {reservation.get('reservation_id')}: {str(e)}")
 
@@ -168,9 +168,9 @@ def expire_reservation(reservation: Dict[str, Any]) -> None:
         reservation_id = reservation['reservation_id']
         user_id = reservation['user_id']
         gpu_count = int(reservation.get('gpu_count', 1))
-        
+
         logger.info(f"Expiring reservation {reservation_id} for user {user_id}")
-        
+
         # 1. Update reservation status to expired
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         reservations_table.update_item(
@@ -182,17 +182,17 @@ def expire_reservation(reservation: Dict[str, Any]) -> None:
                 ':expired_at': int(time.time())
             }
         )
-        
+
         # 2. Clean up K8s pod (would use kubectl or K8s API)
         pod_name = reservation.get('pod_name')
         if pod_name:
             cleanup_pod(pod_name, reservation.get('namespace', 'gpu-dev'))
-        
+
         # 3. Release GPU resources back to servers
         release_gpu_resources(gpu_count, reservation_id)
-        
+
         logger.info(f"Successfully expired reservation {reservation_id}")
-        
+
     except Exception as e:
         logger.error(f"Error expiring reservation {reservation.get('reservation_id')}: {str(e)}")
         raise
@@ -203,9 +203,9 @@ def cancel_stale_reservation(reservation: Dict[str, Any]) -> None:
     try:
         reservation_id = reservation['reservation_id']
         user_id = reservation.get('user_id', 'unknown')
-        
+
         logger.info(f"Cancelling stale reservation {reservation_id} for user {user_id}")
-        
+
         # Update reservation status to cancelled
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         reservations_table.update_item(
@@ -218,9 +218,9 @@ def cancel_stale_reservation(reservation: Dict[str, Any]) -> None:
                 ':reason': 'Stale reservation - exceeded 5 minute queue time'
             }
         )
-        
+
         logger.info(f"Successfully cancelled stale reservation {reservation_id}")
-        
+
     except Exception as e:
         logger.error(f"Error cancelling stale reservation {reservation.get('reservation_id')}: {str(e)}")
 
@@ -229,7 +229,7 @@ def create_warning_message(reservation: Dict[str, Any], minutes_left: int) -> st
     """Create warning message for user"""
     reservation_id = reservation['reservation_id']
     user_id = reservation['user_id']
-    
+
     if minutes_left <= 0:
         return f"🚨 URGENT: Reservation {reservation_id[:8]} expires in less than 1 minute! Save your work now!"
     elif minutes_left <= 5:
@@ -245,18 +245,19 @@ def cleanup_pod(pod_name: str, namespace: str = 'gpu-dev') -> None:
     try:
         from kubernetes import client
         logger.info(f"Cleaning up pod {pod_name} in namespace {namespace}")
-        
+
         # Configure Kubernetes client
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Send final warning message before deletion
         try:
-            send_wall_message_to_pod(pod_name, "🚨 FINAL WARNING: Reservation expired! Pod will be deleted in 2 minutes. Save your work NOW!", namespace)
+            send_wall_message_to_pod(
+                pod_name, "🚨 FINAL WARNING: Reservation expired! Pod will be deleted in 2 minutes. Save your work NOW!", namespace)
             time.sleep(120)  # Give user 2 minutes to save work
         except Exception as warn_error:
             logger.warning(f"Could not send final warning: {warn_error}")
-        
+
         # Delete the NodePort service first
         service_name = f"{pod_name}-ssh"
         try:
@@ -271,7 +272,7 @@ def cleanup_pod(pod_name: str, namespace: str = 'gpu-dev') -> None:
                 logger.info(f"Service {service_name} not found (already deleted)")
             else:
                 logger.warning(f"Failed to delete service {service_name}: {e}")
-        
+
         # Delete the pod with grace period
         try:
             v1.delete_namespaced_pod(
@@ -285,7 +286,7 @@ def cleanup_pod(pod_name: str, namespace: str = 'gpu-dev') -> None:
                 logger.info(f"Pod {pod_name} not found (already deleted)")
             else:
                 logger.error(f"Failed to delete pod {pod_name}: {e}")
-                
+
                 # Force delete if graceful deletion failed
                 try:
                     v1.delete_namespaced_pod(
@@ -297,7 +298,7 @@ def cleanup_pod(pod_name: str, namespace: str = 'gpu-dev') -> None:
                 except client.exceptions.ApiException as force_error:
                     logger.error(f"Failed to force delete pod {pod_name}: {force_error}")
                     raise
-        
+
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
         raise
@@ -307,31 +308,31 @@ def release_gpu_resources(gpu_count: int, reservation_id: str) -> None:
     """Release GPU resources back to the servers table"""
     try:
         servers_table = dynamodb.Table(SERVERS_TABLE)
-        
+
         # Find servers that had GPUs allocated to this reservation
         # This would typically be tracked in the server allocation logic
         response = servers_table.scan(
             FilterExpression='allocated_gpus > :zero',
             ExpressionAttributeValues={':zero': 0}
         )
-        
+
         servers_with_allocations = response.get('Items', [])
         remaining_gpus_to_release = gpu_count
-        
+
         for server in servers_with_allocations:
             if remaining_gpus_to_release <= 0:
                 break
-                
+
             server_id = server['server_id']
             allocated_gpus = int(server.get('allocated_gpus', 0))
             available_gpus = int(server.get('available_gpus', 0))
-            
+
             # Release GPUs (this is simplified - in reality we'd track which reservation owns which GPUs)
             gpus_to_release = min(remaining_gpus_to_release, allocated_gpus)
-            
+
             new_allocated = allocated_gpus - gpus_to_release
             new_available = available_gpus + gpus_to_release
-            
+
             servers_table.update_item(
                 Key={'server_id': server_id},
                 UpdateExpression='SET allocated_gpus = :new_allocated, available_gpus = :new_available',
@@ -340,13 +341,13 @@ def release_gpu_resources(gpu_count: int, reservation_id: str) -> None:
                     ':new_available': new_available
                 }
             )
-            
+
             remaining_gpus_to_release -= gpus_to_release
             logger.info(f"Released {gpus_to_release} GPUs on server {server_id}")
-        
+
         if remaining_gpus_to_release > 0:
             logger.warning(f"Could not release {remaining_gpus_to_release} GPUs - may be a tracking issue")
-            
+
     except Exception as e:
         logger.error(f"Error releasing GPU resources: {str(e)}")
         raise
@@ -358,7 +359,7 @@ def get_bearer_token():
     import re
     import boto3
     from botocore.signers import RequestSigner
-    
+
     STS_TOKEN_EXPIRES_IN = 60
     session = boto3.session.Session(region_name=REGION)
 
@@ -402,29 +403,29 @@ def setup_kubernetes_client():
         from kubernetes import client
         import boto3
         import base64
-        
+
         # Get EKS cluster info
         eks = boto3.client('eks', region_name=REGION)
         cluster_info = eks.describe_cluster(name=EKS_CLUSTER_NAME)
         cluster = cluster_info['cluster']
-        
+
         # Get cluster endpoint and certificate
         cluster_endpoint = cluster['endpoint']
         cert_authority = cluster['certificateAuthority']['data']
-        
+
         # Write CA cert to temp file
         with open('/tmp/ca.crt', 'wb') as f:
             f.write(base64.b64decode(cert_authority))
-        
+
         # Create configuration
         configuration = client.Configuration()
         configuration.api_key = {'authorization': get_bearer_token()}
         configuration.api_key_prefix = {'authorization': 'Bearer'}
         configuration.host = cluster_endpoint
         configuration.ssl_ca_cert = '/tmp/ca.crt'
-        
+
         return client.ApiClient(configuration)
-        
+
     except Exception as e:
         logger.error(f"Failed to configure Kubernetes client: {str(e)}")
         raise
@@ -434,15 +435,15 @@ def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = 'gpu-
     """Send wall message to all logged-in users in the pod"""
     try:
         from kubernetes import client, stream
-        
+
         # Configure Kubernetes client
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Execute wall command in the pod
         wall_cmd = f'echo "{message}" | wall'
         exec_command = ['bash', '-c', wall_cmd]
-        
+
         try:
             resp = stream.stream(
                 v1.connect_get_namespaced_pod_exec,
@@ -459,7 +460,7 @@ def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = 'gpu-
             logger.info(f"Wall message sent to pod {pod_name}")
         except Exception as e:
             logger.warning(f"Failed to send wall message to pod {pod_name}: {e}")
-            
+
     except Exception as e:
         logger.warning(f"Error sending wall message to pod {pod_name}: {str(e)}")
 
@@ -468,11 +469,11 @@ def create_warning_file_in_pod(pod_name: str, warning_message: str, minutes_left
     """Create a visible warning file in the pod's workspace"""
     try:
         from kubernetes import client, stream
-        
+
         # Configure Kubernetes client
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Create warning file content
         warning_content = f"""
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -494,11 +495,11 @@ To extend your reservation, use the CLI:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
 """
-        
+
         # Write file to workspace using Kubernetes exec
         file_cmd = f'echo "{warning_content}" > /workspace/⚠️_RESERVATION_EXPIRY_WARNING.txt'
         exec_command = ['bash', '-c', file_cmd]
-        
+
         try:
             resp = stream.stream(
                 v1.connect_get_namespaced_pod_exec,
@@ -515,6 +516,6 @@ Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
             logger.info(f"Warning file created in pod {pod_name}")
         except Exception as e:
             logger.warning(f"Failed to create warning file in pod {pod_name}: {e}")
-            
+
     except Exception as e:
         logger.warning(f"Error creating warning file in pod {pod_name}: {str(e)}")

@@ -98,3 +98,74 @@ resource "kubernetes_role_binding" "gpu_dev_role_binding" {
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
   }
 }
+
+# NVIDIA Device Plugin to expose GPU resources to Kubernetes
+resource "kubernetes_daemonset" "nvidia_device_plugin" {
+  metadata {
+    name      = "nvidia-device-plugin-daemonset"
+    namespace = "kube-system"
+  }
+
+  spec {
+    selector {
+      match_labels = {
+        name = "nvidia-device-plugin-ds"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          name = "nvidia-device-plugin-ds"
+        }
+      }
+
+      spec {
+        priority_class_name = "system-node-critical"
+        
+        toleration {
+          key      = "nvidia.com/gpu"
+          operator = "Exists"
+          effect   = "NoSchedule"
+        }
+
+        node_selector = {
+          "kubernetes.io/arch" = "amd64"
+        }
+
+        container {
+          image = "nvcr.io/nvidia/k8s-device-plugin:v0.14.5"
+          name  = "nvidia-device-plugin-ctr"
+
+          env {
+            name  = "FAIL_ON_INIT_ERROR"
+            value = "false"
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+
+          volume_mount {
+            name       = "device-plugin"
+            mount_path = "/var/lib/kubelet/device-plugins"
+          }
+        }
+
+        volume {
+          name = "device-plugin"
+          host_path {
+            path = "/var/lib/kubelet/device-plugins"
+          }
+        }
+      }
+    }
+  }
+
+  depends_on = [
+    aws_eks_node_group.gpu_dev_nodes
+  ]
+}
