@@ -1,8 +1,10 @@
 """Minimal configuration for GPU Dev CLI - Zero setup required"""
 
 import os
+import json
 import boto3
-from typing import Dict, Any
+from pathlib import Path
+from typing import Dict, Any, Optional
 
 class Config:
     """Zero-config AWS-based configuration"""
@@ -24,6 +26,12 @@ class Config:
         self._sts_client = None
         self._sqs_client = None
         self._dynamodb = None
+        
+        # Config file path
+        self.config_file = Path.home() / '.gpu-dev-config'
+        
+        # Load user config
+        self.user_config = self._load_user_config()
         
     @property
     def sts_client(self):
@@ -62,6 +70,38 @@ class Config:
             }
         except Exception as e:
             raise RuntimeError(f"Cannot get AWS caller identity. Check AWS credentials: {e}")
+    
+    def _load_user_config(self) -> Dict[str, Any]:
+        """Load user configuration from ~/.gpu-dev-config"""
+        if not self.config_file.exists():
+            return {}
+        
+        try:
+            with open(self.config_file, 'r') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load config file {self.config_file}: {e}")
+            return {}
+    
+    def save_user_config(self, key: str, value: str) -> None:
+        """Save a configuration value to ~/.gpu-dev-config"""
+        # Update in-memory config
+        self.user_config[key] = value
+        
+        # Save to file
+        try:
+            with open(self.config_file, 'w') as f:
+                json.dump(self.user_config, f, indent=2)
+        except Exception as e:
+            raise RuntimeError(f"Could not save config to {self.config_file}: {e}")
+    
+    def get_github_username(self) -> Optional[str]:
+        """Get GitHub username from config"""
+        return self.user_config.get('github_user')
+    
+    def get_user_config_value(self, key: str) -> Optional[str]:
+        """Get any config value"""
+        return self.user_config.get(key)
 
 def load_config() -> Config:
     """Load zero-config setup"""

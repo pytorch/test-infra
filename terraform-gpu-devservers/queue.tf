@@ -3,9 +3,15 @@
 # SQS Queue for reservation requests
 resource "aws_sqs_queue" "gpu_reservation_queue" {
   name                      = "${var.prefix}-reservation-queue"
-  visibility_timeout_seconds = var.queue_visibility_timeout
+  visibility_timeout_seconds = 1000
   message_retention_seconds  = var.queue_message_retention
   receive_wait_time_seconds  = 20  # Long polling
+  
+  # Configure DLQ - messages will be moved to DLQ after 3 failed attempts
+  redrive_policy = jsonencode({
+    deadLetterTargetArn = aws_sqs_queue.gpu_reservation_dlq.arn
+    maxReceiveCount     = 3
+  })
 
   tags = {
     Name        = "${var.prefix}-reservation-queue"

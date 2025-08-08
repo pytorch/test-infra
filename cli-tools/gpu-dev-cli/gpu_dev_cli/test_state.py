@@ -65,7 +65,8 @@ class TestStateManager:
         user_id: str, 
         gpu_count: int, 
         duration_hours: int,
-        name: Optional[str] = None
+        name: Optional[str] = None,
+        github_user: Optional[str] = None
     ) -> Optional[str]:
         """Create a test reservation"""
         state = self._load_state()

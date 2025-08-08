@@ -16,10 +16,16 @@ def authenticate_user(config: Config) -> Dict[str, Any]:
         arn = identity['arn']
         user_name = arn.split('/')[-1]  # Extract username from ARN
         
+        # Get GitHub username from config
+        github_user = config.get_github_username()
+        if not github_user:
+            raise RuntimeError(
+                f"GitHub username not configured. Please run: gpu-dev config set github_user <your-github-username>"
+            )
+        
         return {
-            'login': user_name,
-            'user_id': identity['user_id'],
-            'account': identity['account'],
+            'user_id': user_name,  # AWS username for reservation ownership
+            'github_user': github_user,  # GitHub username for SSH keys
             'arn': arn
         }
         

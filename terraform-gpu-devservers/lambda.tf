@@ -74,7 +74,8 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
         Effect = "Allow"
         Action = [
           "eks:DescribeCluster",
-          "eks:ListClusters"
+          "eks:ListClusters",
+          "eks:AccessKubernetesApi"
         ]
         Resource = aws_eks_cluster.gpu_dev_cluster.arn
       },
@@ -85,6 +86,13 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
           "ec2:DescribeInstanceStatus"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole"
+        ]
+        Resource = aws_iam_role.eks_cluster_role.arn
       }
     ]
   })
@@ -96,8 +104,9 @@ resource "aws_lambda_function" "reservation_processor" {
   function_name    = "${var.prefix}-reservation-processor"
   role            = aws_iam_role.reservation_processor_role.arn
   handler         = "index.handler"
-  runtime         = "python3.11"
-  timeout         = 60
+  runtime         = "python3.13"
+  timeout         = 900  # 15 minutes for K8s operations
+  source_code_hash = data.archive_file.reservation_processor_zip.output_base64sha256
 
   environment {
     variables = {
@@ -107,6 +116,7 @@ resource "aws_lambda_function" "reservation_processor" {
       REGION             = var.aws_region
       MAX_RESERVATION_HOURS = var.max_reservation_hours
       DEFAULT_TIMEOUT_HOURS = var.reservation_timeout_hours
+      QUEUE_URL         = aws_sqs_queue.gpu_reservation_queue.url
     }
   }
 
@@ -133,11 +143,42 @@ resource "aws_cloudwatch_log_group" "reservation_processor_log_group" {
   }
 }
 
-# Create zip file for Lambda deployment
+# Build Lambda package with dependencies
+resource "null_resource" "reservation_processor_build" {
+  triggers = {
+    # Rebuild when source files change
+    code_hash = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
+    requirements_hash = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      cd ${path.module}/lambda/reservation_processor
+      echo "Building Lambda package..."
+      rm -rf package *.zip
+      mkdir -p package
+      
+      # Install dependencies with specific Python version
+      python3 -m pip install --upgrade pip
+      python3 -m pip install -r requirements.txt --target package/ --force-reinstall
+      
+      # Copy source code
+      cp index.py package/
+      
+      echo "Lambda package built successfully"
+      ls -la package/
+    EOT
+  }
+}
+
+# Create zip file for Lambda deployment with dependencies
 data "archive_file" "reservation_processor_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/reservation_processor"
+  source_dir  = "${path.module}/lambda/reservation_processor/package"
   output_path = "${path.module}/lambda/reservation_processor.zip"
+  
+  depends_on = [null_resource.reservation_processor_build]
 }
 
 # Lambda event source mapping for SQS

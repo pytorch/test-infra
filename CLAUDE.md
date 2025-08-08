@@ -3,6 +3,14 @@
 the first part of this doc is the devs description of the repo. Everything under the 'AGENT SECTION' is for you, the agent, to update state, tricky things, what we're working on and more.
 This will help both you, the agent, but also other agents down the road that share the responsibility of this repo management to navigate the repo.
 
+## Agent restrictions
+
+- NEVER run `terraform apply` or any destructive terraform commands
+- You can run read-only terraform commands like `terraform plan`, `terraform state show`, etc.  
+- You can run AWS CLI commands for read-only resource fetching and analysis
+- User will handle all infrastructure deployments themselves
+- Note: We use OpenTofu, so user runs `opentofu apply` or `tf apply` locally (tf is aliased to opentofu)
+
 ## Development style
 
 We like compact code, comments when needed, but only if they add value. For example, a variable called 'number_of_threads' does not need a comment that is contains number of threads.
@@ -13,7 +21,6 @@ For terraform, we use opentofu, don't ever run tf apply directly. You're free to
 
 We talk like a pirate, like to add puns to our internal chat, but keep our code free of such chenanagins. When talking to the user however, make sure to throw the occasional pun in the chat.
 
-
 ## Content
 
 - torchci - a next.js app containing a PyTorch CI tracker
@@ -23,6 +30,7 @@ We talk like a pirate, like to add puns to our internal chat, but keep our code 
 ## Current challenge and WIP
 
 Currently we're working on a developer servers with GPUs in AWS. This means we'll need:
+
 - a CLI tool for devs to reserve a server
 - a queue of open requests
 - a reservation for 2 EC2 H100 servers
@@ -32,18 +40,20 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - a lambda to process items from the queue if servers are available
 - a state of # EC2 servers that are avaialble
 - a managed k8s to reserve, start a pod, interactive, and reserve that one for X hours for the dev (configurable)
-- a management bastion for us to connect to 
+- a management bastion for us to connect to
 - auth can be through github public keys, all devs already have those exposed. This should be for devs with commit access to pytorch/pytorch only though. And part of metamates group in Github.
 
 # AGENT SECTION
 
 ## Issues I found with the description above
+
 - I am not sure terraform-aws-github-runner is correctly described. Next time I go over this code for maintenance or adding something, I'll inform the user of what I think should change. This is not an active goal though, just a sidequest.
 - The user asked for NIC connections. I still need to figure out how fast and what's avaiable @ AWS, When I do that, I'll update this section below:
 
 ## NIC explanation in AWS
 
 **EFA (Elastic Fabric Adapter):**
+
 - Low-latency, high-throughput networking for HPC/AI workloads
 - 3200 Gbps bandwidth on p5.48xlarge instances
 - RDMA support, bypasses kernel for direct hardware access
@@ -51,6 +61,7 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **Critical limitation**: Cannot cross Availability Zones - all instances must be in same AZ
 
 **H100 Instance Performance (p5.48xlarge):**
+
 - 8x NVIDIA H100 GPUs (80GB each = 640GB total GPU memory)
 - Within instance: GPUs use NVLINK for direct communication
 - Between instances: EFA provides fastest networking option
@@ -58,36 +69,112 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 **K8s Decision:** EKS with GPU-optimized EC2 node groups (Fargate has no GPU support)
 
-
 ## Tasks to execute
+
 - ✅ figure out how the NIC works in AWS - EFA research completed, single AZ cluster placement groups required
 - ✅ tf scaffold with ec2 / k8s / figuring out the total architecture diagram - ARCHITECTURE CONFIRMED
-- 🏗️ make terraform scaffold for us-east-2 region with 5x p5.48xlarge + EKS + networking
-- 🏗️ make a cli tool (python AND rust) to be able to reserve servers 
-- 🏗️ implement SQS + EventBridge + Lambda queue processing system
-- 🏗️ implement GitHub auth with metamates group verification
-- 🏗️ implement DynamoDB state tracking for reservations
+- ✅ make terraform scaffold for us-east-2 region with 2x g4dn.2xlarge + EKS + networking (testing setup)
+- ✅ make a cli tool (python) to be able to reserve servers - Python CLI complete, Rust CLI on hold
+- ✅ implement SQS + EventBridge + Lambda queue processing system
+- ✅ implement DynamoDB state tracking for reservations
+- 🏗️ initialize gpu-servers DynamoDB table with g4dn.2xlarge instances (2x nodes, 1 GPU each)
+- 🏗️ implement reservation expiry logic with warnings and graceful shutdown
+
+## Current Issues Found (Jan 8, 2025)
+
+### 1. Pod Assignment Missing
+- The `allocate_gpu_resources()` function in reservation_processor just logs but doesn't create actual K8s pods
+- Need to implement proper Kubernetes client integration for pod creation
+- Pods need GPU resource limits, SSH setup, and proper networking
+
+### 2. SSH Command Bogus  
+- Current SSH command: `ssh user@gpu-dev-{id}.cluster.local` is a placeholder
+- Need to implement:
+  - Node port service or LoadBalancer for pod SSH access
+  - GitHub public key injection into pods
+  - Real SSH connection string with correct host/port
+
+### 3. Pod Cleanup Logic Missing
+- Expiry Lambda has `cleanup_pod()` but it's just a placeholder
+- Need actual kubectl integration to delete pods gracefully
+- Need `wall` command integration for shutdown warnings
+
+### 4. Connection Info Not Updated
+- Reservation table has placeholder connection info
+- Need to update with real pod IP/port after creation
+
+## Implementation Plan
+
+**SSH Access Strategy:**
+- Each pod gets NodePort service (30000+ port range)
+- SSH command: `ssh -p 30001 user@<node-public-ip>`
+- User's GitHub public key injected into authorized_keys
+- Pod has SSH server running on port 22 (mapped to NodePort)
+
+**Pod Creation Flow:**
+1. Lambda creates K8s pod with GPU resources
+2. Creates NodePort service for SSH access  
+3. Waits for pod to be ready
+4. Updates reservation with real SSH command
+5. Injects user's GitHub public key via init container
+
+**Cleanup Flow:**
+1. Send wall message to pod before termination
+2. Grace period for user to save work
+3. Delete pod and NodePort service
+4. Update server GPU allocation
+
+## Current Implementation Status (Jan 8, 2025)
+
+### ✅ Implemented but Not Tested
+- Real Kubernetes pod creation with GPU resources and SSH setup
+- GitHub public key fetching and injection into pods
+- Copy-pasteable SSH commands with NodePort services
+- Wall message notifications for expiry warnings
+- Pod cleanup logic in expiry Lambda with graceful shutdown
+- Connection info updates in reservation table
+- Kubernetes namespace and RBAC setup
+- Enhanced Lambda IAM permissions for EKS access
+
+### 🐛 Issues to Fix
+
+**GPU Allocation State Bug:**
+- On `terraform apply`, the `initialize_lambda` updates gpu-servers table
+- Available GPU count gets reset to default values (ignoring current allocations)
+- Active reservations still exist in reservations table but GPU tracking becomes inconsistent
+- Users should be able to stay on their dev servers during infrastructure updates
+- Need to check existing allocations before resetting available_gpus column
+- Possible solutions:
+  1. Initialize lambda should query reservations table first
+  2. Calculate actual available GPUs = total_gpus - sum(active_reservation_gpus)
+  3. Only reset if no active reservations exist
+  4. Add reconciliation logic to detect and fix allocation mismatches
 
 ## Final Architecture Plan
 
 **Infrastructure (us-east-2):**
-- 5x p5.48xlarge instances (8 H100 GPUs each = 40 total GPUs)
+
+- Testing: 2x g4dn.12xlarge instances (4 GPUs each = 8 total GPUs)
+- Production plan: 5x p5.48xlarge instances (8 H100 GPUs each = 40 total GPUs)
 - Cluster placement group for optimal networking with EFA
-- EKS cluster with GPU-optimized node groups
+- EKS cluster with GPU-optimized node groups (min/max 2 for testing)
 - VPC with single AZ for EFA requirements
 
 **Queue System:**
+
 - SQS queue for reservation requests
 - EventBridge triggers Lambda processor
 - DynamoDB for state management (servers, reservations, quotas)
 - Lambda handles allocation logic and K8s pod scheduling
 
 **GPU Allocation:**
+
 - K8s pods with fractional GPU allocation (1/2/4/8 GPUs per pod)
 - Reservation time limits with auto-cleanup
 - Support for multi-server (2x8 GPU) reservations
 
 **Auth & CLI:**
+
 - GitHub-based auth with metamates group verification
 - Both Python and Rust CLI tools for dev choice comparison
 - Public key management for server access

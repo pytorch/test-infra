@@ -11,7 +11,7 @@ from rich.table import Table
 from rich.panel import Panel
 from rich import print as rprint
 
-from .auth import authenticate_user, get_user_info
+from .auth import authenticate_user
 from .reservations import ReservationManager
 from .config import Config, load_config
 from .test_state import TestStateManager
@@ -57,42 +57,60 @@ def reserve(ctx: click.Context, gpus: str, hours: int, name: Optional[str], dry_
             
             if dry_run:
                 rprint(f"[yellow]🔍 TEST DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]")
-                rprint(f"[yellow]User: {user_info['login']}[/yellow]")
+                rprint(f"[yellow]User: {user_info['user_id']}[/yellow]")
                 return
             
             reservation_id = test_mgr.create_reservation(
-                user_id=user_info['login'],
+                user_id=user_info['user_id'],
                 gpu_count=gpu_count,
                 duration_hours=hours,
                 name=name
             )
         else:
-            # Production mode
+            # Production mode - zero config!
             config = load_config()
             
-            # Authenticate user
-            user_info = authenticate_user(config)
-            if not user_info:
-                rprint("[red]❌ Authentication failed[/red]")
+            # Authenticate using AWS credentials - if you can call AWS, you're authorized
+            try:
+                user_info = authenticate_user(config)
+            except RuntimeError as e:
+                rprint(f"[red]❌ {str(e)}[/red]")
                 return
             
             if dry_run:
                 rprint(f"[yellow]🔍 DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]")
-                rprint(f"[yellow]User: {user_info['login']}[/yellow]")
+                rprint(f"[yellow]User: {user_info['user_id']} ({user_info['arn']})[/yellow]")
                 return
             
             # Submit reservation
             reservation_mgr = ReservationManager(config)
             reservation_id = reservation_mgr.create_reservation(
-                user_id=user_info['login'],
+                user_id=user_info['user_id'],
                 gpu_count=gpu_count,
                 duration_hours=hours,
-                name=name
+                name=name,
+                github_user=user_info['github_user']
             )
         
         if reservation_id:
-            rprint(f"[green]✅ Reservation created: {reservation_id}[/green]")
-            rprint(f"[blue]📋 Reserved {gpu_count} GPU(s) for {hours} hours[/blue]")
+            rprint(f"[green]✅ Reservation request submitted: {reservation_id[:8]}...[/green]")
+            
+            # Poll for completion with spinner and status updates
+            if test_mode:
+                # In test mode, simulate immediate completion
+                rprint(f"[green]✅ TEST: Reservation complete![/green]")
+                rprint(f"[cyan]📋 Reservation ID:[/cyan] {reservation_id}")
+                rprint(f"[cyan]⏰ Valid for:[/cyan] {hours} hours")
+                rprint(f"[cyan]🖥️  Connect with:[/cyan] ssh test-user@test-server")
+            else:
+                # Production mode - poll for real completion
+                completed_reservation = reservation_mgr.wait_for_reservation_completion(
+                    reservation_id=reservation_id,
+                    timeout_minutes=10
+                )
+                
+                if not completed_reservation:
+                    rprint(f"[yellow]💡 Use 'gpu-dev connect {reservation_id[:8]}' to check connection details later[/yellow]")
         else:
             rprint("[red]❌ Failed to create reservation[/red]")
             
@@ -115,14 +133,14 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
         else:
             config = load_config()
             
-            # Authenticate user
-            user_info = authenticate_user(config)
-            if not user_info:
-                rprint("[red]❌ Authentication failed[/red]")
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                reservations = reservation_mgr.list_reservations(user_filter=user, status_filter=status)
+            except RuntimeError as e:
+                rprint(f"[red]❌ {str(e)}[/red]")
                 return
-            
-            reservation_mgr = ReservationManager(config)
-            reservations = reservation_mgr.list_reservations(user_filter=user, status_filter=status)
         
         if not reservations:
             rprint("[yellow]📋 No reservations found[/yellow]")
@@ -166,14 +184,14 @@ def cancel(ctx: click.Context, reservation_id: str) -> None:
         else:
             config = load_config()
             
-            # Authenticate user
-            user_info = authenticate_user(config)
-            if not user_info:
-                rprint("[red]❌ Authentication failed[/red]")
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                success = reservation_mgr.cancel_reservation(reservation_id, user_info['user_id'])
+            except RuntimeError as e:
+                rprint(f"[red]❌ {str(e)}[/red]")
                 return
-            
-            reservation_mgr = ReservationManager(config)
-            success = reservation_mgr.cancel_reservation(reservation_id, user_info['login'])
         
         if success:
             rprint(f"[green]✅ Reservation {reservation_id} cancelled[/green]")
@@ -197,14 +215,14 @@ def connect(ctx: click.Context, reservation_id: str) -> None:
         else:
             config = load_config()
             
-            # Authenticate user
-            user_info = authenticate_user(config)
-            if not user_info:
-                rprint("[red]❌ Authentication failed[/red]")
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                connection_info = reservation_mgr.get_connection_info(reservation_id, user_info['user_id'])
+            except RuntimeError as e:
+                rprint(f"[red]❌ {str(e)}[/red]")
                 return
-            
-            reservation_mgr = ReservationManager(config)
-            connection_info = reservation_mgr.get_connection_info(reservation_id, user_info['login'])
         
         if connection_info:
             panel = Panel.fit(
@@ -235,14 +253,14 @@ def status(ctx: click.Context) -> None:
         else:
             config = load_config()
             
-            # Authenticate user
-            user_info = authenticate_user(config)
-            if not user_info:
-                rprint("[red]❌ Authentication failed[/red]")
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                cluster_status = reservation_mgr.get_cluster_status()
+            except RuntimeError as e:
+                rprint(f"[red]❌ {str(e)}[/red]")
                 return
-            
-            reservation_mgr = ReservationManager(config)
-            cluster_status = reservation_mgr.get_cluster_status()
         
         if cluster_status:
             table = Table(title="GPU Cluster Status")
@@ -262,24 +280,56 @@ def status(ctx: click.Context) -> None:
     except Exception as e:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
 
-@main.command()
+@main.group()
 def config() -> None:
+    """Manage configuration settings"""
+    pass
+
+@config.command()
+def show() -> None:
     """Show current configuration"""
     try:
         config = load_config()
+        identity = config.get_user_identity()
+        github_user = config.get_github_username()
         
-        panel = Panel.fit(
-            f"[green]Configuration[/green]\n\n"
+        config_text = (
+            f"[green]Configuration (Zero-Config)[/green]\n\n"
             f"[blue]Region:[/blue] {config.aws_region}\n"
-            f"[blue]Queue URL:[/blue] {config.queue_url}\n"
+            f"[blue]Queue:[/blue] {config.queue_name}\n"
             f"[blue]Cluster:[/blue] {config.cluster_name}\n"
-            f"[blue]GitHub Org:[/blue] {config.github_org}",
-            title="⚙️  Current Config"
+            f"[blue]User:[/blue] {identity['arn']}\n"
+            f"[blue]Account:[/blue] {identity['account']}\n\n"
+            f"[green]User Settings ({config.config_file})[/green]\n"
+            f"[blue]GitHub User:[/blue] {github_user or '[red]Not set - run: gpu-dev config set github_user <username>[/red]'}"
         )
+        
+        panel = Panel.fit(config_text, title="⚙️  Configuration")
         console.print(panel)
         
     except Exception as e:
-        rprint(f"[red]❌ Error loading config: {str(e)}[/red]")
+        rprint(f"[red]❌ Error: {str(e)}[/red]")
+
+@config.command()
+@click.argument('key')
+@click.argument('value')
+def set(key: str, value: str) -> None:
+    """Set a configuration value (e.g., gpu-dev config set github_user myusername)"""
+    try:
+        config = load_config()
+        
+        # Validate known keys
+        valid_keys = ['github_user']
+        if key not in valid_keys:
+            rprint(f"[red]❌ Unknown config key '{key}'. Valid keys: {', '.join(valid_keys)}[/red]")
+            return
+            
+        config.save_user_config(key, value)
+        rprint(f"[green]✅ Set {key} = {value}[/green]")
+        rprint(f"[dim]Saved to {config.config_file}[/dim]")
+        
+    except Exception as e:
+        rprint(f"[red]❌ Error: {str(e)}[/red]")
 
 # Test utilities
 @main.group()

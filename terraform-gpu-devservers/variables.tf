@@ -40,7 +40,7 @@ variable "gpu_instance_count" {
 variable "instance_type" {
   description = "EC2 instance type for GPU servers"
   type        = string
-  default     = "g4dn.2xlarge"  # Cheap for testing: 1x T4 GPU, ~$0.75/hour
+  default     = "g4dn.12xlarge" # Testing multi-GPU: 4x T4 GPU, ~$3.91/hour
   # default     = "g5.2xlarge"    # Mid-range: 1x A10G GPU, ~$1.21/hour  
   # default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$98/hour
   
@@ -49,10 +49,14 @@ variable "instance_type" {
       "g4dn.xlarge",     # 1x T4, ~$0.53/hour (cheapest)
       "g4dn.2xlarge",    # 1x T4, ~$0.75/hour
       "g4dn.4xlarge",    # 1x T4, ~$1.20/hour
+      "g4dn.8xlarge",    # 1x T4, ~$2.18/hour
+      "g4dn.12xlarge",   # 4x T4, ~$3.91/hour
+      "g4dn.16xlarge",   # 1x T4, ~$4.35/hour
       "g5.xlarge",       # 1x A10G, ~$1.00/hour
       "g5.2xlarge",      # 1x A10G, ~$1.21/hour
       "g5.4xlarge",      # 1x A10G, ~$1.64/hour
       "g5.8xlarge",      # 1x A10G, ~$2.18/hour
+      "g5.12xlarge",     # 4x A10G, ~$5.67/hour
       "p3.2xlarge",      # 1x V100, ~$3.06/hour
       "p3.8xlarge",      # 4x V100, ~$12.24/hour
       "p4d.24xlarge",    # 8x A100, ~$24.77/hour
@@ -97,12 +101,6 @@ variable "max_reservation_hours" {
   description = "Maximum allowed reservation time in hours"
   type        = number
   default     = 24
-}
-
-variable "queue_visibility_timeout" {
-  description = "SQS queue visibility timeout in seconds"
-  type        = number
-  default     = 300
 }
 
 variable "queue_message_retention" {

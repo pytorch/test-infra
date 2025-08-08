@@ -8,11 +8,26 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23"
+    }
   }
 }
 
 provider "aws" {
   region = var.aws_region
+}
+
+# Configure Kubernetes provider to use the EKS cluster
+provider "kubernetes" {
+  host                   = aws_eks_cluster.gpu_dev_cluster.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.gpu_dev_cluster.name, "--region", var.aws_region]
+  }
 }
 
 # Data sources
@@ -52,8 +67,10 @@ resource "aws_subnet" "gpu_dev_subnet" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.prefix}-gpu-dev-subnet"
-    Environment = var.environment
+    Name                                        = "${var.prefix}-gpu-dev-subnet"
+    Environment                                 = var.environment
+    "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
+    "kubernetes.io/role/elb"                    = "1"
   }
 }
 
@@ -65,8 +82,10 @@ resource "aws_subnet" "gpu_dev_subnet_secondary" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name        = "${var.prefix}-gpu-dev-subnet-secondary"
-    Environment = var.environment
+    Name                                        = "${var.prefix}-gpu-dev-subnet-secondary"
+    Environment                                 = var.environment
+    "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
+    "kubernetes.io/role/elb"                    = "1"
   }
 }
 

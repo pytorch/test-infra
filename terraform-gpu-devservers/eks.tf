@@ -88,6 +88,19 @@ resource "aws_eks_cluster" "gpu_dev_cluster" {
   }
 }
 
+# VPC CNI Addon - Required for pod networking
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name = aws_eks_cluster.gpu_dev_cluster.name
+  addon_name   = "vpc-cni"
+  
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
+  
+  tags = {
+    Name        = "${var.prefix}-vpc-cni"
+    Environment = var.environment
+  }
+}
+
 # EKS Node Group for GPU instances
 resource "aws_eks_node_group" "gpu_dev_nodes" {
   cluster_name    = aws_eks_cluster.gpu_dev_cluster.name
@@ -105,6 +118,10 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
     min_size     = 0
   }
 
+  update_config {
+    max_unavailable = 2
+  }
+
   # Launch template for custom configuration (EFA, spot instances, etc.)
   launch_template {
     name    = aws_launch_template.gpu_dev_launch_template.name
@@ -115,6 +132,7 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
     aws_iam_role_policy_attachment.eks_node_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.eks_node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.eks_node_AmazonEC2ContainerRegistryReadOnly,
+    kubernetes_config_map.aws_auth,  # Ensure aws-auth is configured before nodes join
   ]
 
   tags = {
@@ -160,7 +178,7 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   }
 }
 
-# Get the latest EKS-optimized GPU AMI
+# Get the latest EKS-optimized GPU AMI for the cluster version
 data "aws_ami" "eks_gpu_ami" {
   most_recent = true
   owners      = ["amazon"]
