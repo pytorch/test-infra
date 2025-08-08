@@ -11,6 +11,7 @@ export const HighlightMenuItem = ({
   condition,
   children,
   customColor = DEFAULT_HIGHLIGHT_MENU_ITEM_COLOR,
+  sx,
   ...props
 }: HighlightMenuItemProps) => {
   const highlightStyle = {
@@ -22,6 +23,7 @@ export const HighlightMenuItem = ({
     <MenuItem
       {...props}
       sx={{
+        ...sx,
         ...(condition && highlightStyle),
       }}
     >
