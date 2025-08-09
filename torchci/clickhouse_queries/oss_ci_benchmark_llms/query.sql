@@ -49,6 +49,16 @@ WITH benchmarks AS (
                 tupleElement(o.benchmark, 'extra_info')['args'],
                 'tensor_parallel_size'
             ),
+            'random_input_len',
+            JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_input_len'
+            ),
+            'random_output_len',
+            JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_output_len'
+            ),
             -- Used by Cachebench
             'is_dynamic',
             IF(
