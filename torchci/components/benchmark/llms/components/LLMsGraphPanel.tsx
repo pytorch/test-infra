@@ -360,7 +360,17 @@ const MetricTable = ({
       metricNames.forEach((metric) => {
         if (chartData[metric]?.length) {
           const label = METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric;
-          row[label] = chartData[metric][index]?.actual ?? "";
+          // Find the matching record for this metric based on workflow_id and other identifying properties
+          const matchingRecord = chartData[metric].find(
+            (record: any) =>
+              record.workflow_id === entry.workflow_id &&
+              record.job_id === entry.job_id &&
+              record.model === entry.model &&
+              record.device === entry.device &&
+              record.dtype === entry.dtype
+          );
+          row[label] =
+            chartData[metric][index]?.actual ?? matchingRecord?.actual ?? "";
         }
       });
       return row;
@@ -437,11 +447,24 @@ const MetricTable = ({
                   </TableCell>
                   {metricNames
                     .filter((metric) => chartData[metric]?.length)
-                    .map((metric) => (
-                      <TableCell key={`${metric}-${index}`} sx={{ py: 0.25 }}>
-                        {chartData[metric][index]?.actual ?? ""}
-                      </TableCell>
-                    ))}
+                    .map((metric) => {
+                      // Find the matching record for this metric based on workflow_id and other identifying properties
+                      const matchingRecord = chartData[metric].find(
+                        (record: any) =>
+                          record.workflow_id === entry.workflow_id &&
+                          record.job_id === entry.job_id &&
+                          record.model === entry.model &&
+                          record.device === entry.device &&
+                          record.dtype === entry.dtype
+                      );
+                      return (
+                        <TableCell key={`${metric}-${index}`} sx={{ py: 0.25 }}>
+                          {chartData[metric][index]?.actual ??
+                            matchingRecord?.actual ??
+                            ""}
+                        </TableCell>
+                      );
+                    })}
                 </TableRow>
               );
             })}
