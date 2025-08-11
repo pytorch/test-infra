@@ -346,6 +346,10 @@ class AutorevertPatternChecker:
                     # No older commit with same normalized job name found
                     continue
 
+                # Ensure the oldest commit has stable signal (no running jobs)
+                if last_commit_with_same_job.has_pending_jobs:
+                    continue
+
                 if any(
                     j.classification_rule == failure_rule and j.conclusion == "failure"
                     for j in last_same_jobs

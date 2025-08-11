@@ -16,8 +16,18 @@ class ErrorWithStatusCode extends Error {
 
 export function includesCaseInsensitive(
   value: string,
-  pattern: string
+  pattern: string,
+  useRegex: boolean
 ): boolean {
+  if (useRegex) {
+    try {
+      const regex = new RegExp(pattern, "i");
+      return regex.test(value);
+    } catch (error) {
+      console.error("Invalid regex pattern:", error);
+      return false;
+    }
+  }
   return value.toLowerCase().includes(pattern.toLowerCase());
 }
 
