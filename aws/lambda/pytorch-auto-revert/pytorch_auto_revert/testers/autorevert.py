@@ -1,5 +1,5 @@
+import logging
 from collections import defaultdict
-from contextlib import suppress
 
 from ..autorevert_checker import AutorevertPatternChecker
 from ..workflow_checker import WorkflowRestartChecker
@@ -7,10 +7,10 @@ from ..workflow_checker import WorkflowRestartChecker
 
 def autorevert_checker(
     workflow_names: list[str],
+    do_restart: bool,
+    do_revert: bool,
     hours: int = 48,
     verbose: bool = False,
-    do_restart: bool = False,
-    do_revert: bool = False,
     dry_run: bool = False,
     ignore_common_errors=True,
 ):
@@ -166,8 +166,7 @@ def autorevert_checker(
 
                 # Secondary verification: compare first failing vs previous on restarted runs.
                 if do_revert:
-                    # Best-effort; skip if query fails or restarted runs not yet present
-                    with suppress(Exception):
+                    try:
                         if checker.confirm_commit_caused_failure_on_restarted(pattern):
                             if dry_run:
                                 print(
@@ -177,6 +176,10 @@ def autorevert_checker(
                                 print(
                                     f"  ⚠ REVERT recorded for {first_failing[:8]} ({workflow_name})"
                                 )
+                    except Exception as e:
+                        logging.warning(
+                            f"Secondary verification failed for {first_failing[:8]} ({workflow_name}): {e}"
+                        )
 
             if verbose:
                 print(f"Failed jobs ({len(pattern['failed_job_names'])}):")
@@ -185,11 +188,7 @@ def autorevert_checker(
                 if len(pattern["failed_job_names"]) > 5:
                     print(f"  ... and {len(pattern['failed_job_names']) - 5} more")
 
-                print(f"Job coverage overlap ({len(pattern['older_job_coverage'])}):")
-                for job in pattern["older_job_coverage"][:3]:
-                    print(f"  - {job}")
-                if len(pattern["older_job_coverage"]) > 3:
-                    print(f"  ... and {len(pattern['older_job_coverage']) - 3} more")
+                # Job coverage overlap logging removed (older_job_coverage dropped from pattern)
 
                 if revert_result and verbose:
                     print(f"Revert message: {revert_result['revert_message'][:100]}...")

@@ -178,19 +178,20 @@ def main(*args, **kwargs) -> None:
                 "inductor",
                 "linux-binary-manywheel",
             ],
+            do_restart=True,
+            do_revert=False,
             hours=2,
             verbose=True,
-            do_restart=True,
             dry_run=False,
             ignore_common_errors=True,
         )
     elif opts.subcommand == "autorevert-checker":
         autorevert_checker(
             opts.workflows,
-            hours=opts.hours,
-            verbose=opts.verbose,
             do_restart=opts.do_restart,
             do_revert=opts.do_revert,
+            hours=opts.hours,
+            verbose=opts.verbose,
             dry_run=opts.dry_run,
             ignore_common_errors=opts.ignore_common_errors,
         )
