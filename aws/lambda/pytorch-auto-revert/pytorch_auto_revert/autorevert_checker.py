@@ -41,8 +41,8 @@ class CommitJobs:
 
     @property
     def has_pending_jobs(self) -> bool:
-        """Check if any jobs are still pending."""
-        return any(j.status == "pending" for j in self.jobs)
+        """Check if any jobs are not yet completed (queued/in_progress)."""
+        return any(j.status != "completed" for j in self.jobs)
 
     @property
     def job_base_names(self) -> Set[str]:
@@ -312,6 +312,10 @@ class AutorevertPatternChecker:
 
                 if not last_commit_with_same_job or not last_same_jobs:
                     # No older commit with the same job found
+                    continue
+
+                # Ensure the oldest commit has stable signal (no running jobs)
+                if last_commit_with_same_job.has_pending_jobs:
                     continue
 
                 if any(j.classification_rule == failure_rule for j in last_same_jobs):
