@@ -7,9 +7,9 @@ import json
 import os
 import boto3
 import logging
-import base64
 import tempfile
 from datetime import datetime, timedelta
+from decimal import Decimal
 from typing import Dict, Any
 import uuid
 
@@ -103,11 +103,11 @@ def process_reservation_request(record: Dict[str, Any]) -> bool:
                 logger.warning(
                     f"Insufficient resources on attempt {receive_count}/3. Message will be re-added to queue for retry.")
             elif receive_count >= 3:
-                logger.error(f"FINAL ATTEMPT: Insufficient resources after 3 attempts. SQS will move to DLQ.")
+                logger.error("FINAL ATTEMPT: Insufficient resources after 3 attempts. SQS will move to DLQ.")
                 # Update reservation status before SQS moves to DLQ
                 if reservation_id:
                     update_reservation_status(reservation_id, 'failed',
-                                              f"Insufficient resources after 3 attempts")
+                                              "Insufficient resources after 3 attempts")
 
             return False  # Don't delete - let SQS handle retry/DLQ
 
@@ -189,6 +189,9 @@ def create_reservation(request: Dict[str, Any]) -> str:
         now = datetime.utcnow()
         duration_hours = request.get('duration_hours', DEFAULT_TIMEOUT_HOURS)
         expires_at = now + timedelta(hours=duration_hours)
+        
+        # Convert duration_hours to Decimal for DynamoDB compatibility
+        duration_decimal = Decimal(str(duration_hours))
 
         reservation = {
             'reservation_id': reservation_id,
@@ -197,7 +200,7 @@ def create_reservation(request: Dict[str, Any]) -> str:
             'status': 'preparing',
             'created_at': request.get('created_at', now.isoformat()),
             'expires_at': int(expires_at.timestamp()),
-            'duration_hours': duration_hours,
+            'duration_hours': duration_decimal,
             'pod_name': f"gpu-dev-{reservation_id[:8]}",
             'namespace': 'gpu-dev',
             'ssh_command': f"ssh user@gpu-dev-{reservation_id[:8]}.cluster.local",  # Placeholder
@@ -536,11 +539,16 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
                     args=[
                         "-c",
                         f"""
+                        echo "[INIT] Setting up SSH keys for dev user..."
                         mkdir -p /home/dev/.ssh
                         echo '{github_public_key}' > /home/dev/.ssh/authorized_keys
                         chmod 700 /home/dev/.ssh
                         chmod 600 /home/dev/.ssh/authorized_keys
-                        chown -R 1000:1000 /home/dev/.ssh
+                        
+                        # Create a marker file to verify init completed
+                        echo "SSH keys initialized at $(date)" > /home/dev/.ssh/init_complete
+                        
+                        echo "[INIT] SSH key setup complete"
                         """
                     ],
                     volume_mounts=[
@@ -556,22 +564,59 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
                     args=[
                         "-c",
                         """
-                        # Install SSH server
-                        apt-get update && apt-get install -y openssh-server sudo
+                        set -e  # Exit on any error
                         
-                        # Create dev user
-                        useradd -m -s /bin/bash dev
+                        echo "[STARTUP] Installing SSH server..."
+                        apt-get update -qq
+                        apt-get install -y openssh-server sudo curl vim
+                        
+                        echo "[STARTUP] Creating dev user..."
+                        useradd -m -s /bin/bash dev || echo "User dev already exists"
                         echo 'dev:dev' | chpasswd
                         usermod -aG sudo dev
                         
-                        # Configure SSH
+                        echo "[STARTUP] Configuring SSH..."
                         mkdir -p /run/sshd
-                        echo 'PermitRootLogin no' >> /etc/ssh/sshd_config
-                        echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config
-                        echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config
+                        mkdir -p /var/run/sshd
                         
-                        # Start SSH daemon
-                        /usr/sbin/sshd -D
+                        # Configure SSH daemon
+                        cat > /etc/ssh/sshd_config << 'EOF'
+Port 22
+PermitRootLogin no
+PasswordAuthentication no
+PubkeyAuthentication yes
+AuthorizedKeysFile .ssh/authorized_keys
+HostKey /etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ecdsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+UsePAM yes
+X11Forwarding yes
+PrintMotd no
+AcceptEnv LANG LC_*
+Subsystem sftp /usr/lib/openssh/sftp-server
+EOF
+                        
+                        # Generate host keys if they don't exist
+                        ssh-keygen -A
+                        
+                        echo "[STARTUP] Setting up dev user home directory..."
+                        chown -R dev:dev /home/dev
+                        
+                        # Verify SSH keys were set up by init container
+                        if [ -f /home/dev/.ssh/authorized_keys ]; then
+                            echo "[STARTUP] SSH keys found, setting proper ownership"
+                            chown -R dev:dev /home/dev/.ssh
+                        else
+                            echo "[STARTUP] WARNING: No SSH keys found from init container!"
+                        fi
+                        
+                        echo "[STARTUP] Starting SSH daemon..."
+                        # Test SSH config first
+                        /usr/sbin/sshd -t
+                        
+                        # Start SSH daemon in foreground
+                        echo "[STARTUP] SSH daemon starting on port 22"
+                        exec /usr/sbin/sshd -D -e
                         """
                     ],
                     ports=[client.V1ContainerPort(container_port=22)],

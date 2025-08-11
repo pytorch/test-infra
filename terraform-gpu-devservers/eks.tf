@@ -113,7 +113,7 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   capacity_type = "ON_DEMAND"
 
   scaling_config {
-    desired_size = var.gpu_instance_count
+    desired_size = 2
     max_size     = var.gpu_instance_count
     min_size     = 0
   }

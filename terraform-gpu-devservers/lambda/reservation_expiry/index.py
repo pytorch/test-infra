@@ -32,19 +32,29 @@ GRACE_PERIOD_SECONDS = int(os.environ.get('GRACE_PERIOD_SECONDS', 120))
 def handler(event, context):
     """Main Lambda handler"""
     try:
-        logger.info("Running reservation expiry and cleanup check")
+        current_time = int(time.time())
+        logger.info(f"Running reservation expiry and cleanup check at timestamp {current_time} ({datetime.fromtimestamp(current_time)})")
 
         # Get all active reservations
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        response = reservations_table.query(
-            IndexName='StatusIndex',
-            KeyConditionExpression='#status = :status',
-            ExpressionAttributeNames={'#status': 'status'},
-            ExpressionAttributeValues={':status': 'active'}
-        )
-
-        active_reservations = response.get('Items', [])
-        logger.info(f"Found {len(active_reservations)} active reservations")
+        try:
+            response = reservations_table.query(
+                IndexName='StatusIndex',
+                KeyConditionExpression='#status = :status',
+                ExpressionAttributeNames={'#status': 'status'},
+                ExpressionAttributeValues={':status': 'active'}
+            )
+            active_reservations = response.get('Items', [])
+            logger.info(f"Found {len(active_reservations)} active reservations")
+            
+            # Log details of each active reservation
+            for res in active_reservations:
+                expires_at = int(res.get('expires_at', 0))
+                logger.info(f"Active reservation {res['reservation_id'][:8]}: expires_at={expires_at} ({datetime.fromtimestamp(expires_at)}), pod={res.get('pod_name', 'unknown')}")
+                
+        except Exception as e:
+            logger.error(f"Error querying active reservations: {e}")
+            active_reservations = []
 
         # Also check for stale queued/pending reservations
         stale_statuses = ['queued', 'pending']
@@ -60,9 +70,10 @@ def handler(event, context):
 
         logger.info(f"Found {len(stale_reservations)} queued/pending reservations")
 
-        current_time = int(time.time())
         warning_threshold = current_time + (WARNING_MINUTES * 60)
         stale_threshold = current_time - (5 * 60)  # 5 minutes ago
+        
+        logger.info(f"Expiry thresholds: current={current_time}, warning={warning_threshold}, stale={stale_threshold}")
 
         warned_count = 0
         expired_count = 0
@@ -75,16 +86,25 @@ def handler(event, context):
             user_id = reservation['user_id']
 
             # Check if reservation has already expired (with grace period)
-            if expires_at + GRACE_PERIOD_SECONDS < current_time:
-                logger.info(f"Expiring reservation {reservation_id} (expired at {expires_at})")
-                expire_reservation(reservation)
-                expired_count += 1
+            expiry_with_grace = expires_at + GRACE_PERIOD_SECONDS
+            if expiry_with_grace < current_time:
+                logger.info(f"Expiring reservation {reservation_id} (expired at {expires_at}, grace until {expiry_with_grace}, current {current_time})")
+                try:
+                    expire_reservation(reservation)
+                    expired_count += 1
+                    logger.info(f"Successfully expired reservation {reservation_id}")
+                except Exception as e:
+                    logger.error(f"Failed to expire reservation {reservation_id}: {e}")
 
             # Check if reservation is within warning window and hasn't been warned yet
             elif expires_at < warning_threshold and not reservation.get('warning_sent'):
-                logger.info(f"Warning user about expiring reservation {reservation_id}")
-                warn_user_expiring(reservation)
-                warned_count += 1
+                logger.info(f"Warning user about expiring reservation {reservation_id} (expires {expires_at}, warning threshold {warning_threshold})")
+                try:
+                    warn_user_expiring(reservation)
+                    warned_count += 1
+                    logger.info(f"Successfully warned about reservation {reservation_id}")
+                except Exception as e:
+                    logger.error(f"Failed to warn about reservation {reservation_id}: {e}")
 
         # Process stale queued/pending reservations
         for reservation in stale_reservations:

@@ -32,14 +32,14 @@ def main(ctx: click.Context, test: bool) -> None:
 @main.command()
 @click.option('--gpus', '-g', type=click.Choice(['1', '2', '4', '8', '16']), default='1', 
               help='Number of GPUs to reserve (16 = 2x8 GPU setup)')
-@click.option('--hours', '-h', type=int, default=8, 
-              help='Reservation duration in hours (max 24)')
+@click.option('--hours', '-h', type=float, default=8.0, 
+              help='Reservation duration in hours (supports decimals, max 24)')
 @click.option('--name', '-n', type=str, 
               help='Optional name for the reservation')
 @click.option('--dry-run', is_flag=True, 
               help='Show what would be reserved without actually reserving')
 @click.pass_context
-def reserve(ctx: click.Context, gpus: str, hours: int, name: Optional[str], dry_run: bool) -> None:
+def reserve(ctx: click.Context, gpus: str, hours: float, name: Optional[str], dry_run: bool) -> None:
     """Reserve GPU development server(s)"""
     try:
         test_mode = ctx.obj.get('test_mode', False)
@@ -48,6 +48,10 @@ def reserve(ctx: click.Context, gpus: str, hours: int, name: Optional[str], dry_
         # Validate parameters
         if hours > 24:
             rprint("[red]❌ Maximum reservation time is 24 hours[/red]")
+            return
+        
+        if hours < 0.0833:  # Less than 5 minutes
+            rprint("[red]❌ Minimum reservation time is 5 minutes (0.0833 hours)[/red]")
             return
         
         if test_mode:

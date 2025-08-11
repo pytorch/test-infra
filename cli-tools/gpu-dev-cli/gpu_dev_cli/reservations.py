@@ -4,7 +4,8 @@ import json
 import time
 import uuid
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
+from decimal import Decimal
 from botocore.exceptions import ClientError
 from rich.console import Console
 from rich.spinner import Spinner
@@ -27,7 +28,7 @@ class ReservationManager:
         self,
         user_id: str,
         gpu_count: int,
-        duration_hours: int,
+        duration_hours: Union[int, float],
         name: Optional[str] = None,
         github_user: Optional[str] = None
     ) -> Optional[str]:
@@ -37,11 +38,14 @@ class ReservationManager:
             created_at = datetime.utcnow().isoformat()
 
             # Create initial reservation record for polling
+            # Convert float to Decimal for DynamoDB compatibility
+            duration_decimal = Decimal(str(duration_hours))
+            
             initial_reservation = {
                 'reservation_id': reservation_id,
                 'user_id': user_id,
                 'gpu_count': gpu_count,
-                'duration_hours': duration_hours,
+                'duration_hours': duration_decimal,
                 'name': name or f"{gpu_count}-GPU reservation",
                 'created_at': created_at,
                 'status': 'pending',
@@ -56,11 +60,12 @@ class ReservationManager:
             self.reservations_table.put_item(Item=initial_reservation)
 
             # Send processing request to SQS queue
+            # Use float for SQS message (JSON serializable)
             message = {
                 'reservation_id': reservation_id,
                 'user_id': user_id,
                 'gpu_count': gpu_count,
-                'duration_hours': duration_hours,
+                'duration_hours': float(duration_hours),
                 'name': name or f"{gpu_count}-GPU reservation",
                 'created_at': created_at,
                 'status': 'pending'
