@@ -179,7 +179,17 @@ export function BranchAndCommitPicker({
           id={`branch-picker-select-${commit}`}
         >
           {displayBranches.map((b: string) => (
-            <MenuItem key={`${b}-${commit}`} value={b}>
+            <MenuItem
+              key={`${b}-${commit}`}
+              value={b}
+              sx={{
+                backgroundColor: b === branch ? "#e3f2fd" : "inherit",
+                fontWeight: b === branch ? "bold" : "normal",
+                "&:hover": {
+                  backgroundColor: b === branch ? "#bbdefb" : undefined,
+                },
+              }}
+            >
               {b}
             </MenuItem>
           ))}
@@ -209,6 +219,14 @@ export function BranchAndCommitPicker({
               value={r.head_sha}
               condition={isCommitHighlight(highlightConfig?.keys, r)}
               customColor={highlightConfig?.highlightColor}
+              sx={{
+                backgroundColor: r.head_sha === commit ? "#e8f5e8" : undefined,
+                fontWeight: r.head_sha === commit ? "bold" : "normal",
+                "&:hover": {
+                  backgroundColor:
+                    r.head_sha === commit ? "#c8e6c8" : undefined,
+                },
+              }}
             >
               {r.head_sha.substring(0, SHA_DISPLAY_LENGTH)} (
               {dayjs(r.event_time).format("YYYY/MM/DD")})
