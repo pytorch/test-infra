@@ -46,6 +46,7 @@ export interface RecentWorkflowsData extends BasicJobData {
   id: number;
   completed_at: string;
   html_url: string;
+  logUrl?: string;
   head_sha: string;
   head_sha_timestamp: string;
   head_branch: string;
@@ -126,6 +127,7 @@ export interface HudParams {
   filter_reruns: boolean;
   filter_unstable: boolean;
   mergeEphemeralLF?: boolean;
+  useRegexFilter?: boolean;
 }
 
 export interface PRData {
@@ -273,6 +275,7 @@ export function packHudParams(input: any) {
     filter_reruns: input.filter_reruns ?? (false as boolean),
     filter_unstable: input.filter_unstable ?? (false as boolean),
     mergeEphemeralLF: input.mergeEphemeralLF as boolean,
+    useRegexFilter: input.useRegexFilter === "true",
   };
 }
 
@@ -311,6 +314,10 @@ function formatHudURL(
 
   if (params.nameFilter != null && keepFilter) {
     base += `&name_filter=${encodeURIComponent(params.nameFilter)}`;
+  }
+
+  if (params.useRegexFilter && keepFilter) {
+    base += `&useRegexFilter=true`;
   }
 
   if (params.mergeEphemeralLF) {

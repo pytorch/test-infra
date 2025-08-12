@@ -1,20 +1,20 @@
-import CheckBoxSelector from "components/CheckBoxSelector";
-import CopyLink from "components/CopyLink";
+import CheckBoxSelector from "components/common/CheckBoxSelector";
+import CopyLink from "components/common/CopyLink";
+import LoadingPage from "components/common/LoadingPage";
+import PageSelector from "components/common/PageSelector";
+import { LocalTimeHuman } from "components/common/TimeUtils";
+import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import styles from "components/hud.module.css";
 import {
   GroupHudTableColumns,
   GroupHudTableHeader,
   passesGroupFilter,
-} from "components/GroupHudTableHeaders";
-import HudGroupedCell from "components/GroupJobConclusion";
-import styles from "components/hud.module.css";
-import JobConclusion from "components/JobConclusion";
-import JobFilterInput from "components/JobFilterInput";
-import JobTooltip from "components/JobTooltip";
-import LoadingPage from "components/LoadingPage";
-import PageSelector from "components/PageSelector";
+} from "components/hud/GroupHudTableHeaders";
+import HudGroupedCell from "components/job/GroupJobConclusion";
+import JobConclusion from "components/job/JobConclusion";
+import JobFilterInput from "components/job/JobFilterInput";
+import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
-import { LocalTimeHuman } from "components/TimeUtils";
-import TooltipTarget from "components/TooltipTarget";
 import { fetcher } from "lib/GeneralUtils";
 import {
   getGroupingData,
@@ -28,7 +28,7 @@ import {
   isUnstableJob,
 } from "lib/jobUtils";
 import { ParamSelector } from "lib/ParamSelector";
-import { track } from "lib/track";
+import { trackRouteEvent } from "lib/tracking/track";
 import {
   formatHudUrlForRoute,
   Highlight,
@@ -618,7 +618,7 @@ function GroupedHudTable({
   useEffect(() => {
     // Only run on component mount, this assumes that the user's preference is
     // the value in local storage
-    track(router, "groupingPreference", { useGrouping: useGrouping });
+    trackRouteEvent(router, "groupingPreference", { useGrouping: useGrouping });
   }, [router, useGrouping]);
 
   const groupNames = Array.from(groupNameMapping.keys());
@@ -662,7 +662,14 @@ function GroupedHudTable({
 
   names = names.filter((name) => {
     // Filter by job filter text first
-    if (!passesGroupFilter(jobFilter, name, groupNameMapping)) {
+    if (
+      !passesGroupFilter(
+        jobFilter,
+        name,
+        groupNameMapping,
+        params.useRegexFilter || false
+      )
+    ) {
       return false;
     }
 

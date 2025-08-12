@@ -29,12 +29,13 @@ PYTHON_ARCHES_DICT = {
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "12.9"],
     "test": ["12.6", "12.8", "12.9"],
-    "release": ["11.8", "12.6", "12.8"],
+    "release": ["12.6", "12.8", "12.9"],
 }
+
 ROCM_ARCHES_DICT = {
     "nightly": ["6.3", "6.4"],
     "test": ["6.3", "6.4"],
-    "release": ["6.2.4", "6.3"],
+    "release": ["6.3", "6.4"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -47,7 +48,7 @@ CUDA_CUDNN_VERSIONS = {
 STABLE_CUDA_VERSIONS = {
     "nightly": "12.8",
     "test": "12.8",
-    "release": "12.6",
+    "release": "12.8",
 }
 
 CUDA_AARCH64_ARCHES = ["12.9-aarch64"]
@@ -75,9 +76,9 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.8.0"
+CURRENT_NIGHTLY_VERSION = "2.9.0"
 CURRENT_CANDIDATE_VERSION = "2.8.0"
-CURRENT_STABLE_VERSION = "2.7.1"
+CURRENT_STABLE_VERSION = "2.8.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -95,10 +96,11 @@ LINUX_AARCH64_RUNNER = "linux.arm64.2xlarge"
 LINUX_AARCH64_GPU_RUNNER = "linux.arm64.m7g.4xlarge"
 WIN_GPU_RUNNER = "windows.g4dn.xlarge"
 WIN_CPU_RUNNER = "windows.4xlarge"
-WIN_ARM64_RUNNER = "windows-11-arm64"
+WIN_ARM64_RUNNER = "windows-11-arm64-preview"
 MACOS_M1_RUNNER = "macos-m1-stable"
 
 PACKAGES_TO_INSTALL_WHL = "torch torchvision torchaudio"
+PACKAGES_TO_INSTALL_GETTING_STARTED_WHL = "torch torchvision"
 PACKAGES_TO_INSTALL_WHL_WIN_ARM64 = "torch"
 WHL_INSTALL_BASE = "pip3 install"
 DOWNLOAD_URL_BASE = "https://download.pytorch.org"
@@ -227,7 +229,6 @@ def get_libtorch_install_command(
     channel: str,
     gpu_arch_type: str,
     libtorch_variant: str,
-    devtoolset: str,
     desired_cuda: str,
     libtorch_config: str,
 ) -> str:
@@ -237,11 +238,7 @@ def get_libtorch_install_command(
         if libtorch_config == "debug"
         else libtorch_variant
     )
-    build_name = (
-        f"{prefix}-{devtoolset}-{_libtorch_variant}-latest.zip"
-        if devtoolset == "cxx11-abi"
-        else f"{prefix}-{_libtorch_variant}-latest.zip"
-    )
+    build_name = f"{prefix}-{_libtorch_variant}-latest.zip"
 
     if os == MACOS_ARM64:
         arch = "arm64"
@@ -251,10 +248,9 @@ def get_libtorch_install_command(
 
     elif os == LINUX and (channel in (RELEASE, TEST)):
         build_name = (
-            f"{prefix}-{devtoolset}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
-            if devtoolset == "cxx11-abi"
-            else f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
+            f"{prefix}-{_libtorch_variant}-{CURRENT_VERSION}%2B{desired_cuda}.zip"
         )
+
     elif os == WINDOWS and (channel in (RELEASE, TEST)):
         build_name = (
             f"{prefix}-shared-with-deps-debug-{CURRENT_VERSION}%2B{desired_cuda}.zip"
@@ -280,10 +276,16 @@ def get_wheel_install_command(
     python_version: str,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
+    getting_started: bool = False,
 ) -> str:
+    PACKAGES_TO_INSTALL = (
+        PACKAGES_TO_INSTALL_GETTING_STARTED_WHL
+        if getting_started
+        else PACKAGES_TO_INSTALL_WHL
+    )
     if use_split_build:
         if (gpu_arch_version in CUDA_ARCHES) and (os == LINUX) and (channel == NIGHTLY):
-            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"  # noqa: E501
+            return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}_pypi_pkg"  # noqa: E501
         else:
             raise ValueError(
                 "Split build is not supported for this configuration. It is only supported for CUDA 11.8, 12.4, 12.6 on Linux nightly builds."  # noqa: E501
@@ -297,7 +299,7 @@ def get_wheel_install_command(
             or (os == LINUX_AARCH64)
         )
     ):
-        return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+        return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
     else:
         whl_install_command = ""
         if os == WINDOWS_ARM64:
@@ -306,9 +308,9 @@ def get_wheel_install_command(
                 f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
             )
         elif channel == "nightly":
-            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL}"
+            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL}"
         else:
-            whl_install_command = f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL_WHL}"
+            whl_install_command = f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
         return f"{whl_install_command} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"  # noqa: E501
 
 
@@ -341,7 +343,7 @@ def generate_libtorch_matrix(
         if with_rocm == ENABLE and os == LINUX:
             arches += ROCM_ARCHES
 
-    if abi_versions is None:
+    if abi_versions is None or len(abi_versions) == 0:
         if os == WINDOWS:
             abi_versions = [RELEASE, DEBUG]
         elif os == LINUX:
@@ -394,7 +396,6 @@ def generate_libtorch_matrix(
                             channel,
                             gpu_arch_type,
                             libtorch_variant,
-                            devtoolset,
                             desired_cuda,
                             libtorch_config,
                         ),
@@ -415,6 +416,7 @@ def generate_wheels_matrix(
     limit_pr_builds: bool,
     use_only_dl_pytorch_org: bool,
     use_split_build: bool = False,
+    getting_started: bool = False,
     python_versions: Optional[List[str]] = None,
     arches: Optional[List[str]] = None,
 ) -> List[Dict[str, str]]:
@@ -489,6 +491,8 @@ def generate_wheels_matrix(
                     desired_cuda,
                     python_version,
                     use_only_dl_pytorch_org,
+                    use_split_build,
+                    getting_started,
                 ),
                 "channel": channel,
                 "upload_to_base_bucket": upload_to_base_bucket,
@@ -532,6 +536,7 @@ def generate_build_matrix(
     use_only_dl_pytorch_org: str,
     build_python_only: str,
     use_split_build: str = "false",
+    getting_started: str = "false",
     python_versions: Optional[List[str]] = None,
 ) -> Dict[str, List[Dict[str, str]]]:
     includes = []
@@ -556,6 +561,7 @@ def generate_build_matrix(
                     limit_pr_builds == "true",
                     use_only_dl_pytorch_org == "true",
                     use_split_build == "true",
+                    getting_started == "true",
                     python_versions,
                 )
             )
@@ -652,6 +658,14 @@ def main(args: List[str]) -> None:
     )
 
     parser.add_argument(
+        "--getting-started",
+        help="Matrix for getting started page",
+        type=str,
+        choices=["true", "false"],
+        default=os.getenv("GETTING_STARTED", "false"),
+    )
+
+    parser.add_argument(
         "--python-versions",
         help="Only build the select JSON-encoded list of python versions",
         type=str,
@@ -680,6 +694,7 @@ def main(args: List[str]) -> None:
         options.use_only_dl_pytorch_org,
         options.build_python_only,
         options.use_split_build,
+        options.getting_started,
         python_versions,
     )
 

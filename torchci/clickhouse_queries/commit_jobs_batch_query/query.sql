@@ -10,21 +10,18 @@ WITH job AS (
         job.id as id,
         workflow.id AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
-        job.conclusion as conclusion,
+        job.conclusion_kg as conclusion,
         job.html_url as html_url,
-        CONCAT(
-            'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-            job.id
-        ) AS log_url,
+        job.log_url as log_url,
         DATE_DIFF(
             'SECOND',
             job.started_at,
             job.completed_at
         ) AS duration_s,
-        IF(job.torchci_classification.'line' = '', [], [job.torchci_classification.'line']) AS failure_line,
-        job.torchci_classification.'context' AS failure_context,
-        job.torchci_classification.'captures' AS failure_captures,
-        job.torchci_classification.'line_num' AS failure_line_number
+        IF(job.torchci_classification_kg.'line' = '', [], [job.torchci_classification_kg.'line']) AS failure_line,
+        job.torchci_classification_kg.'context' AS failure_context,
+        job.torchci_classification_kg.'captures' AS failure_captures,
+        job.torchci_classification_kg.'line_num' AS failure_line_number
     FROM
         default.workflow_job job final
         INNER JOIN default.workflow_run workflow final ON workflow.id = job.run_id
@@ -33,6 +30,7 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         and job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         and workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha in {shas: Array(String)})
 ),

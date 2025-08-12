@@ -1,6 +1,6 @@
 import { Button, styled } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import SingleValueGauge from "components/utilization/components/SingleValueGauge";
 import { fetcher } from "lib/GeneralUtils";
 import {
@@ -47,6 +47,8 @@ const WorkflowUtilization = () => {
       ...stats,
     };
   });
+
+  console.log(rows);
 
   const columns: any[] = [
     { field: "name", headerName: "Job Name", width: 400 },

@@ -1,4 +1,5 @@
 use crate::SsmClient;
+use indicatif::{ProgressBar, ProgressStyle};
 
 const BATCH_SIZE: usize = 10;
 
@@ -9,17 +10,39 @@ pub async fn delete_parameters_in_batches<C: SsmClient>(
     let mut total_deleted = 0;
     let mut total_failed = 0;
 
-    for chunk in parameters_to_delete.chunks(BATCH_SIZE) {
+    let total_params = parameters_to_delete.len();
+    let total_batches = (total_params + BATCH_SIZE - 1).div_ceil(BATCH_SIZE);
+
+    // Create progress bar for deletion
+    let pb = ProgressBar::new(total_batches as u64);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} batches ({msg})")
+            .unwrap()
+            .progress_chars("#>-")
+    );
+    pb.set_message("Deleting parameters...");
+
+    for (batch_idx, chunk) in parameters_to_delete.chunks(BATCH_SIZE).enumerate() {
         let (deleted, failed) = client.delete_parameters(chunk.to_vec()).await?;
 
         total_deleted += deleted.len();
         total_failed += failed.len();
 
-        println!("Deleted {} parameters", deleted.len());
-        if !failed.is_empty() {
-            println!("Failed to delete {} parameters", failed.len());
-        }
+        pb.set_message(format!(
+            "Batch {}/{} - Deleted: {}, Failed: {}",
+            batch_idx + 1,
+            total_batches,
+            total_deleted,
+            total_failed
+        ));
+        pb.inc(1);
     }
+
+    pb.finish_with_message(format!(
+        "✓ Completed! Total deleted: {}, Total failed: {}",
+        total_deleted, total_failed
+    ));
 
     Ok((total_deleted, total_failed))
 }

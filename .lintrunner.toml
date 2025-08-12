@@ -38,7 +38,7 @@ init_command = [
 [[linter]]
 code = 'MYPY'
 include_patterns = [
-    '.github/scripts/*.py',
+    '.github/scripts/**/*.py',
     'aws/lambda/**/.py',
     'stats/**/*.py',
     'stats/**/*.pyi',
@@ -46,6 +46,7 @@ include_patterns = [
     'tools/**/*.pyi',
     'torchci/**/*.py',
     'torchci/**/*.pyi',
+    's3_management/**/*.py',
 ]
 exclude_patterns = [
     'aws/lambda/servicelab-ingestor/**',
@@ -294,9 +295,6 @@ init_command = [
 code = 'PYFMT'
 include_patterns = [
     '**/*.py',
-]
-exclude_patterns = [
-    's3_management/**',
 ]
 command = [
     'python3',

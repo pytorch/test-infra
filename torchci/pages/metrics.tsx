@@ -13,12 +13,12 @@ import {
 import { GridRenderCellParams } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { durationDisplay } from "components/common/TimeUtils";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
@@ -763,6 +763,36 @@ export default function Page() {
             flexWrap="wrap"
             spacing={1}
           >
+            <ScalarPanel
+              title={"Merge retry rate (avg)"}
+              queryName={"merge_retry_rate"}
+              metricName={"avg_retry_rate"}
+              valueRenderer={(value) => value.toFixed(2) + "x"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 2.0} // 2.0 average retries
+            />
+            <ScalarPanel
+              title={"PR landing time (avg)"}
+              queryName={"pr_landing_time_avg"}
+              metricName={"avg_hours"}
+              valueRenderer={(value) => value.toFixed(1) + "h"}
+              queryParams={timeParams}
+              badThreshold={(value) => value > 24} // 24 hours
+            />
+          </Stack>
+        </Grid2>
+
+        <Grid2
+          container
+          size={{ xs: 6, md: 3, lg: 2 }}
+          justifyContent={"stretch"}
+        >
+          <Stack
+            justifyContent={"space-between"}
+            flexGrow={1}
+            flexWrap="wrap"
+            spacing={1}
+          >
             <WorkflowDuration
               percentile={ttsPercentile}
               timeParams={timeParams}
@@ -783,10 +813,33 @@ export default function Page() {
                 headerName: "Queue time",
                 flex: 1,
                 valueFormatter: (params: number) => durationDisplay(params),
+                cellClassName: (params) => {
+                  const queueTimeHours = params.value / 3600;
+                  if (queueTimeHours >= 4) return "queue-time-red";
+                  if (queueTimeHours >= 1) return "queue-time-yellow";
+                  return "";
+                },
               },
               { field: "machine_type", headerName: "Machine Type", flex: 4 },
             ]}
-            dataGridProps={{ getRowId: (el: any) => el.machine_type }}
+            dataGridProps={{
+              getRowId: (el: any) => el.machine_type,
+              initialState: {
+                sorting: {
+                  sortModel: [{ field: "avg_queue_s", sort: "desc" }],
+                },
+              },
+              sx: {
+                "& .queue-time-yellow": {
+                  backgroundColor: "#B8860B", // Dark goldenrod
+                  color: "white",
+                },
+                "& .queue-time-red": {
+                  backgroundColor: "#B22222", // Fire brick red
+                  color: "white",
+                },
+              },
+            }}
           />
         </Grid2>
 

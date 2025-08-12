@@ -261,11 +261,8 @@ def get_num_issues_with_label(owner: str, repo: str, label: str, from_date: str)
 
 
 def generate_failed_job_hud_link(failed_job: JobStatus) -> str:
-    # TODO: I don't think minihud is universal across multiple repositories
-    #       would be good to just replace this with something that is
-    hud_link = "https://hud.pytorch.org/minihud?name_filter=" + urllib.parse.quote(
-        failed_job.job_name
-    )
+    # TODO: Handle other branches/repos
+    hud_link = f"https://hud.pytorch.org/hud/pytorch/pytorch/main/1?per_page=100&name_filter={urllib.parse.quote(failed_job.job_name)}&mergeEphemeralLF=true"
     return f"[{failed_job.job_name}]({hud_link})"
 
 
@@ -524,7 +521,9 @@ def handle_flaky_tests_alert(
 def filter_job_names(job_names: List[str], job_name_regex: str) -> List[str]:
     if job_name_regex:
         return [
-            job_name for job_name in job_names if re.match(job_name_regex, job_name)
+            job_name
+            for job_name in job_names
+            if re.match(job_name_regex, job_name, re.IGNORECASE)
         ]
     return job_names
 
@@ -545,7 +544,7 @@ def check_for_recurrently_failing_jobs_alert(
         elif len(filtered_job_names) == len(job_names):
             print("All jobs matched the regex")
         else:
-            print("\n".join(filtered_job_names))
+            print("\n".join(sorted(filtered_job_names)))
 
     (jobs_to_alert_on, flaky_jobs) = classify_jobs(
         job_names, sha_grid, filtered_job_names

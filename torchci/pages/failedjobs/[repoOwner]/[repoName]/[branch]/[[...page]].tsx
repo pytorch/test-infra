@@ -1,8 +1,8 @@
 import { Skeleton, Stack, Typography } from "@mui/material";
-import JobAnnotationToggle from "components/JobAnnotationToggle";
-import JobLinks from "components/JobLinks";
-import JobSummary from "components/JobSummary";
-import LogViewer from "components/LogViewer";
+import LogViewer from "components/common/log/LogViewer";
+import JobAnnotationToggle from "components/job/JobAnnotationToggle";
+import JobLinks from "components/job/JobLinks";
+import JobSummary from "components/job/JobSummary";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { isRerunDisabledTestsJob, isUnstableJob } from "lib/jobUtils";

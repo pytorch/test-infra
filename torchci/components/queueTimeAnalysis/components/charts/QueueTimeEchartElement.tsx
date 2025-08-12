@@ -314,7 +314,6 @@ const getPercentileLineChart = (
         const lines = [];
         const date = params[0].axisValue;
         lines.push(`<b>${date}</b>`);
-        console.log(lines);
         for (const item of params) {
           const idx = item.data;
           const lineName = item.seriesName;

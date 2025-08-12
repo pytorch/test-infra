@@ -12,27 +12,15 @@ WITH job AS (
         workflow.id AS workflow_id,
         workflow.artifacts_url AS github_artifact_url,
         multiIf(
-            job.conclusion = ''
+            job.conclusion_kg = ''
             and status = 'queued' ,
             'queued',
-            job.conclusion = '',
+            job.conclusion_kg = '',
             'pending',
-            job.conclusion
+            job.conclusion_kg
         ) as conclusion,
         job.html_url,
-        IF(
-            {repo: String } = 'pytorch/pytorch',
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                job.id:: String
-            ),
-            CONCAT(
-                'https://ossci-raw-job-status.s3.amazonaws.com/log/',
-                {repo: String },
-                '/',
-                job.id:: String
-            )
-        ) AS log_url,
+        job.log_url AS log_url,
         if(
             job.started_at = 0,
             0,
@@ -43,10 +31,10 @@ WITH job AS (
             0,
             DATE_DIFF('SECOND', job.started_at, job.completed_at)
         ) AS duration_s,
-        job.torchci_classification.line as line,
-        job.torchci_classification.captures as captures,
-        job.torchci_classification.line_num as line_num,
-        job.torchci_classification.context as context,
+        job.torchci_classification_kg.'line' as line,
+        job.torchci_classification_kg.'captures' as captures,
+        job.torchci_classification_kg.'line_num' as line_num,
+        job.torchci_classification_kg.'context' as context,
         job.runner_name AS runner_name,
         workflow.head_commit. 'author'.'email' AS authorEmail
     FROM
@@ -57,7 +45,12 @@ WITH job AS (
         AND job.name != 'generate-test-matrix'
         AND workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
+        AND (
+            {workflowId: Int64} = 0
+            OR workflow.id = {workflowId: Int64} -- If a specific workflow ID is provided, filter by it
+        )
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha = {sha: String})
         AND workflow.repository. 'full_name' = {repo: String } --         UNION
         AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
@@ -95,7 +88,12 @@ WITH job AS (
     WHERE
         workflow.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow.event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
+        AND NOT (workflow.event = 'workflow_dispatch' AND workflow.head_branch LIKE 'trunk/%') -- Filter out restart jobs
         AND workflow.id in (select id from materialized_views.workflow_run_by_head_sha where head_sha = {sha: String})
+        AND (
+            {workflowId: Int64} = 0
+            OR workflow.id = {workflowId: Int64} -- If a specific workflow ID is provided, filter by it
+        )
         AND workflow.repository.full_name = {repo: String }
         AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
 )

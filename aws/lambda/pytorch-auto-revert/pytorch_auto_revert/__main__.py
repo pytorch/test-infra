@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import base64
 import logging
 import os
 
@@ -61,13 +62,18 @@ def get_opts() -> argparse.Namespace:
         type=int,
         default=int(os.environ.get("GITHUB_INSTALLATION_ID", "0")),
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be restarted without actually doing it (use with --do-restart)",
+    )
 
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # autorevert subcommand
+    # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
-        "autorevert", help="Analyze workflows looking for autorevert patterns"
+        "autorevert-checker", help="Analyze workflows looking for autorevert patterns"
     )
     workflow_parser.add_argument(
         "workflows",
@@ -84,10 +90,25 @@ def get_opts() -> argparse.Namespace:
         action="store_true",
         help="Show detailed output including commit summaries",
     )
+    workflow_parser.add_argument(
+        "--do-restart",
+        action="store_true",
+        help="Actually restart workflows for detected autorevert patterns",
+    )
+    workflow_parser.add_argument(
+        "--do-revert",
+        action="store_true",
+        help="When restarts complete and secondary pattern matches, log REVERT",
+    )
+    workflow_parser.add_argument(
+        "--ignore-common-errors",
+        action="store_true",
+        help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
+    )
 
-    # workflow-restart-checke subcommand
+    # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
-        "workflow-restart-checke", help="Check for restarted workflows"
+        "workflow-restart-checker", help="Check for restarted workflows"
     )
     workflow_restart_parser.add_argument(
         "workflow",
@@ -123,6 +144,11 @@ def get_opts() -> argparse.Namespace:
 def main(*args, **kwargs) -> None:
     load_dotenv()
     opts = get_opts()
+
+    gh_app_secret = ""
+    if opts.github_app_secret:
+        gh_app_secret = base64.b64decode(opts.github_app_secret).decode("utf-8")
+
     setup_logging(opts.log_level)
     CHCliFactory.setup_client(
         opts.clickhouse_host,
@@ -133,7 +159,7 @@ def main(*args, **kwargs) -> None:
     )
     GHClientFactory.setup_client(
         opts.github_app_id,
-        opts.github_app_secret,
+        gh_app_secret,
         opts.github_installation_id,
         opts.github_access_token,
     )
@@ -143,10 +169,32 @@ def main(*args, **kwargs) -> None:
             "ClickHouse connection test failed. Please check your configuration."
         )
 
-    if opts.subcommand == "lambda":
-        print("TODO: run lambda flow")
-    elif opts.subcommand == "workflows":
-        autorevert_checker(opts.workflows, hours=opts.hours, verbose=opts.verbose)
+    if opts.subcommand is None:
+        autorevert_checker(
+            [
+                "Lint",
+                "trunk",
+                "pull",
+                "inductor",
+                "linux-binary-manywheel",
+            ],
+            do_restart=True,
+            do_revert=False,
+            hours=2,
+            verbose=True,
+            dry_run=opts.dry_run,
+            ignore_common_errors=True,
+        )
+    elif opts.subcommand == "autorevert-checker":
+        autorevert_checker(
+            opts.workflows,
+            do_restart=opts.do_restart,
+            do_revert=opts.do_revert,
+            hours=opts.hours,
+            verbose=opts.verbose,
+            dry_run=opts.dry_run,
+            ignore_common_errors=opts.ignore_common_errors,
+        )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "do-restart":

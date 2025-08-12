@@ -7,10 +7,10 @@ $VS_VERSION_major = [int] ${env:VS_VERSION}.split(".")[0]
 
 $VS_DOWNLOAD_LINK = "https://aka.ms/vs/$VS_VERSION_major/release/vs_BuildTools.exe"
 
-# Pin to older vs_buildtools version for cuda 11.8 and 12.1 builds
-# see issue: https://github.com/nerfstudio-project/nerfstudio/issues/3157
+# Select latest LTSC version: 17.12, from https://learn.microsoft.com/en-us/visualstudio/releases/2022/release-history
+# The early version which fixed illegal instruction is 17.9.4, from https://github.com/pytorch/pytorch/issues/145702#issuecomment-2863244306
 if ( ${env:VS_YEAR} -eq "2022" ) {
-    $VS_DOWNLOAD_LINK = "https://aka.ms/vs/17/release.ltsc.17.8/vs_buildtools.exe"
+    $VS_DOWNLOAD_LINK = "https://aka.ms/vs/17/release.ltsc.17.12/vs_buildtools.exe"
 }
 
 $COLLECT_DOWNLOAD_LINK = "https://aka.ms/vscollect.exe"
@@ -22,7 +22,9 @@ $VS_INSTALL_ARGS = @("--nocache","--quiet","--wait", "--add Microsoft.VisualStud
                                                      "--add Microsoft.VisualStudio.Component.VC.Redist.14.Latest",
                                                      "--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Core",
                                                      "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                                                     "--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Win81")
+                                                     "--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Win81",
+                                                     "--add Microsoft.VisualStudio.Component.VC.Llvm.Clang",
+                                                     "--add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset")
 
 if (${env:INSTALL_WINDOWS_SDK} -eq "1") {
     $VS_INSTALL_ARGS += "--add Microsoft.VisualStudio.Component.Windows10SDK.19041"

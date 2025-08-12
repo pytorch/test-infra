@@ -16,13 +16,14 @@ import {
 } from "@mui/material";
 import { DatePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import CopyLink from "components/CopyLink";
+import CopyLink from "components/common/CopyLink";
+import MultiSelectPicker from "components/common/MultiSelectPicker";
+import RegexButton from "components/common/RegexButton";
 import TimeSeriesPanel, {
   ChartType,
   Granularity,
 } from "components/metrics/panels/TimeSeriesPanel";
 import TimeSeriesTable from "components/metrics/panels/TimeSeriesTable";
-import MultiSelectPicker from "components/MultiSelectPicker";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
@@ -650,45 +651,13 @@ export default function Page() {
           variant="outlined"
           fullWidth
           value={inputValue}
-          InputProps={{
-            startAdornment: <FaFilter />,
-            endAdornment: (
-              <Tooltip
-                title={
-                  isRegex
-                    ? "Disable regex pattern matching"
-                    : "Enable regex pattern matching"
-                }
-              >
-                <div
-                  style={{ cursor: "pointer" }}
-                  onClick={() => setIsRegex(!isRegex)}
-                >
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      padding: "4px 8px",
-                      marginRight: "4px",
-                      borderRadius: "4px",
-                      fontSize: "0.75rem",
-                      fontFamily: "monospace",
-                      backgroundColor: isRegex
-                        ? "rgba(63, 81, 181, 0.1)"
-                        : "transparent",
-                      color: isRegex ? "primary.main" : "text.secondary",
-                      border: isRegex
-                        ? "1px solid rgba(63, 81, 181, 0.5)"
-                        : "1px solid transparent",
-                      transition: "all 0.2s",
-                    }}
-                  >
-                    .*
-                  </div>
-                </div>
-              </Tooltip>
-            ),
+          slotProps={{
+            input: {
+              startAdornment: <FaFilter />,
+              endAdornment: (
+                <RegexButton isRegex={isRegex} setIsRegex={setIsRegex} />
+              ),
+            },
           }}
         />
       </Box>

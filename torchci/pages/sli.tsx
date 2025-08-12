@@ -13,9 +13,9 @@ import {
 } from "@mui/material";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import CopyLink from "components/CopyLink";
+import CopyLink from "components/common/CopyLink";
+import { durationDisplay } from "components/common/TimeUtils";
 import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
-import { durationDisplay } from "components/TimeUtils";
 import dayjs from "dayjs";
 import { fetcher } from "lib/GeneralUtils";
 import { useRouter } from "next/router";
@@ -264,6 +264,9 @@ export default function Page() {
   useEffect(() => {
     if (!router.isReady) return;
 
+    // Only update URL if we're still on the SLI page
+    if (router.pathname !== "/sli") return;
+
     const params = new URLSearchParams();
 
     if (timeRange !== -1) {
@@ -286,10 +289,14 @@ export default function Page() {
       params.set("ttsPercentile", initialTtsPercentile);
     }
 
-    router.push({
-      pathname: router.pathname,
-      query: params.toString(),
-    });
+    router.push(
+      {
+        pathname: router.pathname,
+        query: params.toString(),
+      },
+      undefined,
+      { shallow: true }
+    );
   }, [
     initialTtsPercentile,
     initialWorkerTypes,

@@ -83,6 +83,17 @@ describe("Disable Flaky Test Integration Tests", () => {
         handleScope(scope);
       });
 
+      test("Do not create new issue if too old", async () => {
+        const flakyTest = {
+          ...flakyTestA,
+          eventTimes: flakyTestA.eventTimes?.map((t) =>
+            dayjs().subtract(5.5, "hour").toString()
+          ),
+        };
+        // Should do nothing, so no scope
+        await disableFlakyTestBot.handleAll(octokit, [flakyTest], [], [], []);
+      });
+
       test("Comment on open issue", async () => {
         const flakyTest = { ...flakyTestA };
         const issues = [genSingleIssueFor(flakyTest, {})];

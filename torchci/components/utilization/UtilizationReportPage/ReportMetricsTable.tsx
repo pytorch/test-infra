@@ -1,5 +1,5 @@
 import { Box } from "@mui/system";
-import LoadingPage from "components/LoadingPage";
+import LoadingPage from "components/common/LoadingPage";
 import UMMetricsTable, {
   UMMetricsTableUserMappingEntry,
 } from "components/uiModules/UMMetricsTable";

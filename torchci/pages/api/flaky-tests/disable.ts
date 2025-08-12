@@ -12,9 +12,9 @@ import _ from "lodash";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Octokit } from "octokit";
 
-export const NUM_HOURS = 3;
+export const NUM_HOURS = 6;
 const PYTORCH = "pytorch";
-const THRESHOLD = 10;
+const THRESHOLD = 4;
 
 export default async function handler(
   req: NextApiRequest,
@@ -221,7 +221,7 @@ async function dedupFlakyTestIssues(
 
   // Close the issues that aren't favored
   const dedupedArrayNumbers = dedupedArray.map((i) => i.number);
-  for (const issue of issues) {
+  for (const issue of singleIssues) {
     if (!dedupedArrayNumbers.includes(issue.number) && issue.state === "open") {
       await octokit.rest.issues.update({
         owner: PYTORCH,
@@ -300,7 +300,7 @@ async function handleNoLongerFlakyTests(
 function wasRecent(test: FlakyTestData) {
   if (test.eventTimes) {
     return test.eventTimes.some(
-      (value) => dayjs().diff(dayjs(value), "minutes") < NUM_HOURS * 60
+      (value) => dayjs().diff(dayjs(value), "minutes") < (NUM_HOURS - 1) * 60
     );
   }
   return true;
