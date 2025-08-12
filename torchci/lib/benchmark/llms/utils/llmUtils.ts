@@ -58,9 +58,31 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
     dtypes = [props.dtypeName];
   }
 
+  const deviceName =
+    props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName;
+  const archName = props.archName === DEFAULT_ARCH_NAME ? "" : props.archName;
+
+  let device = "";
+  let arch = "";
+  if (archName === "") {
+    // All the dashboards currently put device and arch into the same field in
+    // device (arch) format, i.e. cuda (NVIDIA B200). So, we need to extract
+    // the arch name here to use it in the query
+    const deviceArchRegex = new RegExp("^(?<device>.+)\\s+\\((?<arch>.+)\\)$");
+    const m = deviceName.match(deviceArchRegex);
+
+    device =
+      m !== null && m.groups !== undefined ? m.groups.device : deviceName;
+    arch = m !== null && m.groups !== undefined ? m.groups.arch : archName;
+  } else {
+    // If both device and arch are set, we just need to use them as they are
+    device = deviceName;
+    arch = archName;
+  }
+
   const queryParams = {
-    arch: props.archName === DEFAULT_ARCH_NAME ? "" : props.archName,
-    device: props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName,
+    arch: arch,
+    device: device,
     mode: props.modeName === DEFAULT_MODE_NAME ? "" : props.modeName,
     dtypes: dtypes,
     excludedMetrics: EXCLUDED_METRICS,
