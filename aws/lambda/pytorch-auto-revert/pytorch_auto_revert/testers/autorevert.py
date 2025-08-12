@@ -212,7 +212,9 @@ def autorevert_checker(
 
         len_patterns = len(patterns)
         len_reverted_patterns = len(reverted_patterns)
-        ratio_revert_patterns = len_reverted_patterns / len_patterns if len_patterns > 0 else 0
+        ratio_revert_patterns = (
+            len_reverted_patterns / len_patterns if len_patterns > 0 else 0
+        )
         print(f"Auto revert patterns detected: {len(patterns)}")
         print(
             "Actual reverts inside auto revert patterns detected (%): "
@@ -245,7 +247,11 @@ def autorevert_checker(
         # Calculate recall based on non-ghfirst reverts only
         len_non_ghfirst_reverts = len(non_ghfirst_reverts)
         len_not_found_non_ghfirst = len(not_found_non_ghfirst)
-        ratio_non_ghfirst_reverts = len_not_found_non_ghfirst / len_non_ghfirst_reverts if len_non_ghfirst_reverts > 0 else 0
+        ratio_non_ghfirst_reverts = (
+            len_not_found_non_ghfirst / len_non_ghfirst_reverts
+            if len_non_ghfirst_reverts > 0
+            else 0
+        )
         # recall_non_ghfirst = 1 - ratio_non_ghfirst_reverts
         print(
             "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (%): "
@@ -253,8 +259,14 @@ def autorevert_checker(
         )
 
         len_reverts_with_info = len(reverts_with_info)
-        stats_precision = len_reverted_patterns / len_patterns if len_patterns > 0 else 0.0
-        stats_recall = len_reverted_patterns / len_reverts_with_info if len_reverts_with_info > 0 else 0.0
+        stats_precision = (
+            len_reverted_patterns / len_patterns if len_patterns > 0 else 0.0
+        )
+        stats_recall = (
+            len_reverted_patterns / len_reverts_with_info
+            if len_reverts_with_info > 0
+            else 0.0
+        )
         stats_f1 = (
             2 * stats_precision * stats_recall / (stats_precision + stats_recall)
             if (stats_precision + stats_recall) > 0
