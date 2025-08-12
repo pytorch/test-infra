@@ -82,10 +82,10 @@ BASE_URL = "https://api.github.com"
 def get_repos_with_info(org: str) -> List[Dict]:
     """
     Fetch all repositories for an organization with their metadata.
-    
+
     Args:
         org: The GitHub organization name
-        
+
     Returns:
         List of repository dictionaries with metadata
     """
@@ -97,7 +97,9 @@ def get_repos_with_info(org: str) -> List[Dict]:
         logging.debug(f"[get_repos_with_info] Requesting URL: {url}")
         data = make_cached_request(url, HEADERS)
         if data is None:
-            logging.error(f"[get_repos_with_info] Failed to fetch page {page} for org: {org}")
+            logging.error(
+                f"[get_repos_with_info] Failed to fetch page {page} for org: {org}"
+            )
             break
         if not data:
             logging.info(
@@ -118,11 +120,11 @@ def get_repos_with_info(org: str) -> List[Dict]:
 def get_last_commit_date(org: str, repo: str) -> Optional[str]:
     """
     Get the date of the last commit for a repository.
-    
+
     Args:
         org: The GitHub organization name
         repo: The repository name
-        
+
     Returns:
         Date string in YYYY-MM-DD format of the last commit, or None if no commits found
     """
@@ -133,61 +135,71 @@ def get_last_commit_date(org: str, repo: str) -> Optional[str]:
     if data is None or not data:
         logging.warning(f"[get_last_commit_date] No commits found for repo: {repo}")
         return None
-    
+
     if len(data) > 0:
         commit_date = data[0]["commit"]["author"]["date"]
         # Convert ISO format to YYYY-MM-DD format
         try:
             from datetime import datetime
-            dt = datetime.fromisoformat(commit_date.replace('Z', '+00:00'))
-            formatted_date = dt.strftime('%Y-%m-%d')
-            logging.info(f"[get_last_commit_date] Last commit date for {repo}: {formatted_date}")
+
+            dt = datetime.fromisoformat(commit_date.replace("Z", "+00:00"))
+            formatted_date = dt.strftime("%Y-%m-%d")
+            logging.info(
+                f"[get_last_commit_date] Last commit date for {repo}: {formatted_date}"
+            )
             return formatted_date
         except (ValueError, AttributeError) as e:
-            logging.warning(f"[get_last_commit_date] Failed to parse date for {repo}: {e}")
+            logging.warning(
+                f"[get_last_commit_date] Failed to parse date for {repo}: {e}"
+            )
             return None
-    
+
     return None
 
 
 def process_repo_data(org: str, repos: List[Dict]) -> List[Dict]:
     """
     Process repository data and add last commit date information.
-    
+
     Args:
         org: The GitHub organization name
         repos: List of repository dictionaries from GitHub API
-        
+
     Returns:
         List of processed repository data with all required fields
     """
     logging.info(f"[process_repo_data] Processing {len(repos)} repositories")
     processed_repos = []
-    
+
     for i, repo in enumerate(repos, 1):
         repo_name = repo["name"]
-        logging.info(f"[process_repo_data] Processing repo {i}/{len(repos)}: {repo_name}")
-        
+        logging.info(
+            f"[process_repo_data] Processing repo {i}/{len(repos)}: {repo_name}"
+        )
+
         # Get last commit date
         last_commit_date = get_last_commit_date(org, repo_name)
-        
+
         processed_repo = {
             "repo_name": f"{org}/{repo_name}",
-            "public": repo.get("private", True) == False,  # True if public, False if private
+            "public": repo.get("private", True)
+            == False,  # True if public, False if private
             "archived": repo.get("archived", False),
-            "last_commit_date": last_commit_date
+            "last_commit_date": last_commit_date,
         }
-        
+
         processed_repos.append(processed_repo)
-    
-    logging.info(f"[process_repo_data] Finished processing {len(processed_repos)} repositories")
+
+    logging.info(
+        f"[process_repo_data] Finished processing {len(processed_repos)} repositories"
+    )
     return processed_repos
 
 
 def save_to_csv(data: List[Dict], filename: str = "repo_info_summary.csv"):
     """
     Save repository data to a CSV file.
-    
+
     Args:
         data: List of repository dictionaries
         filename: Name of the CSV file to create
@@ -202,12 +214,12 @@ def save_to_csv(data: List[Dict], filename: str = "repo_info_summary.csv"):
 
     # Define CSV headers
     fieldnames = ["repo_name", "public", "archived", "last_commit_date"]
-    
+
     with open(filepath, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(data)
-    
+
     logging.info(f"[save_to_csv] Data successfully saved to {filepath}")
 
 
@@ -240,10 +252,10 @@ def main():
 
     # Step 1: Get all repositories with their metadata
     repos = get_repos_with_info(ORG_NAME)
-    
+
     # Step 2: Process repository data and add last commit dates
     processed_repos = process_repo_data(ORG_NAME, repos)
-    
+
     # Step 3: Save to CSV
     save_to_csv(processed_repos)
 
@@ -256,4 +268,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

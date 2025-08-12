@@ -66,7 +66,8 @@ from typing import Dict, List, Optional, Tuple
 import requests
 from cache_manager import get_cache_stats, make_cached_request
 from dotenv import load_dotenv
-from github_code_search import search_github_code, GitHubSearchResults
+from github_code_search import GitHubSearchResults, search_github_code
+
 
 load_dotenv()
 
@@ -99,64 +100,74 @@ MAX_FILE_SIZE = 1024 * 1024
 _SEARCH_CACHE: Dict[str, Dict[str, List[str]]] = {}
 
 
-
-
 def get_target_files_from_search(org: str) -> Dict[str, List[str]]:
     """
     Get target files by searching GitHub for 'pytorch-labs' mentions in the organization.
-    
+
     Args:
         org: GitHub organization name
-        
+
     Returns:
         Dictionary mapping repository names to lists of file paths
     """
     # Check cache first
     if org in _SEARCH_CACHE:
-        logging.info(f"[get_target_files_from_search] Using cached results for org: {org}")
+        logging.info(
+            f"[get_target_files_from_search] Using cached results for org: {org}"
+        )
         return _SEARCH_CACHE[org]
-    
+
     try:
-        logging.info(f"[get_target_files_from_search] Searching for 'pytorch-labs' mentions in org: {org}")
-        
+        logging.info(
+            f"[get_target_files_from_search] Searching for 'pytorch-labs' mentions in org: {org}"
+        )
+
         # Search for files containing "pytorch-labs" in the organization
         query = f"org:{org} pytorch-labs"
         results: GitHubSearchResults = search_github_code(
             query=query,
-            verbose=False  # Reduce logging noise
+            verbose=False,  # Reduce logging noise
         )
-        
-        if results['retrieved_count'] == 0:
-            logging.warning(f"[get_target_files_from_search] No files found containing 'pytorch-labs' in org: {org}")
+
+        if results["retrieved_count"] == 0:
+            logging.warning(
+                f"[get_target_files_from_search] No files found containing 'pytorch-labs' in org: {org}"
+            )
             _SEARCH_CACHE[org] = {}
             return {}
-        
+
         # Group files by repository
         target_files: Dict[str, List[str]] = {}
-        for item in results['items']:
-            repo_name = item['repository']['name']  # Just the repo name, not full_name
-            file_path = item['path']
-            
+        for item in results["items"]:
+            repo_name = item["repository"]["name"]  # Just the repo name, not full_name
+            file_path = item["path"]
+
             if repo_name not in target_files:
                 target_files[repo_name] = []
-            
+
             if file_path not in target_files[repo_name]:
                 target_files[repo_name].append(file_path)
-        
-        logging.info(f"[get_target_files_from_search] Found {len(target_files)} repositories with {sum(len(files) for files in target_files.values())} total files")
-        
+
+        logging.info(
+            f"[get_target_files_from_search] Found {len(target_files)} repositories with {sum(len(files) for files in target_files.values())} total files"
+        )
+
         # Log summary of repositories found
         for repo_name, files in target_files.items():
-            logging.info(f"[get_target_files_from_search] {repo_name}: {len(files)} files")
-        
+            logging.info(
+                f"[get_target_files_from_search] {repo_name}: {len(files)} files"
+            )
+
         # Cache the results
         _SEARCH_CACHE[org] = target_files
-        
+
         return target_files
-        
+
     except Exception as e:
         logging.error(f"[get_target_files_from_search] Error searching for files: {e}")
-        logging.warning(f"[get_target_files_from_search] No fallback available - search failed")
+        logging.warning(
+            f"[get_target_files_from_search] No fallback available - search failed"
+        )
         return {}
 
 
@@ -164,26 +175,32 @@ def get_target_repos(org: str, filter_repos: Optional[List[str]] = None) -> List
     """Get only the repositories that have files with 'pytorch-labs' mentions."""
     # Get target files from search (with fallback to hardcoded list)
     target_files = get_target_files_from_search(org)
-    
+
     if not target_files:
         logging.info(f"[get_target_repos] No target files found for org: {org}")
         return []
-    
+
     all_repos = list(target_files.keys())
-    
+
     if filter_repos:
         # Filter to only include repos that are in both the target files and the filter list
         repos = [repo for repo in all_repos if repo in filter_repos]
-        logging.info(f"[get_target_repos] Filtered to {len(repos)} repositories from {len(all_repos)} available")
-        
+        logging.info(
+            f"[get_target_repos] Filtered to {len(repos)} repositories from {len(all_repos)} available"
+        )
+
         # Log which repos were filtered out
         filtered_out = [repo for repo in filter_repos if repo not in all_repos]
         if filtered_out:
-            logging.warning(f"[get_target_repos] Repositories not found in target files: {filtered_out}")
+            logging.warning(
+                f"[get_target_repos] Repositories not found in target files: {filtered_out}"
+            )
     else:
         repos = all_repos
-        logging.info(f"[get_target_repos] Found {len(repos)} repositories with target files for org: {org}")
-    
+        logging.info(
+            f"[get_target_repos] Found {len(repos)} repositories with target files for org: {org}"
+        )
+
     return repos
 
 
@@ -200,13 +217,17 @@ def get_target_files_for_repo(org: str, repo: str) -> List[str]:
     """Get the list of target files for a specific repository."""
     # Get target files from search (with fallback to hardcoded list)
     target_files = get_target_files_from_search(org)
-    
+
     if repo not in target_files:
-        logging.info(f"[get_target_files_for_repo] No target files found for {org}/{repo}")
+        logging.info(
+            f"[get_target_files_for_repo] No target files found for {org}/{repo}"
+        )
         return []
-    
+
     files = target_files[repo]
-    logging.info(f"[get_target_files_for_repo] Found {len(files)} target files for {org}/{repo}")
+    logging.info(
+        f"[get_target_files_for_repo] Found {len(files)} target files for {org}/{repo}"
+    )
     return files
 
 
@@ -216,12 +237,14 @@ def get_file_content(org: str, repo: str, file_path: str) -> Optional[str]:
     data = make_cached_request(url, HEADERS)
     if not data:
         return None
-    
+
     # Check file size
     if data.get("size", 0) > MAX_FILE_SIZE:
-        logging.warning(f"[get_file_content] File {file_path} too large ({data['size']} bytes), skipping")
+        logging.warning(
+            f"[get_file_content] File {file_path} too large ({data['size']} bytes), skipping"
+        )
         return None
-    
+
     # Decode content
     try:
         content = base64.b64decode(data["content"]).decode("utf-8")
@@ -231,130 +254,153 @@ def get_file_content(org: str, repo: str, file_path: str) -> Optional[str]:
         return None
 
 
-def find_and_replace_in_file(org: str, repo: str, file_path: str) -> Optional[Tuple[str, str]]:
+def find_and_replace_in_file(
+    org: str, repo: str, file_path: str
+) -> Optional[Tuple[str, str]]:
     """Find and replace text in a file. Returns (old_content, new_content) if changes needed."""
     content = get_file_content(org, repo, file_path)
     if content is None:
         return None
-    
+
     # Check if file contains the target text
     if OLD_TEXT not in content:
         return None
-    
+
     # Replace all instances
     new_content = content.replace(OLD_TEXT, NEW_TEXT)
-    
+
     # Check if any changes were made
     if new_content == content:
         return None
-    
-    logging.info(f"[find_and_replace_in_file] Found {content.count(OLD_TEXT)} instances in {file_path}")
+
+    logging.info(
+        f"[find_and_replace_in_file] Found {content.count(OLD_TEXT)} instances in {file_path}"
+    )
     return content, new_content
 
 
 def create_branch(org: str, repo: str, base_branch: str, new_branch: str) -> bool:
     """Create a new branch from the base branch."""
     if DRY_RUN:
-        logging.info(f"[create_branch] DRY RUN: Would create branch {new_branch} in {org}/{repo}")
+        logging.info(
+            f"[create_branch] DRY RUN: Would create branch {new_branch} in {org}/{repo}"
+        )
         return True
-    
+
     # Get the SHA of the base branch
     url = f"{BASE_URL}/repos/{org}/{repo}/branches/{base_branch}"
     branch_data = make_cached_request(url, HEADERS)
     if not branch_data:
         logging.error(f"[create_branch] Failed to get base branch {base_branch}")
         return False
-    
+
     base_sha = branch_data["commit"]["sha"]
-    
+
     # Create the new branch
     url = f"{BASE_URL}/repos/{org}/{repo}/git/refs"
-    data = {
-        "ref": f"refs/heads/{new_branch}",
-        "sha": base_sha
-    }
-    
+    data = {"ref": f"refs/heads/{new_branch}", "sha": base_sha}
+
     response = requests.post(url, headers=HEADERS, json=data)
     if response.status_code == 201:
         logging.info(f"[create_branch] Created branch {new_branch} in {org}/{repo}")
         return True
     elif response.status_code == 422:  # Branch already exists
-        logging.info(f"[create_branch] Branch {new_branch} already exists in {org}/{repo}")
+        logging.info(
+            f"[create_branch] Branch {new_branch} already exists in {org}/{repo}"
+        )
         return True
     else:
-        logging.error(f"[create_branch] Failed to create branch {new_branch}: {response.status_code} - {response.text}")
+        logging.error(
+            f"[create_branch] Failed to create branch {new_branch}: {response.status_code} - {response.text}"
+        )
         return False
 
 
-def create_file_commit(org: str, repo: str, file_path: str, content: str, branch: str, message: str) -> bool:
+def create_file_commit(
+    org: str, repo: str, file_path: str, content: str, branch: str, message: str
+) -> bool:
     """Create a commit to update a file."""
     if DRY_RUN:
-        logging.info(f"[create_file_commit] DRY RUN: Would update {file_path} in {org}/{repo}")
+        logging.info(
+            f"[create_file_commit] DRY RUN: Would update {file_path} in {org}/{repo}"
+        )
         return True
-    
+
     # First get the current file to get its SHA
     url = f"{BASE_URL}/repos/{org}/{repo}/contents/{file_path}"
     current_file_data = make_cached_request(url, HEADERS)
     if not current_file_data:
-        logging.error(f"[create_file_commit] Failed to get current file data for {file_path}")
+        logging.error(
+            f"[create_file_commit] Failed to get current file data for {file_path}"
+        )
         return False
-    
+
     current_sha = current_file_data.get("sha")
     if not current_sha:
         logging.error(f"[create_file_commit] No SHA found for {file_path}")
         return False
-    
+
     # Update the file with the SHA
     data = {
         "message": message,
         "content": base64.b64encode(content.encode("utf-8")).decode("utf-8"),
         "sha": current_sha,
-        "branch": branch
+        "branch": branch,
     }
-    
+
     response = requests.put(url, headers=HEADERS, json=data)
     if response.status_code in [200, 201]:
         logging.info(f"[create_file_commit] Updated {file_path} in {org}/{repo}")
         return True
     else:
-        logging.error(f"[create_file_commit] Failed to update {file_path}: {response.status_code} - {response.text}")
+        logging.error(
+            f"[create_file_commit] Failed to update {file_path}: {response.status_code} - {response.text}"
+        )
         return False
 
 
 def check_existing_pr(org: str, repo: str, title: str) -> Optional[str]:
     """Check if there's already an open PR with the same title. Returns PR URL if found, None otherwise."""
     url = f"{BASE_URL}/repos/{org}/{repo}/pulls?state=open&per_page=100"
-    
+
     # Don't use cache for PR checks since PR status can change quickly
-    logging.info(f"[check_existing_pr] Making direct request to check PRs for {org}/{repo}")
+    logging.info(
+        f"[check_existing_pr] Making direct request to check PRs for {org}/{repo}"
+    )
     try:
         response = requests.get(url, headers=HEADERS)
         response.raise_for_status()
         data = response.json()
-        
+
         for pr in data:
-            if pr.get("title") == title:
-                pr_url = pr['html_url']
-                logging.info(f"[check_existing_pr] Found existing open PR with same title in {org}/{repo}: {pr_url}")
+            if pr.get("title", "").startswith(title):
+                pr_url = pr["html_url"]
+                logging.info(
+                    f"[check_existing_pr] Found existing open PR with same title in {org}/{repo}: {pr_url}"
+                )
                 return pr_url
-        
+
         logging.info(f"[check_existing_pr] No existing PR found for {org}/{repo}")
         return None
-        
+
     except requests.exceptions.RequestException as e:
         logging.warning(f"[check_existing_pr] Failed to get PRs for {org}/{repo}: {e}")
         return None
     except json.JSONDecodeError as e:
-        logging.warning(f"[check_existing_pr] Failed to parse JSON response for {org}/{repo}: {e}")
+        logging.warning(
+            f"[check_existing_pr] Failed to parse JSON response for {org}/{repo}: {e}"
+        )
         return None
 
 
-def create_pull_request(org: str, repo: str, branch: str, base_branch: str) -> Optional[str]:
+def create_pull_request(
+    org: str, repo: str, branch: str, base_branch: str
+) -> Optional[str]:
     """Create a pull request and return the PR URL."""
     if DRY_RUN:
         logging.info(f"[create_pull_request] DRY RUN: Would create PR for {org}/{repo}")
         return "DRY_RUN_PR_URL"
-    
+
     url = f"{BASE_URL}/repos/{org}/{repo}/pulls"
     data = {
         "title": f"[EZ] Replace `pytorch-labs` with `meta-pytorch`",
@@ -362,7 +408,6 @@ def create_pull_request(org: str, repo: str, branch: str, base_branch: str) -> O
 
 ## Changes Made
 - Replaced all occurrences of `pytorch-labs` with `meta-pytorch`
-- Only modified files with extensions: .py, .md, .sh, .rst, .cpp, .h, .txt, .yml
 - Skipped binary files and files larger than 1MB due to GitHub api payload limits in the script to cover all repos in this org. Will do a more manual second pass later to cover any larger files
 
 ## Files Modified
@@ -370,9 +415,9 @@ This PR updates files that contained the target text.
 
 Generated by automated script on {datetime.now(timezone.utc).isoformat()}Z""",
         "head": branch,
-        "base": base_branch
+        "base": base_branch,
     }
-    
+
     response = requests.post(url, headers=HEADERS, json=data)
     if response.status_code == 201:
         pr_data = response.json()
@@ -380,88 +425,107 @@ Generated by automated script on {datetime.now(timezone.utc).isoformat()}Z""",
         logging.info(f"[create_pull_request] Created PR: {pr_url}")
         return pr_url
     else:
-        logging.error(f"[create_pull_request] Failed to create PR: {response.status_code} - {response.text}")
+        logging.error(
+            f"[create_pull_request] Failed to create PR: {response.status_code} - {response.text}"
+        )
         return None
 
 
 def process_repository(org: str, repo: str) -> Dict:
     """Process a single repository for text replacement."""
     logging.info(f"[process_repository] Processing repository: {org}/{repo}")
-    
+
     result = {
         "repo": repo,
         "status": "skipped",
         "files_changed": 0,
         "pr_url": None,
-        "error": None
+        "error": None,
     }
-    
+
     try:
         # Check for existing PR first (before doing any work)
-        pr_title = f"[EZ] Replace `pytorch-labs` with `meta-pytorch`"
-        existing_pr_url = check_existing_pr(org, repo, pr_title)
+        pr_title_prefix = f"[EZ] Replace `pytorch-labs`"
+        existing_pr_url = check_existing_pr(org, repo, pr_title_prefix)
         if existing_pr_url:
             result["status"] = "skipped_existing_pr"
             result["pr_url"] = existing_pr_url
             result["error"] = "Existing open PR with same title found"
-            logging.info(f"[process_repository] Skipping {org}/{repo} - existing open PR found: {existing_pr_url}")
+            logging.info(
+                f"[process_repository] Skipping {org}/{repo} - existing open PR found: {existing_pr_url}"
+            )
             return result
-        
+
         # Get default branch
         default_branch = get_default_branch(org, repo)
         if not default_branch:
             result["error"] = "Failed to get default branch"
             return result
-        
+
         # Get target files for this repository
         target_files = get_target_files_for_repo(org, repo)
         if not target_files:
             logging.info(f"[process_repository] No target files found for {org}/{repo}")
             return result
-        
+
         # Check each target file for replacements
         changes = []
         for file_path in target_files:
             replacement = find_and_replace_in_file(org, repo, file_path)
             if replacement:
                 old_content, new_content = replacement
-                changes.append({
-                    "path": file_path,
-                    "old_content": old_content,
-                    "new_content": new_content
-                })
-        
+                changes.append(
+                    {
+                        "path": file_path,
+                        "old_content": old_content,
+                        "new_content": new_content,
+                    }
+                )
+
         if not changes:
             logging.info(f"[process_repository] No changes needed in {org}/{repo}")
             return result
-        
+
         result["files_changed"] = len(changes)
-        logging.info(f"[process_repository] Found {len(changes)} files to update in {org}/{repo}")
-        
+        logging.info(
+            f"[process_repository] Found {len(changes)} files to update in {org}/{repo}"
+        )
+
         if DRY_RUN:
             result["status"] = "dry_run"
-            logging.info(f"[process_repository] DRY RUN: Would update {len(changes)} files in {org}/{repo}")
+            logging.info(
+                f"[process_repository] DRY RUN: Would update {len(changes)} files in {org}/{repo}"
+            )
             return result
-        
+
         # Create new branch
         branch_name = f"replace-pytorch-labs-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
         if not create_branch(org, repo, default_branch, branch_name):
             result["error"] = "Failed to create branch"
             return result
-        
+
         # Commit changes
-        commit_message = f"Replace 'pytorch-labs' with 'meta-pytorch' in {len(changes)} files"
+        commit_message = (
+            f"Replace 'pytorch-labs' with 'meta-pytorch' in {len(changes)} files"
+        )
         all_success = True
-        
+
         for change in changes:
-            if not create_file_commit(org, repo, change["path"], change["new_content"], branch_name, commit_message):
+            if not create_file_commit(
+                org,
+                repo,
+                change["path"],
+                change["new_content"],
+                branch_name,
+                commit_message,
+            ):
                 all_success = False
                 break
-        
+
         if not all_success:
             result["error"] = "Failed to commit some files"
             return result
-        
+
         # Create pull request
         pr_url = create_pull_request(org, repo, branch_name, default_branch)
         if pr_url:
@@ -469,11 +533,11 @@ def process_repository(org: str, repo: str) -> Dict:
             result["status"] = "success"
         else:
             result["error"] = "Failed to create pull request"
-        
+
     except Exception as e:
         logging.error(f"[process_repository] Error processing {org}/{repo}: {e}")
         result["error"] = str(e)
-    
+
     return result
 
 
@@ -533,9 +597,10 @@ def main():
         logging.info(f"[main] Processing repository {i}/{len(repos)}: {repo}")
         result = process_repository(ORG_NAME, repo)
         results.append(result)
-        
+
         # Add a small delay to be respectful to the API
         import time
+
         time.sleep(1)
 
     # Generate summary
@@ -543,7 +608,9 @@ def main():
     dry_run = [r for r in results if r["status"] == "dry_run"]
     skipped = [r for r in results if r["status"] == "skipped"]
     skipped_existing_pr = [r for r in results if r["status"] == "skipped_existing_pr"]
-    errors = [r for r in results if r["error"] and r["status"] not in ["skipped_existing_pr"]]
+    errors = [
+        r for r in results if r["error"] and r["status"] not in ["skipped_existing_pr"]
+    ]
 
     print(f"\n=== SUMMARY ===")
     print(f"Organization: {ORG_NAME}")
@@ -554,23 +621,29 @@ def main():
     print(f"Skipped (existing PR): {len(skipped_existing_pr)}")
     print(f"Errors: {len(errors)}")
     print("\n")
-    
+
     if skipped_existing_pr:
         print(f"=== SKIPPED (existing PRs) ===")
         for result in skipped_existing_pr:
-            print(f"- {result['repo']}: {result['files_changed']} files would be updated, but existing PR found: {result['pr_url']}")
+            print(
+                f"- {result['repo']}: {result['files_changed']} files would be updated, but existing PR found: {result['pr_url']}"
+            )
         print("\n")
 
     if successful:
         print(f"=== SUCCESSFUL PRs ===")
         for result in successful:
-            print(f"- {result['repo']}: {result['pr_url']} ({result['files_changed']} files)")
+            print(
+                f"- {result['repo']}: {result['pr_url']} ({result['files_changed']} files)"
+            )
         print("\n")
 
     if dry_run:
         print(f"=== DRY RUN (would create PRs) ===")
         for result in dry_run:
-            print(f"- {result['repo']}: {result['files_changed']} files would be updated")
+            print(
+                f"- {result['repo']}: {result['files_changed']} files would be updated"
+            )
         print("\n")
 
     if errors:
@@ -589,4 +662,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

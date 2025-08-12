@@ -63,13 +63,14 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any, TypedDict, Union
-from urllib.parse import quote_plus
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, TypedDict, Union
+from urllib.parse import quote_plus
 
 import requests
 from dotenv import load_dotenv
+
 
 load_dotenv()
 
@@ -94,6 +95,7 @@ SEARCH_URL = f"{BASE_URL}/search/code"
 # Type definitions for well-defined schema
 class RepositoryInfo(TypedDict):
     """Repository information from GitHub search results."""
+
     id: int
     node_id: str
     name: str
@@ -178,6 +180,7 @@ class RepositoryInfo(TypedDict):
 
 class SearchResultItem(TypedDict):
     """Individual search result item from GitHub code search."""
+
     name: str
     path: str
     sha: str
@@ -195,6 +198,7 @@ class SearchResultItem(TypedDict):
 
 class GitHubSearchResults(TypedDict):
     """Complete search results from GitHub Search API."""
+
     query: str
     total_count: int
     retrieved_count: int
@@ -207,41 +211,49 @@ class GitHubSearchResults(TypedDict):
 @dataclass
 class SearchOptions:
     """Options for GitHub code search."""
+
     per_page: int = 100
     max_results: Optional[int] = None
     verbose: bool = True
 
 
 class GitHubCodeSearch:
-    def __init__(self, token: str = None):
+    def __init__(self, token: Optional[str] = None):
         """
         Initialize GitHub Code Search client.
-        
+
         Args:
             token: GitHub personal access token. If None, will try to get from GITHUB_TOKEN env var.
         """
         self.token = token or GITHUB_TOKEN
         if not self.token:
-            raise ValueError("GitHub token is required. Set GITHUB_TOKEN environment variable or pass token parameter.")
-            
+            raise ValueError(
+                "GitHub token is required. Set GITHUB_TOKEN environment variable or pass token parameter."
+            )
+
         self.headers = {
             "Authorization": f"Bearer {self.token}",
             "Accept": "application/vnd.github+json",
         }
         self.session = requests.Session()
         self.session.headers.update(self.headers)
-        
-    def search_code(self, query: str, per_page: int = 100, max_results: Optional[int] = None, 
-                   verbose: bool = True) -> GitHubSearchResults:
+
+    def search_code(
+        self,
+        query: str,
+        per_page: int = 100,
+        max_results: Optional[int] = None,
+        verbose: bool = True,
+    ) -> GitHubSearchResults:
         """
         Search for code using GitHub's Search API.
-        
+
         Args:
             query: Search query string
             per_page: Number of results per page (max 100)
             max_results: Maximum number of results to return (None for all)
             verbose: Whether to log progress messages
-            
+
         Returns:
             GitHubSearchResults: Well-defined structure containing:
                 - query: The search query used
@@ -255,112 +267,122 @@ class GitHubCodeSearch:
         all_items = []
         page = 1
         total_count = 0
-        
+
         if verbose:
             logging.info(f"Starting code search with query: {query}")
-        
+
         while True:
             # Check rate limits
             rate_limit_info = self._check_rate_limit()
-            if rate_limit_info['remaining'] == 0:
-                reset_time = rate_limit_info['reset_time']
+            if rate_limit_info["remaining"] == 0:
+                reset_time = rate_limit_info["reset_time"]
                 wait_time = max(0, reset_time - time.time())
                 if verbose:
-                    logging.warning(f"Rate limit exceeded. Waiting {wait_time:.0f} seconds...")
+                    logging.warning(
+                        f"Rate limit exceeded. Waiting {wait_time:.0f} seconds..."
+                    )
                 time.sleep(wait_time + 1)
-            
+
             # Prepare request parameters
-            params = {
-                'q': query,
-                'per_page': min(per_page, 100),
-                'page': page
+            params: Dict[str, Union[str, int]] = {
+                "q": query,
+                "per_page": min(per_page, 100),
+                "page": page,
             }
-            
+
             try:
                 if verbose:
                     logging.info(f"Fetching page {page}...")
                 response = self.session.get(SEARCH_URL, params=params)
                 response.raise_for_status()
-                
+
                 data = response.json()
-                
+
                 # Update total count on first page
                 if page == 1:
-                    total_count = data.get('total_count', 0)
+                    total_count = data.get("total_count", 0)
                     if verbose:
                         logging.info(f"Total results found: {total_count}")
-                
-                items = data.get('items', [])
+
+                items = data.get("items", [])
                 if not items:
                     break
-                
+
                 all_items.extend(items)
                 if verbose:
-                    logging.info(f"Retrieved {len(items)} items from page {page} (total: {len(all_items)})")
-                
+                    logging.info(
+                        f"Retrieved {len(items)} items from page {page} (total: {len(all_items)})"
+                    )
+
                 # Check if we've reached the maximum results
                 if max_results and len(all_items) >= max_results:
                     all_items = all_items[:max_results]
                     if verbose:
                         logging.info(f"Reached maximum results limit: {max_results}")
                     break
-                
+
                 # Check if there are more pages
                 if len(items) < per_page:
                     break
-                
+
                 page += 1
-                
+
                 # Be respectful to the API
                 time.sleep(1)
-                
+
             except requests.exceptions.RequestException as e:
                 logging.error(f"Error fetching page {page}: {e}")
                 break
             except json.JSONDecodeError as e:
                 logging.error(f"Error parsing JSON response from page {page}: {e}")
                 break
-        
+
         # Get rate limit info for the response
         rate_limit_info = self._check_rate_limit()
-        
+
         return GitHubSearchResults(
             query=query,
             total_count=total_count,
             retrieved_count=len(all_items),
             items=all_items,
             search_time=datetime.now(timezone.utc).isoformat(),
-            rate_limit_remaining=rate_limit_info.get('remaining'),
-            rate_limit_reset=datetime.fromtimestamp(rate_limit_info.get('reset_time', 0)).isoformat() if rate_limit_info.get('reset_time') else None
+            rate_limit_remaining=rate_limit_info.get("remaining"),
+            rate_limit_reset=datetime.fromtimestamp(
+                rate_limit_info.get("reset_time", 0)
+            ).isoformat()
+            if rate_limit_info.get("reset_time")
+            else None,
         )
-    
+
     def get_rate_limit(self) -> Dict[str, Any]:
         """Get GitHub API rate limit status."""
         return self._check_rate_limit()
-    
+
     def _check_rate_limit(self) -> Dict[str, Any]:
         """Check GitHub API rate limit status."""
         try:
             response = self.session.get(f"{BASE_URL}/rate_limit")
             response.raise_for_status()
             data = response.json()
-            
-            search_limit = data.get('resources', {}).get('search', {})
+
+            search_limit = data.get("resources", {}).get("search", {})
             return {
-                'limit': search_limit.get('limit', 0),
-                'remaining': search_limit.get('remaining', 0),
-                'reset_time': search_limit.get('reset', 0)
+                "limit": search_limit.get("limit", 0),
+                "remaining": search_limit.get("remaining", 0),
+                "reset_time": search_limit.get("reset", 0),
             }
         except Exception as e:
             logging.warning(f"Could not check rate limit: {e}")
-            return {'limit': 0, 'remaining': 0, 'reset_time': 0}
-    
-    def format_results(self, results: GitHubSearchResults, format_type: str = 'console') -> str:
+            return {"limit": 0, "remaining": 0, "reset_time": 0}
+
+    def format_results(
+        self, results: GitHubSearchResults, format_type: str = "console"
+    ) -> str:
         """Format search results for different output types."""
-        if format_type == 'json':
+        if format_type == "json":
             return json.dumps(results, indent=2)
-        
-        elif format_type == 'console':
+
+        elif format_type == "console":
             output = []
             output.append(f"=== GitHub Code Search Results ===")
             output.append(f"Query: {results['query']}")
@@ -368,107 +390,124 @@ class GitHubCodeSearch:
             output.append(f"Retrieved: {results['retrieved_count']}")
             output.append(f"Search time: {results['search_time']}")
             output.append("")
-            
-            for i, item in enumerate(results['items'], 1):
-                repo_name = item.get('repository', {}).get('full_name', 'Unknown')
-                file_path = item.get('path', 'Unknown')
-                file_url = item.get('html_url', '')
-                score = item.get('score', 0)
-                
+
+            for i, item in enumerate(results["items"], 1):
+                repo_name = item.get("repository", {}).get("full_name", "Unknown")
+                file_path = item.get("path", "Unknown")
+                file_url = item.get("html_url", "")
+                score = item.get("score", 0)
+
                 output.append(f"{i}. {repo_name}/{file_path}")
                 output.append(f"   Score: {score}")
                 output.append(f"   URL: {file_url}")
                 output.append("")
-            
+
             return "\n".join(output)
-        
-        elif format_type == 'csv':
+
+        elif format_type == "csv":
             import csv
             import io
-            
-            output = io.StringIO()
-            writer = csv.writer(output)
-            
+
+            output_buffer = io.StringIO()
+            writer = csv.writer(output_buffer)
+
             # Write header
-            writer.writerow(['Repository', 'File Path', 'Score', 'URL', 'Search Time'])
-            
+            writer.writerow(["Repository", "File Path", "Score", "URL", "Search Time"])
+
             # Write data
-            for item in results['items']:
-                repo_name = item.get('repository', {}).get('full_name', 'Unknown')
-                file_path = item.get('path', 'Unknown')
-                file_url = item.get('html_url', '')
-                score = item.get('score', 0)
-                
-                writer.writerow([repo_name, file_path, score, file_url, results['search_time']])
-            
-            return output.getvalue()
-        
+            for item in results["items"]:
+                repo_name = item.get("repository", {}).get("full_name", "Unknown")
+                file_path = item.get("path", "Unknown")
+                file_url = item.get("html_url", "")
+                score = item.get("score", 0)
+
+                writer.writerow(
+                    [repo_name, file_path, score, file_url, results["search_time"]]
+                )
+
+            return output_buffer.getvalue()
+
         else:
             raise ValueError(f"Unsupported format type: {format_type}")
-    
+
     def get_file_paths(self, results: GitHubSearchResults) -> List[str]:
         """Extract just the file paths from search results."""
-        return [item.get('path', '') for item in results.get('items', [])]
-    
+        return [item.get("path", "") for item in results.get("items", [])]
+
     def get_repositories(self, results: GitHubSearchResults) -> List[str]:
         """Extract just the repository names from search results."""
-        return [item.get('repository', {}).get('full_name', '') for item in results.get('items', [])]
-    
+        return [
+            item.get("repository", {}).get("full_name", "")
+            for item in results.get("items", [])
+        ]
+
     def get_unique_repositories(self, results: GitHubSearchResults) -> List[str]:
         """Extract unique repository names from search results."""
         repos = self.get_repositories(results)
         return list(set(repos))
-    
-    def filter_by_score(self, results: GitHubSearchResults, min_score: float = 0.0) -> GitHubSearchResults:
+
+    def filter_by_score(
+        self, results: GitHubSearchResults, min_score: float = 0.0
+    ) -> GitHubSearchResults:
         """Filter results by minimum score."""
         filtered_items = [
-            item for item in results.get('items', [])
-            if item.get('score', 0) >= min_score
+            item
+            for item in results.get("items", [])
+            if item.get("score", 0) >= min_score
         ]
-        
+
         return GitHubSearchResults(
-            query=results['query'],
-            total_count=results['total_count'],
+            query=results["query"],
+            total_count=results["total_count"],
             retrieved_count=len(filtered_items),
             items=filtered_items,
-            search_time=results['search_time'],
-            rate_limit_remaining=results.get('rate_limit_remaining'),
-            rate_limit_reset=results.get('rate_limit_reset')
+            search_time=results["search_time"],
+            rate_limit_remaining=results.get("rate_limit_remaining"),
+            rate_limit_reset=results.get("rate_limit_reset"),
         )
-    
-    def filter_by_repository(self, results: GitHubSearchResults, repo_pattern: str) -> GitHubSearchResults:
+
+    def filter_by_repository(
+        self, results: GitHubSearchResults, repo_pattern: str
+    ) -> GitHubSearchResults:
         """Filter results by repository name pattern."""
         import re
+
         pattern = re.compile(repo_pattern)
-        
+
         filtered_items = [
-            item for item in results.get('items', [])
-            if pattern.search(item.get('repository', {}).get('full_name', ''))
+            item
+            for item in results.get("items", [])
+            if pattern.search(item.get("repository", {}).get("full_name", ""))
         ]
-        
+
         return GitHubSearchResults(
-            query=results['query'],
-            total_count=results['total_count'],
+            query=results["query"],
+            total_count=results["total_count"],
             retrieved_count=len(filtered_items),
             items=filtered_items,
-            search_time=results['search_time'],
-            rate_limit_remaining=results.get('rate_limit_remaining'),
-            rate_limit_reset=results.get('rate_limit_reset')
+            search_time=results["search_time"],
+            rate_limit_remaining=results.get("rate_limit_remaining"),
+            rate_limit_reset=results.get("rate_limit_reset"),
         )
 
 
-def search_github_code(query: str, token: str = None, per_page: int = 100, 
-                      max_results: Optional[int] = None, verbose: bool = True) -> GitHubSearchResults:
+def search_github_code(
+    query: str,
+    token: Optional[str] = None,
+    per_page: int = 100,
+    max_results: Optional[int] = None,
+    verbose: bool = True,
+) -> GitHubSearchResults:
     """
     Convenience function to search GitHub code.
-    
+
     Args:
         query: Search query string
         token: GitHub personal access token (optional, will use GITHUB_TOKEN env var if not provided)
         per_page: Number of results per page (max 100)
         max_results: Maximum number of results to return (None for all)
         verbose: Whether to log progress messages
-        
+
     Returns:
         GitHubSearchResults: Well-defined structure containing search results with the following fields:
             - query: The search query used
@@ -524,8 +563,8 @@ def main():
     parser.add_argument(
         "--format",
         type=str,
-        choices=['console', 'json', 'csv'],
-        default='console',
+        choices=["console", "json", "csv"],
+        default="console",
         help="Output format (default: console)",
     )
     parser.add_argument(
@@ -533,7 +572,7 @@ def main():
         action="store_true",
         help="Show rate limit information before searching",
     )
-    
+
     args = parser.parse_args()
 
     if not GITHUB_TOKEN:
@@ -542,42 +581,40 @@ def main():
 
     # Create search instance
     searcher = GitHubCodeSearch()
-    
+
     # Show rate limit if requested
     if args.show_rate_limit:
         rate_limit = searcher.get_rate_limit()
         print(f"Rate limit: {rate_limit['remaining']}/{rate_limit['limit']} remaining")
-        if rate_limit['remaining'] == 0:
-            reset_time = datetime.fromtimestamp(rate_limit['reset_time'])
+        if rate_limit["remaining"] == 0:
+            reset_time = datetime.fromtimestamp(rate_limit["reset_time"])
             print(f"Rate limit resets at: {reset_time}")
         print()
 
     # Perform search
     results = searcher.search_code(
-        query=args.query,
-        per_page=args.per_page,
-        max_results=args.max_results
+        query=args.query, per_page=args.per_page, max_results=args.max_results
     )
 
     # Format and output results
     if args.output:
         # Determine format from file extension
-        if args.output.endswith('.json'):
-            output_format = 'json'
-        elif args.output.endswith('.csv'):
-            output_format = 'csv'
+        if args.output.endswith(".json"):
+            output_format = "json"
+        elif args.output.endswith(".csv"):
+            output_format = "csv"
         else:
             output_format = args.format
-        
+
         formatted_output = searcher.format_results(results, output_format)
-        
-        with open(args.output, 'w', encoding='utf-8') as f:
+
+        with open(args.output, "w", encoding="utf-8") as f:
             f.write(formatted_output)
-        
+
         print(f"Results saved to: {args.output}")
-        
+
         # Also show console summary
-        console_output = searcher.format_results(results, 'console')
+        console_output = searcher.format_results(results, "console")
         print(console_output)
     else:
         # Just show console output
@@ -586,4 +623,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main() 
+    main()

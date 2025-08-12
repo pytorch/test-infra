@@ -61,7 +61,7 @@ import os
 import re
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 import yaml
@@ -136,7 +136,9 @@ COMPANY_DOMAINS = {
 }
 
 BASE_URL = "https://api.github.com"
-COMMIT_LOOKBACK = (datetime.utcnow() - timedelta(days=180)).isoformat() + "Z"  # 6 months
+COMMIT_LOOKBACK = (
+    datetime.utcnow() - timedelta(days=180)
+).isoformat() + "Z"  # 6 months
 
 
 def get_repos(org: str) -> List[str]:
@@ -187,9 +189,13 @@ def get_commits(org: str, repo: str) -> List[Dict]:
             logging.error(f"[get_commits] Failed to fetch page {page} for repo: {repo}")
             break
         if not data:
-            logging.info(f"[get_commits] No more commits found for repo: {repo} on page {page}")
+            logging.info(
+                f"[get_commits] No more commits found for repo: {repo} on page {page}"
+            )
             break
-        logging.info(f"[get_commits] Page {page}: Found {len(data)} commits for repo: {repo}")
+        logging.info(
+            f"[get_commits] Page {page}: Found {len(data)} commits for repo: {repo}"
+        )
         all_commits.extend(data)
         page += 1
 
@@ -198,7 +204,9 @@ def get_commits(org: str, repo: str) -> List[Dict]:
             logging.info(f"[get_commits] Limiting to 1000 commits for repo: {repo}")
             break
 
-    logging.info(f"[get_commits] Finished fetching commits for repo: {repo}. Total: {len(all_commits)}")
+    logging.info(
+        f"[get_commits] Finished fetching commits for repo: {repo}. Total: {len(all_commits)}"
+    )
     return all_commits
 
 
@@ -230,9 +238,16 @@ def extract_company_from_email(email: str) -> Optional[str]:
 
     # Skip generic email providers
     generic_providers = {
-        "gmail.com", "yahoo.com", "hotmail.com", "outlook.com", "icloud.com",
-        "protonmail.com", "tutanota.com", "hey.com", "fastmail.com",
-        "users.noreply.github.com"  # GitHub's privacy-preserving email addresses
+        "gmail.com",
+        "yahoo.com",
+        "hotmail.com",
+        "outlook.com",
+        "icloud.com",
+        "protonmail.com",
+        "tutanota.com",
+        "hey.com",
+        "fastmail.com",
+        "users.noreply.github.com",  # GitHub's privacy-preserving email addresses
     }
 
     if domain in generic_providers:
@@ -240,7 +255,9 @@ def extract_company_from_email(email: str) -> Optional[str]:
 
     # For other domains, try to extract company name
     # Remove common TLDs and subdomains
-    domain_parts = domain.replace(".com", "").replace(".org", "").replace(".net", "").split(".")
+    domain_parts = (
+        domain.replace(".com", "").replace(".org", "").replace(".net", "").split(".")
+    )
     if domain_parts and len(domain_parts[-1]) > 2:
         return domain_parts[-1].title()
 
@@ -258,7 +275,7 @@ def extract_company_from_profile(profile: Dict) -> Optional[str]:
         return None
 
     # Clean up company name
-    company = re.sub(r'^@', '', company)  # Remove @ prefix
+    company = re.sub(r"^@", "", company)  # Remove @ prefix
     company = company.strip()
 
     if not company:
@@ -350,12 +367,14 @@ def cache_to_disk(func):
             arg_representation = {
                 "date": today,
                 "args": hashable_args,
-                "kwargs": sorted(hashable_kwargs.items())
+                "kwargs": sorted(hashable_kwargs.items()),
             }
             serialized_args = json.dumps(arg_representation, sort_keys=True)
         except (TypeError, ValueError):
             # If serialization fails, use string representation as fallback
-            serialized_args = today + str(hashable_args) + str(sorted(hashable_kwargs.items()))
+            serialized_args = (
+                today + str(hashable_args) + str(sorted(hashable_kwargs.items()))
+            )
 
         arg_hash = hashlib.sha256(serialized_args.encode()).hexdigest()
         key = f"{func_name}_{today}_{arg_hash}"
@@ -373,7 +392,9 @@ def cache_to_disk(func):
         # Cache the result
         with open(filepath, "w") as f:
             json.dump(result, f)
-        logging.debug(f"Cached result for function: {func_name}, saved to: {filepath} (date: {today})")
+        logging.debug(
+            f"Cached result for function: {func_name}, saved to: {filepath} (date: {today})"
+        )
 
         return result
 
@@ -381,31 +402,35 @@ def cache_to_disk(func):
 
 
 @cache_to_disk
-def analyze_contributors(org: str, repos: List[str]) -> Dict:
+def analyze_contributors(
+    org: str, repos: List[str]
+) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, List[Dict[str, Any]]]]:
     """Analyze contributors across all repositories."""
-    logging.info(f"[analyze_contributors] Start analyzing contributors for {len(repos)} repositories in org: {org}")
+    logging.info(
+        f"[analyze_contributors] Start analyzing contributors for {len(repos)} repositories in org: {org}"
+    )
 
     # Track contributors across all repos
-    global_contributors = defaultdict(lambda: {
-        "total_commits": 0,
-        "repos": set(),
-        "emails": set(),
-        "username": None,
-        "company": None,
-        "profile": None
-    })
+    global_contributors: Dict[str, Dict[str, Any]] = defaultdict(
+        lambda: {
+            "total_commits": 0,
+            "repos": set(),
+            "emails": set(),
+            "username": None,
+            "company": None,
+            "profile": None,
+        }
+    )
 
     # Track contributors by repo
-    repo_contributors = {}
+    repo_contributors: Dict[str, List[Dict[str, Any]]] = {}
 
     for repo in repos:
         logging.info(f"[analyze_contributors] Processing repo: {repo}")
         commits = get_commits(org, repo)
-        repo_contributor_stats = defaultdict(lambda: {
-            "commits": 0,
-            "emails": set(),
-            "username": None
-        })
+        repo_contributor_stats: Dict[str, Dict[str, Any]] = defaultdict(
+            lambda: {"commits": 0, "emails": set(), "username": None}
+        )
 
         for commit in commits:
             author = commit.get("commit", {}).get("author", {})
@@ -418,64 +443,90 @@ def analyze_contributors(org: str, repos: List[str]) -> Dict:
             # Since we can assume GitHub username info is always there, use it as the primary key
             contributor_key = username
             if not contributor_key:
-                raise ValueError(f"Commit {commit['sha']} in repo {repo} has no identifiable contributor information.")
+                raise ValueError(
+                    f"Commit {commit['sha']} in repo {repo} has no identifiable contributor information."
+                )
 
             # Update repo-specific stats
             repo_contributor_stats[contributor_key]["commits"] += 1
             if author_email:
-                repo_contributor_stats[contributor_key]["emails"].add(author_email)
+                emails_set = repo_contributor_stats[contributor_key]["emails"]
+                if isinstance(emails_set, set):
+                    emails_set.add(author_email)
             if username:
                 repo_contributor_stats[contributor_key]["username"] = username
 
             # Update global stats
             global_contributors[contributor_key]["total_commits"] += 1
-            global_contributors[contributor_key]["repos"].add(repo)
+            repos_set = global_contributors[contributor_key]["repos"]
+            if isinstance(repos_set, set):
+                repos_set.add(repo)
             if author_email:
-                global_contributors[contributor_key]["emails"].add(author_email)
+                emails_set = global_contributors[contributor_key]["emails"]
+                if isinstance(emails_set, set):
+                    emails_set.add(author_email)
             if username:
                 global_contributors[contributor_key]["username"] = username
 
         # Convert sets to lists for YAML serialization
         repo_contributors[repo] = []
         for contributor_key, stats in repo_contributor_stats.items():
-            repo_contributors[repo].append({
-                "contributor": contributor_key,
-                "commits": stats["commits"],
-                "emails": list(stats["emails"]),
-                "username": stats["username"]
-            })
+            emails_list = (
+                list(stats["emails"]) if isinstance(stats["emails"], set) else []
+            )
+            repo_contributors[repo].append(
+                {
+                    "contributor": contributor_key,
+                    "commits": stats["commits"],
+                    "emails": emails_list,
+                    "username": stats["username"],
+                }
+            )
 
         # Sort by commit count
         repo_contributors[repo].sort(key=lambda x: x["commits"], reverse=True)
 
-        logging.info(f"[analyze_contributors] Found {len(repo_contributors[repo])} contributors for repo: {repo}")
+        logging.info(
+            f"[analyze_contributors] Found {len(repo_contributors[repo])} contributors for repo: {repo}"
+        )
 
     # Enhance global contributors with profile and company information
-    logging.info(f"[analyze_contributors] Enhancing contributor information with profiles and companies")
+    logging.info(
+        f"[analyze_contributors] Enhancing contributor information with profiles and companies"
+    )
     for contributor_key, stats in global_contributors.items():
         # First, try to extract company from email addresses (prioritize this)
-        if stats["emails"]:
-            for email in stats["emails"]:
+        emails_set = stats["emails"]
+        if isinstance(emails_set, set) and emails_set:
+            for email in emails_set:
                 company_from_email = extract_company_from_email(email)
                 if company_from_email:
                     stats["company"] = company_from_email
                     break
 
         # Only if email didn't provide a clear company mapping, try GitHub profile
-        if not stats["company"] and stats["username"]:
-            profile = get_user_profile(stats["username"])
+        username = stats["username"]
+        if not stats["company"] and username:
+            profile = get_user_profile(username)
             stats["profile"] = profile
 
             # Try to extract company from profile
-            company_from_profile = extract_company_from_profile(profile)
-            if company_from_profile:
-                stats["company"] = company_from_profile
+            if profile:
+                company_from_profile = extract_company_from_profile(profile)
+                if company_from_profile:
+                    stats["company"] = company_from_profile
 
         # Convert sets to lists for YAML serialization
-        stats["repos"] = list(stats["repos"])
-        stats["emails"] = list(stats["emails"])
+        repos_set = stats["repos"]
+        if isinstance(repos_set, set):
+            stats["repos"] = list(repos_set)
+        emails_set = stats["emails"]
+        if isinstance(emails_set, set):
+            stats["emails"] = list(emails_set)
 
-    logging.info(f"[analyze_contributors] Finished analyzing contributors for org: {org}")
+    logging.info(
+        f"[analyze_contributors] Finished analyzing contributors for org: {org}"
+    )
     return global_contributors, repo_contributors
 
 
@@ -532,23 +583,29 @@ def main():
         repo for repo in repos if f"{ORG_NAME}/{repo}" not in EXCLUDED_REPOS
     ]
 
-    logging.info(f"[main] Analyzing {len(filtered_repos)} repositories (excluded {len(repos) - len(filtered_repos)})")
+    logging.info(
+        f"[main] Analyzing {len(filtered_repos)} repositories (excluded {len(repos) - len(filtered_repos)})"
+    )
 
     # Analyze contributors
-    global_contributors, repo_contributors = analyze_contributors(ORG_NAME, filtered_repos)
+    global_contributors, repo_contributors = analyze_contributors(
+        ORG_NAME, filtered_repos
+    )
 
     # Sort contributors by frequency
     contributors_by_frequency = []
     for contributor_key, stats in global_contributors.items():
-        contributors_by_frequency.append({
-            "contributor": contributor_key,
-            "total_commits": stats["total_commits"],
-            "repos_count": len(stats["repos"]),
-            "repos": stats["repos"],
-            "emails": stats["emails"],
-            "username": stats["username"],
-            "company": stats["company"]
-        })
+        contributors_by_frequency.append(
+            {
+                "contributor": contributor_key,
+                "total_commits": stats["total_commits"],
+                "repos_count": len(stats["repos"]),
+                "repos": stats["repos"],
+                "emails": stats["emails"],
+                "username": stats["username"],
+                "company": stats["company"],
+            }
+        )
 
     contributors_by_frequency.sort(key=lambda x: x["total_commits"], reverse=True)
 
@@ -558,20 +615,24 @@ def main():
 
     for contributor in contributors_by_frequency:
         if contributor["company"]:
-            company_analysis[contributor["company"]].append({
-                "contributor": contributor["contributor"],
-                "total_commits": contributor["total_commits"],
-                "repos_count": contributor["repos_count"],
-                "username": contributor["username"]
-            })
+            company_analysis[contributor["company"]].append(
+                {
+                    "contributor": contributor["contributor"],
+                    "total_commits": contributor["total_commits"],
+                    "repos_count": contributor["repos_count"],
+                    "username": contributor["username"],
+                }
+            )
         else:
-            unidentified_contributors.append({
-                "contributor": contributor["contributor"],
-                "total_commits": contributor["total_commits"],
-                "repos_count": contributor["repos_count"],
-                "username": contributor["username"],
-                "emails": contributor["emails"]
-            })
+            unidentified_contributors.append(
+                {
+                    "contributor": contributor["contributor"],
+                    "total_commits": contributor["total_commits"],
+                    "repos_count": contributor["repos_count"],
+                    "username": contributor["username"],
+                    "emails": contributor["emails"],
+                }
+            )
 
     # Sort company contributors by commit count
     for company in company_analysis:
@@ -585,13 +646,18 @@ def main():
             "lookback_period_days": 180,
             "repositories_analyzed": len(filtered_repos),
             "total_contributors": len(contributors_by_frequency),
-            "contributors_with_company": len(contributors_by_frequency) - len(unidentified_contributors),
-            "contributors_without_company": len(unidentified_contributors)
+            "contributors_with_company": len(contributors_by_frequency)
+            - len(unidentified_contributors),
+            "contributors_without_company": len(unidentified_contributors),
         },
-        "contributors_by_frequency": contributors_by_frequency[:50],  # Top 50 contributors
+        "contributors_by_frequency": contributors_by_frequency[
+            :50
+        ],  # Top 50 contributors
         "company_analysis": dict(company_analysis),
-        "unidentified_contributors": unidentified_contributors[:20],  # Top 20 unidentified
-        "contributors_by_repo": repo_contributors
+        "unidentified_contributors": unidentified_contributors[
+            :20
+        ],  # Top 20 unidentified
+        "contributors_by_repo": repo_contributors,
     }
 
     # Sort output for consistency
@@ -622,11 +688,16 @@ def main():
     print(f"- Organization: {ORG_NAME}")
     print(f"- Repositories analyzed: {len(filtered_repos)}")
     print(f"- Total contributors: {len(contributors_by_frequency)}")
-    print(f"- Contributors with identified companies: {len(contributors_by_frequency) - len(unidentified_contributors)}")
+    print(
+        f"- Contributors with identified companies: {len(contributors_by_frequency) - len(unidentified_contributors)}"
+    )
     print(f"- Top companies by contributor count:")
 
     # Show top companies
-    company_contributor_count = [(company, len(contributors)) for company, contributors in company_analysis.items()]
+    company_contributor_count = [
+        (company, len(contributors))
+        for company, contributors in company_analysis.items()
+    ]
     company_contributor_count.sort(key=lambda x: x[1], reverse=True)
 
     for company, count in company_contributor_count[:20]:
@@ -650,10 +721,14 @@ def main():
                     break
 
         # Sort by commit count (descending)
-        repo_commits.sort(key=lambda x: int(x.split('(')[1].split(')')[0]), reverse=True)
+        repo_commits.sort(
+            key=lambda x: int(x.split("(")[1].split(")")[0]), reverse=True
+        )
 
         # Format the contributor name (use username if available, otherwise email/name)
-        display_name = contributor["username"] if contributor["username"] else contributor_key
+        display_name = (
+            contributor["username"] if contributor["username"] else contributor_key
+        )
 
         print(f"- {display_name}, {', '.join(repo_commits)}")
 
