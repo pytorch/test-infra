@@ -17,7 +17,7 @@ in a specified GitHub organization and creates pull requests for each repository
 
 Key Features:
 -------------
-- Uses pre-defined list of files known to contain "pytorch-labs" mentions (optimized for performance). This list was obtained by running codesea
+- Dynamically discovers files containing "pytorch-labs" mentions using GitHub's Search API
 - Replaces all instances of "pytorch-labs" with "meta-pytorch" in target files.
 - Creates a new branch and commits changes for each repository.
 - Creates pull requests with descriptive titles and descriptions.
@@ -46,10 +46,11 @@ Output:
 
 Notes:
 ------
-- Only processes 72 pre-identified files that contain "pytorch-labs" mentions
+- Dynamically discovers files containing "pytorch-labs" mentions using GitHub Search API
 - Skips binary files and files larger than 1MB
 - Creates one PR per repository with changes
 - Handles GitHub API rate limits automatically
+- Caches search results to avoid repeated API calls
 - Significantly faster than scanning all files in all repositories
 """
 
@@ -65,6 +66,7 @@ from typing import Dict, List, Optional, Tuple
 import requests
 from cache_manager import get_cache_stats, make_cached_request
 from dotenv import load_dotenv
+from github_code_search import search_github_code, GitHubSearchResults
 
 load_dotenv()
 
@@ -93,130 +95,81 @@ NEW_TEXT = "meta-pytorch"
 # Maximum file size to process (1MB)
 MAX_FILE_SIZE = 1024 * 1024
 
-# Pre-defined list of files that contain "pytorch-labs" mentions
-# This is based on search results and will significantly improve performance
-TARGET_FILES = {
-    "pytorch": [
-        "android/README.md",
-        "aten/src/ATen/native/cuda/int4mm.cu",
-        "torch/testing/_internal/common_quantization.py"
-    ],
-    "vision": [
-        "torchvision/io/image.py"
-    ],
-    "tutorials": [
-        "index.rst",
-        "docathon-leaderboard.md",
-        "intermediate_source/transformer_building_blocks.py",
-        "unstable_source/gpu_quantization_torchao_tutorial.py"
-    ],
-    "executorch": [
-        "docs/source/index.md",
-        "docs/source/getting-started.md",
-        "backends/apple/mps/setup.md",
-        "docs/source/backends-mps.md",
-        "docs/source/llm/run-with-c-plus-plus.md",
-        "docs/source/using-executorch-android.md",
-        "docs/source/using-executorch-export.md",
-        "docs/source/using-executorch-building-from-source.md",
-        "docs/source/using-executorch-cpp.md",
-        "examples/models/llama/experimental/generate.py",
-        "scripts/test_ios.sh",
-        ".ci/scripts/test_ios_ci.sh",
-        "backends/test/facto/test_facto.py"
-    ],
-    "ao": [
-        "scripts/download.py",
-        "torchao/_models/llama/tokenizer.py",
-        "scripts/convert_hf_checkpoint.py",
-        "examples/sam2_amg_server/annotate_with_rle.py",
-        "torchao/prototype/mx_formats/kernels.py",
-        "torchao/_models/sam/README.md",
-        "torchao/quantization/README.md",
-        "test/integration/test_integration.py",
-        ".github/workflows/dashboard_perf_test.yml"
-    ],
-    "benchmark": [
-        "torchbenchmark/models/simple_gpt/origin",
-        "torchbenchmark/models/sam_fast/requirements.txt"
-    ],
-    "torchtune": [
-        "docs/source/tutorials/qlora_finetune.rst",
-        "recipes/eleuther_eval.py",
-        "docs/source/tutorials/e2e_flow.rst",
-        "torchtune/generation/_generation.py",
-        "docs/source/tutorials/llama3.rst",
-        "README.md"
-    ],
-    "torchft": [
-        "docs/source/protocol.rst",
-        "docs/source/assumptions_and_recommendations.rst",
-        "docs/source/conf.py",
-        "docs/source/index.rst",
-        "README.md"
-    ],
-    "torchchat": [
-        "torchchat/usages/eval.py",
-        "README.md"
-    ],
-    "rl": [
-        "examples/rlhf/requirements.txt"
-    ],
-    "builder": [
-        "CUDA_UPGRADE_GUIDE.MD"
-    ],
-    "helion": [
-        "benchmarks/run.py",
-        "benchmarks/README.md"
-    ],
-    "torchcodec": [
-        "src/torchcodec/_core/SingleStreamDecoder.cpp"
-    ],
-    "test-infra": [
-        "aws/lambda/README.md",
-        "torchci/clickhouse_queries/queued_jobs_aggregate/query.sql",
-        "tools/torchfix/README.md",
-        ".github/workflows/trigger_nightly.yml"
-    ],
-    "ci-infra": [
-        "arc-backup-2024/scripts/deployment.py"
-    ],
-    "oss-docathons": [
-        "pytorch/h1-2024/leaderboard-pytorch-docathon-h1-2024.md",
-        "pytorch/h1-2024/leaderboard-pytorch-docathon-h1-2024.csv",
-        ".github/scripts/pytorch-docathon-h1-2024.py"
-    ],
-    "serve": [
-        "examples/large_models/segment_anything_fast/install_segment_anything_fast.sh",
-        "examples/large_models/gpt_fast/README.md",
-        "examples/large_models/gpt_fast_mixtral_moe/README.md",
-        "examples/large_models/diffusion_fast/README.md",
-        "examples/large_models/segment_anything_fast/README.md",
-        "kubernetes/kserve/examples/gpt_fast/README.md"
-    ],
-    "xla": [
-        "torchax/test/llama/llama_model.py"
-    ],
-    "pytorch-canary": [
-        "torch/testing/_internal/common_quantization.py"
-    ],
-    "pytorch-integration-testing": [
-        ".github/scripts/generate_vllm_benchmark_matrix.py"
-    ],
-    "torcheval": [
-        ".github/PULL_REQUEST_TEMPLATE.md",
-        ".github/ISSUE_TEMPLATE/bug-report.yml"
-    ]
-}
+# Cache for search results to avoid repeated API calls
+_SEARCH_CACHE: Dict[str, Dict[str, List[str]]] = {}
+
+
+
+
+def get_target_files_from_search(org: str) -> Dict[str, List[str]]:
+    """
+    Get target files by searching GitHub for 'pytorch-labs' mentions in the organization.
+    
+    Args:
+        org: GitHub organization name
+        
+    Returns:
+        Dictionary mapping repository names to lists of file paths
+    """
+    # Check cache first
+    if org in _SEARCH_CACHE:
+        logging.info(f"[get_target_files_from_search] Using cached results for org: {org}")
+        return _SEARCH_CACHE[org]
+    
+    try:
+        logging.info(f"[get_target_files_from_search] Searching for 'pytorch-labs' mentions in org: {org}")
+        
+        # Search for files containing "pytorch-labs" in the organization
+        query = f"org:{org} pytorch-labs"
+        results: GitHubSearchResults = search_github_code(
+            query=query,
+            verbose=False  # Reduce logging noise
+        )
+        
+        if results['retrieved_count'] == 0:
+            logging.warning(f"[get_target_files_from_search] No files found containing 'pytorch-labs' in org: {org}")
+            _SEARCH_CACHE[org] = {}
+            return {}
+        
+        # Group files by repository
+        target_files: Dict[str, List[str]] = {}
+        for item in results['items']:
+            repo_name = item['repository']['name']  # Just the repo name, not full_name
+            file_path = item['path']
+            
+            if repo_name not in target_files:
+                target_files[repo_name] = []
+            
+            if file_path not in target_files[repo_name]:
+                target_files[repo_name].append(file_path)
+        
+        logging.info(f"[get_target_files_from_search] Found {len(target_files)} repositories with {sum(len(files) for files in target_files.values())} total files")
+        
+        # Log summary of repositories found
+        for repo_name, files in target_files.items():
+            logging.info(f"[get_target_files_from_search] {repo_name}: {len(files)} files")
+        
+        # Cache the results
+        _SEARCH_CACHE[org] = target_files
+        
+        return target_files
+        
+    except Exception as e:
+        logging.error(f"[get_target_files_from_search] Error searching for files: {e}")
+        logging.warning(f"[get_target_files_from_search] No fallback available - search failed")
+        return {}
 
 
 def get_target_repos(org: str, filter_repos: Optional[List[str]] = None) -> List[str]:
     """Get only the repositories that have files with 'pytorch-labs' mentions."""
-    if org not in TARGET_FILES:
+    # Get target files from search (with fallback to hardcoded list)
+    target_files = get_target_files_from_search(org)
+    
+    if not target_files:
         logging.info(f"[get_target_repos] No target files found for org: {org}")
         return []
     
-    all_repos = list(TARGET_FILES.keys())
+    all_repos = list(target_files.keys())
     
     if filter_repos:
         # Filter to only include repos that are in both the target files and the filter list
@@ -245,11 +198,14 @@ def get_default_branch(org: str, repo: str) -> Optional[str]:
 
 def get_target_files_for_repo(org: str, repo: str) -> List[str]:
     """Get the list of target files for a specific repository."""
-    if repo not in TARGET_FILES:
+    # Get target files from search (with fallback to hardcoded list)
+    target_files = get_target_files_from_search(org)
+    
+    if repo not in target_files:
         logging.info(f"[get_target_files_for_repo] No target files found for {org}/{repo}")
         return []
     
-    files = TARGET_FILES[repo]
+    files = target_files[repo]
     logging.info(f"[get_target_files_for_repo] Found {len(files)} target files for {org}/{repo}")
     return files
 
