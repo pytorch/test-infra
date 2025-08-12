@@ -249,7 +249,7 @@ def autorevert_checker(
         # recall_non_ghfirst = 1 - ratio_non_ghfirst_reverts
         print(
             "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (%): "
-            + f"(len_not_found_non_ghfirst) ({ratio_non_ghfirst_reverts * 100:.1f}%)"
+            + f"({len_not_found_non_ghfirst}) ({ratio_non_ghfirst_reverts * 100:.1f}%)"
         )
 
         len_reverts_with_info = len(reverts_with_info)
