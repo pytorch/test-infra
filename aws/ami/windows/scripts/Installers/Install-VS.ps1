@@ -22,7 +22,9 @@ $VS_INSTALL_ARGS = @("--nocache","--quiet","--wait", "--add Microsoft.VisualStud
                                                      "--add Microsoft.VisualStudio.Component.VC.Redist.14.Latest",
                                                      "--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Core",
                                                      "--add Microsoft.VisualStudio.Component.VC.Tools.x86.x64",
-                                                     "--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Win81")
+                                                     "--add Microsoft.VisualStudio.ComponentGroup.NativeDesktop.Win81",
+                                                     "--add Microsoft.VisualStudio.Component.VC.Llvm.Clang",
+                                                     "--add Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset")
 
 if (${env:INSTALL_WINDOWS_SDK} -eq "1") {
     $VS_INSTALL_ARGS += "--add Microsoft.VisualStudio.Component.Windows10SDK.19041"
