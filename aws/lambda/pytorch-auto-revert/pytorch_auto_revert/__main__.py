@@ -101,6 +101,11 @@ def get_opts() -> argparse.Namespace:
         help="When restarts complete and secondary pattern matches, log REVERT",
     )
     workflow_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be restarted without actually doing it",
+    )
+    workflow_parser.add_argument(
         "--ignore-common-errors",
         action="store_true",
         help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
@@ -179,7 +184,7 @@ def main(*args, **kwargs) -> None:
                 "linux-binary-manywheel",
             ],
             do_restart=True,
-            do_revert=False,
+            do_revert=True,
             hours=2,
             verbose=True,
             dry_run=opts.dry_run,
