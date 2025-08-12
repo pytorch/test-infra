@@ -62,6 +62,11 @@ def get_opts() -> argparse.Namespace:
         type=int,
         default=int(os.environ.get("GITHUB_INSTALLATION_ID", "0")),
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Show what would be restarted without actually doing it (use with --do-restart)",
+    )
 
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
@@ -94,11 +99,6 @@ def get_opts() -> argparse.Namespace:
         "--do-revert",
         action="store_true",
         help="When restarts complete and secondary pattern matches, log REVERT",
-    )
-    workflow_parser.add_argument(
-        "--dry-run",
-        action="store_true",
-        help="Show what would be restarted without actually doing it (use with --do-restart)",
     )
     workflow_parser.add_argument(
         "--ignore-common-errors",
@@ -182,7 +182,7 @@ def main(*args, **kwargs) -> None:
             do_revert=False,
             hours=2,
             verbose=True,
-            dry_run=False,
+            dry_run=opts.dry_run,
             ignore_common_errors=True,
         )
     elif opts.subcommand == "autorevert-checker":

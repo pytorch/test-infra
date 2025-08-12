@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+from lazyproperty import lazyproperty
+
 from .clickhouse_client_helper import CHCliFactory
 
 
@@ -82,7 +84,6 @@ class AutorevertPatternChecker:
         self.workflow_names = workflow_names or []
         self.lookback_hours = lookback_hours
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
-        self._commit_history = None
         self._ignore_classification_rules = ignore_classification_rules or set()
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
@@ -91,28 +92,25 @@ class AutorevertPatternChecker:
             self._fetch_workflow_data()
         return self._workflow_commits_cache.get(workflow_name, [])
 
-    def get_workflow_commit_by_sha(
-        self, workflow_name: str, sha: str
-    ) -> Optional[CommitJobs]:
-        """Return CommitJobs for a workflow and head_sha if present in cache."""
-        for cj in self.get_workflow_commits(workflow_name):
-            if cj.head_sha.startswith(sha):
-                return cj
-        return None
-
-    @property
+    @lazyproperty()
     def workflow_commits(self) -> List[CommitJobs]:
         """Get workflow commits for the first workflow (backward compatibility)."""
         if self.workflow_names:
             return self.get_workflow_commits(self.workflow_names[0])
         return []
 
-    @property
+    @lazyproperty()
     def commit_history(self) -> List[Dict]:
         """Get commit history, fetching if needed."""
-        if self._commit_history is None:
-            self._fetch_commit_history()
-        return self._commit_history or []
+        return self._fetch_commit_history()
+
+    @lazyproperty()
+    def commits_reverted(self) -> Set[str]:
+        return self._get_commits_reverted()
+
+    @lazyproperty()
+    def commits_reverted_with_info(self) -> Dict[str, Dict]:
+        return self._get_commits_reverted_with_info()
 
     def _fetch_workflow_data(self):
         """Fetch workflow job data from ClickHouse for all workflows in batch. From newer to older"""
@@ -221,7 +219,7 @@ class AutorevertPatternChecker:
             query, parameters={"lookback_time": lookback_time}
         )
 
-        self._commit_history = [
+        return [
             {"sha": row[0], "message": row[1], "timestamp": row[2]}
             for row in result.result_rows
         ]
@@ -535,7 +533,7 @@ class AutorevertPatternChecker:
             prev_jobs, failure_rule
         )
 
-    def get_commits_reverted(self) -> Set[str]:
+    def _get_commits_reverted(self) -> Set[str]:
         """
         Get all commits that were reverted within the lookback window.
 
@@ -667,7 +665,7 @@ class AutorevertPatternChecker:
 
         return result
 
-    def get_commits_reverted_with_info(self) -> Dict[str, Dict]:
+    def _get_commits_reverted_with_info(self) -> Dict[str, Dict]:
         """
         Get all commits that were reverted with detailed information including categories.
 

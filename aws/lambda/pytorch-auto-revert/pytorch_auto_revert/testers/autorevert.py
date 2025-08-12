@@ -63,8 +63,8 @@ def autorevert_checker(
 
     # Detect patterns
     patterns = checker.detect_autorevert_pattern()
-    reverts = checker.get_commits_reverted()
-    reverts_with_info = checker.get_commits_reverted_with_info()
+    reverts = checker.commits_reverted
+    reverts_with_info = checker.commits_reverted_with_info
 
     # Categorize reverts
     reverts_by_category = defaultdict(set)
@@ -91,6 +91,8 @@ def autorevert_checker(
 
         # Track reverts
         reverted_patterns = []
+
+        false_positive = 0
 
         for i, pattern in enumerate(patterns, 1):
             print(f"\nPattern #{i}:")
@@ -132,6 +134,7 @@ def autorevert_checker(
                 )
                 reverted_patterns.append(pattern)
             else:
+                false_positive += 1
                 print(f"✗ NOT REVERTED: {first_failing} was not reverted")
 
                 # Try to restart workflow if --do-restart flag is set and not already reverted
@@ -207,10 +210,13 @@ def autorevert_checker(
         )
         print(f"Commits checked: {total_commits}")
 
+        len_patterns = len(patterns)
+        len_reverted_patterns = len(reverted_patterns)
+        ratio_revert_patterns = len_reverted_patterns / len_patterns if len_patterns > 0 else 0
         print(f"Auto revert patterns detected: {len(patterns)}")
         print(
-            "Actual reverts inside auto revert patterns detected (precision): "
-            + f"{len(reverted_patterns)} ({len(reverted_patterns) / len(patterns) * 100:.1f}%)"
+            "Actual reverts inside auto revert patterns detected (%): "
+            + f"{len_reverted_patterns} ({ratio_revert_patterns * 100:.1f}%)"
         )
         print(f"Total revert commits in period: {len(reverts)}")
 
@@ -237,13 +243,32 @@ def autorevert_checker(
         print(f"\nTotal reverts excluding ghfirst: {len(non_ghfirst_reverts)}")
 
         # Calculate recall based on non-ghfirst reverts only
-        if non_ghfirst_reverts:
-            print(
-                "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (recall): "
-                + f"{len(not_found_non_ghfirst)} ({len(not_found_non_ghfirst) / len(non_ghfirst_reverts) * 100:.1f}%)"
-            )
-        else:
-            print("No non-ghfirst reverts found in the period")
+        len_non_ghfirst_reverts = len(non_ghfirst_reverts)
+        len_not_found_non_ghfirst = len(not_found_non_ghfirst)
+        ratio_non_ghfirst_reverts = len_not_found_non_ghfirst / len_non_ghfirst_reverts if len_non_ghfirst_reverts > 0 else 0
+        # recall_non_ghfirst = 1 - ratio_non_ghfirst_reverts
+        print(
+            "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (%): "
+            + f"(len_not_found_non_ghfirst) ({ratio_non_ghfirst_reverts * 100:.1f}%)"
+        )
+
+        len_reverts_with_info = len(reverts_with_info)
+        stats_precision = len_reverted_patterns / len_patterns if len_patterns > 0 else 0.0
+        stats_recall = len_reverted_patterns / len_reverts_with_info if len_reverts_with_info > 0 else 0.0
+        stats_f1 = (
+            2 * stats_precision * stats_recall / (stats_precision + stats_recall)
+            if (stats_precision + stats_recall) > 0
+            else 0.0
+        )
+
+        print()
+        print("*********************************************************************")
+        print("STATS SUMMARY:")
+        print(f" PRECISION: {stats_precision * 100:.1f}%")
+        print(f" RECALL: {stats_recall * 100:.1f}%")
+        print(f" F1: {stats_f1 * 100:.1f}%")
+        print("*********************************************************************")
+        print()
 
         workflow_statistics = defaultdict(
             lambda: {"match_pattern": 0, "reverts": 0, "reverts_non_ghfirst": 0}
