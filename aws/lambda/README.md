@@ -61,18 +61,18 @@ Run ncipollo/release-action@v1
 Use the release name to find your release artifacts in the release page. [pytorch/test-infra/releases](https://github.com/pytorch/test-infra/releases). If you build successfully, you can find your zip file in the release Assets.
 
 ## Setup infra resources and deploy the function to cloud
-Go to [pytorch-gha-infra](https://github.com/pytorch-labs/pytorch-gha-infra)
+Go to [pytorch-gha-infra](https://github.com/meta-pytorch/pytorch-gha-infra)
 
 ### Setup Permission and Deployment for the lambda function
-   - Add your lambda function config (such as create role, func-name, and permissions), similar to [PR: set up Aws Resources for queue time histogram lambda ](https://github.com/pytorch-labs/pytorch-gha-infra/pull/647)
+   - Add your lambda function config (such as create role, func-name, and permissions), similar to [PR: set up Aws Resources for queue time histogram lambda ](https://github.com/meta-pytorch/pytorch-gha-infra/pull/647)
         -  You should only grab permission the lambda need for resource access, make sure to ask one person from pytorch dev infra team to review the permission.
-   - Update the release-tag and add your zip file name in [runners/common/Terrafile](https://github.com/pytorch-labs/pytorch-gha-infra/blob/5fde9cdadaad584de3140488adba8eb9c9fe6722/runners/common/Terrafile)
+   - Update the release-tag and add your zip file name in [runners/common/Terrafile](https://github.com/meta-pytorch/pytorch-gha-infra/blob/5fde9cdadaad584de3140488adba8eb9c9fe6722/runners/common/Terrafile)
         -  During the deploy process, the workflow will download your file based on the Terrafile.
    - If you need ClickHouse account permission, you need ask pytorch dev infra teammate to create a ClickHouse role for your lambda.
-       - Add the ClickHouse role secret to the repo secret,  `bunnylol oss pytorch-labs/pytorch-gha-infra` and update it in settings-> secrets.
+       - Add the ClickHouse role secret to the repo secret,  `bunnylol oss meta-pytorch/pytorch-gha-infra` and update it in settings-> secrets.
 
 ### Deploy the lambda
-Once the pr is submitted, go to [Runners Do Terraform Release (apply)](https://github.com/pytorch-labs/pytorch-gha-infra/actions/workflows/runners-on-dispatch-release.yml), and click Run workflow.
+Once the pr is submitted, go to [Runners Do Terraform Release (apply)](https://github.com/meta-pytorch/pytorch-gha-infra/actions/workflows/runners-on-dispatch-release.yml), and click Run workflow.
 
 
 Page maintainers: @pytorch/pytorch-dev-infra
