@@ -122,10 +122,6 @@ resource "aws_dynamodb_table" "gpu_reservations" {
     projection_type = "ALL"
   }
 
-  ttl {
-    attribute_name = "expires_at"
-    enabled        = true
-  }
 
   tags = {
     Name        = "${var.prefix}-reservations"
@@ -133,30 +129,4 @@ resource "aws_dynamodb_table" "gpu_reservations" {
   }
 }
 
-# DynamoDB table for server state tracking
-resource "aws_dynamodb_table" "gpu_servers" {
-  name           = "${var.prefix}-servers"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "server_id"
-
-  attribute {
-    name = "server_id"
-    type = "S"
-  }
-
-  attribute {
-    name = "status"
-    type = "S"
-  }
-
-  global_secondary_index {
-    name     = "StatusIndex"
-    hash_key = "status"
-    projection_type = "ALL"
-  }
-
-  tags = {
-    Name        = "${var.prefix}-servers"
-    Environment = var.environment
-  }
-}
+# Note: Removed gpu_servers table - now using K8s API for real-time GPU tracking

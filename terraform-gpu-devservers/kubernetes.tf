@@ -54,7 +54,10 @@ resource "kubernetes_namespace" "gpu_dev" {
     }
   }
 
-  depends_on = [aws_eks_node_group.gpu_dev_nodes]
+  depends_on = [
+    aws_eks_cluster.gpu_dev_cluster
+    # Wait for either managed or self-managed nodes to be ready
+  ]
 }
 
 # Service account for GPU development pods
@@ -166,6 +169,7 @@ resource "kubernetes_daemonset" "nvidia_device_plugin" {
   }
 
   depends_on = [
-    aws_eks_node_group.gpu_dev_nodes
+    aws_eks_cluster.gpu_dev_cluster
+    # Will work with either managed or self-managed nodes
   ]
 }

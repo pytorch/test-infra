@@ -40,10 +40,7 @@ output "reservations_table_name" {
   value       = aws_dynamodb_table.gpu_reservations.name
 }
 
-output "servers_table_name" {
-  description = "Name of the DynamoDB servers table"
-  value       = aws_dynamodb_table.gpu_servers.name
-}
+# Removed servers_table_name output - now using K8s API for GPU tracking
 
 output "reservation_processor_function_name" {
   description = "Name of the Lambda reservation processor function"
@@ -67,7 +64,6 @@ output "cli_config" {
     region               = var.aws_region
     queue_url           = aws_sqs_queue.gpu_reservation_queue.id
     reservations_table  = aws_dynamodb_table.gpu_reservations.name
-    servers_table       = aws_dynamodb_table.gpu_servers.name
     cluster_name        = aws_eks_cluster.gpu_dev_cluster.name
   }
   sensitive = false

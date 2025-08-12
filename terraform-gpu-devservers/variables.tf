@@ -37,6 +37,12 @@ variable "gpu_instance_count" {
   # default     = 5  # Production setup
 }
 
+variable "use_self_managed_nodes" {
+  description = "Use self-managed ASG instead of EKS managed node group (faster for development)"
+  type        = bool
+  default     = true  # false = managed (production), true = self-managed (development)
+}
+
 variable "instance_type" {
   description = "EC2 instance type for GPU servers"
   type        = string

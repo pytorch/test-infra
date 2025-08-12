@@ -14,7 +14,6 @@ resource "aws_lambda_function" "reservation_expiry" {
   environment {
     variables = {
       RESERVATIONS_TABLE = aws_dynamodb_table.gpu_reservations.name
-      SERVERS_TABLE      = aws_dynamodb_table.gpu_servers.name
       EKS_CLUSTER_NAME   = aws_eks_cluster.gpu_dev_cluster.name
       REGION            = var.aws_region
       WARNING_MINUTES   = "30"  # Warn 30 minutes before expiry
@@ -85,9 +84,7 @@ resource "aws_iam_role_policy" "reservation_expiry_policy" {
         ]
         Resource = [
           aws_dynamodb_table.gpu_reservations.arn,
-          aws_dynamodb_table.gpu_servers.arn,
-          "${aws_dynamodb_table.gpu_reservations.arn}/index/*",
-          "${aws_dynamodb_table.gpu_servers.arn}/index/*"
+          "${aws_dynamodb_table.gpu_reservations.arn}/index/*"
         ]
       },
       {
@@ -131,6 +128,8 @@ resource "null_resource" "reservation_expiry_build" {
     # Rebuild when source files change
     code_hash = filebase64sha256("${path.module}/lambda/reservation_expiry/index.py")
     requirements_hash = filebase64sha256("${path.module}/lambda/reservation_expiry/requirements.txt")
+    shared_code_hash = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
+    shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
   }
 
   provisioner "local-exec" {
@@ -145,8 +144,12 @@ resource "null_resource" "reservation_expiry_build" {
       python3 -m pip install --upgrade pip
       python3 -m pip install -r requirements.txt --target package/ --force-reinstall
       
-      # Copy source code
+      # Copy source code and shared modules
       cp index.py package/
+      cp -r ../shared package/
+      
+      # Remove shared module's __pycache__ if it exists
+      rm -rf package/shared/__pycache__
       
       echo "Expiry Lambda package built successfully"
       ls -la package/

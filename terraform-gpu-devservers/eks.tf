@@ -76,6 +76,7 @@ resource "aws_eks_cluster" "gpu_dev_cluster" {
       aws_subnet.gpu_dev_subnet.id,
       aws_subnet.gpu_dev_subnet_secondary.id
     ]
+    security_group_ids = [aws_security_group.eks_control_plane_sg.id]
   }
 
   depends_on = [
@@ -101,8 +102,10 @@ resource "aws_eks_addon" "vpc_cni" {
   }
 }
 
-# EKS Node Group for GPU instances
+# EKS Managed Node Group for GPU instances (Production - Stable but Slow)
 resource "aws_eks_node_group" "gpu_dev_nodes" {
+  count = var.use_self_managed_nodes ? 0 : 1
+  
   cluster_name    = aws_eks_cluster.gpu_dev_cluster.name
   node_group_name = "${var.prefix}-gpu-nodes"
   node_role_arn   = aws_iam_role.eks_node_role.arn
@@ -112,14 +115,23 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   ami_type      = "CUSTOM"
   capacity_type = "ON_DEMAND"
 
+  # Fixed size - no scaling, much faster
   scaling_config {
-    desired_size = 2
+    desired_size = var.gpu_instance_count
     max_size     = var.gpu_instance_count
-    min_size     = 0
+    min_size     = var.gpu_instance_count
   }
 
+  # Fast updates - replace all nodes immediately
   update_config {
-    max_unavailable = 2
+    max_unavailable_percentage = 100
+  }
+  
+  # Prevent Terraform from trying to manage lifecycle
+  lifecycle {
+    ignore_changes = [
+      scaling_config[0].desired_size
+    ]
   }
 
   # Launch template for custom configuration (EFA, spot instances, etc.)
@@ -132,7 +144,7 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
     aws_iam_role_policy_attachment.eks_node_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.eks_node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.eks_node_AmazonEC2ContainerRegistryReadOnly,
-    kubernetes_config_map.aws_auth,  # Ensure aws-auth is configured before nodes join
+    kubernetes_config_map.aws_auth  # Ensure aws-auth is configured before nodes join
   ]
 
   tags = {
@@ -141,7 +153,108 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   }
 }
 
-# Launch template for EFA networking
+# Self-Managed Auto Scaling Group (Development - Fast but Manual)
+resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
+  count = var.use_self_managed_nodes ? 1 : 0
+  
+  name                = "${var.prefix}-gpu-nodes-self-managed"
+  vpc_zone_identifier = [aws_subnet.gpu_dev_subnet.id]
+  target_group_arns   = []
+  health_check_type   = "EC2"
+  health_check_grace_period = 300
+
+  min_size         = var.gpu_instance_count
+  max_size         = var.gpu_instance_count
+  desired_capacity = var.gpu_instance_count
+
+  launch_template {
+    id      = aws_launch_template.gpu_dev_launch_template_self_managed[0].id
+    version = "$Latest"
+  }
+
+  # Fast instance replacement
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 0  # Replace all at once for speed
+    }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.prefix}-gpu-node-self-managed"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "kubernetes.io/cluster/${aws_eks_cluster.gpu_dev_cluster.name}"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Environment"
+    value               = var.environment
+    propagate_at_launch = true
+  }
+}
+
+# Launch template for self-managed nodes
+resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
+  count = var.use_self_managed_nodes ? 1 : 0
+  
+  name_prefix   = "${var.prefix}-gpu-self-managed-"
+  image_id      = data.aws_ami.eks_gpu_ami.id
+  instance_type = var.instance_type
+  key_name      = var.key_pair_name
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.eks_node_instance_profile.name
+  }
+
+  placement {
+    group_name = aws_placement_group.gpu_dev_pg.name
+  }
+
+  # Network interface (EFA only for supported instance types like p5.48xlarge)
+  network_interfaces {
+    associate_public_ip_address = true
+    security_groups             = [aws_security_group.gpu_dev_sg.id]
+    interface_type              = can(regex("^(p5\\.48xlarge|p6-b200\\.48xlarge)$", var.instance_type)) ? "efa" : "interface"
+    delete_on_termination       = true
+  }
+
+  user_data = base64encode(templatefile("${path.module}/templates/user-data-self-managed.sh", {
+    cluster_name = aws_eks_cluster.gpu_dev_cluster.name
+    region       = var.aws_region
+  }))
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name        = "${var.prefix}-gpu-instance-self-managed"
+      Environment = var.environment
+    }
+  }
+
+  tags = {
+    Name        = "${var.prefix}-gpu-launch-template-self-managed"
+    Environment = var.environment
+  }
+}
+
+# IAM Instance Profile for self-managed nodes
+resource "aws_iam_instance_profile" "eks_node_instance_profile" {
+  name = "${var.prefix}-eks-node-instance-profile"
+  role = aws_iam_role.eks_node_role.name
+
+  tags = {
+    Name        = "${var.prefix}-eks-node-instance-profile"
+    Environment = var.environment
+  }
+}
+
+# Launch template for EFA networking (Managed Node Group)
 resource "aws_launch_template" "gpu_dev_launch_template" {
   name_prefix   = "${var.prefix}-gpu-lt-"
   image_id      = data.aws_ami.eks_gpu_ami.id

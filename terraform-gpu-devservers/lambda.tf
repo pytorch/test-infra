@@ -65,9 +65,7 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
         ]
         Resource = [
           aws_dynamodb_table.gpu_reservations.arn,
-          aws_dynamodb_table.gpu_servers.arn,
-          "${aws_dynamodb_table.gpu_reservations.arn}/index/*",
-          "${aws_dynamodb_table.gpu_servers.arn}/index/*"
+          "${aws_dynamodb_table.gpu_reservations.arn}/index/*"
         ]
       },
       {
@@ -111,7 +109,6 @@ resource "aws_lambda_function" "reservation_processor" {
   environment {
     variables = {
       RESERVATIONS_TABLE = aws_dynamodb_table.gpu_reservations.name
-      SERVERS_TABLE      = aws_dynamodb_table.gpu_servers.name
       EKS_CLUSTER_NAME   = aws_eks_cluster.gpu_dev_cluster.name
       REGION             = var.aws_region
       MAX_RESERVATION_HOURS = var.max_reservation_hours
@@ -149,6 +146,8 @@ resource "null_resource" "reservation_processor_build" {
     # Rebuild when source files change
     code_hash = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
     requirements_hash = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
+    shared_code_hash = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
+    shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
   }
 
   provisioner "local-exec" {
@@ -163,8 +162,12 @@ resource "null_resource" "reservation_processor_build" {
       python3 -m pip install --upgrade pip
       python3 -m pip install -r requirements.txt --target package/ --force-reinstall
       
-      # Copy source code
+      # Copy source code and shared modules
       cp index.py package/
+      cp -r ../shared package/
+      
+      # Remove shared module's __pycache__ if it exists
+      rm -rf package/shared/__pycache__
       
       echo "Lambda package built successfully"
       ls -la package/
@@ -186,4 +189,36 @@ resource "aws_lambda_event_source_mapping" "sqs_trigger" {
   event_source_arn = aws_sqs_queue.gpu_reservation_queue.arn
   function_name    = aws_lambda_function.reservation_processor.arn
   batch_size       = 1
+}
+
+# CloudWatch Event Rule to trigger processor every minute for queue management
+resource "aws_cloudwatch_event_rule" "reservation_processor_schedule" {
+  name                = "${var.prefix}-reservation-processor-schedule"
+  description         = "Trigger reservation processor every minute for queue management and ETA updates"
+  schedule_expression = "rate(1 minute)"
+
+  tags = {
+    Name        = "${var.prefix}-reservation-processor-schedule"
+    Environment = var.environment
+  }
+}
+
+# CloudWatch Event Target for processor
+resource "aws_cloudwatch_event_target" "reservation_processor_target" {
+  rule      = aws_cloudwatch_event_rule.reservation_processor_schedule.name
+  target_id = "ReservationProcessorScheduleTarget"
+  arn       = aws_lambda_function.reservation_processor.arn
+  input     = jsonencode({
+    source = "cloudwatch.schedule"
+    action = "process_queue"
+  })
+}
+
+# Permission for CloudWatch Events to invoke processor Lambda
+resource "aws_lambda_permission" "allow_cloudwatch_processor" {
+  statement_id  = "AllowExecutionFromCloudWatchProcessor"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.reservation_processor.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.reservation_processor_schedule.arn
 }

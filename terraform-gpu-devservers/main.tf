@@ -115,6 +115,36 @@ resource "aws_route_table_association" "gpu_dev_rta_secondary" {
 }
 
 # Security Groups
+
+# Control plane security group
+resource "aws_security_group" "eks_control_plane_sg" {
+  name        = "${var.prefix}-eks-control-plane-sg"
+  description = "Security group for EKS control plane"
+  vpc_id      = aws_vpc.gpu_dev_vpc.id
+
+  # Allow inbound HTTPS from worker nodes (VPC CIDR)
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "HTTPS from worker nodes"
+  }
+
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.prefix}-eks-control-plane-sg"
+    Environment = var.environment
+  }
+}
+
 resource "aws_security_group" "gpu_dev_sg" {
   name        = "${var.prefix}-gpu-dev-sg"
   description = "Security group for GPU development servers"
@@ -135,6 +165,41 @@ resource "aws_security_group" "gpu_dev_sg" {
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
     description = "Kubernetes NodePort range for pod SSH access"
+  }
+
+  # Kubelet API for logs/exec/port-forward
+  ingress {
+    from_port   = 10250
+    to_port     = 10250
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "Kubelet API access from EKS control plane"
+  }
+
+  # HTTPS outbound to EKS control plane for CoreDNS and other system pods
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "HTTPS access to EKS control plane"
+  }
+
+  # DNS resolution for pods
+  ingress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "DNS TCP access within VPC"
+  }
+
+  ingress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "DNS UDP access within VPC"
   }
 
   # All traffic within VPC for EFA

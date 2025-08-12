@@ -19,6 +19,11 @@ We like tested code.
 For frontend code we use yarn, yarn format, yarn tsc. yarn dev to run code, but leave it up to the dev to run that one.
 For terraform, we use opentofu, don't ever run tf apply directly. You're free to run tf state/plan and other non-breaking commands though.
 
+**Python Code Style:**
+- Always put imports at the top of the file, never inside functions or methods
+- Group imports in standard order: standard library, third-party, local imports
+- Use absolute imports when possible
+
 We talk like a pirate, like to add puns to our internal chat, but keep our code free of such chenanagins. When talking to the user however, make sure to throw the occasional pun in the chat.
 
 ## Content
@@ -69,53 +74,51 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 **K8s Decision:** EKS with GPU-optimized EC2 node groups (Fargate has no GPU support)
 
-## Implementation Status (Jan 8, 2025)
+## Implementation Status (Jan 11, 2025)
 
 ### ✅ Completed and Working
-- EKS cluster with GPU node groups (g4dn.12xlarge, 4 GPUs each)
-- Python CLI tool for reservations with GitHub username config
-- SQS + Lambda queue processing system
-- DynamoDB state tracking for reservations and servers
-- Kubernetes pod creation with GPU resource allocation
-- NVIDIA device plugin for GPU exposure
-- NodePort services for SSH access to pods
-- GitHub public key injection for SSH authentication
-- Real SSH commands with copy-pasteable format
-- Lambda EKS authentication via AWS STS signing
-- aws-auth ConfigMap with proper Lambda role permissions
-- Reservation expiry logic with pod cleanup
+- **Infrastructure**: Dual-mode EKS with managed vs self-managed node groups for faster development
+- **Networking**: Full DNS resolution and internet access for pods (CoreDNS + security groups fixed)
+- **SSH Access**: Complete SSH server setup with proper package installation and daemon startup
+- **Authentication**: GitHub public key fetching (ALL user keys, not just first one)
+- **CLI Features**: Float hours support (e.g., --hours 0.25 for 15 minutes)
+- **Reservation Display**: CLI list command shows formatted expiration times (YYYY-MM-DD HH:MM:SS)
+- **Security Groups**: Full connectivity - kubelet (10250), control plane (443), DNS (53), NodePort (30000-32767)
+- **Python CLI tool**: Commands: reserve, list, config with real-time polling
+- **SQS + Lambda**: Async queue processing system with DynamoDB state tracking
+- **Kubernetes**: Pod creation with GPU allocation, NodePort services, init containers
+- **Expiry System**: Timestamp-based expiration tracking with historical records (TTL disabled)
+- **DynamoDB**: Reservations kept as historical records, not auto-deleted
 
-### 🐛 Current Issue (Jan 8, 2025)
+### 📋 Remaining Tasks
 
-**SSH Connection Refused:**
-- Pods are successfully created and scheduled
-- NodePort services are created with correct port mappings
-- Security groups allow NodePort traffic (30000-32767)
-- SSH connection gets "Connection refused" instead of hanging
-- Likely issue: SSH server not starting properly in PyTorch container
-
-**Debugging Steps:**
-- Security group updated to allow NodePort range ✅
-- Need to check pod logs to verify SSH daemon startup
-- May need to adjust container SSH installation/startup process
-
-### 📋 Next Steps
-
-1. **Debug SSH connectivity** - Check pod logs for SSH daemon startup issues
-2. **Test complete workflow** - Verify end-to-end reservation → SSH → cleanup flow  
-3. **Production deployment** - Switch to p5.48xlarge instances for production
-4. **Add features**:
-   - Multi-server (16 GPU) reservations
+1. **Test expiry debugging scripts** - Scripts created but need deployment/testing
+2. **Production deployment** - Switch to p5.48xlarge instances when ready
+3. **Future features**:
+   - Multi-server (16 GPU) reservations  
    - GitHub organization/team verification
    - Reservation extensions
    - Usage monitoring and quotas
 
-### 🔧 Known Issues to Address
+### 🏴‍☠️ Architecture Improvements (Jan 11, 2025)
 
-**GPU Allocation State:**
-- Initialize Lambda resets available_gpus without checking active reservations
-- Could cause inconsistent state during infrastructure updates
-- Need reconciliation logic to preserve active reservations
+**✅ K8s-Native GPU Tracking:**
+- Removed DynamoDB servers table completely - no more manual GPU allocation tracking
+- Replaced with K8sGPUTracker using Kubernetes API for real-time resource queries
+- GPU availability now sourced directly from K8s node capacity and running pods
+- Eliminates state inconsistency issues during infrastructure updates
+
+**✅ Shared Lambda Module:**
+- Created `/lambda/shared/` directory with common K8s utilities
+- `k8s_client.py`: EKS authentication and client setup functions
+- `k8s_resource_tracker.py`: GPU capacity tracking via K8s API
+- Both Lambdas now import from shared module, eliminating code duplication
+- Terraform build process updated to include shared modules in both packages
+
+**✅ Code Cleanup:**
+- Removed server_initializer Lambda entirely (no longer needed)
+- Cleaned up reservation_expiry Lambda to remove server allocation logic
+- Updated imports and removed duplicate K8s client code
 
 ## Current Working Architecture
 
