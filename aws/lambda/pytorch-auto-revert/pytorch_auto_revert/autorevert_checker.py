@@ -7,9 +7,8 @@ Detects pattern where 2 recent commits have same failure and 1 older doesn't.
 import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from functools import cached_property
 from typing import Dict, Iterable, List, Optional, Set, Tuple
-
-from lazyproperty import lazyproperty
 
 from .clickhouse_client_helper import CHCliFactory
 
@@ -92,23 +91,23 @@ class AutorevertPatternChecker:
             self._fetch_workflow_data()
         return self._workflow_commits_cache.get(workflow_name, [])
 
-    @lazyproperty()
+    @cached_property
     def workflow_commits(self) -> List[CommitJobs]:
         """Get workflow commits for the first workflow (backward compatibility)."""
         if self.workflow_names:
             return self.get_workflow_commits(self.workflow_names[0])
         return []
 
-    @lazyproperty()
+    @cached_property
     def commit_history(self) -> List[Dict]:
         """Get commit history, fetching if needed."""
         return self._fetch_commit_history()
 
-    @lazyproperty()
+    @cached_property
     def commits_reverted(self) -> Set[str]:
         return self._get_commits_reverted()
 
-    @lazyproperty()
+    @cached_property
     def commits_reverted_with_info(self) -> Dict[str, Dict]:
         return self._get_commits_reverted_with_info()
 
