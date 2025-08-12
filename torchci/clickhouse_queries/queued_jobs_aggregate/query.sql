@@ -50,7 +50,7 @@ queued_jobs AS (
         job.id IN (SELECT id FROM possible_queued_jobs)
         AND workflow.id IN (SELECT run_id FROM possible_queued_jobs)
         AND workflow.repository.owner.login IN (
-            'pytorch', 'meta-pytorch', 'meta-pytorch'
+            'pytorch', 'pytorch-labs', 'meta-pytorch'
         )
         AND job.status = 'queued'
         /* These two conditions are workarounds for GitHub's broken API. Sometimes */
