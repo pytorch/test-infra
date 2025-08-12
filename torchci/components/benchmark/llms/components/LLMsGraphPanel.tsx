@@ -170,31 +170,24 @@ export default function LLMsGraphPanel({
               const metric = record.metric;
 
               if (repoName === "vllm-project/vllm") {
-                let requestRate = record.extra!["request_rate"];
-                // TODO (huydhn): Fix the invalid JSON on vLLM side
-                if (
-                  metric.includes("itl") ||
-                  metric.includes("tpot") ||
-                  metric.includes("ttft")
-                ) {
-                  requestRate = requestRate !== "" ? requestRate : "Inf";
-                }
+                const requestRate = record.extra!["request_rate"];
+                const tensorParallel = record.extra!["tensor_parallel_size"];
+                const inputLen = record.extra!["random_input_len"]
+                  ? record.extra!["random_input_len"]
+                  : record.extra!["input_len"];
+                const outputLen = record.extra!["random_output_len"]
+                  ? record.extra!["random_output_len"]
+                  : record.extra!["output_len"];
 
-                let tensorParallel = record.extra!["tensor_parallel_size"];
-                // TODO (huydhn): Fix the passing of tensor_parallel_size to the benchmark
-                // script on vLLM side
-                if (model.includes("8B")) {
-                  tensorParallel = tensorParallel !== "" ? tensorParallel : "1";
-                } else if (model.includes("70B")) {
-                  tensorParallel = tensorParallel !== "" ? tensorParallel : "4";
-                } else if (model.includes("8x7B")) {
-                  tensorParallel = tensorParallel !== "" ? tensorParallel : "2";
+                record.display = `${model} / tp${tensorParallel}`;
+                if (requestRate) {
+                  record.display = `${record.display} / qps_${requestRate}`;
                 }
-
-                if (requestRate !== "") {
-                  record.display = `${model} / tp${tensorParallel} / qps_${requestRate}`;
-                } else {
-                  record.display = `${model} / tp${tensorParallel}`;
+                if (inputLen) {
+                  record.display = `${record.display} / in_${inputLen}`;
+                }
+                if (outputLen) {
+                  record.display = `${record.display} / out_${outputLen}`;
                 }
               } else if (
                 repoName === "pytorch/pytorch" &&

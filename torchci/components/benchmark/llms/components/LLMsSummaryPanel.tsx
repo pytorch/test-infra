@@ -186,6 +186,24 @@ export default function LLMsSummaryPanel({
         return `${params.value}`;
       },
     });
+
+    columns.push({
+      field: "input_len",
+      headerName: "Input len.",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
+
+    columns.push({
+      field: "output_len",
+      headerName: "Output len.",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return `${params.value}`;
+      },
+    });
   }
 
   if (
