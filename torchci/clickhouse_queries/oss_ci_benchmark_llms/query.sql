@@ -59,6 +59,16 @@ WITH benchmarks AS (
               tupleElement(benchmark, 'extra_info')['args'],
               'random_output_len'
             ),
+            'input_len',
+            JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'input_len'
+            ),
+            'output_len',
+            JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'output_len'
+            ),
             -- Used by Cachebench
             'is_dynamic',
             IF(

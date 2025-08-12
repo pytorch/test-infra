@@ -296,8 +296,12 @@ const toRowData = (
       row["extra"] = extraInfo;
       row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
       row["request_rate"] = extraInfo["request_rate"];
-      row["random_input_len"] = extraInfo["random_input_len"];
-      row["random_output_len"] = extraInfo["random_output_len"];
+      row["input_len"] = extraInfo["random_input_len"]
+        ? extraInfo["random_input_len"]
+        : extraInfo["input_len"];
+      row["output_len"] = extraInfo["random_output_len"]
+        ? extraInfo["random_input_len"]
+        : extraInfo["output_len"];
     }
 
     if (

@@ -172,13 +172,22 @@ export default function LLMsGraphPanel({
               if (repoName === "vllm-project/vllm") {
                 const requestRate = record.extra!["request_rate"];
                 const tensorParallel = record.extra!["tensor_parallel_size"];
-                const inputLen = record.extra!["random_input_len"];
-                const outputLen = record.extra!["random_output_len"];
+                const inputLen = record.extra!["random_input_len"]
+                  ? record.extra!["random_input_len"]
+                  : record.extra!["input_len"];
+                const outputLen = record.extra!["random_output_len"]
+                  ? record.extra!["random_output_len"]
+                  : record.extra!["output_len"];
 
-                if (requestRate !== "") {
-                  record.display = `${model} / tp${tensorParallel} / qps_${requestRate} / ${inputLen} / ${outputLen}`;
-                } else {
-                  record.display = `${model} / tp${tensorParallel}`;
+                record.display = `${model} / tp${tensorParallel}`;
+                if (requestRate) {
+                  record.display = `${record.display} / qps_${requestRate}`;
+                }
+                if (inputLen) {
+                  record.display = `${record.display} / in_${inputLen}`;
+                }
+                if (outputLen) {
+                  record.display = `${record.display} / out_${outputLen}`;
                 }
               } else if (
                 repoName === "pytorch/pytorch" &&

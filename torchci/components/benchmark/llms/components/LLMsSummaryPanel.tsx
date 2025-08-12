@@ -188,8 +188,8 @@ export default function LLMsSummaryPanel({
     });
 
     columns.push({
-      field: "random_input_len",
-      headerName: "Input",
+      field: "input_len",
+      headerName: "Input len.",
       flex: 1,
       renderCell: (params: GridRenderCellParams<any>) => {
         return `${params.value}`;
@@ -197,8 +197,8 @@ export default function LLMsSummaryPanel({
     });
 
     columns.push({
-      field: "random_output_len",
-      headerName: "Output",
+      field: "output_len",
+      headerName: "Output len.",
       flex: 1,
       renderCell: (params: GridRenderCellParams<any>) => {
         return `${params.value}`;
