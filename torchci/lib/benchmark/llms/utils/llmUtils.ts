@@ -65,7 +65,6 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
   let device = "";
   let arch = "";
   if (archName === "") {
-    console.log("HERE");
     // All the dashboards currently put device and arch into the same field in
     // device (arch) format, i.e. cuda (NVIDIA B200). So, we need to extract
     //extract the arch name here to use it in the query
@@ -76,7 +75,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
       m !== null && m.groups !== undefined ? m.groups.device : deviceName;
     arch = m !== null && m.groups !== undefined ? m.groups.arch : archName;
   } else {
-    console.log("THERE");
+    // If both device and arch are set, we just need to use them as they are
     device = deviceName;
     arch = archName;
   }
