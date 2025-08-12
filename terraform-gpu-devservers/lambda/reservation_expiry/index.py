@@ -43,17 +43,28 @@ def handler(event, context):
             f"Running reservation expiry and cleanup check at timestamp {current_time} ({datetime.fromtimestamp(current_time)})"
         )
 
-        # Get all active reservations
+        # Get all active and preparing reservations
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         try:
-            response = reservations_table.query(
+            # Get active reservations
+            active_response = reservations_table.query(
                 IndexName="StatusIndex",
                 KeyConditionExpression="#status = :status",
                 ExpressionAttributeNames={"#status": "status"},
                 ExpressionAttributeValues={":status": "active"},
             )
-            active_reservations = response.get("Items", [])
-            logger.info(f"Found {len(active_reservations)} active reservations")
+            active_reservations = active_response.get("Items", [])
+
+            # Get preparing reservations
+            preparing_response = reservations_table.query(
+                IndexName="StatusIndex",
+                KeyConditionExpression="#status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": "preparing"},
+            )
+            preparing_reservations = preparing_response.get("Items", [])
+
+            logger.info(f"Found {len(active_reservations)} active reservations and {len(preparing_reservations)} preparing reservations")
 
             # Log details of each active reservation
             for res in active_reservations:
@@ -69,6 +80,37 @@ def handler(event, context):
         except Exception as e:
             logger.error(f"Error querying active reservations: {e}")
             active_reservations = []
+            preparing_reservations = []
+
+        # Process preparing reservations for stuck cleanup (>1 hour)
+        PREPARING_TIMEOUT_SECONDS = 3600  # 1 hour
+        preparing_timeout_threshold = current_time - PREPARING_TIMEOUT_SECONDS
+
+        for reservation in preparing_reservations:
+            reservation_id = reservation["reservation_id"]
+            created_at = reservation.get("created_at", "")
+
+            try:
+                if isinstance(created_at, str):
+                    # ISO format string
+                    created_timestamp = int(
+                        datetime.fromisoformat(created_at.replace("Z", "+00:00")).timestamp()
+                    )
+                else:
+                    created_timestamp = int(created_at)
+            except Exception as e:
+                logger.warning(f"Could not parse created_at for preparing reservation {reservation_id}: {e}")
+                continue
+
+            # Check if preparing reservation is stuck (>1 hour)
+            if created_timestamp < preparing_timeout_threshold:
+                logger.info(f"Expiring stuck preparing reservation {reservation_id} (created {created_timestamp}, timeout threshold {preparing_timeout_threshold})")
+                try:
+                    expire_stuck_preparing_reservation(reservation)
+                    expired_count += 1
+                    logger.info(f"Successfully expired stuck preparing reservation {reservation_id}")
+                except Exception as e:
+                    logger.error(f"Failed to expire stuck preparing reservation {reservation_id}: {e}")
 
         # Also check for stale queued/pending reservations
         stale_statuses = ["queued", "pending"]
@@ -308,6 +350,45 @@ def expire_reservation_due_to_missing_pod(reservation: dict[str, Any]) -> None:
         )
 
 
+def expire_stuck_preparing_reservation(reservation: dict[str, Any]) -> None:
+    """Mark stuck preparing reservation as failed when it's been preparing too long"""
+    try:
+        reservation_id = reservation["reservation_id"]
+
+        logger.info(f"Marking stuck preparing reservation {reservation_id} as failed")
+
+        # Update reservation status to failed
+        now = datetime.utcnow().isoformat()
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET #status = :status, failed_at = :failed_at, reservation_ended = :reservation_ended, failure_reason = :reason",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": "failed",
+                ":failed_at": now,
+                ":reservation_ended": now,
+                ":reason": "Reservation stuck in preparing status for more than 1 hour - likely pod creation failed",
+            },
+        )
+
+        # Try to clean up any partial pod resources that might exist
+        pod_name = reservation.get("pod_name")
+        if pod_name:
+            try:
+                cleanup_stuck_pod_resources(pod_name)
+                logger.info(f"Cleaned up partial resources for stuck preparing reservation {reservation_id}")
+            except Exception as cleanup_error:
+                logger.warning(f"Error cleaning up partial resources for {pod_name}: {cleanup_error}")
+
+        logger.info(f"Successfully marked stuck preparing reservation {reservation_id} as failed")
+
+    except Exception as e:
+        logger.error(
+            f"Error marking stuck preparing reservation {reservation.get('reservation_id')} as failed: {str(e)}"
+        )
+
+
 def expire_reservation(reservation: dict[str, Any]) -> None:
     """Expire a reservation and clean up resources"""
     try:
@@ -451,6 +532,46 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
         raise
+
+
+def cleanup_stuck_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
+    """Clean up any partial resources for stuck preparing reservations"""
+    try:
+        logger.info(f"Cleaning up stuck pod resources for {pod_name} in namespace {namespace}")
+
+        # Configure Kubernetes client
+        from kubernetes import client
+        k8s_client = setup_kubernetes_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Try to delete the pod if it exists (it might be in a failed state)
+        try:
+            v1.delete_namespaced_pod(
+                name=pod_name, namespace=namespace, grace_period_seconds=0
+            )
+            logger.info(f"Deleted stuck pod {pod_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.info(f"Pod {pod_name} not found (already deleted or never created)")
+            else:
+                logger.warning(f"Failed to delete stuck pod {pod_name}: {e}")
+
+        # Try to delete the service if it exists
+        service_name = f"{pod_name}-ssh"
+        try:
+            v1.delete_namespaced_service(
+                name=service_name, namespace=namespace, grace_period_seconds=0
+            )
+            logger.info(f"Deleted stuck service {service_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.info(f"Service {service_name} not found (already deleted or never created)")
+            else:
+                logger.warning(f"Failed to delete stuck service {service_name}: {e}")
+
+    except Exception as e:
+        logger.error(f"Error cleaning up stuck pod {pod_name}: {str(e)}")
+        # Don't raise - cleanup failures shouldn't prevent marking reservation as failed
 
 
 def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = "gpu-dev"):

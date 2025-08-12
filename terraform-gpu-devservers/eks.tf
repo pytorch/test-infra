@@ -66,6 +66,29 @@ resource "aws_iam_role_policy_attachment" "eks_node_AmazonEC2ContainerRegistryRe
   role       = aws_iam_role.eks_node_role.name
 }
 
+# Add Bedrock permissions to node role for Claude Code access
+resource "aws_iam_role_policy" "eks_node_bedrock_policy" {
+  name = "${var.prefix}-eks-node-bedrock-policy"
+  role = aws_iam_role.eks_node_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [
+          "arn:aws:bedrock:*:*:foundation-model/anthropic.claude-*",
+          "arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-sonnet-*"
+        ]
+      }
+    ]
+  })
+}
+
 # EKS Cluster
 resource "aws_eks_cluster" "gpu_dev_cluster" {
   name     = "${var.prefix}-cluster"
@@ -101,6 +124,7 @@ resource "aws_eks_addon" "vpc_cni" {
     Environment = var.environment
   }
 }
+
 
 # EKS Managed Node Group for GPU instances (Production - Stable but Slow)
 resource "aws_eks_node_group" "gpu_dev_nodes" {
