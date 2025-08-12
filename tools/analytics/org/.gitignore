@@ -3,3 +3,6 @@ cache/
 
 # Gets temporarily created by the script
 scale-config.yml
+
+# Stores the output of the analysis
+reports/

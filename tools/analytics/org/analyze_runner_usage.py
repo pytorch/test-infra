@@ -12,7 +12,7 @@ Key Features:
 - For each repository, fetches recent workflow runs and extracts the runner labels used in jobs.
 - Aggregates runner label usage across repositories, including last usage and workflow file.
 - Compares runner labels against those defined in scale-config.yml and standard GitHub runners.
-- Outputs a YAML summary (runner_labels_summary.yml) with detailed runner usage, repos by runner, and special groupings (e.g., runners not in scale-config, repos with zero workflow runs).
+- Outputs a YAML summary (reports/runner_labels_summary.yml) with detailed runner usage, repos by runner, and special groupings (e.g., runners not in scale-config, repos with zero workflow runs).
 - Caches GitHub API responses for efficiency and rate limit avoidance.
 
 How to Run:
@@ -38,7 +38,7 @@ Dependencies:
 
 Output:
 -------
-- `runner_labels_summary.yml`: A YAML file containing:
+- `reports/runner_labels_summary.yml`: A YAML file containing:
     - `runners_used`: For each runner label, a list of repos, last usage, and workflow file.
     - `repo_runners`: For each repo, a list of runner labels it uses.
     - `repositories_with_zero_workflow_runs`: Repos with no workflow runs in the lookback period.
@@ -391,13 +391,20 @@ def process_repo_runs(
 
 
 def save_to_yaml(data: Dict, filename: str = "runner_labels_summary.yml"):
-    logging.info(f"[save_to_yaml] Saving runner label data to {filename}")
+    # Create reports directory if it doesn't exist
+    reports_dir = "reports"
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # Build full path with reports directory
+    filepath = os.path.join(reports_dir, filename)
+    logging.info(f"[save_to_yaml] Saving runner label data to {filepath}")
+
     # Convert defaultdict to regular dict to avoid YAML serialization issues
     if hasattr(data, "default_factory"):
         data = dict(data)
-    with open(filename, "w") as f:
+    with open(filepath, "w") as f:
         yaml.dump(data, f, sort_keys=False)
-    logging.info(f"[save_to_yaml] Data successfully saved to {filename}")
+    logging.info(f"[save_to_yaml] Data successfully saved to {filepath}")
 
 
 def download_scale_config(url: str, dest: str = "scale-config.yml") -> bool:
