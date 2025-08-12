@@ -67,7 +67,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
   if (archName === "") {
     // All the dashboards currently put device and arch into the same field in
     // device (arch) format, i.e. cuda (NVIDIA B200). So, we need to extract
-    //extract the arch name here to use it in the query
+    // the arch name here to use it in the query
     const deviceArchRegex = new RegExp("^(?<device>.+)\\s+\\((?<arch>.+)\\)$");
     const m = deviceName.match(deviceArchRegex);
 
