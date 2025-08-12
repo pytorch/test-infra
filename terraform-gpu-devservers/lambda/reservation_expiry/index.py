@@ -119,6 +119,17 @@ def handler(event, context):
 
             # Check for multiple warning levels
             else:
+                # First check if the pod still exists - if not, mark as expired
+                pod_name = reservation.get("pod_name")
+                if pod_name and not check_pod_exists(pod_name):
+                    logger.warning(f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired")
+                    try:
+                        expire_reservation_due_to_missing_pod(reservation)
+                        expired_count += 1
+                        continue  # Skip warning processing for this reservation
+                    except Exception as e:
+                        logger.error(f"Failed to expire reservation {reservation_id} due to missing pod: {e}")
+
                 minutes_until_expiry = (expires_at - current_time) // 60
                 warnings_sent = reservation.get("warnings_sent", {})
 
@@ -192,6 +203,25 @@ def handler(event, context):
         raise
 
 
+def check_pod_exists(pod_name: str, namespace: str = "gpu-dev") -> bool:
+    """Check if a pod exists in the cluster"""
+    try:
+        k8s_client = setup_kubernetes_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+        return True
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return False
+        else:
+            logger.warning(f"Error checking pod {pod_name}: {e}")
+            return False
+    except Exception as e:
+        logger.warning(f"Error checking pod {pod_name}: {e}")
+        return False
+
+
 def warn_user_expiring(reservation: dict[str, Any], warning_minutes: int) -> None:
     """Warn user about expiring reservation at specific warning level"""
     try:
@@ -211,11 +241,17 @@ def warn_user_expiring(reservation: dict[str, Any], warning_minutes: int) -> Non
         warning_message = create_warning_message(reservation, minutes_left)
 
         if pod_name:
-            # Send wall message to pod
-            send_wall_message_to_pod(pod_name, warning_message)
+            # Check if pod still exists before trying to send warnings
+            if check_pod_exists(pod_name):
+                # Send wall message to pod
+                send_wall_message_to_pod(pod_name, warning_message)
 
-            # Also create a visible file in the workspace
-            create_warning_file_in_pod(pod_name, warning_message, minutes_left)
+                # Also create a visible file in the workspace
+                create_warning_file_in_pod(pod_name, warning_message, minutes_left)
+            else:
+                logger.warning(f"Pod {pod_name} no longer exists - reservation {reservation_id} may have been manually deleted or expired")
+                # Mark the reservation as expired since the pod is gone
+                expire_reservation_due_to_missing_pod(reservation)
 
         # Update reservation to mark this specific warning as sent
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -239,6 +275,36 @@ def warn_user_expiring(reservation: dict[str, Any], warning_minutes: int) -> Non
     except Exception as e:
         logger.error(
             f"Error warning user for reservation {reservation.get('reservation_id')}: {str(e)}"
+        )
+
+
+def expire_reservation_due_to_missing_pod(reservation: dict[str, Any]) -> None:
+    """Mark reservation as expired when pod is missing (likely manually deleted)"""
+    try:
+        reservation_id = reservation["reservation_id"]
+
+        logger.info(f"Marking reservation {reservation_id} as expired due to missing pod")
+
+        # Update reservation status to expired
+        now = datetime.utcnow().isoformat()
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET #status = :status, expired_at = :expired_at, reservation_ended = :reservation_ended, failure_reason = :reason",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": "expired",
+                ":expired_at": now,
+                ":reservation_ended": now,
+                ":reason": "Pod was manually deleted or removed outside of reservation system",
+            },
+        )
+
+        logger.info(f"Successfully marked reservation {reservation_id} as expired due to missing pod")
+
+    except Exception as e:
+        logger.error(
+            f"Error marking reservation {reservation.get('reservation_id')} as expired: {str(e)}"
         )
 
 
