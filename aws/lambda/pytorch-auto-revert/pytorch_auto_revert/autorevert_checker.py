@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
+from lazyproperty import lazyproperty
+
 from .clickhouse_client_helper import CHCliFactory
 
 
@@ -51,9 +53,19 @@ class CommitJobs:
         return self._job_base_names
 
     def normalize_job_name(self, name: str) -> str:
-        """Strip shard suffix from job name for matching."""
+        """Normalize job name to a stable base for matching across commits.
+
+        - Drop any trailing parenthetical qualifiers (e.g., "(rocm)", shard notes)
+        - Strip common shard suffixes like ", 1, 1, " used in CI naming
+        - Collapse redundant whitespace
+        """
+        # Drop any trailing parenthetical qualifier
+        base = re.sub(r"\s*\(.*\)$", "", name)
         # Remove patterns like ", 1, 1, " or ", 2, 3, " from job names
-        return re.sub(r", \d+, \d+, ", ", ", name)
+        base = re.sub(r", \d+, \d+, ", ", ", base)
+        # Collapse multiple spaces
+        base = re.sub(r"\s+", " ", base).strip()
+        return base
 
     def get_job_base_names(self) -> Set[str]:
         """Get normalized job names (without shard info)."""
@@ -72,7 +84,6 @@ class AutorevertPatternChecker:
         self.workflow_names = workflow_names or []
         self.lookback_hours = lookback_hours
         self._workflow_commits_cache: Dict[str, List[CommitJobs]] = {}
-        self._commit_history = None
         self._ignore_classification_rules = ignore_classification_rules or set()
 
     def get_workflow_commits(self, workflow_name: str) -> List[CommitJobs]:
@@ -81,19 +92,25 @@ class AutorevertPatternChecker:
             self._fetch_workflow_data()
         return self._workflow_commits_cache.get(workflow_name, [])
 
-    @property
+    @lazyproperty()
     def workflow_commits(self) -> List[CommitJobs]:
         """Get workflow commits for the first workflow (backward compatibility)."""
         if self.workflow_names:
             return self.get_workflow_commits(self.workflow_names[0])
         return []
 
-    @property
+    @lazyproperty()
     def commit_history(self) -> List[Dict]:
         """Get commit history, fetching if needed."""
-        if self._commit_history is None:
-            self._fetch_commit_history()
-        return self._commit_history or []
+        return self._fetch_commit_history()
+
+    @lazyproperty()
+    def commits_reverted(self) -> Set[str]:
+        return self._get_commits_reverted()
+
+    @lazyproperty()
+    def commits_reverted_with_info(self) -> Dict[str, Dict]:
+        return self._get_commits_reverted_with_info()
 
     def _fetch_workflow_data(self):
         """Fetch workflow job data from ClickHouse for all workflows in batch. From newer to older"""
@@ -106,7 +123,10 @@ class AutorevertPatternChecker:
             f"Fetching workflow data for {len(self.workflow_names)} workflows since {lookback_time.isoformat()}..."
         )
 
-        query = """
+        # For pattern detection we consider non-restarted main branch jobs only
+        base_where = "workflow_event != 'workflow_dispatch' AND head_branch = 'main'"
+
+        query = f"""
         SELECT
             workflow_name,
             head_sha,
@@ -118,11 +138,10 @@ class AutorevertPatternChecker:
         FROM
             workflow_job FINAL
         WHERE
-            workflow_name IN {workflow_names:Array(String)}
-            AND head_branch = 'main'
-            AND created_at >= {lookback_time:DateTime}
+            workflow_name IN {{workflow_names:Array(String)}}
+            AND {base_where}
+            AND created_at >= {{lookback_time:DateTime}}
             AND dynamoKey LIKE 'pytorch/pytorch/%'
-            AND workflow_event != 'workflow_dispatch'  -- Exclude restart jobs
         ORDER BY
             workflow_name, workflow_created_at DESC, head_sha, name
         """
@@ -200,7 +219,7 @@ class AutorevertPatternChecker:
             query, parameters={"lookback_time": lookback_time}
         )
 
-        self._commit_history = [
+        return [
             {"sha": row[0], "message": row[1], "timestamp": row[2]}
             for row in result.result_rows
         ]
@@ -221,7 +240,7 @@ class AutorevertPatternChecker:
         job_results = []
         for commit in commits:
             for job in commit.jobs:
-                if job.name.split("(")[0] == job_name:  # Normalize job name
+                if commit.normalize_job_name(job.name) == job_name:
                     job_results.append(job)
             if job_results:
                 return (
@@ -245,27 +264,31 @@ class AutorevertPatternChecker:
         Returns:
             List of all detected patterns
         """
+        # Commits are ordered newest -> older for this workflow
         commits = self.get_workflow_commits(workflow_name)
         if len(commits) < 3:
             return []
 
         patterns = []
 
+        # Slide a window centered at the suspected failing commit (i)
+        # We require: a newer commit with the same failure (i-1..0) and an older baseline (i+1..end)
         for i in range(1, len(commits) - 1):
-            suspected_commit1 = commits[i]  # The commit we want to check for failure
+            suspected_commit1 = commits[i]
 
             if suspected_commit1.has_pending_jobs:
                 continue
 
+            # Extract unique (classification_rule, normalized job) pairs for failing jobs on the suspected commit
             suspected_failures = {
                 (
                     j.classification_rule,
-                    j.name.split("(")[0],
+                    suspected_commit1.normalize_job_name(j.name),
                 )
                 for j in suspected_commit1.failed_jobs
             }
 
-            # Map to track newer commits for each failure
+            # Map failure -> the nearest newer commit where the same job failed with the same rule
             failure_to_newer_commit = {}
 
             for (
@@ -276,6 +299,7 @@ class AutorevertPatternChecker:
                     # Skip ignored classification rules
                     continue
 
+                # Find the closest newer commit that ran this exact normalized job name
                 newer_commit_same_job, newer_same_jobs = (
                     self._find_last_commit_with_job(
                         (commits[j] for j in range(i - 1, -1, -1)),
@@ -286,11 +310,16 @@ class AutorevertPatternChecker:
                     # No newer commit with the same job found
                     continue
 
-                if any(
-                    j.classification_rule == suspected_failure_class_rule
-                    for j in newer_same_jobs
+                if (
+                    newer_commit_same_job
+                    and newer_same_jobs
+                    and any(
+                        j.classification_rule == suspected_failure_class_rule
+                        and j.conclusion == "failure"
+                        for j in newer_same_jobs
+                    )
                 ):
-                    # The newer commit has the same job failing
+                    # The newer commit has the same failure on the same job
                     failure_key = (
                         suspected_failure_class_rule,
                         suspected_failure_job_name,
@@ -304,6 +333,7 @@ class AutorevertPatternChecker:
                 failure_rule,
                 job_name,
             ), newer_commit in failure_to_newer_commit.items():
+                # Find the first older commit that ran the same normalized job name
                 last_commit_with_same_job, last_same_jobs = (
                     self._find_last_commit_with_job(
                         (commits[j] for j in range(i + 1, len(commits))), job_name
@@ -311,29 +341,37 @@ class AutorevertPatternChecker:
                 )
 
                 if not last_commit_with_same_job or not last_same_jobs:
-                    # No older commit with the same job found
+                    # No older commit with same normalized job name found
                     continue
 
                 # Ensure the oldest commit has stable signal (no running jobs)
                 if last_commit_with_same_job.has_pending_jobs:
                     continue
 
-                if any(j.classification_rule == failure_rule for j in last_same_jobs):
-                    # The older commit has the same job failing with same rule
+                if any(
+                    j.classification_rule == failure_rule and j.conclusion == "failure"
+                    for j in last_same_jobs
+                ):
+                    # Baseline already exhibits the same failure on this job -> not a commit-caused regression
                     continue
 
+                # Record the detected pattern: (newer_fail, suspected_fail) contrasted against a clean baseline
                 patterns.append(
                     {
                         "pattern_detected": True,
                         "workflow_name": workflow_name,
                         "failure_rule": failure_rule,
+                        "job_name_base": job_name,
                         "newer_commits": [
                             newer_commit.head_sha,
                             suspected_commit1.head_sha,
                         ],
                         "older_commit": last_commit_with_same_job.head_sha,
-                        "failed_job_names": [j.name for j in last_same_jobs],
-                        "older_job_coverage": [],
+                        "failed_job_names": [
+                            j.name
+                            for j in suspected_commit1.failed_jobs
+                            if j.classification_rule == failure_rule
+                        ][:10],
                     }
                 )
                 break
@@ -382,7 +420,120 @@ class AutorevertPatternChecker:
 
         return all_patterns
 
-    def get_commits_reverted(self) -> Set[str]:
+    def _fetch_single_commit_jobs(
+        self,
+        workflow_name: str,
+        head_sha: str,
+        restarted_only: bool = False,
+    ) -> Optional[CommitJobs]:
+        """Fetch jobs for a single workflow+commit, optionally only restarted runs.
+
+        Groups all jobs by head_sha (assumes at most one restart dispatch of interest).
+        Returns CommitJobs or None if no jobs found in lookback window.
+        """
+        lookback_time = datetime.now() - timedelta(hours=self.lookback_hours)
+
+        where_event = (
+            "workflow_event = {we:String} AND head_branch LIKE {hb:String}"
+            if restarted_only
+            else "workflow_event != {we:String} AND head_branch = {hb:String}"
+        )
+
+        query = f"""
+        SELECT
+            head_sha,
+            name,
+            conclusion,
+            status,
+            torchci_classification.rule AS classification_rule,
+            created_at AS workflow_created_at
+        FROM workflow_job FINAL
+        WHERE workflow_name = {{workflow_name:String}}
+          AND head_sha = {{head_sha:String}}
+          AND {where_event}
+          AND created_at >= {{lookback_time:DateTime}}
+          AND dynamoKey LIKE 'pytorch/pytorch/%'
+        ORDER BY workflow_created_at DESC, name
+        """
+
+        hb = "trunk/%" if restarted_only else "main"
+        we = "workflow_dispatch" if restarted_only else "workflow_dispatch"
+        # Note: for non-restarted we exclude workflow_dispatch via != in WHERE above
+
+        result = CHCliFactory().client.query(
+            query,
+            parameters={
+                "workflow_name": workflow_name,
+                "head_sha": head_sha,
+                "we": we,
+                "hb": hb,
+                "lookback_time": lookback_time,
+            },
+        )
+
+        rows = list(result.result_rows)
+        if not rows:
+            return None
+
+        # Use the newest created_at among returned rows as the commit's created_at marker
+        latest_created = max(r[5] for r in rows)
+        cj = CommitJobs(head_sha=head_sha, created_at=latest_created, jobs=[])
+        for row in rows:
+            _, name, conclusion, status, classification_rule, created_at = row
+            cj.jobs.append(
+                JobResult(
+                    head_sha=head_sha,
+                    name=name,
+                    conclusion=conclusion,
+                    status=status,
+                    classification_rule=classification_rule or "",
+                    workflow_created_at=created_at,
+                )
+            )
+        return cj
+
+    def confirm_commit_caused_failure_on_restarted(self, pattern: Dict) -> bool:
+        """Confirm commit-caused failure using restarted runs.
+
+        Requires that:
+        - first failing commit's restarted run has the same failure classification for the job
+        - previous commit's restarted run does NOT have that failure classification for the job
+        - both restarted runs have no pending jobs
+        """
+        workflow_name = pattern["workflow_name"]
+        job_base = pattern.get("job_name_base")
+        failure_rule = pattern["failure_rule"]
+        first_failing = pattern["newer_commits"][1]
+        previous_commit = pattern["older_commit"]
+
+        # Fetch restarted jobs for first failing and previous commits
+        failing_jobs = self._fetch_single_commit_jobs(
+            workflow_name, first_failing, restarted_only=True
+        )
+        prev_jobs = self._fetch_single_commit_jobs(
+            workflow_name, previous_commit, restarted_only=True
+        )
+        if not failing_jobs or not prev_jobs:
+            return False
+
+        # Pending check
+        if failing_jobs.has_pending_jobs or prev_jobs.has_pending_jobs:
+            return False
+
+        def has_rule(cj: CommitJobs, rule: str) -> bool:
+            return any(
+                cj.normalize_job_name(j.name) == job_base
+                and j.classification_rule == rule
+                and j.conclusion == "failure"
+                for j in cj.jobs
+            )
+
+        # Commit-caused if failing commit reproduces, previous does not
+        return has_rule(failing_jobs, failure_rule) and not has_rule(
+            prev_jobs, failure_rule
+        )
+
+    def _get_commits_reverted(self) -> Set[str]:
         """
         Get all commits that were reverted within the lookback window.
 
@@ -514,7 +665,7 @@ class AutorevertPatternChecker:
 
         return result
 
-    def get_commits_reverted_with_info(self) -> Dict[str, Dict]:
+    def _get_commits_reverted_with_info(self) -> Dict[str, Dict]:
         """
         Get all commits that were reverted with detailed information including categories.
 

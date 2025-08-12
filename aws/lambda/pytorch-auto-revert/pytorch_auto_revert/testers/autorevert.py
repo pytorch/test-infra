@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 
 from ..autorevert_checker import AutorevertPatternChecker
@@ -6,9 +7,10 @@ from ..workflow_checker import WorkflowRestartChecker
 
 def autorevert_checker(
     workflow_names: list[str],
+    do_restart: bool,
+    do_revert: bool,
     hours: int = 48,
     verbose: bool = False,
-    do_restart: bool = False,
     dry_run: bool = False,
     ignore_common_errors=True,
 ):
@@ -61,8 +63,8 @@ def autorevert_checker(
 
     # Detect patterns
     patterns = checker.detect_autorevert_pattern()
-    reverts = checker.get_commits_reverted()
-    reverts_with_info = checker.get_commits_reverted_with_info()
+    reverts = checker.commits_reverted
+    reverts_with_info = checker.commits_reverted_with_info
 
     # Categorize reverts
     reverts_by_category = defaultdict(set)
@@ -90,6 +92,8 @@ def autorevert_checker(
         # Track reverts
         reverted_patterns = []
 
+        false_positive = 0
+
         for i, pattern in enumerate(patterns, 1):
             print(f"\nPattern #{i}:")
 
@@ -109,53 +113,76 @@ def autorevert_checker(
                         f"  - {additional['workflow_name']}: {additional['failure_rule']}"
                     )
 
-            # Check if the second commit (older of the two failures) was reverted
-            second_commit = pattern["newer_commits"][1]
-            revert_result = revert_checker.is_commit_reverted(second_commit)
+            # For clarity in naming
+            workflow_name = pattern["workflow_name"]
+            first_failing = pattern["newer_commits"][
+                1
+            ]  # the older of the two failing commits
+            previous_commit = pattern[
+                "older_commit"
+            ]  # previously successful commit for the matched job
+            revert_result = revert_checker.is_commit_reverted(first_failing)
 
             if revert_result:
-                not_found_reverts.discard(second_commit)
-                category = reverts_with_info.get(second_commit, {}).get(
+                not_found_reverts.discard(first_failing)
+                category = reverts_with_info.get(first_failing, {}).get(
                     "category", "uncategorized"
                 )
                 print(
-                    f"✓ REVERTED ({category}): {second_commit} was reverted by {revert_result['revert_sha'][:8]} "
+                    f"✓ REVERTED ({category}): {first_failing} was reverted by {revert_result['revert_sha'][:8]} "
                     f"after {revert_result['hours_after_target']:.1f} hours"
                 )
                 reverted_patterns.append(pattern)
             else:
-                print(f"✗ NOT REVERTED: {second_commit} was not reverted")
+                false_positive += 1
+                print(f"✗ NOT REVERTED: {first_failing} was not reverted")
 
                 # Try to restart workflow if --do-restart flag is set and not already reverted
                 if do_restart and restart_checker:
-                    # Restart for the second commit (older of the two failures)
-                    workflow_name = pattern["workflow_name"]
-
-                    # Check if already restarted
-                    if restart_checker.has_restarted_workflow(
-                        workflow_name, second_commit
-                    ):
-                        print(
-                            f"  ⟳ ALREADY RESTARTED: {workflow_name} for {second_commit[:8]}"
-                        )
-                    elif dry_run:
-                        print(
-                            f"  ⟳ DRY RUN: Would restart {workflow_name} for {second_commit[:8]}"
-                        )
-                        restarted_commits.append((workflow_name, second_commit))
-                    else:
-                        success = restart_checker.restart_workflow(
-                            workflow_name, second_commit
-                        )
-                        if success:
+                    # Restart the first failing (older failing) and the previous (successful) commit
+                    for target_commit in (first_failing, previous_commit):
+                        if restart_checker.has_restarted_workflow(
+                            workflow_name, target_commit
+                        ):
                             print(
-                                f"  ✓ RESTARTED: {workflow_name} for {second_commit[:8]}"
+                                f"  ⟳ ALREADY RESTARTED: {workflow_name} for {target_commit[:8]}"
                             )
-                            restarted_commits.append((workflow_name, second_commit))
+                            continue
+                        if dry_run:
+                            print(
+                                f"  ⟳ DRY RUN: Would restart {workflow_name} for {target_commit[:8]}"
+                            )
+                            restarted_commits.append((workflow_name, target_commit))
                         else:
-                            print(
-                                f"  ✗ FAILED TO RESTART: {workflow_name} for {second_commit[:8]}"
+                            success = restart_checker.restart_workflow(
+                                workflow_name, target_commit
                             )
+                            if success:
+                                print(
+                                    f"  ✓ RESTARTED: {workflow_name} for {target_commit[:8]}"
+                                )
+                                restarted_commits.append((workflow_name, target_commit))
+                            else:
+                                print(
+                                    f"  ✗ FAILED TO RESTART: {workflow_name} for {target_commit[:8]}"
+                                )
+
+                # Secondary verification: compare first failing vs previous on restarted runs.
+                if do_revert:
+                    try:
+                        if checker.confirm_commit_caused_failure_on_restarted(pattern):
+                            if dry_run:
+                                print(
+                                    f"  ⚠ DRY RUN: Would record REVERT for {first_failing[:8]} ({workflow_name})"
+                                )
+                            else:
+                                print(
+                                    f"  ⚠ REVERT recorded for {first_failing[:8]} ({workflow_name})"
+                                )
+                    except Exception as e:
+                        logging.warning(
+                            f"Secondary verification failed for {first_failing[:8]} ({workflow_name}): {e}"
+                        )
 
             if verbose:
                 print(f"Failed jobs ({len(pattern['failed_job_names'])}):")
@@ -164,11 +191,7 @@ def autorevert_checker(
                 if len(pattern["failed_job_names"]) > 5:
                     print(f"  ... and {len(pattern['failed_job_names']) - 5} more")
 
-                print(f"Job coverage overlap ({len(pattern['older_job_coverage'])}):")
-                for job in pattern["older_job_coverage"][:3]:
-                    print(f"  - {job}")
-                if len(pattern["older_job_coverage"]) > 3:
-                    print(f"  ... and {len(pattern['older_job_coverage']) - 3} more")
+                # Job coverage overlap logging removed (older_job_coverage dropped from pattern)
 
                 if revert_result and verbose:
                     print(f"Revert message: {revert_result['revert_message'][:100]}...")
@@ -187,10 +210,15 @@ def autorevert_checker(
         )
         print(f"Commits checked: {total_commits}")
 
+        len_patterns = len(patterns)
+        len_reverted_patterns = len(reverted_patterns)
+        ratio_revert_patterns = (
+            len_reverted_patterns / len_patterns if len_patterns > 0 else 0
+        )
         print(f"Auto revert patterns detected: {len(patterns)}")
         print(
-            "Actual reverts inside auto revert patterns detected (precision): "
-            + f"{len(reverted_patterns)} ({len(reverted_patterns) / len(patterns) * 100:.1f}%)"
+            "Actual reverts inside auto revert patterns detected (%): "
+            + f"{len_reverted_patterns} ({ratio_revert_patterns * 100:.1f}%)"
         )
         print(f"Total revert commits in period: {len(reverts)}")
 
@@ -217,13 +245,42 @@ def autorevert_checker(
         print(f"\nTotal reverts excluding ghfirst: {len(non_ghfirst_reverts)}")
 
         # Calculate recall based on non-ghfirst reverts only
-        if non_ghfirst_reverts:
-            print(
-                "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (recall): "
-                + f"{len(not_found_non_ghfirst)} ({len(not_found_non_ghfirst) / len(non_ghfirst_reverts) * 100:.1f}%)"
-            )
-        else:
-            print("No non-ghfirst reverts found in the period")
+        len_non_ghfirst_reverts = len(non_ghfirst_reverts)
+        len_not_found_non_ghfirst = len(not_found_non_ghfirst)
+        ratio_non_ghfirst_reverts = (
+            len_not_found_non_ghfirst / len_non_ghfirst_reverts
+            if len_non_ghfirst_reverts > 0
+            else 0
+        )
+        # recall_non_ghfirst = 1 - ratio_non_ghfirst_reverts
+        print(
+            "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (%): "
+            + f"({len_not_found_non_ghfirst}) ({ratio_non_ghfirst_reverts * 100:.1f}%)"
+        )
+
+        len_reverts_with_info = len(reverts_with_info)
+        stats_precision = (
+            len_reverted_patterns / len_patterns if len_patterns > 0 else 0.0
+        )
+        stats_recall = (
+            len_reverted_patterns / len_reverts_with_info
+            if len_reverts_with_info > 0
+            else 0.0
+        )
+        stats_f1 = (
+            2 * stats_precision * stats_recall / (stats_precision + stats_recall)
+            if (stats_precision + stats_recall) > 0
+            else 0.0
+        )
+
+        print()
+        print("*********************************************************************")
+        print("STATS SUMMARY:")
+        print(f" PRECISION: {stats_precision * 100:.1f}%")
+        print(f" RECALL: {stats_recall * 100:.1f}%")
+        print(f" F1: {stats_f1 * 100:.1f}%")
+        print("*********************************************************************")
+        print()
 
         workflow_statistics = defaultdict(
             lambda: {"match_pattern": 0, "reverts": 0, "reverts_non_ghfirst": 0}
