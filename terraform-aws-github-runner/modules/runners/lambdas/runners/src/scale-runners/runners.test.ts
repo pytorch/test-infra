@@ -418,6 +418,25 @@ describe('findAmiID', () => {
     await findAmiID(metrics, 'REGION', 'FILTER2');
     expect(mockEC2.describeImages).toBeCalledTimes(3);
   });
+
+  it('handles filter with separator and custom account ID', async () => {
+    const result = await findAmiID(metrics, 'REGION', 'my-image|123456789012');
+    expect(mockEC2.describeImages).toBeCalledTimes(1);
+    expect(mockEC2.describeImages).toBeCalledWith({
+      Owners: ['123456789012'],
+      Filters: [
+        {
+          Name: 'name',
+          Values: ['my-image'],
+        },
+        {
+          Name: 'state',
+          Values: ['available'],
+        },
+      ],
+    });
+    expect(result).toBe('ami-AGDGADU113');
+  });
 });
 
 describe('tryReuseRunner', () => {

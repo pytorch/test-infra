@@ -77,11 +77,31 @@ export function resetRunnersCaches() {
 
 export async function findAmiID(metrics: Metrics, region: string, filter: string, owners = 'amazon'): Promise<string> {
   const ec2 = new EC2({ region: region });
+  // Check if filter contains separator '|' and extract image name and account ID
+  let imageName = filter;
+  let actualOwners = owners;
+
+  if (filter.includes('|')) {
+    const parts = filter.split('|');
+    if (parts.length === 2) {
+      imageName = parts[0].trim();
+      const extractedOwner = parts[1].trim();
+
+      // Check if the extracted owner is only numbers (AWS account ID format)
+      if (/^\d+$/.test(extractedOwner)) {
+        actualOwners = extractedOwner;
+      } else {
+        console.error(`Invalid account ID format: '${extractedOwner}'. Account ID must contain only numbers. Using default value '${actualOwners}'`);
+      }
+    }
+  }
+
   const filters = [
-    { Name: 'name', Values: [filter] },
+    { Name: 'name', Values: [imageName] },
     { Name: 'state', Values: ['available'] },
   ];
-  return redisCached('awsEC2', `findAmiID-${region}-${filter}-${owners}`, 10 * 60, 0.5, () => {
+
+  return redisCached('awsEC2', `findAmiID-${region}-${imageName}-${actualOwners}`, 10 * 60, 0.5, () => {
     return expBackOff(() => {
       return metrics.trackRequestRegion(
         region,
