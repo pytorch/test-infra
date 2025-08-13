@@ -236,6 +236,17 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
     name = aws_iam_instance_profile.eks_node_instance_profile.name
   }
 
+  # Block device mapping for 4TB root volume
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = 4096  # 4TB
+      volume_type           = "gp3"
+      delete_on_termination = true
+      encrypted             = true
+    }
+  }
+
   placement {
     group_name = aws_placement_group.gpu_dev_pg.name
   }
@@ -284,6 +295,17 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   image_id      = data.aws_ami.eks_gpu_ami.id
   instance_type = var.instance_type
   key_name      = var.key_pair_name
+
+  # Block device mapping for 4TB root volume
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = 4096  # 4TB
+      volume_type           = "gp3"
+      delete_on_termination = true
+      encrypted             = true
+    }
+  }
 
   placement {
     group_name = aws_placement_group.gpu_dev_pg.name

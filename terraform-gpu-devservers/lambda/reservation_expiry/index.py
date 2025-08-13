@@ -43,7 +43,7 @@ def handler(event, context):
             f"Running reservation expiry and cleanup check at timestamp {current_time} ({datetime.fromtimestamp(current_time)})"
         )
 
-        # Get all active and preparing reservations
+        # Get all active, preparing, and failed reservations
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         try:
             # Get active reservations
@@ -64,13 +64,19 @@ def handler(event, context):
             )
             preparing_reservations = preparing_response.get("Items", [])
 
-            logger.info(f"Found {len(active_reservations)} active reservations and {len(preparing_reservations)} preparing reservations")
+            logger.info(
+                f"Found {len(active_reservations)} active reservations and {len(preparing_reservations)} preparing reservations"
+            )
 
             # Log details of each active reservation
             for res in active_reservations:
                 expires_at_str = res.get("expires_at", "")
                 try:
-                    expires_at = int(datetime.fromisoformat(expires_at_str.replace("Z", "+00:00")).timestamp())
+                    expires_at = int(
+                        datetime.fromisoformat(
+                            expires_at_str.replace("Z", "+00:00")
+                        ).timestamp()
+                    )
                 except (ValueError, AttributeError):
                     expires_at = 0
                 logger.info(
@@ -86,6 +92,11 @@ def handler(event, context):
         PREPARING_TIMEOUT_SECONDS = 3600  # 1 hour
         preparing_timeout_threshold = current_time - PREPARING_TIMEOUT_SECONDS
 
+        # Initialize counters
+        warned_count = 0
+        expired_count = 0
+        stale_cancelled_count = 0
+
         for reservation in preparing_reservations:
             reservation_id = reservation["reservation_id"]
             created_at = reservation.get("created_at", "")
@@ -94,23 +105,91 @@ def handler(event, context):
                 if isinstance(created_at, str):
                     # ISO format string
                     created_timestamp = int(
-                        datetime.fromisoformat(created_at.replace("Z", "+00:00")).timestamp()
+                        datetime.fromisoformat(
+                            created_at.replace("Z", "+00:00")
+                        ).timestamp()
                     )
                 else:
                     created_timestamp = int(created_at)
             except Exception as e:
-                logger.warning(f"Could not parse created_at for preparing reservation {reservation_id}: {e}")
+                logger.warning(
+                    f"Could not parse created_at for preparing reservation {reservation_id}: {e}"
+                )
                 continue
 
             # Check if preparing reservation is stuck (>1 hour)
             if created_timestamp < preparing_timeout_threshold:
-                logger.info(f"Expiring stuck preparing reservation {reservation_id} (created {created_timestamp}, timeout threshold {preparing_timeout_threshold})")
+                logger.info(
+                    f"Expiring stuck preparing reservation {reservation_id} (created {created_timestamp}, timeout threshold {preparing_timeout_threshold})"
+                )
                 try:
                     expire_stuck_preparing_reservation(reservation)
                     expired_count += 1
-                    logger.info(f"Successfully expired stuck preparing reservation {reservation_id}")
+                    logger.info(
+                        f"Successfully expired stuck preparing reservation {reservation_id}"
+                    )
                 except Exception as e:
-                    logger.error(f"Failed to expire stuck preparing reservation {reservation_id}: {e}")
+                    logger.error(
+                        f"Failed to expire stuck preparing reservation {reservation_id}: {e}"
+                    )
+
+        # Clean up failed reservations that might have orphaned pods
+        try:
+            failed_response = reservations_table.query(
+                IndexName="StatusIndex",
+                KeyConditionExpression="#status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": "failed"},
+            )
+            failed_reservations = failed_response.get("Items", [])
+            logger.info(f"Found {len(failed_reservations)} failed reservations")
+
+            # Clean up failed reservations that have pods (created in the last 24 hours to avoid processing old ones)
+            FAILED_CLEANUP_WINDOW = 24 * 3600  # 24 hours
+            failed_cleanup_threshold = current_time - FAILED_CLEANUP_WINDOW
+
+            for reservation in failed_reservations:
+                reservation_id = reservation["reservation_id"]
+                pod_name = reservation.get("pod_name")
+
+                if not pod_name:
+                    continue  # No pod to clean up
+
+                # Check if failed recently (within cleanup window)
+                failed_at = reservation.get(
+                    "failed_at", reservation.get("created_at", "")
+                )
+                try:
+                    if isinstance(failed_at, str):
+                        failed_timestamp = int(
+                            datetime.fromisoformat(
+                                failed_at.replace("Z", "+00:00")
+                            ).timestamp()
+                        )
+                    else:
+                        failed_timestamp = int(failed_at)
+
+                    if failed_timestamp < failed_cleanup_threshold:
+                        continue  # Too old, skip cleanup
+
+                except (ValueError, AttributeError):
+                    continue  # Can't parse timestamp, skip
+
+                logger.info(
+                    f"Cleaning up failed reservation {reservation_id[:8]} with pod {pod_name}"
+                )
+                try:
+                    cleanup_pod(pod_name)
+                    logger.info(
+                        f"Successfully cleaned up failed reservation {reservation_id[:8]}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to cleanup failed reservation {reservation_id[:8]}: {e}"
+                    )
+
+        except Exception as e:
+            logger.error(f"Error processing failed reservations: {e}")
 
         # Also check for stale queued/pending reservations
         stale_statuses = ["queued", "pending"]
@@ -133,15 +212,15 @@ def handler(event, context):
             f"Expiry thresholds: current={current_time}, warning={warning_threshold}, stale={stale_threshold}"
         )
 
-        warned_count = 0
-        expired_count = 0
-        stale_cancelled_count = 0
-
         # Process active reservations for expiry
         for reservation in active_reservations:
             expires_at_str = reservation.get("expires_at", "")
             try:
-                expires_at = int(datetime.fromisoformat(expires_at_str.replace("Z", "+00:00")).timestamp())
+                expires_at = int(
+                    datetime.fromisoformat(
+                        expires_at_str.replace("Z", "+00:00")
+                    ).timestamp()
+                )
             except (ValueError, AttributeError):
                 expires_at = 0
             reservation_id = reservation["reservation_id"]
@@ -164,13 +243,17 @@ def handler(event, context):
                 # First check if the pod still exists - if not, mark as expired
                 pod_name = reservation.get("pod_name")
                 if pod_name and not check_pod_exists(pod_name):
-                    logger.warning(f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired")
+                    logger.warning(
+                        f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired"
+                    )
                     try:
                         expire_reservation_due_to_missing_pod(reservation)
                         expired_count += 1
                         continue  # Skip warning processing for this reservation
                     except Exception as e:
-                        logger.error(f"Failed to expire reservation {reservation_id} due to missing pod: {e}")
+                        logger.error(
+                            f"Failed to expire reservation {reservation_id} due to missing pod: {e}"
+                        )
 
                 minutes_until_expiry = (expires_at - current_time) // 60
                 warnings_sent = reservation.get("warnings_sent", {})
@@ -270,7 +353,11 @@ def warn_user_expiring(reservation: dict[str, Any], warning_minutes: int) -> Non
         reservation_id = reservation["reservation_id"]
         expires_at_str = reservation.get("expires_at", "")
         try:
-            expires_at = int(datetime.fromisoformat(expires_at_str.replace("Z", "+00:00")).timestamp())
+            expires_at = int(
+                datetime.fromisoformat(
+                    expires_at_str.replace("Z", "+00:00")
+                ).timestamp()
+            )
         except (ValueError, AttributeError):
             expires_at = 0
         pod_name = reservation.get("pod_name")
@@ -291,7 +378,9 @@ def warn_user_expiring(reservation: dict[str, Any], warning_minutes: int) -> Non
                 # Also create a visible file in the workspace
                 create_warning_file_in_pod(pod_name, warning_message, minutes_left)
             else:
-                logger.warning(f"Pod {pod_name} no longer exists - reservation {reservation_id} may have been manually deleted or expired")
+                logger.warning(
+                    f"Pod {pod_name} no longer exists - reservation {reservation_id} may have been manually deleted or expired"
+                )
                 # Mark the reservation as expired since the pod is gone
                 expire_reservation_due_to_missing_pod(reservation)
 
@@ -325,7 +414,9 @@ def expire_reservation_due_to_missing_pod(reservation: dict[str, Any]) -> None:
     try:
         reservation_id = reservation["reservation_id"]
 
-        logger.info(f"Marking reservation {reservation_id} as expired due to missing pod")
+        logger.info(
+            f"Marking reservation {reservation_id} as expired due to missing pod"
+        )
 
         # Update reservation status to expired
         now = datetime.utcnow().isoformat()
@@ -342,7 +433,9 @@ def expire_reservation_due_to_missing_pod(reservation: dict[str, Any]) -> None:
             },
         )
 
-        logger.info(f"Successfully marked reservation {reservation_id} as expired due to missing pod")
+        logger.info(
+            f"Successfully marked reservation {reservation_id} as expired due to missing pod"
+        )
 
     except Exception as e:
         logger.error(
@@ -377,11 +470,17 @@ def expire_stuck_preparing_reservation(reservation: dict[str, Any]) -> None:
         if pod_name:
             try:
                 cleanup_stuck_pod_resources(pod_name)
-                logger.info(f"Cleaned up partial resources for stuck preparing reservation {reservation_id}")
+                logger.info(
+                    f"Cleaned up partial resources for stuck preparing reservation {reservation_id}"
+                )
             except Exception as cleanup_error:
-                logger.warning(f"Error cleaning up partial resources for {pod_name}: {cleanup_error}")
+                logger.warning(
+                    f"Error cleaning up partial resources for {pod_name}: {cleanup_error}"
+                )
 
-        logger.info(f"Successfully marked stuck preparing reservation {reservation_id} as failed")
+        logger.info(
+            f"Successfully marked stuck preparing reservation {reservation_id} as failed"
+        )
 
     except Exception as e:
         logger.error(
@@ -537,10 +636,13 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
 def cleanup_stuck_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
     """Clean up any partial resources for stuck preparing reservations"""
     try:
-        logger.info(f"Cleaning up stuck pod resources for {pod_name} in namespace {namespace}")
+        logger.info(
+            f"Cleaning up stuck pod resources for {pod_name} in namespace {namespace}"
+        )
 
         # Configure Kubernetes client
         from kubernetes import client
+
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
 
@@ -552,7 +654,9 @@ def cleanup_stuck_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> No
             logger.info(f"Deleted stuck pod {pod_name}")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                logger.info(f"Pod {pod_name} not found (already deleted or never created)")
+                logger.info(
+                    f"Pod {pod_name} not found (already deleted or never created)"
+                )
             else:
                 logger.warning(f"Failed to delete stuck pod {pod_name}: {e}")
 
@@ -565,7 +669,9 @@ def cleanup_stuck_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> No
             logger.info(f"Deleted stuck service {service_name}")
         except client.exceptions.ApiException as e:
             if e.status == 404:
-                logger.info(f"Service {service_name} not found (already deleted or never created)")
+                logger.info(
+                    f"Service {service_name} not found (already deleted or never created)"
+                )
             else:
                 logger.warning(f"Failed to delete stuck service {service_name}: {e}")
 

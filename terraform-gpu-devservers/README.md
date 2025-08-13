@@ -24,14 +24,16 @@ terraform apply -var="instance_type=p5.48xlarge" -var="gpu_instance_count=5"
 ## Current Configuration
 
 **Testing Environment:**
+
 - **Instance Type**: `g4dn.12xlarge` (4x T4 GPUs per instance)
 - **Node Count**: 2 instances
 - **Total GPUs**: 8x T4 GPUs available
 - **Cost**: ~$7.82/hour total for cluster
 
 **Production Plan:**
+
 - **Instance Type**: `p5.48xlarge` (8x H100 GPUs per instance)
-- **Node Count**: 5 instances  
+- **Node Count**: 5 instances
 - **Total GPUs**: 40x H100 GPUs available
 - **Cost**: ~$490/hour total for cluster
 
@@ -82,21 +84,21 @@ title: GPU Developer Servers Architecture
 flowchart TB
     CLI[GPU Dev CLI<br/>python cli] --> |1. Reserve/Cancel| SQS[SQS Queue<br/>gpu-reservation-queue]
     CLI --> |Query Status| DDB[(DynamoDB<br/>Reservations Table)]
-    
+
     SQS --> |2. Process Messages| LAMBDA1[Reservation Processor<br/>Lambda Function]
     SCHED[CloudWatch Events<br/>Every 1 minute] --> |3. Queue Management| LAMBDA1
-    
+
     LAMBDA1 --> |Update Status| DDB
     LAMBDA1 --> |Create/Delete Pods| EKS[EKS Cluster<br/>GPU Nodes]
     LAMBDA1 --> |Query Capacity| EKS
-    
+
     SCHED2[CloudWatch Events<br/>Every 5 minutes] --> |4. Expiry Check| LAMBDA2[Reservation Expiry<br/>Lambda Function]
-    LAMBDA2 --> |Check/Update| DDB  
+    LAMBDA2 --> |Check/Update| DDB
     LAMBDA2 --> |Cleanup Pods| EKS
-    
+
     EKS --> |SSH Access| PODS[GPU Dev Pods<br/>NodePort Services]
     DEVS[Developers] --> |SSH| PODS
-    
+
     style CLI fill:#e1f5fe
     style SQS fill:#fff3e0
     style DDB fill:#f3e5f5
@@ -109,35 +111,42 @@ flowchart TB
 ### Component Details
 
 #### 1. **CLI Tool** (`gpu-dev-cli`)
+
 - **Commands**: `reserve`, `list`, `cancel`, `connect`, `status`, `config`
 - **Authentication**: AWS credentials + GitHub SSH keys
 - **Configuration**: Zero-config approach with `~/.gpu-dev-config`
 
 #### 2. **SQS Queue System**
+
 - **Primary Queue**: `gpu-reservation-queue` - handles reservation and cancellation requests
 - **Dead Letter Queue**: `gpu-reservation-dlq` - failed messages after 3 retries
-- **Message Types**: 
+- **Message Types**:
   - `reservation` (default) - create new reservation
   - `cancellation` - cancel existing reservation
 
 #### 3. **Lambda Functions**
 
 ##### Reservation Processor (`reservation_processor`)
-**Triggers**: 
+
+**Triggers**:
+
 - SQS messages (real-time processing)
 - CloudWatch Events (every 1 minute for queue management)
 
 **Responsibilities**:
+
 - Process reservation requests from SQS
 - Create Kubernetes pods with GPU allocation
 - Manage queue positions and ETA updates
 - Handle cancellation requests
 - Real-time GPU capacity tracking via K8s API
 
-##### Reservation Expiry (`reservation_expiry`)  
+##### Reservation Expiry (`reservation_expiry`)
+
 **Triggers**: CloudWatch Events (every 5 minutes)
 
 **Responsibilities**:
+
 - Check for expired reservations
 - Send warning notifications (30min, 15min, 5min before expiry)
 - Clean up expired pods and services
@@ -146,21 +155,24 @@ flowchart TB
 #### 4. **DynamoDB Tables**
 
 ##### Reservations Table
+
 **Primary Key**: `reservation_id`
-**Indexes**: 
+**Indexes**:
+
 - `StatusIndex` - Query by status (active, queued, pending, etc.)
 - `UserIndex` - Query by user_id
 
 **Schema**:
+
 ```json
 {
   "reservation_id": "uuid-string",
-  "user_id": "aws-username", 
+  "user_id": "aws-username",
   "github_user": "github-username",
   "gpu_count": 1-16,
   "status": "pending|queued|preparing|active|expired|cancelled|failed",
   "created_at": "2025-01-12T10:30:00.000Z",
-  "expires_at": "2025-01-12T18:30:00.000Z", 
+  "expires_at": "2025-01-12T18:30:00.000Z",
   "launched_at": "2025-01-12T10:35:00.000Z",
   "reservation_ended": "2025-01-12T18:30:00.000Z",
   "duration_hours": 8.0,
@@ -178,11 +190,13 @@ flowchart TB
 ```
 
 **Analytics Fields:**
+
 - `launched_at`: When the pod was successfully started (for wait time analysis: `launched_at - created_at`)
 - `reservation_ended`: When the reservation ended (cancelled/expired) for usage analysis
 - Early cancellation detection: `reservation_ended < expires_at`
 
 #### 5. **EKS Cluster**
+
 - **Node Groups**: GPU-enabled EC2 instances (g4dn.12xlarge for testing, p5.48xlarge for production)
 - **Namespace**: `gpu-dev` - dedicated namespace for reservation pods
 - **NVIDIA Device Plugin**: Exposes GPU resources to Kubernetes scheduler
@@ -191,7 +205,8 @@ flowchart TB
 #### 6. **Kubernetes Resources**
 
 ##### Pod Specification
-- **Base Image**: `pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime`
+
+- **Base Image**: `pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel`
 - **GPU Allocation**: 1, 2, 4, 8, or 16 GPUs via `nvidia.com/gpu` resource requests
 - **Init Container**: Sets up dev user and SSH keys from GitHub
 - **Volumes**: `/home/dev` (user data), `/workspace` (shared storage, 100Gi)
@@ -200,6 +215,7 @@ flowchart TB
 ### Message Flow
 
 #### Reservation Creation
+
 1. User runs `gpu-dev reserve --gpus 2 --hours 4`
 2. CLI sends reservation message to SQS queue
 3. CLI creates "pending" record in DynamoDB for immediate polling
@@ -210,6 +226,7 @@ flowchart TB
 8. If unavailable: status becomes "queued" with position and ETA
 
 #### Queue Management (Every Minute)
+
 1. CloudWatch triggers Reservation Processor Lambda
 2. Lambda queries all "queued" and "pending" reservations
 3. Lambda checks current GPU availability via K8s API
@@ -219,12 +236,14 @@ flowchart TB
 5. ETAs calculated based on active reservation expiry times
 
 #### Cancellation
+
 1. User runs `gpu-dev cancel abc12345`
-2. CLI sends cancellation message to SQS queue  
+2. CLI sends cancellation message to SQS queue
 3. Reservation Processor Lambda handles cancellation message
 4. Lambda updates status to "cancelled" and cleans up pod if active
 
 #### Expiry Management (Every 5 Minutes)
+
 1. CloudWatch triggers Reservation Expiry Lambda
 2. Lambda queries all "active" reservations
 3. Sends warnings at 30min, 15min, 5min before expiry
@@ -243,11 +262,13 @@ The system uses **Kubernetes-native GPU tracking** instead of manual allocation:
 ### Deployment Configuration
 
 #### Testing Environment (Current)
+
 - **2x g4dn.12xlarge** instances (4 GPUs each = 8 total)
 - **Cost**: ~$7.82/hour
 - **Region**: us-east-2
 
-#### Production Environment (Planned)  
+#### Production Environment (Planned)
+
 - **5x p5.48xlarge** instances (8 H100 GPUs each = 40 total)
 - **Cost**: ~$490/hour
 - **Single AZ**: Placement groups for EFA networking

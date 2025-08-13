@@ -167,7 +167,7 @@ def reserve(
 
                 if not completed_reservation:
                     rprint(
-                        f"[yellow]💡 Use 'gpu-dev connect {reservation_id[:8]}' to check connection details later[/yellow]"
+                        f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check connection details later[/yellow]"
                     )
         else:
             rprint("[red]❌ Failed to create reservation[/red]")
@@ -574,10 +574,14 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                 )
                 if status == 'preparing':
                     panel_content += f"\n[blue]Pod Name:[/blue] {connection_info.get('pod_name', 'N/A')}"
+                    # Show dynamic pod events from failure_reason if available
+                    failure_reason = connection_info.get('failure_reason', '')
+                    if failure_reason:
+                        panel_content += f"\n[blue]Current Status:[/blue] {failure_reason}"
 
                 panel = Panel.fit(panel_content, title=f"⏳ {status.title()} Reservation")
                 console.print(panel)
-                
+
                 if status == 'queued':
                     rprint("[yellow]💡 SSH access will be available once your reservation becomes active[/yellow]")
                 elif status == 'preparing':
@@ -591,8 +595,33 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                     f"[blue]Started:[/blue] {launched_formatted}\n"
                     f"[blue]Ended:[/blue] {expires_formatted}"
                 )
+                
+                # Show failure reason for failed reservations
+                if status == 'failed':
+                    failure_reason = connection_info.get('failure_reason', 'Unknown error')
+                    panel_content += f"\n[blue]Error:[/blue] {failure_reason}"
+                
                 panel = Panel.fit(panel_content, title=f"📋 {status.title()} Reservation")
                 console.print(panel)
+                
+                # Show pod logs for failed reservations
+                if status == 'failed':
+                    pod_logs = connection_info.get('pod_logs', '')
+                    if pod_logs and pod_logs.strip():
+                        from rich.text import Text
+                        
+                        rprint("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
+                        
+                        # Create logs panel
+                        log_text = Text(pod_logs)
+                        log_panel = Panel(
+                            log_text,
+                            title="🐚 Container Startup Logs",
+                            title_align="left",
+                            border_style="red",
+                            expand=False
+                        )
+                        console.print(log_panel)
         else:
             rprint(f"[red]❌ Could not get connection info for {reservation_id}[/red]")
 

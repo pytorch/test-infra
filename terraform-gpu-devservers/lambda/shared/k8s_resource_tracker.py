@@ -5,6 +5,7 @@ Replaces manual GPU counting with real-time K8s resource queries
 
 import logging
 import time
+from datetime import UTC
 from typing import Any
 
 from kubernetes import client
@@ -197,11 +198,14 @@ class K8sGPUTracker:
                 try:
                     if isinstance(expires_at_raw, str):
                         # ISO format: 2025-08-12T02:30:04.823958
-                        from datetime import datetime, timezone
-                        expires_dt = datetime.fromisoformat(expires_at_raw.replace("Z", "+00:00"))
+                        from datetime import datetime
+
+                        expires_dt = datetime.fromisoformat(
+                            expires_at_raw.replace("Z", "+00:00")
+                        )
                         if expires_dt.tzinfo is None:
                             # Naive datetime, assume UTC
-                            expires_dt = expires_dt.replace(tzinfo=timezone.utc)
+                            expires_dt = expires_dt.replace(tzinfo=UTC)
                         expires_at = int(expires_dt.timestamp())
                     else:
                         # Legacy Unix timestamp

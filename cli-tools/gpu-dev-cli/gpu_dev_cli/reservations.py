@@ -169,15 +169,15 @@ class ReservationManager:
                     ":user_id": user_id
                 }
             )
-            
+
             items = scan_response.get("Items", [])
             if len(items) == 0:
                 return None
             elif len(items) > 1:
                 return None  # Ambiguous - need longer prefix
-            
+
             reservation = items[0]
-            
+
             return {
                 "ssh_command": reservation.get("ssh_command", "ssh user@pending"),
                 "pod_name": reservation.get("pod_name", "pending"),
@@ -190,6 +190,8 @@ class ReservationManager:
                 "reservation_id": reservation["reservation_id"],
                 "instance_type": reservation.get("instance_type", "unknown"),
                 "gpu_type": reservation.get("gpu_type", "unknown"),
+                "failure_reason": reservation.get("failure_reason", ""),
+                "pod_logs": reservation.get("pod_logs", ""),
             }
 
         except Exception as e:
@@ -289,11 +291,11 @@ class ReservationManager:
         try:
             signal.signal(signal.SIGQUIT, handle_clean_exit)
             console.print(
-                "[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Press [cyan]Ctrl+backslash[/cyan] to exit cleanly[/dim]"
+                "[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Press [cyan]Ctrl+backslash[/cyan] to exit but keep reservation[/dim]"
             )
         except (AttributeError, OSError):
             console.print(
-                "[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Send [cyan]SIGTERM[/cyan] to exit cleanly[/dim]"
+                "[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Send [cyan]SIGTERM[/cyan] to exit but keep reservation[/dim]"
             )
             console.print(
                 f"[dim]   (From another terminal: [cyan]kill {os.getpid()}[/cyan])[/dim]"
@@ -399,13 +401,20 @@ class ReservationManager:
                                 console.print(help_text)
                                 show_queue_help = False
 
+                        elif current_status == "preparing":
+                            # Show dynamic pod events from failure_reason field
+                            failure_reason = reservation.get("failure_reason", "")
+                            if failure_reason:
+                                message = f"🚀 Preparing: {failure_reason}"
+                            else:
+                                message = status_messages.get(current_status, f"Status: {current_status}")
                         else:
                             message = status_messages.get(
                                 current_status, f"Status: {current_status}"
                             )
 
-                        # Update spinner if status changed or we're in queue (to show updated countdown)
-                        if current_status != last_status or current_status == "queued":
+                        # Update spinner if status changed or we're in queue/preparing (to show updated info)
+                        if current_status != last_status or current_status in ["queued", "preparing"]:
                             spinner.text = message
                             last_status = current_status
                             live.update(spinner)
@@ -446,6 +455,25 @@ class ReservationManager:
                                 console.print(
                                     f"[red]📋 Reservation ID: {reservation_id}[/red]"
                                 )
+                                
+                                # Show pod logs if available
+                                pod_logs = reservation.get("pod_logs", "")
+                                if pod_logs and pod_logs.strip():
+                                    from rich.panel import Panel
+                                    from rich.text import Text
+                                    
+                                    console.print("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
+                                    
+                                    # Create logs panel that's always visible but styled nicely
+                                    log_text = Text(pod_logs)
+                                    log_panel = Panel(
+                                        log_text,
+                                        title="🐚 Container Startup Logs",
+                                        title_align="left",
+                                        border_style="red",
+                                        expand=False
+                                    )
+                                    console.print(log_panel)
                             else:
                                 console.print(
                                     f"\n[yellow]🛑 Reservation was cancelled[/yellow]"
@@ -495,7 +523,7 @@ class ReservationManager:
                 )
                 console.print("[cyan]💡 Use 'gpu-dev list' to check status[/cyan]")
                 console.print(
-                    "[cyan]💡 Use 'gpu-dev connect {id}' to get connection details when ready[/cyan]".format(
+                    "[cyan]💡 Use 'gpu-dev show {id}' to get connection details when ready[/cyan]".format(
                         id=reservation_id[:8]
                     )
                 )

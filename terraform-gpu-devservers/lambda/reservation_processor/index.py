@@ -54,7 +54,7 @@ def handler(event, context):
                 try:
                     message_body = json.loads(record["body"])
                     message_type = message_body.get("type", "reservation")
-                    
+
                     if message_type == "cancellation":
                         success = process_cancellation_request(record)
                     else:
@@ -63,7 +63,7 @@ def handler(event, context):
                     # Delete message from queue if processed successfully
                     if success:
                         delete_sqs_message(record)
-                        
+
                 except Exception as parse_error:
                     logger.error(f"Error parsing SQS message: {parse_error}")
                     # Don't delete malformed messages - let them go to DLQ
@@ -129,13 +129,13 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                     queue_info["estimated_wait_minutes"],
                     available_gpus,
                 )
-                
+
                 update_reservation_status(
                     reservation_id,
                     "queued",
                     f"In queue (#{queue_info.get('position', '?')})",
                 )
-                
+
                 logger.info(
                     f"Insufficient resources. Set reservation {reservation_id[:8]} to queued (#{queue_info.get('position', '?')}). Scheduled Lambda will retry."
                 )
@@ -296,9 +296,13 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         ssh_command = f"ssh -p {node_port} dev@{node_public_ip}"
 
         # Wait for SSH service to be fully ready (additional wait beyond pod ready)
-        logger.info(f"Pod is ready, waiting for SSH service to start on {node_public_ip}:{node_port}")
-        ssh_ready = wait_for_ssh_service(k8s_client, pod_name, node_public_ip, node_port, timeout_seconds=180)
-        
+        logger.info(
+            f"Pod is ready, waiting for SSH service to start on {node_public_ip}:{node_port}"
+        )
+        ssh_ready = wait_for_ssh_service(
+            k8s_client, pod_name, node_public_ip, node_port, timeout_seconds=180
+        )
+
         if ssh_ready:
             # Update reservation with connection details and mark as active
             update_reservation_connection_info(
@@ -311,17 +315,23 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         else:
             # Check pod status to determine if it's failed or still starting
             pod_status = get_detailed_pod_status(k8s_client, pod_name)
-            if pod_status['phase'] == 'Failed' or pod_status['has_errors']:
+            if pod_status["phase"] == "Failed" or pod_status["has_errors"]:
                 update_reservation_status(
-                    reservation_id, "failed", f"Pod failed to start properly: {pod_status['reason']}"
+                    reservation_id,
+                    "failed",
+                    f"Pod failed to start properly: {pod_status['reason']}",
                 )
                 raise RuntimeError(f"Pod failed: {pod_status['reason']}")
             else:
                 # Pod is running but SSH not ready yet - keep as preparing
                 update_reservation_status(
-                    reservation_id, "preparing", "Pod is running, SSH service still starting"
+                    reservation_id,
+                    "preparing",
+                    "Pod is running, SSH service still starting",
                 )
-                logger.warning(f"SSH not ready yet for {pod_name}, keeping reservation in preparing state")
+                logger.warning(
+                    f"SSH not ready yet for {pod_name}, keeping reservation in preparing state"
+                )
 
         # GPU allocation handled automatically by K8s scheduler
 
@@ -405,7 +415,7 @@ def create_kubernetes_resources(
     """Create Kubernetes pod and NodePort service using Python client"""
     try:
         from kubernetes import client
-        
+
         # Configure Kubernetes client
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
@@ -413,32 +423,42 @@ def create_kubernetes_resources(
         # Check if pod already exists
         pod_exists = False
         existing_service_port = None
-        
+
         try:
             existing_pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
             pod_exists = True
             pod_phase = existing_pod.status.phase
-            logger.info(f"Pod {pod_name} already exists (phase: {pod_phase}), checking service...")
-            
+            logger.info(
+                f"Pod {pod_name} already exists (phase: {pod_phase}), checking service..."
+            )
+
             # Check if service exists too
             try:
-                existing_service = v1.read_namespaced_service(name=f"{pod_name}-ssh", namespace="gpu-dev")
+                existing_service = v1.read_namespaced_service(
+                    name=f"{pod_name}-ssh", namespace="gpu-dev"
+                )
                 existing_service_port = existing_service.spec.ports[0].node_port
-                logger.info(f"Service {pod_name}-ssh already exists on port {existing_service_port}")
+                logger.info(
+                    f"Service {pod_name}-ssh already exists on port {existing_service_port}"
+                )
             except client.exceptions.ApiException as service_error:
                 if service_error.status == 404:
-                    logger.info(f"Service {pod_name}-ssh does not exist, will create it")
+                    logger.info(
+                        f"Service {pod_name}-ssh does not exist, will create it"
+                    )
                 else:
                     raise
-                    
+
         except client.exceptions.ApiException as pod_error:
             if pod_error.status != 404:
                 raise
-        
+
         if pod_exists and existing_service_port:
             # Both pod and service exist, use existing port
             node_port = existing_service_port
-            logger.info(f"Using existing resources: pod {pod_name}, service port {node_port}")
+            logger.info(
+                f"Using existing resources: pod {pod_name}, service port {node_port}"
+            )
         else:
             # Find available node port (30000-32767 range)
             node_port = find_available_node_port(k8s_client)
@@ -447,7 +467,7 @@ def create_kubernetes_resources(
             if not pod_exists:
                 create_pod(k8s_client, pod_name, gpu_count, github_public_key)
                 logger.info(f"Created new pod {pod_name}")
-            
+
             # Create service if it doesn't exist
             if not existing_service_port:
                 create_service(k8s_client, pod_name, node_port)
@@ -548,16 +568,151 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
             containers=[
                 client.V1Container(
                     name="gpu-dev",
-                    image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime",
+                    image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel",
                     command=["/bin/bash"],
                     args=[
                         "-c",
                         """
                         set -e  # Exit on any error
 
-                        echo "[STARTUP] Installing SSH server..."
-                        apt-get update -qq
-                        apt-get install -y openssh-server sudo curl vim
+                        echo "[STARTUP] Installing SSH server and essential tools..."
+                        # Retry apt-get update with backoff to handle mirror sync issues
+                        for attempt in 1 2 3; do
+                            echo "Attempt $attempt: Updating package lists..."
+                            apt-get update -qq && break
+                            if [ $attempt -lt 3 ]; then
+                                echo "Update failed, waiting 30s before retry..."
+                                sleep 30
+                            else
+                                echo "All update attempts failed, continuing with cached packages..."
+                            fi
+                        done
+
+                        apt-get install -y openssh-server sudo curl vim coreutils util-linux procps zsh
+
+                        echo "[STARTUP] Installing modern Node.js..."
+                        # Install Node.js 20 from NodeSource (Claude CLI requires Node 18+)
+                        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+                        apt-get install -y nodejs
+
+                        # Ensure PATH includes standard directories for this session
+                        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
+                        echo "[STARTUP] Setting up dev user shell environments..."
+                        # Set up clean environment for dev user (both bash and zsh)
+                        mkdir -p /home/dev
+
+                        # Create shared environment file
+                        cat > /home/dev/.shell_env << 'SHELL_ENV_EOF'
+# Clean PATH setup (no duplicates)
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+
+# CUDA environment
+export CUDA_HOME=/usr/local/cuda
+export PATH="/usr/local/cuda/bin:$PATH"
+export LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+
+# Node.js user global packages (for Claude CLI)
+export PATH="$HOME/.npm-global/bin:$PATH"
+
+# Claude Code configuration for Bedrock
+export CLAUDE_CODE_USE_BEDROCK=1
+export ANTHROPIC_MODEL="us.anthropic.claude-sonnet-4-20250514-v1:0"
+SHELL_ENV_EOF
+
+                        # Set up .bashrc
+                        cat > /home/dev/.bashrc << 'BASHRC_EOF'
+# Source shared environment
+[ -f ~/.shell_env ] && source ~/.shell_env
+
+# Bash-specific settings
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    . /etc/bash_completion
+fi
+
+# Shell selection helper
+alias use-zsh='echo "To switch to zsh permanently, run: chsh -s /usr/bin/zsh"'
+alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
+
+BASHRC_EOF
+
+                        # Set up .zshrc
+                        cat > /home/dev/.zshrc << 'ZSHRC_EOF'
+# Source shared environment
+[ -f ~/.shell_env ] && source ~/.shell_env
+
+# Zsh-specific settings
+autoload -Uz compinit
+compinit
+
+# Enable oh-my-zsh style prompt (simple)
+autoload -Uz vcs_info
+precmd() { vcs_info }
+zstyle ':vcs_info:git:*' formats ' (%b)'
+setopt PROMPT_SUBST
+PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{red}${vcs_info_msg_0_}%f$ '
+
+# Shell selection helper
+alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
+alias use-zsh='echo "To switch to zsh permanently, run: chsh -s /usr/bin/zsh"'
+
+# Zsh completion and history settings
+HISTSIZE=10000
+SAVEHIST=10000
+HISTFILE=~/.zsh_history
+setopt SHARE_HISTORY
+setopt HIST_IGNORE_DUPS
+
+ZSHRC_EOF
+
+                        # Set up .bash_profile to source .bashrc for SSH login shells
+                        cat > /home/dev/.bash_profile << 'BASH_PROFILE_EOF'
+# Source shared environment directly (failsafe)
+if [ -f ~/.shell_env ]; then
+    source ~/.shell_env
+fi
+
+# Source .bashrc for additional bash-specific settings
+if [ -f ~/.bashrc ]; then
+    source ~/.bashrc
+fi
+
+# Show MOTD on login
+if [ -f /etc/motd ]; then
+    cat /etc/motd
+fi
+BASH_PROFILE_EOF
+
+                        # Also create .profile as a fallback (some systems prefer this)
+                        cat > /home/dev/.profile << 'PROFILE_EOF'
+# Source shared environment
+if [ -f ~/.shell_env ]; then
+    source ~/.shell_env
+fi
+
+# Source .bashrc if bash
+if [ -n "$BASH_VERSION" ] && [ -f ~/.bashrc ]; then
+    source ~/.bashrc
+fi
+
+# Show MOTD on login
+if [ -f /etc/motd ]; then
+    cat /etc/motd
+fi
+PROFILE_EOF
+
+                        # Set up .zprofile to source .zshrc for zsh login shells
+                        cat > /home/dev/.zprofile << 'ZPROFILE_EOF'
+# Source .zshrc for login shells (like SSH)
+if [ -f ~/.zshrc ]; then
+    source ~/.zshrc
+fi
+
+# Show MOTD on login
+if [ -f /etc/motd ]; then
+    cat /etc/motd
+fi
+ZPROFILE_EOF
 
                         echo "[STARTUP] Setting up dev user..."
                         # Create dev user with same UID as init container (should already exist from volume)
@@ -566,6 +721,13 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
                         usermod -aG sudo dev
                         # Allow passwordless sudo for dev user
                         echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+
+                        echo "[STARTUP] Installing Claude CLI as dev user..."
+                        # Configure npm to use user directory for global packages
+                        su - dev -c "mkdir -p ~/.npm-global"
+                        su - dev -c "npm config set prefix ~/.npm-global"
+                        su - dev -c "npm install -g @anthropic-ai/claude-code" || echo "Claude CLI install failed, continuing..."
+
 
                         echo "[STARTUP] Configuring SSH..."
                         mkdir -p /run/sshd
@@ -593,6 +755,8 @@ EOF
                         ssh-keygen -A
 
                         echo "[STARTUP] Setting up dev user home directory..."
+                        # Ensure all shell config files have correct ownership
+                        chown 1000:1000 /home/dev/.shell_env /home/dev/.bashrc /home/dev/.zshrc /home/dev/.bash_profile /home/dev/.zprofile /home/dev/.profile
                         chown -R 1000:1000 /home/dev
 
                         # Verify SSH keys were set up by init container
@@ -608,23 +772,23 @@ EOF
                         echo "[STARTUP] Setting up custom MOTD..."
                         # Remove ALL default Ubuntu MOTD files and disclaimers
                         rm -f /etc/motd /etc/update-motd.d/* /etc/legal /usr/share/base-files/motd 2>/dev/null || true
-                        
+
                         # Create necessary directories if they don't exist
                         mkdir -p /etc/motd.d /etc/update-motd.d /var/lib/sudo/lectured
-                        
+
                         # Disable Ubuntu's built-in copyright notices
                         touch /etc/motd.d/00-header
                         chmod 644 /etc/motd.d/00-header
-                        
+
                         # Disable the sudo reminder by creating empty file and all possible methods
                         touch /var/lib/sudo/lectured/dev
-                        mkdir -p /var/lib/sudo/lectured 
+                        mkdir -p /var/lib/sudo/lectured
                         echo "dev" > /var/lib/sudo/lectured/dev
-                        
+
                         # Also disable sudo lecture in sudoers
                         echo 'Defaults lecture=never' >> /etc/sudoers.d/dev
                         echo 'Defaults !lecture' >> /etc/sudoers.d/dev
-                        
+
                         # Create custom MOTD script with proper error handling
                         cat > /etc/update-motd.d/00-custom << 'MOTD_EOF'
 #!/bin/bash
@@ -633,8 +797,21 @@ EOF
 # Get OS info
 OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
 
-# Get container info  
-CONTAINER_IMAGE="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime"
+# Get container info
+CONTAINER_IMAGE="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel"
+
+# Get CUDA toolkit info
+CUDA_INFO="CUDA toolkit unavailable"
+if command -v nvcc >/dev/null 2>&1; then
+    CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \\([0-9.]*\\).*/\\1/' 2>/dev/null)
+    if [ -n "$CUDA_VERSION" ]; then
+        CUDA_INFO="CUDA $CUDA_VERSION (nvcc available)"
+    else
+        CUDA_INFO="CUDA toolkit installed (nvcc available)"
+    fi
+elif [ -d "/usr/local/cuda" ]; then
+    CUDA_INFO="CUDA toolkit installed (nvcc not in PATH)"
+fi
 
 # Get GPU info with error handling
 GPU_INFO="GPU detection unavailable"
@@ -647,7 +824,7 @@ if command -v nvidia-smi >/dev/null 2>&1; then
         FIRST_GPU=$(echo "$GPU_DATA" | head -1)
         GPU_NAME=$(echo "$FIRST_GPU" | cut -d',' -f1 | xargs)
         GPU_MEMORY=$(echo "$FIRST_GPU" | cut -d',' -f2 | xargs)
-        
+
         if [ "$GPU_COUNT" -eq 1 ]; then
             GPU_INFO="1x $GPU_NAME, ${GPU_MEMORY}MiB"
         else
@@ -662,8 +839,13 @@ cat << WELCOME_EOF
 🚀 Welcome to your GPU development server!
 
 System: $OS_INFO
-Container: $CONTAINER_IMAGE  
+Container: $CONTAINER_IMAGE
+CUDA: $CUDA_INFO
 GPUs: $GPU_INFO
+
+Shell: Bash (default) | Zsh available
+  • Try 'zsh' to test zsh, or 'use-zsh' for switch instructions
+  • Both shells have the same environment (CUDA, Claude Code, etc.)
 
 For support, reach out to: oncall:pytorch_release_engineering
 
@@ -674,27 +856,21 @@ MOTD_EOF
 
                         # Make MOTD script executable
                         chmod +x /etc/update-motd.d/00-custom
-                        
+
                         # Generate the MOTD once (no dynamic updates to avoid duplicates)
                         /etc/update-motd.d/00-custom > /etc/motd 2>/dev/null || echo "Welcome to GPU dev server!" > /etc/motd
-                        
-                        # Also add to user's shell profile to ensure it shows
-                        cat > /home/dev/.bash_profile << 'PROFILE_EOF'
-# Custom welcome message
-if [ -f /etc/motd ]; then
-    cat /etc/motd
-fi
-PROFILE_EOF
-                        chown 1000:1000 /home/dev/.bash_profile
-                        
+
+                        # Note: MOTD will be shown by .bash_profile sourcing .bashrc which runs MOTD
+                        # No need to create separate .bash_profile for MOTD since we already have environment setup
+
                         # Disable PAM's dynamic MOTD completely
                         sed -i 's/session    optional     pam_motd.so/#&/g' /etc/pam.d/sshd 2>/dev/null || true
                         sed -i 's/session    optional     pam_motd.so  motd=/#&/g' /etc/pam.d/sshd 2>/dev/null || true
-                        
+
                         # Remove additional Ubuntu legal notices and update system
                         rm -rf /etc/update-motd.d/00-header /etc/update-motd.d/10-help-text /etc/update-motd.d/80-esm /etc/update-motd.d/95-hwe-eol 2>/dev/null || true
                         chmod -x /usr/sbin/update-motd 2>/dev/null || true
-                        
+
                         # Disable Ubuntu Pro advertisements and legal notices
                         echo 'export UBUNTU_PRO_HIDDEN=1' >> /home/dev/.bashrc
                         touch /etc/motd.d/00-header /etc/motd.d/10-help-text
@@ -727,7 +903,7 @@ PROFILE_EOF
                 ),
                 client.V1Volume(
                     name="shared-workspace",
-                    empty_dir=client.V1EmptyDirVolumeSource(size_limit="100Gi"),
+                    empty_dir=client.V1EmptyDirVolumeSource(size_limit="500Gi"),
                 ),
             ],
             tolerations=[
@@ -819,7 +995,7 @@ spec:
       mountPath: /home/dev
   containers:
   - name: gpu-dev
-    image: pytorch/pytorch:2.8.0-cuda12.9-cudnn9-runtime
+    image: pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel
 
     command: ["/bin/bash"]
     args:
@@ -999,36 +1175,40 @@ def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]
     """Get instance type and GPU type from the node where pod is scheduled"""
     try:
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Get pod to find which node it's scheduled on
         pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
         node_name = pod.spec.node_name
-        
+
         if not node_name:
             return "unknown", "unknown"
-        
+
         # Get node details to find instance type
         node = v1.read_node(name=node_name)
-        instance_type = node.metadata.labels.get("node.kubernetes.io/instance-type", "unknown")
-        
+        instance_type = node.metadata.labels.get(
+            "node.kubernetes.io/instance-type", "unknown"
+        )
+
         # Map instance type to GPU type
         gpu_type_mapping = {
             "g4dn.xlarge": "T4",
-            "g4dn.2xlarge": "T4", 
+            "g4dn.2xlarge": "T4",
             "g4dn.4xlarge": "T4",
             "g4dn.8xlarge": "T4",
             "g4dn.12xlarge": "T4",
             "g4dn.16xlarge": "T4",
             "p5.48xlarge": "H100",
         }
-        
+
         gpu_type = gpu_type_mapping.get(instance_type, "Unknown")
-        
-        logger.info(f"Pod {pod_name} scheduled on node {node_name} with instance type {instance_type} (GPU: {gpu_type})")
+
+        logger.info(
+            f"Pod {pod_name} scheduled on node {node_name} with instance type {instance_type} (GPU: {gpu_type})"
+        )
         return instance_type, gpu_type
-        
+
     except Exception as e:
         logger.error(f"Error getting instance type for pod {pod_name}: {e}")
         return "unknown", "unknown"
@@ -1040,26 +1220,28 @@ def update_reservation_connection_info(
     """Update reservation with connection details and set proper expiration time"""
     try:
         from datetime import datetime, timedelta
-        
+
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        
+
         # Get the original reservation to find the duration
         response = reservations_table.get_item(Key={"reservation_id": reservation_id})
         if "Item" not in response:
             raise ValueError(f"Reservation {reservation_id} not found")
-        
+
         reservation = response["Item"]
-        duration_hours = float(reservation.get("duration_hours", 2))  # Default 2 hours if not found
-        
+        duration_hours = float(
+            reservation.get("duration_hours", 2)
+        )  # Default 2 hours if not found
+
         # Set expiration time from NOW (when reservation becomes active)
         now = datetime.utcnow()
         expires_at = (now + timedelta(hours=duration_hours)).isoformat()
         launched_at = now.isoformat()
-        
+
         # Get instance type and GPU type info
         k8s_client = setup_kubernetes_client()
         instance_type, gpu_type = get_instance_type_and_gpu_info(k8s_client, pod_name)
-        
+
         reservations_table.update_item(
             Key={"reservation_id": reservation_id},
             UpdateExpression="""
@@ -1088,7 +1270,9 @@ def update_reservation_connection_info(
                 ":status": "active",
             },
         )
-        logger.info(f"Updated reservation {reservation_id} with connection info and expires_at={expires_at}")
+        logger.info(
+            f"Updated reservation {reservation_id} with connection info and expires_at={expires_at}"
+        )
 
     except Exception as e:
         logger.error(f"Error updating reservation connection info: {str(e)}")
@@ -1199,55 +1383,58 @@ def update_reservation_with_queue_info(
         logger.error(f"Error updating reservation queue info: {str(e)}")
 
 
-def wait_for_ssh_service(k8s_client, pod_name: str, node_ip: str, node_port: int, timeout_seconds: int = 180) -> bool:
+def wait_for_ssh_service(
+    k8s_client, pod_name: str, node_ip: str, node_port: int, timeout_seconds: int = 180
+) -> bool:
     """Wait for SSH service to be ready by checking pod logs and testing connectivity"""
     try:
         import socket
+
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
         start_time = time.time()
-        
+
         logger.info(f"Waiting up to {timeout_seconds}s for SSH service on {pod_name}")
-        
+
         while time.time() - start_time < timeout_seconds:
             try:
                 # Check pod logs for SSH daemon startup
                 logs = v1.read_namespaced_pod_log(
-                    name=pod_name, 
-                    namespace="gpu-dev", 
-                    tail_lines=50
+                    name=pod_name, namespace="gpu-dev", tail_lines=50
                 )
-                
+
                 if "SSH daemon starting on port 22" in logs:
                     logger.info("SSH daemon has started according to logs")
-                    
+
                     # Give SSH daemon a moment to fully start
                     time.sleep(5)
-                    
+
                     # Test actual connectivity
                     try:
                         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                         sock.settimeout(10)
                         result = sock.connect_ex((node_ip, node_port))
                         sock.close()
-                        
+
                         if result == 0:
-                            logger.info(f"SSH service is responding on {node_ip}:{node_port}")
+                            logger.info(
+                                f"SSH service is responding on {node_ip}:{node_port}"
+                            )
                             return True
                         else:
                             logger.info(f"SSH port not yet accessible: {result}")
                     except Exception as e:
                         logger.info(f"SSH connectivity test failed: {e}")
-                
+
             except Exception as e:
                 logger.warning(f"Error checking SSH readiness: {e}")
-            
+
             time.sleep(10)
-        
+
         logger.warning(f"SSH service not ready after {timeout_seconds} seconds")
         return False
-        
+
     except Exception as e:
         logger.error(f"Error waiting for SSH service: {e}")
         return False
@@ -1257,45 +1444,45 @@ def get_detailed_pod_status(k8s_client, pod_name: str) -> dict:
     """Get detailed pod status including phase, conditions, and error messages"""
     try:
         from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
         pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
-        
+
         phase = pod.status.phase
         has_errors = False
         reason = "Unknown"
-        
+
         # Check container statuses for errors
         if pod.status.container_statuses:
             for container_status in pod.status.container_statuses:
                 if container_status.state.waiting:
-                    if container_status.state.waiting.reason in ['ImagePullBackOff', 'ErrImagePull', 'CrashLoopBackOff']:
+                    if container_status.state.waiting.reason in [
+                        "ImagePullBackOff",
+                        "ErrImagePull",
+                        "CrashLoopBackOff",
+                    ]:
                         has_errors = True
                         reason = f"Container {container_status.name}: {container_status.state.waiting.reason}"
                 elif container_status.state.terminated:
                     if container_status.state.terminated.exit_code != 0:
                         has_errors = True
                         reason = f"Container {container_status.name} exited with code {container_status.state.terminated.exit_code}"
-        
+
         # Check pod conditions
         if pod.status.conditions:
             for condition in pod.status.conditions:
                 if condition.type == "PodScheduled" and condition.status == "False":
                     has_errors = True
                     reason = f"Scheduling failed: {condition.message}"
-        
-        return {
-            'phase': phase,
-            'has_errors': has_errors,
-            'reason': reason
-        }
-        
+
+        return {"phase": phase, "has_errors": has_errors, "reason": reason}
+
     except Exception as e:
         logger.error(f"Error getting pod status: {e}")
         return {
-            'phase': 'Unknown',
-            'has_errors': True,
-            'reason': f"Error getting status: {e}"
+            "phase": "Unknown",
+            "has_errors": True,
+            "reason": f"Error getting status: {e}",
         }
 
 
@@ -1303,15 +1490,19 @@ def process_scheduled_queue_management():
     """Process queued reservations and update ETAs every minute"""
     try:
         current_time = int(time.time())
-        logger.info(f"Processing scheduled queue management at timestamp {current_time}")
+        logger.info(
+            f"Processing scheduled queue management at timestamp {current_time}"
+        )
 
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        
+
         # Get all queued reservations (NOT pending - those are handled by SQS)
         # Scheduled processing should only handle reservations that are truly queued
-        queued_statuses = ["queued"]  # Only process truly queued, not fresh pending ones
+        queued_statuses = [
+            "queued"
+        ]  # Only process truly queued, not fresh pending ones
         all_queued_reservations = []
-        
+
         for status in queued_statuses:
             try:
                 response = reservations_table.query(
@@ -1324,43 +1515,53 @@ def process_scheduled_queue_management():
                 # This prevents collision with SQS processing
                 raw_reservations = response.get("Items", [])
                 filtered_reservations = []
-                
+
                 for reservation in raw_reservations:
                     created_at = reservation.get("created_at", "")
                     try:
                         if isinstance(created_at, str):
                             created_timestamp = int(
-                                datetime.fromisoformat(created_at.replace("Z", "+00:00")).timestamp()
+                                datetime.fromisoformat(
+                                    created_at.replace("Z", "+00:00")
+                                ).timestamp()
                             )
                         else:
                             created_timestamp = int(created_at)
-                        
+
                         # Only process reservations older than 30 seconds to avoid SQS collision
                         if current_time - created_timestamp > 30:
                             filtered_reservations.append(reservation)
                         else:
-                            logger.info(f"Skipping recent reservation {reservation['reservation_id'][:8]} to avoid SQS collision")
+                            logger.info(
+                                f"Skipping recent reservation {reservation['reservation_id'][:8]} to avoid SQS collision"
+                            )
                     except Exception as e:
-                        logger.warning(f"Could not parse created_at for reservation {reservation.get('reservation_id', 'unknown')}: {e}")
+                        logger.warning(
+                            f"Could not parse created_at for reservation {reservation.get('reservation_id', 'unknown')}: {e}"
+                        )
                         # If we can't parse timestamp, include it to be safe
                         filtered_reservations.append(reservation)
-                
+
                 all_queued_reservations.extend(filtered_reservations)
             except Exception as e:
                 logger.error(f"Error querying {status} reservations: {e}")
 
-        logger.info(f"Found {len(all_queued_reservations)} queued reservations (excluding recent ones)")
+        logger.info(
+            f"Found {len(all_queued_reservations)} queued reservations (excluding recent ones)"
+        )
 
         if not all_queued_reservations:
             return {
                 "statusCode": 200,
-                "body": json.dumps({"message": "No queued reservations to process", "processed": 0}),
+                "body": json.dumps(
+                    {"message": "No queued reservations to process", "processed": 0}
+                ),
             }
 
         # Set up K8s client and tracker for resource checking
         k8s_client = setup_kubernetes_client()
         gpu_tracker = K8sGPUTracker(k8s_client)
-        
+
         # Get current GPU availability
         try:
             capacity_info = gpu_tracker.get_gpu_capacity_info()
@@ -1385,7 +1586,7 @@ def process_scheduled_queue_management():
 
         # Sort queued reservations by creation time (FIFO)
         all_queued_reservations.sort(key=lambda x: x.get("created_at", ""))
-        
+
         processed_count = 0
         allocated_count = 0
         updated_count = 0
@@ -1396,72 +1597,114 @@ def process_scheduled_queue_management():
                 reservation_id = reservation["reservation_id"]
                 requested_gpus = int(reservation.get("gpu_count", 1))
                 current_status = reservation.get("status", "pending")
-                
+
                 # Check if this reservation can be allocated now
                 if available_gpus >= requested_gpus:
-                    logger.info(f"Allocating {requested_gpus} GPUs for reservation {reservation_id}")
-                    
+                    logger.info(
+                        f"Allocating {requested_gpus} GPUs for reservation {reservation_id}"
+                    )
+
                     # Update status to preparing
-                    update_reservation_status(reservation_id, "preparing", "GPUs available - preparing environment")
-                    
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing",
+                        "GPUs available - preparing environment",
+                    )
+
                     # Try to create the actual resources
                     try:
                         # Create reservation using the same logic as the SQS handler
-                        allocation_success = allocate_gpu_resources(reservation_id, reservation)
-                        if allocation_success is not False:  # None or True means success
+                        allocation_success = allocate_gpu_resources(
+                            reservation_id, reservation
+                        )
+                        if (
+                            allocation_success is not False
+                        ):  # None or True means success
                             available_gpus -= requested_gpus  # Reduce available count
                             allocated_count += 1
-                            logger.info(f"Successfully allocated resources for reservation {reservation_id}")
+                            logger.info(
+                                f"Successfully allocated resources for reservation {reservation_id}"
+                            )
                         else:
-                            logger.warning(f"Failed to allocate resources for reservation {reservation_id}")
-                            update_reservation_status(reservation_id, "queued", "Allocation failed, back to queue")
+                            logger.warning(
+                                f"Failed to allocate resources for reservation {reservation_id}"
+                            )
+                            update_reservation_status(
+                                reservation_id,
+                                "queued",
+                                "Allocation failed, back to queue",
+                            )
                     except Exception as alloc_error:
-                        logger.error(f"Error allocating resources for {reservation_id}: {alloc_error}")
-                        update_reservation_status(reservation_id, "queued", f"Allocation error: {str(alloc_error)}")
+                        logger.error(
+                            f"Error allocating resources for {reservation_id}: {alloc_error}"
+                        )
+                        update_reservation_status(
+                            reservation_id,
+                            "queued",
+                            f"Allocation error: {str(alloc_error)}",
+                        )
                 else:
                     # Update queue position and ETA for waiting reservations
                     queue_position = i + 1
-                    
+
                     # Calculate estimated wait time using K8s tracker
                     try:
-                        wait_estimate = gpu_tracker.estimate_wait_time(requested_gpus, active_reservations)
-                        estimated_wait_minutes = wait_estimate.get("estimated_wait_minutes", 30)
+                        wait_estimate = gpu_tracker.estimate_wait_time(
+                            requested_gpus, active_reservations
+                        )
+                        estimated_wait_minutes = wait_estimate.get(
+                            "estimated_wait_minutes", 30
+                        )
                     except Exception as e:
                         logger.warning(f"Could not calculate wait time: {e}")
-                        estimated_wait_minutes = queue_position * 15  # Fallback: 15min per position
+                        estimated_wait_minutes = (
+                            queue_position * 15
+                        )  # Fallback: 15min per position
 
                     # Update reservation with current queue info
                     update_reservation_with_queue_info(
-                        reservation_id, 
-                        str(queue_position), 
+                        reservation_id,
+                        str(queue_position),
                         str(estimated_wait_minutes),
-                        available_gpus
+                        available_gpus,
                     )
-                    
+
                     # Update status with human-readable timestamps if needed
                     if current_status == "pending":
-                        update_reservation_status(reservation_id, "queued", f"In queue position #{queue_position}")
-                    
+                        update_reservation_status(
+                            reservation_id,
+                            "queued",
+                            f"In queue position #{queue_position}",
+                        )
+
                     updated_count += 1
-                    logger.info(f"Updated queue info for reservation {reservation_id}: pos={queue_position}, wait={estimated_wait_minutes}min")
+                    logger.info(
+                        f"Updated queue info for reservation {reservation_id}: pos={queue_position}, wait={estimated_wait_minutes}min"
+                    )
 
                 processed_count += 1
 
             except Exception as e:
-                logger.error(f"Error processing reservation {reservation.get('reservation_id', 'unknown')}: {e}")
+                logger.error(
+                    f"Error processing reservation {reservation.get('reservation_id', 'unknown')}: {e}"
+                )
                 continue
 
-        logger.info(f"Queue processing complete: {processed_count} processed, {allocated_count} allocated, {updated_count} updated")
+        logger.info(
+            f"Queue processing complete: {processed_count} processed, {allocated_count} allocated, {updated_count} updated"
+        )
 
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "message": "Queue processing completed",
-                "processed": processed_count,
-                "allocated": allocated_count,
-                "updated": updated_count,
-                "available_gpus": available_gpus
-            }),
+            "body": json.dumps(
+                {
+                    "message": "Queue processing completed",
+                    "processed": processed_count,
+                    "allocated": allocated_count,
+                    "updated": updated_count,
+                    "available_gpus": available_gpus,
+                }
+            ),
         }
 
     except Exception as e:
@@ -1474,16 +1717,18 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
     try:
         # Parse the cancellation request
         message_body = json.loads(record["body"])
-        
+
         logger.info(f"Processing cancellation: {message_body}")
-        
+
         reservation_id = message_body.get("reservation_id")
         user_id = message_body.get("user_id")
-        
+
         if not reservation_id or not user_id:
-            logger.error(f"Invalid cancellation request - missing reservation_id or user_id: {message_body}")
+            logger.error(
+                f"Invalid cancellation request - missing reservation_id or user_id: {message_body}"
+            )
             return True  # Don't retry malformed messages
-        
+
         # Get current reservation to check status and ownership
         # Search by prefix - allows short reservation IDs
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -1493,16 +1738,20 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
                 FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
                 ExpressionAttributeValues={
                     ":prefix": reservation_id,
-                    ":user_id": user_id
-                }
+                    ":user_id": user_id,
+                },
             )
 
             items = scan_response.get("Items", [])
             if len(items) == 0:
-                logger.warning(f"Reservation {reservation_id} not found for user {user_id}")
+                logger.warning(
+                    f"Reservation {reservation_id} not found for user {user_id}"
+                )
                 return True  # Don't retry - reservation doesn't exist
             elif len(items) > 1:
-                logger.error(f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}")
+                logger.error(
+                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}"
+                )
                 return True  # Don't retry - ambiguous prefix
 
             reservation = items[0]
@@ -1512,10 +1761,14 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
 
             # Can only cancel active, queued, pending, or preparing reservations
             if current_status not in ["active", "queued", "pending", "preparing"]:
-                logger.warning(f"Cannot cancel reservation {full_reservation_id} in status {current_status}")
+                logger.warning(
+                    f"Cannot cancel reservation {full_reservation_id} in status {current_status}"
+                )
                 return True  # Don't retry - invalid status
 
-            logger.info(f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})")
+            logger.info(
+                f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})"
+            )
 
             # Update reservation status to cancelled
             now = datetime.utcnow().isoformat()
@@ -1529,27 +1782,33 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
                     ":reservation_ended": now,
                 },
             )
-            
+
             # If it was an active reservation, clean up the pod
             if current_status == "active":
                 pod_name = reservation.get("pod_name")
                 namespace = reservation.get("namespace", "gpu-dev")
-                
+
                 if pod_name:
                     try:
                         cleanup_pod_resources(pod_name, namespace)
-                        logger.info(f"Cleaned up pod resources for cancelled reservation {full_reservation_id}")
+                        logger.info(
+                            f"Cleaned up pod resources for cancelled reservation {full_reservation_id}"
+                        )
                     except Exception as cleanup_error:
-                        logger.error(f"Error cleaning up pod {pod_name}: {cleanup_error}")
+                        logger.error(
+                            f"Error cleaning up pod {pod_name}: {cleanup_error}"
+                        )
                         # Don't fail the cancellation if cleanup fails
 
             logger.info(f"Successfully cancelled reservation {full_reservation_id}")
             return True
 
         except Exception as db_error:
-            logger.error(f"Database error processing cancellation for {reservation_id}: {db_error}")
+            logger.error(
+                f"Database error processing cancellation for {reservation_id}: {db_error}"
+            )
             return False  # Retry on database errors
-            
+
     except Exception as e:
         logger.error(f"Error processing cancellation request: {str(e)}")
         return False  # Retry on processing errors
@@ -1562,6 +1821,7 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
 
         # Configure Kubernetes client
         from kubernetes import client
+
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
 
@@ -1578,7 +1838,7 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
             else:
                 logger.warning(f"Failed to delete service {service_name}: {e}")
 
-        # Delete the pod with grace period  
+        # Delete the pod with grace period
         try:
             v1.delete_namespaced_pod(
                 name=pod_name, namespace=namespace, grace_period_seconds=30
@@ -1596,7 +1856,9 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
                     )
                     logger.info(f"Force deleted pod {pod_name}")
                 except client.exceptions.ApiException as force_error:
-                    logger.error(f"Failed to force delete pod {pod_name}: {force_error}")
+                    logger.error(
+                        f"Failed to force delete pod {pod_name}: {force_error}"
+                    )
                     raise
 
     except Exception as e:
