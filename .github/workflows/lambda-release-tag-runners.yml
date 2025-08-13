@@ -46,6 +46,10 @@ jobs:
           repo-token: ${{ secrets.TAG_RELEASE }}
           tag: ${{ steps.tag.outputs.tag_name }}
 
+      - name: Write tag to summary
+        run: |
+          echo "Release tag: ${{ steps.tag.outputs.tag_name }}" >> "${GITHUB_STEP_SUMMARY}"
+
   call-release:
     permissions:
       contents: write
