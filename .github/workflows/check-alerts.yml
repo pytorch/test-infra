@@ -39,7 +39,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install Dependencies
-        run: pip3 install requests setuptools==61.2.0
+        run: pip3 install requests setuptools==80.9.0
       - name: Check for alerts and creates issue
         run: |
           cd tools
@@ -58,7 +58,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install Dependencies
-        run: pip3 install requests setuptools==61.2.0
+        run: pip3 install requests setuptools==80.9.0
       - name: Check for alerts and creates issue
         run: |
           cd tools
