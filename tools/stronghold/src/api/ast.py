@@ -19,21 +19,28 @@ def extract(path: pathlib.Path) -> Mapping[str, api.Parameters]:
      * ClassName.method_name
      * ClassName.SubClassName.method_name
     """
-    raw_api = extract_raw(path)
-    return {
-        name: _function_def_to_parameters(function_def)
-        for name, function_def in raw_api.items()
-    }
+    api_map, _ = extract_all(path)
+    return api_map
 
 
 def extract_raw(path: pathlib.Path) -> Mapping[str, ast.FunctionDef]:
     """Extracts the API as ast.FunctionDef instances."""
+    _, raw = extract_all(path)
+    return raw
+
+def extract_all(
+    path: pathlib.Path,
+) -> tuple[Mapping[str, api.Parameters], Mapping[str, ast.FunctionDef]]:
+    """Extracts both parsed parameters and raw ``ast.FunctionDef`` nodes."""
     out: dict[str, ast.FunctionDef] = {}
     _ContextualNodeVisitor(out, context=[]).visit(
         ast.parse(path.read_text(), os.fspath(path))
     )
-    return out
-
+    api_map = {
+        name: _function_def_to_parameters(function_def)
+        for name, function_def in out.items()
+    }
+    return api_map, out
 
 def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
     """Converts an ast.FunctionDef to api.Parameters."""
