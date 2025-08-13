@@ -61,10 +61,7 @@ class ReservationManager:
             if github_user:
                 initial_reservation["github_user"] = github_user
 
-            # Store in DynamoDB for immediate polling
-            self.reservations_table.put_item(Item=initial_reservation)
-
-            # Send processing request to SQS queue
+            # Send processing request to SQS queue (Lambda will create the initial record)
             # Use float for SQS message (JSON serializable)
             message = {
                 "reservation_id": reservation_id,

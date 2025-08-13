@@ -227,6 +227,9 @@ def handler(event, context):
 
             # Check if reservation has already expired (with grace period)
             expiry_with_grace = expires_at + GRACE_PERIOD_SECONDS
+            logger.info(
+                f"Checking expiry for {reservation_id[:8]}: expires_at={expires_at}, grace_until={expiry_with_grace}, current={current_time}, should_expire={expiry_with_grace < current_time}"
+            )
             if expiry_with_grace < current_time:
                 logger.info(
                     f"Expiring reservation {reservation_id} (expired at {expires_at}, grace until {expiry_with_grace}, current {current_time})"
@@ -493,37 +496,54 @@ def expire_reservation(reservation: dict[str, Any]) -> None:
     try:
         reservation_id = reservation["reservation_id"]
         user_id = reservation["user_id"]
-        int(reservation.get("gpu_count", 1))
 
         logger.info(f"Expiring reservation {reservation_id} for user {user_id}")
 
         # 1. Update reservation status to expired
+        logger.info(f"Updating DynamoDB status to expired for reservation {reservation_id}")
         now = datetime.utcnow().isoformat()
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression="SET #status = :status, expired_at = :expired_at, reservation_ended = :reservation_ended",
-            ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={
-                ":status": "expired",
-                ":expired_at": now,
-                ":reservation_ended": now,
-            },
-        )
+        
+        try:
+            reservations_table.update_item(
+                Key={"reservation_id": reservation_id},
+                UpdateExpression="SET #status = :status, expired_at = :expired_at, reservation_ended = :reservation_ended",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":status": "expired",
+                    ":expired_at": now,
+                    ":reservation_ended": now,
+                },
+            )
+            logger.info(f"Successfully updated DynamoDB status to expired for reservation {reservation_id}")
+        except Exception as db_error:
+            logger.error(f"Failed to update DynamoDB status for reservation {reservation_id}: {db_error}")
+            raise
 
         # 2. Clean up K8s pod (would use kubectl or K8s API)
         pod_name = reservation.get("pod_name")
         if pod_name:
-            cleanup_pod(pod_name, reservation.get("namespace", "gpu-dev"))
+            logger.info(f"Starting pod cleanup for reservation {reservation_id}, pod: {pod_name}")
+            try:
+                cleanup_pod(pod_name, reservation.get("namespace", "gpu-dev"))
+                logger.info(f"Pod cleanup completed for reservation {reservation_id}")
+            except Exception as cleanup_error:
+                logger.error(f"Pod cleanup failed for reservation {reservation_id}: {cleanup_error}")
+                # Don't re-raise - we want to continue processing other reservations
+                # The DynamoDB status is already updated correctly
+        else:
+            logger.warning(f"No pod_name found for reservation {reservation_id}, skipping pod cleanup")
 
         # GPU resources released automatically by K8s when pod is deleted
 
         logger.info(f"Successfully expired reservation {reservation_id}")
 
     except Exception as e:
-        logger.error(
-            f"Error expiring reservation {reservation.get('reservation_id')}: {str(e)}"
-        )
+        logger.error(f"Error expiring reservation {reservation.get('reservation_id')}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        # Re-raise only for critical errors, not pod cleanup failures
         raise
 
 
@@ -578,38 +598,46 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
         logger.info(f"Cleaning up pod {pod_name} in namespace {namespace}")
 
         # Configure Kubernetes client
+        logger.info(f"Setting up Kubernetes client for cleanup...")
         k8s_client = setup_kubernetes_client()
         v1 = client.CoreV1Api(k8s_client)
+        logger.info(f"Kubernetes client configured successfully")
 
         # Send final warning message before deletion
         try:
+            logger.info(f"Sending final warning message to pod {pod_name}")
             send_wall_message_to_pod(
                 pod_name,
                 "🚨 FINAL WARNING: Reservation expired! Pod will be deleted now. All unsaved work will be lost!",
                 namespace,
             )
+            logger.info(f"Final warning message sent to pod {pod_name}")
         except Exception as warn_error:
-            logger.warning(f"Could not send final warning: {warn_error}")
+            logger.warning(f"Could not send final warning to pod {pod_name}: {warn_error}")
 
         # Delete the NodePort service first
         service_name = f"{pod_name}-ssh"
         try:
+            logger.info(f"Attempting to delete service {service_name}")
             v1.delete_namespaced_service(
                 name=service_name, namespace=namespace, grace_period_seconds=0
             )
-            logger.info(f"Deleted service {service_name}")
+            logger.info(f"Successfully deleted service {service_name}")
         except client.exceptions.ApiException as e:
             if e.status == 404:
                 logger.info(f"Service {service_name} not found (already deleted)")
             else:
                 logger.warning(f"Failed to delete service {service_name}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error deleting service {service_name}: {e}")
 
         # Delete the pod with grace period
         try:
+            logger.info(f"Attempting to delete pod {pod_name} with 30s grace period")
             v1.delete_namespaced_pod(
                 name=pod_name, namespace=namespace, grace_period_seconds=30
             )
-            logger.info(f"Deleted pod {pod_name}")
+            logger.info(f"Successfully initiated deletion of pod {pod_name}")
         except client.exceptions.ApiException as e:
             if e.status == 404:
                 logger.info(f"Pod {pod_name} not found (already deleted)")
@@ -618,18 +646,25 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
 
                 # Force delete if graceful deletion failed
                 try:
+                    logger.info(f"Attempting force delete of pod {pod_name}")
                     v1.delete_namespaced_pod(
                         name=pod_name, namespace=namespace, grace_period_seconds=0
                     )
-                    logger.info(f"Force deleted pod {pod_name}")
+                    logger.info(f"Successfully force deleted pod {pod_name}")
                 except client.exceptions.ApiException as force_error:
-                    logger.error(
-                        f"Failed to force delete pod {pod_name}: {force_error}"
-                    )
+                    logger.error(f"Failed to force delete pod {pod_name}: {force_error}")
                     raise
+        except Exception as e:
+            logger.error(f"Unexpected error deleting pod {pod_name}: {e}")
+            raise
+
+        logger.info(f"Pod cleanup completed successfully for {pod_name}")
 
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise
 
 

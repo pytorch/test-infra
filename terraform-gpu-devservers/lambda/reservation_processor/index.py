@@ -87,6 +87,41 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
 
         logger.info(f"Processing reservation: {reservation_request}")
 
+        # Create initial reservation record in DynamoDB
+        reservation_id = reservation_request.get("reservation_id")
+        if reservation_id:
+            try:
+                # Create initial reservation record with pending status
+                from datetime import datetime, timedelta
+                
+                expires_at = (datetime.utcnow() + timedelta(hours=reservation_request.get("duration_hours", 8))).isoformat()
+                
+                initial_record = {
+                    "reservation_id": reservation_id,
+                    "user_id": reservation_request.get("user_id"),
+                    "gpu_count": reservation_request.get("gpu_count", 1),
+                    "duration_hours": reservation_request.get("duration_hours", 8),
+                    "name": reservation_request.get("name", f"{reservation_request.get('gpu_count', 1)}-GPU reservation"),
+                    "created_at": reservation_request.get("created_at", datetime.utcnow().isoformat()),
+                    "status": "pending",
+                    "expires_at": expires_at,
+                }
+                
+                # Add github_user if provided
+                if reservation_request.get("github_user"):
+                    initial_record["github_user"] = reservation_request["github_user"]
+                
+                # Store initial record
+                dynamodb = boto3.resource("dynamodb", region_name=REGION)
+                reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+                reservations_table.put_item(Item=initial_record)
+                
+                logger.info(f"Created initial reservation record: {reservation_id}")
+                
+            except Exception as record_error:
+                logger.error(f"Failed to create initial reservation record: {record_error}")
+                # Continue processing even if record creation fails
+
         # Validate request
         if not validate_reservation_request(reservation_request):
             logger.error(f"Invalid reservation request: {reservation_request}")
@@ -588,7 +623,7 @@ def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str
                             fi
                         done
 
-                        apt-get install -y openssh-server sudo curl vim coreutils util-linux procps zsh
+                        apt-get install -y openssh-server sudo curl vim git coreutils util-linux procps zsh
 
                         echo "[STARTUP] Installing modern Node.js..."
                         # Install Node.js 20 from NodeSource (Claude CLI requires Node 18+)
@@ -632,38 +667,10 @@ fi
 
 # Shell selection helper
 alias use-zsh='echo "To switch to zsh permanently, run: chsh -s /usr/bin/zsh"'
-alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
+alias use-bash='echo "Already using bash! To get the full experience, try: zsh"'
 
 BASHRC_EOF
 
-                        # Set up .zshrc
-                        cat > /home/dev/.zshrc << 'ZSHRC_EOF'
-# Source shared environment
-[ -f ~/.shell_env ] && source ~/.shell_env
-
-# Zsh-specific settings
-autoload -Uz compinit
-compinit
-
-# Enable oh-my-zsh style prompt (simple)
-autoload -Uz vcs_info
-precmd() { vcs_info }
-zstyle ':vcs_info:git:*' formats ' (%b)'
-setopt PROMPT_SUBST
-PROMPT='%F{green}%n@%m%f:%F{blue}%~%f%F{red}${vcs_info_msg_0_}%f$ '
-
-# Shell selection helper
-alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
-alias use-zsh='echo "To switch to zsh permanently, run: chsh -s /usr/bin/zsh"'
-
-# Zsh completion and history settings
-HISTSIZE=10000
-SAVEHIST=10000
-HISTFILE=~/.zsh_history
-setopt SHARE_HISTORY
-setopt HIST_IGNORE_DUPS
-
-ZSHRC_EOF
 
                         # Set up .bash_profile to source .bashrc for SSH login shells
                         cat > /home/dev/.bash_profile << 'BASH_PROFILE_EOF'
@@ -715,13 +722,86 @@ fi
 ZPROFILE_EOF
 
                         echo "[STARTUP] Setting up dev user..."
-                        # Create dev user with same UID as init container (should already exist from volume)
-                        id dev &>/dev/null || useradd -u 1000 -m -s /bin/bash dev
+                        # Create dev user with zsh as default shell (same UID as init container)
+                        id dev &>/dev/null || useradd -u 1000 -m -s /usr/bin/zsh dev
                         # NO password for dev user - passwordless sudo only
                         usermod -aG sudo dev
                         # Allow passwordless sudo for dev user
                         echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
 
+                        echo "[STARTUP] Installing oh-my-zsh with clean theme (no font dependencies)..."
+                        # Install oh-my-zsh for dev user (this creates a default .zshrc)
+                        su - dev -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+                        
+                        # Install useful zsh plugins
+                        su - dev -c 'git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'
+                        su - dev -c 'git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting'
+                        
+                        # IMPORTANT: Create our custom .zshrc AFTER oh-my-zsh installation to override the default
+                        echo "[STARTUP] Configuring zsh with clean theme and useful plugins..."
+                        
+                        # Set up .zshrc with oh-my-zsh and clean configuration
+                        cat > /home/dev/.zshrc << 'ZSHRC_EOF'
+# Source shared environment first
+[ -f ~/.shell_env ] && source ~/.shell_env
+
+# Add conda to PATH
+export PATH="/opt/conda/bin:$PATH"
+
+# Path to oh-my-zsh installation
+export ZSH="$HOME/.oh-my-zsh"
+
+# Use robbyrussell theme (clean, no font dependencies)
+ZSH_THEME="robbyrussell"
+
+# Plugins - enable autosuggestions and syntax highlighting
+plugins=(
+    git
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    docker
+    kubectl
+    npm
+    python
+    sudo
+    colored-man-pages
+    command-not-found
+)
+
+# Load oh-my-zsh
+source $ZSH/oh-my-zsh.sh
+
+# Configure autosuggestions - light grey, history-based
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"  # Light grey (works in all terminals)
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+# Shell selection helpers
+alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
+alias use-zsh='echo "Already using zsh with autocompletion! 🚀"'
+
+# Additional zsh settings for better UX
+setopt AUTO_CD              # Auto change to directory without cd
+setopt CORRECT              # Correct typos
+setopt HIST_VERIFY          # Show command with history expansion to user before running it
+setopt SHARE_HISTORY        # Share history between sessions
+setopt HIST_IGNORE_DUPS     # Don't record duplicate commands
+setopt HIST_IGNORE_SPACE    # Don't record commands starting with space
+
+# Custom aliases for GPU development
+alias gpu-info='nvidia-smi'
+alias gpu-watch='watch -n 1 nvidia-smi'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Custom prompt to show full path (no time)
+PROMPT='%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%} $ '
+
+ZSHRC_EOF
+
+                        # Set ownership of config file
+                        chown 1000:1000 /home/dev/.zshrc
+                        
                         echo "[STARTUP] Installing Claude CLI as dev user..."
                         # Configure npm to use user directory for global packages
                         su - dev -c "mkdir -p ~/.npm-global"
@@ -843,9 +923,15 @@ Container: $CONTAINER_IMAGE
 CUDA: $CUDA_INFO
 GPUs: $GPU_INFO
 
-Shell: Bash (default) | Zsh available
-  • Try 'zsh' to test zsh, or 'use-zsh' for switch instructions
+Shell: Zsh (default with oh-my-zsh) | Bash available
+  • Try 'bash' to test bash, or 'use-bash' for switch instructions  
   • Both shells have the same environment (CUDA, Claude Code, etc.)
+  • Zsh features: autosuggestions, syntax highlighting, git integration
+
+🔧 Quick start:
+  • Conda is available for Python environments
+  • Use 'gpu-info' or 'nvidia-smi' to check GPU status
+  • Terminal works in all editors (no special fonts needed)
 
 For support, reach out to: oncall:pytorch_release_engineering
 

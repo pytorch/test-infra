@@ -15,13 +15,11 @@
       "Action": [
         "dynamodb:GetItem",
         "dynamodb:Query", 
-        "dynamodb:Scan",
-        "dynamodb:UpdateItem"
+        "dynamodb:Scan"
       ],
       "Resource": [
         "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations",
-        "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations/index/*",
-        "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-servers"
+        "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations/index/*"
       ]
     },
     {
