@@ -75,13 +75,13 @@ class GHClientFactory:
     @property
     def client(self) -> github.Github:
         if "client" not in self._data:
-            if self.token_auth_provided and not self.key_auth_provided:
+            if self.token_auth_provided:
                 auth = github.Auth.Token(self._token)
-            elif self.key_auth_provided and not self.token_auth_provided:
+            elif self.key_auth_provided:
                 auth = github.Auth.AppInstallationAuth(
                     github.Auth.AppAuth(
                         app_id=self._app_id,
-                        app_secret=self._app_secret,
+                        private_key=self._app_secret,
                     ),
                     installation_id=self._installation_id,
                 )
