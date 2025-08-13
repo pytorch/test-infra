@@ -80,7 +80,7 @@ CREATE TABLE fortesting.vllm_buildkite_jobs (
         expired_at Nullable(DateTime64(3)),
         retries_count Nullable(UInt32),
         type String,
-        exit_status Nullable(UInt32),
+        exit_status Nullable(Int32),
         matrix Nullable(String),
         cluster_url String,
         cluster_id String,
