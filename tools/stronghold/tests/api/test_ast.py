@@ -1,8 +1,8 @@
 """Tests the api.ast module."""
 
+import dataclasses
 import pathlib
 
-import dataclasses
 import api
 import api.ast
 import api.types
@@ -243,16 +243,20 @@ def test_extract_dataclass(tmp_path: pathlib.Path) -> None:
         )
     }
 
+
 def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
     class Class:
         a: int
         b: float = 1.0
+
         def func(
             self, a: int, /, b: float = 2, *args: int, c: int, **kwargs: int
         ) -> None:
             pass  # pragma: no cover
 
-    extract_api = api.ast.extract(source.make_file(tmp_path, Class), include_classes=True)
+    extract_api = api.ast.extract(
+        source.make_file(tmp_path, Class), include_classes=True
+    )
     funcs = extract_api.functions
     classes = extract_api.classes
 
@@ -285,14 +289,14 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     positional=True,
                     keyword=False,
                     required=True,
-                    line=5,
+                    line=6,
                 ),
                 api.Parameter(
                     name="a",
                     positional=True,
                     keyword=False,
                     required=True,
-                    line=5,
+                    line=6,
                     type_annotation=api.types.TypeName("int"),
                 ),
                 api.Parameter(
@@ -300,7 +304,7 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     positional=True,
                     keyword=True,
                     required=False,
-                    line=5,
+                    line=6,
                     type_annotation=api.types.TypeName("float"),
                 ),
                 api.Parameter(
@@ -308,12 +312,12 @@ def test_extract_comprehensive(tmp_path: pathlib.Path) -> None:
                     positional=False,
                     keyword=True,
                     required=True,
-                    line=5,
+                    line=6,
                     type_annotation=api.types.TypeName("int"),
                 ),
             ],
             variadic_args=True,
             variadic_kwargs=True,
-            line=4,
+            line=5,
         )
     }

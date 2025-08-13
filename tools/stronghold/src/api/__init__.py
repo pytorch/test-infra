@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
-from collections.abc import Sequence, Mapping
+from collections.abc import Mapping, Sequence
 from typing import Optional
 
 import api.types
@@ -51,6 +51,8 @@ class Field:
     required: bool
     line: int
     type_annotation: Optional[api.types.TypeHint] = None
+    # Whether the field participates in the dataclass __init__ (dataclasses only)
+    init: bool = True
 
 
 @dataclasses.dataclass

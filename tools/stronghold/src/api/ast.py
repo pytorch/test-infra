@@ -119,14 +119,49 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
                     field_name = stmt.target.id
                     if field_name.startswith("_"):
                         continue
+                    required = stmt.value is None
+                    init = True
+                    # Support dataclasses.field(...)
+                    if isinstance(stmt.value, ast.Call):
+                        fn = stmt.value.func
+
+                        def _is_field_func(f: ast.AST) -> bool:
+                            return (isinstance(f, ast.Name) and f.id == "field") or (
+                                isinstance(f, ast.Attribute) and f.attr == "field"
+                            )
+
+                        if _is_field_func(fn):
+                            # default/default_factory imply not required
+                            has_default = any(
+                                isinstance(kw, ast.keyword)
+                                and kw.arg == "default"
+                                and kw.value is not None
+                                for kw in stmt.value.keywords
+                            )
+                            has_default_factory = any(
+                                isinstance(kw, ast.keyword)
+                                and kw.arg == "default_factory"
+                                and kw.value is not None
+                                for kw in stmt.value.keywords
+                            )
+                            required = not (has_default or has_default_factory)
+                            # init flag
+                            for kw in stmt.value.keywords:
+                                if isinstance(kw, ast.keyword) and kw.arg == "init":
+                                    init = not (
+                                        isinstance(kw.value, ast.Constant)
+                                        and kw.value.value is False
+                                    )
+                                    break
                     fields.append(
                         api.Field(
                             name=field_name,
-                            required=stmt.value is None,
+                            required=required,
                             line=stmt.lineno,
                             type_annotation=api.types.annotation_to_dataclass(
                                 stmt.annotation
                             ),
+                            init=init,
                         )
                     )
                 elif isinstance(stmt, ast.Assign):
@@ -141,6 +176,7 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
                                     required=False,
                                     line=stmt.lineno,
                                     type_annotation=None,
+                                    init=True,
                                 )
                             )
             self._classes[name] = api.Class(

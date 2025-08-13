@@ -158,3 +158,12 @@ class FieldTypeChanged(FieldViolation):
         self.message = (
             f"{self.parameter} changed from {self.type_before} to {self.type_after}"
         )
+
+
+# ====================================
+# Class violations
+@dataclass
+class ClassDeleted(Violation):
+    """Represents a public class being deleted."""
+
+    message: str = "class deleted"
