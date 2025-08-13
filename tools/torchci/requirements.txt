@@ -1,4 +1,4 @@
-setuptools==78.1.1
+setuptools==80.9.0
 requests
 boto3==1.19.12
 pytest==7.2.0
