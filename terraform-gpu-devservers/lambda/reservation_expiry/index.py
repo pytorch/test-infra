@@ -28,6 +28,19 @@ sns_client = boto3.client("sns")
 RESERVATIONS_TABLE = os.environ["RESERVATIONS_TABLE"]
 EKS_CLUSTER_NAME = os.environ["EKS_CLUSTER_NAME"]
 REGION = os.environ["REGION"]
+
+# Global Kubernetes client (reused across Lambda execution)
+_k8s_client = None
+
+def get_k8s_client():
+    """Get or create the global Kubernetes client (singleton pattern)"""
+    global _k8s_client
+    if _k8s_client is None:
+        logger.info("Initializing global Kubernetes client...")
+        _k8s_client = setup_kubernetes_client()
+        logger.info("Global Kubernetes client initialized successfully")
+    return _k8s_client
+
 WARNING_MINUTES = int(os.environ.get("WARNING_MINUTES", 30))
 GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", 120))
 
@@ -334,7 +347,7 @@ def handler(event, context):
 def check_pod_exists(pod_name: str, namespace: str = "gpu-dev") -> bool:
     """Check if a pod exists in the cluster"""
     try:
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
         v1.read_namespaced_pod(name=pod_name, namespace=namespace)
@@ -599,7 +612,7 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
 
         # Configure Kubernetes client
         logger.info(f"Setting up Kubernetes client for cleanup...")
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
         logger.info(f"Kubernetes client configured successfully")
 
@@ -678,7 +691,7 @@ def cleanup_stuck_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> No
         # Configure Kubernetes client
         from kubernetes import client
 
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
         # Try to delete the pod if it exists (it might be in a failed state)
@@ -719,7 +732,7 @@ def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = "gpu-
     """Send wall message to all logged-in users in the pod"""
     try:
         # Configure Kubernetes client
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
         # Execute wall command in the pod
@@ -753,7 +766,7 @@ def create_warning_file_in_pod(
     """Create a visible warning file in the pod's workspace"""
     try:
         # Configure Kubernetes client
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
         # Create warning file content

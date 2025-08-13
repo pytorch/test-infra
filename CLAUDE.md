@@ -94,20 +94,20 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 ### 📋 Remaining Tasks
 
-1. **Validate CUDA version** - Add CUDA version validation and display in container startup
-2. **Add Docker** - Install and configure Docker in development containers
-3. **Add ghstack** - Install ghstack tool for GitHub stack management
-4. **Validate NVIDIA driver version** - Display and validate NVIDIA driver version
-5. **Persistent disk** - Implement persistent disk storage for user data across sessions
-6. **Validate if expiration works as expected** - Test and verify pod cleanup and reservation expiry process
+1. **SSORole + instructions for that** - Implement SSO role authentication and provide setup instructions
+2. **Production deployment** - Switch to p5.48xlarge instances when ready
+3. **Investigate NFS** - Research NFS integration for shared storage across pods
+4. **Persistent disk** - Implement persistent disk storage for user data across sessions
+5. **Validate CUDA version** - Add CUDA version validation and display in container startup
+6. **Validate NVIDIA driver version** - Display and validate NVIDIA driver version
 7. **Test wall messages** - Verify that wall message functionality works correctly
-8. **Add tests for everything** - Implement comprehensive test suite for all components
+8. **Validate if expiration works as expected** - Test and verify pod cleanup and reservation expiry process
 9. **Simplify code + clean up** - Refactor and clean up codebase for maintainability
-10. **SSORole + instructions for that** - Implement SSO role authentication and provide setup instructions
-11. **Investigate NFS** - Research NFS integration for shared storage across pods
-12. **Investigate multi node communication** - Research inter-node networking for multi-GPU setups
-13. **FQDN for devservers** - Set up proper domain names for development server access
-14. **Production deployment** - Switch to p5.48xlarge instances when ready
+10. **Add Docker** - Install and configure Docker in development containers
+11. **Add ghstack** - Install ghstack tool for GitHub stack management
+12. **Add tests for everything** - Implement comprehensive test suite for all components
+13. **Investigate multi node communication** - Research inter-node networking for multi-GPU setups
+14. **FQDN for devservers** - Set up proper domain names for development server access
 15. **Future features**:
     - Multi-server (16 GPU) reservations
     - GitHub organization/team verification

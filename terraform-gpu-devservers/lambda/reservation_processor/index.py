@@ -36,6 +36,18 @@ MAX_RESERVATION_HOURS = int(os.environ["MAX_RESERVATION_HOURS"])
 DEFAULT_TIMEOUT_HOURS = int(os.environ["DEFAULT_TIMEOUT_HOURS"])
 QUEUE_URL = os.environ["QUEUE_URL"]
 
+# Global Kubernetes client (reused across Lambda execution)
+_k8s_client = None
+
+def get_k8s_client():
+    """Get or create the global Kubernetes client (singleton pattern)"""
+    global _k8s_client
+    if _k8s_client is None:
+        logger.info("Initializing global Kubernetes client...")
+        _k8s_client = setup_kubernetes_client()
+        logger.info("Global Kubernetes client initialized successfully")
+    return _k8s_client
+
 
 def handler(event, context):
     """Main Lambda handler"""
@@ -233,7 +245,7 @@ def check_gpu_availability() -> int:
     """Check available GPU capacity using K8s API"""
     try:
         # Set up K8s client and tracker
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         gpu_tracker = K8sGPUTracker(k8s_client)
 
         # Get real-time GPU capacity info
@@ -314,7 +326,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             )
 
         # Set up K8s client for resource management
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
 
         # Create Kubernetes pod and service
         node_port = create_kubernetes_resources(
@@ -346,6 +358,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 pod_name=pod_name,
                 node_port=node_port,
                 node_ip=node_public_ip,
+                k8s_client=k8s_client,
             )
         else:
             # Check pod status to determine if it's failed or still starting
@@ -452,7 +465,7 @@ def create_kubernetes_resources(
         from kubernetes import client
 
         # Configure Kubernetes client
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
         # Check if pod already exists
@@ -1208,7 +1221,7 @@ def get_node_public_ip() -> str:
     """Get public IP of EKS node for SSH access"""
     try:
         # Get node information using Kubernetes client
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         from kubernetes import client
 
         v1 = client.CoreV1Api(k8s_client)
@@ -1237,7 +1250,7 @@ def get_node_public_ip() -> str:
 def get_node_instance_id() -> str:
     """Get EC2 instance ID of one of the EKS nodes"""
     try:
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         from kubernetes import client
 
         v1 = client.CoreV1Api(k8s_client)
@@ -1301,7 +1314,7 @@ def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]
 
 
 def update_reservation_connection_info(
-    reservation_id: str, ssh_command: str, pod_name: str, node_port: int, node_ip: str
+    reservation_id: str, ssh_command: str, pod_name: str, node_port: int, node_ip: str, k8s_client=None
 ):
     """Update reservation with connection details and set proper expiration time"""
     try:
@@ -1325,7 +1338,8 @@ def update_reservation_connection_info(
         launched_at = now.isoformat()
 
         # Get instance type and GPU type info
-        k8s_client = setup_kubernetes_client()
+        if k8s_client is None:
+            k8s_client = get_k8s_client()
         instance_type, gpu_type = get_instance_type_and_gpu_info(k8s_client, pod_name)
 
         reservations_table.update_item(
@@ -1404,7 +1418,7 @@ def calculate_queue_position_and_wait_time(
 
         # Use K8s GPU tracker for more accurate wait time estimation
         try:
-            k8s_client = setup_kubernetes_client()
+            k8s_client = get_k8s_client()
             gpu_tracker = K8sGPUTracker(k8s_client)
             wait_estimate = gpu_tracker.estimate_wait_time(
                 requested_gpus, active_reservations
@@ -1645,7 +1659,7 @@ def process_scheduled_queue_management():
             }
 
         # Set up K8s client and tracker for resource checking
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         gpu_tracker = K8sGPUTracker(k8s_client)
 
         # Get current GPU availability
@@ -1908,7 +1922,7 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
         # Configure Kubernetes client
         from kubernetes import client
 
-        k8s_client = setup_kubernetes_client()
+        k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
         # Delete the NodePort service first
