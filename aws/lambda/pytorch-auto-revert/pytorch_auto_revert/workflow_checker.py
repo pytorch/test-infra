@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Set
 
 from .clickhouse_client_helper import CHCliFactory
+from .github_client_helper import GHClientFactory
 
 
 class WorkflowRestartChecker:
@@ -124,22 +125,6 @@ class WorkflowRestartChecker:
             )
             return False
 
-        # Get GitHub client
-        try:
-            from .github_client_helper import GHClientFactory
-
-            if not (
-                GHClientFactory().token_auth_provided
-                or GHClientFactory().key_auth_provided
-            ):
-                logging.error("GitHub authentication not configured")
-                return False
-
-            client = GHClientFactory().client
-        except Exception as e:
-            logging.error(f"Failed to get GitHub client: {e}")
-            return False
-
         try:
             # Use trunk/{sha} tag format
             tag_ref = f"trunk/{commit_sha}"
@@ -148,7 +133,7 @@ class WorkflowRestartChecker:
             workflow_file_name = f"{normalized_workflow_name}.yml"
 
             # Get repo and workflow objects
-            repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
+            repo = GHClientFactory().client.get_repo(f"{self.repo_owner}/{self.repo_name}")
             workflow = repo.get_workflow(workflow_file_name)
 
             # Dispatch the workflow
@@ -173,4 +158,6 @@ class WorkflowRestartChecker:
 
         except Exception as e:
             logging.error(f"Error dispatching workflow {normalized_workflow_name}: {e}")
+            import traceback
+            traceback.print_exc()
             return False
