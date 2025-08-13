@@ -2,6 +2,7 @@ import logging
 from collections import defaultdict
 
 from ..autorevert_checker import AutorevertPatternChecker
+from ..event_logger import AutoRevertEvent
 from ..workflow_checker import WorkflowRestartChecker
 
 
@@ -121,6 +122,19 @@ def autorevert_checker(
             previous_commit = pattern[
                 "older_commit"
             ]  # previously successful commit for the matched job
+            # Prepare base DTO for logging events for this pattern
+            evt = AutoRevertEvent(
+                workflow=workflow_name,
+                first_failing_sha=first_failing,
+                previous_sha=previous_commit,
+                second_failing_sha=(pattern["newer_commits"][0]),
+                failure_rule=pattern["failure_rule"],
+                job_name_base=pattern.get("job_name_base", ""),
+                dry_run=dry_run,
+            )
+
+            # Log the detection event
+            evt.send("detected")
             revert_result = revert_checker.is_commit_reverted(first_failing)
 
             if revert_result:
@@ -140,6 +154,9 @@ def autorevert_checker(
                 # Try to restart workflow if --do-restart flag is set and not already reverted
                 if do_restart and restart_checker:
                     # Restart the first failing (older failing) and the previous (successful) commit
+                    already_restarted = []
+                    successes = []
+                    failures = []
                     for target_commit in (first_failing, previous_commit):
                         if restart_checker.has_restarted_workflow(
                             workflow_name, target_commit
@@ -147,6 +164,7 @@ def autorevert_checker(
                             print(
                                 f"  ⟳ ALREADY RESTARTED: {workflow_name} for {target_commit[:8]}"
                             )
+                            already_restarted.append(target_commit)
                             continue
                         if dry_run:
                             print(
@@ -162,15 +180,26 @@ def autorevert_checker(
                                     f"  ✓ RESTARTED: {workflow_name} for {target_commit[:8]}"
                                 )
                                 restarted_commits.append((workflow_name, target_commit))
+                                successes.append(target_commit)
                             else:
                                 print(
                                     f"  ✗ FAILED TO RESTART: {workflow_name} for {target_commit[:8]}"
                                 )
+                                failures.append(target_commit)
+
+                    # Log restart outcome once per pattern
+                    evt.send_restart_outcome(
+                        already_count=len(already_restarted),
+                        success_count=len(successes),
+                        failure_count=len(failures),
+                    )
 
                 # Secondary verification: compare first failing vs previous on restarted runs.
                 if do_revert:
                     try:
                         if checker.confirm_commit_caused_failure_on_restarted(pattern):
+                            # Log secondary confirmation
+                            evt.send("secondary_confirmed")
                             if dry_run:
                                 print(
                                     f"  ⚠ DRY RUN: Would record REVERT for {first_failing[:8]} ({workflow_name})"

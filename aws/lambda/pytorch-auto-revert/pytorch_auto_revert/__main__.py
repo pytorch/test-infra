@@ -179,7 +179,7 @@ def main(*args, **kwargs) -> None:
                 "linux-binary-manywheel",
             ],
             do_restart=True,
-            do_revert=False,
+            do_revert=True,
             hours=2,
             verbose=True,
             dry_run=opts.dry_run,
