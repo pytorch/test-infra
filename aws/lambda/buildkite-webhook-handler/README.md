@@ -19,7 +19,7 @@ The lambda handles two types of Buildkite webhook events:
 - **Partition Key**: `dynamoKey` (format: `REPO_NAME/BUILD_NUMBER`)
 - https://buildkite.com/docs/apis/webhooks/pipelines/build-events
 
-### Job Events Table: `vllm-buildkite-job-events`  
+### Job Events Table: `vllm-buildkite-job-events`
 - **Partition Key**: `dynamoKey` (format: `REPO_NAME/JOB_ID`)
 - https://buildkite.com/docs/apis/webhooks/pipelines/job-events
 
