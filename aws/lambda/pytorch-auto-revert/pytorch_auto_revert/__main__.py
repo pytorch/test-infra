@@ -171,16 +171,10 @@ def main(*args, **kwargs) -> None:
 
     if opts.subcommand is None:
         autorevert_checker(
-            [
-                "Lint",
-                "trunk",
-                "pull",
-                "inductor",
-                "linux-binary-manywheel",
-            ],
+            os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             do_restart=True,
             do_revert=True,
-            hours=2,
+            hours=int(os.environ.get("HOURS", 48)),
             verbose=True,
             dry_run=opts.dry_run,
             ignore_common_errors=True,
