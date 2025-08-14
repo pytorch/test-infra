@@ -8,8 +8,8 @@ WorkflowResolver: Resolve GitHub Actions workflows by exact display or file name
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
-from functools import lru_cache
 from typing import Optional
 
 import github
@@ -34,6 +34,8 @@ class WorkflowResolver:
         wf = resolver.resolve("pull.yml")    # file basename
     """
 
+    _resolver_cache: dict[str, WorkflowResolver] = {}
+
     def __init__(
         self, repo_full_name: str, repository: "github.Repository.Repository"
     ) -> None:
@@ -43,22 +45,33 @@ class WorkflowResolver:
         self._by_file: dict[str, WorkflowRef] = {}
         self._build_indices()
 
+    def __new__(
+        cls, repo_full_name: str, repository: "github.Repository.Repository"
+    ) -> WorkflowResolver:
+        """Create or return a cached resolver for the given repo."""
+
+        if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", repo_full_name) is None:
+            raise ValueError(
+                f"Invalid repo format: {repo_full_name}. Expected 'owner/repo'."
+            )
+
+        if repository is None or not isinstance(
+            repository, github.Repository.Repository
+        ):
+            raise ValueError(f"Invalid repository object for {repo_full_name}.")
+
+        if repo_full_name not in cls._resolver_cache:
+            cls._resolver_cache[repo_full_name] = super().__new__(cls)
+        return cls._resolver_cache[repo_full_name]
+
     @staticmethod
-    @lru_cache(maxsize=None)
     def get(repo: str) -> "WorkflowResolver":
         """Get a cached resolver for a repo in owner/repo format.
 
         Internally creates a GitHub Repository client using GHClientFactory when
         available; otherwise falls back to an anonymous client for public repos.
         """
-        # Build a client: prefer configured factory; fall back to anonymous
-        try:
-            client = GHClientFactory().client
-        except Exception:
-            # Anonymous client for public data; may be rate limited
-            client = github.Github()
-
-        repository = client.get_repo(repo)
+        repository = GHClientFactory().client.get_repo(repo)
         return WorkflowResolver(repo_full_name=repo, repository=repository)
 
     def resolve(self, input_name: str) -> Optional[WorkflowRef]:
@@ -76,7 +89,6 @@ class WorkflowResolver:
         """Resolve or raise ValueError with a helpful message."""
         ref = self.resolve(input_name)
         if ref is None:
-            # Build an informative message with available names
             display = ", ".join(sorted(self._by_display))
             files = ", ".join(sorted(self._by_file))
             raise ValueError(
@@ -84,8 +96,6 @@ class WorkflowResolver:
                 f"Available display names: [{display}]. Available files: [{files}]"
             )
         return ref
-
-    # Internal helpers
 
     def _build_indices(self) -> None:
         for w in self._repository.get_workflows():

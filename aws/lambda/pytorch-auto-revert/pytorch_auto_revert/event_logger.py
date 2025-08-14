@@ -22,7 +22,6 @@ def log_autorevert_event(
     Uses the misc.autorevert_events table. Best-effort: logs and continues on failure.
     """
     try:
-        client = CHCliFactory().client
         columns = [
             "workflow",
             "action",
@@ -48,7 +47,7 @@ def log_autorevert_event(
             ]
         ]
         # Specify database explicitly since this table lives in 'misc'
-        client.insert(
+        CHCliFactory().client.insert(
             table="autorevert_events",
             data=data,
             column_names=columns,

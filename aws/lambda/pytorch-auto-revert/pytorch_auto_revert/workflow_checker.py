@@ -5,7 +5,6 @@ dispatching workflows via GitHub with consistent workflow name resolution.
 
 import logging
 from datetime import datetime, timedelta
-from functools import cached_property
 from typing import Dict, Set
 
 from .clickhouse_client_helper import CHCliFactory
@@ -173,6 +172,5 @@ class WorkflowRestartChecker:
             logging.error(f"Error dispatching workflow {workflow_name}: {e}")
             return False
 
-    @cached_property
     def resolver(self) -> WorkflowResolver:
         return WorkflowResolver.get(f"{self.repo_owner}/{self.repo_name}")

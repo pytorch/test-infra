@@ -116,12 +116,8 @@ def autorevert_checker(
 
             # For clarity in naming
             workflow_name = pattern["workflow_name"]
-            first_failing = pattern["newer_commits"][
-                1
-            ]  # the older of the two failing commits
-            previous_commit = pattern[
-                "older_commit"
-            ]  # previously successful commit for the matched job
+            first_failing = pattern["newer_commits"][1]
+            previous_commit = pattern["older_commit"]
             # Prepare base DTO for logging events for this pattern
             evt = AutoRevertEvent(
                 workflow=workflow_name,
