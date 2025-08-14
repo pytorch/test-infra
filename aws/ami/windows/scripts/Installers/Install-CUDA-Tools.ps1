@@ -32,7 +32,7 @@ Switch ($cudaVersion) {
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
   "13.0" {
-    $toolkitInstaller = "cuda_13.0.0_580.65_windows.exe"
+    $toolkitInstaller = "cuda_13.0.0_windows.exe"
     $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
 }
