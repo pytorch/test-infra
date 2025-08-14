@@ -24,14 +24,4 @@ export const COMPILER_SUITES_MAP: { [k: string]: SuiteConfig } = {
     id: "timm_models",
     showGraph: true,
   },
-  dynamic: {
-    name: "[Dynamic]",
-    id: "dynamic",
-    showGraph: false,
-  },
-  blueberries: {
-    name: "[Blueberries]",
-    id: "blueberries",
-    showGraph: false,
-  },
 };
