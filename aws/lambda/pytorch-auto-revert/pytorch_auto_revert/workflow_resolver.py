@@ -8,8 +8,8 @@ WorkflowResolver: Resolve GitHub Actions workflows by exact display or file name
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
 import re
+from dataclasses import dataclass
 from typing import Optional
 
 import github
@@ -45,13 +45,19 @@ class WorkflowResolver:
         self._by_file: dict[str, WorkflowRef] = {}
         self._build_indices()
 
-    def __new__(cls, repo_full_name: str, repository: "github.Repository.Repository") -> WorkflowResolver:
+    def __new__(
+        cls, repo_full_name: str, repository: "github.Repository.Repository"
+    ) -> WorkflowResolver:
         """Create or return a cached resolver for the given repo."""
 
         if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", repo_full_name) is None:
-            raise ValueError(f"Invalid repo format: {repo_full_name}. Expected 'owner/repo'.")
+            raise ValueError(
+                f"Invalid repo format: {repo_full_name}. Expected 'owner/repo'."
+            )
 
-        if repository is None or not isinstance(repository, github.Repository.Repository):
+        if repository is None or not isinstance(
+            repository, github.Repository.Repository
+        ):
             raise ValueError(f"Invalid repository object for {repo_full_name}.")
 
         if repo_full_name not in cls._resolver_cache:

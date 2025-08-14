@@ -45,11 +45,9 @@ class CommitJobs:
         """Check if any jobs are not yet completed (queued/in_progress)."""
         return any(j.status != "completed" for j in self.jobs)
 
-    @property
+    @cached_property
     def job_base_names(self) -> Set[str]:
-        if not hasattr(self, "_job_base_names"):
-            self._job_base_names = self.get_job_base_names()
-        return self._job_base_names
+        return self.get_job_base_names()
 
     def normalize_job_name(self, name: str) -> str:
         """Normalize job name to a stable base for matching across commits.
@@ -100,7 +98,6 @@ class AutorevertPatternChecker:
 
     @cached_property
     def commit_history(self) -> List[Dict]:
-        """Get commit history, fetching if needed."""
         return self._fetch_commit_history()
 
     @cached_property
