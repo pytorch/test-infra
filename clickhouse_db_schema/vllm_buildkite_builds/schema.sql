@@ -98,5 +98,10 @@ CREATE TABLE fortesting.vllm_buildkite_builds (
         id Nullable(String)
     )
 ) ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
-ORDER BY (build.number, dynamoKey)
+ORDER BY (
+    pipeline.repository,
+    pipeline.name,
+    build.number,
+    dynamoKey
+)
 SETTINGS index_granularity = 8192
