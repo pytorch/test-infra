@@ -12,7 +12,7 @@ Key Features:
 - For each repository, fetches recent workflow runs and extracts the runner labels used in jobs.
 - Aggregates runner label usage across repositories, including last usage and workflow file.
 - Compares runner labels against those defined in scale-config.yml and standard GitHub runners.
-- Outputs a YAML summary (runner_labels_summary.yml) with detailed runner usage, repos by runner, and special groupings (e.g., runners not in scale-config, repos with zero workflow runs).
+- Outputs a YAML summary (reports/runner_labels_summary.yml) with detailed runner usage, repos by runner, and special groupings (e.g., runners not in scale-config, repos with zero workflow runs).
 - Caches GitHub API responses for efficiency and rate limit avoidance.
 
 How to Run:
@@ -38,7 +38,7 @@ Dependencies:
 
 Output:
 -------
-- `runner_labels_summary.yml`: A YAML file containing:
+- `reports/runner_labels_summary.yml`: A YAML file containing:
     - `runners_used`: For each runner label, a list of repos, last usage, and workflow file.
     - `repo_runners`: For each repo, a list of runner labels it uses.
     - `repositories_with_zero_workflow_runs`: Repos with no workflow runs in the lookback period.
@@ -55,7 +55,6 @@ Notes:
 """
 
 import argparse
-import json
 import logging
 import os
 from collections import defaultdict
@@ -65,6 +64,7 @@ from typing import Dict, List, Optional
 
 import requests
 import yaml
+from cache_manager import get_cache_stats, make_cached_request
 from dotenv import load_dotenv
 
 
@@ -79,6 +79,12 @@ logging.basicConfig(
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 ORG_NAME = None  # Will be set by argparse
 
+# GitHub API headers
+HEADERS = {
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json",
+}
+
 # List of repositories to exclude in the format 'org/repo'
 EXCLUDED_REPOS = [
     "pytorch/pytorch",
@@ -91,6 +97,8 @@ EXCLUDED_REPOS = [
     "pytorch/cppdocs",
     "pytorch/pytorch.github.io",
     "pytorch/examples",
+    # archived but not marked as such in github repo settings
+    "pytorch/serve",
     # proposed
     "pytorch/builder",
     "pytorch/xla",
@@ -101,8 +109,6 @@ EXCLUDED_REPOS = [
 # List of runner labels to exclude from "runners not in scale-config" analysis
 # These are typically GitHub-hosted runners or other known external runners
 GITHUB_RUNNER_LABELS = [
-    "linux.24_04.4x",
-    "linux.24_04.16x",
     "ubuntu-latest",
     "ubuntu-22.04",
     "ubuntu-24.04",
@@ -110,163 +116,37 @@ GITHUB_RUNNER_LABELS = [
     "ubuntu-18.04",
     "windows-latest",
     "windows-2022",
-    "windows-11-arm64",
     "macos-latest",
     "macos-14",
+    "macos-14-xlarge",
     "macos-13",
     "macos-12",
-    "macos-14-xlarge",
+    # Offered at Meta enterprise level
+    "8-core-ubuntu",
+    "4-core-ubuntu",
+    "windows-8-core",
+    "4-core-ubuntu-gpu-t4",
+    "4-core-windows-gpu-t4",
+    "32-core-ubuntu",
+    "16-core-ubuntu",
+    "2-core-ubuntu-arm",
+    "4-core-ubuntu-arm",
+    "8-core-ubuntu-22.04",
+    "4-core-ubuntu-24.04",
+    # needs special access
+    "linux.24_04.4x",
+    "linux.24_04.16x",
+    "windows-11-arm64",
     # Add more runner labels to exclude here as needed
 ]
 
 USELESS_RUNNER_LABELS = [
-    "self-hosted",  # really, a useless label we want to ignoreß
+    "self-hosted",  # really, a useless label we want to ignore
+    "linux.g5.4xlarge.nvidia.cpu",  # a nonexistent label used by a repo
 ]
-
-HEADERS = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json",
-}
 
 BASE_URL = "https://api.github.com"
 WORKFLOW_RUN_LOOKBACK = (datetime.utcnow() - timedelta(days=180)).isoformat() + "Z"
-
-# Cache configuration
-CACHE_DIR = Path("cache")
-CACHE_DIR.mkdir(exist_ok=True)
-
-
-class CacheManager:
-    """Manages caching of GitHub API responses using URL as cache key."""
-
-    def __init__(self, cache_dir: Path = CACHE_DIR):
-        self.cache_dir = cache_dir
-        self.cache_dir.mkdir(exist_ok=True)
-
-    def _get_cache_key(self, url: str) -> str:
-        """Generate a human-readable cache key from URL."""
-        import re
-        from urllib.parse import parse_qs, urlencode, urlparse
-
-        # Parse the URL to separate path and query parameters
-        parsed = urlparse(url)
-        path = parsed.path
-        query_params = parse_qs(parsed.query)
-
-        # Remove the 'created' parameter from query params to avoid cache invalidation
-        if "created" in query_params:
-            del query_params["created"]
-
-        # Reconstruct the query string without the 'created' parameter
-        if query_params:
-            # Flatten single-item lists (parse_qs returns lists)
-            flat_params = {}
-            for key, values in query_params.items():
-                flat_params[key] = values[0] if len(values) == 1 else values
-            query_string = urlencode(flat_params)
-            # Reconstruct URL without the 'created' parameter
-            url_without_created = (
-                f"{parsed.scheme}://{parsed.netloc}{path}?{query_string}"
-            )
-        else:
-            # If no query params remain, use the original URL
-            url_without_created = url
-
-        # Replace forward slashes with underscores
-        key = url_without_created.replace("/", "_")
-
-        # Remove protocol and domain
-        key = key.replace("https___api.github.com_", "")
-
-        # Handle illegal filename characters in query parameters
-        # Replace characters that are problematic in filenames
-        key = re.sub(r'[<>:"|?*]', "_", key)
-
-        # Replace equals signs and ampersands in query params with underscores
-        key = key.replace("=", "_").replace("&", "_")
-
-        # Clean up multiple consecutive underscores
-        key = re.sub(r"_+", "_", key)
-
-        # Remove trailing underscore
-        key = key.rstrip("_")
-
-        return key
-
-    def _get_cache_path(self, url: str) -> Path:
-        """Get the cache file path for a given URL."""
-        cache_key = self._get_cache_key(url)
-        return self.cache_dir / f"{cache_key}.json"
-
-    def get(self, url: str) -> Optional[Dict]:
-        """Retrieve cached response for a URL."""
-        cache_path = self._get_cache_path(url)
-        if cache_path.exists():
-            try:
-                with open(cache_path, "r") as f:
-                    cached_data = json.load(f)
-                logging.debug(f"[CacheManager] Cache hit for URL: {url}")
-                return cached_data
-            except (json.JSONDecodeError, IOError) as e:
-                logging.warning(f"[CacheManager] Failed to read cache for {url}: {e}")
-                return None
-        logging.debug(f"[CacheManager] Cache miss for URL: {url}")
-        return None
-
-    def set(self, url: str, data: Dict) -> None:
-        """Cache response data for a URL."""
-        cache_path = self._get_cache_path(url)
-        try:
-            with open(cache_path, "w") as f:
-                json.dump(data, f, indent=2)
-            logging.debug(f"[CacheManager] Cached response for URL: {url}")
-        except IOError as e:
-            logging.error(f"[CacheManager] Failed to write cache for {url}: {e}")
-
-
-# Global cache manager instance
-cache_manager = CacheManager()
-
-
-def make_cached_request(
-    url: str, headers: Optional[Dict[str, str]] = None
-) -> Optional[Dict]:
-    """
-    Make an HTTP request with caching. Returns the JSON response if successful.
-
-    Args:
-        url: The URL to request
-        headers: Optional headers for the request
-
-    Returns:
-        JSON response data if successful, None if failed
-    """
-    # Check cache first
-    cached_response = cache_manager.get(url)
-    if cached_response:
-        logging.info(f"[make_cached_request] Using cached response for: {url}")
-        return cached_response
-
-    # Make actual HTTP request
-    logging.info(f"[make_cached_request] Making HTTP request to: {url}")
-    try:
-        response = requests.get(url, headers=headers or HEADERS)
-        response.raise_for_status()
-        data = response.json()
-
-        # Cache successful response
-        cache_manager.set(url, data)
-        logging.info(f"[make_cached_request] Successfully cached response for: {url}")
-        return data
-
-    except requests.exceptions.RequestException as e:
-        logging.error(f"[make_cached_request] HTTP request failed for {url}: {e}")
-        return None
-    except json.JSONDecodeError as e:
-        logging.error(
-            f"[make_cached_request] Failed to parse JSON response for {url}: {e}"
-        )
-        return None
 
 
 def get_repos(org: str) -> List[str]:
@@ -276,7 +156,7 @@ def get_repos(org: str) -> List[str]:
     while True:
         url = f"{BASE_URL}/orgs/{org}/repos?per_page=100&page={page}"
         logging.debug(f"[get_repos] Requesting URL: {url}")
-        data = make_cached_request(url)
+        data = make_cached_request(url, HEADERS)
         if data is None:
             logging.error(f"[get_repos] Failed to fetch page {page} for org: {org}")
             break
@@ -312,7 +192,7 @@ def get_workflow_runs(org: str, repo: str) -> List[Dict]:
     while True:
         url = f"{BASE_URL}/repos/{org}/{repo}/actions/runs?per_page=100&page={page}&created=>={WORKFLOW_RUN_LOOKBACK}"
         logging.debug(f"[get_workflow_runs] Requesting URL: {url}")
-        response_data = make_cached_request(url)
+        response_data = make_cached_request(url, HEADERS)
         if response_data is None:
             logging.error(
                 f"[get_workflow_runs] Failed to fetch page {page} for repo: {repo}"
@@ -397,7 +277,7 @@ def get_jobs_for_run(
     )
     url = f"{BASE_URL}/repos/{org}/{repo}/actions/runs/{run_id}/jobs"
     logging.debug(f"[get_jobs_for_run] Requesting URL: {url}")
-    response_data = make_cached_request(url)
+    response_data = make_cached_request(url, HEADERS)
     if response_data is None:
         logging.error(
             f"[get_jobs_for_run] Failed to fetch jobs for run {run_id} in repo: {repo}"
@@ -511,39 +391,20 @@ def process_repo_runs(
 
 
 def save_to_yaml(data: Dict, filename: str = "runner_labels_summary.yml"):
-    logging.info(f"[save_to_yaml] Saving runner label data to {filename}")
+    # Create reports directory if it doesn't exist
+    reports_dir = "reports"
+    os.makedirs(reports_dir, exist_ok=True)
+
+    # Build full path with reports directory
+    filepath = os.path.join(reports_dir, filename)
+    logging.info(f"[save_to_yaml] Saving runner label data to {filepath}")
+
     # Convert defaultdict to regular dict to avoid YAML serialization issues
     if hasattr(data, "default_factory"):
         data = dict(data)
-    with open(filename, "w") as f:
+    with open(filepath, "w") as f:
         yaml.dump(data, f, sort_keys=False)
-    logging.info(f"[save_to_yaml] Data successfully saved to {filename}")
-
-
-def clear_cache():
-    """Clear all cached data."""
-    import shutil
-
-    if CACHE_DIR.exists():
-        shutil.rmtree(CACHE_DIR)
-        CACHE_DIR.mkdir(exist_ok=True)
-        logging.info(f"[clear_cache] Cleared cache directory: {CACHE_DIR}")
-    else:
-        logging.info(f"[clear_cache] Cache directory does not exist: {CACHE_DIR}")
-
-
-def get_cache_stats():
-    """Get statistics about the cache."""
-    if not CACHE_DIR.exists():
-        return {"total_files": 0, "total_size_mb": 0}
-
-    cache_files = list(CACHE_DIR.glob("*.json"))
-    total_size = sum(f.stat().st_size for f in cache_files)
-
-    return {
-        "total_files": len(cache_files),
-        "total_size_mb": round(total_size / (1024 * 1024), 2),
-    }
+    logging.info(f"[save_to_yaml] Data successfully saved to {filepath}")
 
 
 def download_scale_config(url: str, dest: str = "scale-config.yml") -> bool:
@@ -681,6 +542,20 @@ def main():
         if repos_by_github_runner:
             output_data["repos_by_github_runner"] = dict(repos_by_github_runner)
 
+        # --- SORT OUTPUT ALPHABETICALLY FOR CONSISTENCY (except top-level keys) ---
+        def deep_sort(obj, sort_keys=True):
+            if isinstance(obj, dict):
+                keys = sorted(obj) if sort_keys else obj.keys()
+                return {k: deep_sort(obj[k]) for k in keys}
+            elif isinstance(obj, list):
+                # If list of dicts with 'repo' key, sort by 'repo', else sort normally
+                if obj and isinstance(obj[0], dict) and "repo" in obj[0]:
+                    return sorted([deep_sort(x) for x in obj], key=lambda x: x["repo"])
+                return sorted(deep_sort(x) for x in obj)
+            else:
+                return obj
+
+        output_data = deep_sort(output_data, sort_keys=False)
         save_to_yaml(output_data)
 
         # Show final cache stats
