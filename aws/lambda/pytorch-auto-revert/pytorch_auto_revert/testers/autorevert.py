@@ -302,12 +302,16 @@ def autorevert_checker(
 
         if verbose:
             print()
-            print("*********************************************************************")
+            print(
+                "*********************************************************************"
+            )
             print("STATS SUMMARY:")
             print(f" PRECISION: {stats_precision * 100:.1f}%")
             print(f" RECALL: {stats_recall * 100:.1f}%")
             print(f" F1: {stats_f1 * 100:.1f}%")
-            print("*********************************************************************")
+            print(
+                "*********************************************************************"
+            )
             print()
 
         workflow_statistics = defaultdict(
