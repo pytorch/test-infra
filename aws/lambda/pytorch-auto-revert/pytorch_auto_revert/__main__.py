@@ -174,7 +174,7 @@ def main(*args, **kwargs) -> None:
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             do_restart=True,
             do_revert=True,
-            hours=int(os.environ.get("HOURS", 48)),
+            hours=int(os.environ.get("HOURS", 16)),
             verbose=True,
             dry_run=opts.dry_run,
             ignore_common_errors=True,

@@ -221,7 +221,6 @@ def autorevert_checker(
                     print(f"  ... and {len(pattern['failed_job_names']) - 5} more")
 
                 # Job coverage overlap logging removed (older_job_coverage dropped from pattern)
-
                 if revert_result and verbose:
                     print(f"Revert message: {revert_result['revert_message'][:100]}...")
 
@@ -281,7 +280,6 @@ def autorevert_checker(
             if len_non_ghfirst_reverts > 0
             else 0
         )
-        # recall_non_ghfirst = 1 - ratio_non_ghfirst_reverts
         print(
             "Reverts (excluding ghfirst) that dont match any auto revert pattern detected (%): "
             + f"({len_not_found_non_ghfirst}) ({ratio_non_ghfirst_reverts * 100:.1f}%)"
@@ -302,14 +300,15 @@ def autorevert_checker(
             else 0.0
         )
 
-        print()
-        print("*********************************************************************")
-        print("STATS SUMMARY:")
-        print(f" PRECISION: {stats_precision * 100:.1f}%")
-        print(f" RECALL: {stats_recall * 100:.1f}%")
-        print(f" F1: {stats_f1 * 100:.1f}%")
-        print("*********************************************************************")
-        print()
+        if verbose:
+            print()
+            print("*********************************************************************")
+            print("STATS SUMMARY:")
+            print(f" PRECISION: {stats_precision * 100:.1f}%")
+            print(f" RECALL: {stats_recall * 100:.1f}%")
+            print(f" F1: {stats_f1 * 100:.1f}%")
+            print("*********************************************************************")
+            print()
 
         workflow_statistics = defaultdict(
             lambda: {"match_pattern": 0, "reverts": 0, "reverts_non_ghfirst": 0}
