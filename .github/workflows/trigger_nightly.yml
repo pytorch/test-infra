@@ -117,7 +117,7 @@ jobs:
         uses: ./.github/actions/trigger-nightly
         with:
           ref: main
-          repository: pytorch-labs/torchvision-extra-decoders
+          repository: meta-pytorch/torchvision-extra-decoders
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: torchvision-extra-decoders
       - name: Trigger nightly torchtitan

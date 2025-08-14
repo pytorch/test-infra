@@ -1,1 +1,1 @@
-TorchFix moved to a separate repo - https://github.com/pytorch-labs/torchfix
+TorchFix moved to a separate repo - https://github.com/meta-pytorch/torchfix
