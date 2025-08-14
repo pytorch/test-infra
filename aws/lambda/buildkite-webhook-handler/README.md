@@ -1,6 +1,12 @@
 # Buildkite Webhook Handler Lambda
 
-This Lambda function receives and processes Buildkite webhook events for build and job events, saving them to DynamoDB tables.
+This Lambda function receives and processes Buildkite webhook events for
+all available Buildkite webhook events, saving them to DynamoDB tables.
+
+* In the near-term, this allows vLLM maintainers to explore their CI data
+like time to signals or queueing time.
+* In the longer-term, this will provide the foundation for future UX projects
+on vLLM like vLLM HUD, CI failures notifications.
 
 ## Overview
 
@@ -16,7 +22,7 @@ The lambda handles two types of Buildkite webhook events:
 - https://buildkite.com/docs/apis/webhooks/pipelines/agent-events
 
 ### Build Events Table: `vllm-buildkite-build-events`
-- **Partition Key**: `dynamoKey` (format: `REPO_NAME/BUILD_NUMBER`)
+- **Partition Key**: `dynamoKey` (format: `REPO_NAME/PIPELINE_NAME/BUILD_NUMBER`)
 - https://buildkite.com/docs/apis/webhooks/pipelines/build-events
 
 ### Job Events Table: `vllm-buildkite-job-events`

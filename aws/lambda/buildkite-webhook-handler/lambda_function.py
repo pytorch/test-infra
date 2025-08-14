@@ -68,6 +68,7 @@ def save_build_event(event_data: Dict[str, Any]) -> Dict[str, Any]:
     try:
         build = event_data.get("build", {})
         repo_name = event_data.get("pipeline", {}).get("repository", "").split("/")[-1]
+        pipeline_name = event_data.get("pipeline", {}).get("name", "")
         build_number = build.get("number", "")
 
         if not repo_name or not build_number:
@@ -78,10 +79,10 @@ def save_build_event(event_data: Dict[str, Any]) -> Dict[str, Any]:
                 ),
             }
 
-        dynamo_key = f"{repo_name}/{build_number}"
+        # Buildkite build_number is only unique in a pipeline
+        dynamo_key = f"{repo_name}/{pipeline_name}/{build_number}"
 
         item = {"dynamoKey": dynamo_key, **event_data}
-
         build_events_table.put_item(Item=item)
 
         return {
