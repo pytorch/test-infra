@@ -10,10 +10,7 @@ import {
   TimeSeriesPanelWithData,
 } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import {
-  augmentData,
-  convertToCompilerPerformanceData,
-} from "lib/benchmark/compilerUtils";
+import { convertToCompilerPerformanceData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { CompilerPerformanceData } from "lib/types";
 import useSWR from "swr";
@@ -53,7 +50,6 @@ export function GraphPanel({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   data = convertToCompilerPerformanceData(data);
-  data = augmentData(data);
 
   if (data === undefined || data.length === 0) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;

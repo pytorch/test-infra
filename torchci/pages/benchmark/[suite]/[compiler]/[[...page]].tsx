@@ -30,10 +30,7 @@ import CopyLink from "components/common/CopyLink";
 import GranularityPicker from "components/common/GranularityPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import {
-  augmentData,
-  convertToCompilerPerformanceData,
-} from "lib/benchmark/compilerUtils";
+import { convertToCompilerPerformanceData } from "lib/benchmark/compilerUtils";
 import { fetcher } from "lib/GeneralUtils";
 import { BranchAndCommit, CompilerPerformanceData } from "lib/types";
 import { useRouter } from "next/router";
@@ -86,7 +83,6 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   lData = convertToCompilerPerformanceData(lData);
-  lData = augmentData(lData);
   lData = lData
     ? lData.filter(
         (e: CompilerPerformanceData) =>
@@ -108,7 +104,6 @@ function Report({
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   rData = convertToCompilerPerformanceData(rData);
-  rData = augmentData(rData);
   rData = rData
     ? rData.filter(
         (e: CompilerPerformanceData) =>
