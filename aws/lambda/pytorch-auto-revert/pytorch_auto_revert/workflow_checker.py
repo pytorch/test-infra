@@ -1,12 +1,15 @@
 """
-WorkflowRestartChecker for querying restarted workflows via ClickHouse.
+WorkflowRestartChecker for querying restarted workflows via ClickHouse and
+dispatching workflows via GitHub with consistent workflow name resolution.
 """
 
 import logging
 from datetime import datetime, timedelta
+from functools import cached_property
 from typing import Dict, Set
 
 from .clickhouse_client_helper import CHCliFactory
+from .workflow_resolver import WorkflowResolver
 
 
 class WorkflowRestartChecker:
@@ -28,9 +31,10 @@ class WorkflowRestartChecker:
         Returns:
             bool: True if workflow was restarted (workflow_dispatch with trunk/* branch)
         """
-        # Normalize workflow name - remove .yml extension for consistency
-        normalized_workflow_name = workflow_name.replace(".yml", "")
-        cache_key = f"{normalized_workflow_name}:{commit_sha}"
+        # Resolve to display name via GitHub (exact display or file name)
+        display_name = self.resolver.require(workflow_name).display_name
+
+        cache_key = f"{display_name}:{commit_sha}"
         if cache_key in self._cache:
             return self._cache[cache_key]
 
@@ -54,7 +58,7 @@ class WorkflowRestartChecker:
                 "commit_sha": commit_sha,
                 "workflow_event": "workflow_dispatch",
                 "head_branch": f"trunk/{commit_sha}",
-                "workflow_name": normalized_workflow_name,
+                "workflow_name": display_name,
             },
         )
 
@@ -73,8 +77,7 @@ class WorkflowRestartChecker:
         Returns:
             Set of commit SHAs that have restarted workflows
         """
-        # Normalize workflow name - remove .yml extension for consistency
-        normalized_workflow_name = workflow_name.replace(".yml", "")
+        display_name = self.resolver.require(workflow_name).display_name
         since_date = datetime.now() - timedelta(days=days_back)
 
         query = """
@@ -87,14 +90,14 @@ class WorkflowRestartChecker:
         """
 
         result = CHCliFactory().client.query(
-            query, {"workflow_name": normalized_workflow_name, "since_date": since_date}
+            query, {"workflow_name": display_name, "since_date": since_date}
         )
 
         commits = {row[0] for row in result.result_rows}
 
         # Update cache
         for commit_sha in commits:
-            cache_key = f"{normalized_workflow_name}:{commit_sha}"
+            cache_key = f"{display_name}:{commit_sha}"
             self._cache[cache_key] = True
 
         return commits
@@ -114,13 +117,10 @@ class WorkflowRestartChecker:
         Returns:
             bool: True if workflow was successfully dispatched, False otherwise
         """
-        # Normalize workflow name
-        normalized_workflow_name = workflow_name.replace(".yml", "")
-
         # Check if already restarted
-        if self.has_restarted_workflow(normalized_workflow_name, commit_sha):
+        if self.has_restarted_workflow(workflow_name, commit_sha):
             logging.warning(
-                f"Workflow {normalized_workflow_name} already restarted for commit {commit_sha}"
+                f"Workflow {workflow_name} already restarted for commit {commit_sha}"
             )
             return False
 
@@ -144,33 +144,35 @@ class WorkflowRestartChecker:
             # Use trunk/{sha} tag format
             tag_ref = f"trunk/{commit_sha}"
 
-            # Add .yml extension for workflow name
-            workflow_file_name = f"{normalized_workflow_name}.yml"
+            # Resolve workflow
+            wf_ref = self.resolver.require(workflow_name)
 
-            # Get repo and workflow objects
-            repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
-            workflow = repo.get_workflow(workflow_file_name)
-
-            # Dispatch the workflow
-            workflow.create_dispatch(ref=tag_ref, inputs={})
+            # Dispatch via file name
+            client.get_repo(f"{self.repo_owner}/{self.repo_name}").get_workflow(
+                wf_ref.file_name
+            ).create_dispatch(ref=tag_ref, inputs={})
 
             # Construct the workflow runs URL
             workflow_url = (
                 f"https://github.com/{self.repo_owner}/{self.repo_name}"
-                f"/actions/workflows/{workflow_file_name}"
+                f"/actions/workflows/{wf_ref.file_name}"
                 f"?query=branch%3Atrunk%2F{commit_sha}"
             )
             logging.info(
-                f"Successfully dispatched workflow {normalized_workflow_name} for commit {commit_sha}\n"
+                f"Successfully dispatched workflow {wf_ref.display_name} for commit {commit_sha}\n"
                 f"  View at: {workflow_url}"
             )
 
             # Invalidate cache for this workflow/commit
-            cache_key = f"{normalized_workflow_name}:{commit_sha}"
+            cache_key = f"{wf_ref.display_name}:{commit_sha}"
             if cache_key in self._cache:
                 del self._cache[cache_key]
             return True
 
         except Exception as e:
-            logging.error(f"Error dispatching workflow {normalized_workflow_name}: {e}")
+            logging.error(f"Error dispatching workflow {workflow_name}: {e}")
             return False
+
+    @cached_property
+    def resolver(self) -> WorkflowResolver:
+        return WorkflowResolver.get(f"{self.repo_owner}/{self.repo_name}")
