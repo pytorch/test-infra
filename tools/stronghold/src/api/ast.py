@@ -11,28 +11,27 @@ import api
 import api.types
 
 
-def extract(path: pathlib.Path) -> Mapping[str, api.Parameters]:
-    """Extracts the API from a given source file.
+def extract(path: pathlib.Path, *, include_classes: bool = False) -> api.API:
+    """Extracts API definitions from a given source file."""
 
-    The keys will be the fully-qualified path from the root of the module, e.g.
-     * global_func
-     * ClassName.method_name
-     * ClassName.SubClassName.method_name
-    """
-    raw_api = extract_raw(path)
-    return {
-        name: _function_def_to_parameters(function_def)
-        for name, function_def in raw_api.items()
+    funcs, classes = extract_raw(path, include_classes=include_classes)
+    parameters = {
+        name: _function_def_to_parameters(func) for name, func in funcs.items()
     }
+    return api.API(functions=parameters, classes=classes)
 
 
-def extract_raw(path: pathlib.Path) -> Mapping[str, ast.FunctionDef]:
-    """Extracts the API as ast.FunctionDef instances."""
-    out: dict[str, ast.FunctionDef] = {}
-    _ContextualNodeVisitor(out, context=[]).visit(
+def extract_raw(
+    path: pathlib.Path, *, include_classes: bool = False
+) -> tuple[Mapping[str, ast.FunctionDef], Mapping[str, api.Class]]:
+    """Extracts API as AST nodes."""
+
+    funcs: dict[str, ast.FunctionDef] = {}
+    classes: dict[str, api.Class] = {}
+    _ContextualNodeVisitor(funcs, classes if include_classes else None, []).visit(
         ast.parse(path.read_text(), os.fspath(path))
     )
-    return out
+    return funcs, classes
 
 
 def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
@@ -90,20 +89,105 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
 
 
 class _ContextualNodeVisitor(ast.NodeVisitor):
-    """NodeVisitor implementation that tracks which class, if any, it is a member of."""
+    """NodeVisitor that collects functions and optionally classes."""
 
-    def __init__(self, out: dict[str, ast.FunctionDef], context: Sequence[str]) -> None:
-        self._out = out
-        self._context = context
+    def __init__(
+        self,
+        functions: dict[str, ast.FunctionDef],
+        classes: dict[str, api.Class] | None,
+        context: Sequence[str],
+    ) -> None:
+        self._functions = functions
+        self._classes = classes
+        self._context = list(context)
 
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         # Recursively visit all nodes under this class, with the given
         # class name pushed onto a new context.
+        if self._classes is not None:
+            name = ".".join(self._context + [node.name])
+            is_dataclass = any(
+                (isinstance(dec, ast.Name) and dec.id == "dataclass")
+                or (isinstance(dec, ast.Attribute) and dec.attr == "dataclass")
+                for dec in node.decorator_list
+            )
+            fields: list[api.Field] = []
+            for stmt in node.body:
+                if isinstance(stmt, ast.AnnAssign) and isinstance(
+                    stmt.target, ast.Name
+                ):
+                    field_name = stmt.target.id
+                    if field_name.startswith("_"):
+                        continue
+                    required = stmt.value is None
+                    init = True
+                    # Support dataclasses.field(...)
+                    if isinstance(stmt.value, ast.Call):
+                        fn = stmt.value.func
+
+                        def _is_field_func(f: ast.AST) -> bool:
+                            return (isinstance(f, ast.Name) and f.id == "field") or (
+                                isinstance(f, ast.Attribute) and f.attr == "field"
+                            )
+
+                        if _is_field_func(fn):
+                            # default/default_factory imply not required
+                            has_default = any(
+                                isinstance(kw, ast.keyword)
+                                and kw.arg == "default"
+                                and kw.value is not None
+                                for kw in stmt.value.keywords
+                            )
+                            has_default_factory = any(
+                                isinstance(kw, ast.keyword)
+                                and kw.arg == "default_factory"
+                                and kw.value is not None
+                                for kw in stmt.value.keywords
+                            )
+                            required = not (has_default or has_default_factory)
+                            # init flag
+                            for kw in stmt.value.keywords:
+                                if isinstance(kw, ast.keyword) and kw.arg == "init":
+                                    init = not (
+                                        isinstance(kw.value, ast.Constant)
+                                        and kw.value.value is False
+                                    )
+                                    break
+                    fields.append(
+                        api.Field(
+                            name=field_name,
+                            required=required,
+                            line=stmt.lineno,
+                            type_annotation=api.types.annotation_to_dataclass(
+                                stmt.annotation
+                            ),
+                            init=init,
+                        )
+                    )
+                elif isinstance(stmt, ast.Assign):
+                    for target in stmt.targets:
+                        if isinstance(target, ast.Name):
+                            field_name = target.id
+                            if field_name.startswith("_"):
+                                continue
+                            fields.append(
+                                api.Field(
+                                    name=field_name,
+                                    required=False,
+                                    line=stmt.lineno,
+                                    type_annotation=None,
+                                    init=True,
+                                )
+                            )
+            self._classes[name] = api.Class(
+                fields=fields, line=node.lineno, dataclass=is_dataclass
+            )
+
         _ContextualNodeVisitor(
-            self._out, list(self._context) + [node.name]
+            self._functions, self._classes, self._context + [node.name]
         ).generic_visit(node)
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         # Records this function.
-        name = ".".join(list(self._context) + [node.name])
-        self._out[name] = node
+        name = ".".join(self._context + [node.name])
+        self._functions[name] = node

@@ -68,15 +68,39 @@ def check(
     before: pathlib.Path, after: pathlib.Path
 ) -> Sequence[api.violations.Violation]:
     """Identifies API compatibility issues between two files."""
-    before_api = api.ast.extract(before)
-    after_api = api.ast.extract(after)
+    before_api = api.ast.extract(before, include_classes=True)
+    after_api = api.ast.extract(after, include_classes=True)
+    before_funcs = before_api.functions
+    after_funcs = after_api.functions
+    before_classes = before_api.classes
+    after_classes = after_api.classes
+
+    # Identify deleted classes to avoid double-reporting their methods as deleted
+    deleted_classes = {
+        name
+        for name in before_classes
+        if not any(token.startswith("_") for token in name.split("."))
+        and name not in after_classes
+    }
+
+    def _under_deleted_class(func_name: str) -> bool:
+        tokens = func_name.split(".")
+        prefix = []
+        for t in tokens[:-1]:  # exclude the function name itself
+            prefix.append(t)
+            if ".".join(prefix) in deleted_classes:
+                return True
+        return False
 
     violations: list[api.violations.Violation] = []
-    for name, before_def in before_api.items():
+    for name, before_def in before_funcs.items():
         if any(token.startswith("_") for token in name.split(".")):
             continue
+        if _under_deleted_class(name):
+            # Will be reported as a class deletion instead
+            continue
 
-        after_def = after_api.get(name)
+        after_def = after_funcs.get(name)
         if after_def is None:
             violations.append(api.violations.FunctionDeleted(func=name, line=1))
             continue
@@ -102,6 +126,17 @@ def check(
         violations += _check_by_position(name, before_def, after_def)
         violations += _check_by_requiredness(name, before_def, after_def)
         violations += _check_variadic_parameters(name, before_def, after_def)
+
+    for name, before_class in before_classes.items():
+        if any(token.startswith("_") for token in name.split(".")):
+            continue
+        after_class = after_classes.get(name)
+        if after_class is None:
+            continue
+        violations += list(_check_class_fields(name, before_class, after_class))
+
+    # Classes deleted between before and after
+    violations += list(_check_deleted_classes(before_classes, after_classes))
 
     return violations
 
@@ -247,7 +282,68 @@ def _check_variadic_parameters(
     if before.variadic_args and not after.variadic_args:
         yield api.violations.VarArgsDeleted(func=func, line=after.line)
     if before.variadic_kwargs and not after.variadic_kwargs:
-        yield api.violations.KwArgsDeleted(func, line=after.line)
+        yield api.violations.KwArgsDeleted(func=func, line=after.line)
+
+
+def _check_class_fields(
+    cls: str, before: api.Class, after: api.Class
+) -> Iterable[api.violations.Violation]:
+    """Checks class and dataclass field compatibility."""
+
+    before_fields = {f.name: f for f in before.fields}
+    after_fields = {f.name: f for f in after.fields}
+
+    for name, before_field in before_fields.items():
+        after_field = after_fields.get(name)
+        if after_field is None:
+            yield api.violations.FieldRemoved(func=cls, parameter=name, line=after.line)
+            continue
+
+        if not _check_type_compatibility(
+            before_field.type_annotation, after_field.type_annotation
+        ):
+            yield api.violations.FieldTypeChanged(
+                func=cls,
+                parameter=name,
+                line=after_field.line,
+                type_before=str(before_field.type_annotation),
+                type_after=str(after_field.type_annotation),
+            )
+
+    for name in set(after_fields) - set(before_fields):
+        # Policy: Only flag additions for dataclasses, and only when required and in __init__
+        if after.dataclass:
+            added = after_fields[name]
+            if added.required and getattr(added, "init", True):
+                yield api.violations.FieldAdded(
+                    func=cls, parameter=name, line=added.line
+                )
+
+
+def _check_deleted_classes(
+    before_classes: Mapping[str, api.Class], after_classes: Mapping[str, api.Class]
+) -> Iterable[api.violations.Violation]:
+    """Emits violations for classes deleted between before and after."""
+    deleted = [
+        name
+        for name in before_classes
+        if not any(token.startswith("_") for token in name.split("."))
+        and name not in after_classes
+    ]
+
+    deleted_set = set(deleted)
+
+    def has_deleted_ancestor(class_name: str) -> bool:
+        tokens = class_name.split(".")
+        for i in range(1, len(tokens)):
+            if ".".join(tokens[:i]) in deleted_set:
+                return True
+        return False
+
+    for name in deleted:
+        if not has_deleted_ancestor(name):
+            # Align with FunctionDeleted's use of line=1
+            yield api.violations.ClassDeleted(func=name, line=1)
 
 
 def _check_type_compatibility(
