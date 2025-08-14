@@ -172,5 +172,6 @@ class WorkflowRestartChecker:
             logging.error(f"Error dispatching workflow {workflow_name}: {e}")
             return False
 
+    @property
     def resolver(self) -> WorkflowResolver:
         return WorkflowResolver.get(f"{self.repo_owner}/{self.repo_name}")
