@@ -89,32 +89,32 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **Kubernetes**: Pod creation with GPU allocation, NodePort services, init containers
 - **Expiry System**: Timestamp-based expiration tracking with historical records (TTL disabled)
 - **DynamoDB**: Reservations kept as historical records, not auto-deleted
+- **SSORole + instructions for that** - Implement SSO role authentication and provide setup instructions
 
 ### 📋 Remaining Tasks
 
-1. **SSORole + instructions for that** - Implement SSO role authentication and provide setup instructions
-2. **Production deployment** - Switch to p5.48xlarge instances when ready
-3. **Investigate NFS** - Research NFS integration for shared storage across pods
-4. **Persistent disk** - Implement persistent disk storage for user data across sessions
-5. **Validate CUDA version** - Add CUDA version validation and display in container startup
-6. **Validate NVIDIA driver version** - Display and validate NVIDIA driver version
-7. **Test wall messages** - Verify that wall message functionality works correctly
-8. **Validate if expiration works as expected** - Test and verify pod cleanup and reservation expiry process
-9. **Simplify code + clean up** - Refactor and clean up codebase for maintainability
-10. **Add Docker** - Install and configure Docker in development containers
-11. **Add ghstack** - Install ghstack tool for GitHub stack management
-12. **Add tests for everything** - Implement comprehensive test suite for all components
-13. **Investigate multi node communication** - Research inter-node networking for multi-GPU setups
-14. **FQDN for devservers** - Set up proper domain names for development server access
-15. **Switch between H100/B200 GPU types** - Add `--gpu-type=b200` CLI option with separate queues per GPU type
-16. **GPU queue status command** - Add status command to show queue length per GPU type (e.g., `gpu-dev queue-status`)
-17. **Jupyter notebook integration** - Add `--jupyter` flag to enable Jupyter notebook and TensorBoard access
-18. **Add user collaboration feature** - Add `--add-user <github_name>` flag to allow users to add someone to the server
-19. **Future features**:
-    - Multi-server (16 GPU) reservations
-    - GitHub organization/team verification
-    - Reservation extensions
-    - Usage monitoring and quotas
+- **Production deployment** - Switch to p5.48xlarge instances when ready
+- **Investigate NFS** - Research NFS integration for shared storage across pods
+- **Persistent disk** - Implement persistent disk storage for user data across sessions
+- **Validate CUDA version** - Add CUDA version validation and display in container startup
+- **Validate NVIDIA driver version** - Display and validate NVIDIA driver version
+- **Test wall messages** - Verify that wall message functionality works correctly
+- **Validate if expiration works as expected** - Test and verify pod cleanup and reservation expiry process
+- **Simplify code + clean up** - Refactor and clean up codebase for maintainability
+- **Add Docker** - Install and configure Docker in development containers
+- **Add ghstack** - Install ghstack tool for GitHub stack management
+- **Add tests for everything** - Implement comprehensive test suite for all components
+- **Investigate multi node communication** - Research inter-node networking for multi-GPU setups
+- **FQDN for devservers** - Set up proper domain names for development server access
+- **Switch between H100/B200 GPU types** - Add `--gpu-type=b200` CLI option with separate queues per GPU type
+- **GPU queue status command** - Add status command to show queue length per GPU type (eg, `gpu-dev queue-status`)
+- **Jupyter notebook integration** - Add `--jupyter` flag to enable Jupyter notebook and TensorBoard access
+- **Add user collaboration feature** - Add `--add-user <github_name>` flag to allow users to add someone to the server
+- **Future features**:
+  - Multi-server (16 GPU) reservations
+  - GitHub organization/team verification
+  - Reservation extensions
+  - Usage monitoring and quotas
 
 ## Current Working Architecture
 
