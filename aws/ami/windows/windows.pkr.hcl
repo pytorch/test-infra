@@ -111,6 +111,13 @@ build {
     ]
   }
 
+  provisioner "powershell" {
+    environment_vars = ["CUDA_VERSION=13.0"]
+    scripts = [
+      "${path.root}/scripts/Installers/Install-CUDA-Tools.ps1",
+    ]
+  }
+
   # Uninstall Windows Defender, it brings more trouble than it's worth. Do this
   # last as it screws up the installation of other services like sshd somehow
   provisioner "powershell" {
