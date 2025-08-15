@@ -91,7 +91,9 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
       if (/^\d+$/.test(extractedOwner)) {
         actualOwners = extractedOwner;
       } else {
-        console.error(`Invalid account ID format: '${extractedOwner}'. Account ID must contain only numbers. Using default value '${actualOwners}'`);
+        console.error(
+          `Invalid account ID format: '${extractedOwner}'. Account ID must contain only numbers. Using default value '${actualOwners}'`
+        );
       }
     }
   }
