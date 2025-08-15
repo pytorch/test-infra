@@ -27,7 +27,7 @@ BUCKET = S3.Bucket("pytorch")
 BUCKET_META_CDN = S3.Bucket("pytorch-test")
 INDEX_BUCKETS = {BUCKET, BUCKET_META_CDN}
 
-ACCEPTED_FILE_EXTENSIONS = ("whl", "zip", "tar.gz", "json")
+ACCEPTED_FILE_EXTENSIONS = ("whl", "zip", "tar.gz")
 ACCEPTED_SUBDIR_PATTERNS = [
     r"cu[0-9]+",  # for cuda
     r"rocm[0-9]+\.[0-9]+",  # for rocm
@@ -40,8 +40,6 @@ PREFIXES = [
     "whl/test",
     "libtorch",
     "libtorch/nightly",
-    "whl/test/variant",
-    "whl/variant",
 ]
 
 # NOTE: This refers to the name on the wheels themselves and not the name of
@@ -87,8 +85,6 @@ PACKAGE_ALLOW_LIST = {
         "tzdata",
         "xxhash",
         "yarl",
-        "pep_xxx_wheel_variants",
-        "nvidia_variant_provider",
         # ---- triton additional packages ----
         "Arpeggio",
         "caliper_reader",
