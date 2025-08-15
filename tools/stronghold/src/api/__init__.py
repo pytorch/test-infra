@@ -22,6 +22,8 @@ class Parameters:
     variadic_kwargs: bool
     # The line where the function is defined.
     line: int
+    # Decorator names applied to this function/method (simple or dotted form).
+    decorators: Sequence[str] = ()
 
 
 @dataclasses.dataclass
@@ -62,6 +64,8 @@ class Class:
     fields: Sequence[Field]
     line: int
     dataclass: bool = False
+    # Decorator names applied to the class (simple or dotted form).
+    decorators: Sequence[str] = ()
 
 
 @dataclasses.dataclass

@@ -80,11 +80,13 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
         )
         for i, arg in enumerate(args.kwonlyargs)
     ]
+    dec_names = tuple(_decorator_to_name(d) for d in node.decorator_list)
     return api.Parameters(
         parameters=params,
         variadic_args=args.vararg is not None,
         variadic_kwargs=args.kwarg is not None,
         line=node.lineno,
+        decorators=dec_names,
     )
 
 
@@ -106,10 +108,9 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
         # class name pushed onto a new context.
         if self._classes is not None:
             name = ".".join(self._context + [node.name])
+            dec_names = [_decorator_to_name(d) for d in node.decorator_list]
             is_dataclass = any(
-                (isinstance(dec, ast.Name) and dec.id == "dataclass")
-                or (isinstance(dec, ast.Attribute) and dec.attr == "dataclass")
-                for dec in node.decorator_list
+                (n == "dataclass" or n.endswith(".dataclass")) for n in dec_names
             )
             fields: list[api.Field] = []
             for stmt in node.body:
@@ -180,7 +181,10 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
                                 )
                             )
             self._classes[name] = api.Class(
-                fields=fields, line=node.lineno, dataclass=is_dataclass
+                fields=fields,
+                line=node.lineno,
+                dataclass=is_dataclass,
+                decorators=tuple(dec_names),
             )
 
         _ContextualNodeVisitor(
@@ -191,3 +195,39 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
         # Records this function.
         name = ".".join(self._context + [node.name])
         self._functions[name] = node
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        # Treat async functions similarly by normalizing to FunctionDef shape.
+        name = ".".join(self._context + [node.name])
+        fnode = ast.FunctionDef(
+            name=node.name,
+            args=node.args,
+            body=node.body,
+            decorator_list=node.decorator_list,
+            returns=node.returns,
+            type_comment=node.type_comment,
+        )
+        self._functions[name] = fnode
+
+
+def _decorator_to_name(expr: ast.AST) -> str:
+    """Extracts a dotted name for a decorator expression.
+    For calls like @dec(...), returns the callee name "dec".
+    For attributes like @pkg.mod.dec, returns "pkg.mod.dec".
+    For names like @dec, returns "dec".
+    """
+
+    def _attr_chain(a: ast.AST) -> str | None:
+        if isinstance(a, ast.Name):
+            return a.id
+        if isinstance(a, ast.Attribute):
+            left = _attr_chain(a.value)
+            if left is None:
+                return a.attr
+            return f"{left}.{a.attr}"
+        return None
+
+    if isinstance(expr, ast.Call):
+        expr = expr.func
+    name = _attr_chain(expr)
+    return name or ""
