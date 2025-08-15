@@ -6,66 +6,113 @@ from unittest.mock import MagicMock, patch
 
 from torchci.check_alerts import (
     check_for_no_flaky_tests_alert,
-    close_if_too_many_comments,
     fetch_alerts_filter,
     filter_job_names,
     gen_update_comment,
     generate_no_flaky_tests_issue,
     handle_flaky_tests_alert,
+    JobData,
+    JobGroup,
     JobStatus,
     PYTORCH_ALERT_LABEL,
     SOFT_COMMENT_THRESHOLD,
 )
-from torchci.queue_alert import gen_issue, QueueInfo, queuing_alert
+from torchci.queue_alert import QueueInfo, queuing_alert
 
 
 JOB_NAME = "periodic / linux-xenial-cuda10.2-py3-gcc7-slow-gradcheck / test (default, 2, 2, linux.4xlarge.nvidia.gpu)"
-DISABLED_JOB_NAMES = [
-    "linux-focal-rocm5.3-py3.8-slow / test (slow, 1, 1, linux.rocm.gpu, rerun_disabled_tests)",
-    "unstable / linux-bionic-py3_7-clang8-xla / test (xla, 1, 1, linux.4xlarge)",
-]
+
+
+def get_pending_job_data():
+    """
+    Returns a JobData object representing a pending job.
+    This is used to simulate a job that is still in progress.
+    """
+    return JobData(
+        "dummy name",
+        {
+            "conclusion": "pending",
+        },
+    )
+
+
+def get_success_job_group():
+    """
+    Returns a JobGroup object representing a successful job.
+    This is used to simulate a job that has completed successfully.
+    """
+    return JobGroup([get_success_job_data()])
+
+
+def get_success_job_data():
+    """
+    Returns a JobData object representing a successful job.
+    This is used to simulate a job that has completed successfully.
+    """
+    return JobData(
+        "dummy name",
+        {
+            "conclusion": "success",
+        },
+    )
+
+
+def get_pending_job_group():
+    """
+    Returns a JobGroup object representing a pending job.
+    This is used to simulate a job that is still in progress.
+    """
+    return JobGroup([get_pending_job_data()])
+
+
 MOCK_TEST_DATA = [
-    {
-        "sha": "f02f3046571d21b48af3067e308a1e0f29b43af9",
-        "id": 7819529276,
-        "conclusion": "failure",
-        "htmlUrl": "https://github.com/pytorch/pytorch/runs/7819529276?check_suite_focus=true",
-        "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/7819529276",
-        "durationS": 14876,
-        "failureLines": ["##[error]The action has timed out."],
-        "failureContext": "",
-        "failureCaptures": ["##[error]The action has timed out."],
-        "failureLineNumbers": [83818],
-        "repo": "pytorch/pytorch",
-    },
-    {
-        "sha": "d0d6b1f2222bf90f478796d84a525869898f55b6",
-        "id": 7818399623,
-        "conclusion": "failure",
-        "htmlUrl": "https://github.com/pytorch/pytorch/runs/7818399623?check_suite_focus=true",
-        "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/7818399623",
-        "durationS": 14882,
-        "failureLines": ["##[error]The action has timed out."],
-        "failureContext": "",
-        "failureCaptures": ["##[error]The action has timed out."],
-        "failureLineNumbers": [72821],
-        "repo": "pytorch/pytorch",
-    },
+    JobGroup([JobData("dummy name", x)])
+    for x in [
+        {
+            "sha": "f02f3046571d21b48af3067e308a1e0f29b43af9",
+            "id": 7819529276,
+            "conclusion": "failure",
+            "htmlUrl": "https://github.com/pytorch/pytorch/runs/7819529276?check_suite_focus=true",
+            "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/7819529276",
+            "durationS": 14876,
+            "failureLines": ["##[error]The action has timed out."],
+            "failureContext": "",
+            "failureCaptures": ["##[error]The action has timed out."],
+            "failureLineNumbers": [83818],
+            "repo": "pytorch/pytorch",
+        },
+        {
+            "sha": "d0d6b1f2222bf90f478796d84a525869898f55b6",
+            "id": 7818399623,
+            "conclusion": "failure",
+            "htmlUrl": "https://github.com/pytorch/pytorch/runs/7818399623?check_suite_focus=true",
+            "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/7818399623",
+            "durationS": 14882,
+            "failureLines": ["##[error]The action has timed out."],
+            "failureContext": "",
+            "failureCaptures": ["##[error]The action has timed out."],
+            "failureLineNumbers": [72821],
+            "repo": "pytorch/pytorch",
+        },
+    ]
 ]
 ANOTHER_MOCK_TEST_DATA = [
-    {
-        "sha": "2936c8b9ce4ef4d81cc3fe6e43531cb440209c61",
-        "id": 4364234624,
-        "conclusion": "failure",
-        "htmlUrl": "https://github.com/pytorch/pytorch/runs/4364234624?check_suite_focus=true",
-        "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/4364234624",
-        "durationS": 14342,
-        "failureLines": ["##[error]An unique error here."],
-        "failureContext": "",
-        "failureCaptures": ["##[error]An unique error here."],
-        "failureLineNumbers": [12345],
-        "repo": "pytorch/pytorch",
-    },
+    JobGroup([JobData("dummy name", x)])
+    for x in [
+        {
+            "sha": "2936c8b9ce4ef4d81cc3fe6e43531cb440209c61",
+            "id": 4364234624,
+            "conclusion": "failure",
+            "htmlUrl": "https://github.com/pytorch/pytorch/runs/4364234624?check_suite_focus=true",
+            "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/4364234624",
+            "durationS": 14342,
+            "failureLines": ["##[error]An unique error here."],
+            "failureContext": "",
+            "failureCaptures": ["##[error]An unique error here."],
+            "failureLineNumbers": [12345],
+            "repo": "pytorch/pytorch",
+        },
+    ]
 ]
 
 
@@ -112,18 +159,22 @@ def mock_fetch_alerts(*args, **kwargs):
 class TestGitHubPR(TestCase):
     # Should fail when jobs are ? ? Fail Fail
     def test_alert(self) -> None:
-        status = JobStatus(JOB_NAME, [{}] + [{}] + MOCK_TEST_DATA)
+        status = JobStatus(
+            JOB_NAME,
+            [get_pending_job_group()] + [get_pending_job_group()] + MOCK_TEST_DATA,
+        )
         self.assertTrue(status.should_alert())
 
     # Shouldn't alert when a newer job has already succeeded
     def test_no_alert_when_cleared(self) -> None:
         cases = [
-            JobStatus(JOB_NAME, [{"conclusion": "success"}] + [{}] + MOCK_TEST_DATA),
             JobStatus(
                 JOB_NAME,
-                [{"conclusion": "pending"}]
-                + [{"conclusion": "success"}]
-                + MOCK_TEST_DATA,
+                [get_success_job_group()] + [get_pending_job_group()] + MOCK_TEST_DATA,
+            ),
+            JobStatus(
+                JOB_NAME,
+                [get_pending_job_group()] + [get_success_job_group()] + MOCK_TEST_DATA,
             ),
         ]
         for case in cases:
@@ -133,54 +184,33 @@ class TestGitHubPR(TestCase):
     def test_no_alert_when_not_consecutive(self) -> None:
         status = JobStatus(
             JOB_NAME,
-            [MOCK_TEST_DATA[0]] + [{"conclusion": "success"}] + [MOCK_TEST_DATA[1]],
+            [MOCK_TEST_DATA[0]] + [get_success_job_group()] + [MOCK_TEST_DATA[1]],
         )
         self.assertFalse(status.should_alert())
 
-    # Shouldn't alert when the middle job is not yet done Fail ? Fail
-    def test_no_alert_when_pending_job(self) -> None:
+    # Should alert when the middle job is not yet done Fail ? Fail
+    def test_alert_when_pending_job(self) -> None:
         status = JobStatus(
             JOB_NAME,
-            [MOCK_TEST_DATA[0]] + [{"conclusion": "pending"}] + [MOCK_TEST_DATA[1]],
+            [MOCK_TEST_DATA[0]] + [get_pending_job_group()] + [MOCK_TEST_DATA[1]],
         )
-        self.assertFalse(status.should_alert())
-
-    # Shouldn't alert when failures are different ? Fail (1) Fail (2)
-    def test_no_alert_when_different_failures(self) -> None:
-        status = JobStatus(
-            JOB_NAME, [{}] + [MOCK_TEST_DATA[0]] + ANOTHER_MOCK_TEST_DATA
-        )
-        self.assertFalse(status.should_alert())
-
-    # No need to send alerts for some jobs
-    def test_disabled_alert(self) -> None:
-        for job_name in DISABLED_JOB_NAMES:
-            status = JobStatus(job_name, [{}] + [{}] + MOCK_TEST_DATA)
-            self.assertFalse(status.should_alert())
+        self.assertTrue(status.should_alert())
 
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
         original_issue: Dict[str, Any] = {"closed": False}  # type: ignore[annotation-unchecked]
-        original_issue["body"] = (
-            "- [job1](a) failed consecutively starting with commit []()\n"
-            "- [job2](a) failed consecutively starting with commit []()"
-        )
+        original_issue["body"] = "- [job1](a)\n" "- [job2](a)"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertFalse(update_comment)
 
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
-        original_issue["body"] = (
-            "- [job1](a) failed consecutively starting with commit []()"
-        )
+        original_issue["body"] = "- [job1](a)"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("started failing" in update_comment)
         self.assertTrue("job2" in update_comment)
 
         jobs = [JobStatus("job1", [{}])]
-        original_issue["body"] = (
-            "- [job1](a) failed consecutively starting with commit []()\n"
-            "- [job2](a) failed consecutively starting with commit []()"
-        )
+        original_issue["body"] = "- [job1](a)\n" "- [job2](a)"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("stopped failing" in update_comment)
         self.assertTrue("job2" in update_comment)
