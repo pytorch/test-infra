@@ -151,6 +151,38 @@ def is_config_valid_internally(
     """
     invalid_runners = set()
 
+    def validate_ami_format(
+        runner_type: str, ami_value: str, context: str = ""
+    ) -> bool:
+        """Validate AMI format with separator '|' containing AMI Name|AWS Account"""
+        if "|" in ami_value:
+            ami_parts = ami_value.split("|")
+            if len(ami_parts) != 2:
+                print(
+                    f"Runner type {runner_type}{context} has invalid AMI format: {ami_value} (expected format: AMI_Name|AWS_Account)"
+                )
+                return False
+
+            ami_name, aws_account = ami_parts
+            ami_name = ami_name.strip()
+            aws_account = aws_account.strip()
+
+            # Validate AWS account format - should be all digits
+            if not aws_account.isdigit():
+                print(
+                    f"Runner type {runner_type}{context} has invalid AWS account format: {aws_account} (AWS account must be all digits)"
+                )
+                return False
+
+            # Basic validation that AMI name is not empty
+            if not ami_name:
+                print(
+                    f"Runner type {runner_type}{context} has empty AMI name in: {ami_value}"
+                )
+                return False
+
+        return True
+
     for runner_type, runner_config in runner_types.items():
         try:
             jsonschema.validate(runner_config, RUNNER_JSCHEMA)
@@ -166,6 +198,25 @@ def is_config_valid_internally(
         # will very easily trigger alerts of not enough runners
         if "max_available" not in runner_config:
             continue
+
+        # Validate variants if they exist
+        if "variants" in runner_config:
+            variants = runner_config["variants"]
+            if not isinstance(variants, dict):
+                print(
+                    f"Runner type {runner_type} has invalid variants configuration: must be a dictionary"
+                )
+                invalid_runners.add(runner_type)
+            else:
+                for variant_name, variant_config in variants.items():
+                    # Validate AMI format in variants if present
+                    if "ami" in variant_config:
+                        if not validate_ami_format(
+                            runner_type,
+                            variant_config["ami"],
+                            f" variant '{variant_name}'",
+                        ):
+                            invalid_runners.add(runner_type)
 
         if runner_config["max_available"] == None:
             print(
