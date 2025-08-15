@@ -63,7 +63,7 @@ resource "aws_internet_gateway" "gpu_dev_igw" {
 resource "aws_subnet" "gpu_dev_subnet" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
   cidr_block              = var.subnet_cidr
-  availability_zone       = data.aws_availability_zones.available.names[0]
+  availability_zone       = data.aws_availability_zones.available.names[1]  # us-east-2b has p5.48xlarge capacity
   map_public_ip_on_launch = true
 
   tags = {
@@ -78,7 +78,7 @@ resource "aws_subnet" "gpu_dev_subnet" {
 resource "aws_subnet" "gpu_dev_subnet_secondary" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[1]
+  availability_zone       = data.aws_availability_zones.available.names[0]  # us-east-2a for control plane diversity
   map_public_ip_on_launch = true
 
   tags = {

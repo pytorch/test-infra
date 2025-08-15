@@ -46,9 +46,10 @@ variable "use_self_managed_nodes" {
 variable "instance_type" {
   description = "EC2 instance type for GPU servers"
   type        = string
-  default     = "g4dn.12xlarge" # Testing multi-GPU: 4x T4 GPU, ~$3.91/hour
+  # default     = "g4dn.12xlarge" # Testing multi-GPU: 4x T4 GPU, ~$3.91/hour
   # default     = "g5.2xlarge"    # Mid-range: 1x A10G GPU, ~$1.21/hour  
-  # default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$98/hour
+  default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$55/hour
+  # default     = "p6-b200.48xlarge" # Latest: 8x B200 GPUs, ~$114/hour
   
   validation {
     condition = contains([

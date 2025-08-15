@@ -26,8 +26,6 @@ For terraform, we use opentofu, don't ever run tf apply directly. You're free to
 - Group imports in standard order: standard library, third-party, local imports
 - Use absolute imports when possible
 
-We talk like a pirate, like to add puns to our internal chat, but keep our code free of such chenanagins. When talking to the user however, make sure to throw the occasional pun in the chat.
-
 ## Content
 
 - torchci - a next.js app containing a PyTorch CI tracker
@@ -69,7 +67,7 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 **H100 Instance Performance (p5.48xlarge):**
 
 - 8x NVIDIA H100 GPUs (80GB each = 640GB total GPU memory)
-- Within instance: GPUs use NVLINK for direct communication
+- Within instance: GPUs use NVLINK folr direct communication
 - Between instances: EFA provides fastest networking option
 - Single AZ placement group recommended for best performance
 
@@ -108,7 +106,11 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 12. **Add tests for everything** - Implement comprehensive test suite for all components
 13. **Investigate multi node communication** - Research inter-node networking for multi-GPU setups
 14. **FQDN for devservers** - Set up proper domain names for development server access
-15. **Future features**:
+15. **Switch between H100/B200 GPU types** - Add `--gpu-type=b200` CLI option with separate queues per GPU type
+16. **GPU queue status command** - Add status command to show queue length per GPU type (e.g., `gpu-dev queue-status`)
+17. **Jupyter notebook integration** - Add `--jupyter` flag to enable Jupyter notebook and TensorBoard access
+18. **Add user collaboration feature** - Add `--add-user <github_name>` flag to allow users to add someone to the server
+19. **Future features**:
     - Multi-server (16 GPU) reservations
     - GitHub organization/team verification
     - Reservation extensions
@@ -118,8 +120,9 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 **Infrastructure (us-east-2):**
 
-- **Testing**: 2x g4dn.12xlarge instances (4 GPUs each = 8 total GPUs)
-- **Production plan**: 5x p5.48xlarge instances (8 H100 GPUs each = 40 total GPUs)
+- **Current**: 2x p5.48xlarge instances (8 H100 GPUs each = 16 total GPUs)
+- **Previous testing**: 2x g4dn.12xlarge instances (4 T4 GPUs each = 8 total GPUs)
+- **Future expansion**: Scale to 5x p5.48xlarge instances (40 total H100 GPUs)
 - EKS cluster with GPU-optimized node groups
 - NVIDIA device plugin for GPU resource exposure
 - Single AZ deployment with cluster placement groups
