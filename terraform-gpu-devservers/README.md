@@ -82,30 +82,34 @@ kubectl exec -it <pod-name> -n gpu-dev -- /bin/bash
 title: GPU Developer Servers Architecture
 ---
 flowchart TB
-    CLI[GPU Dev CLI<br/>python cli] --> |1. Reserve/Cancel| SQS[SQS Queue<br/>gpu-reservation-queue]
-    CLI --> |Query Status| DDB[(DynamoDB<br/>Reservations Table)]
+    CLI(("🖥️ GPU Dev CLI<br/>Python Tool")) --> |Reserve/Cancel| SQS{"📬 SQS Queue<br/>gpu-reservation-queue"}
+    CLI --> |Query Status| DDB[("💾 DynamoDB<br/>Reservations Table")]
 
-    SQS --> |2. Process Messages| LAMBDA1[Reservation Processor<br/>Lambda Function]
-    SCHED[CloudWatch Events<br/>Every 1 minute] --> |3. Queue Management| LAMBDA1
+    SQS --> |Process Messages| LAMBDA1(["⚡ Reservation Processor<br/>Lambda Function"])
+    SCHED(["⏰ CloudWatch Events<br/>Every 1 minute"]) --> |Queue Management| LAMBDA1
 
     LAMBDA1 --> |Update Status| DDB
-    LAMBDA1 --> |Create/Delete Pods| EKS[EKS Cluster<br/>GPU Nodes]
+    LAMBDA1 --> |Create/Delete Pods| EKS[["☸️ EKS Cluster<br/>GPU Nodes"]]
     LAMBDA1 --> |Query Capacity| EKS
 
-    SCHED2[CloudWatch Events<br/>Every 5 minutes] --> |4. Expiry Check| LAMBDA2[Reservation Expiry<br/>Lambda Function]
+    SCHED2(["⏰ CloudWatch Events<br/>Every 5 minutes"]) --> |Expiry Check| LAMBDA2(["⚡ Reservation Expiry<br/>Lambda Function"])
     LAMBDA2 --> |Check/Update| DDB
     LAMBDA2 --> |Cleanup Pods| EKS
 
-    EKS --> |SSH Access| PODS[GPU Dev Pods<br/>NodePort Services]
-    DEVS[Developers] --> |SSH| PODS
+    EKS --> |SSH Access| PODS(("🔧 GPU Dev Pods<br/>NodePort Services"))
+    DEVS(("👩‍💻 Developers")) --> |SSH| PODS
 
-    style CLI fill:#e1f5fe
-    style SQS fill:#fff3e0
-    style DDB fill:#f3e5f5
-    style LAMBDA1 fill:#e8f5e8
-    style LAMBDA2 fill:#e8f5e8
-    style EKS fill:#fff8e1
-    style PODS fill:#fce4ec
+    %% AWS Orange theme colors
+    style CLI fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    style SQS fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    style DDB fill:#3F48CC,stroke:#232F3E,stroke-width:2px,color:#fff
+    style LAMBDA1 fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    style LAMBDA2 fill:#FF9900,stroke:#232F3E,stroke-width:2px,color:#fff
+    style EKS fill:#326CE5,stroke:#232F3E,stroke-width:2px,color:#fff
+    style PODS fill:#326CE5,stroke:#232F3E,stroke-width:2px,color:#fff
+    style SCHED fill:#87CEEB,stroke:#232F3E,stroke-width:2px,color:#000
+    style SCHED2 fill:#87CEEB,stroke:#232F3E,stroke-width:2px,color:#000
+    style DEVS fill:#28A745,stroke:#232F3E,stroke-width:2px,color:#fff
 ```
 
 ### Component Details
