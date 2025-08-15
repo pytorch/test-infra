@@ -1,6 +1,5 @@
 import json
 import os
-from functools import lru_cache
 from typing import Any, Dict, List, Optional
 
 import clickhouse_connect
@@ -8,7 +7,6 @@ from clickhouse_connect.driver import Client
 from torchci.utils import cache_json, REPO_ROOT
 
 
-@lru_cache(maxsize=1)
 def get_clickhouse_client() -> Client:
     endpoint = os.environ["CLICKHOUSE_ENDPOINT"]
     # I cannot figure out why these values aren't being handled automatically
