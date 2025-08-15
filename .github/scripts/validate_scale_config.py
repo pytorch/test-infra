@@ -37,7 +37,11 @@ _RUNNER_BASE_JSCHEMA = {
     "additionalProperties": False,
     "properties": {
         "ami_experiment": {"type": "object"},
-        "ami": {"type": "string"},
+        "ami": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9 -_. ]+(\|[0-9]+)?$",
+            "description": "AMI Name|AWS Account (optional).",
+        },
         "disk_size": {"type": "number"},
         "instance_type": {"type": "string"},
         "is_ephemeral": {"type": "boolean"},
