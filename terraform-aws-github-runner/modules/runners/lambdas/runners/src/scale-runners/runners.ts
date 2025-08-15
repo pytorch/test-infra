@@ -92,7 +92,8 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
         actualOwners = extractedOwner;
       } else {
         console.error(
-          `Invalid account ID format: '${extractedOwner}'. Account ID must contain only numbers. Using default value '${actualOwners}'`
+          `Invalid account ID format: '${extractedOwner}'. Account ID must` +
+            ` contain only numbers. Using default value '${actualOwners}'`,
         );
       }
     }
@@ -111,7 +112,7 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
         metrics.ec2DescribeImagesFailure,
         () => {
           return ec2
-            .describeImages({ Owners: [owners], Filters: filters })
+            .describeImages({ Owners: [actualOwners], Filters: filters })
             .promise()
             .then((data: EC2.DescribeImagesResult) => {
               /* istanbul ignore next */
