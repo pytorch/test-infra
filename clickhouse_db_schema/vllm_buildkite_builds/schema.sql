@@ -1,4 +1,4 @@
-CREATE TABLE fortesting.vllm_buildkite_builds (
+CREATE TABLE vllm.vllm_buildkite_builds (
     dynamoKey String,
     build Tuple(
         finished_at Nullable(DateTime64(3)),
