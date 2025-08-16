@@ -108,14 +108,18 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                 # Create initial reservation record with pending status
                 from datetime import datetime, timedelta
                 
-                expires_at = (datetime.utcnow() + timedelta(hours=reservation_request.get("duration_hours", 8))).isoformat()
+                duration_hours = reservation_request.get("duration_hours", 8)
+                expires_at = (datetime.utcnow() + timedelta(hours=duration_hours)).isoformat()
+                
+                # Convert duration_hours to Decimal for DynamoDB compatibility
+                duration_decimal = Decimal(str(duration_hours))
                 
                 initial_record = {
                     "reservation_id": reservation_id,
                     "user_id": reservation_request.get("user_id"),
                     "gpu_count": reservation_request.get("gpu_count", 1),
                     "gpu_type": reservation_request.get("gpu_type", "a100"),
-                    "duration_hours": reservation_request.get("duration_hours", 8),
+                    "duration_hours": duration_decimal,
                     "name": reservation_request.get("name", f"{reservation_request.get('gpu_count', 1)}x {reservation_request.get('gpu_type', 'A100').upper()} reservation"),
                     "created_at": reservation_request.get("created_at", datetime.utcnow().isoformat()),
                     "status": "pending",

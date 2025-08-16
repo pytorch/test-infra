@@ -65,7 +65,8 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
         ]
         Resource = [
           aws_dynamodb_table.gpu_reservations.arn,
-          "${aws_dynamodb_table.gpu_reservations.arn}/index/*"
+          "${aws_dynamodb_table.gpu_reservations.arn}/index/*",
+          aws_dynamodb_table.gpu_availability.arn
         ]
       },
       {
@@ -109,6 +110,7 @@ resource "aws_lambda_function" "reservation_processor" {
   environment {
     variables = {
       RESERVATIONS_TABLE = aws_dynamodb_table.gpu_reservations.name
+      AVAILABILITY_TABLE = aws_dynamodb_table.gpu_availability.name
       EKS_CLUSTER_NAME   = aws_eks_cluster.gpu_dev_cluster.name
       REGION             = var.aws_region
       MAX_RESERVATION_HOURS = var.max_reservation_hours
