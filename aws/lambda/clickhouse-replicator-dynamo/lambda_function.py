@@ -31,9 +31,8 @@ SUPPORTED_TABLES = {
     "torchci-metrics-ci-wait-time": "misc.metrics_ci_wait_time",
     "torchci-dynamo-perf-stats": "benchmark.inductor_torch_dynamo_perf_stats",
     "torchci-oss-ci-benchmark": "benchmark.oss_ci_benchmark_v2",
-    # TODO: Find a home for these tables instead of using fortesting
-    "vllm-buildkite-build-events": "fortesting.vllm_buildkite_builds",
-    "vllm-buildkite-job-events": "fortesting.vllm_buildkite_jobs",
+    "vllm-buildkite-build-events": "vllm.vllm_buildkite_builds",
+    "vllm-buildkite-job-events": "vllm.vllm_buildkite_jobs",
 }
 
 
