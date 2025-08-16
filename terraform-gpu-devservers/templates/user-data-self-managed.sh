@@ -5,8 +5,8 @@
 
 set -o xtrace
 
-# Bootstrap the node to join the EKS cluster
-/etc/eks/bootstrap.sh ${cluster_name}
+# Bootstrap the node to join the EKS cluster with GPU type label
+/etc/eks/bootstrap.sh ${cluster_name} --kubelet-extra-args '--node-labels=GpuType=${gpu_type}'
 
 # Install additional GPU monitoring tools
 yum update -y

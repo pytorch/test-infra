@@ -257,19 +257,40 @@ def handler(event, context):
             # Check for multiple warning levels
             else:
                 # First check if the pod still exists - if not, mark as expired
+                # But add a grace period for newly launched reservations (10 minutes)
                 pod_name = reservation.get("pod_name")
-                if pod_name and not check_pod_exists(pod_name):
-                    logger.warning(
-                        f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired"
-                    )
-                    try:
-                        expire_reservation_due_to_missing_pod(reservation)
-                        expired_count += 1
-                        continue  # Skip warning processing for this reservation
-                    except Exception as e:
-                        logger.error(
-                            f"Failed to expire reservation {reservation_id} due to missing pod: {e}"
+                if pod_name:
+                    # Check if reservation was launched recently (within 10 minutes)
+                    launched_at = reservation.get("launched_at", "")
+                    grace_period_minutes = 10
+                    skip_pod_check = False
+                    
+                    if launched_at:
+                        try:
+                            launched_timestamp = int(
+                                datetime.fromisoformat(launched_at.replace("Z", "+00:00")).timestamp()
+                            )
+                            grace_period_end = launched_timestamp + (grace_period_minutes * 60)
+                            if current_time < grace_period_end:
+                                skip_pod_check = True
+                                logger.info(
+                                    f"Skipping pod existence check for reservation {reservation_id[:8]} - within {grace_period_minutes}min grace period"
+                                )
+                        except (ValueError, AttributeError) as e:
+                            logger.warning(f"Could not parse launched_at for reservation {reservation_id}: {e}")
+                    
+                    if not skip_pod_check and not check_pod_exists(pod_name):
+                        logger.warning(
+                            f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired"
                         )
+                        try:
+                            expire_reservation_due_to_missing_pod(reservation)
+                            expired_count += 1
+                            continue  # Skip warning processing for this reservation
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to expire reservation {reservation_id} due to missing pod: {e}"
+                            )
 
                 minutes_until_expiry = (expires_at - current_time) // 60
                 warnings_sent = reservation.get("warnings_sent", {})

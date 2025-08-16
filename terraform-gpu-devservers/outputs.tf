@@ -57,6 +57,12 @@ output "security_group_id" {
   value       = aws_security_group.gpu_dev_sg.id
 }
 
+# GPU type configurations
+output "supported_gpu_types" {
+  description = "Supported GPU type configurations"
+  value       = var.supported_gpu_types
+}
+
 # CLI configuration outputs
 output "cli_config" {
   description = "Configuration for CLI tools"
@@ -65,6 +71,7 @@ output "cli_config" {
     queue_url           = aws_sqs_queue.gpu_reservation_queue.id
     reservations_table  = aws_dynamodb_table.gpu_reservations.name
     cluster_name        = aws_eks_cluster.gpu_dev_cluster.name
+    supported_gpu_types = var.supported_gpu_types
   }
   sensitive = false
 }

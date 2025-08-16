@@ -19,7 +19,8 @@
       ],
       "Resource": [
         "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations",
-        "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations/index/*"
+        "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations/index/*",
+        "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-gpu-availability"
       ]
     },
     {

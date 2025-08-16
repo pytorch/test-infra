@@ -11,6 +11,10 @@ Terraform configuration for PyTorch GPU development servers using AWS EKS with K
 terraform init
 terraform plan
 terraform apply
+
+# Set up email notifications (get notified when GPU instances launch)
+# Replace YOUR_EMAIL with your actual email address
+aws sns subscribe --topic-arn arn:aws:sns:us-east-2:ACCOUNT:pytorch-gpu-dev-asg-notifications --protocol email --notification-endpoint YOUR_EMAIL@company.com
 ```
 
 ### 2. Production Setup (Future)

@@ -27,15 +27,16 @@ class ReservationManager:
     def __init__(self, config: Config):
         self.config = config
         self.reservations_table = config.dynamodb.Table(config.reservations_table)
-        self.servers_table = config.dynamodb.Table(config.servers_table)
 
     def create_reservation(
         self,
         user_id: str,
         gpu_count: int,
+        gpu_type: str,
         duration_hours: Union[int, float],
         name: Optional[str] = None,
         github_user: Optional[str] = None,
+        jupyter_enabled: bool = False,
     ) -> Optional[str]:
         """Create a new GPU reservation"""
         try:
@@ -50,11 +51,13 @@ class ReservationManager:
                 "reservation_id": reservation_id,
                 "user_id": user_id,
                 "gpu_count": gpu_count,
+                "gpu_type": gpu_type,
                 "duration_hours": duration_decimal,
-                "name": name or f"{gpu_count}-GPU reservation",
+                "name": name or f"{gpu_count}x {gpu_type.upper()} reservation",
                 "created_at": created_at,
                 "status": "pending",
                 "expires_at": (datetime.utcnow() + timedelta(hours=duration_hours)).isoformat(),
+                "jupyter_enabled": jupyter_enabled,
             }
 
             # Add github_user if provided
@@ -67,10 +70,12 @@ class ReservationManager:
                 "reservation_id": reservation_id,
                 "user_id": user_id,
                 "gpu_count": gpu_count,
+                "gpu_type": gpu_type,
                 "duration_hours": float(duration_hours),
-                "name": name or f"{gpu_count}-GPU reservation",
+                "name": name or f"{gpu_count}x {gpu_type.upper()} reservation",
                 "created_at": created_at,
                 "status": "pending",
+                "jupyter_enabled": jupyter_enabled,
             }
 
             # Add github_user if provided
@@ -189,29 +194,275 @@ class ReservationManager:
                 "gpu_type": reservation.get("gpu_type", "unknown"),
                 "failure_reason": reservation.get("failure_reason", ""),
                 "pod_logs": reservation.get("pod_logs", ""),
+                "jupyter_url": reservation.get("jupyter_url", ""),
+                "jupyter_port": reservation.get("jupyter_port", ""),
+                "jupyter_token": reservation.get("jupyter_token", ""),
+                "jupyter_enabled": reservation.get("jupyter_enabled", False),
+                "jupyter_error": reservation.get("jupyter_error", ""),
             }
 
         except Exception as e:
             console.print(f"[red]❌ Error getting connection info: {str(e)}[/red]")
             return None
 
+    def enable_jupyter(self, reservation_id: str, user_id: str) -> bool:
+        """Enable Jupyter Lab for an active reservation"""
+        try:
+            # Send message to Lambda to start Jupyter service in pod
+            # Lambda will handle both the pod changes and DynamoDB updates
+            message = {
+                "action": "enable_jupyter", 
+                "reservation_id": reservation_id,
+                "user_id": user_id
+            }
+            
+            queue_url = self.config.get_queue_url()
+            self.config.sqs_client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(message)
+            )
+            
+            console.print(f"[yellow]⏳ Jupyter enable request submitted for reservation {reservation_id[:8]}...[/yellow]")
+            
+            # Poll for 3 minutes to show the outcome
+            return self._poll_jupyter_action_result(reservation_id, "enable", timeout_minutes=3)
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error submitting Jupyter enable request: {str(e)}[/red]")
+            return False
+
+    def disable_jupyter(self, reservation_id: str, user_id: str) -> bool:
+        """Disable Jupyter Lab for an active reservation"""
+        try:
+            # Send message to Lambda to stop Jupyter service in pod
+            # Lambda will handle both the pod changes and DynamoDB updates
+            message = {
+                "action": "disable_jupyter",
+                "reservation_id": reservation_id, 
+                "user_id": user_id
+            }
+            
+            queue_url = self.config.get_queue_url()
+            self.config.sqs_client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(message)
+            )
+            
+            console.print(f"[yellow]⏳ Jupyter disable request submitted for reservation {reservation_id[:8]}...[/yellow]")
+            
+            # Poll for 3 minutes to show the outcome
+            return self._poll_jupyter_action_result(reservation_id, "disable", timeout_minutes=3)
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error submitting Jupyter disable request: {str(e)}[/red]")
+            return False
+
+    def get_gpu_availability_by_type(self) -> Optional[Dict[str, Dict[str, Any]]]:
+        """Get GPU availability information by GPU type from real-time availability table"""
+        try:
+            # Try to get real-time availability from the availability table
+            availability_table_name = self.config.availability_table
+            availability_table = self.config.dynamodb.Table(availability_table_name)
+            
+            # Get supported GPU types
+            supported_types = ["h200", "h100", "a100", "t4"]
+            availability_info = {}
+            
+            for gpu_type in supported_types:
+                # Get queue length for this GPU type
+                queue_length = self._get_queue_length_for_gpu_type(gpu_type)
+                
+                # Estimate wait time based on queue length (15 min per position)
+                estimated_wait = queue_length * 15 if queue_length > 0 else 0
+                
+                try:
+                    # Query real-time availability table
+                    response = availability_table.get_item(Key={"gpu_type": gpu_type})
+                    
+                    if "Item" in response:
+                        item = response["Item"]
+                        availability_info[gpu_type] = {
+                            "available": int(item.get("available_gpus", 0)),
+                            "total": int(item.get("total_gpus", 0)),
+                            "queue_length": queue_length,
+                            "estimated_wait_minutes": estimated_wait,
+                            "running_instances": int(item.get("running_instances", 0)),
+                            "desired_capacity": int(item.get("desired_capacity", 0)),
+                            "last_updated": item.get("last_updated_timestamp", 0),
+                        }
+                    else:
+                        # Fallback to static configuration if no real-time data
+                        availability_info[gpu_type] = self._get_static_gpu_config(gpu_type, queue_length, estimated_wait)
+                        
+                except Exception as table_error:
+                    console.print(f"[dim]Warning: Could not get real-time data for {gpu_type}: {table_error}[/dim]")
+                    # Fallback to static configuration
+                    availability_info[gpu_type] = self._get_static_gpu_config(gpu_type, queue_length, estimated_wait)
+            
+            return availability_info
+
+        except Exception as e:
+            console.print(f"[red]❌ Error getting GPU availability: {str(e)}[/red]")
+            return None
+
+    def _get_static_gpu_config(self, gpu_type: str, queue_length: int, estimated_wait: int) -> Dict[str, Any]:
+        """Get static GPU configuration as fallback when real-time data unavailable"""
+        static_configs = {
+            "a100": {"available": 0, "total": 16},  # 2x p4d.24xlarge = 16 A100s
+            "h200": {"available": 0, "total": 16},  # 2x p5e.48xlarge = 16 H200s  
+            "h100": {"available": 0, "total": 16},  # 2x p5.48xlarge = 16 H100s
+            "t4": {"available": 0, "total": 8},     # 2x g4dn.12xlarge = 8 T4s
+        }
+        
+        config = static_configs.get(gpu_type, {"available": 0, "total": 0})
+        return {
+            "available": config["available"],
+            "total": config["total"],
+            "queue_length": queue_length,
+            "estimated_wait_minutes": estimated_wait,
+            "running_instances": 0,
+            "desired_capacity": 0,
+            "last_updated": 0,
+        }
+
+    def _get_queue_length_for_gpu_type(self, gpu_type: str) -> int:
+        """Get the number of queued reservations for a specific GPU type"""
+        try:
+            total_count = 0
+            
+            # Count queued reservations for this GPU type
+            for status in ["queued", "pending"]:
+                try:
+                    response = self.reservations_table.query(
+                        IndexName="StatusGpuTypeIndex",
+                        KeyConditionExpression="#status = :status AND gpu_type = :gpu_type",
+                        ExpressionAttributeNames={"#status": "status"},
+                        ExpressionAttributeValues={
+                            ":status": status,
+                            ":gpu_type": gpu_type
+                        }
+                    )
+                    total_count += len(response.get("Items", []))
+                except Exception as query_error:
+                    # Fallback to scanning if the composite index doesn't exist yet
+                    console.print(f"[dim]Fallback: scanning for {status} {gpu_type} reservations[/dim]")
+                    response = self.reservations_table.scan(
+                        FilterExpression="contains(#status, :status) AND contains(gpu_type, :gpu_type)",
+                        ExpressionAttributeNames={"#status": "status"},
+                        ExpressionAttributeValues={
+                            ":status": status,
+                            ":gpu_type": gpu_type
+                        }
+                    )
+                    total_count += len(response.get("Items", []))
+            
+            return total_count
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error getting queue length for {gpu_type}: {str(e)}[/red]")
+            return 0
+
+    def _poll_jupyter_action_result(self, reservation_id: str, action: str, timeout_minutes: int = 3) -> bool:
+        """Poll reservation table for Jupyter action result"""
+        try:
+            start_time = time.time()
+            timeout_seconds = timeout_minutes * 60
+            
+            with Live(console=console, refresh_per_second=2) as live:
+                spinner = Spinner("dots", text=f"🔄 Processing Jupyter {action} request...")
+                live.update(spinner)
+                
+                initial_state = None
+                
+                while time.time() - start_time < timeout_seconds:
+                    try:
+                        # Get current reservation state - support partial reservation IDs
+                        scan_response = self.reservations_table.scan(
+                            FilterExpression="begins_with(reservation_id, :prefix)",
+                            ExpressionAttributeValues={":prefix": reservation_id}
+                        )
+                        
+                        items = scan_response.get("Items", [])
+                        if len(items) == 0:
+                            spinner.text = f"🔄 Waiting for reservation data..."
+                            live.update(spinner)
+                            time.sleep(2)
+                            continue
+                        elif len(items) > 1:
+                            spinner.text = f"🔄 Multiple reservations found for {reservation_id}, using first match..."
+                            live.update(spinner)
+                        
+                        reservation = items[0]
+                        
+                        # Capture initial state on first iteration
+                        if initial_state is None:
+                            initial_state = {
+                                "jupyter_enabled": reservation.get("jupyter_enabled", False),
+                                "jupyter_url": reservation.get("jupyter_url", ""),
+                                "jupyter_port": reservation.get("jupyter_port", 0)
+                            }
+                        
+                        current_jupyter_enabled = reservation.get("jupyter_enabled", False)
+                        jupyter_url = reservation.get("jupyter_url", "")
+                        jupyter_port = reservation.get("jupyter_port", 0)
+                        
+                        # Check if the action has completed
+                        if action == "enable":
+                            if current_jupyter_enabled and jupyter_url:
+                                live.stop()
+                                console.print(f"[green]✅ Jupyter Lab enabled successfully![/green]")
+                                console.print(f"[cyan]🔗 Jupyter URL:[/cyan] {jupyter_url}")
+                                console.print(f"[cyan]🔌 Port:[/cyan] {jupyter_port}")
+                                return True
+                            elif current_jupyter_enabled != initial_state["jupyter_enabled"]:
+                                spinner.text = f"🔄 Jupyter enabled, waiting for URL..."
+                        else:  # disable
+                            if not current_jupyter_enabled and not jupyter_url:
+                                live.stop()
+                                console.print(f"[green]✅ Jupyter Lab disabled successfully![/green]")
+                                return True
+                            elif current_jupyter_enabled != initial_state["jupyter_enabled"]:
+                                spinner.text = f"🔄 Stopping Jupyter service..."
+                        
+                        live.update(spinner)
+                        time.sleep(3)
+                        
+                    except Exception as poll_error:
+                        console.print(f"[red]❌ Error polling Jupyter status: {poll_error}[/red]")
+                        return False
+                
+                # Timeout reached
+                live.stop()
+                console.print(f"[yellow]⏰ Timeout after {timeout_minutes} minutes[/yellow]")
+                console.print(f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check Jupyter status[/yellow]")
+                return False
+                
+        except Exception as e:
+            console.print(f"[red]❌ Error during Jupyter {action} polling: {str(e)}[/red]")
+            return False
+
     def get_cluster_status(self) -> Optional[Dict[str, Any]]:
-        """Get overall GPU cluster status"""
+        """Get overall GPU cluster status from availability table"""
         try:
             # Get reservations
             reservations_response = self.reservations_table.scan()
             reservations = reservations_response.get("Items", [])
 
-            # Get servers
-            servers_response = self.servers_table.scan()
-            servers = servers_response.get("Items", [])
+            # Get total GPUs from availability table
+            availability_info = self.get_gpu_availability_by_type()
+            total_gpus = 0
+            available_gpus = 0
+            
+            if availability_info:
+                for gpu_type, info in availability_info.items():
+                    total_gpus += info.get("total", 0)
+                    available_gpus += info.get("available", 0)
 
             # Calculate stats
             active_reservations = [
                 r for r in reservations if r.get("status") == "active"
             ]
             reserved_gpus = sum(int(r.get("gpu_count", 0)) for r in active_reservations)
-            total_gpus = sum(int(s.get("gpu_count", 0)) for s in servers)
 
             # Get queue length
             try:
@@ -229,7 +480,7 @@ class ReservationManager:
 
             return {
                 "total_gpus": total_gpus,
-                "available_gpus": max(0, total_gpus - reserved_gpus),
+                "available_gpus": available_gpus,
                 "reserved_gpus": reserved_gpus,
                 "active_reservations": len(active_reservations),
                 "queue_length": queue_length,
@@ -436,6 +687,14 @@ class ReservationManager:
                             console.print(
                                 f"[cyan]🖥️  Connect with:[/cyan] {ssh_command}"
                             )
+                            
+                            # Show Jupyter link if enabled
+                            jupyter_enabled = reservation.get("jupyter_enabled", False)
+                            jupyter_url = reservation.get("jupyter_url", "")
+                            if jupyter_enabled and jupyter_url:
+                                console.print(
+                                    f"[cyan]📊 Jupyter Lab:[/cyan] {jupyter_url}"
+                                )
 
                             return reservation
 

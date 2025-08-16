@@ -29,9 +29,6 @@ gpu-dev list
 # Show auto-discovered config
 gpu-dev config
 
-# Test mode (no AWS resources needed)
-gpu-dev --test reserve --gpus 2 --hours 4
-gpu-dev --test list
 ```
 
 ## How It Works

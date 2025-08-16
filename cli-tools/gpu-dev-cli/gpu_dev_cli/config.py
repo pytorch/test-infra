@@ -22,7 +22,7 @@ class Config:
         # Construct ARNs from convention
         self.queue_name = f"{self.prefix}-reservation-queue"
         self.reservations_table = f"{self.prefix}-reservations"
-        self.servers_table = f"{self.prefix}-servers"
+        self.availability_table = f"{self.prefix}-gpu-availability"
         self.cluster_name = f"{self.prefix}-cluster"
 
         # AWS clients

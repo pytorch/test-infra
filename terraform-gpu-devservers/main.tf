@@ -63,14 +63,14 @@ resource "aws_internet_gateway" "gpu_dev_igw" {
 resource "aws_subnet" "gpu_dev_subnet" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
   cidr_block              = var.subnet_cidr
-  availability_zone       = data.aws_availability_zones.available.names[1]  # us-east-2b has p5.48xlarge capacity
+  availability_zone       = data.aws_availability_zones.available.names[0]
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                        = "${var.prefix}-gpu-dev-subnet"
-    Environment                                 = var.environment
+    Name                                          = "${var.prefix}-gpu-dev-subnet"
+    Environment                                   = var.environment
     "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
-    "kubernetes.io/role/elb"                    = "1"
+    "kubernetes.io/role/elb"                      = "1"
   }
 }
 
@@ -78,14 +78,14 @@ resource "aws_subnet" "gpu_dev_subnet" {
 resource "aws_subnet" "gpu_dev_subnet_secondary" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
   cidr_block              = "10.0.2.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[0]  # us-east-2a for control plane diversity
+  availability_zone       = data.aws_availability_zones.available.names[1] # us-east-2b for control plane diversity
   map_public_ip_on_launch = true
 
   tags = {
-    Name                                        = "${var.prefix}-gpu-dev-subnet-secondary"
-    Environment                                 = var.environment
+    Name                                          = "${var.prefix}-gpu-dev-subnet-secondary"
+    Environment                                   = var.environment
     "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
-    "kubernetes.io/role/elb"                    = "1"
+    "kubernetes.io/role/elb"                      = "1"
   }
 }
 

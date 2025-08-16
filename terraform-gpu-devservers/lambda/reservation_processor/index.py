@@ -69,6 +69,8 @@ def handler(event, context):
 
                     if message_type == "cancellation":
                         success = process_cancellation_request(record)
+                    elif message_body.get("action") in ["enable_jupyter", "disable_jupyter"]:
+                        success = process_jupyter_action(record)
                     else:
                         success = process_reservation_request(record)
 
@@ -112,8 +114,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                     "reservation_id": reservation_id,
                     "user_id": reservation_request.get("user_id"),
                     "gpu_count": reservation_request.get("gpu_count", 1),
+                    "gpu_type": reservation_request.get("gpu_type", "a100"),
                     "duration_hours": reservation_request.get("duration_hours", 8),
-                    "name": reservation_request.get("name", f"{reservation_request.get('gpu_count', 1)}-GPU reservation"),
+                    "name": reservation_request.get("name", f"{reservation_request.get('gpu_count', 1)}x {reservation_request.get('gpu_type', 'A100').upper()} reservation"),
                     "created_at": reservation_request.get("created_at", datetime.utcnow().isoformat()),
                     "status": "pending",
                     "expires_at": expires_at,
@@ -140,8 +143,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
             # Let invalid messages go to DLQ by raising an exception
             raise ValueError(f"Invalid reservation request: {reservation_request}")
 
-        # Check availability
-        available_gpus = check_gpu_availability()
+        # Check availability for the specific GPU type
+        gpu_type = reservation_request.get("gpu_type", "a100")
+        available_gpus = check_gpu_availability(gpu_type)
         requested_gpus = reservation_request.get("gpu_count", 1)
 
         if available_gpus >= requested_gpus:
@@ -149,7 +153,7 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
             reservation_id = reservation_request.get("reservation_id")
             if reservation_id:
                 update_reservation_status(
-                    reservation_id, "preparing", "Preparing GPU resources"
+                    reservation_id, "preparing", f"Found {available_gpus} available {gpu_type.upper()} GPUs - preparing resources"
                 )
 
             # Create reservation
@@ -165,8 +169,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
 
             if reservation_id:
                 # Calculate queue position and estimated wait time
+                gpu_type = reservation_request.get("gpu_type", "a100")
                 queue_info = calculate_queue_position_and_wait_time(
-                    reservation_id, requested_gpus, available_gpus
+                    reservation_id, requested_gpus, gpu_type, available_gpus
                 )
 
                 # Update reservation with queue information and set to queued status
@@ -177,10 +182,16 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                     available_gpus,
                 )
 
+                # Provide more specific queued message based on availability
+                if available_gpus == 0:
+                    queue_message = f"No {gpu_type.upper()} nodes available - position #{queue_info.get('position', '?')} in queue"
+                else:
+                    queue_message = f"Need {requested_gpus} {gpu_type.upper()} GPUs, only {available_gpus} available - position #{queue_info.get('position', '?')}"
+                
                 update_reservation_status(
                     reservation_id,
                     "queued",
-                    f"In queue (#{queue_info.get('position', '?')})",
+                    queue_message,
                 )
 
                 logger.info(
@@ -241,26 +252,187 @@ def validate_reservation_request(request: dict[str, Any]) -> bool:
     return True
 
 
-def check_gpu_availability() -> int:
-    """Check available GPU capacity using K8s API"""
+def check_gpu_availability(gpu_type: str = None) -> int:
+    """Check available GPU capacity using K8s API, optionally filtered by GPU type"""
     try:
-        # Set up K8s client and tracker
+        # Set up K8s client
         k8s_client = get_k8s_client()
-        gpu_tracker = K8sGPUTracker(k8s_client)
-
-        # Get real-time GPU capacity info
-        capacity_info = gpu_tracker.get_gpu_capacity_info()
-
-        logger.info(
-            f"K8s GPU status: {capacity_info['available_gpus']}/{capacity_info['total_gpus']} GPUs available"
-        )
-        return capacity_info["available_gpus"]
+        
+        if gpu_type:
+            # Check for schedulable nodes with specific GPU type
+            available_gpus = check_schedulable_gpus_for_type(k8s_client, gpu_type)
+            logger.info(f"Schedulable {gpu_type.upper()} GPUs: {available_gpus}")
+            
+            # Update availability table with real-time data
+            try:
+                update_gpu_availability_table(gpu_type, available_gpus, k8s_client)
+            except Exception as update_error:
+                logger.warning(f"Failed to update availability table for {gpu_type}: {update_error}")
+                # Don't fail the reservation processing if availability update fails
+            
+            return available_gpus
+        else:
+            # Fallback to total available GPUs (backward compatibility)
+            gpu_tracker = K8sGPUTracker(k8s_client)
+            capacity_info = gpu_tracker.get_gpu_capacity_info()
+            logger.info(
+                f"K8s GPU status: {capacity_info['available_gpus']}/{capacity_info['total_gpus']} GPUs available"
+            )
+            return capacity_info["available_gpus"]
 
     except Exception as e:
         logger.error(f"Error checking GPU availability from K8s: {str(e)}")
         raise RuntimeError(
             f"Failed to check GPU availability via K8s API: {str(e)}"
         ) from e
+
+
+def check_schedulable_gpus_for_type(k8s_client, gpu_type: str) -> int:
+    """Check how many GPUs are available on schedulable nodes of the specified type"""
+    try:
+        from kubernetes import client
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Get all nodes with the specified GPU type that are ready and schedulable
+        nodes = v1.list_node()
+        schedulable_gpus = 0
+        
+        for node in nodes.items:
+            # Check if node has the right GPU type label
+            node_labels = node.metadata.labels or {}
+            if node_labels.get("GpuType") != gpu_type:
+                continue
+                
+            # Check if node is ready and schedulable
+            if not is_node_ready_and_schedulable(node):
+                logger.info(f"Node {node.metadata.name} with GPU type {gpu_type} is not ready/schedulable")
+                continue
+            
+            # Get available GPUs on this node
+            node_gpus = get_available_gpus_on_node(v1, node)
+            schedulable_gpus += node_gpus
+            logger.info(f"Node {node.metadata.name}: {node_gpus} available {gpu_type.upper()} GPUs")
+        
+        return schedulable_gpus
+        
+    except Exception as e:
+        logger.error(f"Error checking schedulable GPUs for type {gpu_type}: {str(e)}")
+        return 0
+
+
+def is_node_ready_and_schedulable(node) -> bool:
+    """Check if a node is ready and schedulable"""
+    # Check if node is ready
+    is_ready = False
+    if node.status and node.status.conditions:
+        for condition in node.status.conditions:
+            if condition.type == "Ready" and condition.status == "True":
+                is_ready = True
+                break
+    
+    if not is_ready:
+        return False
+    
+    # Check if node is schedulable (not cordoned)
+    if node.spec and node.spec.unschedulable:
+        return False
+    
+    # Check for NoSchedule taints that would prevent GPU pods
+    if node.spec and node.spec.taints:
+        for taint in node.spec.taints:
+            if taint.effect == "NoSchedule" and taint.key != "nvidia.com/gpu":
+                return False
+    
+    return True
+
+
+def get_available_gpus_on_node(v1_api, node) -> int:
+    """Get the number of available GPUs on a specific node"""
+    try:
+        # Get allocatable GPUs from node status
+        allocatable = node.status.allocatable or {}
+        total_gpus = int(allocatable.get("nvidia.com/gpu", "0"))
+        
+        if total_gpus == 0:
+            return 0
+        
+        # Get pods running on this node to calculate used GPUs
+        field_selector = f"spec.nodeName={node.metadata.name}"
+        pods = v1_api.list_pod_for_all_namespaces(field_selector=field_selector)
+        
+        used_gpus = 0
+        for pod in pods.items:
+            if pod.status.phase in ["Running", "Pending"]:
+                if pod.spec.containers:
+                    for container in pod.spec.containers:
+                        if container.resources and container.resources.requests:
+                            gpu_request = container.resources.requests.get("nvidia.com/gpu", "0")
+                            used_gpus += int(gpu_request)
+        
+        available_gpus = max(0, total_gpus - used_gpus)
+        return available_gpus
+        
+    except Exception as e:
+        logger.error(f"Error getting available GPUs on node {node.metadata.name}: {str(e)}")
+        return 0
+
+
+def update_gpu_availability_table(gpu_type: str, available_gpus: int, k8s_client) -> None:
+    """Update the GPU availability table with real-time data from Kubernetes"""
+    try:
+        from kubernetes import client
+        
+        # Get total GPUs for this type by checking all nodes with this GPU type
+        v1 = client.CoreV1Api(k8s_client)
+        nodes = v1.list_node()
+        
+        total_gpus = 0
+        running_instances = 0
+        
+        for node in nodes.items:
+            node_labels = node.metadata.labels or {}
+            if node_labels.get("GpuType") == gpu_type:
+                running_instances += 1
+                # Get allocatable GPUs from node status
+                allocatable = node.status.allocatable or {}
+                node_gpus = int(allocatable.get("nvidia.com/gpu", "0"))
+                total_gpus += node_gpus
+        
+        # Get GPU configuration for this type (for gpus_per_instance)
+        gpu_type_configs = {
+            "t4": {"gpus_per_instance": 4},
+            "a100": {"gpus_per_instance": 8}, 
+            "h100": {"gpus_per_instance": 8},
+            "h200": {"gpus_per_instance": 8}
+        }
+        
+        gpu_config = gpu_type_configs.get(gpu_type, {"gpus_per_instance": 8})
+        gpus_per_instance = gpu_config["gpus_per_instance"]
+        
+        # Update DynamoDB availability table
+        import time
+        availability_table_name = os.environ.get("AVAILABILITY_TABLE", f"pytorch-gpu-dev-gpu-availability")
+        availability_table = dynamodb.Table(availability_table_name)
+        
+        availability_table.put_item(
+            Item={
+                "gpu_type": gpu_type,
+                "total_gpus": total_gpus,
+                "available_gpus": available_gpus,
+                "running_instances": running_instances,
+                "desired_capacity": running_instances,  # For EKS, running = desired typically
+                "gpus_per_instance": gpus_per_instance,
+                "last_updated": "reservation-processor",
+                "last_updated_timestamp": int(time.time())
+            }
+        )
+        
+        logger.info(f"Updated availability table for {gpu_type}: {available_gpus}/{total_gpus} GPUs available ({running_instances} instances)")
+        
+    except Exception as e:
+        logger.error(f"Error updating availability table for {gpu_type}: {str(e)}")
+        raise
 
 
 def create_reservation(request: dict[str, Any]) -> str:
@@ -278,7 +450,8 @@ def create_reservation(request: dict[str, Any]) -> str:
         reservation = {
             "reservation_id": reservation_id,
             "user_id": request["user_id"],
-            "gpu_count": request["gpu_count"],
+            "gpu_count": request.get("gpu_count", 1),
+            "gpu_type": request.get("gpu_type", "a100"),
             "status": "preparing",
             "created_at": request.get("created_at", now.isoformat()),
             "expires_at": expires_at.isoformat(),
@@ -293,6 +466,10 @@ def create_reservation(request: dict[str, Any]) -> str:
             reservation["name"] = request["name"]
         if "instance_preference" in request:
             reservation["instance_preference"] = request["instance_preference"]
+        if "jupyter_enabled" in request:
+            reservation["jupyter_enabled"] = request["jupyter_enabled"]
+        if "github_user" in request:
+            reservation["github_user"] = request["github_user"]
 
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         reservations_table.put_item(Item=reservation)
@@ -308,11 +485,12 @@ def create_reservation(request: dict[str, Any]) -> str:
 def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None:
     """Allocate GPU resources via K8s pod creation"""
     try:
-        gpu_count = request["gpu_count"]
-        user_id = request["user_id"]
+        gpu_count = request.get("gpu_count", 1)
+        gpu_type = request.get("gpu_type", "a100")
+        user_id = request.get("user_id")
         pod_name = f"gpu-dev-{reservation_id[:8]}"
 
-        logger.info(f"Allocating {gpu_count} GPUs for reservation {reservation_id}")
+        logger.info(f"Allocating {gpu_count}x {gpu_type.upper()} GPUs for reservation {reservation_id}")
         logger.info(f"Pod name: {pod_name}")
 
         # Get user's GitHub public key
@@ -328,12 +506,15 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         # Set up K8s client for resource management
         k8s_client = get_k8s_client()
 
-        # Create Kubernetes pod and service
-        node_port = create_kubernetes_resources(
+        # Create Kubernetes pod and services
+        jupyter_enabled = request.get("jupyter_enabled", False)
+        node_port, jupyter_port = create_kubernetes_resources(
             pod_name=pod_name,
             gpu_count=gpu_count,
+            gpu_type=gpu_type,
             github_public_key=github_public_key,
             reservation_id=reservation_id,
+            jupyter_enabled=jupyter_enabled,
         )
 
         # Get node public IP
@@ -341,6 +522,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
 
         # Generate SSH command
         ssh_command = f"ssh -p {node_port} dev@{node_public_ip}"
+        
+        # Generate Jupyter URL (we'll get the token after pod is ready)
+        jupyter_url_base = f"http://{node_public_ip}:{jupyter_port}"
 
         # Wait for SSH service to be fully ready (additional wait beyond pod ready)
         logger.info(
@@ -358,6 +542,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 pod_name=pod_name,
                 node_port=node_port,
                 node_ip=node_public_ip,
+                jupyter_port=jupyter_port,
+                jupyter_url_base=jupyter_url_base,
+                jupyter_enabled=jupyter_enabled,
                 k8s_client=k8s_client,
             )
         else:
@@ -458,9 +645,9 @@ def get_github_public_key(github_username: str) -> str:
 
 
 def create_kubernetes_resources(
-    pod_name: str, gpu_count: int, github_public_key: str, reservation_id: str
-) -> int:
-    """Create Kubernetes pod and NodePort service using Python client"""
+    pod_name: str, gpu_count: int, gpu_type: str, github_public_key: str, reservation_id: str, jupyter_enabled: bool = False
+) -> tuple[int, int]:
+    """Create Kubernetes pod and NodePort services using Python client"""
     try:
         from kubernetes import client
 
@@ -501,30 +688,73 @@ def create_kubernetes_resources(
             if pod_error.status != 404:
                 raise
 
-        if pod_exists and existing_service_port:
-            # Both pod and service exist, use existing port
-            node_port = existing_service_port
-            logger.info(
-                f"Using existing resources: pod {pod_name}, service port {node_port}"
+        # Check if Jupyter service exists
+        existing_jupyter_port = None
+        try:
+            jupyter_service = v1.read_namespaced_service(
+                name=f"{pod_name}-jupyter", namespace="gpu-dev"
             )
+            existing_jupyter_port = jupyter_service.spec.ports[0].node_port
+        except client.exceptions.ApiException as jupyter_error:
+            if jupyter_error.status != 404:
+                raise
+
+        # Handle Jupyter port logic
+        if jupyter_enabled:
+            if pod_exists and existing_service_port and existing_jupyter_port:
+                # All resources exist, use existing ports
+                node_port = existing_service_port
+                jupyter_port = existing_jupyter_port
+                logger.info(
+                    f"Using existing resources: pod {pod_name}, SSH port {node_port}, Jupyter port {jupyter_port}"
+                )
+            else:
+                # Find available node ports (30000-32767 range)
+                node_port = existing_service_port or find_available_node_port(k8s_client)
+                jupyter_port = existing_jupyter_port or find_available_node_port(k8s_client)
+                
+                # Ensure SSH and Jupyter use different ports
+                while jupyter_port == node_port:
+                    jupyter_port = find_available_node_port(k8s_client)
+
+                # Create pod if it doesn't exist
+                if not pod_exists:
+                    create_pod(k8s_client, pod_name, gpu_count, gpu_type, github_public_key, jupyter_enabled=True)
+                    logger.info(f"Created new pod {pod_name} with Jupyter")
+
+                # Create SSH service if it doesn't exist
+                if not existing_service_port:
+                    create_service(k8s_client, pod_name, node_port)
+                    logger.info(f"Created new service {pod_name}-ssh on port {node_port}")
+
+                # Create Jupyter service if it doesn't exist
+                if not existing_jupyter_port:
+                    create_jupyter_service(k8s_client, pod_name, jupyter_port)
+                    logger.info(f"Created new service {pod_name}-jupyter on port {jupyter_port}")
         else:
-            # Find available node port (30000-32767 range)
-            node_port = find_available_node_port(k8s_client)
+            # Jupyter disabled - only SSH service needed
+            jupyter_port = 0  # No Jupyter port
+            
+            if pod_exists and existing_service_port:
+                node_port = existing_service_port
+                logger.info(f"Using existing resources: pod {pod_name}, SSH port {node_port}")
+            else:
+                node_port = existing_service_port or find_available_node_port(k8s_client)
+                
+                # Create pod if it doesn't exist
+                if not pod_exists:
+                    create_pod(k8s_client, pod_name, gpu_count, gpu_type, github_public_key, jupyter_enabled=False)
+                    logger.info(f"Created new pod {pod_name} without Jupyter")
 
-            # Create pod if it doesn't exist
-            if not pod_exists:
-                create_pod(k8s_client, pod_name, gpu_count, github_public_key)
-                logger.info(f"Created new pod {pod_name}")
-
-            # Create service if it doesn't exist
-            if not existing_service_port:
-                create_service(k8s_client, pod_name, node_port)
-                logger.info(f"Created new service {pod_name}-ssh on port {node_port}")
+                # Create SSH service if it doesn't exist
+                if not existing_service_port:
+                    create_service(k8s_client, pod_name, node_port)
+                    logger.info(f"Created new service {pod_name}-ssh on port {node_port}")
 
         # Wait for pod to be ready (regardless of whether it was just created or already existed)
         wait_for_pod_ready(k8s_client, pod_name)
 
-        return node_port
+        return node_port, jupyter_port
 
     except Exception as e:
         logger.error(f"Error creating Kubernetes resources: {str(e)}")
@@ -570,7 +800,7 @@ def find_available_node_port(k8s_client) -> int:
         return random.randint(30000, 32767)
 
 
-def create_pod(k8s_client, pod_name: str, gpu_count: int, github_public_key: str):
+def create_pod(k8s_client, pod_name: str, gpu_count: int, gpu_type: str, github_public_key: str, jupyter_enabled: bool = False):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
         from kubernetes import client
@@ -974,6 +1204,45 @@ MOTD_EOF
                         echo 'export UBUNTU_PRO_HIDDEN=1' >> /home/dev/.bashrc
                         touch /etc/motd.d/00-header /etc/motd.d/10-help-text
 
+                        echo "[STARTUP] Installing Jupyter Lab..."
+                        # Install Jupyter Lab with pip (more reliable than conda)
+                        pip install --no-cache-dir jupyterlab ipywidgets matplotlib seaborn pandas numpy
+                        
+                        # Always create Jupyter config and token (for later use)
+                        echo "[STARTUP] Setting up Jupyter Lab configuration..."
+                        su - dev -c "mkdir -p ~/.jupyter"
+                        
+                        # Generate Jupyter config and token (always, regardless of JUPYTER_ENABLED)
+                        JUPYTER_TOKEN=$(openssl rand -hex 32)
+                        
+                        # Create Jupyter config file
+                        cat > /home/dev/.jupyter/jupyter_lab_config.py << EOF
+c.ServerApp.ip = '0.0.0.0'
+c.ServerApp.port = 8888
+c.ServerApp.token = '$JUPYTER_TOKEN'
+c.ServerApp.password = ''
+c.ServerApp.open_browser = False
+c.ServerApp.allow_origin = '*'
+c.ServerApp.allow_remote_access = True
+c.ServerApp.notebook_dir = '/workspace'
+c.ServerApp.root_dir = '/workspace'
+EOF
+                        chown 1000:1000 /home/dev/.jupyter/jupyter_lab_config.py
+                        
+                        # Store Jupyter token in a file for later retrieval
+                        echo "$JUPYTER_TOKEN" > /tmp/jupyter_token
+                        chown 1000:1000 /tmp/jupyter_token
+                        chmod 600 /tmp/jupyter_token
+
+                        # Only start Jupyter if enabled at creation time
+                        if [ "$JUPYTER_ENABLED" = "true" ]; then
+                            echo "[STARTUP] Starting Jupyter Lab in background..."
+                            nohup su - dev -c "cd /workspace && /opt/conda/bin/jupyter-lab --config=/home/dev/.jupyter/jupyter_lab_config.py" > /tmp/jupyter.log 2>&1 &
+                            echo "[STARTUP] Jupyter Lab started (check /tmp/jupyter.log for details)"
+                        else
+                            echo "[STARTUP] Jupyter Lab configured but not started (use 'gpu-dev edit --enable-jupyter' to enable)"
+                        fi
+
                         echo "[STARTUP] Starting SSH daemon..."
                         # Test SSH config first
                         /usr/sbin/sshd -t
@@ -983,7 +1252,13 @@ MOTD_EOF
                         exec /usr/sbin/sshd -D -e
                         """,
                     ],
-                    ports=[client.V1ContainerPort(container_port=22)],
+                    ports=[
+                        client.V1ContainerPort(container_port=22),
+                        client.V1ContainerPort(container_port=8888)
+                    ],
+                    env=[
+                        client.V1EnvVar(name="JUPYTER_ENABLED", value=str(jupyter_enabled).lower())
+                    ],
                     resources=client.V1ResourceRequirements(
                         limits={"nvidia.com/gpu": str(gpu_count)},
                         requests={"nvidia.com/gpu": str(gpu_count)},
@@ -1005,6 +1280,7 @@ MOTD_EOF
                     empty_dir=client.V1EmptyDirVolumeSource(size_limit="500Gi"),
                 ),
             ],
+            node_selector={"GpuType": gpu_type},
             tolerations=[
                 client.V1Toleration(
                     key="nvidia.com/gpu", operator="Exists", effect="NoSchedule"
@@ -1061,6 +1337,40 @@ def create_service(k8s_client, pod_name: str, node_port: int):
 
     except Exception as e:
         logger.error(f"Error creating service for {pod_name}: {str(e)}")
+        raise
+
+
+def create_jupyter_service(k8s_client, pod_name: str, jupyter_port: int):
+    """Create NodePort service for Jupyter Lab access"""
+    try:
+        from kubernetes import client
+
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Create service spec for Jupyter
+        service_spec = client.V1ServiceSpec(
+            type="NodePort",
+            ports=[
+                client.V1ServicePort(
+                    port=8888, target_port=8888, node_port=jupyter_port, protocol="TCP"
+                )
+            ],
+            selector={"reservation": pod_name},
+        )
+
+        # Create service metadata
+        service_metadata = client.V1ObjectMeta(
+            name=f"{pod_name}-jupyter", namespace="gpu-dev"
+        )
+
+        # Create service
+        service = client.V1Service(metadata=service_metadata, spec=service_spec)
+        v1.create_namespaced_service(namespace="gpu-dev", body=service)
+
+        logger.info(f"Created service {pod_name}-jupyter on port {jupyter_port}")
+
+    except Exception as e:
+        logger.error(f"Error creating Jupyter service for {pod_name}: {str(e)}")
         raise
 
 
@@ -1182,7 +1492,7 @@ def apply_kubernetes_yaml(yaml_content: str, filename: str):
             pass
 
 
-def wait_for_pod_ready(k8s_client, pod_name: str, timeout_seconds: int = 300):
+def wait_for_pod_ready(k8s_client, pod_name: str, timeout_seconds: int = 600):
     """Wait for pod to be ready"""
     try:
         import time
@@ -1313,8 +1623,48 @@ def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]
         return "unknown", "unknown"
 
 
+def get_jupyter_token_from_pod(k8s_client, pod_name: str) -> str:
+    """Retrieve Jupyter token from pod's token file"""
+    try:
+        from kubernetes import client
+        from kubernetes.stream import stream
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Execute command to read the token file
+        exec_command = [
+            '/bin/bash',
+            '-c', 
+            'cat /tmp/jupyter_token 2>/dev/null || echo "TOKEN_NOT_READY"'
+        ]
+        
+        resp = stream(
+            v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            "gpu-dev",
+            command=exec_command,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False
+        )
+        
+        token = resp.strip()
+        if token == "TOKEN_NOT_READY" or not token:
+            logger.warning(f"Jupyter token not ready yet for pod {pod_name}")
+            return None
+            
+        logger.info(f"Retrieved Jupyter token from pod {pod_name}")
+        return token
+        
+    except Exception as e:
+        logger.error(f"Error getting Jupyter token from pod {pod_name}: {str(e)}")
+        return None
+
+
 def update_reservation_connection_info(
-    reservation_id: str, ssh_command: str, pod_name: str, node_port: int, node_ip: str, k8s_client=None
+    reservation_id: str, ssh_command: str, pod_name: str, node_port: int, node_ip: str, 
+    jupyter_port: int, jupyter_url_base: str, jupyter_enabled: bool = False, k8s_client=None
 ):
     """Update reservation with connection details and set proper expiration time"""
     try:
@@ -1342,33 +1692,98 @@ def update_reservation_connection_info(
             k8s_client = get_k8s_client()
         instance_type, gpu_type = get_instance_type_and_gpu_info(k8s_client, pod_name)
 
+        # Get Jupyter token from pod and verify Jupyter is actually running
+        jupyter_token = get_jupyter_token_from_pod(k8s_client, pod_name)
+        
+        # If Jupyter was supposed to be enabled, verify it's actually running
+        actual_jupyter_enabled = jupyter_enabled
+        jupyter_error_msg = ""
+        
+        if jupyter_enabled:
+            try:
+                # Check if Jupyter process is running
+                from kubernetes.stream import stream
+                v1 = client.CoreV1Api(k8s_client)
+                
+                check_resp = stream(
+                    v1.connect_get_namespaced_pod_exec,
+                    pod_name,
+                    "gpu-dev", 
+                    command=["pgrep", "-f", "jupyter"],
+                    stderr=True,
+                    stdin=False,
+                    stdout=True,
+                    tty=False
+                )
+                
+                if not check_resp.strip():
+                    # Jupyter not running, check why
+                    log_resp = stream(
+                        v1.connect_get_namespaced_pod_exec,
+                        pod_name,
+                        "gpu-dev",
+                        command=["cat", "/tmp/jupyter.log"],
+                        stderr=True,
+                        stdin=False,
+                        stdout=True,
+                        tty=False
+                    )
+                    
+                    actual_jupyter_enabled = False
+                    jupyter_error_msg = f"Jupyter failed to start: {log_resp.strip()[:200]}"
+                    logger.warning(f"Jupyter was requested but failed to start in pod {pod_name}: {jupyter_error_msg}")
+                    
+            except Exception as jupyter_check_error:
+                logger.warning(f"Could not verify Jupyter status in pod {pod_name}: {jupyter_check_error}")
+                # Keep original state if we can't check
+        
+        jupyter_url = f"{jupyter_url_base}?token={jupyter_token}" if jupyter_token and actual_jupyter_enabled else jupyter_url_base
+
+        # Build update expression dynamically based on whether there's a Jupyter error
+        update_expression = """
+            SET ssh_command = :ssh_command,
+                pod_name = :pod_name,
+                node_port = :node_port,
+                node_ip = :node_ip,
+                expires_at = :expires_at,
+                launched_at = :launched_at,
+                namespace = :namespace,
+                instance_type = :instance_type,
+                gpu_type = :gpu_type,
+                jupyter_port = :jupyter_port,
+                jupyter_url = :jupyter_url,
+                jupyter_token = :jupyter_token,
+                jupyter_enabled = :jupyter_enabled,
+                #status = :status
+        """
+        
+        expression_values = {
+            ":ssh_command": ssh_command,
+            ":pod_name": pod_name,
+            ":node_port": node_port,
+            ":node_ip": node_ip,
+            ":expires_at": expires_at,
+            ":launched_at": launched_at,
+            ":namespace": "gpu-dev",
+            ":instance_type": instance_type,
+            ":gpu_type": gpu_type,
+            ":jupyter_port": jupyter_port,
+            ":jupyter_url": jupyter_url,
+            ":jupyter_token": jupyter_token or "",
+            ":jupyter_enabled": actual_jupyter_enabled,
+            ":status": "active",
+        }
+        
+        # Add Jupyter error message if there was one
+        if jupyter_error_msg:
+            update_expression += ", jupyter_error = :jupyter_error"
+            expression_values[":jupyter_error"] = jupyter_error_msg
+
         reservations_table.update_item(
             Key={"reservation_id": reservation_id},
-            UpdateExpression="""
-                SET ssh_command = :ssh_command,
-                    pod_name = :pod_name,
-                    node_port = :node_port,
-                    node_ip = :node_ip,
-                    expires_at = :expires_at,
-                    launched_at = :launched_at,
-                    namespace = :namespace,
-                    instance_type = :instance_type,
-                    gpu_type = :gpu_type,
-                    #status = :status
-            """,
+            UpdateExpression=update_expression,
             ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={
-                ":ssh_command": ssh_command,
-                ":pod_name": pod_name,
-                ":node_port": node_port,
-                ":node_ip": node_ip,
-                ":expires_at": expires_at,
-                ":launched_at": launched_at,
-                ":namespace": "gpu-dev",
-                ":instance_type": instance_type,
-                ":gpu_type": gpu_type,
-                ":status": "active",
-            },
+            ExpressionAttributeValues=expression_values,
         )
         logger.info(
             f"Updated reservation {reservation_id} with connection info and expires_at={expires_at}"
@@ -1380,7 +1795,7 @@ def update_reservation_connection_info(
 
 
 def calculate_queue_position_and_wait_time(
-    reservation_id: str, requested_gpus: int, available_gpus: int
+    reservation_id: str, requested_gpus: int, gpu_type: str, available_gpus: int
 ) -> dict:
     """Calculate queue position and estimated wait time for a reservation"""
     try:
@@ -1395,14 +1810,14 @@ def calculate_queue_position_and_wait_time(
         )
         active_reservations = active_response.get("Items", [])
 
-        # Get all queued/pending reservations to calculate queue position
+        # Get all queued/pending reservations for this GPU type
         queued_reservations = []
         for status in ["queued", "pending"]:
             response = reservations_table.query(
-                IndexName="StatusIndex",
-                KeyConditionExpression="#status = :status",
+                IndexName="StatusGpuTypeIndex",
+                KeyConditionExpression="#status = :status AND gpu_type = :gpu_type",
                 ExpressionAttributeNames={"#status": "status"},
-                ExpressionAttributeValues={":status": status},
+                ExpressionAttributeValues={":status": status, ":gpu_type": gpu_type},
             )
             queued_reservations.extend(response.get("Items", []))
 
@@ -1914,6 +2329,313 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
         return False  # Retry on processing errors
 
 
+def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation_id: str) -> bool:
+    """Enable Jupyter Lab in a running pod"""
+    try:
+        from kubernetes import client
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Check if Jupyter is already running using standard exec
+        check_command = ["pgrep", "-f", "jupyter"]
+        try:
+            from kubernetes.stream import stream
+            
+            check_resp = stream(
+                v1.connect_get_namespaced_pod_exec,
+                pod_name,
+                namespace,
+                command=check_command,
+                stderr=True,
+                stdin=False,  
+                stdout=True,
+                tty=False
+            )
+            
+            if "jupyter" in check_resp:
+                logger.info(f"Jupyter already running in pod {pod_name}")
+                # Update DynamoDB to reflect current state and return success
+                update_reservation_jupyter_status(reservation_id, True)
+                return True
+                
+        except Exception as check_error:
+            logger.info(f"Jupyter check failed, proceeding with start: {check_error}")
+        
+        # Start Jupyter using existing config (config always exists from pod creation)
+        start_commands = [
+            "/bin/bash", "-c", """
+            set -e
+            
+            # Start Jupyter as dev user in background (config already exists)
+            echo "Starting Jupyter Lab with existing config..."
+            nohup su - dev -c "cd /workspace && /opt/conda/bin/jupyter-lab --config=/home/dev/.jupyter/jupyter_lab_config.py" > /tmp/jupyter.log 2>&1 &
+            
+            # Wait for startup
+            sleep 3
+            
+            # Verify it started
+            if pgrep -f "jupyter" > /dev/null; then
+                echo "Jupyter Lab started successfully"
+                exit 0
+            else
+                echo "Failed to start Jupyter Lab"
+                exit 1
+            fi
+            """
+        ]
+        
+        exec_resp = stream(
+            v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            namespace,
+            command=start_commands,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False
+        )
+        
+        if "Jupyter Lab started successfully" in exec_resp:
+            logger.info(f"Successfully enabled Jupyter in pod {pod_name}")
+            
+            # Create Jupyter service if needed
+            try:
+                existing_jupyter_port = None
+                try:
+                    from kubernetes import client
+                    v1 = client.CoreV1Api(k8s_client)
+                    jupyter_service = v1.read_namespaced_service(
+                        name=f"{pod_name}-jupyter", namespace=namespace
+                    )
+                    existing_jupyter_port = jupyter_service.spec.ports[0].node_port
+                except client.exceptions.ApiException as jupyter_error:
+                    if jupyter_error.status != 404:
+                        raise
+                
+                if not existing_jupyter_port:
+                    jupyter_port = find_available_node_port(k8s_client)
+                    create_jupyter_service(k8s_client, pod_name, jupyter_port)
+                else:
+                    jupyter_port = existing_jupyter_port
+                
+                # Get node IP and token for URL
+                node_public_ip = get_node_public_ip()
+                jupyter_token = get_jupyter_token_from_pod(k8s_client, pod_name)
+                jupyter_url = f"http://{node_public_ip}:{jupyter_port}"
+                if jupyter_token:
+                    jupyter_url += f"?token={jupyter_token}"
+                
+                # Update reservation with full Jupyter info
+                reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+                reservations_table.update_item(
+                    Key={"reservation_id": reservation_id},
+                    UpdateExpression="SET jupyter_enabled = :enabled, jupyter_port = :port, jupyter_url = :url, jupyter_token = :token",
+                    ExpressionAttributeValues={
+                        ":enabled": True,
+                        ":port": jupyter_port,
+                        ":url": jupyter_url,
+                        ":token": jupyter_token or ""
+                    }
+                )
+                
+                logger.info(f"Jupyter enabled with URL: {jupyter_url}")
+                
+            except Exception as service_error:
+                logger.error(f"Error creating Jupyter service: {service_error}")
+                # Still update the enabled status even if service creation fails
+                update_reservation_jupyter_status(reservation_id, True)
+            
+            return True
+        else:
+            logger.error(f"Failed to enable Jupyter in pod {pod_name}, output: {exec_resp}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error enabling Jupyter in pod {pod_name}: {str(e)}")
+        return False
+
+
+def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation_id: str) -> bool:
+    """Disable Jupyter Lab in a running pod"""
+    try:
+        from kubernetes import client
+        from kubernetes.stream import stream
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Kill Jupyter processes
+        kill_commands = [
+            "/bin/bash", "-c", """
+            set -e
+            
+            echo "Stopping Jupyter Lab..."
+            
+            # Kill all jupyter processes
+            pkill -f jupyter || true
+            
+            # Wait a moment
+            sleep 2
+            
+            # Verify it stopped
+            if ! pgrep -f "jupyter" > /dev/null; then
+                echo "Jupyter Lab stopped successfully"
+                rm -f /tmp/jupyter_token /tmp/jupyter.log 2>/dev/null || true
+                exit 0
+            else
+                echo "Some Jupyter processes may still be running"
+                # Force kill if needed
+                pkill -9 -f jupyter || true
+                sleep 1
+                
+                if ! pgrep -f "jupyter" > /dev/null; then
+                    echo "Jupyter Lab force-stopped"
+                    rm -f /tmp/jupyter_token /tmp/jupyter.log 2>/dev/null || true
+                    exit 0
+                else
+                    echo "Failed to stop all Jupyter processes"
+                    exit 1
+                fi
+            fi
+            """
+        ]
+        
+        exec_resp = stream(
+            v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            namespace,
+            command=kill_commands,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False
+        )
+        
+        if "Jupyter Lab stopped successfully" in exec_resp or "Jupyter Lab force-stopped" in exec_resp:
+            logger.info(f"Successfully disabled Jupyter in pod {pod_name}")
+            
+            # Remove Jupyter service
+            try:
+                from kubernetes import client
+                v1 = client.CoreV1Api(k8s_client)
+                v1.delete_namespaced_service(name=f"{pod_name}-jupyter", namespace=namespace)
+                logger.info(f"Deleted Jupyter service for pod {pod_name}")
+            except client.exceptions.ApiException as service_error:
+                if service_error.status == 404:
+                    logger.info(f"Jupyter service for {pod_name} already deleted")
+                else:
+                    logger.error(f"Error deleting Jupyter service: {service_error}")
+            
+            # Update reservation with Jupyter disabled status (remove URL and token)
+            reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+            reservations_table.update_item(
+                Key={"reservation_id": reservation_id},
+                UpdateExpression="SET jupyter_enabled = :enabled REMOVE jupyter_url, jupyter_token, jupyter_port",
+                ExpressionAttributeValues={":enabled": False}
+            )
+            
+            return True
+        else:
+            logger.error(f"Failed to disable Jupyter in pod {pod_name}, output: {exec_resp}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error disabling Jupyter in pod {pod_name}: {str(e)}")
+        return False
+
+
+def update_reservation_jupyter_status(reservation_id: str, jupyter_enabled: bool) -> None:
+    """Update the Jupyter enabled status in DynamoDB"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET jupyter_enabled = :jupyter_enabled",
+            ExpressionAttributeValues={":jupyter_enabled": jupyter_enabled}
+        )
+    except Exception as e:
+        logger.error(f"Error updating Jupyter status for reservation {reservation_id}: {str(e)}")
+
+
+def process_jupyter_action(record: dict[str, Any]) -> bool:
+    """Process Jupyter enable/disable actions"""
+    try:
+        message = json.loads(record["body"])
+        action = message.get("action")
+        reservation_id = message.get("reservation_id")
+        user_id = message.get("user_id")
+        
+        if not all([action, reservation_id, user_id]):
+            logger.error(f"Missing required fields in Jupyter action: {message}")
+            return True  # Don't retry malformed messages
+            
+        logger.info(f"Processing Jupyter action: {action} for reservation {reservation_id}")
+        
+        # Get reservation details - support partial reservation IDs
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        try:
+            scan_response = reservations_table.scan(
+                FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
+                ExpressionAttributeValues={
+                    ":prefix": reservation_id,
+                    ":user_id": user_id,
+                },
+            )
+
+            items = scan_response.get("Items", [])
+            if len(items) == 0:
+                logger.error(f"Reservation {reservation_id} not found for user {user_id}")
+                return True  # Don't retry - reservation doesn't exist
+            elif len(items) > 1:
+                logger.error(f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}")
+                return True  # Don't retry - ambiguous prefix
+
+            reservation = items[0]
+            full_reservation_id = reservation["reservation_id"]  # Get the full UUID
+            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+            
+        except Exception as db_error:
+            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            return False  # Retry on database errors
+        
+        # Verify user owns the reservation and it's active
+        if reservation.get("user_id") != user_id:
+            logger.error(f"User {user_id} doesn't own reservation {full_reservation_id}")
+            return True  # Don't retry - authorization error
+            
+        if reservation.get("status") != "active":
+            logger.error(f"Can only modify active reservations (current: {reservation.get('status')})")
+            return True  # Don't retry - invalid state
+            
+        # Get pod info
+        pod_name = reservation.get("pod_name")
+        namespace = reservation.get("namespace", "gpu-dev")
+        
+        if not pod_name:
+            logger.error(f"No pod name found for reservation {full_reservation_id}")
+            return True  # Don't retry - no pod to modify
+            
+        # Execute Jupyter action in pod using full reservation ID
+        k8s_client = get_k8s_client()
+        success = False
+        
+        if action == "enable_jupyter":
+            success = enable_jupyter_in_pod(k8s_client, pod_name, namespace, full_reservation_id)
+        elif action == "disable_jupyter":
+            success = disable_jupyter_in_pod(k8s_client, pod_name, namespace, full_reservation_id)
+            
+        if success:
+            logger.info(f"Successfully {action}d Jupyter for reservation {full_reservation_id}")
+            return True
+        else:
+            logger.error(f"Failed to {action} Jupyter for reservation {full_reservation_id}")
+            return False  # Retry on failure
+            
+    except Exception as e:
+        logger.error(f"Error processing Jupyter action: {str(e)}")
+        return False  # Retry on processing errors
+
+
 def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
     """Clean up Kubernetes pod and associated service resources"""
     try:
@@ -1964,3 +2686,5 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
         raise
+
+

@@ -14,16 +14,14 @@ from rich import print as rprint
 from .auth import authenticate_user
 from .reservations import ReservationManager
 from .config import Config, load_config
-from .test_state import TestStateManager
 
 console = Console()
 
 
 @click.group()
-@click.option("--test", is_flag=True, help="Run in test mode with dummy state")
 @click.version_option()
 @click.pass_context
-def main(ctx: click.Context, test: bool) -> None:
+def main(ctx: click.Context) -> None:
     """GPU Developer CLI - Reserve and manage GPU development servers
 
     Reserve GPU-enabled development environments with SSH access.
@@ -31,17 +29,17 @@ def main(ctx: click.Context, test: bool) -> None:
 
     Examples:
         gpu-dev reserve --gpus 2 --hours 4      # Reserve 2 GPUs for 4 hours
+        gpu-dev reserve --jupyter               # Reserve with Jupyter Lab
         gpu-dev list                             # Check your reservations
-        gpu-dev connect abc12345                 # Get SSH details
+        gpu-dev show abc12345                    # Get detailed reservation info
+        gpu-dev edit abc12345 --enable-jupyter  # Enable Jupyter on active reservation
         gpu-dev cancel abc12345                  # Cancel a reservation
+        gpu-dev availability                     # Check GPU availability by type
         gpu-dev status                           # Check cluster status
 
     Use 'gpu-dev <command> --help' for detailed help on each command.
     """
     ctx.ensure_object(dict)
-    ctx.obj["test_mode"] = test
-    if test:
-        rprint("[yellow]🧪 Running in TEST MODE - using dummy state[/yellow]")
 
 
 @main.command()
@@ -53,6 +51,12 @@ def main(ctx: click.Context, test: bool) -> None:
     help="Number of GPUs to reserve (16 = 2x8 GPU setup)",
 )
 @click.option(
+    "--gpu-type",
+    type=click.Choice(["h200", "h100", "a100", "t4"]),
+    default="a100",
+    help="GPU type to reserve (h200/h100/a100/t4)",
+)
+@click.option(
     "--hours",
     "-h",
     type=float,
@@ -61,18 +65,20 @@ def main(ctx: click.Context, test: bool) -> None:
 )
 @click.option("--name", "-n", type=str, help="Optional name for the reservation")
 @click.option(
-    "--dry-run",
+    "--jupyter",
     is_flag=True,
-    help="Show what would be reserved without actually reserving",
+    help="Enable Jupyter Lab access (can be enabled later with 'gpu-dev edit')",
 )
 @click.pass_context
 def reserve(
-    ctx: click.Context, gpus: str, hours: float, name: Optional[str], dry_run: bool
+    ctx: click.Context, gpus: str, gpu_type: str, hours: float, name: Optional[str], jupyter: bool
 ) -> None:
     """Reserve GPU development server(s)
 
     Creates a reservation for GPU-enabled development environment with SSH access.
     The environment includes PyTorch, CUDA, and common ML tools pre-installed.
+    
+    Jupyter Lab can be enabled with --jupyter flag or added later with 'gpu-dev edit'.
 
     GPU Options:
         1, 2, 4, 8: Single server with specified GPU count
@@ -82,12 +88,12 @@ def reserve(
         gpu-dev reserve                          # 1 GPU for 8 hours (default)
         gpu-dev reserve -g 4 -h 2.5             # 4 GPUs for 2.5 hours
         gpu-dev reserve -g 8 -h 12 -n "training"  # 8 GPUs, named reservation
-        gpu-dev reserve --dry-run               # Preview without creating
+        gpu-dev reserve --jupyter               # Include Jupyter Lab access
+        gpu-dev reserve --gpu-type h200 -g 2    # 2 H200 GPUs
 
     Authentication: Uses your AWS credentials and GitHub SSH keys
     """
     try:
-        test_mode = ctx.obj.get("test_mode", False)
         gpu_count = int(gpus)
 
         # Validate parameters
@@ -99,53 +105,27 @@ def reserve(
             rprint("[red]❌ Minimum reservation time is 5 minutes (0.0833 hours)[/red]")
             return
 
-        if test_mode:
-            # Test mode with dummy auth
-            user_info = {"login": "test-user"}
-            test_mgr = TestStateManager()
+        # Production mode - zero config!
+        config = load_config()
 
-            if dry_run:
-                rprint(
-                    f"[yellow]🔍 TEST DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]"
-                )
-                rprint(f"[yellow]User: {user_info['user_id']}[/yellow]")
-                return
+        # Authenticate using AWS credentials - if you can call AWS, you're authorized
+        try:
+            user_info = authenticate_user(config)
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
 
-            reservation_id = test_mgr.create_reservation(
-                user_id=user_info["user_id"],
-                gpu_count=gpu_count,
-                duration_hours=hours,
-                name=name,
-            )
-        else:
-            # Production mode - zero config!
-            config = load_config()
-
-            # Authenticate using AWS credentials - if you can call AWS, you're authorized
-            try:
-                user_info = authenticate_user(config)
-            except RuntimeError as e:
-                rprint(f"[red]❌ {str(e)}[/red]")
-                return
-
-            if dry_run:
-                rprint(
-                    f"[yellow]🔍 DRY RUN: Would reserve {gpu_count} GPU(s) for {hours} hours[/yellow]"
-                )
-                rprint(
-                    f"[yellow]User: {user_info['user_id']} ({user_info['arn']})[/yellow]"
-                )
-                return
-
-            # Submit reservation
-            reservation_mgr = ReservationManager(config)
-            reservation_id = reservation_mgr.create_reservation(
-                user_id=user_info["user_id"],
-                gpu_count=gpu_count,
-                duration_hours=hours,
-                name=name,
-                github_user=user_info["github_user"],
-            )
+        # Submit reservation
+        reservation_mgr = ReservationManager(config)
+        reservation_id = reservation_mgr.create_reservation(
+            user_id=user_info["user_id"],
+            gpu_count=gpu_count,
+            gpu_type=gpu_type,
+            duration_hours=hours,
+            name=name,
+            github_user=user_info["github_user"],
+            jupyter_enabled=jupyter,
+        )
 
         if reservation_id:
             rprint(
@@ -153,22 +133,14 @@ def reserve(
             )
 
             # Poll for completion with spinner and status updates
-            if test_mode:
-                # In test mode, simulate immediate completion
-                rprint(f"[green]✅ TEST: Reservation complete![/green]")
-                rprint(f"[cyan]📋 Reservation ID:[/cyan] {reservation_id}")
-                rprint(f"[cyan]⏰ Valid for:[/cyan] {hours} hours")
-                rprint(f"[cyan]🖥️  Connect with:[/cyan] ssh test-user@test-server")
-            else:
-                # Production mode - poll for real completion
-                completed_reservation = reservation_mgr.wait_for_reservation_completion(
-                    reservation_id=reservation_id, timeout_minutes=10
-                )
+            completed_reservation = reservation_mgr.wait_for_reservation_completion(
+                reservation_id=reservation_id, timeout_minutes=10
+            )
 
-                if not completed_reservation:
-                    rprint(
-                        f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check connection details later[/yellow]"
-                    )
+            if not completed_reservation:
+                rprint(
+                    f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check connection details later[/yellow]"
+                )
         else:
             rprint("[red]❌ Failed to create reservation[/red]")
 
@@ -208,73 +180,65 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     Available statuses: active, preparing, queued, pending, expired, cancelled, failed, all
     """
     try:
-        test_mode = ctx.obj.get("test_mode", False)
 
-        if test_mode:
-            test_mgr = TestStateManager()
-            # In test mode, show all for simplicity
-            reservations = test_mgr.list_reservations(
-                user_filter=user if user == "all" else None, status_filter=None
+        config = load_config()
+
+        # Authenticate using AWS credentials
+        try:
+            user_info = authenticate_user(config)
+            current_user = user_info["user_id"]
+            reservation_mgr = ReservationManager(config)
+
+            # Determine user filter
+            if user == "all":
+                user_filter = None  # Show all users
+            elif user:
+                user_filter = user  # Show specific user
+            else:
+                user_filter = current_user  # Show only current user (default)
+
+            # Determine status filter
+            if status:
+                # Handle special "all" case
+                if status.strip().lower() == "all":
+                    statuses_to_include = None  # None means all statuses
+                else:
+                    # Parse comma-separated statuses and validate
+                    requested_statuses = [s.strip() for s in status.split(",")]
+                    valid_statuses = [
+                        "active",
+                        "preparing",
+                        "queued",
+                        "pending",
+                        "expired",
+                        "cancelled",
+                        "failed",
+                    ]
+
+                    # Validate all requested statuses
+                    invalid_statuses = [
+                        s for s in requested_statuses if s not in valid_statuses
+                    ]
+                    if invalid_statuses:
+                        rprint(
+                            f"[red]❌ Invalid status(es): {', '.join(invalid_statuses)}[/red]"
+                        )
+                        rprint(
+                            f"[yellow]Valid statuses: {', '.join(valid_statuses)}, all[/yellow]"
+                        )
+                        return
+
+                    statuses_to_include = requested_statuses
+            else:
+                # Default: all in-progress statuses (exclude terminal states)
+                statuses_to_include = ["active", "preparing", "queued", "pending"]
+
+            reservations = reservation_mgr.list_reservations(
+                user_filter=user_filter, statuses_to_include=statuses_to_include
             )
-        else:
-            config = load_config()
-
-            # Authenticate using AWS credentials
-            try:
-                user_info = authenticate_user(config)
-                current_user = user_info["user_id"]
-                reservation_mgr = ReservationManager(config)
-
-                # Determine user filter
-                if user == "all":
-                    user_filter = None  # Show all users
-                elif user:
-                    user_filter = user  # Show specific user
-                else:
-                    user_filter = current_user  # Show only current user (default)
-
-                # Determine status filter
-                if status:
-                    # Handle special "all" case
-                    if status.strip().lower() == "all":
-                        statuses_to_include = None  # None means all statuses
-                    else:
-                        # Parse comma-separated statuses and validate
-                        requested_statuses = [s.strip() for s in status.split(",")]
-                        valid_statuses = [
-                            "active",
-                            "preparing",
-                            "queued",
-                            "pending",
-                            "expired",
-                            "cancelled",
-                            "failed",
-                        ]
-
-                        # Validate all requested statuses
-                        invalid_statuses = [
-                            s for s in requested_statuses if s not in valid_statuses
-                        ]
-                        if invalid_statuses:
-                            rprint(
-                                f"[red]❌ Invalid status(es): {', '.join(invalid_statuses)}[/red]"
-                            )
-                            rprint(
-                                f"[yellow]Valid statuses: {', '.join(valid_statuses)}, all[/yellow]"
-                            )
-                            return
-
-                        statuses_to_include = requested_statuses
-                else:
-                    # Default: all in-progress statuses (exclude terminal states)
-                    statuses_to_include = ["active", "preparing", "queued", "pending"]
-
-                reservations = reservation_mgr.list_reservations(
-                    user_filter=user_filter, statuses_to_include=statuses_to_include
-                )
-            except RuntimeError as e:
-                rprint(f"[red]❌ {str(e)}[/red]")
-                return
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
 
         if not reservations:
             rprint("[yellow]📋 No reservations found[/yellow]")
@@ -428,24 +392,19 @@ def cancel(ctx: click.Context, reservation_id: str) -> None:
     Note: Cancelled reservations cannot be restored. Active pods will be terminated.
     """
     try:
-        test_mode = ctx.obj.get("test_mode", False)
 
-        if test_mode:
-            test_mgr = TestStateManager()
-            success = test_mgr.cancel_reservation(reservation_id, "test-user")
-        else:
-            config = load_config()
+        config = load_config()
 
-            # Authenticate using AWS credentials
-            try:
-                user_info = authenticate_user(config)
-                reservation_mgr = ReservationManager(config)
-                success = reservation_mgr.cancel_reservation(
-                    reservation_id, user_info["user_id"]
-                )
-            except RuntimeError as e:
-                rprint(f"[red]❌ {str(e)}[/red]")
-                return
+        # Authenticate using AWS credentials
+        try:
+            user_info = authenticate_user(config)
+            reservation_mgr = ReservationManager(config)
+            success = reservation_mgr.cancel_reservation(
+                reservation_id, user_info["user_id"]
+            )
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
 
         if success:
             rprint(f"[green]✅ Reservation {reservation_id} cancelled[/green]")
@@ -483,24 +442,19 @@ def show(ctx: click.Context, reservation_id: str) -> None:
     Works for reservations in any status.
     """
     try:
-        test_mode = ctx.obj.get("test_mode", False)
 
-        if test_mode:
-            test_mgr = TestStateManager()
-            connection_info = test_mgr.get_connection_info(reservation_id, "test-user")
-        else:
-            config = load_config()
+        config = load_config()
 
-            # Authenticate using AWS credentials
-            try:
-                user_info = authenticate_user(config)
-                reservation_mgr = ReservationManager(config)
-                connection_info = reservation_mgr.get_connection_info(
-                    reservation_id, user_info["user_id"]
-                )
-            except RuntimeError as e:
-                rprint(f"[red]❌ {str(e)}[/red]")
-                return
+        # Authenticate using AWS credentials
+        try:
+            user_info = authenticate_user(config)
+            reservation_mgr = ReservationManager(config)
+            connection_info = reservation_mgr.get_connection_info(
+                reservation_id, user_info["user_id"]
+            )
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
 
         if connection_info:
             status = connection_info.get('status', 'unknown')
@@ -552,9 +506,20 @@ def show(ctx: click.Context, reservation_id: str) -> None:
             expires_formatted = format_timestamp(expires_at)
 
             if status == 'active':
+                jupyter_info = ""
+                if connection_info.get('jupyter_enabled') and connection_info.get('jupyter_url'):
+                    jupyter_info = f"[blue]Jupyter Lab:[/blue] {connection_info['jupyter_url']}\n"
+                elif connection_info.get('jupyter_enabled') and not connection_info.get('jupyter_url'):
+                    jupyter_info = f"[blue]Jupyter Lab:[/blue] [yellow]Starting...[/yellow]\n"
+                else:
+                    # Show enable command if Jupyter is not enabled
+                    short_id = connection_info['reservation_id'][:8]
+                    jupyter_info = f"[dim]Jupyter Lab:[/dim] [yellow]Not enabled[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --enable-jupyter[/cyan]\n"
+                
                 panel_content = (
                     f"[green]Reservation Details[/green]\n\n"
                     f"[blue]SSH Command:[/blue] {connection_info['ssh_command']}\n"
+                    + jupyter_info +
                     f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
                     f"[blue]GPUs:[/blue] {gpu_info}\n"
                     f"[blue]Instance Type:[/blue] {instance_type}\n"
@@ -631,6 +596,91 @@ def show(ctx: click.Context, reservation_id: str) -> None:
 
 @main.command()
 @click.pass_context
+def availability(ctx: click.Context) -> None:
+    """Show GPU availability by type and queue estimates
+    
+    Displays real-time information about GPU availability for each GPU type.
+    Shows immediate availability and estimated queue times when resources are full.
+    
+    Information shown per GPU type:
+        - Available GPUs: GPUs ready for immediate reservation
+        - Queue Length: Number of pending reservations for this GPU type
+        - Estimated Wait: Expected time until resources become available
+        
+    Examples:
+        gpu-dev availability                     # Show availability for all GPU types
+        
+    This helps you choose the right GPU type and understand wait times before reserving.
+    """
+    try:
+        config = load_config()
+        
+        # Authenticate using AWS credentials
+        try:
+            user_info = authenticate_user(config)
+            reservation_mgr = ReservationManager(config)
+            availability_info = reservation_mgr.get_gpu_availability_by_type()
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
+            
+        if availability_info:
+            table = Table(title="GPU Availability by Type")
+            table.add_column("GPU Type", style="cyan")
+            table.add_column("Available", style="green")
+            table.add_column("Total", style="blue")
+            table.add_column("Queue Length", style="yellow")
+            table.add_column("Est. Wait Time", style="magenta")
+            
+            for gpu_type, info in availability_info.items():
+                available = info.get("available", 0)
+                total = info.get("total", 0)
+                queue_length = info.get("queue_length", 0)
+                est_wait = info.get("estimated_wait_minutes", 0)
+                
+                # Format wait time
+                if available > 0:
+                    wait_display = "Available now"
+                elif est_wait == 0:
+                    wait_display = "Unknown"
+                elif est_wait < 60:
+                    wait_display = f"{int(est_wait)}min"
+                else:
+                    hours = int(est_wait // 60)
+                    minutes = int(est_wait % 60)
+                    if minutes == 0:
+                        wait_display = f"{hours}h"
+                    else:
+                        wait_display = f"{hours}h {minutes}min"
+                
+                # Color code availability
+                if available > 0:
+                    available_display = f"[green]{available}[/green]"
+                else:
+                    available_display = f"[red]{available}[/red]"
+                
+                table.add_row(
+                    gpu_type.upper(),
+                    available_display,
+                    str(total),
+                    str(queue_length),
+                    wait_display
+                )
+            
+            console.print(table)
+            
+            # Show usage tip
+            rprint("\n[dim]💡 Use 'gpu-dev reserve --gpu-type <type>' to reserve GPUs of a specific type[/dim]")
+            
+        else:
+            rprint("[red]❌ Could not get GPU availability information[/red]")
+            
+    except Exception as e:
+        rprint(f"[red]❌ Error: {str(e)}[/red]")
+
+
+@main.command()
+@click.pass_context
 def status(ctx: click.Context) -> None:
     """Show overall GPU cluster status
 
@@ -650,22 +700,17 @@ def status(ctx: click.Context) -> None:
     Note: Status is updated in real-time from the Kubernetes cluster.
     """
     try:
-        test_mode = ctx.obj.get("test_mode", False)
 
-        if test_mode:
-            test_mgr = TestStateManager()
-            cluster_status = test_mgr.get_cluster_status()
-        else:
-            config = load_config()
+        config = load_config()
 
-            # Authenticate using AWS credentials
-            try:
-                user_info = authenticate_user(config)
-                reservation_mgr = ReservationManager(config)
-                cluster_status = reservation_mgr.get_cluster_status()
-            except RuntimeError as e:
-                rprint(f"[red]❌ {str(e)}[/red]")
-                return
+        # Authenticate using AWS credentials
+        try:
+            user_info = authenticate_user(config)
+            reservation_mgr = ReservationManager(config)
+            cluster_status = reservation_mgr.get_cluster_status()
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
 
         if cluster_status:
             table = Table(title="GPU Cluster Status")
@@ -785,45 +830,76 @@ def set(key: str, value: str) -> None:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
 
 
-# Test utilities
+@main.command()
+@click.argument("reservation_id")
+@click.option(
+    "--enable-jupyter",
+    is_flag=True,
+    help="Enable Jupyter Lab access for this reservation",
+)
+@click.option(
+    "--disable-jupyter",
+    is_flag=True,
+    help="Disable Jupyter Lab access for this reservation",
+)
+@click.pass_context
+def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_jupyter: bool) -> None:
+    """Edit an active reservation's settings
+    
+    Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab.
+    
+    Examples:
+        gpu-dev edit abc12345 --enable-jupyter     # Enable Jupyter Lab
+        gpu-dev edit abc12345 --disable-jupyter    # Disable Jupyter Lab
+    """
+    try:
+        
+        if enable_jupyter and disable_jupyter:
+            rprint("[red]❌ Cannot enable and disable Jupyter at the same time[/red]")
+            return
+            
+        if not enable_jupyter and not disable_jupyter:
+            rprint("[red]❌ Please specify --enable-jupyter or --disable-jupyter[/red]")
+            return
+
+        # Authenticate first
+        config = load_config()
+        user_info = authenticate_user(config)
+        if not user_info:
+            return
+            
+        reservation_mgr = ReservationManager(config)
+        
+        # Check if reservation exists and belongs to user
+        connection_info = reservation_mgr.get_connection_info(reservation_id, user_info["user_id"])
+        if not connection_info:
+            rprint(f"[red]❌ Reservation {reservation_id} not found or doesn't belong to you[/red]")
+            return
+            
+        if connection_info["status"] != "active":
+            rprint(f"[red]❌ Can only edit active reservations (current status: {connection_info['status']})[/red]")
+            return
+            
+        # Enable/disable Jupyter
+        if enable_jupyter:
+            success = reservation_mgr.enable_jupyter(reservation_id, user_info["user_id"])
+            if success:
+                rprint(f"[green]✅ Jupyter Lab enabled for reservation {reservation_id[:8]}...[/green]")
+                rprint("[blue]💡 Use 'gpu-dev show {reservation_id[:8]}' to see the Jupyter URL[/blue]")
+            else:
+                rprint("[red]❌ Failed to enable Jupyter Lab[/red]")
+                
+        elif disable_jupyter:
+            success = reservation_mgr.disable_jupyter(reservation_id, user_info["user_id"])
+            if success:
+                rprint(f"[green]✅ Jupyter Lab disabled for reservation {reservation_id[:8]}...[/green]")
+            else:
+                rprint("[red]❌ Failed to disable Jupyter Lab[/red]")
+            
+    except Exception as e:
+        rprint(f"[red]❌ Error editing reservation: {str(e)}[/red]")
 
 
-@main.group()
-def test() -> None:
-    """Test utilities for the CLI"""
-    pass
-
-
-@test.command()
-def reset() -> None:
-    """Reset test state to defaults"""
-    test_mgr = TestStateManager()
-    test_mgr.reset_state()
-
-
-@test.command()
-def demo() -> None:
-    """Run a demo scenario with test reservations"""
-    test_mgr = TestStateManager()
-    test_mgr.reset_state()
-
-    rprint("[yellow]🧪 Creating demo test reservations...[/yellow]")
-
-    # Create some demo reservations
-    reservations = [
-        ("alice", 2, 4, "ML training"),
-        ("bob", 1, 8, None),
-        ("charlie", 4, 2, "inference testing"),
-    ]
-
-    for user, gpus, hours, name in reservations:
-        res_id = test_mgr.create_reservation(user, gpus, hours, name)
-        if res_id:
-            rprint(
-                f"[green]✅ Created demo reservation {res_id[:8]} for {user}[/green]"
-            )
-
-    rprint("[blue]📋 Demo data created! Try: gpu-dev --test list[/blue]")
 
 
 if __name__ == "__main__":

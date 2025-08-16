@@ -126,12 +126,12 @@ resource "aws_eks_addon" "vpc_cni" {
 }
 
 
-# EKS Managed Node Group for GPU instances (Production - Stable but Slow)
+# EKS Managed Node Groups for GPU instances - one per GPU type
 resource "aws_eks_node_group" "gpu_dev_nodes" {
-  count = var.use_self_managed_nodes ? 0 : 1
+  for_each = var.use_self_managed_nodes ? {} : var.supported_gpu_types
   
   cluster_name    = aws_eks_cluster.gpu_dev_cluster.name
-  node_group_name = "${var.prefix}-gpu-nodes"
+  node_group_name = "${var.prefix}-gpu-nodes-${each.key}"
   node_role_arn   = aws_iam_role.eks_node_role.arn
   subnet_ids      = [aws_subnet.gpu_dev_subnet.id]
 
@@ -141,9 +141,9 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
 
   # Fixed size - no scaling, much faster
   scaling_config {
-    desired_size = var.gpu_instance_count
-    max_size     = var.gpu_instance_count
-    min_size     = var.gpu_instance_count
+    desired_size = each.value.instance_count
+    max_size     = each.value.instance_count
+    min_size     = each.value.instance_count
   }
 
   # Fast updates - replace all nodes immediately
@@ -160,8 +160,8 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
 
   # Launch template for custom configuration (EFA, spot instances, etc.)
   launch_template {
-    name    = aws_launch_template.gpu_dev_launch_template.name
-    version = aws_launch_template.gpu_dev_launch_template.latest_version
+    name    = aws_launch_template.gpu_dev_launch_template[each.key].name
+    version = aws_launch_template.gpu_dev_launch_template[each.key].latest_version
   }
 
   depends_on = [
@@ -172,27 +172,31 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   ]
 
   tags = {
-    Name        = "${var.prefix}-gpu-nodes"
+    Name        = "${var.prefix}-gpu-nodes-${each.key}"
     Environment = var.environment
+    GpuType     = each.key
   }
 }
 
-# Self-Managed Auto Scaling Group (Development - Fast but Manual)
+# Self-Managed Auto Scaling Groups - one per GPU type
 resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
-  count = var.use_self_managed_nodes ? 1 : 0
+  for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
   
-  name                = "${var.prefix}-gpu-nodes-self-managed"
+  name                = "${var.prefix}-gpu-nodes-self-managed-${each.key}"
   vpc_zone_identifier = [aws_subnet.gpu_dev_subnet.id]
   target_group_arns   = []
   health_check_type   = "EC2"
   health_check_grace_period = 300
 
-  min_size         = var.gpu_instance_count
-  max_size         = var.gpu_instance_count
-  desired_capacity = var.gpu_instance_count
+  min_size         = each.value.instance_count
+  max_size         = each.value.instance_count
+  desired_capacity = each.value.instance_count
+
+  # Don't wait for instances to become healthy - prevents Terraform failures when AWS can't place instances
+  wait_for_capacity_timeout = "0"
 
   launch_template {
-    id      = aws_launch_template.gpu_dev_launch_template_self_managed[0].id
+    id      = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
     version = "$Latest"
   }
 
@@ -206,7 +210,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
 
   tag {
     key                 = "Name"
-    value               = "${var.prefix}-gpu-node-self-managed"
+    value               = "${var.prefix}-gpu-node-self-managed-${each.key}"
     propagate_at_launch = true
   }
 
@@ -221,15 +225,21 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
     value               = var.environment
     propagate_at_launch = true
   }
+
+  tag {
+    key                 = "GpuType"
+    value               = each.key
+    propagate_at_launch = true
+  }
 }
 
-# Launch template for self-managed nodes
+# Launch templates for self-managed nodes - one per GPU type
 resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
-  count = var.use_self_managed_nodes ? 1 : 0
+  for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
   
-  name_prefix   = "${var.prefix}-gpu-self-managed-"
+  name_prefix   = "${var.prefix}-gpu-self-managed-${each.key}-"
   image_id      = data.aws_ami.eks_gpu_ami.id
-  instance_type = var.instance_type
+  instance_type = each.value.instance_type
   key_name      = var.key_pair_name
 
   iam_instance_profile {
@@ -255,26 +265,29 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    interface_type              = can(regex("^(p5\\.48xlarge|p6-b200\\.48xlarge)$", var.instance_type)) ? "efa" : "interface"
+    interface_type              = can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     delete_on_termination       = true
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data-self-managed.sh", {
     cluster_name = aws_eks_cluster.gpu_dev_cluster.name
     region       = var.aws_region
+    gpu_type     = each.key
   }))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.prefix}-gpu-instance-self-managed"
+      Name        = "${var.prefix}-gpu-instance-self-managed-${each.key}"
       Environment = var.environment
+      GpuType     = each.key
     }
   }
 
   tags = {
-    Name        = "${var.prefix}-gpu-launch-template-self-managed"
+    Name        = "${var.prefix}-gpu-launch-template-self-managed-${each.key}"
     Environment = var.environment
+    GpuType     = each.key
   }
 }
 
@@ -289,11 +302,13 @@ resource "aws_iam_instance_profile" "eks_node_instance_profile" {
   }
 }
 
-# Launch template for EFA networking (Managed Node Group)
+# Launch templates for EFA networking (Managed Node Groups) - one per GPU type
 resource "aws_launch_template" "gpu_dev_launch_template" {
-  name_prefix   = "${var.prefix}-gpu-lt-"
+  for_each = var.supported_gpu_types
+  
+  name_prefix   = "${var.prefix}-gpu-lt-${each.key}-"
   image_id      = data.aws_ami.eks_gpu_ami.id
-  instance_type = var.instance_type
+  instance_type = each.value.instance_type
   key_name      = var.key_pair_name
 
   # Block device mapping for 4TB root volume
@@ -315,25 +330,28 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    interface_type              = can(regex("^(p5\\.48xlarge|p6-b200\\.48xlarge)$", var.instance_type)) ? "efa" : "interface"
+    interface_type              = can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data.sh", {
     cluster_name = aws_eks_cluster.gpu_dev_cluster.name
     region       = var.aws_region
+    gpu_type     = each.key
   }))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.prefix}-gpu-instance"
+      Name        = "${var.prefix}-gpu-instance-${each.key}"
       Environment = var.environment
+      GpuType     = each.key
     }
   }
 
   tags = {
-    Name        = "${var.prefix}-gpu-launch-template"
+    Name        = "${var.prefix}-gpu-launch-template-${each.key}"
     Environment = var.environment
+    GpuType     = each.key
   }
 }
 

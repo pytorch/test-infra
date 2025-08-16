@@ -93,6 +93,7 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 ### 📋 Remaining Tasks
 
+- **Add a command gpu-dev availability** that shows how many gpus of each type are available to reserve at the moment, and if 0, what the estimated queue time is
 - **Production deployment** - Switch to p5.48xlarge instances when ready
 - **Investigate NFS** - Research NFS integration for shared storage across pods
 - **Persistent disk** - Implement persistent disk storage for user data across sessions
@@ -120,9 +121,9 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 
 **Infrastructure (us-east-2):**
 
-- **Current**: 2x p5.48xlarge instances (8 H100 GPUs each = 16 total GPUs)
+- **Current**: 2x p4d.24xlarge instances (8 A100 GPUs each = 16 total GPUs)
 - **Previous testing**: 2x g4dn.12xlarge instances (4 T4 GPUs each = 8 total GPUs)
-- **Future expansion**: Scale to 5x p5.48xlarge instances (40 total H100 GPUs)
+- **Future**: 2x p5.48xlarge instances (8 H100 GPUs each = 16 total GPUs) when capacity available
 - EKS cluster with GPU-optimized node groups
 - NVIDIA device plugin for GPU resource exposure
 - Single AZ deployment with cluster placement groups

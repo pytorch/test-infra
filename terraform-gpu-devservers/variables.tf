@@ -16,7 +16,7 @@ variable "prefix" {
   description = "Prefix for resource names"
   type        = string
   default     = "pytorch-gpu-dev"
-} 
+}
 
 variable "vpc_cidr" {
   description = "CIDR block for VPC"
@@ -33,14 +33,14 @@ variable "subnet_cidr" {
 variable "gpu_instance_count" {
   description = "Number of GPU instances to provision"
   type        = number
-  default     = 2  # Start with 2 for testing, scale to 5 for production
+  default     = 2 # Start with 2 for testing, scale to 5 for production
   # default     = 5  # Production setup
 }
 
 variable "use_self_managed_nodes" {
   description = "Use self-managed ASG instead of EKS managed node group (faster for development)"
   type        = bool
-  default     = true  # false = managed (production), true = self-managed (development)
+  default     = true # false = managed (production), true = self-managed (development)
 }
 
 variable "instance_type" {
@@ -48,9 +48,10 @@ variable "instance_type" {
   type        = string
   # default     = "g4dn.12xlarge" # Testing multi-GPU: 4x T4 GPU, ~$3.91/hour
   # default     = "g5.2xlarge"    # Mid-range: 1x A10G GPU, ~$1.21/hour  
-  default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$55/hour
+  default = "p4d.24xlarge" # Production: 8x A100 GPUs, ~$24.77/hour
+  # default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$55/hour
   # default     = "p6-b200.48xlarge" # Latest: 8x B200 GPUs, ~$114/hour
-  
+
   validation {
     condition = contains([
       "g4dn.xlarge",     # 1x T4, ~$0.53/hour (cheapest)
@@ -110,9 +111,40 @@ variable "max_reservation_hours" {
   default     = 24
 }
 
+variable "supported_gpu_types" {
+  description = "Map of supported GPU types to their instance configurations"
+  type = map(object({
+    instance_type    = string
+    instance_count   = number
+    gpus_per_instance = number
+  }))
+  default = {
+    "h200" = {
+      instance_type    = "p5e.48xlarge"     # 8x H200 GPUs
+      instance_count   = 2
+      gpus_per_instance = 8
+    }
+    "h100" = {
+      instance_type    = "p5.48xlarge"   # 8x H100 GPUs
+      instance_count   = 2
+      gpus_per_instance = 8
+    }
+    "a100" = {
+      instance_type    = "p4d.24xlarge"  # 8x A100 GPUs  
+      instance_count   = 2
+      gpus_per_instance = 8
+    }
+    "t4" = {
+      instance_type    = "g4dn.12xlarge" # 4x T4 GPUs
+      instance_count   = 2
+      gpus_per_instance = 4
+    }
+  }
+}
+
 variable "queue_message_retention" {
   description = "SQS message retention period in seconds"
   type        = number
-  default     = 1209600  # 14 days
+  default     = 1209600 # 14 days
 }
 

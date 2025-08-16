@@ -1,6 +1,6 @@
 # SQS Queue and EventBridge setup for reservation system
 
-# SQS Queue for reservation requests
+# SQS Queue for reservation requests (single queue handles all GPU types)
 resource "aws_sqs_queue" "gpu_reservation_queue" {
   name                      = "${var.prefix}-reservation-queue"
   visibility_timeout_seconds = 1000
@@ -110,6 +110,11 @@ resource "aws_dynamodb_table" "gpu_reservations" {
     type = "S"
   }
 
+  attribute {
+    name = "gpu_type"
+    type = "S"
+  }
+
   global_secondary_index {
     name     = "UserIndex"
     hash_key = "user_id"
@@ -119,6 +124,13 @@ resource "aws_dynamodb_table" "gpu_reservations" {
   global_secondary_index {
     name     = "StatusIndex"
     hash_key = "status"
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name     = "StatusGpuTypeIndex"
+    hash_key = "status"
+    range_key = "gpu_type"
     projection_type = "ALL"
   }
 
