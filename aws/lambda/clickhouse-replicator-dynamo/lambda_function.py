@@ -176,7 +176,7 @@ def get_doc_for_upsert(record: Any) -> Optional[Tuple[str, str, Any]]:
         body = handle_workflow_job(body)
 
     id = extract_dynamodb_key(record)
-    print(f"Parsing {id}")
+    print(f"Parsing {id}: {json.dumps(body)}")
     if not id:
         return
     return table, id, body
