@@ -272,9 +272,6 @@ class AutorevertPatternChecker:
         for i in range(1, len(commits) - 1):
             suspected_commit1 = commits[i]
 
-            if suspected_commit1.has_pending_jobs:
-                continue
-
             # Extract unique (classification_rule, normalized job) pairs for failing jobs on the suspected commit
             suspected_failures = {
                 (
@@ -503,19 +500,30 @@ class AutorevertPatternChecker:
         previous_commit = pattern["older_commit"]
 
         # Fetch restarted jobs for first failing and previous commits
-        failing_jobs = self._fetch_single_commit_jobs(
-            workflow_name, first_failing, restarted_only=True
-        )
-        prev_jobs = self._fetch_single_commit_jobs(
-            workflow_name, previous_commit, restarted_only=True
-        )
+        failing_jobs = [
+            j
+            for j in self._fetch_single_commit_jobs(
+                workflow_name, first_failing, restarted_only=True
+            )
+            if j.normalize_job_name(j.name) == job_base
+        ]
+        prev_jobs = [
+            j
+            for j in self._fetch_single_commit_jobs(
+                workflow_name, previous_commit, restarted_only=True
+            )
+            if j.normalize_job_name(j.name) == job_base
+        ]
         if not failing_jobs or not prev_jobs:
+            return False
+
+        if prev_jobs.has_pending_jobs:
+            # Previous commit has pending jobs, cannot confirm
             return False
 
         def has_rule(cj: CommitJobs, rule: str) -> bool:
             return any(
-                cj.normalize_job_name(j.name) == job_base
-                and j.classification_rule == rule
+                j.classification_rule == rule
                 and j.conclusion == "failure"
                 for j in cj.jobs
             )
