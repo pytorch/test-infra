@@ -837,9 +837,9 @@ To extend your reservation, use the CLI:
 Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
 """
 
-        # Write file to /home/dev using Kubernetes exec
+        # Write file to /home/dev using Kubernetes exec, removing old warning files first
         file_cmd = (
-            f'echo "{warning_content}" > /home/dev/WARN_EXPIRES_IN_{minutes_left}MIN.txt'
+            f'rm -f /home/dev/WARN_EXPIRES_IN_*MIN.txt 2>/dev/null; echo "{warning_content}" > /home/dev/WARN_EXPIRES_IN_{minutes_left}MIN.txt'
         )
         exec_command = ["bash", "-c", file_cmd]
 

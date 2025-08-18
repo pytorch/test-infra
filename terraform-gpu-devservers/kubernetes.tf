@@ -34,6 +34,14 @@ resource "kubernetes_config_map" "aws_auth" {
         groups   = [
           "system:masters"  # Full access needed for pod cleanup
         ]
+      },
+      # Lambda availability updater role
+      {
+        rolearn  = aws_iam_role.availability_updater_role.arn
+        username = "lambda-availability-updater"
+        groups   = [
+          "system:masters"  # Full access needed for node/pod queries
+        ]
       }
     ])
   }
