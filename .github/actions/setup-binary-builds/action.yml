@@ -130,6 +130,18 @@ runs:
           if [[ "${PYTHON_VERSION:-}" == "3.14t" ]]; then
             export PYTHON_VERSION=3.14.0rc1
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
+
+            # temp code testing only
+            if [[ "$(uname)" == Darwin ]]; then
+              # required to be able to downgrade on MacOS arm64
+              conda install -y python=3.9
+              if [[ -n "$(conda list | grep conda-anaconda-telemetry)" ]]; then
+                conda uninstall -y conda-anaconda-telemetry conda-anaconda-tos
+              fi
+              conda install -y conda=24.7.1 conda-libmamba-solver=24.1.0
+            else
+              conda install -y conda=24.7.1
+            fi
           fi
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
             export PYTHON_VERSION=3.13
