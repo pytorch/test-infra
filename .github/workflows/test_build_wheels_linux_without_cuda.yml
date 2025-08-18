@@ -26,6 +26,17 @@ jobs:
       with-cuda: disable
       with-rocm: disable
       build-python-only: enable
+  generate-matrix-torchvision:
+    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml
+    with:
+      package-type: wheel
+      os: linux
+      test-infra-repository: ${{ github.repository }}
+      test-infra-ref: ${{ github.ref }}
+      with-xpu: disable
+      with-rocm: disable
+      with-cuda: disable
+      build-python-only: "disable"
   test-torchtune:
     needs: generate-matrix
     strategy:
@@ -49,7 +60,7 @@ jobs:
         torchvision
         torchao
   test-torchvision-extra-decoders:
-    needs: generate-matrix
+    needs: generate-matrix-torchvision
     strategy:
       fail-fast: false
       matrix:
@@ -66,7 +77,7 @@ jobs:
       ref: ""
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
-      build-matrix: ${{ needs.generate-matrix.outputs.matrix }}
+      build-matrix: ${{ needs.generate-matrix-torchvision.outputs.matrix }}
       package-name: ${{ matrix.package-name }}
       pre-script: ${{ matrix.pre-script }}
       post-script: ${{ matrix.post-script }}
