@@ -49,6 +49,12 @@ class CommitJobs:
     def job_base_names(self) -> Set[str]:
         return self.get_job_base_names()
 
+    def jobs_with_base_name(self, job_base_name: str) -> List[JobResult]:
+        """Get all jobs with a specific normalized base name."""
+        return [
+            j for j in self.jobs if self.normalize_job_name(j.name) == job_base_name
+        ]
+
     def normalize_job_name(self, name: str) -> str:
         """Normalize job name to a stable base for matching across commits.
 
@@ -500,36 +506,28 @@ class AutorevertPatternChecker:
         previous_commit = pattern["older_commit"]
 
         # Fetch restarted jobs for first failing and previous commits
-        failing_jobs = [
-            j
-            for j in self._fetch_single_commit_jobs(
-                workflow_name, first_failing, restarted_only=True
-            )
-            if j.normalize_job_name(j.name) == job_base
-        ]
-        prev_jobs = [
-            j
-            for j in self._fetch_single_commit_jobs(
-                workflow_name, previous_commit, restarted_only=True
-            )
-            if j.normalize_job_name(j.name) == job_base
-        ]
-        if not failing_jobs or not prev_jobs:
+        failing_commit_jobs = self._fetch_single_commit_jobs(
+                workflow_name, first_failing, restarted_only=True)
+        prev_commit_jobs = self._fetch_single_commit_jobs(
+                workflow_name, previous_commit, restarted_only=True)
+        if not failing_commit_jobs or not prev_commit_jobs:
             return False
 
-        if prev_jobs.has_pending_jobs:
+        failing_suspected_jobs = failing_commit_jobs.jobs_with_base_name(job_base)
+        prev_suspected_jobs = prev_commit_jobs.jobs_with_base_name(job_base)
+        if any(j.status != "completed" for j in prev_suspected_jobs):
             # Previous commit has pending jobs, cannot confirm
             return False
 
-        def has_rule(cj: CommitJobs, rule: str) -> bool:
+        def has_rule(jobs: Iterable[JobResult], rule: str) -> bool:
             return any(
                 j.classification_rule == rule and j.conclusion == "failure"
-                for j in cj.jobs
+                for j in jobs
             )
 
         # Commit-caused if failing commit reproduces, previous does not
-        return has_rule(failing_jobs, failure_rule) and not has_rule(
-            prev_jobs, failure_rule
+        return has_rule(failing_suspected_jobs, failure_rule) and not has_rule(
+            prev_suspected_jobs, failure_rule
         )
 
     def _get_commits_reverted(self) -> Set[str]:
