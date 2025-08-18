@@ -455,7 +455,7 @@ def generate_wheels_matrix(
             arches += [XPU]
 
     if limit_pr_builds:
-        python_versions = [python_versions[-2]]
+        python_versions = ["3.14", "3.14t"]
 
     global WHEEL_CONTAINER_IMAGES
 
