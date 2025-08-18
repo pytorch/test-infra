@@ -22,7 +22,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 
 PYTHON_ARCHES_DICT = {
-    "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
+    "nightly": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
     "test": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
@@ -455,7 +455,7 @@ def generate_wheels_matrix(
             arches += [XPU]
 
     if limit_pr_builds:
-        python_versions = [python_versions[0]]
+        python_versions = [python_versions[-1]]
 
     global WHEEL_CONTAINER_IMAGES
 

@@ -127,6 +127,10 @@ runs:
           CONDA_ENV="${RUNNER_TEMP}/conda_environment_${GITHUB_RUN_ID}"
           export CONDA_EXTRA_PARAM=""
 
+          if [[ "${PYTHON_VERSION:-}" == "3.14t" ]]; then
+            export PYTHON_VERSION=3.14.0rc1
+            export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
+          fi
           if [[ "${PYTHON_VERSION:-}" == "3.13t" ]]; then
             export PYTHON_VERSION=3.13
             export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
