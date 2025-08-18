@@ -108,37 +108,37 @@ variable "reservation_timeout_hours" {
 variable "max_reservation_hours" {
   description = "Maximum allowed reservation time in hours"
   type        = number
-  default     = 24
+  default     = 240
 }
 
 variable "supported_gpu_types" {
   description = "Map of supported GPU types to their instance configurations"
   type = map(object({
-    instance_type      = string
-    instance_types     = optional(list(string))  # Multiple instance types for same GPU type
-    instance_count     = number
-    gpus_per_instance  = number
+    instance_type     = string
+    instance_types    = optional(list(string)) # Multiple instance types for same GPU type
+    instance_count    = number
+    gpus_per_instance = number
   }))
   default = {
     "h200" = {
-      instance_type      = "p5e.48xlarge"     # Primary: 8x H200 GPUs
-      instance_types     = ["p5e.48xlarge", "p5en.48xlarge"]  # Both H200 variants
-      instance_count     = 2  # Total of 2 instances (mix of p5e/p5en)
-      gpus_per_instance  = 8
+      instance_type     = "p5e.48xlarge"                    # Primary: 8x H200 GPUs
+      instance_types    = ["p5e.48xlarge", "p5en.48xlarge"] # Both H200 variants
+      instance_count    = 2                                 # Total of 2 instances (mix of p5e/p5en)
+      gpus_per_instance = 8
     }
     "h100" = {
-      instance_type    = "p5.48xlarge"   # 8x H100 GPUs
-      instance_count   = 2
+      instance_type     = "p5.48xlarge" # 8x H100 GPUs
+      instance_count    = 2
       gpus_per_instance = 8
     }
     "a100" = {
-      instance_type    = "p4d.24xlarge"  # 8x A100 GPUs  
-      instance_count   = 2
+      instance_type     = "p4d.24xlarge" # 8x A100 GPUs  
+      instance_count    = 2
       gpus_per_instance = 8
     }
     "t4" = {
-      instance_type    = "g4dn.12xlarge" # 4x T4 GPUs
-      instance_count   = 2
+      instance_type     = "g4dn.12xlarge" # 4x T4 GPUs
+      instance_count    = 2
       gpus_per_instance = 4
     }
   }

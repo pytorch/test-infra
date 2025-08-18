@@ -324,28 +324,33 @@ def handler(event, context):
                 minutes_until_expiry = (expires_at - current_time) // 60
                 warnings_sent = reservation.get("warnings_sent", {})
 
-                for warning_minutes in WARNING_LEVELS:
+                # Find the most appropriate warning to send (only send one at a time)
+                warning_to_send = None
+                for warning_minutes in sorted(WARNING_LEVELS, reverse=True):  # Start with highest (30, 15, 5)
                     warning_key = f"{warning_minutes}min_warning_sent"
-
-                    # Check if we need to send this warning
+                    
                     if (
                         minutes_until_expiry <= warning_minutes
                         and not warnings_sent.get(warning_key, False)
                     ):
+                        warning_to_send = warning_minutes
+                        break  # Only send the most urgent unsent warning
 
+                # Send the selected warning
+                if warning_to_send:
+                    logger.info(
+                        f"Sending {warning_to_send}-minute warning for reservation {reservation_id}"
+                    )
+                    try:
+                        warn_user_expiring(reservation, warning_to_send)
+                        warned_count += 1
                         logger.info(
-                            f"Sending {warning_minutes}-minute warning for reservation {reservation_id}"
+                            f"Successfully sent {warning_to_send}-minute warning for reservation {reservation_id}"
                         )
-                        try:
-                            warn_user_expiring(reservation, warning_minutes)
-                            warned_count += 1
-                            logger.info(
-                                f"Successfully sent {warning_minutes}-minute warning for reservation {reservation_id}"
-                            )
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to send {warning_minutes}-minute warning for reservation {reservation_id}: {e}"
-                            )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send {warning_to_send}-minute warning for reservation {reservation_id}: {e}"
+                        )
 
         # Process stale queued/pending reservations
         for reservation in stale_reservations:
@@ -793,29 +798,12 @@ def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = "gpu-
         k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
-        # Execute wall command in the pod
-        wall_cmd = f'echo "{message}" | wall'
-        exec_command = ["bash", "-c", wall_cmd]
-
-        try:
-            stream.stream(
-                v1.connect_get_namespaced_pod_exec,
-                pod_name,
-                namespace,
-                command=exec_command,
-                container="gpu-dev",
-                stderr=True,
-                stdin=False,
-                stdout=True,
-                tty=False,
-                _request_timeout=30,
-            )
-            logger.info(f"Wall message sent to pod {pod_name}")
-        except Exception as e:
-            logger.warning(f"Failed to send wall message to pod {pod_name}: {e}")
+        # Warning message will be displayed via shell rc files (bashrc/zshrc)
+        # No need for wall/terminal messaging since the file-based approach is more reliable
+        logger.info(f"Warning file created for pod {pod_name} - will be shown via shell prompt")
 
     except Exception as e:
-        logger.warning(f"Error sending wall message to pod {pod_name}: {str(e)}")
+        logger.warning(f"Error preparing warning for pod {pod_name}: {str(e)}")
 
 
 def create_warning_file_in_pod(
@@ -849,9 +837,9 @@ To extend your reservation, use the CLI:
 Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
 """
 
-        # Write file to workspace using Kubernetes exec
+        # Write file to /home/dev using Kubernetes exec
         file_cmd = (
-            f'echo "{warning_content}" > /workspace/⚠️_RESERVATION_EXPIRY_WARNING.txt'
+            f'echo "{warning_content}" > /home/dev/WARN_EXPIRES_IN_{minutes_left}MIN.txt'
         )
         exec_command = ["bash", "-c", file_cmd]
 
