@@ -512,10 +512,6 @@ class AutorevertPatternChecker:
         if not failing_jobs or not prev_jobs:
             return False
 
-        # Pending check
-        if failing_jobs.has_pending_jobs or prev_jobs.has_pending_jobs:
-            return False
-
         def has_rule(cj: CommitJobs, rule: str) -> bool:
             return any(
                 cj.normalize_job_name(j.name) == job_base
