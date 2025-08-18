@@ -523,8 +523,7 @@ class AutorevertPatternChecker:
 
         def has_rule(cj: CommitJobs, rule: str) -> bool:
             return any(
-                j.classification_rule == rule
-                and j.conclusion == "failure"
+                j.classification_rule == rule and j.conclusion == "failure"
                 for j in cj.jobs
             )
 
