@@ -18,6 +18,7 @@ resource "aws_lambda_function" "reservation_expiry" {
       REGION            = var.aws_region
       WARNING_MINUTES   = "30"  # Warn 30 minutes before expiry
       GRACE_PERIOD_SECONDS = "120"  # 2 minutes grace period after expiry
+      AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
     }
   }
 
@@ -117,6 +118,13 @@ resource "aws_iam_role_policy" "reservation_expiry_policy" {
           "sns:Publish"
         ]
         Resource = "*"  # Could be restricted to specific topic ARN if needed
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = aws_lambda_function.availability_updater.arn
       }
     ]
   })

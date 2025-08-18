@@ -516,6 +516,17 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                     short_id = connection_info['reservation_id'][:8]
                     jupyter_info = f"[dim]Jupyter Lab:[/dim] [yellow]Not enabled[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --enable-jupyter[/cyan]\n"
                 
+                # Format secondary users information
+                secondary_users = connection_info.get('secondary_users', [])
+                secondary_users_info = ""
+                if secondary_users:
+                    users_list = ", ".join(secondary_users)
+                    secondary_users_info = f"[blue]Secondary Users:[/blue] {users_list}\n"
+                else:
+                    # Show add-user command if no secondary users
+                    short_id = connection_info['reservation_id'][:8]
+                    secondary_users_info = f"[dim]Secondary Users:[/dim] [yellow]None[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --add-user <github_username>[/cyan]\n"
+                
                 panel_content = (
                     f"[green]Reservation Details[/green]\n\n"
                     f"[blue]SSH Command:[/blue] {connection_info['ssh_command']}\n"
@@ -523,6 +534,7 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                     f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
                     f"[blue]GPUs:[/blue] {gpu_info}\n"
                     f"[blue]Instance Type:[/blue] {instance_type}\n"
+                    + secondary_users_info +
                     f"[blue]Created:[/blue] {created_formatted}\n"
                     f"[blue]Started:[/blue] {launched_formatted}\n"
                     f"[blue]Expires:[/blue] {expires_formatted}"
@@ -594,24 +606,8 @@ def show(ctx: click.Context, reservation_id: str) -> None:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
 
 
-@main.command()
-@click.pass_context
-def availability(ctx: click.Context) -> None:
-    """Show GPU availability by type and queue estimates
-    
-    Displays real-time information about GPU availability for each GPU type.
-    Shows immediate availability and estimated queue times when resources are full.
-    
-    Information shown per GPU type:
-        - Available GPUs: GPUs ready for immediate reservation
-        - Queue Length: Number of pending reservations for this GPU type
-        - Estimated Wait: Expected time until resources become available
-        
-    Examples:
-        gpu-dev availability                     # Show availability for all GPU types
-        
-    This helps you choose the right GPU type and understand wait times before reserving.
-    """
+def _show_availability() -> None:
+    """Shared function to show GPU availability"""
     try:
         config = load_config()
         
@@ -677,6 +673,37 @@ def availability(ctx: click.Context) -> None:
             
     except Exception as e:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
+
+
+@main.command()
+@click.pass_context
+def availability(ctx: click.Context) -> None:
+    """Show GPU availability by type and queue estimates
+    
+    Displays real-time information about GPU availability for each GPU type.
+    Shows immediate availability and estimated queue times when resources are full.
+    
+    Information shown per GPU type:
+        - Available GPUs: GPUs ready for immediate reservation
+        - Queue Length: Number of pending reservations for this GPU type
+        - Estimated Wait: Expected time until resources become available
+        
+    Examples:
+        gpu-dev availability                     # Show availability for all GPU types
+        
+    This helps you choose the right GPU type and understand wait times before reserving.
+    """
+    _show_availability()
+
+
+@main.command(name="avail")
+@click.pass_context
+def avail(ctx: click.Context) -> None:
+    """Show GPU availability by type and queue estimates (alias for 'availability')
+    
+    This is a shorter alias for the 'availability' command.
+    """
+    _show_availability()
 
 
 @main.command()
@@ -842,15 +869,22 @@ def set(key: str, value: str) -> None:
     is_flag=True,
     help="Disable Jupyter Lab access for this reservation",
 )
+@click.option(
+    "--add-user",
+    type=str,
+    help="Add GitHub user as secondary user (fetches their public SSH keys)",
+)
 @click.pass_context
-def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_jupyter: bool) -> None:
+def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_jupyter: bool, add_user: Optional[str]) -> None:
     """Edit an active reservation's settings
     
-    Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab.
+    Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab
+    or adding secondary users with SSH access.
     
     Examples:
-        gpu-dev edit abc12345 --enable-jupyter     # Enable Jupyter Lab
-        gpu-dev edit abc12345 --disable-jupyter    # Disable Jupyter Lab
+        gpu-dev edit abc12345 --enable-jupyter      # Enable Jupyter Lab
+        gpu-dev edit abc12345 --disable-jupyter     # Disable Jupyter Lab
+        gpu-dev edit abc12345 --add-user johndoe    # Add GitHub user 'johndoe' SSH access
     """
     try:
         
@@ -858,8 +892,8 @@ def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_
             rprint("[red]❌ Cannot enable and disable Jupyter at the same time[/red]")
             return
             
-        if not enable_jupyter and not disable_jupyter:
-            rprint("[red]❌ Please specify --enable-jupyter or --disable-jupyter[/red]")
+        if not enable_jupyter and not disable_jupyter and not add_user:
+            rprint("[red]❌ Please specify --enable-jupyter, --disable-jupyter, or --add-user[/red]")
             return
 
         # Authenticate first
@@ -895,6 +929,14 @@ def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_
                 rprint(f"[green]✅ Jupyter Lab disabled for reservation {reservation_id[:8]}...[/green]")
             else:
                 rprint("[red]❌ Failed to disable Jupyter Lab[/red]")
+        
+        elif add_user:
+            success = reservation_mgr.add_user(reservation_id, user_info["user_id"], add_user)
+            if success:
+                rprint(f"[green]✅ User {add_user} added to reservation {reservation_id[:8]}...[/green]")
+                rprint(f"[blue]💡 {add_user} can now SSH to the server using their GitHub SSH keys[/blue]")
+            else:
+                rprint(f"[red]❌ Failed to add user {add_user}[/red]")
             
     except Exception as e:
         rprint(f"[red]❌ Error editing reservation: {str(e)}[/red]")

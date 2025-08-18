@@ -41,6 +41,35 @@ def get_k8s_client():
         logger.info("Global Kubernetes client initialized successfully")
     return _k8s_client
 
+
+def trigger_availability_update():
+    """Trigger the availability updater Lambda function"""
+    try:
+        import boto3
+        
+        # Get the availability updater function name from environment variable
+        availability_function_name = os.environ.get("AVAILABILITY_UPDATER_FUNCTION_NAME")
+        if not availability_function_name:
+            logger.warning("AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update")
+            return
+            
+        # Create Lambda client and invoke the availability updater
+        lambda_client = boto3.client('lambda')
+        
+        # Invoke asynchronously to avoid blocking the expiry process
+        response = lambda_client.invoke(
+            FunctionName=availability_function_name,
+            InvocationType='Event',  # Async invocation
+            Payload='{}'  # Empty payload, the function will scan all GPU types
+        )
+        
+        logger.info(f"Successfully triggered availability updater function: {availability_function_name}")
+        
+    except Exception as e:
+        logger.error(f"Failed to trigger availability update: {str(e)}")
+        # Don't raise, just log the error as this is not critical
+
+
 WARNING_MINUTES = int(os.environ.get("WARNING_MINUTES", 30))
 GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", 120))
 
@@ -693,6 +722,14 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
             raise
 
         logger.info(f"Pod cleanup completed successfully for {pod_name}")
+        
+        # Trigger availability table update after pod cleanup
+        try:
+            trigger_availability_update()
+            logger.info("Triggered availability table update after pod cleanup")
+        except Exception as update_error:
+            logger.warning(f"Failed to trigger availability update after pod cleanup: {update_error}")
+            # Don't fail the expiry for this
 
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")

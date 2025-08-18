@@ -92,6 +92,13 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
           "sts:AssumeRole"
         ]
         Resource = aws_iam_role.eks_cluster_role.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "lambda:InvokeFunction"
+        ]
+        Resource = aws_lambda_function.availability_updater.arn
       }
     ]
   })
@@ -116,6 +123,7 @@ resource "aws_lambda_function" "reservation_processor" {
       MAX_RESERVATION_HOURS = var.max_reservation_hours
       DEFAULT_TIMEOUT_HOURS = var.reservation_timeout_hours
       QUEUE_URL         = aws_sqs_queue.gpu_reservation_queue.url
+      AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
     }
   }
 

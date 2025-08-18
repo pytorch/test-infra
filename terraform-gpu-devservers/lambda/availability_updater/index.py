@@ -93,9 +93,19 @@ def update_gpu_availability(gpu_type: str) -> None:
         
         total_gpus = running_instances * gpus_per_instance
         
-        # For now, assume all GPUs are available (no K8s integration yet)
-        # In production, we'd query K8s API for actual allocations
-        available_gpus = total_gpus
+        # Query Kubernetes API for actual GPU allocations
+        try:
+            from shared.k8s_client import setup_kubernetes_client
+            
+            k8s_client = setup_kubernetes_client()
+            available_gpus = check_schedulable_gpus_for_type(k8s_client, gpu_type)
+            
+            logger.info(f"Kubernetes reports {available_gpus} schedulable {gpu_type.upper()} GPUs")
+            
+        except Exception as k8s_error:
+            logger.warning(f"Failed to query Kubernetes for {gpu_type} availability: {k8s_error}")
+            # Fallback to ASG-based calculation (assume all GPUs available)
+            available_gpus = total_gpus
         
         # Update DynamoDB table
         table = dynamodb.Table(AVAILABILITY_TABLE)
@@ -121,3 +131,98 @@ def update_gpu_availability(gpu_type: str) -> None:
 
 
 import time
+
+
+def check_schedulable_gpus_for_type(k8s_client, gpu_type: str) -> int:
+    """Check how many GPUs of a specific type are schedulable (available for new pods)"""
+    try:
+        from kubernetes import client
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Get all nodes with the specified GPU type
+        gpu_type_selector = f"GpuType={gpu_type}"
+        nodes = v1.list_node(label_selector=gpu_type_selector)
+        
+        if not nodes.items:
+            logger.warning(f"No nodes found for GPU type {gpu_type}")
+            return 0
+        
+        total_schedulable = 0
+        
+        for node in nodes.items:
+            if not is_node_ready_and_schedulable(node):
+                continue
+                
+            # Get available GPUs on this node
+            available_on_node = get_available_gpus_on_node(v1, node)
+            total_schedulable += available_on_node
+            
+        logger.info(f"Found {total_schedulable} schedulable {gpu_type.upper()} GPUs across {len(nodes.items)} nodes")
+        return total_schedulable
+        
+    except Exception as e:
+        logger.error(f"Error checking schedulable GPUs for type {gpu_type}: {str(e)}")
+        return 0
+
+
+def is_node_ready_and_schedulable(node) -> bool:
+    """Check if a node is ready and schedulable"""
+    try:
+        # Check node conditions
+        conditions = node.status.conditions or []
+        is_ready = False
+        
+        for condition in conditions:
+            if condition.type == "Ready":
+                is_ready = condition.status == "True"
+                break
+        
+        if not is_ready:
+            return False
+        
+        # Check if node is schedulable (not cordoned)
+        return not node.spec.unschedulable
+        
+    except Exception as e:
+        logger.error(f"Error checking node readiness: {str(e)}")
+        return False
+
+
+def get_available_gpus_on_node(v1_api, node) -> int:
+    """Get number of available GPUs on a specific node"""
+    try:
+        node_name = node.metadata.name
+        
+        # Get all pods on this node
+        pods = v1_api.list_pod_for_all_namespaces(field_selector=f"spec.nodeName={node_name}")
+        
+        # Calculate GPU usage
+        used_gpus = 0
+        for pod in pods.items:
+            if pod.status.phase in ["Running", "Pending"]:
+                for container in pod.spec.containers:
+                    if container.resources and container.resources.requests:
+                        gpu_request = container.resources.requests.get("nvidia.com/gpu", "0")
+                        try:
+                            used_gpus += int(gpu_request)
+                        except (ValueError, TypeError):
+                            pass
+        
+        # Get total GPUs on this node
+        total_gpus = 0
+        if node.status.allocatable:
+            gpu_allocatable = node.status.allocatable.get("nvidia.com/gpu", "0")
+            try:
+                total_gpus = int(gpu_allocatable)
+            except (ValueError, TypeError):
+                pass
+        
+        available_gpus = max(0, total_gpus - used_gpus)
+        logger.debug(f"Node {node_name}: {available_gpus}/{total_gpus} GPUs available")
+        
+        return available_gpus
+        
+    except Exception as e:
+        logger.error(f"Error getting available GPUs on node {node.metadata.name}: {str(e)}")
+        return 0

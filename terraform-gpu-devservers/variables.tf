@@ -114,15 +114,17 @@ variable "max_reservation_hours" {
 variable "supported_gpu_types" {
   description = "Map of supported GPU types to their instance configurations"
   type = map(object({
-    instance_type    = string
-    instance_count   = number
-    gpus_per_instance = number
+    instance_type      = string
+    instance_types     = optional(list(string))  # Multiple instance types for same GPU type
+    instance_count     = number
+    gpus_per_instance  = number
   }))
   default = {
     "h200" = {
-      instance_type    = "p5e.48xlarge"     # 8x H200 GPUs
-      instance_count   = 2
-      gpus_per_instance = 8
+      instance_type      = "p5e.48xlarge"     # Primary: 8x H200 GPUs
+      instance_types     = ["p5e.48xlarge", "p5en.48xlarge"]  # Both H200 variants
+      instance_count     = 2  # Total of 2 instances (mix of p5e/p5en)
+      gpus_per_instance  = 8
     }
     "h100" = {
       instance_type    = "p5.48xlarge"   # 8x H100 GPUs

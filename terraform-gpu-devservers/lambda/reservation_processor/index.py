@@ -49,6 +49,35 @@ def get_k8s_client():
     return _k8s_client
 
 
+def trigger_availability_update():
+    """Trigger the availability updater Lambda function"""
+    try:
+        import boto3
+        
+        # Get the availability updater function name from environment variable
+        # This will be set in the Terraform configuration
+        availability_function_name = os.environ.get("AVAILABILITY_UPDATER_FUNCTION_NAME")
+        if not availability_function_name:
+            logger.warning("AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update")
+            return
+            
+        # Create Lambda client and invoke the availability updater
+        lambda_client = boto3.client('lambda')
+        
+        # Invoke asynchronously to avoid blocking the reservation process
+        response = lambda_client.invoke(
+            FunctionName=availability_function_name,
+            InvocationType='Event',  # Async invocation
+            Payload='{}'  # Empty payload, the function will scan all GPU types
+        )
+        
+        logger.info(f"Successfully triggered availability updater function: {availability_function_name}")
+        
+    except Exception as e:
+        logger.error(f"Failed to trigger availability update: {str(e)}")
+        raise
+
+
 def handler(event, context):
     """Main Lambda handler"""
     try:
@@ -71,6 +100,8 @@ def handler(event, context):
                         success = process_cancellation_request(record)
                     elif message_body.get("action") in ["enable_jupyter", "disable_jupyter"]:
                         success = process_jupyter_action(record)
+                    elif message_body.get("action") == "add_user":
+                        success = process_add_user_action(record)
                     else:
                         success = process_reservation_request(record)
 
@@ -501,7 +532,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         github_user = request.get(
             "github_user", user_id
         )  # Fallback to user_id for compatibility
-        github_public_key = get_github_public_key(github_user)
+        github_public_key = get_github_public_key(github_user, validate=True)
         if not github_public_key:
             raise ValueError(
                 f"Could not fetch GitHub public key for GitHub user '{github_user}'"
@@ -551,6 +582,15 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 jupyter_enabled=jupyter_enabled,
                 k8s_client=k8s_client,
             )
+            
+            # Trigger availability table update after successful reservation
+            try:
+                trigger_availability_update()
+                logger.info("Triggered availability table update after successful reservation")
+            except Exception as update_error:
+                logger.warning(f"Failed to trigger availability update: {update_error}")
+                # Don't fail the reservation for this
+                
         else:
             # Check pod status to determine if it's failed or still starting
             pod_status = get_detailed_pod_status(k8s_client, pod_name)
@@ -631,18 +671,47 @@ def update_reservation_status(
         logger.error(f"Error updating reservation status: {str(e)}")
 
 
-def get_github_public_key(github_username: str) -> str:
-    """Fetch GitHub public keys for user (all keys)"""
+def get_github_public_key(github_username: str, validate: bool = True) -> str:
+    """Fetch GitHub public keys for user (all keys)
+    
+    Args:
+        github_username: GitHub username to fetch keys for
+        validate: If True, validate and filter keys to only include valid SSH key formats
+        
+    Returns:
+        String containing SSH keys (one per line) or None if no keys found
+    """
     try:
         import urllib.request
 
         url = f"https://github.com/{github_username}.keys"
+        logger.info(f"Fetching SSH keys for {github_username} from {url}")
+        
         with urllib.request.urlopen(url) as response:
-            keys = response.read().decode("utf-8").strip()
-            if keys:
-                # Return ALL SSH keys (users may have multiple)
-                return keys
-        return None
+            keys_data = response.read().decode("utf-8").strip()
+            
+        if not keys_data:
+            logger.error(f"No public SSH keys found for GitHub user {github_username}")
+            return None
+            
+        if validate:
+            # Validate keys format (basic check for ssh-rsa/ssh-ed25519/ssh-ecdsa)
+            valid_keys = []
+            for line in keys_data.split('\n'):
+                line = line.strip()
+                if line and (line.startswith('ssh-rsa') or line.startswith('ssh-ed25519') or line.startswith('ssh-ecdsa')):
+                    valid_keys.append(line)
+            
+            if not valid_keys:
+                logger.error(f"No valid SSH keys found for GitHub user {github_username}")
+                return None
+                
+            logger.info(f"Found {len(valid_keys)} valid SSH keys for {github_username}")
+            return '\n'.join(valid_keys)
+        else:
+            # Return ALL SSH keys without validation (legacy behavior)
+            return keys_data
+            
     except Exception as e:
         logger.error(f"Error fetching GitHub key for {github_username}: {str(e)}")
         return None
@@ -2514,8 +2583,10 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
             tty=False
         )
         
-        if "Jupyter Lab stopped successfully" in exec_resp or "Jupyter Lab force-stopped" in exec_resp:
-            logger.info(f"Successfully disabled Jupyter in pod {pod_name}")
+        # Check if the disable command ran (even if it didn't produce the expected success message)
+        # The fact that we got output "Stopping Jupyter Lab..." means the command started
+        if "Stopping Jupyter Lab" in exec_resp or "Jupyter Lab stopped successfully" in exec_resp or "Jupyter Lab force-stopped" in exec_resp:
+            logger.info(f"Jupyter disable command executed in pod {pod_name}, output: {exec_resp}")
             
             # Remove Jupyter service
             try:
@@ -2531,11 +2602,16 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
             
             # Update reservation with Jupyter disabled status (remove URL and token)
             reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+            current_timestamp = int(time.time())
             reservations_table.update_item(
                 Key={"reservation_id": reservation_id},
-                UpdateExpression="SET jupyter_enabled = :enabled REMOVE jupyter_url, jupyter_token, jupyter_port",
-                ExpressionAttributeValues={":enabled": False}
+                UpdateExpression="SET jupyter_enabled = :enabled, last_updated = :timestamp REMOVE jupyter_url, jupyter_token, jupyter_port",
+                ExpressionAttributeValues={
+                    ":enabled": False,
+                    ":timestamp": current_timestamp
+                }
             )
+            logger.info(f"Updated reservation {reservation_id} with jupyter_enabled=False, removed jupyter_url/token/port")
             
             return True
         else:
@@ -2544,6 +2620,106 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
             
     except Exception as e:
         logger.error(f"Error disabling Jupyter in pod {pod_name}: {str(e)}")
+        return False
+
+
+def add_user_to_pod(k8s_client, pod_name: str, namespace: str, reservation_id: str, github_username: str) -> bool:
+    """Add a GitHub user's SSH keys to a running pod"""
+    try:
+        from kubernetes import client
+        from kubernetes.stream import stream
+        
+        # Fetch GitHub user's public SSH keys using shared function
+        keys_to_add = get_github_public_key(github_username, validate=True)
+        if not keys_to_add:
+            return False
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Add SSH keys to authorized_keys file
+        add_keys_commands = [
+            "/bin/bash", "-c", f"""
+            set -e
+            
+            echo "Adding SSH keys for user {github_username}..."
+            
+            # Ensure .ssh directory exists with correct permissions
+            mkdir -p /home/dev/.ssh
+            chmod 700 /home/dev/.ssh
+            
+            # Create or append to authorized_keys
+            touch /home/dev/.ssh/authorized_keys
+            chmod 600 /home/dev/.ssh/authorized_keys
+            
+            # Add keys (avoid duplicates by checking if key already exists)
+            keys_added=0
+            while IFS= read -r key; do
+                if [ -n "$key" ] && ! grep -Fq "$key" /home/dev/.ssh/authorized_keys; then
+                    echo "$key" >> /home/dev/.ssh/authorized_keys
+                    keys_added=$((keys_added + 1))
+                fi
+            done << 'EOF'
+{keys_to_add}
+EOF
+            
+            # Set proper ownership
+            chown -R 1000:1000 /home/dev/.ssh
+            
+            echo "Added $keys_added new SSH keys for {github_username}"
+            echo "SSH keys for {github_username} added successfully"
+            """
+        ]
+        
+        exec_resp = stream(
+            v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            namespace,
+            command=add_keys_commands,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False
+        )
+        
+        if f"SSH keys for {github_username} added successfully" in exec_resp:
+            logger.info(f"Successfully added SSH keys for {github_username} to pod {pod_name}")
+            
+            # Update reservation with secondary user
+            reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+            current_timestamp = int(time.time())
+            
+            # Get current secondary users list
+            try:
+                get_response = reservations_table.get_item(Key={"reservation_id": reservation_id})
+                current_secondary_users = get_response.get("Item", {}).get("secondary_users", [])
+                
+                # Add new user if not already present
+                if github_username not in current_secondary_users:
+                    updated_secondary_users = current_secondary_users + [github_username]
+                    
+                    reservations_table.update_item(
+                        Key={"reservation_id": reservation_id},
+                        UpdateExpression="SET secondary_users = :users, last_updated = :timestamp",
+                        ExpressionAttributeValues={
+                            ":users": updated_secondary_users,
+                            ":timestamp": current_timestamp
+                        }
+                    )
+                    logger.info(f"Updated reservation {reservation_id} with secondary user {github_username}")
+                else:
+                    logger.info(f"User {github_username} already in secondary users list for reservation {reservation_id}")
+                    
+            except Exception as db_error:
+                logger.error(f"Failed to update reservation with secondary user: {db_error}")
+                # Still return True since the SSH keys were added successfully
+            
+            return True
+        else:
+            logger.error(f"Failed to add SSH keys for {github_username} to pod {pod_name}, output: {exec_resp}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error adding user {github_username} to pod {pod_name}: {str(e)}")
         return False
 
 
@@ -2637,6 +2813,82 @@ def process_jupyter_action(record: dict[str, Any]) -> bool:
             
     except Exception as e:
         logger.error(f"Error processing Jupyter action: {str(e)}")
+        return False  # Retry on processing errors
+
+
+def process_add_user_action(record: dict[str, Any]) -> bool:
+    """Process add user actions"""
+    try:
+        message = json.loads(record["body"])
+        action = message.get("action")
+        reservation_id = message.get("reservation_id")
+        user_id = message.get("user_id")
+        github_username = message.get("github_username")
+        
+        if not all([action, reservation_id, user_id, github_username]):
+            logger.error(f"Missing required fields in add user action: {message}")
+            return True  # Don't retry malformed messages
+            
+        logger.info(f"Processing add user action: adding {github_username} to reservation {reservation_id}")
+        
+        # Get reservation details - support partial reservation IDs
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        try:
+            scan_response = reservations_table.scan(
+                FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
+                ExpressionAttributeValues={
+                    ":prefix": reservation_id,
+                    ":user_id": user_id,
+                },
+            )
+
+            items = scan_response.get("Items", [])
+            if len(items) == 0:
+                logger.error(f"Reservation {reservation_id} not found for user {user_id}")
+                return True  # Don't retry - reservation doesn't exist
+            elif len(items) > 1:
+                logger.error(f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}")
+                return True  # Don't retry - ambiguous prefix
+
+            reservation = items[0]
+            full_reservation_id = reservation["reservation_id"]  # Get the full UUID
+            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+            
+        except Exception as db_error:
+            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            return False  # Retry on database errors
+        
+        # Verify user owns the reservation and it's active
+        if reservation.get("user_id") != user_id:
+            logger.error(f"User {user_id} doesn't own reservation {full_reservation_id}")
+            return True  # Don't retry - authorization error
+            
+        if reservation.get("status") != "active":
+            logger.error(f"Can only modify active reservations (current: {reservation.get('status')})")
+            return True  # Don't retry - invalid state
+            
+        # Get pod info
+        pod_name = reservation.get("pod_name")
+        namespace = reservation.get("namespace", "gpu-dev")
+        
+        if not pod_name:
+            logger.error(f"No pod name found for reservation {full_reservation_id}")
+            return True  # Don't retry - no pod to modify
+            
+        # Add user SSH keys to pod
+        k8s_client = get_k8s_client()
+        success = add_user_to_pod(k8s_client, pod_name, namespace, full_reservation_id, github_username)
+            
+        if success:
+            logger.info(f"Successfully added user {github_username} to reservation {full_reservation_id}")
+            return True
+        else:
+            logger.error(f"Failed to add user {github_username} to reservation {full_reservation_id}")
+            return False  # Retry on failure
+            
+    except Exception as e:
+        logger.error(f"Error processing add user action: {str(e)}")
         return False  # Retry on processing errors
 
 

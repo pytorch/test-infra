@@ -257,6 +257,38 @@ class ReservationManager:
             console.print(f"[red]❌ Error submitting Jupyter disable request: {str(e)}[/red]")
             return False
 
+    def add_user(self, reservation_id: str, user_id: str, github_username: str) -> bool:
+        """Add a secondary user to an active reservation"""
+        try:
+            # Validate GitHub username format (basic validation)
+            if not github_username or not github_username.replace("-", "").replace("_", "").isalnum():
+                console.print(f"[red]❌ Invalid GitHub username: {github_username}[/red]")
+                return False
+            
+            # Send message to Lambda to add user SSH keys to pod
+            # Lambda will handle fetching GitHub keys and updating the pod
+            message = {
+                "action": "add_user",
+                "reservation_id": reservation_id, 
+                "user_id": user_id,
+                "github_username": github_username
+            }
+            
+            queue_url = self.config.get_queue_url()
+            self.config.sqs_client.send_message(
+                QueueUrl=queue_url,
+                MessageBody=json.dumps(message)
+            )
+            
+            console.print(f"[yellow]⏳ Adding user {github_username} to reservation {reservation_id[:8]}...[/yellow]")
+            
+            # Poll for 3 minutes to show the outcome
+            return self._poll_add_user_result(reservation_id, github_username, timeout_minutes=3)
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error adding user {github_username}: {str(e)}[/red]")
+            return False
+
     def get_gpu_availability_by_type(self) -> Optional[Dict[str, Dict[str, Any]]]:
         """Get GPU availability information by GPU type from real-time availability table"""
         try:
@@ -439,6 +471,70 @@ class ReservationManager:
                 
         except Exception as e:
             console.print(f"[red]❌ Error during Jupyter {action} polling: {str(e)}[/red]")
+            return False
+
+    def _poll_add_user_result(self, reservation_id: str, github_username: str, timeout_minutes: int = 3) -> bool:
+        """Poll reservation table for add user action result"""
+        try:
+            start_time = time.time()
+            timeout_seconds = timeout_minutes * 60
+            
+            with Live(console=console, refresh_per_second=2) as live:
+                spinner = Spinner("dots", text=f"🔄 Adding user {github_username}...")
+                live.update(spinner)
+                
+                initial_secondary_users = None
+                
+                while time.time() - start_time < timeout_seconds:
+                    try:
+                        # Get current reservation state - support partial reservation IDs
+                        scan_response = self.reservations_table.scan(
+                            FilterExpression="begins_with(reservation_id, :prefix)",
+                            ExpressionAttributeValues={":prefix": reservation_id}
+                        )
+                        
+                        items = scan_response.get("Items", [])
+                        if len(items) == 0:
+                            spinner.text = f"🔄 Waiting for reservation data..."
+                            live.update(spinner)
+                            time.sleep(2)
+                            continue
+                        elif len(items) > 1:
+                            spinner.text = f"🔄 Multiple reservations found for {reservation_id}, using first match..."
+                            live.update(spinner)
+                        
+                        reservation = items[0]
+                        
+                        # Capture initial state on first iteration
+                        if initial_secondary_users is None:
+                            initial_secondary_users = reservation.get("secondary_users", [])
+                        
+                        current_secondary_users = reservation.get("secondary_users", [])
+                        
+                        # Check if the user has been added
+                        if github_username in current_secondary_users:
+                            live.stop()
+                            console.print(f"[green]✅ User {github_username} added successfully![/green]")
+                            console.print(f"[cyan]👥 Secondary users:[/cyan] {', '.join(current_secondary_users)}")
+                            return True
+                        elif len(current_secondary_users) != len(initial_secondary_users):
+                            spinner.text = f"🔄 User list updated, verifying {github_username}..."
+                        
+                        live.update(spinner)
+                        time.sleep(3)
+                        
+                    except Exception as poll_error:
+                        console.print(f"[red]❌ Error polling add user status: {poll_error}[/red]")
+                        return False
+                
+                # Timeout reached
+                live.stop()
+                console.print(f"[yellow]⏰ Timeout after {timeout_minutes} minutes[/yellow]")
+                console.print(f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check user status[/yellow]")
+                return False
+                
+        except Exception as e:
+            console.print(f"[red]❌ Error during add user polling: {str(e)}[/red]")
             return False
 
     def get_cluster_status(self) -> Optional[Dict[str, Any]]:

@@ -195,9 +195,34 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
   # Don't wait for instances to become healthy - prevents Terraform failures when AWS can't place instances
   wait_for_capacity_timeout = "0"
 
-  launch_template {
-    id      = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
-    version = "$Latest"
+  # Use mixed instances policy for multiple instance types (like H200)
+  dynamic "mixed_instances_policy" {
+    for_each = each.value.instance_types != null ? [1] : []
+    content {
+      launch_template {
+        launch_template_specification {
+          launch_template_id = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
+          version            = "$Latest"
+        }
+        
+        # Allow both p5e.48xlarge and p5en.48xlarge for H200
+        dynamic "override" {
+          for_each = each.value.instance_types
+          content {
+            instance_type = override.value
+          }
+        }
+      }
+    }
+  }
+
+  # Use single launch template for single instance types
+  dynamic "launch_template" {
+    for_each = each.value.instance_types == null ? [1] : []
+    content {
+      id      = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
+      version = "$Latest"
+    }
   }
 
   # Fast instance replacement
@@ -237,10 +262,12 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
 resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
   
-  name_prefix   = "${var.prefix}-gpu-self-managed-${each.key}-"
-  image_id      = data.aws_ami.eks_gpu_ami.id
-  instance_type = each.value.instance_type
-  key_name      = var.key_pair_name
+  name_prefix = "${var.prefix}-gpu-self-managed-${each.key}-"
+  image_id    = data.aws_ami.eks_gpu_ami.id
+  key_name    = var.key_pair_name
+  
+  # Only set instance_type if not using mixed instances policy
+  instance_type = each.value.instance_types == null ? each.value.instance_type : null
 
   iam_instance_profile {
     name = aws_iam_instance_profile.eks_node_instance_profile.name
@@ -261,12 +288,18 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
     group_name = aws_placement_group.gpu_dev_pg.name
   }
 
-  # Network interface (EFA only for supported instance types like p5.48xlarge)
+  # Network interface (EFA for H100/H200 instance types)
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    interface_type              = can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
-    delete_on_termination       = true
+    interface_type = (
+      # Check if any instance type in the list supports EFA
+      each.value.instance_types != null ? 
+        (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
+        # Single instance type check
+        can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+    )
+    delete_on_termination = true
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data-self-managed.sh", {
@@ -306,10 +339,12 @@ resource "aws_iam_instance_profile" "eks_node_instance_profile" {
 resource "aws_launch_template" "gpu_dev_launch_template" {
   for_each = var.supported_gpu_types
   
-  name_prefix   = "${var.prefix}-gpu-lt-${each.key}-"
-  image_id      = data.aws_ami.eks_gpu_ami.id
-  instance_type = each.value.instance_type
-  key_name      = var.key_pair_name
+  name_prefix = "${var.prefix}-gpu-lt-${each.key}-"
+  image_id    = data.aws_ami.eks_gpu_ami.id
+  key_name    = var.key_pair_name
+  
+  # Only set instance_type if not using mixed instances policy
+  instance_type = each.value.instance_types == null ? each.value.instance_type : null
 
   # Block device mapping for 4TB root volume
   block_device_mappings {
@@ -326,11 +361,17 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     group_name = aws_placement_group.gpu_dev_pg.name
   }
 
-  # Network interface (EFA only for supported instance types like p5.48xlarge)
+  # Network interface (EFA for H100/H200 instance types)
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    interface_type              = can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+    interface_type = (
+      # Check if any instance type in the list supports EFA
+      each.value.instance_types != null ? 
+        (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
+        # Single instance type check
+        can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+    )
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data.sh", {
@@ -355,14 +396,14 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   }
 }
 
-# Get the latest EKS-optimized GPU AMI for the cluster version
+# Get the latest EKS-optimized AL2023 GPU AMI for the cluster version
 data "aws_ami" "eks_gpu_ami" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["amazon-eks-gpu-node-*"]
+    values = ["amazon-eks-node-al2023-x86_64-nvidia-*"]
   }
 
   filter {
