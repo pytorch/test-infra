@@ -403,7 +403,7 @@ data "aws_ami" "eks_gpu_ami" {
 
   filter {
     name   = "name"
-    values = ["amazon-eks-node-al2023-x86_64-nvidia-*"]
+    values = ["amazon-eks-node-al2023-x86_64-nvidia-1.33-*"]
   }
 
   filter {

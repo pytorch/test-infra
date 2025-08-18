@@ -33,6 +33,8 @@ resource "aws_lambda_function" "availability_updater" {
     variables = {
       AVAILABILITY_TABLE = aws_dynamodb_table.gpu_availability.name
       SUPPORTED_GPU_TYPES = jsonencode(var.supported_gpu_types)
+      EKS_CLUSTER_NAME = aws_eks_cluster.gpu_dev_cluster.name
+      REGION = var.aws_region
     }
   }
 
@@ -103,6 +105,22 @@ resource "aws_iam_role_policy" "availability_updater_policy" {
           "autoscaling:DescribeAutoScalingGroups"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters", 
+          "eks:AccessKubernetesApi"
+        ]
+        Resource = aws_eks_cluster.gpu_dev_cluster.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "sts:AssumeRole"
+        ]
+        Resource = aws_iam_role.eks_cluster_role.arn
       }
     ]
   })
@@ -157,11 +175,50 @@ resource "aws_cloudwatch_log_group" "availability_updater_logs" {
   }
 }
 
+# Build availability updater Lambda package with dependencies
+resource "null_resource" "availability_updater_build" {
+  triggers = {
+    # Rebuild when source files change
+    code_hash = filebase64sha256("${path.module}/lambda/availability_updater/index.py")
+    requirements_hash = try(filebase64sha256("${path.module}/lambda/availability_updater/requirements.txt"), "none")
+    shared_code_hash = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
+    shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
+  }
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -e
+      cd ${path.module}/lambda/availability_updater
+      echo "Building availability updater Lambda package..."
+      rm -rf package *.zip
+      mkdir -p package
+      
+      # Install dependencies if requirements.txt exists
+      if [ -f requirements.txt ]; then
+        python3 -m pip install --upgrade pip
+        python3 -m pip install -r requirements.txt --target package/ --force-reinstall
+      fi
+      
+      # Copy source code and shared modules
+      cp index.py package/
+      cp -r ../shared package/
+      
+      # Remove shared module's __pycache__ if it exists
+      rm -rf package/shared/__pycache__
+      
+      echo "Availability updater Lambda package built successfully"
+      ls -la package/
+    EOT
+  }
+}
+
 # Archive file for availability updater Lambda deployment
 data "archive_file" "availability_updater_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/availability_updater"
+  source_dir  = "${path.module}/lambda/availability_updater/package"
   output_path = "${path.module}/lambda/availability_updater.zip"
+  
+  depends_on = [null_resource.availability_updater_build]
 }
 
 # Output the availability table name for CLI configuration

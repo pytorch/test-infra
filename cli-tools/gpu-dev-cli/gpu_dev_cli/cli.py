@@ -132,9 +132,9 @@ def reserve(
                 f"[green]✅ Reservation request submitted: {reservation_id[:8]}...[/green]"
             )
 
-            # Poll for completion with spinner and status updates
+            # Poll for completion with spinner and status updates (no timeout)
             completed_reservation = reservation_mgr.wait_for_reservation_completion(
-                reservation_id=reservation_id, timeout_minutes=10
+                reservation_id=reservation_id, timeout_minutes=None
             )
 
             if not completed_reservation:

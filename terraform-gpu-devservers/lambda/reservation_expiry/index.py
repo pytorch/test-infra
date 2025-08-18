@@ -248,7 +248,7 @@ def handler(event, context):
         logger.info(f"Found {len(stale_reservations)} queued/pending reservations")
 
         warning_threshold = current_time + (WARNING_MINUTES * 60)
-        stale_threshold = current_time - (5 * 60)  # 5 minutes ago
+        stale_threshold = current_time - (48 * 60 * 60)  # 48 hours ago (only cancel queued after 48+ hours)
 
         logger.info(
             f"Expiry thresholds: current={current_time}, warning={warning_threshold}, stale={stale_threshold}"

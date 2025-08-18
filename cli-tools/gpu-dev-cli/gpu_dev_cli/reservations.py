@@ -587,7 +587,7 @@ class ReservationManager:
             return None
 
     def wait_for_reservation_completion(
-        self, reservation_id: str, timeout_minutes: int = 10
+        self, reservation_id: str, timeout_minutes: Optional[int] = 10
     ) -> Optional[Dict[str, Any]]:
         """Poll for reservation completion with status updates, queue info, and keyboard controls"""
 
@@ -601,7 +601,7 @@ class ReservationManager:
         }
 
         start_time = time.time()
-        timeout_seconds = timeout_minutes * 60
+        timeout_seconds = timeout_minutes * 60 if timeout_minutes is not None else None
         last_status = None
         cancelled = False
         close_tool = False
@@ -654,7 +654,7 @@ class ReservationManager:
                 live.update(spinner)
 
                 while (
-                    time.time() - start_time < timeout_seconds
+                    (timeout_seconds is None or time.time() - start_time < timeout_seconds)
                     and not cancelled
                     and not close_tool
                 ):
@@ -881,11 +881,16 @@ class ReservationManager:
                 )
                 return None
 
-            # Timeout reached
+            # Timeout reached (should not happen when timeout_minutes is None)
             live.stop()
-            console.print(
-                f"\n[yellow]⏰ Timeout reached after {timeout_minutes} minutes[/yellow]"
-            )
+            if timeout_minutes is not None:
+                console.print(
+                    f"\n[yellow]⏰ Timeout reached after {timeout_minutes} minutes[/yellow]"
+                )
+            else:
+                console.print(
+                    f"\n[yellow]⏰ Polling stopped unexpectedly[/yellow]"
+                )
             console.print(
                 "[yellow]🔍 Check reservation status manually with: gpu-dev list[/yellow]"
             )

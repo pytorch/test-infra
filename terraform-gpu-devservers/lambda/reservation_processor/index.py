@@ -527,6 +527,11 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
 
         logger.info(f"Allocating {gpu_count}x {gpu_type.upper()} GPUs for reservation {reservation_id}")
         logger.info(f"Pod name: {pod_name}")
+        
+        # Update status: Fetching SSH keys
+        update_reservation_status(
+            reservation_id, "preparing", f"Fetching SSH keys for GitHub user {request.get('github_user', user_id)}"
+        )
 
         # Get user's GitHub public key
         github_user = request.get(
@@ -537,6 +542,11 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             raise ValueError(
                 f"Could not fetch GitHub public key for GitHub user '{github_user}'"
             )
+
+        # Update status: Creating Kubernetes resources
+        update_reservation_status(
+            reservation_id, "preparing", f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs"
+        )
 
         # Set up K8s client for resource management
         k8s_client = get_k8s_client()
@@ -551,6 +561,11 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             reservation_id=reservation_id,
             jupyter_enabled=jupyter_enabled,
         )
+        
+        # Update status: Pod created, waiting for container to start
+        update_reservation_status(
+            reservation_id, "preparing", f"Pod created, downloading container image and starting services"
+        )
 
         # Get node public IP
         node_public_ip = get_node_public_ip()
@@ -561,6 +576,11 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         # Generate Jupyter URL (we'll get the token after pod is ready)
         jupyter_url_base = f"http://{node_public_ip}:{jupyter_port}"
 
+        # Update status: Waiting for SSH service
+        update_reservation_status(
+            reservation_id, "preparing", f"Container started, waiting for SSH service on port {node_port}"
+        )
+        
         # Wait for SSH service to be fully ready (additional wait beyond pod ready)
         logger.info(
             f"Pod is ready, waiting for SSH service to start on {node_public_ip}:{node_port}"
@@ -792,8 +812,10 @@ def create_kubernetes_resources(
 
                 # Create pod if it doesn't exist
                 if not pod_exists:
+                    update_reservation_status(reservation_id, "preparing", f"Creating Kubernetes pod {pod_name}")
                     create_pod(k8s_client, pod_name, gpu_count, gpu_type, github_public_key, jupyter_enabled=True)
                     logger.info(f"Created new pod {pod_name} with Jupyter")
+                    update_reservation_status(reservation_id, "preparing", f"Pod created, waiting for container to download and start")
 
                 # Create SSH service if it doesn't exist
                 if not existing_service_port:
@@ -816,8 +838,10 @@ def create_kubernetes_resources(
                 
                 # Create pod if it doesn't exist
                 if not pod_exists:
+                    update_reservation_status(reservation_id, "preparing", f"Creating Kubernetes pod {pod_name}")
                     create_pod(k8s_client, pod_name, gpu_count, gpu_type, github_public_key, jupyter_enabled=False)
                     logger.info(f"Created new pod {pod_name} without Jupyter")
+                    update_reservation_status(reservation_id, "preparing", f"Pod created, waiting for container to download and start")
 
                 # Create SSH service if it doesn't exist
                 if not existing_service_port:
@@ -825,7 +849,9 @@ def create_kubernetes_resources(
                     logger.info(f"Created new service {pod_name}-ssh on port {node_port}")
 
         # Wait for pod to be ready (regardless of whether it was just created or already existed)
+        update_reservation_status(reservation_id, "preparing", f"Waiting for pod {pod_name} to become ready")
         wait_for_pod_ready(k8s_client, pod_name)
+        update_reservation_status(reservation_id, "preparing", f"Pod is ready, setting up services")
 
         return node_port, jupyter_port
 

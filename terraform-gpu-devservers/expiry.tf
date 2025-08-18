@@ -174,11 +174,11 @@ data "archive_file" "reservation_expiry_zip" {
   depends_on = [null_resource.reservation_expiry_build]
 }
 
-# CloudWatch Event Rule to trigger expiry check every 5 minutes
+# CloudWatch Event Rule to trigger expiry check every 1 minute
 resource "aws_cloudwatch_event_rule" "reservation_expiry_schedule" {
   name                = "${var.prefix}-reservation-expiry-schedule"
-  description         = "Trigger reservation expiry check every 5 minutes"
-  schedule_expression = "rate(5 minutes)"
+  description         = "Trigger reservation expiry check every 1 minute"
+  schedule_expression = "rate(1 minute)"
 
   tags = {
     Name        = "${var.prefix}-reservation-expiry-schedule"
