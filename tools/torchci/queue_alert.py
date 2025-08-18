@@ -20,7 +20,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 QUEUE_ALERT_LABEL = "queue-alert"
 
 MAX_HOURS = 4
-MAX_MACHINES = 75
+MAX_MACHINES = 150
 EXCEPTIONS = {"linux.gcp.a100.large": (20, 20)}
 
 

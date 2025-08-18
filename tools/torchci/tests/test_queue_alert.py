@@ -8,7 +8,7 @@ class TestGitHubPR(TestCase):
     def test_filter_long_queues(self):
         db_results = [
             {"count": 30, "avg_queue_s": 0, "machine_type": "linux.gcp.a100.large"},
-            {"count": 100, "avg_queue_s": 0, "machine_type": "machine1"},
+            {"count": 200, "avg_queue_s": 0, "machine_type": "machine1"},
             {"count": 30, "avg_queue_s": 3600 * 5, "machine_type": "machine2"},
         ]
         long_queues = filter_long_queues(db_results)
