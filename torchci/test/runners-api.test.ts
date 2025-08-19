@@ -1,6 +1,16 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import handler, { RunnerData, RunnersApiResponse } from "../pages/api/runners/[org]";
 
+// Mock the authorization module
+jest.mock("../lib/getAuthorizedUsername", () => ({
+  getAuthorizedUsername: jest.fn(),
+}));
+
+// Mock the auth options
+jest.mock("../pages/api/auth/[...nextauth]", () => ({
+  authOptions: {},
+}));
+
 // Mock the octokit modules
 jest.mock("@octokit/auth-app", () => ({
   createAppAuth: jest.fn(),
@@ -22,6 +32,7 @@ jest.mock("octokit", () => ({
 describe("/api/runners/[org]", () => {
   let req: Partial<NextApiRequest>;
   let res: Partial<NextApiResponse>;
+  let mockGetAuthorizedUsername: jest.Mock;
 
   beforeEach(() => {
     req = {
@@ -36,6 +47,10 @@ describe("/api/runners/[org]", () => {
     // Set up environment variables
     process.env.APP_ID = "123";
     process.env.PRIVATE_KEY = Buffer.from("fake-key").toString("base64");
+
+    // Mock the authorization function
+    const { getAuthorizedUsername } = require("../lib/getAuthorizedUsername");
+    mockGetAuthorizedUsername = getAuthorizedUsername as jest.Mock;
   });
 
   afterEach(() => {
@@ -44,6 +59,7 @@ describe("/api/runners/[org]", () => {
 
   test("should return error for non-GET requests", async () => {
     req.method = "POST";
+    mockGetAuthorizedUsername.mockResolvedValue("testuser");
 
     await handler(req as NextApiRequest, res as NextApiResponse);
 
@@ -51,8 +67,18 @@ describe("/api/runners/[org]", () => {
     expect(res.json).toHaveBeenCalledWith({ error: "Method not allowed" });
   });
 
+  test("should return error when user is not authorized", async () => {
+    mockGetAuthorizedUsername.mockResolvedValue(null);
+
+    await handler(req as NextApiRequest, res as NextApiResponse);
+
+    expect(mockGetAuthorizedUsername).toHaveBeenCalledWith(req, res, {});
+    // The auth function handles the response, so no status/json calls should happen
+  });
+
   test("should return error for missing org parameter", async () => {
     req.query = {};
+    mockGetAuthorizedUsername.mockResolvedValue("testuser");
 
     await handler(req as NextApiRequest, res as NextApiResponse);
 

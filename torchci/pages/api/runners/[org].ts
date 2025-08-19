@@ -1,13 +1,8 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 import type { NextApiRequest, NextApiResponse } from "next";
-
-// GitHub API response types
-interface GitHubRunnerLabel {
-  id?: number;
-  name: string;
-  type?: "read-only" | "custom";
-}
+import { getAuthorizedUsername } from "../../../lib/getAuthorizedUsername";
+import { authOptions } from "../auth/[...nextauth]";
 
 // Our application response types
 export interface RunnerData {
@@ -101,6 +96,13 @@ export default async function handler(
 ) {
   if (req.method !== "GET") {
     return res.status(405).json({ error: "Method not allowed" });
+  }
+
+  // Check authentication and permissions
+  const username = await getAuthorizedUsername(req, res, authOptions);
+  if (!username) {
+    // getAuthorizedUsername already sent the appropriate error response
+    return;
   }
 
   const { org } = req.query;
