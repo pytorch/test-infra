@@ -2,6 +2,14 @@ import { createAppAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// GitHub API response types
+interface GitHubRunnerLabel {
+  id?: number;
+  name: string;
+  type?: "read-only" | "custom";
+}
+
+// Our application response types
 export interface RunnerData {
   id: number;
   name: string;
@@ -20,6 +28,47 @@ export interface RunnersApiResponse {
   runners: RunnerData[];
 }
 
+// Fetch all runners with proper pagination
+async function fetchAllRunners(octokit: Octokit, org: string): Promise<RunnerData[]> {
+  const allRunners: RunnerData[] = [];
+  let page = 1;
+  const perPage = 100; // GitHub API maximum per page
+
+  while (true) {
+    const response = await octokit.request("GET /orgs/{org}/actions/runners", {
+      org,
+      per_page: perPage,
+      page,
+    });
+
+    const runnersPage = response.data;
+    
+    // Map GitHub API response to our format with proper type safety
+    const mappedRunners: RunnerData[] = runnersPage.runners.map((runner: any) => ({
+      id: runner.id,
+      name: runner.name,
+      os: runner.os,
+      status: (runner.status === "online" || runner.status === "offline") ? runner.status : "offline",
+      busy: runner.busy,
+      labels: runner.labels.map((label: any) => ({
+        id: label.id,
+        name: label.name,
+        type: (label.type === "read-only" || label.type === "custom") ? label.type : "custom",
+      })),
+    }));
+
+    allRunners.push(...mappedRunners);
+
+    // Check if we've fetched all runners
+    if (runnersPage.runners.length < perPage) {
+      break;
+    }
+
+    page++;
+  }
+
+  return allRunners;
+}
 // Get Octokit instance authenticated for organization-level access
 async function getOctokitForOrg(org: string): Promise<Octokit> {
   let privateKey = process.env.PRIVATE_KEY as string;
@@ -63,27 +112,11 @@ export default async function handler(
   try {
     const octokit = await getOctokitForOrg(org);
     
-    // Fetch runners from GitHub API
-    const response = await octokit.request("GET /orgs/{org}/actions/runners", {
-      org,
-      per_page: 100, // GitHub API default/max
-    });
-
-    const runners: RunnerData[] = response.data.runners.map((runner: any) => ({
-      id: runner.id,
-      name: runner.name,
-      os: runner.os,
-      status: runner.status,
-      busy: runner.busy,
-      labels: runner.labels.map((label: any) => ({
-        id: label.id,
-        name: label.name,
-        type: label.type,
-      })),
-    }));
+    // Fetch all runners with proper pagination
+    const runners = await fetchAllRunners(octokit, org);
 
     return res.status(200).json({
-      total_count: response.data.total_count,
+      total_count: runners.length,
       runners,
     });
   } catch (error: any) {
