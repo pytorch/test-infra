@@ -1,6 +1,6 @@
 import LoadingPage from "components/common/LoadingPage";
 import { useSetTitle } from "components/layout/DynamicTitle";
-import { RunnersApiResponse } from "pages/api/runners/[org]";
+import { RunnersApiResponse } from "pages/api/runners/mock";
 import { useRouter } from "next/router";
 import { useState } from "react";
 import useSWR from "swr";

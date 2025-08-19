@@ -1,5 +1,22 @@
 import type { NextApiRequest, NextApiResponse } from "next";
-import { RunnersApiResponse } from "../[org]";
+
+export interface RunnerData {
+  id: number;
+  name: string;
+  os: string;
+  status: "online" | "offline";
+  busy: boolean;
+  labels: Array<{
+    id?: number;
+    name: string;
+    type: "read-only" | "custom";
+  }>;
+}
+
+export interface RunnersApiResponse {
+  total_count: number;
+  runners: RunnerData[];
+}
 
 // Mock data for demonstration purposes
 const mockRunners: RunnersApiResponse = {
