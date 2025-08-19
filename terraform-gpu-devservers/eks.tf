@@ -302,6 +302,20 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
     delete_on_termination = true
   }
 
+  # Conditionally add instance_market_options for p5.48xlarge instances
+  dynamic "instance_market_options" {
+    for_each = (
+      # Check if single instance type is p5.48xlarge
+      each.value.instance_types == null ? 
+        (each.value.instance_type == "p5.48xlarge" ? [1] : []) :
+        # Check if any instance type in the list is p5.48xlarge
+        (length([for it in each.value.instance_types : it if it == "p5.48xlarge"]) > 0 ? [1] : [])
+    )
+    content {
+      market_type = "capacity-block"
+    }
+  }
+
   user_data = base64encode(templatefile("${path.module}/templates/user-data-self-managed.sh", {
     cluster_name = aws_eks_cluster.gpu_dev_cluster.name
     region       = var.aws_region
@@ -372,6 +386,20 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
         # Single instance type check
         can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     )
+  }
+
+  # Conditionally add instance_market_options for p5.48xlarge instances
+  dynamic "instance_market_options" {
+    for_each = (
+      # Check if single instance type is p5.48xlarge
+      each.value.instance_types == null ? 
+        (each.value.instance_type == "p5.48xlarge" ? [1] : []) :
+        # Check if any instance type in the list is p5.48xlarge
+        (length([for it in each.value.instance_types : it if it == "p5.48xlarge"]) > 0 ? [1] : [])
+    )
+    content {
+      market_type = "capacity-block"
+    }
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data.sh", {
