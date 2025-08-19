@@ -2,6 +2,22 @@ import { createAppAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 import type { NextApiRequest, NextApiResponse } from "next";
 
+// GitHub API interfaces for proper type safety
+export interface RunnerLabel {
+  id?: number;
+  name: string;
+  type?: "read-only" | "custom";
+}
+
+export interface GitHubApiRunner {
+  id: number;
+  name: string;
+  os: string;
+  status: string;
+  busy: boolean;
+  labels: RunnerLabel[];
+}
+
 export interface RunnerData {
   id: number;
   name: string;
@@ -69,16 +85,16 @@ export default async function handler(
       per_page: 100, // GitHub API default/max
     });
 
-    const runners: RunnerData[] = response.data.runners.map((runner: any) => ({
+    const runners: RunnerData[] = response.data.runners.map((runner: GitHubApiRunner) => ({
       id: runner.id,
       name: runner.name,
       os: runner.os,
-      status: runner.status,
+      status: runner.status as "online" | "offline",
       busy: runner.busy,
-      labels: runner.labels.map((label: any) => ({
+      labels: runner.labels.map((label: RunnerLabel) => ({
         id: label.id,
         name: label.name,
-        type: label.type,
+        type: (label.type || "custom") as "read-only" | "custom",
       })),
     }));
 
