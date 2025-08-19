@@ -225,6 +225,27 @@ class TestAutorevertMocked(unittest.TestCase):
             "ghfirst",
         )
 
+    def test_pattern_not_detected_when_baseline_pending(self):
+        checker = AutorevertPatternChecker(["trunk-pending"], lookback_hours=72)
+        patterns = checker.detect_autorevert_pattern_workflow("trunk-pending")
+        self.assertEqual(
+            len(patterns), 0, "No pattern when baseline job has pending status"
+        )
+
+    def test_pattern_not_detected_when_baseline_fails(self):
+        checker = AutorevertPatternChecker(["trunk-baseline-fails"], lookback_hours=72)
+        patterns = checker.detect_autorevert_pattern_workflow("trunk-baseline-fails")
+        self.assertEqual(
+            len(patterns), 0, "No pattern when baseline also fails with same rule"
+        )
+
+    def test_pattern_not_detected_with_insufficient_failures(self):
+        checker = AutorevertPatternChecker(["trunk-one-failure"], lookback_hours=72)
+        patterns = checker.detect_autorevert_pattern_workflow("trunk-one-failure")
+        self.assertEqual(
+            len(patterns), 0, "No pattern when only one newer commit fails"
+        )
+
     def test_restart_checker_dedup_and_dispatch(self):
         rc = WorkflowRestartChecker()
         self.assertTrue(
