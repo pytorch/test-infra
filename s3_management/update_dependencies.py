@@ -28,12 +28,12 @@ PACKAGES_PER_PROJECT = {
     "nvidia-cuda-nvrtc-cu13": {
         "version": "12.9.86",
         "project": "torch",
-        "target": "cu129",
+        "target": "cu130",
     },
     "nvidia-cuda-runtime-cu12": {
-        "version": "13.0.48",
+        "version": "12.9.79",
         "project": "torch",
-        "target": "cu130",
+        "target": "cu129",
     },
     "nvidia-cuda-runtime-cu13": {
         "version": "13.0.48",
