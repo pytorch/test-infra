@@ -9,15 +9,6 @@ interface GitHubRunnerLabel {
   type?: "read-only" | "custom";
 }
 
-interface GitHubApiRunner {
-  id: number;
-  name: string;
-  os: string;
-  status: string; // GitHub API may return other statuses we don't know about
-  busy: boolean;
-  labels: GitHubRunnerLabel[];
-}
-
 // Our application response types
 export interface RunnerData {
   id: number;
