@@ -25,6 +25,8 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
+      - name: Install virtualenv
+        run: pip install virtualenv
       - name: Run autorevert tests
         env:
           # GitHub provides this automatically; used by workflow_resolver tests
