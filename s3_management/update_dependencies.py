@@ -25,55 +25,130 @@ PACKAGES_PER_PROJECT = {
         "project": "torch",
         "target": "cu129",
     },
-    "nvidia-cuda-runtime-cu12": {
-        "version": "12.9.79",
+    "nvidia-cuda-nvrtc-cu13": {
+        "version": "12.9.86",
         "project": "torch",
         "target": "cu129",
+    },
+    "nvidia-cuda-runtime-cu12": {
+        "version": "13.0.48",
+        "project": "torch",
+        "target": "cu130",
+    },
+    "nvidia-cuda-runtime-cu13": {
+        "version": "13.0.48",
+        "project": "torch",
+        "target": "cu130",
     },
     "nvidia-cuda-cupti-cu12": {
         "version": "12.9.79",
         "project": "torch",
         "target": "cu129",
     },
+    "nvidia-cuda-cupti-cu13": {
+        "version": "13.0.48",
+        "project": "torch",
+        "target": "cu130",
+    },
+    "nvidia-cudnn-cu13": {
+        "version": "9.12.0.46",
+        "project": "torch",
+        "target": "cu130",
+    },
     "nvidia-cublas-cu12": {
         "version": "12.9.1.4",
         "project": "torch",
         "target": "cu129",
+    },
+    "nvidia-cublas-cu13": {
+        "version": "13.0.0.19",
+        "project": "torch",
+        "target": "cu130",
     },
     "nvidia-cufft-cu12": {
         "version": "11.4.1.4",
         "project": "torch",
         "target": "cu129",
     },
+    "nvidia-cufft-cu13": {
+        "version": "12.0.0.15",
+        "project": "torch",
+        "target": "cu130",
+    },
     "nvidia-curand-cu12": {
         "version": "10.3.10.19",
         "project": "torch",
         "target": "cu129",
+    },
+    "nvidia-curand-cu13": {
+        "version": "10.4.0.35",
+        "project": "torch",
+        "target": "cu130",
     },
     "nvidia-cusolver-cu12": {
         "version": "11.7.5.82",
         "project": "torch",
         "target": "cu129",
     },
+    "nvidia-cusolver-cu13": {
+        "version": "12.0.3.29",
+        "project": "torch",
+        "target": "cu130",
+    },
     "nvidia-cusparse-cu12": {
         "version": "12.5.10.65",
         "project": "torch",
         "target": "cu129",
+    },
+    "nvidia-cusparse-cu13": {
+        "version": "12.6.2.49",
+        "project": "torch",
+        "target": "cu130",
+    },
+    "nvidia-cusparselt-cu13": {
+        "version": "0.8.0",
+        "project": "torch",
+        "target": "cu130",
+    },
+    "nvidia-nccl-cu13": {
+        "version": "2.27.7",
+        "project": "torch",
+        "target": "cu130",
+    },
+    "nvidia-nvshmem-cu13": {
+        "version": "3.3.20",
+        "project": "torch",
+        "target": "cu130",
     },
     "nvidia-nvtx-cu12": {
         "version": "12.9.79",
         "project": "torch",
         "target": "cu129",
     },
+    "nvidia-nvtx-cu13": {
+        "version": "13.0.39",
+        "project": "torch",
+        "target": "cu130",
+    },
     "nvidia-nvjitlink-cu12": {
         "version": "12.9.86",
         "project": "torch",
         "target": "cu129",
     },
+    "nvidia-nvjitlink-cu13": {
+        "version": "13.0.39",
+        "project": "torch",
+        "target": "cu130",
+    },
     "nvidia-cufile-cu12": {
         "version": "1.14.1.1",
         "project": "torch",
         "target": "cu129",
+    },
+    "nvidia-cufile-cu13": {
+        "version": "1.15.0.42",
+        "project": "torch",
+        "target": "cu130",
     },
     "arpeggio": {"version": "latest", "project": "triton"},
     "caliper-reader": {"version": "latest", "project": "triton"},
