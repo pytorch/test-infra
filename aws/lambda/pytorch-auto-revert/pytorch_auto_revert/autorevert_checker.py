@@ -507,9 +507,11 @@ class AutorevertPatternChecker:
 
         # Fetch restarted jobs for first failing and previous commits
         failing_commit_jobs = self._fetch_single_commit_jobs(
-                workflow_name, first_failing, restarted_only=True)
+            workflow_name, first_failing, restarted_only=True
+        )
         prev_commit_jobs = self._fetch_single_commit_jobs(
-                workflow_name, previous_commit, restarted_only=True)
+            workflow_name, previous_commit, restarted_only=True
+        )
         if not failing_commit_jobs or not prev_commit_jobs:
             return False
 
