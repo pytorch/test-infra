@@ -25,11 +25,9 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - name: Install dependencies
-        run: pip install -r requirements.txt
       - name: Run autorevert tests
         env:
           # GitHub provides this automatically; used by workflow_resolver tests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          python -m unittest discover -vs pytorch_auto_revert/tests -p 'test_*.py'
+          make test
