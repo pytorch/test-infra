@@ -215,7 +215,7 @@ resource "null_resource" "availability_updater_build" {
 # Archive file for availability updater Lambda deployment
 data "archive_file" "availability_updater_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/availability_updater/package"
+  source_dir  = "${path.module}/lambda/availability_updater/"
   output_path = "${path.module}/lambda/availability_updater.zip"
   
   depends_on = [null_resource.availability_updater_build]
