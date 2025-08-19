@@ -4,7 +4,11 @@ import unittest
 from datetime import datetime
 from unittest.mock import patch, PropertyMock
 
-from pytorch_auto_revert.autorevert_checker import AutorevertPatternChecker
+from pytorch_auto_revert.autorevert_checker import (
+    AutorevertPatternChecker,
+    CommitJobs,
+    JobResult,
+)
 from pytorch_auto_revert.event_logger import log_autorevert_event
 from pytorch_auto_revert.workflow_checker import WorkflowRestartChecker
 
@@ -178,6 +182,129 @@ class TestAutorevertMocked(unittest.TestCase):
         )
         self.addCleanup(gh_patch.stop)
         gh_patch.start()
+
+    # ------------------------
+    # Synthetic pattern tests
+    # ------------------------
+    def _jr(
+        self,
+        sha: str,
+        name: str,
+        conclusion: str,
+        *,
+        rule: str = "",
+        status: str = "completed",
+        t: datetime | None = None,
+    ) -> JobResult:
+        return JobResult(
+            head_sha=sha,
+            name=name,
+            conclusion=conclusion,
+            status=status,
+            classification_rule=rule,
+            workflow_created_at=t or datetime.now(),
+        )
+
+    def _cj(self, sha: str, t: datetime, jobs: list[JobResult]) -> CommitJobs:
+        return CommitJobs(head_sha=sha, created_at=t, jobs=jobs)
+
+    def test_no_newer_commit_with_same_job(self):
+        # Newest has build only; suspected (mid) fails a test job; older has same test job success
+        now = datetime.now()
+        sha_new, sha_mid, sha_old = "a" * 40, "b" * 40, "c" * 40
+        build = "linux / build"
+        test_a = "linux / test (shard A)"
+
+        cj_new = self._cj(sha_new, now, [self._jr(sha_new, build, "success")])
+        cj_mid = self._cj(
+            sha_mid,
+            now.replace(microsecond=0),
+            [self._jr(sha_mid, test_a, "failure", rule="pytest failure")],
+        )
+        cj_old = self._cj(sha_old, now, [self._jr(sha_old, test_a, "success")])
+
+        checker = AutorevertPatternChecker(["synthetic"], lookback_hours=1)
+        checker._workflow_commits_cache["synthetic"] = [cj_new, cj_mid, cj_old]
+        patterns = checker.detect_autorevert_pattern_workflow("synthetic")
+        self.assertEqual(len(patterns), 0)
+
+    def test_two_newer_commits_with_different_failures(self):
+        # Newest fails same job but different rule than suspected commit
+        now = datetime.now()
+        sha_new, sha_mid, sha_old = "d" * 40, "e" * 40, "f" * 40
+        test_a = "linux / test (shard A)"
+
+        cj_new = self._cj(
+            sha_new,
+            now,
+            [self._jr(sha_new, test_a, "failure", rule="GHA error")],
+        )
+        cj_mid = self._cj(
+            sha_mid,
+            now,
+            [self._jr(sha_mid, test_a, "failure", rule="pytest failure")],
+        )
+        cj_old = self._cj(sha_old, now, [self._jr(sha_old, test_a, "success")])
+
+        checker = AutorevertPatternChecker(["synthetic2"], lookback_hours=1)
+        checker._workflow_commits_cache["synthetic2"] = [cj_new, cj_mid, cj_old]
+        patterns = checker.detect_autorevert_pattern_workflow("synthetic2")
+        self.assertEqual(len(patterns), 0)
+
+    def test_all_commits_have_same_failure_no_baseline(self):
+        # All three commits fail same job/rule; baseline isn't clean => no pattern
+        now = datetime.now()
+        sha_new, sha_mid, sha_old = "g" * 40, "h" * 40, "i" * 40
+        test_a = "linux / test (shard A)"
+
+        def failing(sha):
+            return self._jr(sha, test_a, "failure", rule="pytest failure")
+
+        cj_new = self._cj(sha_new, now, [failing(sha_new)])
+        cj_mid = self._cj(sha_mid, now, [failing(sha_mid)])
+        cj_old = self._cj(sha_old, now, [failing(sha_old)])
+
+        checker = AutorevertPatternChecker(["synthetic3"], lookback_hours=1)
+        checker._workflow_commits_cache["synthetic3"] = [cj_new, cj_mid, cj_old]
+        patterns = checker.detect_autorevert_pattern_workflow("synthetic3")
+        self.assertEqual(len(patterns), 0)
+
+    def test_missing_older_commit_with_same_job(self):
+        # Older commit doesn't have the same normalized job => no pattern
+        now = datetime.now()
+        sha_new, sha_mid, sha_old = "j" * 40, "k" * 40, "l" * 40
+        test_a = "linux / test (shard A)"
+        other = "linux / doc-job"
+
+        cj_new = self._cj(
+            sha_new, now, [self._jr(sha_new, test_a, "failure", rule="pytest failure")]
+        )
+        cj_mid = self._cj(
+            sha_mid, now, [self._jr(sha_mid, test_a, "failure", rule="pytest failure")]
+        )
+        cj_old = self._cj(sha_old, now, [self._jr(sha_old, other, "success")])
+
+        checker = AutorevertPatternChecker(["synthetic4"], lookback_hours=1)
+        checker._workflow_commits_cache["synthetic4"] = [cj_new, cj_mid, cj_old]
+        patterns = checker.detect_autorevert_pattern_workflow("synthetic4")
+        self.assertEqual(len(patterns), 0)
+
+    def test_only_two_commits_in_list(self):
+        # With < 3 commits, function should return [] (early guard)
+        now = datetime.now()
+        sha_new, sha_mid = "m" * 40, "n" * 40
+        test_a = "linux / test (shard A)"
+
+        cj_new = self._cj(
+            sha_new, now, [self._jr(sha_new, test_a, "failure", rule="pytest failure")]
+        )
+        cj_mid = self._cj(
+            sha_mid, now, [self._jr(sha_mid, test_a, "failure", rule="pytest failure")]
+        )
+        checker = AutorevertPatternChecker(["synthetic5"], lookback_hours=1)
+        checker._workflow_commits_cache["synthetic5"] = [cj_new, cj_mid]
+        patterns = checker.detect_autorevert_pattern_workflow("synthetic5")
+        self.assertEqual(len(patterns), 0)
 
     def test_primary_pattern_detection(self):
         checker = AutorevertPatternChecker(["trunk"], lookback_hours=72)
