@@ -143,13 +143,13 @@ class TestAutorevertMocked(unittest.TestCase):
         self.addCleanup(ch_patch.stop)
         ch_patch.start()
 
-        resolver_patch = patch(
-            "pytorch_auto_revert.workflow_checker.WorkflowRestartChecker.resolver",
-            new_callable=PropertyMock,
+        # Ensure property path is exercised: patch the classmethod used inside the property
+        resolver_get_patch = patch(
+            "pytorch_auto_revert.workflow_checker.WorkflowResolver.get",
             return_value=FakeResolver(FakeWorkflowRef("trunk", "trunk.yml")),
         )
-        self.addCleanup(resolver_patch.stop)
-        resolver_patch.start()
+        self.addCleanup(resolver_get_patch.stop)
+        resolver_get_patch.start()
 
         token_patch = patch(
             "pytorch_auto_revert.github_client_helper.GHClientFactory.token_auth_provided",
