@@ -91,10 +91,6 @@ function NavBar() {
       href: "/benchmark/compilers",
     },
     {
-      name: "TorchAO",
-      href: "/benchmark/torchao",
-    },
-    {
       name: "Triton",
       href: "/tritonbench/commit_view",
     },
@@ -107,7 +103,7 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
     },
     {
-      name: "TorchAO LLMs",
+      name: "TorchAO",
       href: "/benchmark/llms?repoName=pytorch%2Fao",
     },
     {
