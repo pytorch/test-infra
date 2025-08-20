@@ -180,7 +180,7 @@ PACKAGE_ALLOW_LIST = {
         "nvidia_cuda_cupti",
         "nvidia_cuda_nvrtc",
         "nvidia_cuda_runtime",
-        "nvidia_cudnn",
+        "nvidia_cudnn_cu13",
         "nvidia_cufft",
         "nvidia_cufile",
         "nvidia_nvshmem_cu13",
