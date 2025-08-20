@@ -83,18 +83,21 @@ export default async function handler(
     // Check that they are only updating a single PR
     const { prNumber } = req.query;
     if (prNumber === undefined) {
-      return res.status(403).end();
+      res.status(403).end();
+      return;
     }
     // Check if they exceed the rate limit
     const userOctokit = await getOctokitWithUserToken(authorization as string);
     const user = await userOctokit.rest.users.getAuthenticated();
     if (await drCIRateLimitExceeded(user.data.login)) {
-      return res.status(429).end();
+      res.status(429).end();
+      return;
     }
     incrementDrCIRateLimit(user.data.login);
   } else {
     // No authorization provided, return 403
-    return res.status(403).end();
+    res.status(403).end();
+    return;
   }
 
   const { prNumber } = req.query;
@@ -106,7 +109,7 @@ export default async function handler(
     repo,
     prNumber ? [parseInt(prNumber as string)] : []
   );
-  res.status(200).json(failures);
+  return res.status(200).json(failures);
 }
 
 export async function updateDrciComments(
