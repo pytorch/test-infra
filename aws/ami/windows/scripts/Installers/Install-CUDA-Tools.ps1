@@ -10,7 +10,7 @@ $windowsS3BaseUrl = "https://ossci-windows.s3.amazonaws.com"
 $ProgressPreference = 'SilentlyContinue'
 
 # installerArgs
-$installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion nvjpeg_$cudaVersion nvjpeg_dev_$cudaVersion"
+$installerArgs = "nvcc_$cudaVersion cuobjdump_$cudaVersion nvprune_$cudaVersion nvprof_$cudaVersion cupti_$cudaVersion cublas_$cudaVersion cublas_dev_$cudaVersion cudart_$cudaVersion cufft_$cudaVersion cufft_dev_$cudaVersion curand_$cudaVersion curand_dev_$cudaVersion cusolver_$cudaVersion cusolver_dev_$cudaVersion cusparse_$cudaVersion cusparse_dev_$cudaVersion npp_$cudaVersion npp_dev_$cudaVersion nvrtc_$cudaVersion nvrtc_dev_$cudaVersion nvml_dev_$cudaVersion nvjpeg_$cudaVersion nvjpeg_dev_$cudaVersion cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion thrust_$cudaVersion"
 
 # Switch statement for specfic CUDA versions
 $cudnn_subfolder="cuda"
@@ -21,26 +21,22 @@ $toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
 Switch ($cudaVersion) {
   "12.6" {
     $toolkitInstaller = "cuda_12.6.3_561.17_windows.exe"
-    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
   "12.8" {
     $toolkitInstaller = "cuda_12.8.1_572.61_windows.exe"
-    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
   "12.9" {
     $toolkitInstaller = "cuda_12.9.1_576.57_windows.exe"
-    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
   }
   "13.0" {
     $cudnn_subfolder="cudnn-windows-x86_64-9.12.0.46_cuda13-archive"
     $toolkitInstaller = "cuda_13.0.0_windows.exe"
-    $installerArgs += " cuda_profiler_api_$cudaVersion nvjitlink_$cudaVersion"
+    $installerArgs = ""
   }
 }
 
 
 $cudnnZip = "$cudnn_subfolder.zip"
-$installerArgs = "$installerArgs thrust_$cudaVersion"
 $cudnn_lib_folder="lib"
 
 Write-Output "Downloading ZLIB DLL, $windowsS3BaseUrl/zlib123dllx64.zip"
