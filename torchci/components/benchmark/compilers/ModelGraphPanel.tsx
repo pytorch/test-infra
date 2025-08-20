@@ -1,4 +1,4 @@
-import { Grid2, Skeleton } from "@mui/material";
+import { Grid, Skeleton } from "@mui/material";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
@@ -146,8 +146,8 @@ export function GraphPanel({
     <>
       <div>
         <h2>Details for {model}</h2>
-        <Grid2 container spacing={2}>
-          <Grid2 size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
             <TimeSeriesPanelWithData
               data={chartData}
               series={geomeanSeries}
@@ -169,9 +169,9 @@ export function GraphPanel({
                 },
               }}
             />
-          </Grid2>
+          </Grid>
 
-          <Grid2 size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
+          <Grid size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
             <TimeSeriesPanelWithData
               data={chartData}
               series={compTimeSeries}
@@ -194,9 +194,9 @@ export function GraphPanel({
                 },
               }}
             />
-          </Grid2>
+          </Grid>
 
-          <Grid2 size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
+          <Grid size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
             <TimeSeriesPanelWithData
               data={chartData}
               series={memorySeries}
@@ -218,9 +218,9 @@ export function GraphPanel({
                 },
               }}
             />
-          </Grid2>
+          </Grid>
 
-          <Grid2 size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
+          <Grid size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
             <TimeSeriesPanelWithData
               data={chartData}
               series={absTimeSeries}
@@ -243,9 +243,9 @@ export function GraphPanel({
                 },
               }}
             />
-          </Grid2>
+          </Grid>
 
-          <Grid2 size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
+          <Grid size={{ xs: 12, lg: 4 }} height={GRAPH_ROW_HEIGHT}>
             <TimeSeriesPanelWithData
               data={chartData}
               series={peakMemoryUsageTimeSeries}
@@ -268,8 +268,8 @@ export function GraphPanel({
                 },
               }}
             />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
       </div>
       <div>
         <table>

@@ -2,7 +2,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Box,
   Button,
-  Grid2,
+  Grid,
   IconButton,
   Link,
   Paper,
@@ -231,11 +231,11 @@ export default function LLMsGraphPanel({
   return (
     <>
       <div>
-        <Grid2 container spacing={2}>
+        <Grid container spacing={2}>
           {metricNames
             .filter((metric) => chartData[metric].length !== 0)
             .map((metric: string) => (
-              <Grid2
+              <Grid
                 size={{ xs: 12, lg: modelName === DEFAULT_MODEL_NAME ? 12 : 6 }}
                 height={GRAPH_ROW_HEIGHT}
                 key={metric}
@@ -264,9 +264,9 @@ export default function LLMsGraphPanel({
                   }}
                   legendPadding={320}
                 />
-              </Grid2>
+              </Grid>
             ))}
-        </Grid2>
+        </Grid>
       </div>
       {modelName !== DEFAULT_MODEL_NAME && (
         <Box mt={4} px={2}>

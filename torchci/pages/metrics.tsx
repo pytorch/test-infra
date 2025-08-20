@@ -1,6 +1,6 @@
 import {
   FormControl,
-  Grid2,
+  Grid,
   InputLabel,
   MenuItem,
   Paper,
@@ -206,8 +206,8 @@ export function TimeRangePicker({
   setStartTime: any;
   stopTime: dayjs.Dayjs;
   setStopTime: any;
-  timeRange: any;
-  setTimeRange: any;
+  timeRange: number;
+  setTimeRange: (_: number) => any;
   setGranularity?: any;
 }) {
   function updateTimeRange() {
@@ -433,7 +433,7 @@ function JobsDuration({
   }
 
   return (
-    <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+    <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
       <TTSPanel
         title={title}
         queryName={queryName}
@@ -442,7 +442,7 @@ function JobsDuration({
         metricHeaderName={metricHeaderName}
         branchName={branchName}
       />
-    </Grid2>
+    </Grid>
   );
 }
 
@@ -517,12 +517,12 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid2 container spacing={2}>
-        <Grid2 size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <MasterCommitRedPanel params={timeParams} />
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -546,9 +546,9 @@ export default function Page() {
               badThreshold={(value) => value > 0.2}
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -586,8 +586,8 @@ export default function Page() {
               badThreshold={(value) => value > 10}
             />
           </Stack>
-        </Grid2>
-        <Grid2
+        </Grid>
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -625,8 +625,8 @@ export default function Page() {
               badThreshold={(value) => value > 40}
             />
           </Stack>
-        </Grid2>
-        <Grid2
+        </Grid>
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -656,9 +656,9 @@ export default function Page() {
               badThreshold={(_) => false} // we haven't decided on the threshold here yet
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -686,9 +686,9 @@ export default function Page() {
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -720,9 +720,9 @@ export default function Page() {
               badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -750,9 +750,9 @@ export default function Page() {
               badThreshold={(_) => false}
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -780,9 +780,9 @@ export default function Page() {
               badThreshold={(value) => value > 24} // 24 hours
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           container
           size={{ xs: 6, md: 3, lg: 2 }}
           justifyContent={"stretch"}
@@ -799,9 +799,9 @@ export default function Page() {
               workflowNames={["pull", "trunk"]}
             />
           </Stack>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Queued Jobs by Machine Type"}
             queryName={"queued_jobs_by_label"}
@@ -841,9 +841,9 @@ export default function Page() {
               },
             }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Jobs in Queue"}
             queryName={"queued_jobs"}
@@ -874,9 +874,9 @@ export default function Page() {
               getRowId: (el: any) => el.html_url,
             }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Queue times historical"}
             queryName={"queue_times_historical"}
@@ -890,9 +890,9 @@ export default function Page() {
             yAxisFieldName={"avg_queue_s"}
             yAxisRenderer={durationDisplay}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Workflow load per Day"}
             queryName={"workflow_load"}
@@ -904,7 +904,7 @@ export default function Page() {
             yAxisLabel={"workflows started"}
             yAxisRenderer={(value) => value}
           />
-        </Grid2>
+        </Grid>
 
         <JobsDuration
           title={"Job time-to-signal, all branches"}
@@ -942,7 +942,7 @@ export default function Page() {
           timeParams={timeParams}
         />
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TablePanel
             title={"Failed Jobs Log Classifications"}
             queryName={"log_captures_count"}
@@ -969,9 +969,9 @@ export default function Page() {
                 el.captures ? JSON.stringify(el.captures) : "null",
             }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Number of new disabled tests"}
             queryName={"disabled_test_historical"}
@@ -982,9 +982,9 @@ export default function Page() {
             yAxisRenderer={(value) => value}
             additionalOptions={{ yAxis: { scale: true } }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }}>
           <br />
           <br />
           <Typography variant="h3" gutterBottom>
@@ -994,9 +994,9 @@ export default function Page() {
             These panels show the <b>delta</b> between states of the same job
             run on the Linux Foundation vs the Meta fleets.
           </p>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Percentage of jobs rolled over to Linux Foundation"}
             queryName={"lf_rollover_percentage"}
@@ -1007,9 +1007,9 @@ export default function Page() {
             groupByFieldName={"fleet"}
             yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }}>
+        <Grid size={{ xs: 12 }}>
           <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
             <Typography variant="h3" gutterBottom>
               Percentage of jobs running on experiment
@@ -1023,9 +1023,9 @@ export default function Page() {
             This pannel shows the % of jobs that are running the selected
             experiment in the dropbox.
           </p>
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 12 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"Percentage of jobs running on experiment"}
             queryName={"experiment_rollover_percentage"}
@@ -1040,8 +1040,8 @@ export default function Page() {
             groupByFieldName={"fleet"}
             yAxisRenderer={(value) => value.toFixed(2).toString() + "%"}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </div>
   );
 }
