@@ -14,7 +14,7 @@ resource "kubernetes_config_map" "aws_auth" {
       {
         rolearn  = aws_iam_role.eks_node_role.arn
         username = "system:node:{{EC2PrivateDNSName}}"
-        groups   = [
+        groups = [
           "system:bootstrappers",
           "system:nodes"
         ]
@@ -23,24 +23,24 @@ resource "kubernetes_config_map" "aws_auth" {
       {
         rolearn  = aws_iam_role.reservation_processor_role.arn
         username = "lambda-reservation-processor"
-        groups   = [
-          "system:masters"  # Full access needed for pod/service creation
+        groups = [
+          "system:masters" # Full access needed for pod/service creation
         ]
       },
       # Lambda reservation expiry role
       {
         rolearn  = aws_iam_role.reservation_expiry_role.arn
         username = "lambda-reservation-expiry"
-        groups   = [
-          "system:masters"  # Full access needed for pod cleanup
+        groups = [
+          "system:masters" # Full access needed for pod cleanup
         ]
       },
       # Lambda availability updater role
       {
         rolearn  = aws_iam_role.availability_updater_role.arn
         username = "lambda-availability-updater"
-        groups   = [
-          "system:masters"  # Full access needed for node/pod queries
+        groups = [
+          "system:masters" # Full access needed for node/pod queries
         ]
       }
     ])
@@ -57,7 +57,7 @@ resource "kubernetes_namespace" "gpu_dev" {
   metadata {
     name = "gpu-dev"
     labels = {
-      name = "gpu-dev"
+      name    = "gpu-dev"
       purpose = "gpu-development"
     }
   }
@@ -133,7 +133,7 @@ resource "kubernetes_daemonset" "nvidia_device_plugin" {
 
       spec {
         priority_class_name = "system-node-critical"
-        
+
         toleration {
           key      = "nvidia.com/gpu"
           operator = "Exists"

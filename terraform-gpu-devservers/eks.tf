@@ -116,9 +116,9 @@ resource "aws_eks_cluster" "gpu_dev_cluster" {
 resource "aws_eks_addon" "vpc_cni" {
   cluster_name = aws_eks_cluster.gpu_dev_cluster.name
   addon_name   = "vpc-cni"
-  
+
   depends_on = [aws_eks_cluster.gpu_dev_cluster]
-  
+
   tags = {
     Name        = "${var.prefix}-vpc-cni"
     Environment = var.environment
@@ -129,7 +129,7 @@ resource "aws_eks_addon" "vpc_cni" {
 # EKS Managed Node Groups for GPU instances - one per GPU type
 resource "aws_eks_node_group" "gpu_dev_nodes" {
   for_each = var.use_self_managed_nodes ? {} : var.supported_gpu_types
-  
+
   cluster_name    = aws_eks_cluster.gpu_dev_cluster.name
   node_group_name = "${var.prefix}-gpu-nodes-${each.key}"
   node_role_arn   = aws_iam_role.eks_node_role.arn
@@ -150,7 +150,7 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   update_config {
     max_unavailable_percentage = 100
   }
-  
+
   # Prevent Terraform from trying to manage lifecycle
   lifecycle {
     ignore_changes = [
@@ -168,7 +168,7 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
     aws_iam_role_policy_attachment.eks_node_AmazonEKSWorkerNodePolicy,
     aws_iam_role_policy_attachment.eks_node_AmazonEKS_CNI_Policy,
     aws_iam_role_policy_attachment.eks_node_AmazonEC2ContainerRegistryReadOnly,
-    kubernetes_config_map.aws_auth  # Ensure aws-auth is configured before nodes join
+    kubernetes_config_map.aws_auth # Ensure aws-auth is configured before nodes join
   ]
 
   tags = {
@@ -181,11 +181,11 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
 # Self-Managed Auto Scaling Groups - one per GPU type
 resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
   for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
-  
-  name                = "${var.prefix}-gpu-nodes-self-managed-${each.key}"
-  vpc_zone_identifier = [aws_subnet.gpu_dev_subnet.id]
-  target_group_arns   = []
-  health_check_type   = "EC2"
+
+  name                      = "${var.prefix}-gpu-nodes-self-managed-${each.key}"
+  vpc_zone_identifier       = [aws_subnet.gpu_dev_subnet.id]
+  target_group_arns         = []
+  health_check_type         = "EC2"
   health_check_grace_period = 300
 
   min_size         = each.value.instance_count
@@ -204,7 +204,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
           launch_template_id = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
           version            = "$Latest"
         }
-        
+
         # Allow both p5e.48xlarge and p5en.48xlarge for H200
         dynamic "override" {
           for_each = each.value.instance_types
@@ -229,7 +229,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
   instance_refresh {
     strategy = "Rolling"
     preferences {
-      min_healthy_percentage = 0  # Replace all at once for speed
+      min_healthy_percentage = 0 # Replace all at once for speed
     }
   }
 
@@ -261,11 +261,11 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
 # Launch templates for self-managed nodes - one per GPU type
 resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
-  
+
   name_prefix = "${var.prefix}-gpu-self-managed-${each.key}-"
   image_id    = data.aws_ami.eks_gpu_ami.id
   key_name    = var.key_pair_name
-  
+
   # Only set instance_type if not using mixed instances policy
   instance_type = each.value.instance_types == null ? each.value.instance_type : null
 
@@ -277,7 +277,7 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size           = 4096  # 4TB
+      volume_size           = 4096 # 4TB
       volume_type           = "gp3"
       delete_on_termination = true
       encrypted             = true
@@ -294,10 +294,10 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
     security_groups             = [aws_security_group.gpu_dev_sg.id]
     interface_type = (
       # Check if any instance type in the list supports EFA
-      each.value.instance_types != null ? 
-        (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
-        # Single instance type check
-        can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+      each.value.instance_types != null ?
+      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
+      # Single instance type check
+      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     )
     delete_on_termination = true
   }
@@ -306,10 +306,10 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   dynamic "instance_market_options" {
     for_each = (
       # Check if single instance type is p5.48xlarge
-      each.value.instance_types == null ? 
-        (each.value.instance_type == "p5.48xlarge" ? [1] : []) :
-        # Check if any instance type in the list is p5.48xlarge
-        (length([for it in each.value.instance_types : it if it == "p5.48xlarge"]) > 0 ? [1] : [])
+      each.value.instance_types == null ?
+      (each.value.instance_type == "p5.48xlarge" ? [1] : []) :
+      # Check if any instance type in the list is p5.48xlarge
+      (length([for it in each.value.instance_types : it if it == "p5.48xlarge"]) > 0 ? [1] : [])
     )
     content {
       market_type = "capacity-block"
@@ -352,11 +352,11 @@ resource "aws_iam_instance_profile" "eks_node_instance_profile" {
 # Launch templates for EFA networking (Managed Node Groups) - one per GPU type
 resource "aws_launch_template" "gpu_dev_launch_template" {
   for_each = var.supported_gpu_types
-  
+
   name_prefix = "${var.prefix}-gpu-lt-${each.key}-"
   image_id    = data.aws_ami.eks_gpu_ami.id
   key_name    = var.key_pair_name
-  
+
   # Only set instance_type if not using mixed instances policy
   instance_type = each.value.instance_types == null ? each.value.instance_type : null
 
@@ -364,7 +364,7 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
-      volume_size           = 4096  # 4TB
+      volume_size           = 4096 # 4TB
       volume_type           = "gp3"
       delete_on_termination = true
       encrypted             = true
@@ -383,12 +383,14 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
+    # Explicitly set subnet for instances that don't use placement groups
+    subnet_id = each.value.use_placement_group ? null : aws_subnet.gpu_dev_subnet.id
     interface_type = (
       # Check if any instance type in the list supports EFA
-      each.value.instance_types != null ? 
-        (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
-        # Single instance type check
-        can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+      each.value.instance_types != null ?
+      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
+      # Single instance type check
+      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     )
   }
 
@@ -411,6 +413,38 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     Name        = "${var.prefix}-gpu-launch-template-${each.key}"
     Environment = var.environment
     GpuType     = each.key
+  }
+}
+
+# H100 instances using existing launch template with capacity reservation
+resource "aws_instance" "h100_instances" {
+  count = 2 # Adjust as needed
+
+  # Use the existing H100 launch template (it already defines networking)
+  launch_template {
+    name    = aws_launch_template.gpu_dev_launch_template["h100"].name
+    version = "$Latest"
+  }
+
+  instance_market_options {
+    market_type = "capacity-block"
+  }
+
+  # Specify capacity reservation (this overrides any market options from the launch template)
+  capacity_reservation_specification {
+    capacity_reservation_target {
+      capacity_reservation_id = "cr-003773252aa2ea59a"
+    }
+  }
+
+  tags = {
+    Name        = "${var.prefix}-h100-instance-${count.index + 1}"
+    Environment = var.environment
+    GpuType     = "h100"
+    LaunchedBy  = "terraform-direct"
+  }
+  lifecycle {
+    ignore_changes = [instance_market_options]
   }
 }
 

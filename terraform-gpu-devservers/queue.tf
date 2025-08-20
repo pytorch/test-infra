@@ -2,11 +2,11 @@
 
 # SQS Queue for reservation requests (single queue handles all GPU types)
 resource "aws_sqs_queue" "gpu_reservation_queue" {
-  name                      = "${var.prefix}-reservation-queue"
+  name                       = "${var.prefix}-reservation-queue"
   visibility_timeout_seconds = 1000
   message_retention_seconds  = var.queue_message_retention
-  receive_wait_time_seconds  = 20  # Long polling
-  
+  receive_wait_time_seconds  = 20 # Long polling
+
   # Configure DLQ - messages will be moved to DLQ after 3 failed attempts
   redrive_policy = jsonencode({
     deadLetterTargetArn = aws_sqs_queue.gpu_reservation_dlq.arn
@@ -91,9 +91,9 @@ resource "aws_lambda_permission" "allow_eventbridge" {
 
 # DynamoDB table for state management
 resource "aws_dynamodb_table" "gpu_reservations" {
-  name           = "${var.prefix}-reservations"
-  billing_mode   = "PAY_PER_REQUEST"
-  hash_key       = "reservation_id"
+  name         = "${var.prefix}-reservations"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "reservation_id"
 
   attribute {
     name = "reservation_id"
@@ -116,21 +116,21 @@ resource "aws_dynamodb_table" "gpu_reservations" {
   }
 
   global_secondary_index {
-    name     = "UserIndex"
-    hash_key = "user_id"
+    name            = "UserIndex"
+    hash_key        = "user_id"
     projection_type = "ALL"
   }
 
   global_secondary_index {
-    name     = "StatusIndex"
-    hash_key = "status"
+    name            = "StatusIndex"
+    hash_key        = "status"
     projection_type = "ALL"
   }
 
   global_secondary_index {
-    name     = "StatusGpuTypeIndex"
-    hash_key = "status"
-    range_key = "gpu_type"
+    name            = "StatusGpuTypeIndex"
+    hash_key        = "status"
+    range_key       = "gpu_type"
     projection_type = "ALL"
   }
 

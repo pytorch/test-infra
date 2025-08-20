@@ -5,7 +5,7 @@
 resource "aws_dynamodb_table" "gpu_availability" {
   name         = "${var.prefix}-gpu-availability"
   billing_mode = "PAY_PER_REQUEST"
-  
+
   hash_key = "gpu_type"
 
   attribute {
@@ -23,18 +23,18 @@ resource "aws_dynamodb_table" "gpu_availability" {
 resource "aws_lambda_function" "availability_updater" {
   filename         = "${path.module}/lambda/availability_updater.zip"
   function_name    = "${var.prefix}-availability-updater"
-  role            = aws_iam_role.availability_updater_role.arn
-  handler         = "index.handler"
-  runtime         = "python3.11"
-  timeout         = 60
+  role             = aws_iam_role.availability_updater_role.arn
+  handler          = "index.handler"
+  runtime          = "python3.11"
+  timeout          = 60
   source_code_hash = data.archive_file.availability_updater_zip.output_base64sha256
 
   environment {
     variables = {
-      AVAILABILITY_TABLE = aws_dynamodb_table.gpu_availability.name
+      AVAILABILITY_TABLE  = aws_dynamodb_table.gpu_availability.name
       SUPPORTED_GPU_TYPES = jsonencode(var.supported_gpu_types)
-      EKS_CLUSTER_NAME = aws_eks_cluster.gpu_dev_cluster.name
-      REGION = var.aws_region
+      EKS_CLUSTER_NAME    = aws_eks_cluster.gpu_dev_cluster.name
+      REGION              = var.aws_region
     }
   }
 
@@ -110,7 +110,7 @@ resource "aws_iam_role_policy" "availability_updater_policy" {
         Effect = "Allow"
         Action = [
           "eks:DescribeCluster",
-          "eks:ListClusters", 
+          "eks:ListClusters",
           "eks:AccessKubernetesApi"
         ]
         Resource = aws_eks_cluster.gpu_dev_cluster.arn
@@ -132,7 +132,7 @@ resource "aws_cloudwatch_event_rule" "asg_capacity_change" {
   description = "Trigger when ASG instances launch or terminate to update availability"
 
   event_pattern = jsonencode({
-    source      = ["aws.autoscaling"]
+    source = ["aws.autoscaling"]
     detail-type = [
       "EC2 Instance Launch Successful",
       "EC2 Instance Terminate Successful"
@@ -179,9 +179,9 @@ resource "aws_cloudwatch_log_group" "availability_updater_logs" {
 resource "null_resource" "availability_updater_build" {
   triggers = {
     # Rebuild when source files change
-    code_hash = filebase64sha256("${path.module}/lambda/availability_updater/index.py")
-    requirements_hash = try(filebase64sha256("${path.module}/lambda/availability_updater/requirements.txt"), "none")
-    shared_code_hash = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
+    code_hash           = filebase64sha256("${path.module}/lambda/availability_updater/index.py")
+    requirements_hash   = try(filebase64sha256("${path.module}/lambda/availability_updater/requirements.txt"), "none")
+    shared_code_hash    = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
     shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
   }
 
@@ -217,7 +217,7 @@ data "archive_file" "availability_updater_zip" {
   type        = "zip"
   source_dir  = "${path.module}/lambda/availability_updater/"
   output_path = "${path.module}/lambda/availability_updater.zip"
-  
+
   depends_on = [null_resource.availability_updater_build]
 }
 

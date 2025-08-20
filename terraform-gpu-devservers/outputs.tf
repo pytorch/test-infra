@@ -67,7 +67,7 @@ output "supported_gpu_types" {
 output "cli_config" {
   description = "Configuration for CLI tools"
   value = {
-    region               = var.aws_region
+    region              = var.aws_region
     queue_url           = aws_sqs_queue.gpu_reservation_queue.id
     reservations_table  = aws_dynamodb_table.gpu_reservations.name
     cluster_name        = aws_eks_cluster.gpu_dev_cluster.name

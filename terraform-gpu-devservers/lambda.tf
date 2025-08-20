@@ -108,21 +108,21 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
 resource "aws_lambda_function" "reservation_processor" {
   filename         = "${path.module}/lambda/reservation_processor.zip"
   function_name    = "${var.prefix}-reservation-processor"
-  role            = aws_iam_role.reservation_processor_role.arn
-  handler         = "index.handler"
-  runtime         = "python3.13"
-  timeout         = 900  # 15 minutes for K8s operations
+  role             = aws_iam_role.reservation_processor_role.arn
+  handler          = "index.handler"
+  runtime          = "python3.13"
+  timeout          = 900 # 15 minutes for K8s operations
   source_code_hash = data.archive_file.reservation_processor_zip.output_base64sha256
 
   environment {
     variables = {
-      RESERVATIONS_TABLE = aws_dynamodb_table.gpu_reservations.name
-      AVAILABILITY_TABLE = aws_dynamodb_table.gpu_availability.name
-      EKS_CLUSTER_NAME   = aws_eks_cluster.gpu_dev_cluster.name
-      REGION             = var.aws_region
-      MAX_RESERVATION_HOURS = var.max_reservation_hours
-      DEFAULT_TIMEOUT_HOURS = var.reservation_timeout_hours
-      QUEUE_URL         = aws_sqs_queue.gpu_reservation_queue.url
+      RESERVATIONS_TABLE                 = aws_dynamodb_table.gpu_reservations.name
+      AVAILABILITY_TABLE                 = aws_dynamodb_table.gpu_availability.name
+      EKS_CLUSTER_NAME                   = aws_eks_cluster.gpu_dev_cluster.name
+      REGION                             = var.aws_region
+      MAX_RESERVATION_HOURS              = var.max_reservation_hours
+      DEFAULT_TIMEOUT_HOURS              = var.reservation_timeout_hours
+      QUEUE_URL                          = aws_sqs_queue.gpu_reservation_queue.url
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
     }
   }
@@ -154,9 +154,9 @@ resource "aws_cloudwatch_log_group" "reservation_processor_log_group" {
 resource "null_resource" "reservation_processor_build" {
   triggers = {
     # Rebuild when source files change
-    code_hash = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
-    requirements_hash = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
-    shared_code_hash = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
+    code_hash           = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
+    requirements_hash   = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
+    shared_code_hash    = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
     shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
   }
 
@@ -190,7 +190,7 @@ data "archive_file" "reservation_processor_zip" {
   type        = "zip"
   source_dir  = "${path.module}/lambda/reservation_processor/package"
   output_path = "${path.module}/lambda/reservation_processor.zip"
-  
+
   depends_on = [null_resource.reservation_processor_build]
 }
 
@@ -218,7 +218,7 @@ resource "aws_cloudwatch_event_target" "reservation_processor_target" {
   rule      = aws_cloudwatch_event_rule.reservation_processor_schedule.name
   target_id = "ReservationProcessorScheduleTarget"
   arn       = aws_lambda_function.reservation_processor.arn
-  input     = jsonencode({
+  input = jsonencode({
     source = "cloudwatch.schedule"
     action = "process_queue"
   })

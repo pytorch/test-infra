@@ -5,19 +5,19 @@
 resource "aws_lambda_function" "reservation_expiry" {
   filename         = "${path.module}/lambda/reservation_expiry.zip"
   function_name    = "${var.prefix}-reservation-expiry"
-  role            = aws_iam_role.reservation_expiry_role.arn
-  handler         = "index.handler"
-  runtime         = "python3.13"
-  timeout         = 900  # 15 minutes for K8s operations
+  role             = aws_iam_role.reservation_expiry_role.arn
+  handler          = "index.handler"
+  runtime          = "python3.13"
+  timeout          = 900 # 15 minutes for K8s operations
   source_code_hash = data.archive_file.reservation_expiry_zip.output_base64sha256
 
   environment {
     variables = {
-      RESERVATIONS_TABLE = aws_dynamodb_table.gpu_reservations.name
-      EKS_CLUSTER_NAME   = aws_eks_cluster.gpu_dev_cluster.name
-      REGION            = var.aws_region
-      WARNING_MINUTES   = "30"  # Warn 30 minutes before expiry
-      GRACE_PERIOD_SECONDS = "120"  # 2 minutes grace period after expiry
+      RESERVATIONS_TABLE                 = aws_dynamodb_table.gpu_reservations.name
+      EKS_CLUSTER_NAME                   = aws_eks_cluster.gpu_dev_cluster.name
+      REGION                             = var.aws_region
+      WARNING_MINUTES                    = "30"  # Warn 30 minutes before expiry
+      GRACE_PERIOD_SECONDS               = "120" # 2 minutes grace period after expiry
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
     }
   }
@@ -117,7 +117,7 @@ resource "aws_iam_role_policy" "reservation_expiry_policy" {
         Action = [
           "sns:Publish"
         ]
-        Resource = "*"  # Could be restricted to specific topic ARN if needed
+        Resource = "*" # Could be restricted to specific topic ARN if needed
       },
       {
         Effect = "Allow"
@@ -134,9 +134,9 @@ resource "aws_iam_role_policy" "reservation_expiry_policy" {
 resource "null_resource" "reservation_expiry_build" {
   triggers = {
     # Rebuild when source files change
-    code_hash = filebase64sha256("${path.module}/lambda/reservation_expiry/index.py")
-    requirements_hash = filebase64sha256("${path.module}/lambda/reservation_expiry/requirements.txt")
-    shared_code_hash = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
+    code_hash           = filebase64sha256("${path.module}/lambda/reservation_expiry/index.py")
+    requirements_hash   = filebase64sha256("${path.module}/lambda/reservation_expiry/requirements.txt")
+    shared_code_hash    = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
     shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
   }
 
@@ -170,7 +170,7 @@ data "archive_file" "reservation_expiry_zip" {
   type        = "zip"
   source_dir  = "${path.module}/lambda/reservation_expiry/package"
   output_path = "${path.module}/lambda/reservation_expiry.zip"
-  
+
   depends_on = [null_resource.reservation_expiry_build]
 }
 
