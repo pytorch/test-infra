@@ -371,8 +371,12 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     }
   }
 
-  placement {
-    group_name = aws_placement_group.gpu_dev_pg.name
+  # Only use placement group if specified
+  dynamic "placement" {
+    for_each = each.value.use_placement_group ? [1] : []
+    content {
+      group_name = aws_placement_group.gpu_dev_pg.name
+    }
   }
 
   # Network interface (EFA for H100/H200 instance types)
@@ -386,20 +390,6 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
         # Single instance type check
         can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     )
-  }
-
-  # Conditionally add instance_market_options for p5.48xlarge instances
-  dynamic "instance_market_options" {
-    for_each = (
-      # Check if single instance type is p5.48xlarge
-      each.value.instance_types == null ? 
-        (each.value.instance_type == "p5.48xlarge" ? [1] : []) :
-        # Check if any instance type in the list is p5.48xlarge
-        (length([for it in each.value.instance_types : it if it == "p5.48xlarge"]) > 0 ? [1] : [])
-    )
-    content {
-      market_type = "capacity-block"
-    }
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data.sh", {

@@ -125,21 +125,25 @@ variable "supported_gpu_types" {
       instance_types    = ["p5e.48xlarge", "p5en.48xlarge"] # Both H200 variants
       instance_count    = 2                                 # Total of 2 instances (mix of p5e/p5en)
       gpus_per_instance = 8
+      use_placement_group = false
     }
     "h100" = {
       instance_type     = "p5.48xlarge" # 8x H100 GPUs
       instance_count    = 2
       gpus_per_instance = 8
+      use_placement_group = false
     }
     "a100" = {
       instance_type     = "p4d.24xlarge" # 8x A100 GPUs  
       instance_count    = 2
       gpus_per_instance = 8
+      use_placement_group = false
     }
     "t4" = {
       instance_type     = "g4dn.12xlarge" # 4x T4 GPUs
       instance_count    = 2
       gpus_per_instance = 4
+      use_placement_group = true
     }
   }
 }
