@@ -1,143 +1,331 @@
-import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
+import { Box } from "@mui/material";
+import {
+  DataGrid,
+  GridRenderCellParams,
+  GridTreeNodeWithRender,
+} from "@mui/x-data-grid";
+import LoadingPage from "components/common/LoadingPage";
 import { durationDisplay } from "components/common/TimeUtils";
-import { fetcher } from "lib/GeneralUtils";
+import { fetcher, useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import { JobData } from "lib/types";
 import _ from "lodash";
-import { CSSProperties, useState } from "react";
+import { useEffect, useState } from "react";
 import useSWR from "swr";
-import { genMessage, isPending, RecursiveDetailsSummary } from "./TestInfo";
+import { genMessage, isPending } from "./TestInfo";
 
-function TestCountsDataGrid({
-  info,
-  showComparison,
-}: {
-  info: any;
-  showComparison?: boolean;
-}) {
-  function renderTime(params: GridRenderCellParams<any, string>) {
-    if (params.value === undefined) {
-      return <></>;
-    }
-    const humanReadable = durationDisplay(
-      params.value ? parseFloat(params.value) : 0
-    );
-    return <>{humanReadable}</>;
+function convertInfoToMap(info: any) {
+  if (!info) {
+    return undefined;
   }
 
-  return (
-    <DataGrid
-      initialState={{
-        sorting: {
-          sortModel: [{ field: "file", sort: "desc" }],
-        },
-      }}
-      density={"compact"}
-      rows={Object.keys(info).map((file) => {
-        const obj: any = {
-          file: file,
-          count: info[file].count,
-          time: info[file].time && Math.round(info[file].time * 100) / 100,
-          rawtime: info[file].time,
-          id: file,
-        };
-        if (showComparison) {
-          obj.comparisonCount = info[file].comparisonCount;
-          obj.comparisonTime =
-            info[file].comparisonTime &&
-            Math.round(info[file].comparisonTime * 100) / 100;
-          obj.diffCount =
-            (info[file].count || 0) - (info[file].comparisonCount || 0);
-          obj.diffTime =
-            Math.round(
-              ((info[file].time || 0) - (info[file].comparisonTime || 0)) * 100
-            ) / 100;
+  const infoMap = new Map();
+  for (const build of Object.keys(info)) {
+    for (const config of Object.keys(info[build])) {
+      for (const file of Object.keys(info[build][config])) {
+        const key = `${build}-${config}-${file}`;
+        if (!infoMap.has(key)) {
+          infoMap.set(key, {
+            id: key,
+            job: build,
+            config: config,
+            file: file,
+            tests: 0,
+            time: 0,
+          });
         }
-        return obj;
-      })}
-      columns={[
-        { field: "file", headerName: "Name", flex: 4 },
-        { field: "count", headerName: "Test Count", flex: 1 },
-        {
-          field: "time",
-          headerName: "Test Time",
-          flex: 1,
-          renderCell: renderTime,
-        },
-        {
-          field: "comparisonCount",
-          headerName: "vs Test Count",
-          flex: 1,
-        },
-        {
-          field: "comparisonTime",
-          headerName: "vs Test Time",
-          flex: 1,
-          renderCell: renderTime,
-        },
-        {
-          field: "diffCount",
-          headerName: "Δ Test Count",
-          flex: 1,
-          renderCell: (params) => {
-            if (params.value === undefined) {
-              return <></>;
-            }
-            if (parseInt(params.value) === 0) {
-              return <></>;
-            }
-            return (
-              <>
-                {parseInt(params.value) > 0 && "+"}
-                {params.value}
-              </>
-            );
-          },
-        },
-        {
-          field: "diffTime",
-          headerName: "Δ Test Time",
-          flex: 1,
-          renderCell: (params) => {
-            if (params.value === undefined) {
-              return <></>;
-            }
-            if (parseFloat(params.value) === 0) {
-              return <></>;
-            }
-            return (
-              <>
-                {parseFloat(params.value) > 0 ? "+" : "-"}
-                {durationDisplay(Math.abs(parseFloat(params.value)))}
-              </>
-            );
-          },
-        },
-      ]}
-      hideFooter={true}
-      autoPageSize={false}
-    />
-  );
+        infoMap.get(key).tests += info[build][config][file].count || 0;
+        infoMap.get(key).time += info[build][config][file].time || 0;
+      }
+    }
+  }
+  return infoMap;
 }
 
-function mergeComparisonInfo(info: any, comparisonInfo: any): any {
-  if (!comparisonInfo) {
-    return info;
-  }
-  const keys = Object.keys(comparisonInfo);
-  if (keys.includes("time") && keys.includes("count")) {
-    return {
-      ...info,
-      comparisonTime: comparisonInfo.time,
-      comparisonCount: comparisonInfo.count,
+export function TestFileCountsInfo({
+  headMap,
+  baseMap,
+  // This gets reused for the PR file report, but the PR file report has less
+  // info, this parameter is used to control whether we have the large info or
+  // the small info
+  small,
+}: {
+  headMap: Map<string, any> | undefined;
+  baseMap: Map<string, any> | undefined;
+  small: boolean;
+}) {
+  const [visibleRows, setVisibleRows] = useState({});
+
+  function calculateTotals() {
+    const totals = {
+      id: "totals",
+      workflow: "Total",
+      job: "Total",
+      errors: 0,
+      failures: 0,
+      skipped: 0,
+      successes: 0,
+      tests: 0,
+      time: 0,
+      cost: 0,
+      costChange: 0,
+      timeChange: 0,
+      errorsChange: 0,
+      failuresChange: 0,
+      skippedChange: 0,
+      successesChange: 0,
+      testsChange: 0,
     };
+    for (const value of headMap?.values() || []) {
+      if (!small) {
+        totals.successesChange += value.successesChange || 0;
+        totals.skippedChange += value.skippedChange || 0;
+        totals.errorsChange += value.errorsChange || 0;
+        totals.failuresChange += value.failuresChange || 0;
+        totals.errors += value.errors || 0;
+        totals.failures += value.failures || 0;
+        totals.skipped += value.skipped || 0;
+        totals.successes += value.successes || 0;
+        totals.costChange += value.costChange || 0;
+        totals.cost += value.cost || 0;
+      }
+      totals.timeChange += value.timeChange || 0;
+      totals.testsChange += value.testsChange || 0;
+      totals.tests += value.tests || 0;
+      totals.time += value.time || 0;
+    }
+    return totals;
   }
-  let newInfo = info || {};
-  keys.forEach((key) => {
-    newInfo[key] = {
-      ...mergeComparisonInfo(newInfo[key], comparisonInfo[key]),
-    };
-  });
-  return newInfo;
+
+  if (!headMap) {
+    return <LoadingPage />;
+  }
+  if (baseMap) {
+    for (const [key, value] of baseMap.entries()) {
+      if (!headMap.has(key)) {
+        headMap.set(key, {
+          workflow: value.workflow,
+          job: value.job,
+          config: value.config,
+          runner: value.runner,
+          runnerCost: value.runnerCost,
+          id: key,
+        });
+      }
+      const headValue = headMap.get(key)!;
+      headValue.timeChange = (headValue.time || 0) - value.time;
+      headValue.costChange = (headValue.cost || 0) - value.cost;
+      headValue.errorsChange = (headValue.errors || 0) - value.errors;
+      headValue.failuresChange = (headValue.failures || 0) - value.failures;
+      headValue.skippedChange = (headValue.skipped || 0) - value.skipped;
+      headValue.successesChange = (headValue.successes || 0) - value.successes;
+      headValue.testsChange = (headValue.tests || 0) - value.tests;
+    }
+    for (const [key, value] of headMap.entries()) {
+      if (!baseMap.has(key)) {
+        value.timeChange = value.time || 0;
+        value.costChange = value.cost || 0;
+        value.errorsChange = value.errors || 0;
+        value.failuresChange = value.failures || 0;
+        value.skippedChange = value.skipped || 0;
+        value.successesChange = value.successes || 0;
+        value.testsChange = value.tests || 0;
+      }
+    }
+  }
+
+  const columns: any[] = [];
+  if (!small) {
+    columns.push({
+      field: "workflow",
+      headerName: "Workflow",
+      flex: 2,
+    });
+  }
+  columns.push(
+    ...[
+      {
+        field: "job",
+        headerName: "Job",
+        flex: 4,
+      },
+      {
+        field: "config",
+        headerName: "Config",
+        flex: 2,
+      },
+    ]
+  );
+  if (small) {
+    columns.push({
+      field: "file",
+      headerName: "file",
+      flex: 2,
+    });
+  }
+  if (!small) {
+    columns.push({
+      field: "runner",
+      headerName: "Runner",
+      flex: 2,
+    });
+  }
+
+  function renderTimeCell(
+    params: GridRenderCellParams<any, any, any, GridTreeNodeWithRender>
+  ) {
+    if (isNaN(params.value)) {
+      return "";
+    }
+    return durationDisplay(parseFloat(params.value));
+  }
+
+  columns.push(
+    ...[
+      {
+        field: "tests",
+        headerName: "Tests",
+        type: "number",
+        flex: 2,
+      },
+      {
+        field: "testsChange",
+        headerName: "+/-",
+        type: "number",
+        flex: 1,
+        cellClassName: "change",
+      },
+      {
+        field: "time",
+        headerName: "Time",
+        type: "number",
+        flex: 2,
+        renderCell: renderTimeCell,
+      },
+      {
+        field: "timeChange",
+        headerName: "+/-",
+        type: "number",
+        flex: 1,
+        renderCell: renderTimeCell,
+        cellClassName: "change",
+      },
+    ]
+  );
+  if (!small) {
+    columns.push(
+      ...[
+        {
+          field: "cost",
+          headerName: "Cost ($)",
+          type: "number",
+          flex: 2,
+        },
+        {
+          field: "costChange",
+          headerName: "+/-",
+          type: "number",
+          flex: 1,
+          cellClassName: "change",
+        },
+        {
+          field: "successes",
+          headerName: "Successes",
+          type: "number",
+          flex: 2,
+        },
+        {
+          field: "successesChange",
+          headerName: "+/-",
+          type: "number",
+          flex: 1,
+          cellClassName: "change",
+        },
+        {
+          field: "skipped",
+          headerName: "Skipped",
+          type: "number",
+          flex: 2,
+        },
+        {
+          field: "skippedChange",
+          headerName: "+/-",
+          type: "number",
+          flex: 1,
+          cellClassName: "change",
+        },
+        {
+          field: "errors",
+          headerName: "Errors",
+          type: "number",
+          flex: 2,
+        },
+        {
+          field: "errorsChange",
+          headerName: "+/-",
+          type: "number",
+          flex: 1,
+          cellClassName: "change",
+        },
+        {
+          field: "failures",
+          headerName: "Failures",
+          type: "number",
+          flex: 2,
+        },
+        {
+          field: "failuresChange",
+          headerName: "+/-",
+          type: "number",
+          flex: 1,
+          cellClassName: "change",
+        },
+      ]
+    );
+  }
+
+  const styling = {
+    // Visual difference for rows that show diffs/changes
+    "& .change": {
+      backgroundColor: "rgba(213, 213, 213, 0.25)",
+    },
+    "& .total-row": {
+      fontWeight: "bold",
+      backgroundColor: "rgba(213, 213, 213, 0.25)",
+    },
+  };
+
+  return (
+    <>
+      {/* Not great since the tables don't share state so if you adjust the
+      headings for one, it won't adjust the other, but it works for now */}
+      <Box style={{ flexDirection: "column" }}>
+        <DataGrid
+          density="compact"
+          rows={[calculateTotals()]}
+          sx={styling}
+          columns={columns}
+          getRowClassName={(params) => {
+            if (params.row.id === "totals") {
+              return "total-row";
+            }
+            return "";
+          }}
+          hideFooter
+        />
+        <DataGrid
+          density="compact"
+          rows={[...headMap.values()]}
+          sx={styling}
+          columns={columns}
+          onStateChange={(model) => {
+            if (!_.isEqual(model.visibleRowsLookup, visibleRows)) {
+              setVisibleRows(model.visibleRowsLookup);
+            }
+          }}
+        />
+      </Box>
+    </>
+  );
 }
 
 function ComparisonStatus({
@@ -173,43 +361,6 @@ function ComparisonStatus({
   return <></>;
 }
 
-function getTestCountsTime(info: any): any {
-  function reduce(info: any, field: string): any {
-    if (info.length == 0 || info.every((x: any) => x[field] == undefined)) {
-      return undefined;
-    }
-    return info.reduce(
-      (prev: number, curr: any) => prev + (curr[field] || 0),
-      0
-    );
-  }
-  const keys = Object.keys(info);
-  if (
-    keys.some((key) =>
-      ["time", "count", "comparisonCount", "comparisonTime"].includes(key)
-    )
-  ) {
-    return [
-      {
-        time: info.time,
-        count: info.count,
-        comparisonCount: info.comparisonCount,
-        comparisonTime: info.comparisonTime,
-      },
-    ];
-  }
-  return keys.map((key) => {
-    const subInfo = getTestCountsTime(info[key]);
-    return {
-      file: key,
-      time: reduce(subInfo, "time"),
-      count: reduce(subInfo, "count"),
-      comparisonCount: reduce(subInfo, "comparisonCount"),
-      comparisonTime: reduce(subInfo, "comparisonTime"),
-    };
-  });
-}
-
 export function TestCountsInfo({
   workflowId,
   jobs,
@@ -228,6 +379,22 @@ export function TestCountsInfo({
   );
 
   const [comparisonSha, setComparisonSha] = useState<string>();
+  const { data: mergeBase } = useClickHouseAPIImmutable(
+    "merge_bases",
+    {
+      repo: "pytorch/pytorch",
+      shas: jobs.length > 0 ? [jobs[0].sha] : [],
+    },
+    jobs.length > 0 && jobs[0]?.sha !== undefined
+  );
+
+  useEffect(() => {
+    if (comparisonSha === undefined && mergeBase) {
+      setComparisonSha(mergeBase[0]?.merge_base);
+    }
+    console.log(comparisonSha);
+  }, [mergeBase, comparisonSha]);
+
   const { data: comparisonId, error: comparisonIdError } = useSWR(
     comparisonSha
       ? `/api/corresponding_workflow_id?sha=${comparisonSha}&workflowId=${workflowId}`
@@ -278,15 +445,7 @@ export function TestCountsInfo({
     }
     return <div>{infoString}</div>;
   }
-  const mergedInfo = mergeComparisonInfo(info, comparisonInfo);
 
-  const divStyle: CSSProperties = {
-    overflowY: "auto",
-    height: "50vh",
-    borderStyle: "solid",
-    borderWidth: "1px",
-    padding: "0em 0.5em",
-  };
   return (
     <div>
       <div style={{ fontSize: "1.17em", fontWeight: "bold", padding: "1em 0" }}>
@@ -315,6 +474,7 @@ export function TestCountsInfo({
             type="text"
             placeholder="Enter a sha to compare with"
             size={50}
+            defaultValue={comparisonSha || ""}
           />
           <button type="submit">Submit</button>
         </form>
@@ -326,42 +486,13 @@ export function TestCountsInfo({
           comparisonError={comparisonInfoError}
         />
       </div>
-      <RecursiveDetailsSummary
-        info={mergedInfo}
-        level={1}
-        bodyFunction={(name: any, info: any) => {
-          const testCountsTimeInfo = _.keyBy(getTestCountsTime(info), "file");
-          return (
-            <div
-              style={{
-                ...divStyle,
-                height: `15vh`,
-              }}
-            >
-              <TestCountsDataGrid
-                info={testCountsTimeInfo}
-                showComparison={comparisonInfo}
-              />
-            </div>
-          );
-        }}
-      >
-        {(config: any, configInfo: any, _numSiblings: number) => {
-          return (
-            <details>
-              <summary>{config}</summary>
-              <div style={{ paddingLeft: "1em" }}>
-                <div style={divStyle}>
-                  <TestCountsDataGrid
-                    info={configInfo}
-                    showComparison={comparisonInfo}
-                  />
-                </div>
-              </div>
-            </details>
-          );
-        }}
-      </RecursiveDetailsSummary>
+      <Box height="500px" sx={{ overflow: "auto" }}>
+        <TestFileCountsInfo
+          headMap={convertInfoToMap(info)}
+          baseMap={convertInfoToMap(comparisonInfo)}
+          small={true}
+        />
+      </Box>
     </div>
   );
 }
