@@ -392,7 +392,6 @@ export function TestCountsInfo({
     if (comparisonSha === undefined && mergeBase) {
       setComparisonSha(mergeBase[0]?.merge_base);
     }
-    console.log(comparisonSha);
   }, [mergeBase, comparisonSha]);
 
   const { data: comparisonId, error: comparisonIdError } = useSWR(
