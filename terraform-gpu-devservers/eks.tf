@@ -284,14 +284,19 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
     }
   }
 
-  placement {
-    group_name = aws_placement_group.gpu_dev_pg.name
+  # Only use placement group if specified
+  dynamic "placement" {
+    for_each = each.value.use_placement_group ? [1] : []
+    content {
+      group_name = aws_placement_group.gpu_dev_pg.name
+    }
   }
 
   # Network interface (EFA for H100/H200 instance types)
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
+    subnet_id = each.value.use_placement_group ? null : aws_subnet.gpu_dev_subnet.id
     interface_type = (
       # Check if any instance type in the list supports EFA
       each.value.instance_types != null ?
@@ -422,7 +427,7 @@ resource "aws_instance" "h100_instances" {
 
   # Use the existing H100 launch template (it already defines networking)
   launch_template {
-    name    = aws_launch_template.gpu_dev_launch_template["h100"].name
+    name    = aws_launch_template.gpu_dev_launch_template_self_managed["h100"].name
     version = "$Latest"
   }
 
