@@ -86,11 +86,12 @@ def reserve(
         1, 2, 4, 8: Single server with specified GPU count
         16: Two connected servers with 8 GPUs each (high-speed interconnect)
 
+    \b
     Examples:
         gpu-dev reserve                          # 1 GPU for 8 hours (default)
         gpu-dev reserve -g 4 -h 2.5             # 4 GPUs for 2.5 hours
-        gpu-dev reserve -g 8 -h 12 -n "training"  # 8 GPUs, named reservation
-        gpu-dev reserve --jupyter               # Include Jupyter Lab access
+        gpu-dev reserve -g 8 -h 12 -n "training" # 8 GPUs, named reservation
+        gpu-dev reserve --jupyter                # Include Jupyter Lab access
         gpu-dev reserve --gpu-type h200 -g 2    # 2 H200 GPUs
 
     Authentication: Uses your AWS credentials and GitHub SSH keys
@@ -171,9 +172,10 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     Use --user all to see all users' reservations.
     Use --status to filter by specific statuses.
 
+    \b
     Examples:
         gpu-dev list                             # Your in-progress reservations
-        gpu-dev list --user all                  # All users' in-progress reservations
+        gpu-dev list --user all                 # All users' in-progress reservations
         gpu-dev list --status expired           # Your expired reservations
         gpu-dev list --status active,expired    # Your active + expired
         gpu-dev list --status all               # All your reservations (any status)
@@ -387,6 +389,7 @@ def cancel(ctx: click.Context, reservation_id: str) -> None:
     Arguments:
         RESERVATION_ID: The reservation ID (8-character prefix is sufficient)
 
+    \b
     Examples:
         gpu-dev cancel abc12345                  # Cancel reservation abc12345
         gpu-dev cancel abc1                      # Short form also works
@@ -429,6 +432,7 @@ def show(ctx: click.Context, reservation_id: str) -> None:
     Arguments:
         RESERVATION_ID: The reservation ID (8-character prefix is sufficient)
 
+    \b
     Examples:
         gpu-dev show abc12345                    # Show details for abc12345
         gpu-dev show abc1                        # Short form works too
@@ -690,6 +694,7 @@ def availability(ctx: click.Context) -> None:
         - Queue Length: Number of pending reservations for this GPU type
         - Estimated Wait: Expected time until resources become available
         
+    \b
     Examples:
         gpu-dev availability                     # Show availability for all GPU types
         
@@ -723,6 +728,7 @@ def status(ctx: click.Context) -> None:
         - Active Reservations: Number of running reservations
         - Queue Length: Number of pending reservation requests
 
+    \b
     Examples:
         gpu-dev status                           # Show current cluster status
 
@@ -773,9 +779,10 @@ def config() -> None:
         show: Display current configuration and AWS identity
         set:  Set user-specific configuration values
 
+    \b
     Examples:
         gpu-dev config show                      # Show current config
-        gpu-dev config set github_user myname    # Set GitHub username
+        gpu-dev config set github_user myname   # Set GitHub username
     """
     pass
 
@@ -787,6 +794,7 @@ def show() -> None:
     Displays current configuration including AWS identity, region, and user settings.
     Also shows which GitHub username is configured for SSH key retrieval.
 
+    \b
     Examples:
         gpu-dev config show                      # Display all configuration
 
@@ -831,6 +839,7 @@ def set(key: str, value: str) -> None:
         KEY: Configuration key to set (currently: github_user)
         VALUE: Value to set for the configuration key
 
+    \b
     Examples:
         gpu-dev config set github_user johndoe   # Set GitHub username to 'johndoe'
         gpu-dev config set github_user jane.doe  # GitHub usernames with dots work too
@@ -883,10 +892,11 @@ def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_
     Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab
     or adding secondary users with SSH access.
     
+    \b
     Examples:
-        gpu-dev edit abc12345 --enable-jupyter      # Enable Jupyter Lab
-        gpu-dev edit abc12345 --disable-jupyter     # Disable Jupyter Lab
-        gpu-dev edit abc12345 --add-user johndoe    # Add GitHub user 'johndoe' SSH access
+        gpu-dev edit abc12345 --enable-jupyter   # Enable Jupyter Lab
+        gpu-dev edit abc12345 --disable-jupyter  # Disable Jupyter Lab
+        gpu-dev edit abc12345 --add-user johndoe # Add GitHub user 'johndoe' SSH access
     """
     try:
         
