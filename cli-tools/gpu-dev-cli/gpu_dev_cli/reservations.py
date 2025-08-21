@@ -21,6 +21,41 @@ from .config import Config
 console = Console()
 
 
+def _generate_vscode_command(ssh_command: str) -> Optional[str]:
+    """Generate VS Code remote connection command from SSH command"""
+    try:
+        # Extract remote server from SSH command
+        # Expected format: ssh dev@<hostname> -p <port> or ssh -p <port> dev@<hostname>
+        if not ssh_command or not ssh_command.startswith('ssh '):
+            return None
+            
+        # Parse SSH command to extract user@host and port
+        parts = ssh_command.split()
+        user_host = None
+        port = None
+        
+        for i, part in enumerate(parts):
+            if '@' in part and not part.startswith('-'):
+                user_host = part
+            elif part == '-p' and i + 1 < len(parts):
+                port = parts[i + 1]
+                
+        if not user_host:
+            return None
+            
+        # Build VS Code remote server string
+        if port:
+            remote_server = f"{user_host}:{port}"
+        else:
+            remote_server = user_host
+            
+        # Generate VS Code command
+        return f"code --remote ssh-remote+{remote_server} /home/dev"
+        
+    except Exception:
+        return None
+
+
 class ReservationManager:
     """Minimal GPU reservations manager - AWS-only"""
 
@@ -783,6 +818,13 @@ class ReservationManager:
                             console.print(
                                 f"[cyan]🖥️  Connect with:[/cyan] {ssh_command}"
                             )
+                            
+                            # Show VS Code remote command
+                            vscode_command = _generate_vscode_command(ssh_command)
+                            if vscode_command:
+                                console.print(
+                                    f"[cyan]💻 VS Code Remote:[/cyan] {vscode_command}"
+                                )
                             
                             # Show Jupyter link if enabled
                             jupyter_enabled = reservation.get("jupyter_enabled", False)

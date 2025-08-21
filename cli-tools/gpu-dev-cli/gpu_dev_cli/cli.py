@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich import print as rprint
 
 from .auth import authenticate_user
-from .reservations import ReservationManager
+from .reservations import ReservationManager, _generate_vscode_command
 from .config import Config, load_config
 
 console = Console()
@@ -533,10 +533,17 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                     short_id = connection_info['reservation_id'][:8]
                     secondary_users_info = f"[dim]Secondary Users:[/dim] [yellow]None[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --add-user <github_username>[/cyan]\n"
                 
+                # Generate VS Code command
+                vscode_command = _generate_vscode_command(connection_info['ssh_command'])
+                vscode_info = ""
+                if vscode_command:
+                    vscode_info = f"[blue]VS Code Remote:[/blue] {vscode_command}\n"
+                
                 panel_content = (
                     f"[green]Reservation Details[/green]\n\n"
                     f"[blue]SSH Command:[/blue] {connection_info['ssh_command']}\n"
-                    + jupyter_info +
+                    + vscode_info +
+                    jupyter_info +
                     f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
                     f"[blue]GPUs:[/blue] {gpu_info}\n"
                     f"[blue]Instance Type:[/blue] {instance_type}\n"
