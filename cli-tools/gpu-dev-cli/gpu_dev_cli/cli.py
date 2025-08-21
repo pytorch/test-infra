@@ -22,20 +22,22 @@ console = Console()
 @click.version_option()
 @click.pass_context
 def main(ctx: click.Context) -> None:
-    """GPU Developer CLI - Reserve and manage GPU development servers
+    """\b
+    GPU Developer CLI - Reserve and manage GPU development servers
 
     Reserve GPU-enabled development environments with SSH access.
     Supports 1, 2, 4, 8, or 16 GPU configurations with automatic resource management.
 
+    \b
     Examples:
         gpu-dev reserve --gpus 2 --hours 4      # Reserve 2 GPUs for 4 hours
         gpu-dev reserve --jupyter               # Reserve with Jupyter Lab
-        gpu-dev list                             # Check your reservations
-        gpu-dev show abc12345                    # Get detailed reservation info
+        gpu-dev list                            # Check your reservations
+        gpu-dev show abc12345                   # Get detailed reservation info
         gpu-dev edit abc12345 --enable-jupyter  # Enable Jupyter on active reservation
-        gpu-dev cancel abc12345                  # Cancel a reservation
-        gpu-dev availability                     # Check GPU availability by type
-        gpu-dev status                           # Check cluster status
+        gpu-dev cancel abc12345                 # Cancel a reservation
+        gpu-dev availability                    # Check GPU availability by type
+        gpu-dev status                          # Check cluster status
 
     Use 'gpu-dev <command> --help' for detailed help on each command.
     """
