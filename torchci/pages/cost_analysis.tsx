@@ -512,9 +512,7 @@ export default function Page() {
             </FormControl>
           </Grid>
         )}
-        <Grid size={{ xs: 2 }}>
-          {generateFilterBar(groupby, marginStyle)}
-        </Grid>
+        <Grid size={{ xs: 2 }}>{generateFilterBar(groupby, marginStyle)}</Grid>
         <Grid size={{ xs: 2 }}>
           <div style={{ marginTop: 25, marginBottom: 25 }}>
             <hr />
