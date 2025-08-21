@@ -25,6 +25,9 @@ class Config:
         self.availability_table = f"{self.prefix}-gpu-availability"
         self.cluster_name = f"{self.prefix}-cluster"
 
+        # Determine AWS session (with profile support)
+        self.session = self._create_aws_session()
+
         # AWS clients
         self._sts_client = None
         self._sqs_client = None
@@ -36,22 +39,34 @@ class Config:
         # Load user config
         self.user_config = self._load_user_config()
 
+    def _create_aws_session(self):
+        """Create AWS session with profile support"""
+        try:
+            # Try to use 'gpu-dev' profile if it exists
+            session = boto3.Session(profile_name='gpu-dev')
+            # Test if profile works by checking credentials
+            session.get_credentials()
+            return session
+        except Exception:
+            # Fall back to default credentials (environment, default profile, IAM role, etc.)
+            return boto3.Session()
+
     @property
     def sts_client(self):
         if self._sts_client is None:
-            self._sts_client = boto3.client("sts", region_name=self.aws_region)
+            self._sts_client = self.session.client("sts", region_name=self.aws_region)
         return self._sts_client
 
     @property
     def sqs_client(self):
         if self._sqs_client is None:
-            self._sqs_client = boto3.client("sqs", region_name=self.aws_region)
+            self._sqs_client = self.session.client("sqs", region_name=self.aws_region)
         return self._sqs_client
 
     @property
     def dynamodb(self):
         if self._dynamodb is None:
-            self._dynamodb = boto3.resource("dynamodb", region_name=self.aws_region)
+            self._dynamodb = self.session.resource("dynamodb", region_name=self.aws_region)
         return self._dynamodb
 
     def get_queue_url(self) -> str:
