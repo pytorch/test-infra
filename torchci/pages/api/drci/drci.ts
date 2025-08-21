@@ -2,7 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
-import { queryClickhouse } from "lib/clickhouse";
+import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
   fetchPRLabels,
@@ -354,23 +354,11 @@ async function addMergeBaseCommits(
   head: string,
   workflowsByPR: Map<number, PRandJobs>
 ) {
-  const mergeBasesQuery = `
-select
-    sha as head_sha,
-    merge_base,
-    merge_base_commit_date,
-from
-    merge_bases
-where
-    sha in {shas: Array(String)}
-    and merge_base_commit_date != 0
-    and repo = {repo: String}
-  `;
   const s3client = getS3Client();
 
   const chMergeBases = new Map(
     (
-      await queryClickhouse(mergeBasesQuery, {
+      await queryClickhouseSaved("merge_bases", {
         shas: Array.from(workflowsByPR.values()).map((v) => v.head_sha),
         repo: `${OWNER}/${repo}`,
       })
