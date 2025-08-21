@@ -285,6 +285,7 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   }
 
   # Only use placement group if specified
+  # NOTE: This is key for instances where we are using capacity blocks / reservations
   dynamic "placement" {
     for_each = each.value.use_placement_group ? [1] : []
     content {
@@ -418,38 +419,6 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     Name        = "${var.prefix}-gpu-launch-template-${each.key}"
     Environment = var.environment
     GpuType     = each.key
-  }
-}
-
-# H100 instances using existing launch template with capacity reservation
-resource "aws_instance" "h100_instances" {
-  count = 2 # Adjust as needed
-
-  # Use the existing H100 launch template (it already defines networking)
-  launch_template {
-    name    = aws_launch_template.gpu_dev_launch_template_self_managed["h100"].name
-    version = "$Latest"
-  }
-
-  instance_market_options {
-    market_type = "capacity-block"
-  }
-
-  # Specify capacity reservation (this overrides any market options from the launch template)
-  capacity_reservation_specification {
-    capacity_reservation_target {
-      capacity_reservation_id = "cr-003773252aa2ea59a"
-    }
-  }
-
-  tags = {
-    Name        = "${var.prefix}-h100-instance-${count.index + 1}"
-    Environment = var.environment
-    GpuType     = "h100"
-    LaunchedBy  = "terraform-direct"
-  }
-  lifecycle {
-    ignore_changes = [instance_market_options]
   }
 }
 
