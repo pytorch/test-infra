@@ -296,7 +296,7 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    subnet_id = each.value.use_placement_group ? null : aws_subnet.gpu_dev_subnet.id
+    subnet_id                   = each.value.use_placement_group ? null : aws_subnet.gpu_dev_subnet.id
     interface_type = (
       # Check if any instance type in the list supports EFA
       each.value.instance_types != null ?
