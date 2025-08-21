@@ -1,3 +1,4 @@
+import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
   Dialog,
@@ -10,7 +11,6 @@ import {
   TextField,
 } from "@mui/material";
 import Button from "@mui/material/Button";
-import { GridCloseIcon } from "@mui/x-data-grid";
 import { revertClassifications } from "lib/bot/Constants";
 import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import { commentOnPR } from "lib/githubFunctions";
@@ -45,7 +45,7 @@ export function RevertModal({ row }: { row: RowData }) {
         <Box display="flex" alignItems="center">
           <div style={{ position: "absolute", top: 0, right: 0 }}>
             <IconButton onClick={handleClose}>
-              <GridCloseIcon />
+              <CloseIcon />
             </IconButton>
           </div>
         </Box>
