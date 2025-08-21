@@ -82,7 +82,7 @@ resource "aws_iam_role_policy" "eks_node_bedrock_policy" {
         ]
         Resource = [
           "arn:aws:bedrock:*:*:foundation-model/anthropic.claude-*",
-          "arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-sonnet-*"
+          "arn:aws:bedrock:*:*:inference-profile/us.anthropic.claude-*"
         ]
       }
     ]
