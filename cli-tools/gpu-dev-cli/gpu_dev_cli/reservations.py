@@ -26,32 +26,32 @@ def _generate_vscode_command(ssh_command: str) -> Optional[str]:
     try:
         # Extract remote server from SSH command
         # Expected format: ssh dev@<hostname> -p <port> or ssh -p <port> dev@<hostname>
-        if not ssh_command or not ssh_command.startswith('ssh '):
+        if not ssh_command or not ssh_command.startswith("ssh "):
             return None
-            
+
         # Parse SSH command to extract user@host and port
         parts = ssh_command.split()
         user_host = None
         port = None
-        
+
         for i, part in enumerate(parts):
-            if '@' in part and not part.startswith('-'):
+            if "@" in part and not part.startswith("-"):
                 user_host = part
-            elif part == '-p' and i + 1 < len(parts):
+            elif part == "-p" and i + 1 < len(parts):
                 port = parts[i + 1]
-                
+
         if not user_host:
             return None
-            
+
         # Build VS Code remote server string
         if port:
             remote_server = f"{user_host}:{port}"
         else:
             remote_server = user_host
-            
+
         # Generate VS Code command
         return f"code --remote ssh-remote+{remote_server} /home/dev"
-        
+
     except Exception:
         return None
 
@@ -91,7 +91,9 @@ class ReservationManager:
                 "name": name or f"{gpu_count}x {gpu_type.upper()} reservation",
                 "created_at": created_at,
                 "status": "pending",
-                "expires_at": (datetime.utcnow() + timedelta(hours=duration_hours)).isoformat(),
+                "expires_at": (
+                    datetime.utcnow() + timedelta(hours=duration_hours)
+                ).isoformat(),
                 "jupyter_enabled": jupyter_enabled,
             }
 
@@ -190,7 +192,9 @@ class ReservationManager:
             return True
 
         except Exception as e:
-            console.print(f"[red]❌ Error submitting cancellation request: {str(e)}[/red]")
+            console.print(
+                f"[red]❌ Error submitting cancellation request: {str(e)}[/red]"
+            )
             return False
 
     def get_connection_info(
@@ -203,8 +207,8 @@ class ReservationManager:
                 FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
                 ExpressionAttributeValues={
                     ":prefix": reservation_id,
-                    ":user_id": user_id
-                }
+                    ":user_id": user_id,
+                },
             )
 
             items = scan_response.get("Items", [])
@@ -246,24 +250,29 @@ class ReservationManager:
             # Send message to Lambda to start Jupyter service in pod
             # Lambda will handle both the pod changes and DynamoDB updates
             message = {
-                "action": "enable_jupyter", 
+                "action": "enable_jupyter",
                 "reservation_id": reservation_id,
-                "user_id": user_id
+                "user_id": user_id,
             }
-            
+
             queue_url = self.config.get_queue_url()
             self.config.sqs_client.send_message(
-                QueueUrl=queue_url,
-                MessageBody=json.dumps(message)
+                QueueUrl=queue_url, MessageBody=json.dumps(message)
             )
-            
-            console.print(f"[yellow]⏳ Jupyter enable request submitted for reservation {reservation_id[:8]}...[/yellow]")
-            
+
+            console.print(
+                f"[yellow]⏳ Jupyter enable request submitted for reservation {reservation_id[:8]}...[/yellow]"
+            )
+
             # Poll for 3 minutes to show the outcome
-            return self._poll_jupyter_action_result(reservation_id, "enable", timeout_minutes=3)
-            
+            return self._poll_jupyter_action_result(
+                reservation_id, "enable", timeout_minutes=3
+            )
+
         except Exception as e:
-            console.print(f"[red]❌ Error submitting Jupyter enable request: {str(e)}[/red]")
+            console.print(
+                f"[red]❌ Error submitting Jupyter enable request: {str(e)}[/red]"
+            )
             return False
 
     def disable_jupyter(self, reservation_id: str, user_id: str) -> bool:
@@ -273,55 +282,70 @@ class ReservationManager:
             # Lambda will handle both the pod changes and DynamoDB updates
             message = {
                 "action": "disable_jupyter",
-                "reservation_id": reservation_id, 
-                "user_id": user_id
+                "reservation_id": reservation_id,
+                "user_id": user_id,
             }
-            
+
             queue_url = self.config.get_queue_url()
             self.config.sqs_client.send_message(
-                QueueUrl=queue_url,
-                MessageBody=json.dumps(message)
+                QueueUrl=queue_url, MessageBody=json.dumps(message)
             )
-            
-            console.print(f"[yellow]⏳ Jupyter disable request submitted for reservation {reservation_id[:8]}...[/yellow]")
-            
+
+            console.print(
+                f"[yellow]⏳ Jupyter disable request submitted for reservation {reservation_id[:8]}...[/yellow]"
+            )
+
             # Poll for 3 minutes to show the outcome
-            return self._poll_jupyter_action_result(reservation_id, "disable", timeout_minutes=3)
-            
+            return self._poll_jupyter_action_result(
+                reservation_id, "disable", timeout_minutes=3
+            )
+
         except Exception as e:
-            console.print(f"[red]❌ Error submitting Jupyter disable request: {str(e)}[/red]")
+            console.print(
+                f"[red]❌ Error submitting Jupyter disable request: {str(e)}[/red]"
+            )
             return False
 
     def add_user(self, reservation_id: str, user_id: str, github_username: str) -> bool:
         """Add a secondary user to an active reservation"""
         try:
             # Validate GitHub username format (basic validation)
-            if not github_username or not github_username.replace("-", "").replace("_", "").isalnum():
-                console.print(f"[red]❌ Invalid GitHub username: {github_username}[/red]")
+            if (
+                not github_username
+                or not github_username.replace("-", "").replace("_", "").isalnum()
+            ):
+                console.print(
+                    f"[red]❌ Invalid GitHub username: {github_username}[/red]"
+                )
                 return False
-            
+
             # Send message to Lambda to add user SSH keys to pod
             # Lambda will handle fetching GitHub keys and updating the pod
             message = {
                 "action": "add_user",
-                "reservation_id": reservation_id, 
+                "reservation_id": reservation_id,
                 "user_id": user_id,
-                "github_username": github_username
+                "github_username": github_username,
             }
-            
+
             queue_url = self.config.get_queue_url()
             self.config.sqs_client.send_message(
-                QueueUrl=queue_url,
-                MessageBody=json.dumps(message)
+                QueueUrl=queue_url, MessageBody=json.dumps(message)
             )
-            
-            console.print(f"[yellow]⏳ Adding user {github_username} to reservation {reservation_id[:8]}...[/yellow]")
-            
+
+            console.print(
+                f"[yellow]⏳ Adding user {github_username} to reservation {reservation_id[:8]}...[/yellow]"
+            )
+
             # Poll for 3 minutes to show the outcome
-            return self._poll_add_user_result(reservation_id, github_username, timeout_minutes=3)
-            
+            return self._poll_add_user_result(
+                reservation_id, github_username, timeout_minutes=3
+            )
+
         except Exception as e:
-            console.print(f"[red]❌ Error adding user {github_username}: {str(e)}[/red]")
+            console.print(
+                f"[red]❌ Error adding user {github_username}: {str(e)}[/red]"
+            )
             return False
 
     def get_gpu_availability_by_type(self) -> Optional[Dict[str, Dict[str, Any]]]:
@@ -330,22 +354,22 @@ class ReservationManager:
             # Try to get real-time availability from the availability table
             availability_table_name = self.config.availability_table
             availability_table = self.config.dynamodb.Table(availability_table_name)
-            
+
             # Get supported GPU types
             supported_types = ["h200", "h100", "a100", "t4"]
             availability_info = {}
-            
+
             for gpu_type in supported_types:
                 # Get queue length for this GPU type
                 queue_length = self._get_queue_length_for_gpu_type(gpu_type)
-                
+
                 # Estimate wait time based on queue length (15 min per position)
                 estimated_wait = queue_length * 15 if queue_length > 0 else 0
-                
+
                 try:
                     # Query real-time availability table
                     response = availability_table.get_item(Key={"gpu_type": gpu_type})
-                    
+
                     if "Item" in response:
                         item = response["Item"]
                         availability_info[gpu_type] = {
@@ -359,28 +383,36 @@ class ReservationManager:
                         }
                     else:
                         # Fallback to static configuration if no real-time data
-                        availability_info[gpu_type] = self._get_static_gpu_config(gpu_type, queue_length, estimated_wait)
-                        
+                        availability_info[gpu_type] = self._get_static_gpu_config(
+                            gpu_type, queue_length, estimated_wait
+                        )
+
                 except Exception as table_error:
-                    console.print(f"[dim]Warning: Could not get real-time data for {gpu_type}: {table_error}[/dim]")
+                    console.print(
+                        f"[dim]Warning: Could not get real-time data for {gpu_type}: {table_error}[/dim]"
+                    )
                     # Fallback to static configuration
-                    availability_info[gpu_type] = self._get_static_gpu_config(gpu_type, queue_length, estimated_wait)
-            
+                    availability_info[gpu_type] = self._get_static_gpu_config(
+                        gpu_type, queue_length, estimated_wait
+                    )
+
             return availability_info
 
         except Exception as e:
             console.print(f"[red]❌ Error getting GPU availability: {str(e)}[/red]")
             return None
 
-    def _get_static_gpu_config(self, gpu_type: str, queue_length: int, estimated_wait: int) -> Dict[str, Any]:
+    def _get_static_gpu_config(
+        self, gpu_type: str, queue_length: int, estimated_wait: int
+    ) -> Dict[str, Any]:
         """Get static GPU configuration as fallback when real-time data unavailable"""
         static_configs = {
             "a100": {"available": 0, "total": 16},  # 2x p4d.24xlarge = 16 A100s
-            "h200": {"available": 0, "total": 16},  # 2x p5e.48xlarge = 16 H200s  
+            "h200": {"available": 0, "total": 16},  # 2x p5e.48xlarge = 16 H200s
             "h100": {"available": 0, "total": 16},  # 2x p5.48xlarge = 16 H100s
-            "t4": {"available": 0, "total": 8},     # 2x g4dn.12xlarge = 8 T4s
+            "t4": {"available": 0, "total": 8},  # 2x g4dn.12xlarge = 8 T4s
         }
-        
+
         config = static_configs.get(gpu_type, {"available": 0, "total": 0})
         return {
             "available": config["available"],
@@ -396,7 +428,7 @@ class ReservationManager:
         """Get the number of queued reservations for a specific GPU type"""
         try:
             total_count = 0
-            
+
             # Count queued reservations for this GPU type
             for status in ["queued", "pending"]:
                 try:
@@ -406,49 +438,57 @@ class ReservationManager:
                         ExpressionAttributeNames={"#status": "status"},
                         ExpressionAttributeValues={
                             ":status": status,
-                            ":gpu_type": gpu_type
-                        }
+                            ":gpu_type": gpu_type,
+                        },
                     )
                     total_count += len(response.get("Items", []))
                 except Exception as query_error:
                     # Fallback to scanning if the composite index doesn't exist yet
-                    console.print(f"[dim]Fallback: scanning for {status} {gpu_type} reservations[/dim]")
+                    console.print(
+                        f"[dim]Fallback: scanning for {status} {gpu_type} reservations[/dim]"
+                    )
                     response = self.reservations_table.scan(
                         FilterExpression="contains(#status, :status) AND contains(gpu_type, :gpu_type)",
                         ExpressionAttributeNames={"#status": "status"},
                         ExpressionAttributeValues={
                             ":status": status,
-                            ":gpu_type": gpu_type
-                        }
+                            ":gpu_type": gpu_type,
+                        },
                     )
                     total_count += len(response.get("Items", []))
-            
+
             return total_count
-            
+
         except Exception as e:
-            console.print(f"[red]❌ Error getting queue length for {gpu_type}: {str(e)}[/red]")
+            console.print(
+                f"[red]❌ Error getting queue length for {gpu_type}: {str(e)}[/red]"
+            )
             return 0
 
-    def _poll_jupyter_action_result(self, reservation_id: str, action: str, timeout_minutes: int = 3) -> bool:
+    def _poll_jupyter_action_result(
+        self, reservation_id: str, action: str, timeout_minutes: int = 3
+    ) -> bool:
         """Poll reservation table for Jupyter action result"""
         try:
             start_time = time.time()
             timeout_seconds = timeout_minutes * 60
-            
+
             with Live(console=console, refresh_per_second=2) as live:
-                spinner = Spinner("dots", text=f"🔄 Processing Jupyter {action} request...")
+                spinner = Spinner(
+                    "dots", text=f"🔄 Processing Jupyter {action} request..."
+                )
                 live.update(spinner)
-                
+
                 initial_state = None
-                
+
                 while time.time() - start_time < timeout_seconds:
                     try:
                         # Get current reservation state - support partial reservation IDs
                         scan_response = self.reservations_table.scan(
                             FilterExpression="begins_with(reservation_id, :prefix)",
-                            ExpressionAttributeValues={":prefix": reservation_id}
+                            ExpressionAttributeValues={":prefix": reservation_id},
                         )
-                        
+
                         items = scan_response.get("Items", [])
                         if len(items) == 0:
                             spinner.text = f"🔄 Waiting for reservation data..."
@@ -458,76 +498,102 @@ class ReservationManager:
                         elif len(items) > 1:
                             spinner.text = f"🔄 Multiple reservations found for {reservation_id}, using first match..."
                             live.update(spinner)
-                        
+
                         reservation = items[0]
-                        
+
                         # Capture initial state on first iteration
                         if initial_state is None:
                             initial_state = {
-                                "jupyter_enabled": reservation.get("jupyter_enabled", False),
+                                "jupyter_enabled": reservation.get(
+                                    "jupyter_enabled", False
+                                ),
                                 "jupyter_url": reservation.get("jupyter_url", ""),
-                                "jupyter_port": reservation.get("jupyter_port", 0)
+                                "jupyter_port": reservation.get("jupyter_port", 0),
                             }
-                        
-                        current_jupyter_enabled = reservation.get("jupyter_enabled", False)
+
+                        current_jupyter_enabled = reservation.get(
+                            "jupyter_enabled", False
+                        )
                         jupyter_url = reservation.get("jupyter_url", "")
                         jupyter_port = reservation.get("jupyter_port", 0)
-                        
+
                         # Check if the action has completed
                         if action == "enable":
                             if current_jupyter_enabled and jupyter_url:
                                 live.stop()
-                                console.print(f"[green]✅ Jupyter Lab enabled successfully![/green]")
-                                console.print(f"[cyan]🔗 Jupyter URL:[/cyan] {jupyter_url}")
+                                console.print(
+                                    f"[green]✅ Jupyter Lab enabled successfully![/green]"
+                                )
+                                console.print(
+                                    f"[cyan]🔗 Jupyter URL:[/cyan] {jupyter_url}"
+                                )
                                 console.print(f"[cyan]🔌 Port:[/cyan] {jupyter_port}")
                                 return True
-                            elif current_jupyter_enabled != initial_state["jupyter_enabled"]:
+                            elif (
+                                current_jupyter_enabled
+                                != initial_state["jupyter_enabled"]
+                            ):
                                 spinner.text = f"🔄 Jupyter enabled, waiting for URL..."
                         else:  # disable
                             if not current_jupyter_enabled and not jupyter_url:
                                 live.stop()
-                                console.print(f"[green]✅ Jupyter Lab disabled successfully![/green]")
+                                console.print(
+                                    f"[green]✅ Jupyter Lab disabled successfully![/green]"
+                                )
                                 return True
-                            elif current_jupyter_enabled != initial_state["jupyter_enabled"]:
+                            elif (
+                                current_jupyter_enabled
+                                != initial_state["jupyter_enabled"]
+                            ):
                                 spinner.text = f"🔄 Stopping Jupyter service..."
-                        
+
                         live.update(spinner)
                         time.sleep(3)
-                        
+
                     except Exception as poll_error:
-                        console.print(f"[red]❌ Error polling Jupyter status: {poll_error}[/red]")
+                        console.print(
+                            f"[red]❌ Error polling Jupyter status: {poll_error}[/red]"
+                        )
                         return False
-                
+
                 # Timeout reached
                 live.stop()
-                console.print(f"[yellow]⏰ Timeout after {timeout_minutes} minutes[/yellow]")
-                console.print(f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check Jupyter status[/yellow]")
+                console.print(
+                    f"[yellow]⏰ Timeout after {timeout_minutes} minutes[/yellow]"
+                )
+                console.print(
+                    f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check Jupyter status[/yellow]"
+                )
                 return False
-                
+
         except Exception as e:
-            console.print(f"[red]❌ Error during Jupyter {action} polling: {str(e)}[/red]")
+            console.print(
+                f"[red]❌ Error during Jupyter {action} polling: {str(e)}[/red]"
+            )
             return False
 
-    def _poll_add_user_result(self, reservation_id: str, github_username: str, timeout_minutes: int = 3) -> bool:
+    def _poll_add_user_result(
+        self, reservation_id: str, github_username: str, timeout_minutes: int = 3
+    ) -> bool:
         """Poll reservation table for add user action result"""
         try:
             start_time = time.time()
             timeout_seconds = timeout_minutes * 60
-            
+
             with Live(console=console, refresh_per_second=2) as live:
                 spinner = Spinner("dots", text=f"🔄 Adding user {github_username}...")
                 live.update(spinner)
-                
+
                 initial_secondary_users = None
-                
+
                 while time.time() - start_time < timeout_seconds:
                     try:
                         # Get current reservation state - support partial reservation IDs
                         scan_response = self.reservations_table.scan(
                             FilterExpression="begins_with(reservation_id, :prefix)",
-                            ExpressionAttributeValues={":prefix": reservation_id}
+                            ExpressionAttributeValues={":prefix": reservation_id},
                         )
-                        
+
                         items = scan_response.get("Items", [])
                         if len(items) == 0:
                             spinner.text = f"🔄 Waiting for reservation data..."
@@ -537,37 +603,53 @@ class ReservationManager:
                         elif len(items) > 1:
                             spinner.text = f"🔄 Multiple reservations found for {reservation_id}, using first match..."
                             live.update(spinner)
-                        
+
                         reservation = items[0]
-                        
+
                         # Capture initial state on first iteration
                         if initial_secondary_users is None:
-                            initial_secondary_users = reservation.get("secondary_users", [])
-                        
+                            initial_secondary_users = reservation.get(
+                                "secondary_users", []
+                            )
+
                         current_secondary_users = reservation.get("secondary_users", [])
-                        
+
                         # Check if the user has been added
                         if github_username in current_secondary_users:
                             live.stop()
-                            console.print(f"[green]✅ User {github_username} added successfully![/green]")
-                            console.print(f"[cyan]👥 Secondary users:[/cyan] {', '.join(current_secondary_users)}")
+                            console.print(
+                                f"[green]✅ User {github_username} added successfully![/green]"
+                            )
+                            console.print(
+                                f"[cyan]👥 Secondary users:[/cyan] {', '.join(current_secondary_users)}"
+                            )
                             return True
-                        elif len(current_secondary_users) != len(initial_secondary_users):
-                            spinner.text = f"🔄 User list updated, verifying {github_username}..."
-                        
+                        elif len(current_secondary_users) != len(
+                            initial_secondary_users
+                        ):
+                            spinner.text = (
+                                f"🔄 User list updated, verifying {github_username}..."
+                            )
+
                         live.update(spinner)
                         time.sleep(3)
-                        
+
                     except Exception as poll_error:
-                        console.print(f"[red]❌ Error polling add user status: {poll_error}[/red]")
+                        console.print(
+                            f"[red]❌ Error polling add user status: {poll_error}[/red]"
+                        )
                         return False
-                
+
                 # Timeout reached
                 live.stop()
-                console.print(f"[yellow]⏰ Timeout after {timeout_minutes} minutes[/yellow]")
-                console.print(f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check user status[/yellow]")
+                console.print(
+                    f"[yellow]⏰ Timeout after {timeout_minutes} minutes[/yellow]"
+                )
+                console.print(
+                    f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check user status[/yellow]"
+                )
                 return False
-                
+
         except Exception as e:
             console.print(f"[red]❌ Error during add user polling: {str(e)}[/red]")
             return False
@@ -583,7 +665,7 @@ class ReservationManager:
             availability_info = self.get_gpu_availability_by_type()
             total_gpus = 0
             available_gpus = 0
-            
+
             if availability_info:
                 for gpu_type, info in availability_info.items():
                     total_gpus += info.get("total", 0)
@@ -689,7 +771,10 @@ class ReservationManager:
                 live.update(spinner)
 
                 while (
-                    (timeout_seconds is None or time.time() - start_time < timeout_seconds)
+                    (
+                        timeout_seconds is None
+                        or time.time() - start_time < timeout_seconds
+                    )
                     and not cancelled
                     and not close_tool
                 ):
@@ -786,14 +871,19 @@ class ReservationManager:
                             if failure_reason:
                                 message = f"🚀 Preparing: {failure_reason}"
                             else:
-                                message = status_messages.get(current_status, f"Status: {current_status}")
+                                message = status_messages.get(
+                                    current_status, f"Status: {current_status}"
+                                )
                         else:
                             message = status_messages.get(
                                 current_status, f"Status: {current_status}"
                             )
 
                         # Update spinner if status changed or we're in queue/preparing (to show updated info)
-                        if current_status != last_status or current_status in ["queued", "preparing"]:
+                        if current_status != last_status or current_status in [
+                            "queued",
+                            "preparing",
+                        ]:
                             spinner.text = message
                             last_status = current_status
                             live.update(spinner)
@@ -818,14 +908,14 @@ class ReservationManager:
                             console.print(
                                 f"[cyan]🖥️  Connect with:[/cyan] {ssh_command}"
                             )
-                            
+
                             # Show VS Code remote command
                             vscode_command = _generate_vscode_command(ssh_command)
                             if vscode_command:
                                 console.print(
                                     f"[cyan]💻 VS Code Remote:[/cyan] {vscode_command}"
                                 )
-                            
+
                             # Show Jupyter link if enabled
                             jupyter_enabled = reservation.get("jupyter_enabled", False)
                             jupyter_url = reservation.get("jupyter_url", "")
@@ -849,15 +939,17 @@ class ReservationManager:
                                 console.print(
                                     f"[red]📋 Reservation ID: {reservation_id}[/red]"
                                 )
-                                
+
                                 # Show pod logs if available
                                 pod_logs = reservation.get("pod_logs", "")
                                 if pod_logs and pod_logs.strip():
                                     from rich.panel import Panel
                                     from rich.text import Text
-                                    
-                                    console.print("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
-                                    
+
+                                    console.print(
+                                        "\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]"
+                                    )
+
                                     # Create logs panel that's always visible but styled nicely
                                     log_text = Text(pod_logs)
                                     log_panel = Panel(
@@ -865,7 +957,7 @@ class ReservationManager:
                                         title="🐚 Container Startup Logs",
                                         title_align="left",
                                         border_style="red",
-                                        expand=False
+                                        expand=False,
                                     )
                                     console.print(log_panel)
                             else:
@@ -930,9 +1022,7 @@ class ReservationManager:
                     f"\n[yellow]⏰ Timeout reached after {timeout_minutes} minutes[/yellow]"
                 )
             else:
-                console.print(
-                    f"\n[yellow]⏰ Polling stopped unexpectedly[/yellow]"
-                )
+                console.print(f"\n[yellow]⏰ Polling stopped unexpectedly[/yellow]")
             console.print(
                 "[yellow]🔍 Check reservation status manually with: gpu-dev list[/yellow]"
             )

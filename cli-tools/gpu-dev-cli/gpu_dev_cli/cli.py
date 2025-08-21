@@ -73,13 +73,18 @@ def main(ctx: click.Context) -> None:
 )
 @click.pass_context
 def reserve(
-    ctx: click.Context, gpus: str, gpu_type: str, hours: float, name: Optional[str], jupyter: bool
+    ctx: click.Context,
+    gpus: str,
+    gpu_type: str,
+    hours: float,
+    name: Optional[str],
+    jupyter: bool,
 ) -> None:
     """Reserve GPU development server(s)
 
     Creates a reservation for GPU-enabled development environment with SSH access.
     The environment includes PyTorch, CUDA, and common ML tools pre-installed.
-    
+
     Jupyter Lab can be enabled with --jupyter flag or added later with 'gpu-dev edit'.
 
     GPU Options:
@@ -184,7 +189,6 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     Available statuses: active, preparing, queued, pending, expired, cancelled, failed, all
     """
     try:
-
         config = load_config()
 
         # Authenticate using AWS credentials
@@ -283,19 +287,24 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                     try:
                         if isinstance(expires_at, str):
                             # Handle different ISO format variations
-                            if expires_at.endswith('Z'):
+                            if expires_at.endswith("Z"):
                                 # Format: 2025-01-11T23:30:00Z
-                                expires_dt_utc = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-                            elif '+' in expires_at or expires_at.endswith('00:00'):
+                                expires_dt_utc = datetime.fromisoformat(
+                                    expires_at.replace("Z", "+00:00")
+                                )
+                            elif "+" in expires_at or expires_at.endswith("00:00"):
                                 # Format: 2025-01-11T23:30:00+00:00
                                 expires_dt_utc = datetime.fromisoformat(expires_at)
                             else:
                                 # Format: 2025-01-11T23:30:00 (naive datetime, assume UTC)
                                 from datetime import timezone
+
                                 naive_dt = datetime.fromisoformat(expires_at)
                                 expires_dt_utc = naive_dt.replace(tzinfo=timezone.utc)
 
-                            expires_dt = expires_dt_utc.astimezone()  # Convert to local timezone
+                            expires_dt = (
+                                expires_dt_utc.astimezone()
+                            )  # Convert to local timezone
                         else:
                             # Legacy Unix timestamp (backward compatibility)
                             expires_dt = datetime.fromtimestamp(expires_at)
@@ -397,7 +406,6 @@ def cancel(ctx: click.Context, reservation_id: str) -> None:
     Note: Cancelled reservations cannot be restored. Active pods will be terminated.
     """
     try:
-
         config = load_config()
 
         # Authenticate using AWS credentials
@@ -448,7 +456,6 @@ def show(ctx: click.Context, reservation_id: str) -> None:
     Works for reservations in any status.
     """
     try:
-
         config = load_config()
 
         # Authenticate using AWS credentials
@@ -463,34 +470,37 @@ def show(ctx: click.Context, reservation_id: str) -> None:
             return
 
         if connection_info:
-            status = connection_info.get('status', 'unknown')
-            gpu_count = connection_info.get('gpu_count', 1)
-            gpu_type = connection_info.get('gpu_type', 'Unknown')
-            instance_type = connection_info.get('instance_type', 'unknown')
+            status = connection_info.get("status", "unknown")
+            gpu_count = connection_info.get("gpu_count", 1)
+            gpu_type = connection_info.get("gpu_type", "Unknown")
+            instance_type = connection_info.get("instance_type", "unknown")
 
             # Format GPU information
-            if gpu_type != 'Unknown' and gpu_type != 'unknown':
+            if gpu_type != "Unknown" and gpu_type != "unknown":
                 gpu_info = f"{gpu_count}x {gpu_type}"
             else:
                 gpu_info = f"{gpu_count} GPU(s)"
 
             # Format timestamps
-            created_at = connection_info.get('created_at', 'N/A')
-            launched_at = connection_info.get('launched_at', 'N/A')
-            expires_at = connection_info.get('expires_at', 'N/A')
+            created_at = connection_info.get("created_at", "N/A")
+            launched_at = connection_info.get("launched_at", "N/A")
+            expires_at = connection_info.get("expires_at", "N/A")
 
             # Convert timestamps to readable format
             def format_timestamp(timestamp_str):
-                if not timestamp_str or timestamp_str == 'N/A':
-                    return 'N/A'
+                if not timestamp_str or timestamp_str == "N/A":
+                    return "N/A"
                 try:
                     from datetime import datetime, timezone
+
                     if isinstance(timestamp_str, str):
                         # Handle different ISO format variations
-                        if timestamp_str.endswith('Z'):
+                        if timestamp_str.endswith("Z"):
                             # Format: 2025-01-11T23:30:00Z
-                            dt_utc = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-                        elif '+' in timestamp_str or timestamp_str.endswith('00:00'):
+                            dt_utc = datetime.fromisoformat(
+                                timestamp_str.replace("Z", "+00:00")
+                            )
+                        elif "+" in timestamp_str or timestamp_str.endswith("00:00"):
                             # Format: 2025-01-11T23:30:00+00:00
                             dt_utc = datetime.fromisoformat(timestamp_str)
                         else:
@@ -511,50 +521,62 @@ def show(ctx: click.Context, reservation_id: str) -> None:
             launched_formatted = format_timestamp(launched_at)
             expires_formatted = format_timestamp(expires_at)
 
-            if status == 'active':
+            if status == "active":
                 jupyter_info = ""
-                if connection_info.get('jupyter_enabled') and connection_info.get('jupyter_url'):
-                    jupyter_info = f"[blue]Jupyter Lab:[/blue] {connection_info['jupyter_url']}\n"
-                elif connection_info.get('jupyter_enabled') and not connection_info.get('jupyter_url'):
-                    jupyter_info = f"[blue]Jupyter Lab:[/blue] [yellow]Starting...[/yellow]\n"
+                if connection_info.get("jupyter_enabled") and connection_info.get(
+                    "jupyter_url"
+                ):
+                    jupyter_info = (
+                        f"[blue]Jupyter Lab:[/blue] {connection_info['jupyter_url']}\n"
+                    )
+                elif connection_info.get("jupyter_enabled") and not connection_info.get(
+                    "jupyter_url"
+                ):
+                    jupyter_info = (
+                        f"[blue]Jupyter Lab:[/blue] [yellow]Starting...[/yellow]\n"
+                    )
                 else:
                     # Show enable command if Jupyter is not enabled
-                    short_id = connection_info['reservation_id'][:8]
+                    short_id = connection_info["reservation_id"][:8]
                     jupyter_info = f"[dim]Jupyter Lab:[/dim] [yellow]Not enabled[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --enable-jupyter[/cyan]\n"
-                
+
                 # Format secondary users information
-                secondary_users = connection_info.get('secondary_users', [])
+                secondary_users = connection_info.get("secondary_users", [])
                 secondary_users_info = ""
                 if secondary_users:
                     users_list = ", ".join(secondary_users)
-                    secondary_users_info = f"[blue]Secondary Users:[/blue] {users_list}\n"
+                    secondary_users_info = (
+                        f"[blue]Secondary Users:[/blue] {users_list}\n"
+                    )
                 else:
                     # Show add-user command if no secondary users
-                    short_id = connection_info['reservation_id'][:8]
+                    short_id = connection_info["reservation_id"][:8]
                     secondary_users_info = f"[dim]Secondary Users:[/dim] [yellow]None[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --add-user <github_username>[/cyan]\n"
-                
+
                 # Generate VS Code command
-                vscode_command = _generate_vscode_command(connection_info['ssh_command'])
+                vscode_command = _generate_vscode_command(
+                    connection_info["ssh_command"]
+                )
                 vscode_info = ""
                 if vscode_command:
                     vscode_info = f"[blue]VS Code Remote:[/blue] {vscode_command}\n"
-                
+
                 panel_content = (
                     f"[green]Reservation Details[/green]\n\n"
                     f"[blue]SSH Command:[/blue] {connection_info['ssh_command']}\n"
-                    + vscode_info +
-                    jupyter_info +
-                    f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
+                    + vscode_info
+                    + jupyter_info
+                    + f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
                     f"[blue]GPUs:[/blue] {gpu_info}\n"
                     f"[blue]Instance Type:[/blue] {instance_type}\n"
-                    + secondary_users_info +
-                    f"[blue]Created:[/blue] {created_formatted}\n"
+                    + secondary_users_info
+                    + f"[blue]Created:[/blue] {created_formatted}\n"
                     f"[blue]Started:[/blue] {launched_formatted}\n"
                     f"[blue]Expires:[/blue] {expires_formatted}"
                 )
                 panel = Panel.fit(panel_content, title="🚀 Active Reservation")
                 console.print(panel)
-            elif status in ['queued', 'pending', 'preparing']:
+            elif status in ["queued", "pending", "preparing"]:
                 panel_content = (
                     f"[yellow]Reservation Details[/yellow]\n\n"
                     f"[blue]Status:[/blue] {status.title()}\n"
@@ -562,20 +584,28 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                     f"[blue]Created:[/blue] {created_formatted}\n"
                     f"[blue]Expected Instance:[/blue] {instance_type if instance_type != 'unknown' else 'TBD'}"
                 )
-                if status == 'preparing':
+                if status == "preparing":
                     panel_content += f"\n[blue]Pod Name:[/blue] {connection_info.get('pod_name', 'N/A')}"
                     # Show dynamic pod events from failure_reason if available
-                    failure_reason = connection_info.get('failure_reason', '')
+                    failure_reason = connection_info.get("failure_reason", "")
                     if failure_reason:
-                        panel_content += f"\n[blue]Current Status:[/blue] {failure_reason}"
+                        panel_content += (
+                            f"\n[blue]Current Status:[/blue] {failure_reason}"
+                        )
 
-                panel = Panel.fit(panel_content, title=f"⏳ {status.title()} Reservation")
+                panel = Panel.fit(
+                    panel_content, title=f"⏳ {status.title()} Reservation"
+                )
                 console.print(panel)
 
-                if status == 'queued':
-                    rprint("[yellow]💡 SSH access will be available once your reservation becomes active[/yellow]")
-                elif status == 'preparing':
-                    rprint("[yellow]💡 Your environment is being prepared. SSH access will be available shortly.[/yellow]")
+                if status == "queued":
+                    rprint(
+                        "[yellow]💡 SSH access will be available once your reservation becomes active[/yellow]"
+                    )
+                elif status == "preparing":
+                    rprint(
+                        "[yellow]💡 Your environment is being prepared. SSH access will be available shortly.[/yellow]"
+                    )
             else:
                 panel_content = (
                     f"[red]Reservation Details[/red]\n\n"
@@ -585,23 +615,27 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                     f"[blue]Started:[/blue] {launched_formatted}\n"
                     f"[blue]Ended:[/blue] {expires_formatted}"
                 )
-                
+
                 # Show failure reason for failed reservations
-                if status == 'failed':
-                    failure_reason = connection_info.get('failure_reason', 'Unknown error')
+                if status == "failed":
+                    failure_reason = connection_info.get(
+                        "failure_reason", "Unknown error"
+                    )
                     panel_content += f"\n[blue]Error:[/blue] {failure_reason}"
-                
-                panel = Panel.fit(panel_content, title=f"📋 {status.title()} Reservation")
+
+                panel = Panel.fit(
+                    panel_content, title=f"📋 {status.title()} Reservation"
+                )
                 console.print(panel)
-                
+
                 # Show pod logs for failed reservations
-                if status == 'failed':
-                    pod_logs = connection_info.get('pod_logs', '')
+                if status == "failed":
+                    pod_logs = connection_info.get("pod_logs", "")
                     if pod_logs and pod_logs.strip():
                         from rich.text import Text
-                        
+
                         rprint("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
-                        
+
                         # Create logs panel
                         log_text = Text(pod_logs)
                         log_panel = Panel(
@@ -609,7 +643,7 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                             title="🐚 Container Startup Logs",
                             title_align="left",
                             border_style="red",
-                            expand=False
+                            expand=False,
                         )
                         console.print(log_panel)
         else:
@@ -623,7 +657,7 @@ def _show_availability() -> None:
     """Shared function to show GPU availability"""
     try:
         config = load_config()
-        
+
         # Authenticate using AWS credentials
         try:
             user_info = authenticate_user(config)
@@ -632,7 +666,7 @@ def _show_availability() -> None:
         except RuntimeError as e:
             rprint(f"[red]❌ {str(e)}[/red]")
             return
-            
+
         if availability_info:
             table = Table(title="GPU Availability by Type")
             table.add_column("GPU Type", style="cyan")
@@ -640,13 +674,13 @@ def _show_availability() -> None:
             table.add_column("Total", style="blue")
             table.add_column("Queue Length", style="yellow")
             table.add_column("Est. Wait Time", style="magenta")
-            
+
             for gpu_type, info in availability_info.items():
                 available = info.get("available", 0)
                 total = info.get("total", 0)
                 queue_length = info.get("queue_length", 0)
                 est_wait = info.get("estimated_wait_minutes", 0)
-                
+
                 # Format wait time
                 if available > 0:
                     wait_display = "Available now"
@@ -661,29 +695,31 @@ def _show_availability() -> None:
                         wait_display = f"{hours}h"
                     else:
                         wait_display = f"{hours}h {minutes}min"
-                
+
                 # Color code availability
                 if available > 0:
                     available_display = f"[green]{available}[/green]"
                 else:
                     available_display = f"[red]{available}[/red]"
-                
+
                 table.add_row(
                     gpu_type.upper(),
                     available_display,
                     str(total),
                     str(queue_length),
-                    wait_display
+                    wait_display,
                 )
-            
+
             console.print(table)
-            
+
             # Show usage tip
-            rprint("\n[dim]💡 Use 'gpu-dev reserve --gpu-type <type>' to reserve GPUs of a specific type[/dim]")
-            
+            rprint(
+                "\n[dim]💡 Use 'gpu-dev reserve --gpu-type <type>' to reserve GPUs of a specific type[/dim]"
+            )
+
         else:
             rprint("[red]❌ Could not get GPU availability information[/red]")
-            
+
     except Exception as e:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
 
@@ -692,19 +728,19 @@ def _show_availability() -> None:
 @click.pass_context
 def availability(ctx: click.Context) -> None:
     """Show GPU availability by type and queue estimates
-    
+
     Displays real-time information about GPU availability for each GPU type.
     Shows immediate availability and estimated queue times when resources are full.
-    
+
     Information shown per GPU type:
         - Available GPUs: GPUs ready for immediate reservation
         - Queue Length: Number of pending reservations for this GPU type
         - Estimated Wait: Expected time until resources become available
-        
+
     \b
     Examples:
         gpu-dev availability                     # Show availability for all GPU types
-        
+
     This helps you choose the right GPU type and understand wait times before reserving.
     """
     _show_availability()
@@ -714,7 +750,7 @@ def availability(ctx: click.Context) -> None:
 @click.pass_context
 def avail(ctx: click.Context) -> None:
     """Show GPU availability by type and queue estimates (alias for 'availability')
-    
+
     This is a shorter alias for the 'availability' command.
     """
     _show_availability()
@@ -742,7 +778,6 @@ def status(ctx: click.Context) -> None:
     Note: Status is updated in real-time from the Kubernetes cluster.
     """
     try:
-
         config = load_config()
 
         # Authenticate using AWS credentials
@@ -893,12 +928,18 @@ def set(key: str, value: str) -> None:
     help="Add GitHub user as secondary user (fetches their public SSH keys)",
 )
 @click.pass_context
-def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_jupyter: bool, add_user: Optional[str]) -> None:
+def edit(
+    ctx: click.Context,
+    reservation_id: str,
+    enable_jupyter: bool,
+    disable_jupyter: bool,
+    add_user: Optional[str],
+) -> None:
     """Edit an active reservation's settings
-    
+
     Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab
     or adding secondary users with SSH access.
-    
+
     \b
     Examples:
         gpu-dev edit abc12345 --enable-jupyter   # Enable Jupyter Lab
@@ -906,13 +947,14 @@ def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_
         gpu-dev edit abc12345 --add-user johndoe # Add GitHub user 'johndoe' SSH access
     """
     try:
-        
         if enable_jupyter and disable_jupyter:
             rprint("[red]❌ Cannot enable and disable Jupyter at the same time[/red]")
             return
-            
+
         if not enable_jupyter and not disable_jupyter and not add_user:
-            rprint("[red]❌ Please specify --enable-jupyter, --disable-jupyter, or --add-user[/red]")
+            rprint(
+                "[red]❌ Please specify --enable-jupyter, --disable-jupyter, or --add-user[/red]"
+            )
             return
 
         # Authenticate first
@@ -920,47 +962,67 @@ def edit(ctx: click.Context, reservation_id: str, enable_jupyter: bool, disable_
         user_info = authenticate_user(config)
         if not user_info:
             return
-            
+
         reservation_mgr = ReservationManager(config)
-        
+
         # Check if reservation exists and belongs to user
-        connection_info = reservation_mgr.get_connection_info(reservation_id, user_info["user_id"])
+        connection_info = reservation_mgr.get_connection_info(
+            reservation_id, user_info["user_id"]
+        )
         if not connection_info:
-            rprint(f"[red]❌ Reservation {reservation_id} not found or doesn't belong to you[/red]")
+            rprint(
+                f"[red]❌ Reservation {reservation_id} not found or doesn't belong to you[/red]"
+            )
             return
-            
+
         if connection_info["status"] != "active":
-            rprint(f"[red]❌ Can only edit active reservations (current status: {connection_info['status']})[/red]")
+            rprint(
+                f"[red]❌ Can only edit active reservations (current status: {connection_info['status']})[/red]"
+            )
             return
-            
+
         # Enable/disable Jupyter
         if enable_jupyter:
-            success = reservation_mgr.enable_jupyter(reservation_id, user_info["user_id"])
+            success = reservation_mgr.enable_jupyter(
+                reservation_id, user_info["user_id"]
+            )
             if success:
-                rprint(f"[green]✅ Jupyter Lab enabled for reservation {reservation_id[:8]}...[/green]")
-                rprint("[blue]💡 Use 'gpu-dev show {reservation_id[:8]}' to see the Jupyter URL[/blue]")
+                rprint(
+                    f"[green]✅ Jupyter Lab enabled for reservation {reservation_id[:8]}...[/green]"
+                )
+                rprint(
+                    "[blue]💡 Use 'gpu-dev show {reservation_id[:8]}' to see the Jupyter URL[/blue]"
+                )
             else:
                 rprint("[red]❌ Failed to enable Jupyter Lab[/red]")
-                
+
         elif disable_jupyter:
-            success = reservation_mgr.disable_jupyter(reservation_id, user_info["user_id"])
+            success = reservation_mgr.disable_jupyter(
+                reservation_id, user_info["user_id"]
+            )
             if success:
-                rprint(f"[green]✅ Jupyter Lab disabled for reservation {reservation_id[:8]}...[/green]")
+                rprint(
+                    f"[green]✅ Jupyter Lab disabled for reservation {reservation_id[:8]}...[/green]"
+                )
             else:
                 rprint("[red]❌ Failed to disable Jupyter Lab[/red]")
-        
+
         elif add_user:
-            success = reservation_mgr.add_user(reservation_id, user_info["user_id"], add_user)
+            success = reservation_mgr.add_user(
+                reservation_id, user_info["user_id"], add_user
+            )
             if success:
-                rprint(f"[green]✅ User {add_user} added to reservation {reservation_id[:8]}...[/green]")
-                rprint(f"[blue]💡 {add_user} can now SSH to the server using their GitHub SSH keys[/blue]")
+                rprint(
+                    f"[green]✅ User {add_user} added to reservation {reservation_id[:8]}...[/green]"
+                )
+                rprint(
+                    f"[blue]💡 {add_user} can now SSH to the server using their GitHub SSH keys[/blue]"
+                )
             else:
                 rprint(f"[red]❌ Failed to add user {add_user}[/red]")
-            
+
     except Exception as e:
         rprint(f"[red]❌ Error editing reservation: {str(e)}[/red]")
-
-
 
 
 if __name__ == "__main__":

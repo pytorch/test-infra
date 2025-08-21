@@ -43,7 +43,7 @@ class Config:
         """Create AWS session with profile support"""
         try:
             # Try to use 'gpu-dev' profile if it exists
-            session = boto3.Session(profile_name='gpu-dev')
+            session = boto3.Session(profile_name="gpu-dev")
             # Test if profile works by checking credentials
             session.get_credentials()
             return session
@@ -66,7 +66,9 @@ class Config:
     @property
     def dynamodb(self):
         if self._dynamodb is None:
-            self._dynamodb = self.session.resource("dynamodb", region_name=self.aws_region)
+            self._dynamodb = self.session.resource(
+                "dynamodb", region_name=self.aws_region
+            )
         return self._dynamodb
 
     def get_queue_url(self) -> str:
