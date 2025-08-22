@@ -1,0 +1,238 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  color: var(--text-color);
+}
+
+.header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.header h1 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.summary {
+  display: flex;
+  gap: 24px;
+  margin-top: 8px;
+}
+
+.summaryItem {
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.summaryItem strong {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.controls {
+  margin-bottom: 16px;
+}
+
+.searchInput {
+  width: 100%;
+  max-width: 400px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background-color: var(--dropdown-bg);
+  color: var(--text-color);
+  font-size: 14px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: #0969da;
+  box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.1);
+}
+
+.tableContainer {
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+  background-color: var(--dropdown-bg);
+}
+
+.runnersTable {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--dropdown-bg);
+}
+
+.runnersTable th {
+  background-color: var(--background-color);
+  color: var(--text-color);
+  font-weight: 600;
+  font-size: 14px;
+  text-align: left;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.runnersTable th:not(:last-child) {
+  border-right: 1px solid var(--border-color);
+}
+
+.runnerRow {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.runnerRow:hover {
+  background-color: var(--highlight-bg);
+}
+
+.runnerRow:last-child {
+  border-bottom: none;
+}
+
+.runnerRow td {
+  padding: 16px;
+  font-size: 14px;
+  vertical-align: top;
+  border-right: 1px solid var(--border-color);
+}
+
+.runnerRow td:last-child {
+  border-right: none;
+}
+
+.runnerName {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.name {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.statusContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.statusText {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.os {
+  color: var(--text-color);
+  text-transform: capitalize;
+}
+
+.labelsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.label {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border: 1px solid var(--border-color);
+}
+
+.customLabel {
+  background-color: #0969da;
+  color: white;
+  border-color: #0969da;
+}
+
+.readOnlyLabel {
+  background-color: var(--dropdown-bg);
+  color: var(--text-color);
+  border-color: var(--border-color);
+}
+
+.runnerId {
+  color: #6a737d;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+}
+
+.noResults {
+  text-align: center;
+  padding: 32px;
+  color: #6a737d;
+  font-style: italic;
+}
+
+.error {
+  background-color: #f85149;
+  color: white;
+  border: 1px solid #d73a49;
+  border-radius: 6px;
+  padding: 16px;
+  margin-top: 16px;
+}
+
+.error h2 {
+  margin: 0 0 8px 0;
+  font-size: 16px;
+}
+
+.error p {
+  margin: 0;
+  font-size: 14px;
+}
+
+/* Dark mode adjustments */
+[data-theme="dark"] .customLabel {
+  background-color: #1f6feb;
+  border-color: #1f6feb;
+}
+
+[data-theme="dark"] .runnersTable th {
+  background-color: #21262d;
+}
+
+[data-theme="dark"] .searchInput:focus {
+  border-color: #1f6feb;
+  box-shadow: 0 0 0 3px rgba(31, 111, 235, 0.1);
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .container {
+    padding: 16px;
+  }
+
+  .summary {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .runnersTable {
+    font-size: 12px;
+  }
+
+  .runnerRow td {
+    padding: 12px 8px;
+  }
+
+  .labelsContainer {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
