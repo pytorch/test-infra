@@ -3,6 +3,7 @@ name: Update test file ratings for TD Heuristics
 on:
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
+  pull_request:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ github.event_name == 'workflow_dispatch' }}
@@ -15,6 +16,7 @@ permissions:
 jobs:
   update-test-file-ratings:
     runs-on: ubuntu-latest
+    if: false
     steps:
       - name: Checkout pytorch/test-infra
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -104,3 +106,25 @@ jobs:
           user_email: "test-infra@pytorch.org"
           user_name: "Pytorch Test Infra"
           commit_message: "Updating TD heuristic: historical edited files"
+
+  update-ec2-pricing:
+    runs-on: linux.large
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        name: Checkout repository
+
+      - name: Install Dependencies
+        run: python -m pip install boto3==1.19.12 PyYAML==6.0
+
+      - name: Generate EC2 pricing data
+        run: |
+          python torchci/ec2_pricing.py --output ec2_pricing.json
+
+      - name: Compress pricing file
+        run: |
+          gzip ec2_pricing.json
+
+      - name: Upload pricing file to S3
+        if: github.event_name != 'pull_request'
+        run: |
+          aws s3 cp ec2_pricing.json.gz s3://ossci-metrics/ec2_pricing.json.gz
