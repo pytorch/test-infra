@@ -84,7 +84,10 @@ def setup_kubernetes_client() -> client.ApiClient:
         # Called right before each request reads api_key
         def _refresh(cfg_obj: client.Configuration):
             now = time.time()
-            if _token_cache["token"] and now < _token_cache["expires_at"] - _REFRESH_EARLY_SECONDS:
+            if (
+                _token_cache["token"]
+                and now < _token_cache["expires_at"] - _REFRESH_EARLY_SECONDS
+            ):
                 return
             new_token = get_bearer_token()
             _token_cache["token"] = new_token

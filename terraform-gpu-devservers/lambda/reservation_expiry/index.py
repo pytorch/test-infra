@@ -32,6 +32,7 @@ REGION = os.environ["REGION"]
 # Global Kubernetes client (reused across Lambda execution)
 _k8s_client = None
 
+
 def get_k8s_client():
     """Get or create the global Kubernetes client (singleton pattern)"""
     global _k8s_client
@@ -46,25 +47,31 @@ def trigger_availability_update():
     """Trigger the availability updater Lambda function"""
     try:
         import boto3
-        
+
         # Get the availability updater function name from environment variable
-        availability_function_name = os.environ.get("AVAILABILITY_UPDATER_FUNCTION_NAME")
+        availability_function_name = os.environ.get(
+            "AVAILABILITY_UPDATER_FUNCTION_NAME"
+        )
         if not availability_function_name:
-            logger.warning("AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update")
+            logger.warning(
+                "AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update"
+            )
             return
-            
+
         # Create Lambda client and invoke the availability updater
-        lambda_client = boto3.client('lambda')
-        
+        lambda_client = boto3.client("lambda")
+
         # Invoke asynchronously to avoid blocking the expiry process
         response = lambda_client.invoke(
             FunctionName=availability_function_name,
-            InvocationType='Event',  # Async invocation
-            Payload='{}'  # Empty payload, the function will scan all GPU types
+            InvocationType="Event",  # Async invocation
+            Payload="{}",  # Empty payload, the function will scan all GPU types
         )
-        
-        logger.info(f"Successfully triggered availability updater function: {availability_function_name}")
-        
+
+        logger.info(
+            f"Successfully triggered availability updater function: {availability_function_name}"
+        )
+
     except Exception as e:
         logger.error(f"Failed to trigger availability update: {str(e)}")
         # Don't raise, just log the error as this is not critical
@@ -248,7 +255,9 @@ def handler(event, context):
         logger.info(f"Found {len(stale_reservations)} queued/pending reservations")
 
         warning_threshold = current_time + (WARNING_MINUTES * 60)
-        stale_threshold = current_time - (48 * 60 * 60)  # 48 hours ago (only cancel queued after 48+ hours)
+        stale_threshold = current_time - (
+            48 * 60 * 60
+        )  # 48 hours ago (only cancel queued after 48+ hours)
 
         logger.info(
             f"Expiry thresholds: current={current_time}, warning={warning_threshold}, stale={stale_threshold}"
@@ -293,21 +302,27 @@ def handler(event, context):
                     launched_at = reservation.get("launched_at", "")
                     grace_period_minutes = 10
                     skip_pod_check = False
-                    
+
                     if launched_at:
                         try:
                             launched_timestamp = int(
-                                datetime.fromisoformat(launched_at.replace("Z", "+00:00")).timestamp()
+                                datetime.fromisoformat(
+                                    launched_at.replace("Z", "+00:00")
+                                ).timestamp()
                             )
-                            grace_period_end = launched_timestamp + (grace_period_minutes * 60)
+                            grace_period_end = launched_timestamp + (
+                                grace_period_minutes * 60
+                            )
                             if current_time < grace_period_end:
                                 skip_pod_check = True
                                 logger.info(
                                     f"Skipping pod existence check for reservation {reservation_id[:8]} - within {grace_period_minutes}min grace period"
                                 )
                         except (ValueError, AttributeError) as e:
-                            logger.warning(f"Could not parse launched_at for reservation {reservation_id}: {e}")
-                    
+                            logger.warning(
+                                f"Could not parse launched_at for reservation {reservation_id}: {e}"
+                            )
+
                     if not skip_pod_check and not check_pod_exists(pod_name):
                         logger.warning(
                             f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired"
@@ -326,9 +341,11 @@ def handler(event, context):
 
                 # Find the most appropriate warning to send (only send one at a time)
                 warning_to_send = None
-                for warning_minutes in sorted(WARNING_LEVELS, reverse=True):  # Start with highest (30, 15, 5)
+                for warning_minutes in sorted(
+                    WARNING_LEVELS, reverse=True
+                ):  # Start with highest (30, 15, 5)
                     warning_key = f"{warning_minutes}min_warning_sent"
-                    
+
                     if (
                         minutes_until_expiry <= warning_minutes
                         and not warnings_sent.get(warning_key, False)
@@ -568,10 +585,12 @@ def expire_reservation(reservation: dict[str, Any]) -> None:
         logger.info(f"Expiring reservation {reservation_id} for user {user_id}")
 
         # 1. Update reservation status to expired
-        logger.info(f"Updating DynamoDB status to expired for reservation {reservation_id}")
+        logger.info(
+            f"Updating DynamoDB status to expired for reservation {reservation_id}"
+        )
         now = datetime.utcnow().isoformat()
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        
+
         try:
             reservations_table.update_item(
                 Key={"reservation_id": reservation_id},
@@ -583,33 +602,46 @@ def expire_reservation(reservation: dict[str, Any]) -> None:
                     ":reservation_ended": now,
                 },
             )
-            logger.info(f"Successfully updated DynamoDB status to expired for reservation {reservation_id}")
+            logger.info(
+                f"Successfully updated DynamoDB status to expired for reservation {reservation_id}"
+            )
         except Exception as db_error:
-            logger.error(f"Failed to update DynamoDB status for reservation {reservation_id}: {db_error}")
+            logger.error(
+                f"Failed to update DynamoDB status for reservation {reservation_id}: {db_error}"
+            )
             raise
 
         # 2. Clean up K8s pod (would use kubectl or K8s API)
         pod_name = reservation.get("pod_name")
         if pod_name:
-            logger.info(f"Starting pod cleanup for reservation {reservation_id}, pod: {pod_name}")
+            logger.info(
+                f"Starting pod cleanup for reservation {reservation_id}, pod: {pod_name}"
+            )
             try:
                 cleanup_pod(pod_name, reservation.get("namespace", "gpu-dev"))
                 logger.info(f"Pod cleanup completed for reservation {reservation_id}")
             except Exception as cleanup_error:
-                logger.error(f"Pod cleanup failed for reservation {reservation_id}: {cleanup_error}")
+                logger.error(
+                    f"Pod cleanup failed for reservation {reservation_id}: {cleanup_error}"
+                )
                 # Don't re-raise - we want to continue processing other reservations
                 # The DynamoDB status is already updated correctly
         else:
-            logger.warning(f"No pod_name found for reservation {reservation_id}, skipping pod cleanup")
+            logger.warning(
+                f"No pod_name found for reservation {reservation_id}, skipping pod cleanup"
+            )
 
         # GPU resources released automatically by K8s when pod is deleted
 
         logger.info(f"Successfully expired reservation {reservation_id}")
 
     except Exception as e:
-        logger.error(f"Error expiring reservation {reservation.get('reservation_id')}: {str(e)}")
+        logger.error(
+            f"Error expiring reservation {reservation.get('reservation_id')}: {str(e)}"
+        )
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
+
         logger.error(f"Full traceback: {traceback.format_exc()}")
         # Re-raise only for critical errors, not pod cleanup failures
         raise
@@ -681,7 +713,9 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
             )
             logger.info(f"Final warning message sent to pod {pod_name}")
         except Exception as warn_error:
-            logger.warning(f"Could not send final warning to pod {pod_name}: {warn_error}")
+            logger.warning(
+                f"Could not send final warning to pod {pod_name}: {warn_error}"
+            )
 
         # Delete the NodePort service first
         service_name = f"{pod_name}-ssh"
@@ -720,26 +754,31 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
                     )
                     logger.info(f"Successfully force deleted pod {pod_name}")
                 except client.exceptions.ApiException as force_error:
-                    logger.error(f"Failed to force delete pod {pod_name}: {force_error}")
+                    logger.error(
+                        f"Failed to force delete pod {pod_name}: {force_error}"
+                    )
                     raise
         except Exception as e:
             logger.error(f"Unexpected error deleting pod {pod_name}: {e}")
             raise
 
         logger.info(f"Pod cleanup completed successfully for {pod_name}")
-        
+
         # Trigger availability table update after pod cleanup
         try:
             trigger_availability_update()
             logger.info("Triggered availability table update after pod cleanup")
         except Exception as update_error:
-            logger.warning(f"Failed to trigger availability update after pod cleanup: {update_error}")
+            logger.warning(
+                f"Failed to trigger availability update after pod cleanup: {update_error}"
+            )
             # Don't fail the expiry for this
 
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
+
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise
 
@@ -800,7 +839,9 @@ def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = "gpu-
 
         # Warning message will be displayed via shell rc files (bashrc/zshrc)
         # No need for wall/terminal messaging since the file-based approach is more reliable
-        logger.info(f"Warning file created for pod {pod_name} - will be shown via shell prompt")
+        logger.info(
+            f"Warning file created for pod {pod_name} - will be shown via shell prompt"
+        )
 
     except Exception as e:
         logger.warning(f"Error preparing warning for pod {pod_name}: {str(e)}")
@@ -834,13 +875,11 @@ To extend your reservation, use the CLI:
   gpu-dev extend <reservation-id>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Generated at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+Generated at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
 """
 
         # Write file to /home/dev using Kubernetes exec, removing old warning files first
-        file_cmd = (
-            f'rm -f /home/dev/WARN_EXPIRES_IN_*MIN.txt 2>/dev/null; echo "{warning_content}" > /home/dev/WARN_EXPIRES_IN_{minutes_left}MIN.txt'
-        )
+        file_cmd = f'rm -f /home/dev/WARN_EXPIRES_IN_*MIN.txt 2>/dev/null; echo "{warning_content}" > /home/dev/WARN_EXPIRES_IN_{minutes_left}MIN.txt'
         exec_command = ["bash", "-c", file_cmd]
 
         try:

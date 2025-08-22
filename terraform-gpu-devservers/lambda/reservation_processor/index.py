@@ -57,22 +57,28 @@ def trigger_availability_update():
 
         # Get the availability updater function name from environment variable
         # This will be set in the Terraform configuration
-        availability_function_name = os.environ.get("AVAILABILITY_UPDATER_FUNCTION_NAME")
+        availability_function_name = os.environ.get(
+            "AVAILABILITY_UPDATER_FUNCTION_NAME"
+        )
         if not availability_function_name:
-            logger.warning("AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update")
+            logger.warning(
+                "AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update"
+            )
             return
 
         # Create Lambda client and invoke the availability updater
-        lambda_client = boto3.client('lambda')
+        lambda_client = boto3.client("lambda")
 
         # Invoke asynchronously to avoid blocking the reservation process
         response = lambda_client.invoke(
             FunctionName=availability_function_name,
-            InvocationType='Event',  # Async invocation
-            Payload='{}'  # Empty payload, the function will scan all GPU types
+            InvocationType="Event",  # Async invocation
+            Payload="{}",  # Empty payload, the function will scan all GPU types
         )
 
-        logger.info(f"Successfully triggered availability updater function: {availability_function_name}")
+        logger.info(
+            f"Successfully triggered availability updater function: {availability_function_name}"
+        )
 
     except Exception as e:
         logger.error(f"Failed to trigger availability update: {str(e)}")
@@ -99,7 +105,10 @@ def handler(event, context):
 
                     if message_type == "cancellation":
                         success = process_cancellation_request(record)
-                    elif message_body.get("action") in ["enable_jupyter", "disable_jupyter"]:
+                    elif message_body.get("action") in [
+                        "enable_jupyter",
+                        "disable_jupyter",
+                    ]:
                         success = process_jupyter_action(record)
                     elif message_body.get("action") == "add_user":
                         success = process_add_user_action(record)
@@ -141,7 +150,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                 from datetime import datetime, timedelta
 
                 duration_hours = reservation_request.get("duration_hours", 8)
-                expires_at = (datetime.utcnow() + timedelta(hours=duration_hours)).isoformat()
+                expires_at = (
+                    datetime.utcnow() + timedelta(hours=duration_hours)
+                ).isoformat()
 
                 # Convert duration_hours to Decimal for DynamoDB compatibility
                 duration_decimal = Decimal(str(duration_hours))
@@ -152,8 +163,13 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                     "gpu_count": reservation_request.get("gpu_count", 1),
                     "gpu_type": reservation_request.get("gpu_type", "a100"),
                     "duration_hours": duration_decimal,
-                    "name": reservation_request.get("name", f"{reservation_request.get('gpu_count', 1)}x {reservation_request.get('gpu_type', 'A100').upper()} reservation"),
-                    "created_at": reservation_request.get("created_at", datetime.utcnow().isoformat()),
+                    "name": reservation_request.get(
+                        "name",
+                        f"{reservation_request.get('gpu_count', 1)}x {reservation_request.get('gpu_type', 'A100').upper()} reservation",
+                    ),
+                    "created_at": reservation_request.get(
+                        "created_at", datetime.utcnow().isoformat()
+                    ),
                     "status": "pending",
                     "expires_at": expires_at,
                 }
@@ -170,7 +186,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                 logger.info(f"Created initial reservation record: {reservation_id}")
 
             except Exception as record_error:
-                logger.error(f"Failed to create initial reservation record: {record_error}")
+                logger.error(
+                    f"Failed to create initial reservation record: {record_error}"
+                )
                 # Continue processing even if record creation fails
 
         # Validate request
@@ -189,7 +207,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
             reservation_id = reservation_request.get("reservation_id")
             if reservation_id:
                 update_reservation_status(
-                    reservation_id, "preparing", f"Found {available_gpus} available {gpu_type.upper()} GPUs - preparing resources"
+                    reservation_id,
+                    "preparing",
+                    f"Found {available_gpus} available {gpu_type.upper()} GPUs - preparing resources",
                 )
 
             # Create reservation
@@ -303,7 +323,9 @@ def check_gpu_availability(gpu_type: str = None) -> int:
             try:
                 update_gpu_availability_table(gpu_type, available_gpus, k8s_client)
             except Exception as update_error:
-                logger.warning(f"Failed to update availability table for {gpu_type}: {update_error}")
+                logger.warning(
+                    f"Failed to update availability table for {gpu_type}: {update_error}"
+                )
                 # Don't fail the reservation processing if availability update fails
 
             return available_gpus
@@ -342,13 +364,17 @@ def check_schedulable_gpus_for_type(k8s_client, gpu_type: str) -> int:
 
             # Check if node is ready and schedulable
             if not is_node_ready_and_schedulable(node):
-                logger.info(f"Node {node.metadata.name} with GPU type {gpu_type} is not ready/schedulable")
+                logger.info(
+                    f"Node {node.metadata.name} with GPU type {gpu_type} is not ready/schedulable"
+                )
                 continue
 
             # Get available GPUs on this node
             node_gpus = get_available_gpus_on_node(v1, node)
             schedulable_gpus += node_gpus
-            logger.info(f"Node {node.metadata.name}: {node_gpus} available {gpu_type.upper()} GPUs")
+            logger.info(
+                f"Node {node.metadata.name}: {node_gpus} available {gpu_type.upper()} GPUs"
+            )
 
         return schedulable_gpus
 
@@ -403,18 +429,24 @@ def get_available_gpus_on_node(v1_api, node) -> int:
                 if pod.spec.containers:
                     for container in pod.spec.containers:
                         if container.resources and container.resources.requests:
-                            gpu_request = container.resources.requests.get("nvidia.com/gpu", "0")
+                            gpu_request = container.resources.requests.get(
+                                "nvidia.com/gpu", "0"
+                            )
                             used_gpus += int(gpu_request)
 
         available_gpus = max(0, total_gpus - used_gpus)
         return available_gpus
 
     except Exception as e:
-        logger.error(f"Error getting available GPUs on node {node.metadata.name}: {str(e)}")
+        logger.error(
+            f"Error getting available GPUs on node {node.metadata.name}: {str(e)}"
+        )
         return 0
 
 
-def update_gpu_availability_table(gpu_type: str, available_gpus: int, k8s_client) -> None:
+def update_gpu_availability_table(
+    gpu_type: str, available_gpus: int, k8s_client
+) -> None:
     """Update the GPU availability table with real-time data from Kubernetes"""
     try:
         from kubernetes import client
@@ -440,7 +472,7 @@ def update_gpu_availability_table(gpu_type: str, available_gpus: int, k8s_client
             "t4": {"gpus_per_instance": 4},
             "a100": {"gpus_per_instance": 8},
             "h100": {"gpus_per_instance": 8},
-            "h200": {"gpus_per_instance": 8}
+            "h200": {"gpus_per_instance": 8},
         }
 
         gpu_config = gpu_type_configs.get(gpu_type, {"gpus_per_instance": 8})
@@ -448,7 +480,10 @@ def update_gpu_availability_table(gpu_type: str, available_gpus: int, k8s_client
 
         # Update DynamoDB availability table
         import time
-        availability_table_name = os.environ.get("AVAILABILITY_TABLE", f"pytorch-gpu-dev-gpu-availability")
+
+        availability_table_name = os.environ.get(
+            "AVAILABILITY_TABLE", f"pytorch-gpu-dev-gpu-availability"
+        )
         availability_table = dynamodb.Table(availability_table_name)
 
         availability_table.put_item(
@@ -460,12 +495,13 @@ def update_gpu_availability_table(gpu_type: str, available_gpus: int, k8s_client
                 "desired_capacity": running_instances,  # For EKS, running = desired typically
                 "gpus_per_instance": gpus_per_instance,
                 "last_updated": "reservation-processor",
-                "last_updated_timestamp": int(time.time())
+                "last_updated_timestamp": int(time.time()),
             }
         )
 
         logger.info(
-            f"Updated availability table for {gpu_type}: {available_gpus}/{total_gpus} GPUs available ({running_instances} instances)")
+            f"Updated availability table for {gpu_type}: {available_gpus}/{total_gpus} GPUs available ({running_instances} instances)"
+        )
 
     except Exception as e:
         logger.error(f"Error updating availability table for {gpu_type}: {str(e)}")
@@ -527,12 +563,16 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         user_id = request.get("user_id")
         pod_name = f"gpu-dev-{reservation_id[:8]}"
 
-        logger.info(f"Allocating {gpu_count}x {gpu_type.upper()} GPUs for reservation {reservation_id}")
+        logger.info(
+            f"Allocating {gpu_count}x {gpu_type.upper()} GPUs for reservation {reservation_id}"
+        )
         logger.info(f"Pod name: {pod_name}")
 
         # Update status: Fetching SSH keys
         update_reservation_status(
-            reservation_id, "preparing", f"Fetching SSH keys for GitHub user {request.get('github_user', user_id)}"
+            reservation_id,
+            "preparing",
+            f"Fetching SSH keys for GitHub user {request.get('github_user', user_id)}",
         )
 
         # Get user's GitHub public key
@@ -547,7 +587,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
 
         # Update status: Creating Kubernetes resources
         update_reservation_status(
-            reservation_id, "preparing", f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs"
+            reservation_id,
+            "preparing",
+            f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs",
         )
 
         # Set up K8s client for resource management
@@ -566,7 +608,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
 
         # Update status: Pod created, waiting for container to start
         update_reservation_status(
-            reservation_id, "preparing", f"Pod created, downloading container image and starting services"
+            reservation_id,
+            "preparing",
+            f"Pod created, downloading container image and starting services",
         )
 
         # Get node public IP
@@ -580,7 +624,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
 
         # Update status: Waiting for SSH service
         update_reservation_status(
-            reservation_id, "preparing", f"Container started, waiting for SSH service on port {node_port}"
+            reservation_id,
+            "preparing",
+            f"Container started, waiting for SSH service on port {node_port}",
         )
 
         # Wait for SSH service to be fully ready (additional wait beyond pod ready)
@@ -608,7 +654,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             # Trigger availability table update after successful reservation
             try:
                 trigger_availability_update()
-                logger.info("Triggered availability table update after successful reservation")
+                logger.info(
+                    "Triggered availability table update after successful reservation"
+                )
             except Exception as update_error:
                 logger.warning(f"Failed to trigger availability update: {update_error}")
                 # Don't fail the reservation for this
@@ -719,17 +767,23 @@ def get_github_public_key(github_username: str, validate: bool = True) -> str:
         if validate:
             # Validate keys format (basic check for ssh-rsa/ssh-ed25519/ssh-ecdsa)
             valid_keys = []
-            for line in keys_data.split('\n'):
+            for line in keys_data.split("\n"):
                 line = line.strip()
-                if line and (line.startswith('ssh-rsa') or line.startswith('ssh-ed25519') or line.startswith('ssh-ecdsa')):
+                if line and (
+                    line.startswith("ssh-rsa")
+                    or line.startswith("ssh-ed25519")
+                    or line.startswith("ssh-ecdsa")
+                ):
                     valid_keys.append(line)
 
             if not valid_keys:
-                logger.error(f"No valid SSH keys found for GitHub user {github_username}")
+                logger.error(
+                    f"No valid SSH keys found for GitHub user {github_username}"
+                )
                 return None
 
             logger.info(f"Found {len(valid_keys)} valid SSH keys for {github_username}")
-            return '\n'.join(valid_keys)
+            return "\n".join(valid_keys)
         else:
             # Return ALL SSH keys without validation (legacy behavior)
             return keys_data
@@ -740,7 +794,12 @@ def get_github_public_key(github_username: str, validate: bool = True) -> str:
 
 
 def create_kubernetes_resources(
-    pod_name: str, gpu_count: int, gpu_type: str, github_public_key: str, reservation_id: str, jupyter_enabled: bool = False
+    pod_name: str,
+    gpu_count: int,
+    gpu_type: str,
+    github_public_key: str,
+    reservation_id: str,
+    jupyter_enabled: bool = False,
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
@@ -805,8 +864,12 @@ def create_kubernetes_resources(
                 )
             else:
                 # Find available node ports (30000-32767 range)
-                node_port = existing_service_port or find_available_node_port(k8s_client)
-                jupyter_port = existing_jupyter_port or find_available_node_port(k8s_client)
+                node_port = existing_service_port or find_available_node_port(
+                    k8s_client
+                )
+                jupyter_port = existing_jupyter_port or find_available_node_port(
+                    k8s_client
+                )
 
                 # Ensure SSH and Jupyter use different ports
                 while jupyter_port == node_port:
@@ -814,48 +877,90 @@ def create_kubernetes_resources(
 
                 # Create pod if it doesn't exist
                 if not pod_exists:
-                    update_reservation_status(reservation_id, "preparing", f"Creating Kubernetes pod {pod_name}")
-                    create_pod(k8s_client, pod_name, gpu_count, gpu_type, github_public_key, jupyter_enabled=True)
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing",
+                        f"Creating Kubernetes pod {pod_name}",
+                    )
+                    create_pod(
+                        k8s_client,
+                        pod_name,
+                        gpu_count,
+                        gpu_type,
+                        github_public_key,
+                        jupyter_enabled=True,
+                    )
                     logger.info(f"Created new pod {pod_name} with Jupyter")
-                    update_reservation_status(reservation_id, "preparing",
-                                              f"Pod created, waiting for container to download and start")
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing",
+                        f"Pod created, waiting for container to download and start",
+                    )
 
                 # Create SSH service if it doesn't exist
                 if not existing_service_port:
                     create_service(k8s_client, pod_name, node_port)
-                    logger.info(f"Created new service {pod_name}-ssh on port {node_port}")
+                    logger.info(
+                        f"Created new service {pod_name}-ssh on port {node_port}"
+                    )
 
                 # Create Jupyter service if it doesn't exist
                 if not existing_jupyter_port:
                     create_jupyter_service(k8s_client, pod_name, jupyter_port)
-                    logger.info(f"Created new service {pod_name}-jupyter on port {jupyter_port}")
+                    logger.info(
+                        f"Created new service {pod_name}-jupyter on port {jupyter_port}"
+                    )
         else:
             # Jupyter disabled - only SSH service needed
             jupyter_port = 0  # No Jupyter port
 
             if pod_exists and existing_service_port:
                 node_port = existing_service_port
-                logger.info(f"Using existing resources: pod {pod_name}, SSH port {node_port}")
+                logger.info(
+                    f"Using existing resources: pod {pod_name}, SSH port {node_port}"
+                )
             else:
-                node_port = existing_service_port or find_available_node_port(k8s_client)
+                node_port = existing_service_port or find_available_node_port(
+                    k8s_client
+                )
 
                 # Create pod if it doesn't exist
                 if not pod_exists:
-                    update_reservation_status(reservation_id, "preparing", f"Creating Kubernetes pod {pod_name}")
-                    create_pod(k8s_client, pod_name, gpu_count, gpu_type, github_public_key, jupyter_enabled=False)
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing",
+                        f"Creating Kubernetes pod {pod_name}",
+                    )
+                    create_pod(
+                        k8s_client,
+                        pod_name,
+                        gpu_count,
+                        gpu_type,
+                        github_public_key,
+                        jupyter_enabled=False,
+                    )
                     logger.info(f"Created new pod {pod_name} without Jupyter")
-                    update_reservation_status(reservation_id, "preparing",
-                                              f"Pod created, waiting for container to download and start")
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing",
+                        f"Pod created, waiting for container to download and start",
+                    )
 
                 # Create SSH service if it doesn't exist
                 if not existing_service_port:
                     create_service(k8s_client, pod_name, node_port)
-                    logger.info(f"Created new service {pod_name}-ssh on port {node_port}")
+                    logger.info(
+                        f"Created new service {pod_name}-ssh on port {node_port}"
+                    )
 
         # Wait for pod to be ready (regardless of whether it was just created or already existed)
-        update_reservation_status(reservation_id, "preparing", f"Waiting for pod {pod_name} to become ready")
+        update_reservation_status(
+            reservation_id, "preparing", f"Waiting for pod {pod_name} to become ready"
+        )
         wait_for_pod_ready(k8s_client, pod_name)
-        update_reservation_status(reservation_id, "preparing", f"Pod is ready, setting up services")
+        update_reservation_status(
+            reservation_id, "preparing", f"Pod is ready, setting up services"
+        )
 
         return node_port, jupyter_port
 
@@ -903,7 +1008,14 @@ def find_available_node_port(k8s_client) -> int:
         return random.randint(30000, 32767)
 
 
-def create_pod(k8s_client, pod_name: str, gpu_count: int, gpu_type: str, github_public_key: str, jupyter_enabled: bool = False):
+def create_pod(
+    k8s_client,
+    pod_name: str,
+    gpu_count: int,
+    gpu_type: str,
+    github_public_key: str,
+    jupyter_enabled: bool = False,
+):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
         from kubernetes import client
@@ -1388,10 +1500,12 @@ EOF
                     ],
                     ports=[
                         client.V1ContainerPort(container_port=22),
-                        client.V1ContainerPort(container_port=8888)
+                        client.V1ContainerPort(container_port=8888),
                     ],
                     env=[
-                        client.V1EnvVar(name="JUPYTER_ENABLED", value=str(jupyter_enabled).lower())
+                        client.V1EnvVar(
+                            name="JUPYTER_ENABLED", value=str(jupyter_enabled).lower()
+                        )
                     ],
                     resources=client.V1ResourceRequirements(
                         limits={"nvidia.com/gpu": str(gpu_count)},
@@ -1767,9 +1881,9 @@ def get_jupyter_token_from_pod(k8s_client, pod_name: str) -> str:
 
         # Execute command to read the token file
         exec_command = [
-            '/bin/bash',
-            '-c',
-            'cat /tmp/jupyter_token 2>/dev/null || echo "TOKEN_NOT_READY"'
+            "/bin/bash",
+            "-c",
+            'cat /tmp/jupyter_token 2>/dev/null || echo "TOKEN_NOT_READY"',
         ]
 
         resp = stream(
@@ -1780,7 +1894,7 @@ def get_jupyter_token_from_pod(k8s_client, pod_name: str) -> str:
             stderr=True,
             stdin=False,
             stdout=True,
-            tty=False
+            tty=False,
         )
 
         token = resp.strip()
@@ -1797,8 +1911,15 @@ def get_jupyter_token_from_pod(k8s_client, pod_name: str) -> str:
 
 
 def update_reservation_connection_info(
-    reservation_id: str, ssh_command: str, pod_name: str, node_port: int, node_ip: str,
-    jupyter_port: int, jupyter_url_base: str, jupyter_enabled: bool = False, k8s_client=None
+    reservation_id: str,
+    ssh_command: str,
+    pod_name: str,
+    node_port: int,
+    node_ip: str,
+    jupyter_port: int,
+    jupyter_url_base: str,
+    jupyter_enabled: bool = False,
+    k8s_client=None,
 ):
     """Update reservation with connection details and set proper expiration time"""
     try:
@@ -1837,6 +1958,7 @@ def update_reservation_connection_info(
             try:
                 # Check if Jupyter process is running
                 from kubernetes.stream import stream
+
                 v1 = client.CoreV1Api(k8s_client)
 
                 check_resp = stream(
@@ -1847,7 +1969,7 @@ def update_reservation_connection_info(
                     stderr=True,
                     stdin=False,
                     stdout=True,
-                    tty=False
+                    tty=False,
                 )
 
                 if not check_resp.strip():
@@ -1860,18 +1982,28 @@ def update_reservation_connection_info(
                         stderr=True,
                         stdin=False,
                         stdout=True,
-                        tty=False
+                        tty=False,
                     )
 
                     actual_jupyter_enabled = False
-                    jupyter_error_msg = f"Jupyter failed to start: {log_resp.strip()[:200]}"
-                    logger.warning(f"Jupyter was requested but failed to start in pod {pod_name}: {jupyter_error_msg}")
+                    jupyter_error_msg = (
+                        f"Jupyter failed to start: {log_resp.strip()[:200]}"
+                    )
+                    logger.warning(
+                        f"Jupyter was requested but failed to start in pod {pod_name}: {jupyter_error_msg}"
+                    )
 
             except Exception as jupyter_check_error:
-                logger.warning(f"Could not verify Jupyter status in pod {pod_name}: {jupyter_check_error}")
+                logger.warning(
+                    f"Could not verify Jupyter status in pod {pod_name}: {jupyter_check_error}"
+                )
                 # Keep original state if we can't check
 
-        jupyter_url = f"{jupyter_url_base}?token={jupyter_token}" if jupyter_token and actual_jupyter_enabled else jupyter_url_base
+        jupyter_url = (
+            f"{jupyter_url_base}?token={jupyter_token}"
+            if jupyter_token and actual_jupyter_enabled
+            else jupyter_url_base
+        )
 
         # Build update expression dynamically based on whether there's a Jupyter error
         update_expression = """
@@ -2463,7 +2595,9 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
         return False  # Retry on processing errors
 
 
-def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation_id: str) -> bool:
+def enable_jupyter_in_pod(
+    k8s_client, pod_name: str, namespace: str, reservation_id: str
+) -> bool:
     """Enable Jupyter Lab in a running pod"""
     try:
         from kubernetes import client
@@ -2483,7 +2617,7 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
                 stderr=True,
                 stdin=False,
                 stdout=True,
-                tty=False
+                tty=False,
             )
 
             if "jupyter" in check_resp:
@@ -2497,7 +2631,9 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
 
         # Start Jupyter using existing config (config always exists from pod creation)
         start_commands = [
-            "/bin/bash", "-c", """
+            "/bin/bash",
+            "-c",
+            """
             set -e
             
             # Start Jupyter as dev user in background (config already exists)
@@ -2515,7 +2651,7 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
                 echo "Failed to start Jupyter Lab"
                 exit 1
             fi
-            """
+            """,
         ]
 
         exec_resp = stream(
@@ -2526,7 +2662,7 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
             stderr=True,
             stdin=False,
             stdout=True,
-            tty=False
+            tty=False,
         )
 
         if "Jupyter Lab started successfully" in exec_resp:
@@ -2537,6 +2673,7 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
                 existing_jupyter_port = None
                 try:
                     from kubernetes import client
+
                     v1 = client.CoreV1Api(k8s_client)
                     jupyter_service = v1.read_namespaced_service(
                         name=f"{pod_name}-jupyter", namespace=namespace
@@ -2568,8 +2705,8 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
                         ":enabled": True,
                         ":port": jupyter_port,
                         ":url": jupyter_url,
-                        ":token": jupyter_token or ""
-                    }
+                        ":token": jupyter_token or "",
+                    },
                 )
 
                 logger.info(f"Jupyter enabled with URL: {jupyter_url}")
@@ -2581,7 +2718,9 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
 
             return True
         else:
-            logger.error(f"Failed to enable Jupyter in pod {pod_name}, output: {exec_resp}")
+            logger.error(
+                f"Failed to enable Jupyter in pod {pod_name}, output: {exec_resp}"
+            )
             return False
 
     except Exception as e:
@@ -2589,7 +2728,9 @@ def enable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation
         return False
 
 
-def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservation_id: str) -> bool:
+def disable_jupyter_in_pod(
+    k8s_client, pod_name: str, namespace: str, reservation_id: str
+) -> bool:
     """Disable Jupyter Lab in a running pod"""
     try:
         from kubernetes import client
@@ -2599,7 +2740,9 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
 
         # Kill Jupyter processes
         kill_commands = [
-            "/bin/bash", "-c", """
+            "/bin/bash",
+            "-c",
+            """
             set -e
             
             echo "Stopping Jupyter Lab..."
@@ -2630,7 +2773,7 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
                     exit 1
                 fi
             fi
-            """
+            """,
         ]
 
         exec_resp = stream(
@@ -2641,19 +2784,28 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
             stderr=True,
             stdin=False,
             stdout=True,
-            tty=False
+            tty=False,
         )
 
         # Check if the disable command ran (even if it didn't produce the expected success message)
         # The fact that we got output "Stopping Jupyter Lab..." means the command started
-        if "Stopping Jupyter Lab" in exec_resp or "Jupyter Lab stopped successfully" in exec_resp or "Jupyter Lab force-stopped" in exec_resp:
-            logger.info(f"Jupyter disable command executed in pod {pod_name}, output: {exec_resp}")
+        if (
+            "Stopping Jupyter Lab" in exec_resp
+            or "Jupyter Lab stopped successfully" in exec_resp
+            or "Jupyter Lab force-stopped" in exec_resp
+        ):
+            logger.info(
+                f"Jupyter disable command executed in pod {pod_name}, output: {exec_resp}"
+            )
 
             # Remove Jupyter service
             try:
                 from kubernetes import client
+
                 v1 = client.CoreV1Api(k8s_client)
-                v1.delete_namespaced_service(name=f"{pod_name}-jupyter", namespace=namespace)
+                v1.delete_namespaced_service(
+                    name=f"{pod_name}-jupyter", namespace=namespace
+                )
                 logger.info(f"Deleted Jupyter service for pod {pod_name}")
             except client.exceptions.ApiException as service_error:
                 if service_error.status == 404:
@@ -2669,15 +2821,18 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
                 UpdateExpression="SET jupyter_enabled = :enabled, last_updated = :timestamp REMOVE jupyter_url, jupyter_token, jupyter_port",
                 ExpressionAttributeValues={
                     ":enabled": False,
-                    ":timestamp": current_timestamp
-                }
+                    ":timestamp": current_timestamp,
+                },
             )
             logger.info(
-                f"Updated reservation {reservation_id} with jupyter_enabled=False, removed jupyter_url/token/port")
+                f"Updated reservation {reservation_id} with jupyter_enabled=False, removed jupyter_url/token/port"
+            )
 
             return True
         else:
-            logger.error(f"Failed to disable Jupyter in pod {pod_name}, output: {exec_resp}")
+            logger.error(
+                f"Failed to disable Jupyter in pod {pod_name}, output: {exec_resp}"
+            )
             return False
 
     except Exception as e:
@@ -2685,7 +2840,9 @@ def disable_jupyter_in_pod(k8s_client, pod_name: str, namespace: str, reservatio
         return False
 
 
-def add_user_to_pod(k8s_client, pod_name: str, namespace: str, reservation_id: str, github_username: str) -> bool:
+def add_user_to_pod(
+    k8s_client, pod_name: str, namespace: str, reservation_id: str, github_username: str
+) -> bool:
     """Add a GitHub user's SSH keys to a running pod"""
     try:
         from kubernetes import client
@@ -2700,7 +2857,9 @@ def add_user_to_pod(k8s_client, pod_name: str, namespace: str, reservation_id: s
 
         # Add SSH keys to authorized_keys file
         add_keys_commands = [
-            "/bin/bash", "-c", f"""
+            "/bin/bash",
+            "-c",
+            f"""
             set -e
             
             echo "Adding SSH keys for user {github_username}..."
@@ -2729,7 +2888,7 @@ EOF
             
             echo "Added $keys_added new SSH keys for {github_username}"
             echo "SSH keys for {github_username} added successfully"
-            """
+            """,
         ]
 
         exec_resp = stream(
@@ -2740,11 +2899,13 @@ EOF
             stderr=True,
             stdin=False,
             stdout=True,
-            tty=False
+            tty=False,
         )
 
         if f"SSH keys for {github_username} added successfully" in exec_resp:
-            logger.info(f"Successfully added SSH keys for {github_username} to pod {pod_name}")
+            logger.info(
+                f"Successfully added SSH keys for {github_username} to pod {pod_name}"
+            )
 
             # Update reservation with secondary user
             reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -2752,33 +2913,46 @@ EOF
 
             # Get current secondary users list
             try:
-                get_response = reservations_table.get_item(Key={"reservation_id": reservation_id})
-                current_secondary_users = get_response.get("Item", {}).get("secondary_users", [])
+                get_response = reservations_table.get_item(
+                    Key={"reservation_id": reservation_id}
+                )
+                current_secondary_users = get_response.get("Item", {}).get(
+                    "secondary_users", []
+                )
 
                 # Add new user if not already present
                 if github_username not in current_secondary_users:
-                    updated_secondary_users = current_secondary_users + [github_username]
+                    updated_secondary_users = current_secondary_users + [
+                        github_username
+                    ]
 
                     reservations_table.update_item(
                         Key={"reservation_id": reservation_id},
                         UpdateExpression="SET secondary_users = :users, last_updated = :timestamp",
                         ExpressionAttributeValues={
                             ":users": updated_secondary_users,
-                            ":timestamp": current_timestamp
-                        }
+                            ":timestamp": current_timestamp,
+                        },
                     )
-                    logger.info(f"Updated reservation {reservation_id} with secondary user {github_username}")
+                    logger.info(
+                        f"Updated reservation {reservation_id} with secondary user {github_username}"
+                    )
                 else:
                     logger.info(
-                        f"User {github_username} already in secondary users list for reservation {reservation_id}")
+                        f"User {github_username} already in secondary users list for reservation {reservation_id}"
+                    )
 
             except Exception as db_error:
-                logger.error(f"Failed to update reservation with secondary user: {db_error}")
+                logger.error(
+                    f"Failed to update reservation with secondary user: {db_error}"
+                )
                 # Still return True since the SSH keys were added successfully
 
             return True
         else:
-            logger.error(f"Failed to add SSH keys for {github_username} to pod {pod_name}, output: {exec_resp}")
+            logger.error(
+                f"Failed to add SSH keys for {github_username} to pod {pod_name}, output: {exec_resp}"
+            )
             return False
 
     except Exception as e:
@@ -2786,17 +2960,21 @@ EOF
         return False
 
 
-def update_reservation_jupyter_status(reservation_id: str, jupyter_enabled: bool) -> None:
+def update_reservation_jupyter_status(
+    reservation_id: str, jupyter_enabled: bool
+) -> None:
     """Update the Jupyter enabled status in DynamoDB"""
     try:
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         reservations_table.update_item(
             Key={"reservation_id": reservation_id},
             UpdateExpression="SET jupyter_enabled = :jupyter_enabled",
-            ExpressionAttributeValues={":jupyter_enabled": jupyter_enabled}
+            ExpressionAttributeValues={":jupyter_enabled": jupyter_enabled},
         )
     except Exception as e:
-        logger.error(f"Error updating Jupyter status for reservation {reservation_id}: {str(e)}")
+        logger.error(
+            f"Error updating Jupyter status for reservation {reservation_id}: {str(e)}"
+        )
 
 
 def process_jupyter_action(record: dict[str, Any]) -> bool:
@@ -2811,7 +2989,9 @@ def process_jupyter_action(record: dict[str, Any]) -> bool:
             logger.error(f"Missing required fields in Jupyter action: {message}")
             return True  # Don't retry malformed messages
 
-        logger.info(f"Processing Jupyter action: {action} for reservation {reservation_id}")
+        logger.info(
+            f"Processing Jupyter action: {action} for reservation {reservation_id}"
+        )
 
         # Get reservation details - support partial reservation IDs
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -2827,28 +3007,39 @@ def process_jupyter_action(record: dict[str, Any]) -> bool:
 
             items = scan_response.get("Items", [])
             if len(items) == 0:
-                logger.error(f"Reservation {reservation_id} not found for user {user_id}")
+                logger.error(
+                    f"Reservation {reservation_id} not found for user {user_id}"
+                )
                 return True  # Don't retry - reservation doesn't exist
             elif len(items) > 1:
                 logger.error(
-                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}")
+                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}"
+                )
                 return True  # Don't retry - ambiguous prefix
 
             reservation = items[0]
             full_reservation_id = reservation["reservation_id"]  # Get the full UUID
-            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+            logger.info(
+                f"Found reservation {full_reservation_id} (prefix: {reservation_id})"
+            )
 
         except Exception as db_error:
-            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            logger.error(
+                f"Database error looking up reservation {reservation_id}: {db_error}"
+            )
             return False  # Retry on database errors
 
         # Verify user owns the reservation and it's active
         if reservation.get("user_id") != user_id:
-            logger.error(f"User {user_id} doesn't own reservation {full_reservation_id}")
+            logger.error(
+                f"User {user_id} doesn't own reservation {full_reservation_id}"
+            )
             return True  # Don't retry - authorization error
 
         if reservation.get("status") != "active":
-            logger.error(f"Can only modify active reservations (current: {reservation.get('status')})")
+            logger.error(
+                f"Can only modify active reservations (current: {reservation.get('status')})"
+            )
             return True  # Don't retry - invalid state
 
         # Get pod info
@@ -2864,15 +3055,23 @@ def process_jupyter_action(record: dict[str, Any]) -> bool:
         success = False
 
         if action == "enable_jupyter":
-            success = enable_jupyter_in_pod(k8s_client, pod_name, namespace, full_reservation_id)
+            success = enable_jupyter_in_pod(
+                k8s_client, pod_name, namespace, full_reservation_id
+            )
         elif action == "disable_jupyter":
-            success = disable_jupyter_in_pod(k8s_client, pod_name, namespace, full_reservation_id)
+            success = disable_jupyter_in_pod(
+                k8s_client, pod_name, namespace, full_reservation_id
+            )
 
         if success:
-            logger.info(f"Successfully {action}d Jupyter for reservation {full_reservation_id}")
+            logger.info(
+                f"Successfully {action}d Jupyter for reservation {full_reservation_id}"
+            )
             return True
         else:
-            logger.error(f"Failed to {action} Jupyter for reservation {full_reservation_id}")
+            logger.error(
+                f"Failed to {action} Jupyter for reservation {full_reservation_id}"
+            )
             return False  # Retry on failure
 
     except Exception as e:
@@ -2893,7 +3092,9 @@ def process_add_user_action(record: dict[str, Any]) -> bool:
             logger.error(f"Missing required fields in add user action: {message}")
             return True  # Don't retry malformed messages
 
-        logger.info(f"Processing add user action: adding {github_username} to reservation {reservation_id}")
+        logger.info(
+            f"Processing add user action: adding {github_username} to reservation {reservation_id}"
+        )
 
         # Get reservation details - support partial reservation IDs
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -2909,28 +3110,39 @@ def process_add_user_action(record: dict[str, Any]) -> bool:
 
             items = scan_response.get("Items", [])
             if len(items) == 0:
-                logger.error(f"Reservation {reservation_id} not found for user {user_id}")
+                logger.error(
+                    f"Reservation {reservation_id} not found for user {user_id}"
+                )
                 return True  # Don't retry - reservation doesn't exist
             elif len(items) > 1:
                 logger.error(
-                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}")
+                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}"
+                )
                 return True  # Don't retry - ambiguous prefix
 
             reservation = items[0]
             full_reservation_id = reservation["reservation_id"]  # Get the full UUID
-            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+            logger.info(
+                f"Found reservation {full_reservation_id} (prefix: {reservation_id})"
+            )
 
         except Exception as db_error:
-            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            logger.error(
+                f"Database error looking up reservation {reservation_id}: {db_error}"
+            )
             return False  # Retry on database errors
 
         # Verify user owns the reservation and it's active
         if reservation.get("user_id") != user_id:
-            logger.error(f"User {user_id} doesn't own reservation {full_reservation_id}")
+            logger.error(
+                f"User {user_id} doesn't own reservation {full_reservation_id}"
+            )
             return True  # Don't retry - authorization error
 
         if reservation.get("status") != "active":
-            logger.error(f"Can only modify active reservations (current: {reservation.get('status')})")
+            logger.error(
+                f"Can only modify active reservations (current: {reservation.get('status')})"
+            )
             return True  # Don't retry - invalid state
 
         # Get pod info
@@ -2943,13 +3155,19 @@ def process_add_user_action(record: dict[str, Any]) -> bool:
 
         # Add user SSH keys to pod
         k8s_client = get_k8s_client()
-        success = add_user_to_pod(k8s_client, pod_name, namespace, full_reservation_id, github_username)
+        success = add_user_to_pod(
+            k8s_client, pod_name, namespace, full_reservation_id, github_username
+        )
 
         if success:
-            logger.info(f"Successfully added user {github_username} to reservation {full_reservation_id}")
+            logger.info(
+                f"Successfully added user {github_username} to reservation {full_reservation_id}"
+            )
             return True
         else:
-            logger.error(f"Failed to add user {github_username} to reservation {full_reservation_id}")
+            logger.error(
+                f"Failed to add user {github_username} to reservation {full_reservation_id}"
+            )
             return False  # Retry on failure
 
     except Exception as e:
