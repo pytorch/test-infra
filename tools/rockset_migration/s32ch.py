@@ -9,6 +9,7 @@ import importlib
 import json
 import os
 import sys
+import tempfile
 import time
 import urllib
 from argparse import ArgumentParser
@@ -68,7 +69,6 @@ def parse_args() -> Any:
     parser.add_argument(
         "--stored-data",
         type=str,
-        required=True,
         help=(
             "the name of file containing info between runs. ",
             "Should be a JSON file with a dict. ",
@@ -138,11 +138,22 @@ def backfill_s3(
     bucket: str,
     prefix: str,
     clickhouse_table: str,
-    stored_data_file: str,
+    stored_data_file: Optional[str],
 ) -> None:
     """
     Upload from s3 into clickhouse
     """
+
+    # Create a temporary stored data file if none is provided
+    if stored_data_file is None:
+        if not os.path.exists("/tmp"):
+            os.makedirs("/tmp")
+        temp_fd, stored_data_file = tempfile.mkstemp(
+            suffix=".json", prefix=f"s3_to_ch__{clickhouse_table}__", dir="/tmp"
+        )
+        os.write(temp_fd, "{}\n".encode("utf-8"))
+        os.close(temp_fd)  # Close the file descriptor, we'll use the filename
+        print(f"Created temporary stored data file: {stored_data_file}")
 
     with open(stored_data_file, "r") as f:
         stored_data = json.load(f)
