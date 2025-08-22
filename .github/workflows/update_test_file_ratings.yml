@@ -114,11 +114,11 @@ jobs:
         name: Checkout repository
 
       - name: Install Dependencies
-        run: python -m pip install boto3==1.19.12 PyYAML==6.0
+        run: python3 -m pip install boto3==1.19.12 PyYAML==6.0
 
       - name: Generate EC2 pricing data
         run: |
-          python torchci/ec2_pricing.py --output ec2_pricing.json
+          python3 torchci/ec2_pricing.py --output ec2_pricing.json
 
       - name: Compress pricing file
         run: |
