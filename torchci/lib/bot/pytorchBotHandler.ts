@@ -12,7 +12,7 @@ import {
   CachedConfigTracker,
   hasApprovedPullRuns,
   isFirstTimeContributor,
-  isPyTorchOrg,
+  isPyTorchManagedOrg,
   isPyTorchPyTorch,
   reactOnComment,
 } from "./utils";
@@ -274,7 +274,7 @@ The explanation needs to be clear on why this is needed. Here are some good exam
 
     if (forceRequested) {
       rejection_reason = await this.reasonToRejectForceRequest(forceMessage);
-    } else if (isPyTorchOrg(this.owner)) {
+    } else if (isPyTorchManagedOrg(this.owner)) {
       // Ensure the PR has been signed off on
       let approval_status = await this.getApprovalStatus();
       if (approval_status == PR_CHANGES_REQUESTED) {
