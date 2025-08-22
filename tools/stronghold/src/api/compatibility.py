@@ -21,17 +21,15 @@ def check_range(
     base: str,
     config: api.config.Config | None = None,
 ) -> Mapping[pathlib.Path, Sequence[api.violations.Violation]]:
-    cfg = config or api.config.load_config(repo.dir)
+    cfg = config or api.config.default_config()
     result = {}
     for file in repo.get_files_in_range(f"{base}..{head}"):
         # Only consider Python files.
         if file.suffix != ".py":
             continue
-
-        # Evaluate path allowlist/denylist; annotations may override inside `check`.
-        file_allowed = api.config.match_any(
-            file, cfg.include
-        ) and not api.config.match_any(file, cfg.exclude)
+        # Note: path allow/deny is applied at symbol-level inside `check` so that
+        # annotation-based overrides can include symbols even from otherwise
+        # excluded files.
 
         # Get the contents before and after the diff.
         #

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import dataclasses
-import fnmatch
 import pathlib
 from typing import Any, Iterable, Sequence
 
@@ -26,7 +25,10 @@ class Config:
     version: int = 1
     include: Sequence[str] = dataclasses.field(default_factory=lambda: ["**/*.py"])
     exclude: Sequence[str] = dataclasses.field(
-        default_factory=lambda: ["**/.*/**", "**/.*"]
+        # Exclude hidden paths both at top-level and nested directories
+        # Path matching uses pathspec (gitwildmatch), so these patterns will
+        # catch top-level and nested dot directories/files.
+        default_factory=lambda: [".*", ".*/**", "**/.*/**", "**/.*"]
     )
     scan: ScanSpec = dataclasses.field(default_factory=ScanSpec)
     annotations_include: Sequence[AnnotationSpec] = dataclasses.field(
@@ -52,14 +54,17 @@ def default_config() -> Config:
     return Config()
 
 
-def load_config(repo_root: pathlib.Path) -> Config:
+def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
     """Loads configuration from `.bc-linter.yml` in the given repository root.
 
-    If the file does not exist or cannot be parsed, returns defaults.
+    Returns (config, status) where status is one of:
+    - 'parsed'            -> config file existed and parsed successfully
+    - 'default_missing'   -> no config file found
+    - 'default_error'     -> file existed but YAML missing/invalid or parser unavailable
     """
     cfg_path = repo_root / ".bc-linter.yml"
     if not cfg_path.exists():
-        return default_config()
+        return (default_config(), "default_missing")
 
     data: dict[str, Any] | None = None
     try:
@@ -68,18 +73,18 @@ def load_config(repo_root: pathlib.Path) -> Config:
         with cfg_path.open("r", encoding="utf-8") as fh:
             loaded = yaml.safe_load(fh)  # may be None for empty file
             if loaded is None:
-                return default_config()
+                return (default_config(), "default_error")
             assert isinstance(loaded, dict)
             data = loaded  # type: ignore[assignment]
     except Exception:
         # If PyYAML is not available or parsing fails, fall back to defaults.
-        return default_config()
+        return (default_config(), "default_error")
 
     version = int(data.get("version", 1))
 
     paths = data.get("paths", {}) or {}
     include = _as_list_str(paths.get("include", ["**/*.py"]))
-    exclude = _as_list_str(paths.get("exclude", ["**/.*/**", "**/.*"]))
+    exclude = _as_list_str(paths.get("exclude", [".*", ".*/**", "**/.*/**", "**/.*"]))
 
     scan = data.get("scan", {}) or {}
     scan_spec = ScanSpec(
@@ -116,7 +121,7 @@ def load_config(repo_root: pathlib.Path) -> Config:
 
     excluded_violations = _as_list_str(data.get("excluded_violations", []))
 
-    return Config(
+    cfg = Config(
         version=version,
         include=include,
         exclude=exclude,
@@ -125,6 +130,16 @@ def load_config(repo_root: pathlib.Path) -> Config:
         annotations_exclude=anns_exc,
         excluded_violations=excluded_violations,
     )
+    return (cfg, "parsed")
+
+
+def load_config(repo_root: pathlib.Path) -> Config:
+    """Loads configuration from `.bc-linter.yml` in the given repository root.
+
+    If the file does not exist or cannot be parsed, returns defaults.
+    """
+    cfg, _ = load_config_with_status(repo_root)
+    return cfg
 
 
 def match_any(path: pathlib.Path, patterns: Sequence[str]) -> bool:
@@ -132,5 +147,12 @@ def match_any(path: pathlib.Path, patterns: Sequence[str]) -> bool:
 
     Patterns are matched against POSIX-style paths.
     """
-    posix = path.as_posix()
-    return any(fnmatch.fnmatch(posix, pat) for pat in patterns)
+    # An empty pattern list should be a no-op (match everything)
+    # to allow "include: []" semantics -> do not restrict by include.
+    if not patterns:
+        return True
+    # Require pathspec; no fallback to avoid divergent semantics.
+    import pathspec
+
+    spec = pathspec.PathSpec.from_lines("gitwildmatch", patterns)
+    return spec.match_file(path.as_posix())

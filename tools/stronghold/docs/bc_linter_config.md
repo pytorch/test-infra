@@ -58,7 +58,7 @@ If `.bc-linter.yml` is missing or empty, the following defaults apply:
 version: 1
 paths:
   include: ["**/*.py"]
-  exclude: ["**/.*/**", "**/.*"]
+  exclude: [".*", ".*/**", ".*/**/*", "**/.*/**", "**/.*"]
 scan:
   functions: true
   classes: true
