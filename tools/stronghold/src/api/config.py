@@ -82,7 +82,18 @@ def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
 
     version = int(data.get("version", 1))
 
-    paths = data.get("paths", {}) or {}
+    # Accept both nested `paths: {include, exclude}` and top-level
+    # `include`/`exclude` keys for convenience.
+    raw_paths = data.get("paths")
+    paths: dict[str, Any] = {}
+    if isinstance(raw_paths, dict):
+        paths.update(raw_paths)
+    # Fallback: if top-level include/exclude are present, use them unless
+    # already provided under `paths`.
+    if "include" in data and "include" not in paths:
+        paths["include"] = data["include"]
+    if "exclude" in data and "exclude" not in paths:
+        paths["exclude"] = data["exclude"]
     include = _as_list_str(paths.get("include", ["**/*.py"]))
     exclude = _as_list_str(paths.get("exclude", [".*", ".*/**", "**/.*/**", "**/.*"]))
 
