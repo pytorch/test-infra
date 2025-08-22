@@ -7,9 +7,10 @@ and fetching current AWS pricing data.
 """
 
 import argparse
-from functools import lru_cache
 import json
+from functools import lru_cache
 from typing import Optional
+
 import requests
 import yaml
 
@@ -29,12 +30,13 @@ def gen_pricing_map(output_file: str) -> None:
         pricing_data.append([runner_type, instance_type, price])
 
     # Write to file
-    with open(output_file, 'w') as f:
+    with open(output_file, "w") as f:
         for row in pricing_data:
             f.write(json.dumps(row))
             f.write("\n")
 
     print(f"Output written to {output_file}")
+
 
 @lru_cache
 def get_all_pricing_data() -> dict:
@@ -43,6 +45,7 @@ def get_all_pricing_data() -> dict:
     response = requests.get(price_list_url)
     response.raise_for_status()
     return response.json()
+
 
 def get_price(instance_type, os_type="linux") -> Optional[float]:
     """Fetch on-demand price for EC2 instance type using AWS public pricing data. Returns None if not found."""
@@ -57,15 +60,18 @@ def get_price(instance_type, os_type="linux") -> Optional[float]:
     for product_sku, product_data in pricing_data.get("products", {}).items():
         attributes = product_data.get("attributes", {})
 
-        if (attributes.get("instanceType") == instance_type and
-            attributes.get("location") == "US East (N. Virginia)" and
-            attributes.get("operatingSystem") == operating_system and
-            attributes.get("preInstalledSw") == "NA" and
-            attributes.get("tenancy") == "Shared" and
-            attributes.get("usagetype", "").startswith("BoxUsage")):
-
+        if (
+            attributes.get("instanceType") == instance_type
+            and attributes.get("location") == "US East (N. Virginia)"
+            and attributes.get("operatingSystem") == operating_system
+            and attributes.get("preInstalledSw") == "NA"
+            and attributes.get("tenancy") == "Shared"
+            and attributes.get("usagetype", "").startswith("BoxUsage")
+        ):
             # Found the product, now get the pricing terms
-            terms = pricing_data.get("terms", {}).get("OnDemand", {}).get(product_sku, {})
+            terms = (
+                pricing_data.get("terms", {}).get("OnDemand", {}).get(product_sku, {})
+            )
 
             for term_data in terms.values():
                 price_dimensions = term_data.get("priceDimensions", {})
@@ -80,12 +86,15 @@ def get_price(instance_type, os_type="linux") -> Optional[float]:
 
 def main():
     """Parse command-line arguments and generate EC2 pricing map."""
-    parser = argparse.ArgumentParser(description="Generate EC2 pricing map from scale-config.yml")
+    parser = argparse.ArgumentParser(
+        description="Generate EC2 pricing map from scale-config.yml"
+    )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         type=str,
         default="ec2_pricing.json",
-        help="Output file path (default: ec2_pricing.json)"
+        help="Output file path (default: ec2_pricing.json)",
     )
     args = parser.parse_args()
 
