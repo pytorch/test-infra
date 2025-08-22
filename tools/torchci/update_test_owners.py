@@ -4,15 +4,15 @@ Script to check files in pytorch/pytorch test folder for Owner(s) lines
 and generate a JSON file with filename and owner_label information.
 """
 
-import os
+import argparse
 import json
+import os
 import re
 import subprocess
 import tempfile
-import argparse
 import time
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 
 def clone_pytorch_repo(temp_dir: str) -> str:
@@ -24,7 +24,7 @@ def clone_pytorch_repo(temp_dir: str) -> str:
     subprocess.run(
         ["git", "clone", "--depth", "1", repo_url, repo_path],
         check=True,
-        capture_output=True
+        capture_output=True,
     )
 
     return repo_path
@@ -35,23 +35,25 @@ def find_owner_line(file_path: str) -> Optional[List[str]]:
     Search for a line that looks like with '# Owner(s): ["module: unknown"]' in
     the file and returns ["module: unknown"].
     """
-    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+    with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
         for line in f:
             # Look for lines that start with # Owner(s): (allowing for whitespace)
-            match = re.match(r'^\s*#\s*Owner\(s\):\s*(.+)$', line, re.IGNORECASE)
+            match = re.match(r"^\s*#\s*Owner\(s\):\s*(.+)$", line, re.IGNORECASE)
             if match:
                 owner_label_string = match.group(1).strip()
 
                 # Try to parse as JSON list
                 parsed_list = json.loads(owner_label_string)
                 if isinstance(parsed_list, list):
-                    return [str(item).strip() for item in parsed_list if str(item).strip()]
+                    return [
+                        str(item).strip() for item in parsed_list if str(item).strip()
+                    ]
 
                 return [owner_label_string]
     return None
 
 
-def scan_test_files(repo_path: str) -> List[Dict[str, any]]:
+def scan_test_files(repo_path: str) -> List[Dict[str, Any]]:
     """
     Scan all files in the test directory for owner_label information.
     Returns a list of dictionaries with filename and owner_label.
@@ -65,10 +67,7 @@ def scan_test_files(repo_path: str) -> List[Dict[str, any]]:
         relative_path = os.path.relpath(str(file_path), test_dir)
         owner_label = find_owner_line(str(file_path))
         if owner_label:
-            results.append({
-                "file": relative_path,
-                "owner_labels": owner_label
-            })
+            results.append({"file": relative_path, "owner_labels": owner_label})
         else:
             print(f"No owner label found in {relative_path}")
 
@@ -81,13 +80,14 @@ def main():
         description="Check pytorch/pytorch test files for owner_label information"
     )
     parser.add_argument(
-        "--output", "-o",
+        "--output",
+        "-o",
         default="test_owner_labels.json",
-        help="Output JSON file path (default: test_owner_labels.json)"
+        help="Output JSON file path (default: test_owner_labels.json)",
     )
     parser.add_argument(
         "--repo-path",
-        help="Path to existing pytorch repository (if not provided, will clone)"
+        help="Path to existing pytorch repository (if not provided, will clone)",
     )
 
     args = parser.parse_args()
@@ -109,14 +109,19 @@ def main():
 
         # Create final JSON structure with timestamp
         output_data = [
-            {"file": r["file"], "owner_labels": r["owner_labels"], "timestamp": int(time.time())} for r in results
+            {
+                "file": r["file"],
+                "owner_labels": r["owner_labels"],
+                "timestamp": int(time.time()),
+            }
+            for r in results
         ]
 
         # Write results to JSON file
-        with open(args.output, 'w', encoding='utf-8') as f:
+        with open(args.output, "w", encoding="utf-8") as f:
             for entry in output_data:
                 json.dump(entry, f)
-                f.write('\n')
+                f.write("\n")
 
         print(f"\nFound {len(results)} files with owner_label information.")
         print(f"Results written to {args.output}")
@@ -133,6 +138,7 @@ def main():
         # Clean up temporary directory if we created it
         if cleanup_repo:
             import shutil
+
             shutil.rmtree(os.path.dirname(repo_path))
             print(f"Cleaned up temporary directory")
 
