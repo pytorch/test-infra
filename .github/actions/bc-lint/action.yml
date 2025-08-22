@@ -26,6 +26,7 @@ runs:
       uses: actions/checkout@v4
       with:
         repository: pytorch/test-infra
+        ref: 65f6771683f2d4891041a7cca0e7311db0ac31c8
         path: _test-infra
 
     - name: Checkout ${{ inputs.repo }}
@@ -66,6 +67,7 @@ runs:
         ../_test-infra/tools/stronghold/bin/check-api-compatibility \
             --base-commit=${{ inputs.base_sha }} \
             --head-commit=${{ steps.merge_changes.outputs.new_head_sha }} \
+            --versbose \
             ${{ inputs.suppression == 'true' && '--suppressed' || '' }}
 
     - name: Display documentation link if failed
