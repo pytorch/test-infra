@@ -3,7 +3,6 @@ name: Update test file ratings for TD Heuristics
 on:
   schedule:
     - cron: 5 11 * * *  # At 11:05 UTC every day or about 4am PT
-  workflow_dispatch:
   pull_request:
 
 concurrency:
@@ -16,7 +15,6 @@ permissions:
 
 jobs:
   update-test-file-ratings:
-    if: false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout pytorch/test-infra
