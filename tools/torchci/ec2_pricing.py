@@ -7,9 +7,10 @@ and fetching current AWS pricing data.
 """
 
 import argparse
+from functools import lru_cache
 import json
 from typing import Optional
-import boto3
+import requests
 import yaml
 
 
@@ -35,37 +36,46 @@ def gen_pricing_map(output_file: str) -> None:
 
     print(f"Output written to {output_file}")
 
+@lru_cache
+def get_all_pricing_data() -> dict:
+    """Fetch the entire EC2 pricing data from AWS pricing API.  Cached for efficiency."""
+    price_list_url = "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonEC2/current/us-east-1/index.json"
+    response = requests.get(price_list_url)
+    response.raise_for_status()
+    return response.json()
 
 def get_price(instance_type, os_type="linux") -> Optional[float]:
-    """Fetch on-demand price for EC2 instance type using AWS Pricing API. Returns None if not found."""
-    # Move the two lines below to the top of the file if you're going to run this function
-    client = boto3.client("pricing", region_name="us-east-1")
+    """Fetch on-demand price for EC2 instance type using AWS public pricing data. Returns None if not found."""
 
     # Map os_type to AWS pricing API values
     operating_system = "Windows" if os_type.lower() == "windows" else "Linux"
 
-    resp = client.get_products(
-        ServiceCode="AmazonEC2",
-        Filters=[
-            {"Type": "TERM_MATCH", "Field": "instanceType", "Value": instance_type},
-            {"Type": "TERM_MATCH", "Field": "location", "Value": "US East (N. Virginia)"},
-            {"Type": "TERM_MATCH", "Field": "operatingSystem", "Value": operating_system},
-            {"Type": "TERM_MATCH", "Field": "preInstalledSw", "Value": "NA"},
-            {"Type": "TERM_MATCH", "Field": "tenancy", "Value": "Shared"},
-            {"Type": "TERM_MATCH", "Field": "capacitystatus", "Value": "Used"},
-        ],
-        MaxResults=1,
-    )
+    # Get the cached pricing data
+    pricing_data = get_all_pricing_data()
 
-    if not resp["PriceList"]:
-        return None
+    # Search through the products to find matching instance
+    for product_sku, product_data in pricing_data.get("products", {}).items():
+        attributes = product_data.get("attributes", {})
 
-    item = json.loads(resp["PriceList"][0])
-    terms = item["terms"]["OnDemand"]
-    price_dimensions = next(
-        iter(next(iter(terms.values()))["priceDimensions"].values())
-    )
-    return float(price_dimensions["pricePerUnit"]["USD"])
+        if (attributes.get("instanceType") == instance_type and
+            attributes.get("location") == "US East (N. Virginia)" and
+            attributes.get("operatingSystem") == operating_system and
+            attributes.get("preInstalledSw") == "NA" and
+            attributes.get("tenancy") == "Shared" and
+            attributes.get("usagetype", "").startswith("BoxUsage")):
+
+            # Found the product, now get the pricing terms
+            terms = pricing_data.get("terms", {}).get("OnDemand", {}).get(product_sku, {})
+
+            for term_data in terms.values():
+                price_dimensions = term_data.get("priceDimensions", {})
+                for price_data in price_dimensions.values():
+                    price_per_unit = price_data.get("pricePerUnit", {}).get("USD")
+                    if price_per_unit:
+                        return float(price_per_unit)
+
+    print(f"No pricing found for {instance_type} ({operating_system})")
+    return None
 
 
 def main():
