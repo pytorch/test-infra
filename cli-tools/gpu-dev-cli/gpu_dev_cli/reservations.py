@@ -21,6 +21,27 @@ from .config import Config
 console = Console()
 
 
+def _add_agent_forwarding_to_ssh(ssh_command: str) -> str:
+    """Add SSH agent forwarding (-A) flag to SSH command if not already present"""
+    try:
+        if not ssh_command or not ssh_command.startswith("ssh "):
+            return ssh_command
+
+        # Check if -A is already in the command
+        if " -A" in ssh_command or ssh_command.endswith(" -A"):
+            return ssh_command
+
+        # Add -A flag after 'ssh'
+        parts = ssh_command.split(" ", 1)
+        if len(parts) == 2:
+            return f"ssh -A {parts[1]}"
+        else:
+            return "ssh -A"
+
+    except Exception:
+        return ssh_command
+
+
 def _generate_vscode_command(ssh_command: str) -> Optional[str]:
     """Generate VS Code remote connection command from SSH command"""
     try:
@@ -49,8 +70,8 @@ def _generate_vscode_command(ssh_command: str) -> Optional[str]:
         else:
             remote_server = user_host
 
-        # Generate VS Code command
-        return f"code --remote ssh-remote+{remote_server} /home/dev"
+        # Generate VS Code command with SSH agent forwarding
+        return f"code --remote ssh-remote+{remote_server} --ssh-option ForwardAgent=yes /home/dev"
 
     except Exception:
         return None
@@ -905,8 +926,12 @@ class ReservationManager:
                             console.print(
                                 f"[cyan]⏰ Valid for:[/cyan] {duration_hours} hours"
                             )
+                            # Add agent forwarding to SSH command
+                            ssh_with_forwarding = _add_agent_forwarding_to_ssh(
+                                ssh_command
+                            )
                             console.print(
-                                f"[cyan]🖥️  Connect with:[/cyan] {ssh_command}"
+                                f"[cyan]🖥️  Connect with:[/cyan] {ssh_with_forwarding}"
                             )
 
                             # Show VS Code remote command

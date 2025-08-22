@@ -12,7 +12,11 @@ from rich.panel import Panel
 from rich import print as rprint
 
 from .auth import authenticate_user
-from .reservations import ReservationManager, _generate_vscode_command
+from .reservations import (
+    ReservationManager,
+    _generate_vscode_command,
+    _add_agent_forwarding_to_ssh,
+)
 from .config import Config, load_config
 
 console = Console()
@@ -561,9 +565,14 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                 if vscode_command:
                     vscode_info = f"[blue]VS Code Remote:[/blue] {vscode_command}\n"
 
+                # Add agent forwarding to SSH command for display
+                ssh_with_forwarding = _add_agent_forwarding_to_ssh(
+                    connection_info["ssh_command"]
+                )
+
                 panel_content = (
                     f"[green]Reservation Details[/green]\n\n"
-                    f"[blue]SSH Command:[/blue] {connection_info['ssh_command']}\n"
+                    f"[blue]SSH Command:[/blue] {ssh_with_forwarding}\n"
                     + vscode_info
                     + jupyter_info
                     + f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
