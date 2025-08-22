@@ -8,6 +8,7 @@ and fetching current AWS pricing data.
 
 import argparse
 import json
+from typing import Optional
 import boto3
 import yaml
 
@@ -35,7 +36,7 @@ def gen_pricing_map(output_file: str) -> None:
     print(f"Output written to {output_file}")
 
 
-def get_price(instance_type, os_type="linux") -> float | None:
+def get_price(instance_type, os_type="linux") -> Optional[float]:
     """Fetch on-demand price for EC2 instance type using AWS Pricing API. Returns None if not found."""
     # Move the two lines below to the top of the file if you're going to run this function
     client = boto3.client("pricing", region_name="us-east-1")
