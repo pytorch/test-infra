@@ -126,4 +126,6 @@ jobs:
 
       - name: Upload pricing file to S3
         run: |
-          aws s3 cp ec2_pricing.json.gz s3://ossci-metrics/ec2_pricing.json.gz
+          aws s3 cp ec2_pricing.json.gz s3://ossci-metrics/ec2_pricing.json.gz \
+            --compression gzip \
+            --content-type "application/json"
