@@ -67,7 +67,7 @@ runs:
         ../_test-infra/tools/stronghold/bin/check-api-compatibility \
             --base-commit=${{ inputs.base_sha }} \
             --head-commit=${{ steps.merge_changes.outputs.new_head_sha }} \
-            --versbose \
+            --verbose \
             ${{ inputs.suppression == 'true' && '--suppressed' || '' }}
 
     - name: Display documentation link if failed
