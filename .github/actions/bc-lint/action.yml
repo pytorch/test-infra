@@ -26,7 +26,7 @@ runs:
       uses: actions/checkout@v4
       with:
         repository: pytorch/test-infra
-        ref: 65f6771683f2d4891041a7cca0e7311db0ac31c8
+        ref: e73b14f75422a0fb38212c2d465f9a86fb20a11c
         path: _test-infra
 
     - name: Checkout ${{ inputs.repo }}
