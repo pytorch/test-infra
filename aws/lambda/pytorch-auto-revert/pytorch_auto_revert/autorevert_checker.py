@@ -125,27 +125,38 @@ class AutorevertPatternChecker:
             f"Fetching workflow data for {len(self.workflow_names)} workflows since {lookback_time.isoformat()}..."
         )
 
-        # For pattern detection we consider non-restarted main branch jobs only
-        base_where = "workflow_event != 'workflow_dispatch' AND head_branch = 'main'"
-
-        query = f"""
-        SELECT
-            workflow_name,
-            head_sha,
-            name,
-            conclusion,
-            status,
-            torchci_classification.rule AS classification_rule,
-            created_at AS workflow_created_at
-        FROM
-            workflow_job FINAL
-        WHERE
-            workflow_name IN {{workflow_names:Array(String)}}
-            AND {base_where}
-            AND created_at >= {{lookback_time:DateTime}}
-            AND dynamoKey LIKE 'pytorch/pytorch/%'
-        ORDER BY
-            workflow_name, workflow_created_at DESC, head_sha, name
+        query = """
+            SELECT
+                wf.workflow_name,
+                wf.head_sha,
+                wf.name,
+                wf.conclusion,
+                wf.status,
+                wf.torchci_classification.rule AS classification_rule,
+                wf.created_at AS workflow_created_at
+            FROM workflow_job AS wf FINAL
+            INNER JOIN (
+                -- Deduplicate pushes by head_sha using group+max,
+                -- keeping the most recent timestamp
+                -- this is faster than using distinct
+                SELECT
+                    head_commit.id as sha,
+                    max(head_commit.timestamp) as timestamp
+                FROM default.push
+                WHERE head_commit.timestamp >= {lookback_time:DateTime}
+                AND ref = 'refs/heads/main'
+                GROUP BY sha
+            ) AS push_dedup ON wf.head_sha = push_dedup.sha
+            WHERE
+                wf.workflow_name IN {workflow_names:Array(String)}
+                AND wf.workflow_event != 'workflow_dispatch'
+                AND wf.head_branch = 'main'
+                -- this timestamp should always be bigger than push_dedup.timestamp
+                -- it is just a optimization as this column is indexed
+                AND wf.created_at >= {lookback_time:DateTime}
+                AND wf.dynamoKey LIKE 'pytorch/pytorch/%'
+            ORDER BY
+                wf.workflow_name, push_dedup.timestamp DESC, wf.head_sha, wf.name
         """
 
         result = CHCliFactory().client.query(
@@ -207,14 +218,15 @@ class AutorevertPatternChecker:
         lookback_time = datetime.now() - timedelta(hours=self.lookback_hours)
 
         query = """
-        SELECT DISTINCT
-            head_commit.id as sha,
-            head_commit.message as message,
-            head_commit.timestamp as timestamp
-        FROM default.push
-        WHERE head_commit.timestamp >= {lookback_time:DateTime}
-          AND ref = 'refs/heads/main'
-        ORDER BY head_commit.timestamp DESC
+            SELECT
+                head_commit.id as sha,
+                head_commit.message as message,
+                max(head_commit.timestamp) as timestamp
+            FROM default.push
+            WHERE head_commit.timestamp >= {lookback_time:DateTime}
+            AND ref = 'refs/heads/main'
+            GROUP BY sha, message
+            ORDER BY timestamp DESC
         """
 
         result = CHCliFactory().client.query(
