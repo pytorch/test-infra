@@ -118,7 +118,7 @@ jobs:
 
       - name: Generate EC2 pricing data
         run: |
-          python3 torchci/ec2_pricing.py --output ec2_pricing.json
+          python3 tools/torchci/ec2_pricing.py --output ec2_pricing.json
 
       - name: Compress pricing file
         run: |
