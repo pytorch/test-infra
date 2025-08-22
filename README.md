@@ -20,9 +20,12 @@ $ git clone --recursive https://github.com/pytorch/test-infra
 │   └── websites                         # Several websites supported by TestInfra
 │       ├── download.pytorch.org
 │       └── metrics.pytorch.org
+├── cli-tools                            # GPU development CLI tools
+│   └── gpu-dev-cli                     # CLI for reserving GPU development servers
 ├── setup-ssh                            # SSH access setup to CI workers
 ├── stats                                # CI related stats committed automatically by a bot
 ├── terraform-aws-github-runner          # Terraform modules and templates used in CI
+├── terraform-gpu-devservers             # GPU development server infrastructure
 ├── tools                                # Tools and scripts
 |   ├── clang-tidy-checks
 |   └── scripts
