@@ -22,14 +22,27 @@ else
         conda install -y conda=23.11.0
     fi
 
-    if [[ ${MATRIX_PYTHON_VERSION} == "3.13t" ]]; then
-        conda create -y -n ${ENV_NAME} python=3.13 python-freethreading -c conda-forge
-        conda activate ${ENV_NAME}
-        TORCH_ONLY='true'
-    else
-        conda create -y -n ${ENV_NAME} python=${MATRIX_PYTHON_VERSION}
-        conda activate ${ENV_NAME}
-    fi
+    case $MATRIX_PYTHON_VERSION in
+        3.14t)
+            export PYTHON_V=3.14.0rc1
+            export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
+            ;;
+        3.14)
+            export PYTHON_V=3.14.0rc1
+            export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
+            ;;
+        3.13t)
+            export PYTHON_V=3.13
+            export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge"
+            ;;
+        *)
+            export PYTHON_V=${MATRIX_PYTHON_VERSION}
+            export CONDA_EXTRA_PARAM=""
+            ;;
+    esac
+
+    conda create -y -n ${ENV_NAME} python=${PYTHON_V} ${CONDA_EXTRA_PARAM}
+    conda activate ${ENV_NAME}
     INSTALLATION=${MATRIX_INSTALLATION/"conda install"/"conda install -y"}
     TEST_SUFFIX=""
 
