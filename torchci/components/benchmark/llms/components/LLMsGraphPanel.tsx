@@ -195,6 +195,11 @@ export default function LLMsGraphPanel({
               ) {
                 const isDynamic = record.extra!["is_dynamic"];
                 record.display = `${model} / ${isDynamic}`;
+              } else if (repoName === "pytorch/ao") {
+                let useCompile = record.extra!["use_torch_compile"];
+                record.display = `${model} (${dtype}${
+                  useCompile === "true" ? " / compile" : ""
+                })`;
               } else {
                 record.display = model.includes(dtype)
                   ? model.includes(device)
