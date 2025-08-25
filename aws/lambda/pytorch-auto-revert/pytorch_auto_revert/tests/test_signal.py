@@ -1,7 +1,15 @@
 import unittest
 from datetime import datetime, timedelta
 
-from pytorch_auto_revert.signal import Signal, SignalCommit, SignalEvent, SignalStatus
+from pytorch_auto_revert.signal import (
+    AutorevertPattern,
+    InfraCheckResult,
+    PartitionedCommits,
+    Signal,
+    SignalCommit,
+    SignalEvent,
+    SignalStatus,
+)
 
 
 def ts(base: datetime, minutes: int) -> datetime:
@@ -95,7 +103,10 @@ class TestSignal(unittest.TestCase):
             ],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
-        self.assertIs(s.confirm_not_an_infra_issue(), True)
+        partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
+        self.assertEqual(
+            s.confirm_not_an_infra_issue(partition), InfraCheckResult.CONFIRMED
+        )
 
     def test_confirm_not_an_infra_issue_none_with_pending_between(self):
         # Older has two successes; newer has pending between -> Maybe (None)
@@ -111,7 +122,10 @@ class TestSignal(unittest.TestCase):
             ],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
-        self.assertIsNone(s.confirm_not_an_infra_issue())
+        partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
+        self.assertEqual(
+            s.confirm_not_an_infra_issue(partition), InfraCheckResult.PENDING
+        )
 
     def test_confirm_not_an_infra_issue_false_when_pending_outside_window(self):
         # Older has two successes; newer has pending outside the [oldest, newest] success window -> False
@@ -127,7 +141,10 @@ class TestSignal(unittest.TestCase):
             ],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
-        self.assertIs(s.confirm_not_an_infra_issue(), False)
+        partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
+        self.assertEqual(
+            s.confirm_not_an_infra_issue(partition), InfraCheckResult.RESTART_SUCCESS
+        )
 
     def test_confirm_not_an_infra_issue_false_no_bracketing_success(self):
         # Older has one success (t=10) and then pending to t=30; newer failure at t=40
@@ -145,7 +162,10 @@ class TestSignal(unittest.TestCase):
             ],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
-        self.assertIs(s.confirm_not_an_infra_issue(), False)
+        partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
+        self.assertEqual(
+            s.confirm_not_an_infra_issue(partition), InfraCheckResult.RESTART_SUCCESS
+        )
 
     def test_detect_autorevert_pattern_basic(self):
         # Commits newest -> older
@@ -157,18 +177,23 @@ class TestSignal(unittest.TestCase):
             head_sha="sha_mid",
             events=[self._ev("job", SignalStatus.FAILURE, 4)],
         )
+        # base commit has two successes to confirm not infra
         c_base = SignalCommit(
             head_sha="sha_old",
-            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 6),
+            ],
         )
         s = Signal(
             key="job", workflow_name="wf", commits=[c_newer, c_suspected, c_base]
         )
-        pat = s.detect_autorevert_pattern()
-        self.assertIsNotNone(pat)
-        self.assertEqual(pat.workflow_name, "wf")
-        self.assertEqual(pat.newer_commits, ["sha_newer", "sha_mid"])
-        self.assertEqual(pat.older_commit, "sha_old")
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsNotNone(res)
+        self.assertIsInstance(res, AutorevertPattern)
+        self.assertEqual(res.workflow_name, "wf")
+        self.assertEqual(res.newer_commits, ["sha_newer", "sha_mid"])
+        self.assertEqual(res.older_commit, "sha_old")
 
     def test_detect_autorevert_pattern_none_when_missing_failure(self):
         c_newer = SignalCommit(
@@ -186,7 +211,7 @@ class TestSignal(unittest.TestCase):
         s = Signal(
             key="job", workflow_name="wf", commits=[c_newer, c_suspected, c_base]
         )
-        self.assertIsNone(s.detect_autorevert_pattern())
+        self.assertIsNone(s.process_valid_autorevert_pattern())
 
 
 if __name__ == "__main__":

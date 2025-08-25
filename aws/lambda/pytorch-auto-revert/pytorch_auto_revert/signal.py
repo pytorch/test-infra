@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Set, Union
+from typing import List, Optional, Set, Tuple, Union
 
 
 class SignalStatus(Enum):
@@ -78,23 +78,22 @@ class SignalCommit:
         self.head_sha = head_sha
         # enforce events ordered by time, oldest first
         self.events = sorted(events, key=lambda e: e.started_at) if events else []
-        self.statuses = {event.status for event in self.events}
-
-    def has_status(self, status: SignalStatus) -> bool:
-        """Check if any event has the specified status."""
-        return status in self.statuses
+        # counts by status
+        self.statuses = {}
+        for e in self.events:
+            self.statuses[e.status] = self.statuses.get(e.status, 0) + 1
 
     @property
     def has_pending(self) -> bool:
-        return self.has_status(SignalStatus.PENDING)
+        return SignalStatus.PENDING in self.statuses
 
     @property
     def has_success(self) -> bool:
-        return self.has_status(SignalStatus.SUCCESS)
+        return SignalStatus.SUCCESS in self.statuses
 
     @property
     def has_failure(self) -> bool:
-        return self.has_status(SignalStatus.FAILURE)
+        return SignalStatus.FAILURE in self.statuses
 
     def events_by_status(self, status: SignalStatus) -> List[SignalEvent]:
         """Get all events with the specified status."""
@@ -103,6 +102,38 @@ class SignalCommit:
     # make iterable
     def __iter__(self):
         return iter(self.events)
+
+
+@dataclass
+class PartitionedCommits:
+    """
+    Represents the result of partitioning commits based on an autorevert pattern.
+    """
+
+    def __init__(
+        self,
+        failed: List[SignalCommit],
+        unknown: List[SignalCommit],
+        successful: List[SignalCommit],
+    ):
+        self.failed = failed
+        self.unknown = unknown
+        self.successful = successful
+
+    def failure_events_count(self) -> int:
+        return sum(c.statuses.get(SignalStatus.FAILURE, 0) for c in self.failed)
+
+    def success_events_count(self) -> int:
+        return sum(c.statuses.get(SignalStatus.SUCCESS, 0) for c in self.successful)
+
+
+class InfraCheckResult(Enum):
+    """Outcome of infra check based on partitioned commits."""
+
+    CONFIRMED = "confirmed"  # failure bracketed by two successes (not infra)
+    PENDING = "pending"  # pending events could still form the sandwich
+    RESTART_SUCCESS = "restart_success"  # no success after any failure
+    RESTART_FAILURE = "restart_failure"  # no failure after any success
 
 
 class Signal:
@@ -141,127 +172,129 @@ class Signal:
             for commit in self.commits
         )
 
-    def confirm_not_an_infra_issue(self) -> Optional[bool]:
-        """
-        Considers pairs of commits: an older one with two successful jobs,
-        and a newer one (not necessarily an immediate successor) with a
-        failure.
-        Checks if there is a "sandwich" pattern where:
-        - The failure of the newer commit is between two successes of the older commit (time-wise).
-
-        The goal of this it to eliminate the possibility of transient infra issue.
-
-        Note: in the real world this relies on the previously checked invariants:
-            * no flakiness - older commit will not have failures if it has successful job
-            * not recovered - there is a newer commit with failure that is
-              followed by an older commit with at least one success
-
-        Returns:
-            True if such a pattern exists, meaning the failure is likely
-            not an infra issue (previously successful signal stays stable),
-            False means no bracketing successes were observed; we can’t
-            rule out infra, so prefer restarts (i.e. "not enough data",
-            given "no flakiness" invariant is true).
-            None is "Maybe", meaning the result depends on the resolution
-            of the existing pending job.
-        """
-        if len(self.commits) < 2:
-            return False
-
-        maybe = False
-
-        # Iterate through commits, looking for a newer commit with failure
-        for i in range(0, len(self.commits) - 1):
-            nc = self.commits[i]
-
-            # Check all older commits before this one
-            for j in range(i + 1, len(self.commits)):
-                oc = self.commits[j]
-                # Check if this older commit has two successful jobs
-                oc_successes = oc.events_by_status(SignalStatus.SUCCESS)
-                oc_pending = oc.events_by_status(SignalStatus.PENDING)
-
-                if len(oc_successes) >= 2:
-                    # Check if the failure of the newer commit is between the two successes of the older commit
-                    # Events are ordered by time within each commit, oldest events first
-                    for e in nc.events:
-                        if not (  # between failures
-                            oc_successes[0].started_at
-                            < e.started_at
-                            < oc_successes[-1].started_at
-                        ):
-                            continue
-
-                        if e.is_failure:
-                            # We have a sandwich pattern
-                            return True
-                        elif e.is_pending:
-                            # We have a pending job, possible pattern, cannot confirm yet
-                            maybe = True
-
-                elif (
-                    len(oc_successes) == 1
-                    and len(oc_pending) > 1
-                    and oc_successes[0].started_at < oc_pending[-1].started_at
-                    # If there is only one success and multiple pending jobs, we cannot confirm the sandwich
-                    and any(
-                        oc_successes[0].started_at
-                        < e.started_at
-                        < oc_pending[-1].started_at
-                        and (e.is_failure or e.is_pending)
-                        for e in nc.events
-                    )
-                ):
-                    maybe = True
-
-        return None if maybe else False
-
     def has_successes(self) -> bool:
         """
         Checks if there is at least one successful event in the signal.
         """
         return any(commit.has_success for commit in self.commits)
 
-    def detect_autorevert_pattern(self) -> Optional[AutorevertPattern]:
+    def partition_by_autorevert_pattern(self) -> Optional[PartitionedCommits]:
         """
-        Detect first autorevert pattern in the Signal.
+        Partition the most recent commit history into three lists:
+        - Failed commits before the first potential breakage
+        - Pending / missing signal commits in the middle (if any)
+        - Successful commits after the breakage (up to the next breakage, if any)
 
-        Pattern: 3 consecutive commits where:
-        - 2 newer commits have failure
-        - 1 older commit doesn't have this failure
+        Preserves the original order of commits (newest to oldest).
 
-        Note:
-            in real world relies on the previously checked invariants, such as:
-            no flakiness, no infra issues, etc.
-
-        Returns:
-            First detected autorevert pattern if exists, None otherwise.
+        The useful invariant this establishes:
+        - pending commits in the "failed" list are expected to resolve to failure
+        - pending commits in the "successful" list are expected to resolve to success
+        - pending commits in the "unknown" list could resolve either way
+        - commits with the missing signal (that we need to trigger) would fall into the "unknown" list
         """
-        # Commits are ordered newest -> older
-        if len(self.commits) < 3:
+        if len(self.commits) < 2:
             return None
 
-        for i in range(1, len(self.commits) - 1):
-            suspected_commit1 = self.commits[i]
-            newer_commit = self.commits[i - 1]
-            successful_base_commit = self.commits[i + 1]
+        failed = []
+        successful = []
 
-            if (
-                newer_commit.has_failure
-                and suspected_commit1.has_failure
-                and successful_base_commit.has_success
-            ):
-                return AutorevertPattern(
-                    pattern_detected=True,
-                    workflow_name=self.workflow_name,
-                    newer_commits=[
-                        newer_commit.head_sha,
-                        suspected_commit1.head_sha,
-                    ],
-                    older_commit=successful_base_commit.head_sha,
-                )
+        picking_failed = True  # simple state machine
 
-        return None
+        # first broadly partition into failed and successful
+        for c in self.commits:
+            if c.has_success:
+                picking_failed = False
+            elif c.has_failure and not picking_failed:
+                # encountered a failure after the streak of successes
+                # this indicates another older pattern which we don't care about
+                break
+
+            if picking_failed:
+                failed.append(c)
+            else:
+                successful.append(c)
+
+        # further partition failed into failed and unknown (pending/missing)
+        unknown = []
+        while failed and not failed[-1].has_failure:
+            unknown.append(failed.pop())
+
+        unknown.reverse()
+
+        if not failed or not successful:
+            return None
+
+        return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
+
+    def confirm_not_an_infra_issue(
+        self, partition: PartitionedCommits
+    ) -> InfraCheckResult:
+        """
+        Checks if there is a "sandwich" pattern where:
+        - The failure of the newer commit is between (time-wise) two successes from the older commits.
+
+        The goal of this it to rule out the transient infra / outside issue
+        (i.e. issue not caused by the change in the newer commit).
+
+        Invariants established:
+        - CONFIRMED: at least one failure (newer commit) timestamp lies strictly between two
+          actual success timestamps (older commits).
+        - PENDING: success-like and failure-like time ranges overlap, but no
+          confirmed sandwich yet; pending events could complete the sandwich.
+        - RESTART_SUCCESS: no success-like event occurs after any failure-like
+          event (ranges do not overlap in that direction).
+        - RESTART_FAILURE: no failure-like event occurs after any success-like
+          event (ranges do not overlap in that direction).
+
+        Notes:
+        - success-like = SUCCESS or PENDING; failure-like = FAILURE or PENDING.
+        - Only commits from the failed/successful partitions are considered;
+          unknown is ignored here.
+        - Flakiness is assumed to be ruled out upstream.
+        """
+
+        def bounds(
+            commits: List[SignalCommit], keep
+        ) -> Tuple[Optional[datetime], Optional[datetime]]:
+            lo: Optional[datetime] = None
+            hi: Optional[datetime] = None
+            for c in commits:
+                for e in c.events:
+                    if keep(e):
+                        t = e.started_at
+                        if lo is None or t < lo:
+                            lo = t
+                        if hi is None or t > hi:
+                            hi = t
+            return lo, hi
+
+        # success-like includes pending; actual-success excludes pending
+        min_succ_like, max_succ_like = bounds(
+            partition.successful, lambda e: e.is_success or e.is_pending
+        )
+        min_succ, max_succ = bounds(partition.successful, lambda e: e.is_success)
+        # failure-like includes pending
+        min_fail_like, max_fail_like = bounds(
+            partition.failed, lambda e: e.is_failure or e.is_pending
+        )
+
+        # Strict ordering without overlap → restart
+        if min_succ_like is None or max_succ_like <= min_fail_like:
+            return InfraCheckResult.RESTART_SUCCESS
+        if min_fail_like is None or max_fail_like <= min_succ_like:
+            return InfraCheckResult.RESTART_FAILURE
+
+        # Confirmed: any actual failure of the newer commit falls strictly
+        # between two actual successes of the older commit
+        if min_succ is not None and max_succ is not None and min_succ < max_succ:
+            for c in partition.failed:
+                for e in c.events:
+                    if e.is_failure and (min_succ < e.started_at < max_succ):
+                        return InfraCheckResult.CONFIRMED
+
+        # Overlap exists, but not confirmed yet → pending
+        return InfraCheckResult.PENDING
 
     def process_valid_autorevert_pattern(
         self,
@@ -278,16 +311,47 @@ class Signal:
         if self.detect_flaky() or self.detect_fixed() or not self.has_successes():
             return None
 
-        infra_failure = self.confirm_not_an_infra_issue()
-        if infra_failure is None:
-            # If we have pending jobs, we cannot confirm the pattern yet
+        partition = self.partition_by_autorevert_pattern()
+        if partition is None:
             return None
 
-        if not infra_failure:
-            # not enough data to confirm the pattern, need to issue restarts
-            # TODO find a commit to restart
-            pass
+        restart_commits = set()
 
-        # TODO close the gaps in the signal (find commits to restart)
+        # close gaps in the signal (greedily for now)
+        for c in partition.unknown:
+            if not c.events:
+                restart_commits.add(c.head_sha)
 
-        return self.detect_autorevert_pattern()
+        infra_check_result = self.confirm_not_an_infra_issue(partition)
+        # note re: event_count < 2:
+        # this is a confidence heuristic to detect flakiness, can adjust as needed
+        if (
+            infra_check_result == InfraCheckResult.RESTART_FAILURE
+            or partition.failure_events_count() < 2
+        ):
+            # restarting oldest failed
+            restart_commits.add(partition.failed[-1].head_sha)
+        elif (
+            infra_check_result == InfraCheckResult.RESTART_SUCCESS
+            or partition.success_events_count() < 2
+        ):
+            # restarting newest successful
+            restart_commits.add(partition.successful[0].head_sha)
+
+        if restart_commits:
+            return RestartCommits(commit_shas=restart_commits)
+
+        if infra_check_result != InfraCheckResult.CONFIRMED:
+            return None
+
+        if partition.unknown:
+            # there are still pending/missing commits in the unknown partition
+            return None
+
+        # all invariants validated, confirmed not infra, pattern exists
+        return AutorevertPattern(
+            pattern_detected=True,
+            workflow_name=self.workflow_name,
+            newer_commits=[c.head_sha for c in partition.failed[-2:]],
+            older_commit=partition.successful[0].head_sha,
+        )
