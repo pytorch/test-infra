@@ -1,11 +1,14 @@
 """Runs the API backward compatibility on the head commit."""
 
 import argparse
+import dataclasses
+import json
 import pathlib
 import subprocess
 import sys
 
 import api.compatibility
+import api.config
 import api.git
 import api.github
 
@@ -22,6 +25,13 @@ def run() -> None:
         help="Failures are suppressed"
         "(alternative to #suppress-api-compatibility-check commit message tag).",
     )
+    parser.add_argument(
+        "--verbose",
+        default=False,
+        required=False,
+        action="store_true",
+        help="Enable verbose output",
+    )
     args = parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path("."))
@@ -35,8 +45,21 @@ def run() -> None:
     repo.run(["fetch", "origin", args.base_commit], check=True)
     print("::endgroup::")
 
+    # Load config and optionally print when detected
+    cfg, cfg_status = api.config.load_config_with_status(repo.dir)
+    if cfg_status == "parsed":
+        # Explicitly log successful config discovery and parsing
+        print("BC-linter: Using .bc-linter.yml (parsed successfully)")
+        if args.verbose:
+            print("BC-linter: Parsed config:")
+            print(json.dumps(dataclasses.asdict(cfg), indent=2, sort_keys=True))
+    elif args.verbose:
+        # In verbose mode, also indicate fallback to defaults
+        reason = "missing" if cfg_status == "default_missing" else "invalid/malformed"
+        print(f"BC-linter: No usable config ({reason}); using defaults")
+
     violations = api.compatibility.check_range(
-        repo, head=args.head_commit, base=args.base_commit
+        repo, head=args.head_commit, base=args.base_commit, config=cfg
     )
     if len(violations) == 0:
         return
