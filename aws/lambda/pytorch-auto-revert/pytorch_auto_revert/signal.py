@@ -78,6 +78,23 @@ class SignalCommit:
         self.head_sha = head_sha
         # enforce events ordered by time, oldest first
         self.events = sorted(events, key=lambda e: e.started_at) if events else []
+        self.statuses = {event.status for event in self.events}
+
+    def has_status(self, status: SignalStatus) -> bool:
+        """Check if any event has the specified status."""
+        return status in self.statuses
+
+    @property
+    def has_pending(self) -> bool:
+        return self.has_status(SignalStatus.PENDING)
+
+    @property
+    def has_success(self) -> bool:
+        return self.has_status(SignalStatus.SUCCESS)
+
+    @property
+    def has_failure(self) -> bool:
+        return self.has_status(SignalStatus.FAILURE)
 
     def events_by_status(self, status: SignalStatus) -> List[SignalEvent]:
         """Get all events with the specified status."""
@@ -102,7 +119,7 @@ class Signal:
         # commits are ordered from newest to oldest
         self.commits = commits
 
-    def detect_recovered(self) -> bool:
+    def detect_fixed(self) -> bool:
         """
         Find the first commit with any non‑pending event; if it contains a success, consider the signal recovered.
         """
@@ -191,30 +208,13 @@ class Signal:
 
         return None if maybe else False
 
-    def has_loose_autorevert_pattern(self) -> bool:
+    def has_successes(self) -> bool:
         """
-        Checks if there is subsequence of commits, where:
-        - there are two commits with a failure (not necessarily consecutive)
-        - there is at least one older commit with a success (not necessarily immediate predecessor)
-        :return:
-            True if such a pattern exists, False otherwise.
+        Checks if there is at least one successful event in the signal.
         """
-        if len(self.commits) < 3:
-            return False
-
-        # Check for two newer commits with failure and one older commit with success
-        found_failures = 0
-        for c in self.commits:
-            if c.events_by_status(SignalStatus.FAILURE):
-                found_failures += 1
-            elif c.events_by_status(SignalStatus.SUCCESS):
-                if found_failures >= 2:
-                    return True
-                else:
-                    # potentially recovered Signal + one flake, not enough confidence
-                    return False
-
-        return False
+        return any(
+            commit.events_by_status(SignalStatus.SUCCESS) for commit in self.commits
+        )
 
     def detect_autorevert_pattern(self) -> Optional[AutorevertPattern]:
         """
@@ -271,8 +271,8 @@ class Signal:
         """
         if (
             self.detect_flaky()
-            or self.detect_recovered()
-            or not self.has_loose_autorevert_pattern()
+            or self.detect_fixed()
+            or not self.has_successes()
         ):
             return None
 

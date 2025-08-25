@@ -29,7 +29,7 @@ class TestSignal(unittest.TestCase):
             events=[self._ev("job", SignalStatus.FAILURE, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
-        self.assertTrue(s.detect_recovered())
+        self.assertTrue(s.detect_fixed())
 
     def test_detect_recovered_false_when_first_non_pending_failure(self):
         # Newest commit only has failure (no success)
@@ -42,7 +42,7 @@ class TestSignal(unittest.TestCase):
             events=[self._ev("job", SignalStatus.SUCCESS, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
-        self.assertFalse(s.detect_recovered())
+        self.assertFalse(s.detect_fixed())
 
     def test_detect_recovered_skips_all_pending_then_success(self):
         # First commit is all pending; next has success -> recovered
@@ -55,7 +55,7 @@ class TestSignal(unittest.TestCase):
             events=[self._ev("job", SignalStatus.SUCCESS, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_mid])
-        self.assertTrue(s.detect_recovered())
+        self.assertTrue(s.detect_fixed())
 
     def test_detect_flaky_true_on_same_commit_success_and_failure(self):
         c = SignalCommit(
@@ -187,96 +187,6 @@ class TestSignal(unittest.TestCase):
             key="job", workflow_name="wf", commits=[c_newer, c_suspected, c_base]
         )
         self.assertIsNone(s.detect_autorevert_pattern())
-
-    def test_has_loose_autorevert_pattern_true(self):
-        # Order newest -> older; two failures first, then a success older
-        c1 = SignalCommit(
-            head_sha="sha1",
-            events=[self._ev("job", SignalStatus.FAILURE, 5)],
-        )
-        c2 = SignalCommit(
-            head_sha="sha2",
-            events=[self._ev("job", SignalStatus.FAILURE, 4)],
-        )
-        c3 = SignalCommit(
-            head_sha="sha3",
-            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
-        )
-        s = Signal(key="job", workflow_name="wf", commits=[c1, c2, c3])
-        self.assertTrue(s.has_loose_autorevert_pattern())
-
-    def test_has_loose_autorevert_pattern_false_when_success_before_two_failures(self):
-        # Success encountered before counting 2 failures (in newest->older order)
-        c1 = SignalCommit(
-            head_sha="sha1",
-            events=[self._ev("job", SignalStatus.FAILURE, 5)],
-        )
-        c2 = SignalCommit(
-            head_sha="sha2",
-            events=[self._ev("job", SignalStatus.SUCCESS, 4)],
-        )
-        c3 = SignalCommit(
-            head_sha="sha3",
-            events=[self._ev("job", SignalStatus.FAILURE, 3)],
-        )
-        s = Signal(key="job", workflow_name="wf", commits=[c1, c2, c3])
-        self.assertFalse(s.has_loose_autorevert_pattern())
-
-    def test_has_loose_autorevert_pattern_false_when_only_one_failure(self):
-        c1 = SignalCommit(
-            head_sha="sha1",
-            events=[self._ev("job", SignalStatus.FAILURE, 5)],
-        )
-        c2 = SignalCommit(
-            head_sha="sha2",
-            events=[self._ev("job", SignalStatus.SUCCESS, 4)],
-        )
-        c3 = SignalCommit(
-            head_sha="sha3",
-            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
-        )
-        s = Signal(key="job", workflow_name="wf", commits=[c1, c2, c3])
-        self.assertFalse(s.has_loose_autorevert_pattern())
-
-    def test_has_loose_autorevert_pattern_ignores_pending_only_commits(self):
-        # Newest->older: failure, pending-only, failure, success(older) => True
-        c1 = SignalCommit(
-            head_sha="sha1",
-            events=[self._ev("job", SignalStatus.FAILURE, 6)],
-        )
-        c2 = SignalCommit(
-            head_sha="sha2",
-            events=[self._ev("job", SignalStatus.PENDING, 5)],
-        )
-        c3 = SignalCommit(
-            head_sha="sha3",
-            events=[self._ev("job", SignalStatus.FAILURE, 4)],
-        )
-        c4 = SignalCommit(
-            head_sha="sha4",
-            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
-        )
-        s = Signal(key="job", workflow_name="wf", commits=[c1, c2, c3, c4])
-        self.assertTrue(s.has_loose_autorevert_pattern())
-
-    def test_has_loose_autorevert_pattern_ignores_empty_event_commits(self):
-        # Newest->older: failure, <empty>, failure, success(older) => True
-        c1 = SignalCommit(
-            head_sha="sha1",
-            events=[self._ev("job", SignalStatus.FAILURE, 6)],
-        )
-        c2 = SignalCommit(head_sha="sha_empty", events=[])
-        c3 = SignalCommit(
-            head_sha="sha3",
-            events=[self._ev("job", SignalStatus.FAILURE, 4)],
-        )
-        c4 = SignalCommit(
-            head_sha="sha4",
-            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
-        )
-        s = Signal(key="job", workflow_name="wf", commits=[c1, c2, c3, c4])
-        self.assertTrue(s.has_loose_autorevert_pattern())
-
 
 if __name__ == "__main__":
     unittest.main()
