@@ -1,7 +1,7 @@
 import {
   Autocomplete,
   FormControl,
-  Grid2,
+  Grid,
   InputLabel,
   MenuItem,
   Select,
@@ -86,8 +86,8 @@ export function TimeRangePicker({
   setStartTime: any;
   stopTime: dayjs.Dayjs;
   setStopTime: any;
-  timeRange: any;
-  setTimeRange: any;
+  timeRange: number;
+  setTimeRange: (_: number) => any;
 }) {
   function updateTimeRange() {
     if (timeRange === -1) {
@@ -356,7 +356,7 @@ export default function Page() {
         </Stack>
       )}
       {routerReady && (
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
             title={"GHA Worker Queue Time"}
             queryName={"queue_times_historical_pct"}
@@ -373,7 +373,7 @@ export default function Page() {
             yAxisFieldName={`queue_s_${ttsPercentile}`}
             yAxisRenderer={durationDisplay}
           />
-        </Grid2>
+        </Grid>
       )}
     </div>
   );

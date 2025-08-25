@@ -1,4 +1,4 @@
-import { Grid2, Paper, Skeleton, Stack, Typography } from "@mui/material";
+import { Grid, Paper, Skeleton, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import GranularityPicker from "components/common/GranularityPicker";
 import { formatTimeForCharts } from "components/common/TimeUtils";
@@ -244,13 +244,13 @@ function Graphs({
   );
 
   return (
-    <Grid2 container spacing={2}>
-      <Grid2 size={{ xs: 9 }} height={ROW_HEIGHT}>
+    <Grid container spacing={2}>
+      <Grid size={{ xs: 9 }} height={ROW_HEIGHT}>
         <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
           <GraphPanel title={"%"} series={displayRedPercentages} />
         </Paper>
-      </Grid2>
-      <Grid2 size={{ xs: 3 }} height={ROW_HEIGHT}>
+      </Grid>
+      <Grid size={{ xs: 3 }} height={ROW_HEIGHT}>
         <div
           style={{ overflow: "auto", height: ROW_HEIGHT, fontSize: "15px" }}
           ref={checkboxRef}
@@ -278,8 +278,8 @@ function Graphs({
             </div>
           ))}
         </div>
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }
 
@@ -344,7 +344,7 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT + ROW_GAP}>
+      <Grid size={{ xs: 6 }} height={ROW_HEIGHT + ROW_GAP}>
         <Graphs
           queryParams={{
             workflowNames: allWorkflows,
@@ -355,10 +355,10 @@ export default function Page() {
           filter={filter}
           toggleFilter={toggleFilter}
         />
-      </Grid2>
+      </Grid>
 
-      <Grid2 container spacing={2}>
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Primary jobs (${PRIMARY_WORKFLOWS.join(", ")})`}
             queryName={queryName}
@@ -370,9 +370,9 @@ export default function Page() {
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={`Secondary jobs (${SECONDARY_WORKFLOWS.join(", ")})`}
             queryName={queryName}
@@ -384,9 +384,9 @@ export default function Page() {
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2 size={{ xs: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <GroupReliabilityPanel
             title={"Unstable jobs"}
             queryName={queryName}
@@ -398,8 +398,8 @@ export default function Page() {
             metricHeaderName={metricHeaderName}
             filter={filter}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </div>
   );
 }

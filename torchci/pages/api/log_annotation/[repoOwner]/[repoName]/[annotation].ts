@@ -10,12 +10,14 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== "POST") {
-    return res.status(504).end();
+    res.status(504).end();
+    return;
   }
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
   if (session === undefined || session === null || session.user === undefined) {
-    return res.status(401).end();
+    res.status(401).end();
+    return;
   }
 
   const { repoOwner, repoName, annotation } = req.query;
@@ -30,7 +32,8 @@ export default async function handler(
     repoNameStr
   );
   if (!hasPermission) {
-    return res.status(401).end();
+    res.status(401).end();
+    return;
   }
   const log_metadata = JSON.parse(req.body) ?? [];
   const client = getDynamoClient();
@@ -53,8 +56,9 @@ export default async function handler(
     item["metricType"] = "log_annotation";
   }
 
-  return client.put({
+  await client.put({
     TableName: "torchci-job-annotation",
     Item: item,
   });
+  return;
 }

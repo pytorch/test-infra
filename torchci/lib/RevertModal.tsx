@@ -1,8 +1,9 @@
+import CloseIcon from "@mui/icons-material/Close";
 import {
   Box,
   Dialog,
   FormControl,
-  Grid2,
+  Grid,
   IconButton,
   InputLabel,
   MenuItem,
@@ -10,7 +11,6 @@ import {
   TextField,
 } from "@mui/material";
 import Button from "@mui/material/Button";
-import { GridCloseIcon } from "@mui/x-data-grid";
 import { revertClassifications } from "lib/bot/Constants";
 import { getFailureMessage, getMessage } from "lib/GeneralUtils";
 import { commentOnPR } from "lib/githubFunctions";
@@ -45,7 +45,7 @@ export function RevertModal({ row }: { row: RowData }) {
         <Box display="flex" alignItems="center">
           <div style={{ position: "absolute", top: 0, right: 0 }}>
             <IconButton onClick={handleClose}>
-              <GridCloseIcon />
+              <CloseIcon />
             </IconButton>
           </div>
         </Box>
@@ -87,8 +87,8 @@ export default function Revert({ row }: { row: RowData }) {
 
   return (
     <div style={{ margin: "16px" }}>
-      <Grid2 container spacing={2}>
-        <Grid2 size={{ xs: 6 }}>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 6 }}>
           <h1>
             Revert PR #{prNumber} in {repoOwner}/{repoName}
           </h1>
@@ -126,8 +126,8 @@ export default function Revert({ row }: { row: RowData }) {
               )}
             </Select>
           </FormControl>
-        </Grid2>
-        <Grid2 size={{ xs: 6 }}>
+        </Grid>
+        <Grid size={{ xs: 6 }}>
           <h1>Message Preview</h1>
           <div
             style={{
@@ -139,8 +139,8 @@ export default function Revert({ row }: { row: RowData }) {
           >
             <ReactMarkdown>{msg}</ReactMarkdown>
           </div>
-        </Grid2>
-        <Grid2 size={{ lg: 12 }}>
+        </Grid>
+        <Grid size={{ lg: 12 }}>
           <Button
             style={{ marginTop: 32 }}
             fullWidth={true}
@@ -164,8 +164,8 @@ export default function Revert({ row }: { row: RowData }) {
           >
             Revert!
           </Button>
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </div>
   );
 }

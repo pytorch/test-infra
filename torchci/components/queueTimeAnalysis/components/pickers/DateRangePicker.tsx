@@ -27,8 +27,8 @@ export function DateRangePicker({
   setStartDate: any;
   stopDate: dayjs.Dayjs;
   setStopDate: any;
-  dateRange: any;
-  setDateRange: any;
+  dateRange: number;
+  setDateRange: (_: number) => any;
   setGranularity?: any;
   sx?: any;
 }) {

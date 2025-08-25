@@ -1,4 +1,4 @@
-import { Card, CardContent, Grid2, Typography } from "@mui/material";
+import { Card, CardContent, Grid, Typography } from "@mui/material";
 
 export default function Page() {
   const list = ["torhchAo", "vllm", "torch compiler"];
@@ -7,9 +7,9 @@ export default function Page() {
       <Typography variant="h4" gutterBottom>
         Benchmarks
       </Typography>
-      <Grid2 container spacing={2}>
+      <Grid container spacing={2}>
         {list.map((item, index) => (
-          <Grid2 key={index}>
+          <Grid key={index}>
             <Card variant="outlined">
               <CardContent>
                 <Typography variant="h6" component="div">
@@ -20,9 +20,9 @@ export default function Page() {
                 </Typography>
               </CardContent>
             </Card>
-          </Grid2>
+          </Grid>
         ))}
-      </Grid2>
+      </Grid>
     </div>
   );
 }

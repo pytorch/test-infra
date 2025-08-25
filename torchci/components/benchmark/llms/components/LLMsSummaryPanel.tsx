@@ -1,4 +1,4 @@
-import { Grid2, styled, Tooltip } from "@mui/material";
+import { Grid, styled, Tooltip } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
@@ -415,8 +415,8 @@ export default function LLMsSummaryPanel({
 
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
-    <Grid2 container spacing={10}>
-      <Grid2 size={{ xs: 12, lg: 11.8 }}>
+    <Grid container spacing={10}>
+      <Grid size={{ xs: 12, lg: 11.8 }}>
         <TablePanelWithData
           title={"Models"}
           data={data}
@@ -428,8 +428,8 @@ export default function LLMsSummaryPanel({
             maxHeight: 1200,
           }}
         />
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }
 

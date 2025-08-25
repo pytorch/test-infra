@@ -1,4 +1,4 @@
-import { Grid2 } from "@mui/material";
+import { Grid } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import {
   ACCURACY_THRESHOLD,
@@ -214,8 +214,8 @@ export function SummaryPanel({
 
   return (
     <div>
-      <Grid2 container spacing={2} style={{ height: "100%" }}>
-        <Grid2
+      <Grid container spacing={2} style={{ height: "100%" }}>
+        <Grid
           size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(passrate).length + ROW_GAP}
         >
@@ -307,9 +307,9 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(geomean).length + ROW_GAP}
         >
@@ -400,9 +400,9 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(compTime).length + ROW_GAP}
         >
@@ -489,9 +489,9 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid2>
+        </Grid>
 
-        <Grid2
+        <Grid
           size={{ xs: 12, lg: 6 }}
           height={ROW_HEIGHT * Object.keys(memory).length + ROW_GAP}
         >
@@ -584,8 +584,8 @@ export function SummaryPanel({
             )}
             dataGridProps={{ getRowId: (el: any) => el.suite + el.compiler }}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </div>
   );
 }
