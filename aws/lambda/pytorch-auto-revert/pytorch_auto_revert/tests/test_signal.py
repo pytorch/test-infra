@@ -188,5 +188,6 @@ class TestSignal(unittest.TestCase):
         )
         self.assertIsNone(s.detect_autorevert_pattern())
 
+
 if __name__ == "__main__":
     unittest.main()

@@ -267,11 +267,7 @@ class Signal:
             AutorevertPattern if a valid pattern is detected, None if no pattern is detected,
             or RestartCommit if the pattern is not confirmed but a restart is needed.
         """
-        if (
-            self.detect_flaky()
-            or self.detect_fixed()
-            or not self.has_successes()
-        ):
+        if self.detect_flaky() or self.detect_fixed() or not self.has_successes():
             return None
 
         infra_failure = self.confirm_not_an_infra_issue()
