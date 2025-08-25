@@ -212,9 +212,7 @@ class Signal:
         """
         Checks if there is at least one successful event in the signal.
         """
-        return any(
-            commit.events_by_status(SignalStatus.SUCCESS) for commit in self.commits
-        )
+        return any(commit.has_success for commit in self.commits)
 
     def detect_autorevert_pattern(self) -> Optional[AutorevertPattern]:
         """
@@ -241,9 +239,9 @@ class Signal:
             successful_base_commit = self.commits[i + 1]
 
             if (
-                newer_commit.events_by_status(SignalStatus.FAILURE)
-                and suspected_commit1.events_by_status(SignalStatus.FAILURE)
-                and successful_base_commit.events_by_status(SignalStatus.SUCCESS)
+                newer_commit.has_failure
+                and suspected_commit1.has_failure
+                and successful_base_commit.has_success
             ):
                 return AutorevertPattern(
                     pattern_detected=True,
