@@ -135,16 +135,17 @@ class Signal:
         Checks whether signal is flaky, i.e. has both successful and failed events for any commit.
         Note: false result can mean that there is not enough data to determine flakiness.
         """
-        for commit in self.commits:
-            if any(event.is_success for event in commit) and any(
-                event.is_failure for event in commit
-            ):
-                return True
-        return False
+        return any(
+            any(event.is_success for event in commit)
+            and any(event.is_failure for event in commit)
+            for commit in self.commits
+        )
 
     def confirm_not_an_infra_issue(self) -> Optional[bool]:
         """
-        Considers pairs of commits: an older one with two successful jobs, and a newer one (not necessarily an immediate successor) with a failure.
+        Considers pairs of commits: an older one with two successful jobs,
+        and a newer one (not necessarily an immediate successor) with a
+        failure.
         Checks if there is a "sandwich" pattern where:
         - The failure of the newer commit is between two successes of the older commit (time-wise).
 
@@ -152,12 +153,17 @@ class Signal:
 
         Note: in the real world this relies on the previously checked invariants:
             * no flakiness - older commit will not have failures if it has successful job
-            * not recovered - there is a newer commit with failure that is followed by an older commit with at least one success
+            * not recovered - there is a newer commit with failure that is
+              followed by an older commit with at least one success
 
         Returns:
-            True if such a pattern exists, meaning the failure is likely **not** an infra issue (previously successful signal stays stable),
-            False means no bracketing successes were observed; we can’t rule out infra, so prefer restarts (i.e. "not enough data", given "no flakiness" invariant is true).
-            None is "Maybe", meaning the result depends on the resolution of the existing pending job.
+            True if such a pattern exists, meaning the failure is likely
+            not an infra issue (previously successful signal stays stable),
+            False means no bracketing successes were observed; we can’t
+            rule out infra, so prefer restarts (i.e. "not enough data",
+            given "no flakiness" invariant is true).
+            None is "Maybe", meaning the result depends on the resolution
+            of the existing pending job.
         """
         if len(self.commits) < 2:
             return False
@@ -179,32 +185,34 @@ class Signal:
                     # Check if the failure of the newer commit is between the two successes of the older commit
                     # Events are ordered by time within each commit, oldest events first
                     for e in nc.events:
-                        if (
+                        if not (  # between failures
                             oc_successes[0].started_at
                             < e.started_at
                             < oc_successes[-1].started_at
                         ):
-                            if e.is_failure:
-                                # We have a sandwich pattern
-                                return True
-                            elif e.is_pending:
-                                # We have a pending job, possible pattern, cannot confirm yet
-                                maybe = True
+                            continue
+
+                        if e.is_failure:
+                            # We have a sandwich pattern
+                            return True
+                        elif e.is_pending:
+                            # We have a pending job, possible pattern, cannot confirm yet
+                            maybe = True
 
                 elif (
                     len(oc_successes) == 1
                     and len(oc_pending) > 1
                     and oc_successes[0].started_at < oc_pending[-1].started_at
-                ):
                     # If there is only one success and multiple pending jobs, we cannot confirm the sandwich
-                    if any(
+                    and any(
                         oc_successes[0].started_at
                         < e.started_at
                         < oc_pending[-1].started_at
                         and (e.is_failure or e.is_pending)
                         for e in nc.events
-                    ):
-                        maybe = True
+                    )
+                ):
+                    maybe = True
 
         return None if maybe else False
 
