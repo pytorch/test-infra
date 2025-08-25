@@ -28,6 +28,7 @@ const GROUP_PARALLEL = "Parallel";
 const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
 const GROUP_OTHER_VIABLE_STRICT_BLOCKING = "Other viable/strict blocking";
+const GROUP_XPU = "XPU";
 const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
@@ -47,6 +48,10 @@ export const groups = [
   {
     regex: /unstable/,
     name: GROUP_UNSTABLE,
+  },
+  {
+    regex: /^xpu/,
+    name: GROUP_XPU,
   },
   {
     regex: /inductor-periodic/,
@@ -156,6 +161,7 @@ const HUD_GROUP_SORTING = [
   GROUP_IOS,
   GROUP_MAC,
   GROUP_ROCM,
+  GROUP_XPU,
   GROUP_XLA,
   GROUP_OTHER_VIABLE_STRICT_BLOCKING, // placed after the last group that tends to have viable/strict blocking jobs
   GROUP_PARALLEL,
