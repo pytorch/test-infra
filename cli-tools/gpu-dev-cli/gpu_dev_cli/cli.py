@@ -936,6 +936,11 @@ def set(key: str, value: str) -> None:
     type=str,
     help="Add GitHub user as secondary user (fetches their public SSH keys)",
 )
+@click.option(
+    "--extend",
+    type=float,
+    help="Extend reservation by specified hours (max extension: 24h)",
+)
 @click.pass_context
 def edit(
     ctx: click.Context,
@@ -943,26 +948,28 @@ def edit(
     enable_jupyter: bool,
     disable_jupyter: bool,
     add_user: Optional[str],
+    extend: Optional[float],
 ) -> None:
     """Edit an active reservation's settings
 
-    Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab
-    or adding secondary users with SSH access.
+    Modify settings for an existing active reservation such as enabling/disabling Jupyter Lab,
+    adding secondary users with SSH access, or extending the reservation duration.
 
     \b
     Examples:
         gpu-dev edit abc12345 --enable-jupyter   # Enable Jupyter Lab
         gpu-dev edit abc12345 --disable-jupyter  # Disable Jupyter Lab
         gpu-dev edit abc12345 --add-user johndoe # Add GitHub user 'johndoe' SSH access
+        gpu-dev edit abc12345 --extend 8        # Extend by 8 hours
     """
     try:
         if enable_jupyter and disable_jupyter:
             rprint("[red]❌ Cannot enable and disable Jupyter at the same time[/red]")
             return
 
-        if not enable_jupyter and not disable_jupyter and not add_user:
+        if not enable_jupyter and not disable_jupyter and not add_user and extend is None:
             rprint(
-                "[red]❌ Please specify --enable-jupyter, --disable-jupyter, or --add-user[/red]"
+                "[red]❌ Please specify --enable-jupyter, --disable-jupyter, --add-user, or --extend[/red]"
             )
             return
 
@@ -988,6 +995,23 @@ def edit(
             rprint(
                 f"[red]❌ Can only edit active reservations (current status: {connection_info['status']})[/red]"
             )
+            return
+
+        # Handle extension request
+        if extend is not None:
+            # Validate extension limits
+            if extend <= 0:
+                rprint("[red]❌ Extension hours must be positive[/red]")
+                return
+            if extend > 24:
+                rprint("[red]❌ Maximum extension is 24 hours[/red]")
+                return
+                
+            success = reservation_mgr.extend_reservation(reservation_id, extend)
+            if success:
+                rprint(f"[green]✅ Extended reservation {reservation_id} by {extend} hours[/green]")
+            else:
+                rprint(f"[red]❌ Failed to extend reservation {reservation_id}[/red]")
             return
 
         # Enable/disable Jupyter

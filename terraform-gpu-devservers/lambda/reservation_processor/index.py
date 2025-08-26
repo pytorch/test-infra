@@ -85,6 +85,55 @@ def trigger_availability_update():
         raise
 
 
+def update_reservation_error(reservation_id: str, error_message: str, error_field: str = "failure_reason") -> None:
+    """Update reservation with error message in any error field"""
+    try:
+        if not reservation_id:
+            return
+        
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression=f"SET {error_field} = :error, last_updated = :timestamp",
+            ExpressionAttributeValues={
+                ":error": error_message,
+                ":timestamp": int(time.time())
+            }
+        )
+        logger.info(f"Updated reservation {reservation_id} with {error_field}: {error_message}")
+    except Exception as e:
+        logger.error(f"Failed to update reservation {reservation_id} with error: {e}")
+
+
+def find_reservation_by_prefix(reservation_id: str, user_id: str = None) -> dict:
+    """Find reservation by ID prefix with optional user validation"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        filter_expression = "begins_with(reservation_id, :prefix)"
+        expression_values = {":prefix": reservation_id}
+        
+        if user_id:
+            filter_expression += " AND user_id = :user_id"
+            expression_values[":user_id"] = user_id
+        
+        scan_response = reservations_table.scan(
+            FilterExpression=filter_expression,
+            ExpressionAttributeValues=expression_values
+        )
+        
+        items = scan_response.get("Items", [])
+        if len(items) == 0:
+            raise ValueError(f"Reservation {reservation_id} not found" + (f" for user {user_id}" if user_id else ""))
+        elif len(items) > 1:
+            raise ValueError(f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches")
+        
+        return items[0]
+    except Exception as e:
+        logger.error(f"Error finding reservation {reservation_id}: {e}")
+        raise
+
+
 def handler(event, context):
     """Main Lambda handler"""
     try:
@@ -112,6 +161,8 @@ def handler(event, context):
                         success = process_jupyter_action(record)
                     elif message_body.get("action") == "add_user":
                         success = process_add_user_action(record)
+                    elif message_body.get("action") == "extend_reservation":
+                        success = process_extend_reservation_action(record)
                     else:
                         success = process_reservation_request(record)
 
@@ -330,7 +381,6 @@ def check_gpu_availability(gpu_type: str = None) -> int:
 
             return available_gpus
         else:
-            # Fallback to total available GPUs (backward compatibility)
             gpu_tracker = K8sGPUTracker(k8s_client)
             capacity_info = gpu_tracker.get_gpu_capacity_info()
             logger.info(
@@ -578,7 +628,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         # Get user's GitHub public key
         github_user = request.get(
             "github_user", user_id
-        )  # Fallback to user_id for compatibility
+        )
         github_public_key = get_github_public_key(github_user, validate=True)
         if not github_public_key:
             raise ValueError(
@@ -713,28 +763,25 @@ def delete_sqs_message(record: dict[str, Any]) -> None:
         logger.error(f"Error deleting SQS message: {str(e)}")
 
 
-def update_reservation_status(
-    reservation_id: str, status: str, reason: str = None
-) -> None:
+def update_reservation_status(reservation_id: str, status: str, reason: str = None) -> None:
     """Update reservation status in DynamoDB"""
     try:
         if not reservation_id:
             return
 
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        update_expression = "SET #status = :status"
-        expression_values = {":status": status}
-
-        if reason:
-            update_expression += ", failure_reason = :reason"
-            expression_values[":reason"] = reason
-
         reservations_table.update_item(
             Key={"reservation_id": reservation_id},
-            UpdateExpression=update_expression,
+            UpdateExpression="SET #status = :status, last_updated = :timestamp",
             ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues=expression_values,
+            ExpressionAttributeValues={
+                ":status": status,
+                ":timestamp": int(time.time())
+            },
         )
+
+        if reason:
+            update_reservation_error(reservation_id, reason, "failure_reason")
 
         logger.info(f"Updated reservation {reservation_id} status to {status}")
     except Exception as e:
@@ -785,7 +832,6 @@ def get_github_public_key(github_username: str, validate: bool = True) -> str:
             logger.info(f"Found {len(valid_keys)} valid SSH keys for {github_username}")
             return "\n".join(valid_keys)
         else:
-            # Return ALL SSH keys without validation (legacy behavior)
             return keys_data
 
     except Exception as e:
@@ -993,7 +1039,6 @@ def find_available_node_port(k8s_client) -> int:
             if port not in used_ports:
                 return port
 
-        # Fallback to sequential search
         for port in range(30000, 32768):
             if port not in used_ports:
                 return port
@@ -1002,7 +1047,6 @@ def find_available_node_port(k8s_client) -> int:
 
     except Exception as e:
         logger.error(f"Error finding available node port: {str(e)}")
-        # Fallback to random port if can't check
         import random
 
         return random.randint(30000, 32767)
@@ -1123,7 +1167,7 @@ check_warnings() {
     for warning_file in /home/dev/WARN_EXPIRES_IN_*MIN.txt; do
         if [ -f "$warning_file" ]; then
             # Extract minutes from filename (e.g., WARN_EXPIRES_IN_15MIN.txt -> 15)
-            minutes=$(echo "$warning_file" | sed 's/.*WARN_EXPIRES_IN_\([0-9]*\)MIN.txt/\1/')
+            minutes=$(echo "$warning_file" | sed 's/.*WARN_EXPIRES_IN_\\([0-9]*\\)MIN.txt/\\1/')
             echo -e "\033[1;31m🚨 URGENT: Server expires in <${minutes} minutes! 🚨\033[0m"
             return
         fi
@@ -1791,7 +1835,6 @@ def get_node_public_ip() -> str:
                     if addr.type == "ExternalIP":
                         return addr.address
 
-        # Fallback: try to get from instance metadata
         instance_id = get_node_instance_id()
         if instance_id:
             response = ec2_client.describe_instances(InstanceIds=[instance_id])
@@ -2111,7 +2154,6 @@ def calculate_queue_position_and_wait_time(
             estimated_wait_minutes = wait_estimate.get("estimated_wait_minutes", 30)
         except Exception as e:
             logger.warning(f"Could not get K8s wait estimate: {e}")
-            # Fallback: simple estimation based on queue position
             estimated_wait_minutes = (
                 queue_position * 15
             )  # 15 minutes per position estimate
@@ -2444,7 +2486,7 @@ def process_scheduled_queue_management():
                         logger.warning(f"Could not calculate wait time: {e}")
                         estimated_wait_minutes = (
                             queue_position * 15
-                        )  # Fallback: 15min per position
+                        )
 
                     # Update reservation with current queue info
                     update_reservation_with_queue_info(
@@ -2514,48 +2556,25 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
             )
             return True  # Don't retry malformed messages
 
-        # Get current reservation to check status and ownership
-        # Search by prefix - allows short reservation IDs
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        try:
+            reservation = find_reservation_by_prefix(reservation_id, user_id)
+            full_reservation_id = reservation["reservation_id"]
+        except ValueError as e:
+            logger.warning(str(e))
+            return True
+        except Exception as db_error:
+            logger.error(f"Database error processing cancellation for {reservation_id}: {db_error}")
+            return False
+
+        current_status = reservation.get("status")
+        if current_status not in ["active", "queued", "pending", "preparing"]:
+            logger.warning(f"Cannot cancel reservation {full_reservation_id} in status {current_status}")
+            return True
+
+        logger.info(f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})")
 
         try:
-            scan_response = reservations_table.scan(
-                FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
-                ExpressionAttributeValues={
-                    ":prefix": reservation_id,
-                    ":user_id": user_id,
-                },
-            )
-
-            items = scan_response.get("Items", [])
-            if len(items) == 0:
-                logger.warning(
-                    f"Reservation {reservation_id} not found for user {user_id}"
-                )
-                return True  # Don't retry - reservation doesn't exist
-            elif len(items) > 1:
-                logger.error(
-                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}"
-                )
-                return True  # Don't retry - ambiguous prefix
-
-            reservation = items[0]
-            full_reservation_id = reservation["reservation_id"]  # Get the full UUID
-
-            current_status = reservation.get("status")
-
-            # Can only cancel active, queued, pending, or preparing reservations
-            if current_status not in ["active", "queued", "pending", "preparing"]:
-                logger.warning(
-                    f"Cannot cancel reservation {full_reservation_id} in status {current_status}"
-                )
-                return True  # Don't retry - invalid status
-
-            logger.info(
-                f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})"
-            )
-
-            # Update reservation status to cancelled
+            reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
             now = datetime.utcnow().isoformat()
             reservations_table.update_item(
                 Key={"reservation_id": full_reservation_id},
@@ -2568,7 +2587,6 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
                 },
             )
 
-            # If it was an active reservation, clean up the pod
             if current_status == "active":
                 pod_name = reservation.get("pod_name")
                 namespace = reservation.get("namespace", "gpu-dev")
@@ -2576,23 +2594,16 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
                 if pod_name:
                     try:
                         cleanup_pod_resources(pod_name, namespace)
-                        logger.info(
-                            f"Cleaned up pod resources for cancelled reservation {full_reservation_id}"
-                        )
+                        logger.info(f"Cleaned up pod resources for cancelled reservation {full_reservation_id}")
                     except Exception as cleanup_error:
-                        logger.error(
-                            f"Error cleaning up pod {pod_name}: {cleanup_error}"
-                        )
-                        # Don't fail the cancellation if cleanup fails
+                        logger.error(f"Error cleaning up pod {pod_name}: {cleanup_error}")
 
             logger.info(f"Successfully cancelled reservation {full_reservation_id}")
             return True
 
         except Exception as db_error:
-            logger.error(
-                f"Database error processing cancellation for {reservation_id}: {db_error}"
-            )
-            return False  # Retry on database errors
+            logger.error(f"Database error processing cancellation for {reservation_id}: {db_error}")
+            return False
 
     except Exception as e:
         logger.error(f"Error processing cancellation request: {str(e)}")
@@ -2993,45 +3004,18 @@ def process_jupyter_action(record: dict[str, Any]) -> bool:
             logger.error(f"Missing required fields in Jupyter action: {message}")
             return True  # Don't retry malformed messages
 
-        logger.info(
-            f"Processing Jupyter action: {action} for reservation {reservation_id}"
-        )
-
-        # Get reservation details - support partial reservation IDs
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        logger.info(f"Processing Jupyter action: {action} for reservation {reservation_id}")
 
         try:
-            scan_response = reservations_table.scan(
-                FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
-                ExpressionAttributeValues={
-                    ":prefix": reservation_id,
-                    ":user_id": user_id,
-                },
-            )
-
-            items = scan_response.get("Items", [])
-            if len(items) == 0:
-                logger.error(
-                    f"Reservation {reservation_id} not found for user {user_id}"
-                )
-                return True  # Don't retry - reservation doesn't exist
-            elif len(items) > 1:
-                logger.error(
-                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}"
-                )
-                return True  # Don't retry - ambiguous prefix
-
-            reservation = items[0]
-            full_reservation_id = reservation["reservation_id"]  # Get the full UUID
-            logger.info(
-                f"Found reservation {full_reservation_id} (prefix: {reservation_id})"
-            )
-
+            reservation = find_reservation_by_prefix(reservation_id, user_id)
+            full_reservation_id = reservation["reservation_id"]
+            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+        except ValueError as e:
+            logger.error(str(e))
+            return True
         except Exception as db_error:
-            logger.error(
-                f"Database error looking up reservation {reservation_id}: {db_error}"
-            )
-            return False  # Retry on database errors
+            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            return False
 
         # Verify user owns the reservation and it's active
         if reservation.get("user_id") != user_id:
@@ -3096,45 +3080,18 @@ def process_add_user_action(record: dict[str, Any]) -> bool:
             logger.error(f"Missing required fields in add user action: {message}")
             return True  # Don't retry malformed messages
 
-        logger.info(
-            f"Processing add user action: adding {github_username} to reservation {reservation_id}"
-        )
-
-        # Get reservation details - support partial reservation IDs
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        logger.info(f"Processing add user action: adding {github_username} to reservation {reservation_id}")
 
         try:
-            scan_response = reservations_table.scan(
-                FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
-                ExpressionAttributeValues={
-                    ":prefix": reservation_id,
-                    ":user_id": user_id,
-                },
-            )
-
-            items = scan_response.get("Items", [])
-            if len(items) == 0:
-                logger.error(
-                    f"Reservation {reservation_id} not found for user {user_id}"
-                )
-                return True  # Don't retry - reservation doesn't exist
-            elif len(items) > 1:
-                logger.error(
-                    f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches for user {user_id}"
-                )
-                return True  # Don't retry - ambiguous prefix
-
-            reservation = items[0]
-            full_reservation_id = reservation["reservation_id"]  # Get the full UUID
-            logger.info(
-                f"Found reservation {full_reservation_id} (prefix: {reservation_id})"
-            )
-
+            reservation = find_reservation_by_prefix(reservation_id, user_id)
+            full_reservation_id = reservation["reservation_id"]
+            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+        except ValueError as e:
+            logger.error(str(e))
+            return True
         except Exception as db_error:
-            logger.error(
-                f"Database error looking up reservation {reservation_id}: {db_error}"
-            )
-            return False  # Retry on database errors
+            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            return False
 
         # Verify user owns the reservation and it's active
         if reservation.get("user_id") != user_id:
@@ -3229,3 +3186,94 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
     except Exception as e:
         logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
         raise
+
+
+def process_extend_reservation_action(record: dict[str, Any]) -> bool:
+    """Process reservation extension requests"""
+    try:
+        message = json.loads(record["body"])
+        reservation_id = message.get("reservation_id")
+        extension_hours = message.get("extension_hours")
+        
+        if not all([reservation_id, extension_hours]):
+            logger.error(f"Missing required fields in extend reservation action: {message}")
+            return True
+        
+        logger.info(f"Processing extend reservation: {reservation_id} by {extension_hours} hours")
+        
+        try:
+            reservation = find_reservation_by_prefix(reservation_id)
+            full_reservation_id = reservation["reservation_id"]
+            logger.info(f"Found reservation {full_reservation_id} (prefix: {reservation_id})")
+        except ValueError as e:
+            logger.error(str(e))
+            return True
+        except Exception as db_error:
+            logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
+            return False
+        
+        current_status = reservation.get("status")
+        if current_status not in ["active", "preparing"]:
+            error_msg = f"Cannot extend reservation in status {current_status}"
+            logger.error(error_msg)
+            update_reservation_error(full_reservation_id, error_msg, "extension_error")
+            return True
+        
+        try:
+            current_expires_at = reservation.get("expires_at")
+            if not current_expires_at:
+                error_msg = f"No expiration time found for reservation {full_reservation_id}"
+                logger.error(error_msg)
+                update_reservation_error(full_reservation_id, error_msg, "extension_error")
+                return True
+            
+            if isinstance(current_expires_at, str):
+                current_expiry = datetime.fromisoformat(current_expires_at.replace('Z', '+00:00'))
+            else:
+                current_expiry = datetime.fromisoformat(current_expires_at)
+            
+            new_expiry = current_expiry + timedelta(hours=float(extension_hours))
+            new_expires_at = new_expiry.isoformat()
+            
+            logger.info(f"Extending reservation {full_reservation_id} from {current_expires_at} to {new_expires_at}")
+            
+        except Exception as date_error:
+            error_msg = f"Error calculating new expiration time: {str(date_error)}"
+            logger.error(error_msg)
+            update_reservation_error(full_reservation_id, error_msg, "extension_error")
+            return True
+        
+        try:
+            reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+            update_expression = "SET expires_at = :new_expires_at, last_updated = :timestamp"
+            expression_values = {
+                ":new_expires_at": new_expires_at,
+                ":timestamp": int(time.time())
+            }
+            
+            if "duration_hours" in reservation:
+                current_duration = float(reservation.get("duration_hours", 0))
+                new_duration = current_duration + float(extension_hours)
+                update_expression += ", duration_hours = :new_duration"
+                expression_values[":new_duration"] = Decimal(str(new_duration))
+            
+            update_expression += " REMOVE extension_error"
+            
+            reservations_table.update_item(
+                Key={"reservation_id": full_reservation_id},
+                UpdateExpression=update_expression,
+                ExpressionAttributeValues=expression_values
+            )
+            
+            logger.info(f"Successfully extended reservation {full_reservation_id} by {extension_hours} hours")
+            return True
+            
+        except Exception as update_error:
+            error_msg = f"Database error during extension: {str(update_error)}"
+            logger.error(error_msg)
+            update_reservation_error(full_reservation_id, error_msg, "extension_error")
+            return False
+    
+    except Exception as e:
+        logger.error(f"Error processing extend reservation action: {str(e)}")
+        return False

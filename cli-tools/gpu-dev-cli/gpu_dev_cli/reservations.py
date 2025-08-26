@@ -369,6 +369,37 @@ class ReservationManager:
             )
             return False
 
+    def extend_reservation(self, reservation_id: str, extension_hours: float) -> bool:
+        """Extend an active reservation by the specified number of hours"""
+        try:
+            # Send message to Lambda to extend reservation
+            # Lambda will handle both the expiration timestamp update and any necessary pod updates
+            message = {
+                "action": "extend_reservation",
+                "reservation_id": reservation_id,
+                "extension_hours": extension_hours,
+            }
+
+            queue_url = self.config.get_queue_url()
+            self.config.sqs_client.send_message(
+                QueueUrl=queue_url, MessageBody=json.dumps(message)
+            )
+
+            console.print(
+                f"[yellow]⏳ Extension request submitted for reservation {reservation_id[:8]}...[/yellow]"
+            )
+
+            # Poll for 3 minutes to show the outcome
+            return self._poll_extend_action_result(
+                reservation_id, extension_hours, timeout_minutes=3
+            )
+
+        except Exception as e:
+            console.print(
+                f"[red]❌ Error submitting extension request: {str(e)}[/red]"
+            )
+            return False
+
     def get_gpu_availability_by_type(self) -> Optional[Dict[str, Dict[str, Any]]]:
         """Get GPU availability information by GPU type from real-time availability table"""
         try:
@@ -674,6 +705,104 @@ class ReservationManager:
 
         except Exception as e:
             console.print(f"[red]❌ Error during add user polling: {str(e)}[/red]")
+            return False
+
+    def _poll_extend_action_result(
+        self, reservation_id: str, extension_hours: float, timeout_minutes: int = 3
+    ) -> bool:
+        """Poll reservation table for extend action result"""
+        try:
+            start_time = time.time()
+            timeout_seconds = timeout_minutes * 60
+
+            with Live(console=console, refresh_per_second=2) as live:
+                spinner = Spinner("dots", text=f"🔄 Extending reservation by {extension_hours} hours...")
+                live.update(spinner)
+
+                initial_expiration = None
+
+                while time.time() - start_time < timeout_seconds:
+                    try:
+                        # Get current reservation state - support partial reservation IDs
+                        scan_response = self.reservations_table.scan(
+                            FilterExpression="begins_with(reservation_id, :prefix)",
+                            ExpressionAttributeValues={":prefix": reservation_id},
+                        )
+
+                        items = scan_response.get("Items", [])
+                        if len(items) == 0:
+                            spinner.text = f"🔄 Waiting for reservation data..."
+                            live.update(spinner)
+                            time.sleep(2)
+                            continue
+                        elif len(items) > 1:
+                            spinner.text = f"🔄 Multiple reservations found for {reservation_id}, using first match..."
+                            live.update(spinner)
+
+                        reservation = items[0]
+
+                        # Capture initial expiration on first iteration
+                        if initial_expiration is None:
+                            initial_expiration = reservation.get("expires_at", "")
+
+                        current_expiration = reservation.get("expires_at", "")
+
+                        # Check for extension failure indicators
+                        last_updated = reservation.get("last_updated", 0)
+                        extension_error = reservation.get("extension_error", "")
+                        
+                        # If there's an extension error, fail immediately
+                        if extension_error:
+                            live.stop()
+                            console.print(f"[red]❌ Extension failed: {extension_error}[/red]")
+                            return False
+
+                        # Check if the expiration has been updated (different from initial)
+                        if current_expiration != initial_expiration and current_expiration:
+                            live.stop()
+                            from datetime import datetime
+                            try:
+                                exp_dt = datetime.fromisoformat(current_expiration.replace('Z', '+00:00'))
+                                # Convert to local timezone for display
+                                try:
+                                    # Try to get local timezone (Python 3.9+)
+                                    local_exp = exp_dt.astimezone()
+                                    formatted_expiration = local_exp.strftime('%Y-%m-%d %H:%M:%S %Z')
+                                except:
+                                    # Fallback to UTC if timezone conversion fails
+                                    formatted_expiration = exp_dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+                                console.print(f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {formatted_expiration}[/green]")
+                                return True
+                            except Exception:
+                                # Fallback to UTC display if timezone conversion fails
+                                try:
+                                    exp_dt = datetime.fromisoformat(current_expiration.replace('Z', '+00:00'))
+                                    formatted_expiration = exp_dt.strftime('%Y-%m-%d %H:%M:%S UTC')
+                                    console.print(f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {formatted_expiration}[/green]")
+                                except:
+                                    console.print(f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {current_expiration}[/green]")
+                                return True
+
+                        spinner.text = f"🔄 Processing extension request..."
+                        live.update(spinner)
+                        time.sleep(2)
+
+                    except Exception as poll_error:
+                        spinner.text = f"🔄 Checking extension status (retry)..."
+                        live.update(spinner)
+                        time.sleep(2)
+
+                live.stop()
+                console.print(
+                    f"[red]❌ Extension request timed out after {timeout_minutes} minutes[/red]"
+                )
+                console.print(
+                    f"[yellow]The extension may still be processing. Check status with: gpu-dev list[/yellow]"
+                )
+                return False  # Return failure on timeout
+
+        except Exception as e:
+            console.print(f"[red]❌ Error polling extension result: {str(e)}[/red]")
             return False
 
     def get_cluster_status(self) -> Optional[Dict[str, Any]]:

@@ -3,12 +3,14 @@
 ## Installation & Usage
 
 **1. Install the CLI:**
+
 ```bash
 cd cli-tools/gpu-dev-cli
 pip install -e .
 ```
 
 **2. Ensure AWS credentials are configured:**
+
 ```bash
 # Your AWS credentials should already be set via:
 export AWS_REGION=us-east-2  # (optional - defaults to us-east-2)
@@ -16,6 +18,7 @@ export AWS_REGION=us-east-2  # (optional - defaults to us-east-2)
 ```
 
 **3. Just start using it - zero config needed!**
+
 ```bash
 # Reserve GPUs
 gpu-dev reserve --gpus 2 --hours 4
@@ -23,7 +26,7 @@ gpu-dev reserve --gpus 2 --hours 4
 # Check status
 gpu-dev status
 
-# List your reservations 
+# List your reservations
 gpu-dev list
 
 # Show auto-discovered config
@@ -34,6 +37,7 @@ gpu-dev config
 ## How It Works
 
 **Zero Configuration:**
+
 - Auto-discovers AWS resources by naming convention
 - Queue: `pytorch-gpu-dev-reservation-queue`
 - Tables: `pytorch-gpu-dev-reservations`, `pytorch-gpu-dev-servers`
@@ -41,7 +45,8 @@ gpu-dev config
 - Region: `AWS_REGION` env var or defaults to `us-east-2`
 
 **Authentication:**
-- Uses your existing AWS credentials 
+
+- Uses your existing AWS credentials
 - If you can access the SQS/DynamoDB resources → you're authorized
 - No GitHub tokens, no config files, no manual setup
 
@@ -51,16 +56,20 @@ Create an IAM role with the minimal policy in `minimal-iam-policy.json`:
 
 ```json
 {
-  "Version": "2012-10-17", 
+  "Version": "2012-10-17",
   "Statement": [
     {
       "Effect": "Allow",
-      "Action": ["sqs:SendMessage", "sqs:GetQueueUrl", "sqs:GetQueueAttributes"],
+      "Action": [
+        "sqs:SendMessage",
+        "sqs:GetQueueUrl",
+        "sqs:GetQueueAttributes"
+      ],
       "Resource": "arn:aws:sqs:*:*:pytorch-gpu-dev-reservation-queue"
     },
     {
       "Effect": "Allow",
-      "Action": ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan", "dynamodb:UpdateItem"],
+      "Action": ["dynamodb:GetItem", "dynamodb:Query", "dynamodb:Scan"],
       "Resource": [
         "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-reservations*",
         "arn:aws:dynamodb:*:*:table/pytorch-gpu-dev-servers"
@@ -68,7 +77,7 @@ Create an IAM role with the minimal policy in `minimal-iam-policy.json`:
     },
     {
       "Effect": "Allow",
-      "Action": "sts:GetCallerIdentity", 
+      "Action": "sts:GetCallerIdentity",
       "Resource": "*"
     }
   ]
