@@ -168,13 +168,19 @@ class Signal:
     def detect_flaky(self) -> bool:
         """
         Checks whether signal is flaky, i.e. has both successful and failed events for any commit.
-        Note: false result can mean that there is not enough data to determine flakiness.
+
+        Notes:
+         * false result can mean that there is not enough data to determine flakiness.
+         * the definition of "flaky" here is somewhat broad, as it also includes intermittent infra issues.
+            For the sake of simplicity we're leaning on the conservative side and discarding potentially
+            intermittent outside issues as "flakiness".
+         * while technically "flakiness" is not a property of the signal (it can be introduced or removed by changes),
+            for simplicity we assume that flakiness stays constant within the limited time window we're considering,
+            and we lean on the conservative side (discarding signal if we know it was flaky).
+            that means that we will have some false negatives, but they will be very infrequent
+            (need both conditions — recovery from flakiness + autorevert pattern within the same window)
         """
-        return any(
-            any(event.is_success for event in commit)
-            and any(event.is_failure for event in commit)
-            for commit in self.commits
-        )
+        return any(commit.has_success and commit.has_failure for commit in self.commits)
 
     def has_successes(self) -> bool:
         """
