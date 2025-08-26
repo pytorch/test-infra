@@ -48,6 +48,7 @@ variable "environment" {
 }
 
 variable "enable_organization_runners" {
+  description = "If true, makes the same set of runners available to the entire github organization using the scale-config.yml specified in the repo `scale_config_repo`. Otherwise, runners for each repo will be configured based on the scale-config.yml file that repo contains."
   type = bool
 }
 
