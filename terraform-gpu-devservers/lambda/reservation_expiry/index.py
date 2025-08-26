@@ -827,6 +827,10 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
             raise
 
         logger.info(f"Pod cleanup completed successfully for {pod_name}")
+        
+        # NOTE: EBS volumes (persistent disks) are NOT deleted here
+        # They automatically detach when the pod is deleted and remain
+        # available for the user's next reservation
 
         # Trigger availability table update after pod cleanup
         try:

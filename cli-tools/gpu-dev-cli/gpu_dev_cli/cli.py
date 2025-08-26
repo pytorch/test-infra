@@ -75,6 +75,11 @@ def main(ctx: click.Context) -> None:
     is_flag=True,
     help="Enable Jupyter Lab access (can be enabled later with 'gpu-dev edit')",
 )
+@click.option(
+    "--ignore-no-persist",
+    is_flag=True,
+    help="Skip persistent disk warning for multiple reservations",
+)
 @click.pass_context
 def reserve(
     ctx: click.Context,
@@ -83,6 +88,7 @@ def reserve(
     hours: float,
     name: Optional[str],
     jupyter: bool,
+    ignore_no_persist: bool,
 ) -> None:
     """Reserve GPU development server(s)
 
@@ -127,8 +133,39 @@ def reserve(
             rprint(f"[red]❌ {str(e)}[/red]")
             return
 
-        # Submit reservation
+        # Check for existing active reservations (persistent disk warning)
         reservation_mgr = ReservationManager(config)
+        if not ignore_no_persist:
+            existing_reservations = reservation_mgr.list_reservations(
+                user_filter=user_info["user_id"], 
+                statuses_to_include=["active", "preparing", "queued", "pending"]
+            )
+            
+            if existing_reservations:
+                rprint(f"\n[yellow]⚠️  Warning: You have {len(existing_reservations)} existing reservation(s)[/yellow]")
+                rprint("[yellow]This new reservation will NOT have a persistent disk and will start empty.[/yellow]")
+                rprint("[yellow]Your data will NOT be automatically backed up when it expires.[/yellow]")
+                rprint("\n[cyan]Options:[/cyan]")
+                rprint("1. Continue and make this new reservation without persistent data disk")
+                
+                # Show cancel commands for existing reservations
+                for res in existing_reservations:
+                    res_id = res.get("reservation_id", "unknown")[:8]
+                    rprint(f"2. Cancel existing reservation: [cyan]gpu-dev cancel {res_id}[/cyan]")
+                
+                rprint(f"3. Use [cyan]--ignore-no-persist[/cyan] flag to skip this warning")
+                
+                # Ask for confirmation
+                try:
+                    choice = click.confirm("\nDo you want to continue with a new reservation (no persistent disk)?")
+                    if not choice:
+                        rprint("[yellow]Reservation cancelled by user[/yellow]")
+                        return
+                except (KeyboardInterrupt, click.Abort):
+                    rprint("\n[yellow]Reservation cancelled by user[/yellow]")
+                    return
+
+        # Submit reservation
         reservation_id = reservation_mgr.create_reservation(
             user_id=user_info["user_id"],
             gpu_count=gpu_count,

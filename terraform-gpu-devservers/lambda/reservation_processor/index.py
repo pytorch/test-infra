@@ -635,11 +635,39 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 f"Could not fetch GitHub public key for GitHub user '{github_user}'"
             )
 
+        # Check if user should get persistent disk (no existing reservations)
+        use_persistent_disk = should_use_persistent_disk(user_id)
+        persistent_volume_id = None
+        device_name = None
+        
+        if use_persistent_disk:
+            try:
+                # Create or find persistent disk
+                update_reservation_status(
+                    reservation_id,
+                    "preparing", 
+                    "Setting up persistent disk for user data",
+                )
+                persistent_volume_id = create_or_find_persistent_disk(user_id)
+                logger.info(f"Will use persistent disk {persistent_volume_id} for user {user_id}")
+            except Exception as disk_error:
+                logger.error(f"Failed to set up persistent disk: {disk_error}")
+                # Continue without persistent disk rather than failing
+                use_persistent_disk = False
+                update_reservation_status(
+                    reservation_id,
+                    "preparing",
+                    "Persistent disk setup failed - continuing without persistent storage",
+                )
+        else:
+            logger.info(f"User {user_id} has existing reservations - no persistent disk")
+
         # Update status: Creating Kubernetes resources
+        disk_status = "with persistent disk" if use_persistent_disk else "without persistent disk"
         update_reservation_status(
             reservation_id,
             "preparing",
-            f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs",
+            f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs {disk_status}",
         )
 
         # Set up K8s client for resource management
@@ -654,6 +682,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             github_public_key=github_public_key,
             reservation_id=reservation_id,
             jupyter_enabled=jupyter_enabled,
+            persistent_volume_id=persistent_volume_id,
+            user_id=user_id,
         )
 
         # Update status: Pod created, waiting for container to start
@@ -846,6 +876,8 @@ def create_kubernetes_resources(
     github_public_key: str,
     reservation_id: str,
     jupyter_enabled: bool = False,
+    persistent_volume_id: str = None,
+    user_id: str = None,
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
@@ -935,6 +967,8 @@ def create_kubernetes_resources(
                         gpu_type,
                         github_public_key,
                         jupyter_enabled=True,
+                        persistent_volume_id=persistent_volume_id,
+                        user_id=user_id,
                     )
                     logger.info(f"Created new pod {pod_name} with Jupyter")
                     update_reservation_status(
@@ -984,6 +1018,8 @@ def create_kubernetes_resources(
                         gpu_type,
                         github_public_key,
                         jupyter_enabled=False,
+                        persistent_volume_id=persistent_volume_id,
+                        user_id=user_id,
                     )
                     logger.info(f"Created new pod {pod_name} without Jupyter")
                     update_reservation_status(
@@ -1059,12 +1095,33 @@ def create_pod(
     gpu_type: str,
     github_public_key: str,
     jupyter_enabled: bool = False,
+    persistent_volume_id: str = None,
+    user_id: str = None,
 ):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
         from kubernetes import client
 
         v1 = client.CoreV1Api(k8s_client)
+
+        # Handle persistent disk setup if provided
+        ebs_volume_spec = None
+        device_name = None
+        use_persistent_disk = persistent_volume_id is not None
+
+        if use_persistent_disk:
+            logger.info(f"Setting up persistent disk {persistent_volume_id} for pod {pod_name}")
+            
+            # Get node instance ID where pod will be scheduled
+            # For now, we'll handle this in the container startup script
+            # The EBS volume will be attached when pod is scheduled
+            ebs_volume_spec = client.V1AWSElasticBlockStoreVolumeSource(
+                volume_id=persistent_volume_id,
+                fs_type="ext4"
+            )
+            logger.info(f"Will use EBS volume {persistent_volume_id} for /home/dev")
+        else:
+            logger.info(f"Using EmptyDir for /home/dev (no persistent disk)")
 
         # Create pod spec
         pod_spec = client.V1PodSpec(
@@ -1082,13 +1139,43 @@ def create_pod(
                         # Create dev user with specific UID for consistency (Alpine uses adduser)
                         adduser -D -u 1000 -s /bin/bash dev
 
-                        # Set up SSH directory and keys with correct ownership
+                        # Handle persistent disk setup
+                        if [ "{use_persistent_disk}" = "True" ]; then
+                            echo "[INIT] Persistent disk detected - checking filesystem..."
+                            
+                            # Check if /home/dev is mounted (EBS volume)
+                            if mountpoint -q /home/dev; then
+                                echo "[INIT] EBS volume already mounted at /home/dev"
+                                
+                                # Check if it has existing user data
+                                if [ ! -d "/home/dev/.ssh" ]; then
+                                    echo "[INIT] First-time setup - creating SSH directory"
+                                    mkdir -p /home/dev/.ssh
+                                    chown 1000:1000 /home/dev/.ssh
+                                    chmod 700 /home/dev/.ssh
+                                fi
+                            else
+                                echo "[INIT] WARNING: Expected EBS volume not mounted"
+                                # Fallback to regular setup
+                                mkdir -p /home/dev
+                                chown 1000:1000 /home/dev
+                            fi
+                        else
+                            echo "[INIT] No persistent disk - using EmptyDir"
+                            # Ensure /home/dev exists for EmptyDir
+                            mkdir -p /home/dev
+                            chown 1000:1000 /home/dev
+                        fi
+
+                        # Set up SSH keys (always refresh)
                         mkdir -p /home/dev/.ssh
                         echo '{github_public_key}' > /home/dev/.ssh/authorized_keys
                         chmod 700 /home/dev/.ssh
                         chmod 600 /home/dev/.ssh/authorized_keys
                         chown -R 1000:1000 /home/dev/.ssh
-                        chown -R 1000:1000 /home/dev
+
+                        # Ensure proper ownership of entire home directory
+                        chown 1000:1000 /home/dev
 
                         # Create marker file to verify init completed
                         echo "SSH keys initialized at $(date)" > /home/dev/.ssh/init_complete
@@ -1134,6 +1221,35 @@ def create_pod(
 
                         # Ensure PATH includes standard directories for this session
                         export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+
+                        echo "[STARTUP] Checking persistent disk setup..."
+                        # Handle EBS volume formatting if needed (first-time setup)
+                        if mountpoint -q /home/dev; then
+                            echo "[STARTUP] /home/dev is mounted (EBS volume detected)"
+                            
+                            # Check if this is a new, unformatted EBS volume
+                            if [ ! -f "/home/dev/.disk_initialized" ]; then
+                                echo "[STARTUP] First-time EBS volume setup detected"
+                                
+                                # Verify filesystem is accessible and writable
+                                if ! touch /home/dev/.test_write 2>/dev/null; then
+                                    echo "[STARTUP] EBS volume not writable - may need formatting"
+                                    # In practice, Kubernetes should handle this with fsType: ext4
+                                    echo "[STARTUP] WARNING: EBS volume mount issue - continuing anyway"
+                                else
+                                    rm -f /home/dev/.test_write
+                                    echo "[STARTUP] EBS volume is accessible and writable"
+                                    
+                                    # Mark as initialized
+                                    echo "Initialized at $(date)" > /home/dev/.disk_initialized
+                                    chown 1000:1000 /home/dev/.disk_initialized
+                                fi
+                            else
+                                echo "[STARTUP] EBS volume already initialized"
+                            fi
+                        else
+                            echo "[STARTUP] /home/dev is EmptyDir (no persistent disk)"
+                        fi
 
                         echo "[STARTUP] Setting up dev user shell environments..."
                         # Set up clean environment for dev user (both bash and zsh)
@@ -1564,8 +1680,11 @@ EOF
                 )
             ],
             volumes=[
+                # Dynamic volume based on persistent disk availability
                 client.V1Volume(
-                    name="dev-home", empty_dir=client.V1EmptyDirVolumeSource()
+                    name="dev-home",
+                    aws_elastic_block_store=ebs_volume_spec if use_persistent_disk else None,
+                    empty_dir=client.V1EmptyDirVolumeSource() if not use_persistent_disk else None
                 ),
                 client.V1Volume(
                     name="shared-workspace",
@@ -1869,6 +1988,160 @@ def get_node_instance_id() -> str:
     except Exception as e:
         logger.error(f"Error getting node instance ID: {str(e)}")
         return None
+
+
+def create_or_find_persistent_disk(user_id: str) -> str:
+    """Create or find existing persistent disk for user, returns volume ID"""
+    try:
+        # Use EC2 tags to track user disks
+        disk_tag_key = "gpu-dev-user"
+        disk_tag_value = user_id
+        
+        logger.info(f"Looking for existing persistent disk for user {user_id}")
+        
+        # Check for existing disk with this user tag
+        response = ec2_client.describe_volumes(
+            Filters=[
+                {"Name": "tag:gpu-dev-user", "Values": [user_id]},
+                {"Name": "availability-zone", "Values": ["us-east-2a"]},
+                {"Name": "state", "Values": ["available", "in-use"]},
+            ]
+        )
+        
+        volumes = response.get("Volumes", [])
+        if volumes:
+            volume_id = volumes[0]["VolumeId"]
+            logger.info(f"Found existing persistent disk {volume_id} for user {user_id}")
+            return volume_id
+        
+        # Create new 1TB gp3 disk
+        logger.info(f"Creating new 1TB persistent disk for user {user_id}")
+        create_response = ec2_client.create_volume(
+            AvailabilityZone="us-east-2a",
+            Size=1000,  # 1TB
+            VolumeType="gp3",
+            Iops=3000,
+            Throughput=125,
+            TagSpecifications=[
+                {
+                    "ResourceType": "volume",
+                    "Tags": [
+                        {"Key": disk_tag_key, "Value": disk_tag_value},
+                        {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id[:8]}"},
+                        {"Key": "Project", "Value": "gpu-dev-servers"},
+                        {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
+                    ],
+                }
+            ],
+        )
+        
+        volume_id = create_response["VolumeId"]
+        
+        # Wait for volume to be available
+        logger.info(f"Waiting for volume {volume_id} to become available")
+        waiter = ec2_client.get_waiter("volume_available")
+        waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
+        
+        logger.info(f"Created new persistent disk {volume_id} for user {user_id}")
+        return volume_id
+        
+    except Exception as e:
+        logger.error(f"Error creating/finding persistent disk for user {user_id}: {str(e)}")
+        raise
+
+
+def attach_persistent_disk_to_node(volume_id: str, node_instance_id: str) -> str:
+    """Attach EBS volume to EC2 instance, returns device name"""
+    try:
+        # Find available device name (/dev/xvdf, /dev/xvdg, etc.)
+        device_name = "/dev/xvdf"  # Start with /dev/xvdf
+        
+        logger.info(f"Attaching volume {volume_id} to instance {node_instance_id} as {device_name}")
+        
+        attach_response = ec2_client.attach_volume(
+            VolumeId=volume_id,
+            InstanceId=node_instance_id,
+            Device=device_name,
+        )
+        
+        # Wait for attachment to complete
+        waiter = ec2_client.get_waiter("volume_in_use")
+        waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
+        
+        logger.info(f"Successfully attached volume {volume_id} to instance {node_instance_id} as {device_name}")
+        return device_name
+        
+    except Exception as e:
+        logger.error(f"Error attaching volume {volume_id} to instance {node_instance_id}: {str(e)}")
+        raise
+
+
+def get_node_instance_id_for_pod(k8s_client, pod_name: str) -> str:
+    """Get EC2 instance ID for the node where pod is scheduled"""
+    try:
+        from kubernetes import client
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Get pod to find which node it's scheduled on
+        pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
+        node_name = pod.spec.node_name
+        
+        if not node_name:
+            raise ValueError(f"Pod {pod_name} is not scheduled to any node")
+        
+        # Get node details to find instance ID
+        node = v1.read_node(name=node_name)
+        provider_id = node.spec.provider_id
+        
+        if not provider_id or "aws:///" not in provider_id:
+            raise ValueError(f"Node {node_name} has invalid provider ID: {provider_id}")
+        
+        # Extract instance ID from providerID like "aws:///us-east-2a/i-1234567890abcdef0"
+        instance_id = provider_id.split("/")[-1]
+        
+        logger.info(f"Pod {pod_name} is scheduled on node {node_name} (instance {instance_id})")
+        return instance_id
+        
+    except Exception as e:
+        logger.error(f"Error getting instance ID for pod {pod_name}: {str(e)}")
+        raise
+
+
+def should_use_persistent_disk(user_id: str) -> bool:
+    """Check if this user should get a persistent disk (no other active reservations)"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        # Check for other active reservations for this user
+        response = reservations_table.query(
+            IndexName="UserIndex",
+            KeyConditionExpression="user_id = :user_id",
+            FilterExpression="#status IN (:active, :preparing, :queued, :pending)",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":user_id": user_id,
+                ":active": "active",
+                ":preparing": "preparing", 
+                ":queued": "queued",
+                ":pending": "pending",
+            },
+        )
+        
+        existing_reservations = response.get("Items", [])
+        
+        # If no existing reservations, user gets persistent disk
+        if not existing_reservations:
+            logger.info(f"User {user_id} has no existing reservations - will use persistent disk")
+            return True
+        else:
+            logger.info(f"User {user_id} has {len(existing_reservations)} existing reservations - no persistent disk")
+            return False
+            
+    except Exception as e:
+        logger.error(f"Error checking existing reservations for user {user_id}: {str(e)}")
+        # Default to no persistent disk on error
+        return False
 
 
 def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]:
