@@ -80,6 +80,21 @@ def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
         # If PyYAML is not available or parsing fails, fall back to defaults.
         return (default_config(), "default_error")
 
+    # Warn on unknown top-level keys to catch typos/misconfigurations.
+    _allowed_keys = {
+        "version",
+        "paths",
+        "scan",
+        "annotations",
+        "excluded_violations",
+        # shortcut for top-level support
+        "include",
+        "exclude",
+    }
+    _unknown_keys = sorted(set(data.keys()) - _allowed_keys)
+    if _unknown_keys:
+        print(f"::warning::BC-linter: Unknown keys in .bc-linter.yml: {_unknown_keys}")
+
     version = int(data.get("version", 1))
 
     # Accept both nested `paths: {include, exclude}` and top-level

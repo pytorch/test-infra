@@ -134,3 +134,18 @@ def test_annotations_and_excluded_violations(tmp_path: pathlib.Path) -> None:
     assert cfg.annotations_exclude[1].propagate_to_members is False
     # excluded violations
     assert cfg.excluded_violations == ["ClassDeleted", "ParameterRenamed"]
+
+
+def test_warn_on_unknown_top_level_keys(tmp_path: pathlib.Path, capsys) -> None:
+    yml = """
+    version: 1
+    paths:
+      include: ["**/*.py"]
+    # introduce unknown top-level key
+    typpo: 123
+    """
+    (tmp_path / ".bc-linter.yml").write_text(yml)
+    _, status = load_config_with_status(tmp_path)
+    assert status == "parsed"
+    out = capsys.readouterr().out
+    assert "::warning::BC-linter: Unknown keys in .bc-linter.yml: ['typpo']" in out
