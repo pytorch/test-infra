@@ -37,6 +37,7 @@ excluded_violations: []  # e.g. ["ParameterRenamed", "FieldTypeChanged"]
 ```
 
 ### Behavior notes
+- Regardless of the config, ONLY `.py` files are considered.
 - Paths precedence: `annotations.exclude` > `annotations.include` > `paths`.
   Annotations can override file include/exclude rules.
 - Name matching for annotations: A decorator matches if either its simple name
