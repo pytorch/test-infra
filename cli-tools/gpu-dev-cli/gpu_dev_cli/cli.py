@@ -58,9 +58,9 @@ def main(ctx: click.Context) -> None:
 )
 @click.option(
     "--gpu-type",
-    type=click.Choice(["h200", "h100", "a100", "t4"]),
+    type=click.Choice(["b200", "h200", "h100", "a100", "t4"]),
     default="a100",
-    help="GPU type to reserve (h200/h100/a100/t4)",
+    help="GPU type to reserve (b200/h200/h100/a100/t4)",
 )
 @click.option(
     "--hours",

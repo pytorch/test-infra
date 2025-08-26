@@ -377,7 +377,7 @@ class ReservationManager:
             availability_table = self.config.dynamodb.Table(availability_table_name)
 
             # Get supported GPU types
-            supported_types = ["h200", "h100", "a100", "t4"]
+            supported_types = ["b200", "h200", "h100", "a100", "t4"]
             availability_info = {}
 
             for gpu_type in supported_types:
@@ -429,6 +429,7 @@ class ReservationManager:
         """Get static GPU configuration as fallback when real-time data unavailable"""
         static_configs = {
             "a100": {"available": 0, "total": 16},  # 2x p4d.24xlarge = 16 A100s
+            "b200": {"available": 0, "total": 8},   # 1x p6-b200.48xlarge = 8 B200s
             "h200": {"available": 0, "total": 16},  # 2x p5e.48xlarge = 16 H200s
             "h100": {"available": 0, "total": 16},  # 2x p5.48xlarge = 16 H100s
             "t4": {"available": 0, "total": 8},  # 2x g4dn.12xlarge = 8 T4s

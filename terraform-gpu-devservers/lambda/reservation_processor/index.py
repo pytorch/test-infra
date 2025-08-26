@@ -1856,7 +1856,11 @@ def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]
             "g4dn.8xlarge": "T4",
             "g4dn.12xlarge": "T4",
             "g4dn.16xlarge": "T4",
+            "p4d.24xlarge": "A100",
             "p5.48xlarge": "H100",
+            "p5e.48xlarge": "H200",
+            "p5en.48xlarge": "H200",
+            "p6-b200.48xlarge": "B200",
         }
 
         gpu_type = gpu_type_mapping.get(instance_type, "Unknown")

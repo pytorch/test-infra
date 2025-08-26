@@ -133,7 +133,7 @@ resource "aws_eks_node_group" "gpu_dev_nodes" {
   cluster_name    = aws_eks_cluster.gpu_dev_cluster.name
   node_group_name = "${var.prefix}-gpu-nodes-${each.key}"
   node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = [aws_subnet.gpu_dev_subnet.id]
+  subnet_ids      = each.key == "b200" ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
 
   # Use CUSTOM AMI type when launch template specifies image_id
   ami_type      = "CUSTOM"
@@ -183,7 +183,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
   for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
 
   name                      = "${var.prefix}-gpu-nodes-self-managed-${each.key}"
-  vpc_zone_identifier       = [aws_subnet.gpu_dev_subnet.id]
+  vpc_zone_identifier       = each.key == "b200" ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
   target_group_arns         = []
   health_check_type         = "EC2"
   health_check_grace_period = 300
@@ -297,28 +297,39 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    subnet_id                   = each.value.use_placement_group ? null : aws_subnet.gpu_dev_subnet.id
+    subnet_id                   = each.value.use_placement_group ? null : (each.key == "b200" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
     interface_type = (
       # Check if any instance type in the list supports EFA
       each.value.instance_types != null ?
-      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
+      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
       # Single instance type check
-      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     )
     delete_on_termination = true
   }
 
-  # Conditionally add instance_market_options for p5.48xlarge instances
+  # Conditionally add instance_market_options for capacity block instances (H100/B200)
   dynamic "instance_market_options" {
     for_each = (
-      # Check if single instance type is p5.48xlarge
+      # Check if single instance type needs capacity block
       each.value.instance_types == null ?
-      (each.value.instance_type == "p5.48xlarge" ? [1] : []) :
-      # Check if any instance type in the list is p5.48xlarge
-      (length([for it in each.value.instance_types : it if it == "p5.48xlarge"]) > 0 ? [1] : [])
+      (contains(["p5.48xlarge", "p6-b200.48xlarge"], each.value.instance_type) ? [1] : []) :
+      # Check if any instance type in the list needs capacity block
+      (length([for it in each.value.instance_types : it if contains(["p5.48xlarge", "p6-b200.48xlarge"], it)]) > 0 ? [1] : [])
     )
     content {
       market_type = "capacity-block"
+    }
+  }
+
+  # Add capacity reservation specification for capacity block instances
+  dynamic "capacity_reservation_specification" {
+    for_each = (each.key == "h100" || each.key == "b200") ? [1] : []
+    content {
+      capacity_reservation_preference = "capacity-reservations-only"
+      capacity_reservation_target {
+        capacity_reservation_id = each.key == "h100" ? "cr-003773252aa2ea59a" : "cr-0e2d0247fafbd380a"
+      }
     }
   }
 
@@ -390,13 +401,13 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
     # Explicitly set subnet for instances that don't use placement groups
-    subnet_id = each.value.use_placement_group ? null : aws_subnet.gpu_dev_subnet.id
+    subnet_id = each.value.use_placement_group ? null : (each.key == "b200" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
     interface_type = (
       # Check if any instance type in the list supports EFA
       each.value.instance_types != null ?
-      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
+      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
       # Single instance type check
-      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
+      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
     )
   }
 

@@ -121,6 +121,12 @@ variable "supported_gpu_types" {
     use_placement_group = bool
   }))
   default = {
+    "b200" = {
+      instance_type       = "p6-b200.48xlarge" # 8x B200 GPUs
+      instance_count      = 2
+      gpus_per_instance   = 8
+      use_placement_group = false
+    }
     "h200" = {
       instance_type       = "p5e.48xlarge"                    # Primary: 8x H200 GPUs
       instance_types      = ["p5e.48xlarge", "p5en.48xlarge"] # Both H200 variants
