@@ -102,10 +102,9 @@ class TestSignal(unittest.TestCase):
                 self._ev("job", SignalStatus.SUCCESS, 30),
             ],
         )
-        s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
         partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
         self.assertEqual(
-            s.confirm_not_an_infra_issue(partition), InfraCheckResult.CONFIRMED
+            partition.confirm_not_an_infra_issue(), InfraCheckResult.CONFIRMED
         )
 
     def test_confirm_not_an_infra_issue_none_with_pending_between(self):
@@ -121,10 +120,9 @@ class TestSignal(unittest.TestCase):
                 self._ev("job", SignalStatus.SUCCESS, 30),
             ],
         )
-        s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
         partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
         self.assertEqual(
-            s.confirm_not_an_infra_issue(partition), InfraCheckResult.PENDING
+            partition.confirm_not_an_infra_issue(), InfraCheckResult.PENDING
         )
 
     def test_confirm_not_an_infra_issue_false_when_pending_outside_window(self):
@@ -140,10 +138,9 @@ class TestSignal(unittest.TestCase):
                 self._ev("job", SignalStatus.SUCCESS, 30),
             ],
         )
-        s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
         partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
         self.assertEqual(
-            s.confirm_not_an_infra_issue(partition), InfraCheckResult.RESTART_SUCCESS
+            partition.confirm_not_an_infra_issue(), InfraCheckResult.RESTART_SUCCESS
         )
 
     def test_confirm_not_an_infra_issue_false_no_bracketing_success(self):
@@ -161,10 +158,9 @@ class TestSignal(unittest.TestCase):
                 self._ev("job", SignalStatus.PENDING, 30),
             ],
         )
-        s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
         partition = PartitionedCommits(failed=[c_new], unknown=[], successful=[c_old])
         self.assertEqual(
-            s.confirm_not_an_infra_issue(partition), InfraCheckResult.RESTART_SUCCESS
+            partition.confirm_not_an_infra_issue(), InfraCheckResult.RESTART_SUCCESS
         )
 
     def test_detect_autorevert_pattern_basic(self):

@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import List, Optional, Set, Tuple, Union
+from typing import Callable, List, Optional, Set, Tuple, Union
 
 
 class SignalStatus(Enum):
@@ -107,6 +107,25 @@ class SignalCommit:
         return iter(self.events)
 
 
+def _bounds(
+    commits: List["SignalCommit"], keep_predicate: Callable[[SignalEvent], bool]
+) -> Tuple[Optional[datetime], Optional[datetime]]:
+    """
+    Compute (min_time, max_time) over events of commits satisfying predicate `keep`.
+    """
+    lo: Optional[datetime] = None
+    hi: Optional[datetime] = None
+    for c in commits:
+        for e in c.events:
+            if keep_predicate(e):
+                t = e.started_at
+                if lo is None or t < lo:
+                    lo = t
+                if hi is None or t > hi:
+                    hi = t
+    return lo, hi
+
+
 @dataclass
 class PartitionedCommits:
     """
@@ -128,6 +147,53 @@ class PartitionedCommits:
 
     def success_events_count(self) -> int:
         return sum(c.statuses.get(SignalStatus.SUCCESS, 0) for c in self.successful)
+
+    def confirm_not_an_infra_issue(self) -> "InfraCheckResult":
+        """
+        Infra check based on this partition that classifies whether observed
+        failures are likely infra or code-caused.
+
+        Invariants established (priority: CONFIRMED > PENDING):
+        - CONFIRMED: at least one failure (newer side) timestamp lies strictly
+          between two actual success timestamps (older side).
+        - PENDING: success-like and failure-like time ranges overlap, but no
+          confirmed sandwich yet; pending events could complete the sandwich.
+        - RESTART_SUCCESS: no success-like event occurs after any failure-like
+          event (ranges do not overlap in that direction).
+        - RESTART_FAILURE: no failure-like event occurs after any success-like
+          event (ranges do not overlap in that direction).
+
+        Notes:
+        - success-like = SUCCESS or PENDING; failure-like = FAILURE or PENDING.
+        - Only "failed" and "successful" partitions are considered; "unknown" is ignored.
+        - Flakiness is assumed to be ruled out upstream.
+        """
+
+        # success-like includes pending; actual-success excludes pending
+        min_succ_like, max_succ_like = _bounds(
+            self.successful, lambda e: e.is_success or e.is_pending
+        )
+        min_succ, max_succ = _bounds(self.successful, lambda e: e.is_success)
+        # failure-like includes pending
+        min_fail_like, max_fail_like = _bounds(
+            self.failed, lambda e: e.is_failure or e.is_pending
+        )
+
+        # Strict ordering without overlap → restart
+        if min_succ_like is None or max_succ_like <= min_fail_like:
+            return InfraCheckResult.RESTART_SUCCESS
+        if min_fail_like is None or max_fail_like <= min_succ_like:
+            return InfraCheckResult.RESTART_FAILURE
+
+        # Confirmed: any actual failure falls strictly between two actual successes
+        if min_succ is not None and max_succ is not None and min_succ < max_succ:
+            for c in self.failed:
+                for e in c.events:
+                    if e.is_failure and (min_succ < e.started_at < max_succ):
+                        return InfraCheckResult.CONFIRMED
+
+        # Overlap exists, but not confirmed yet → pending
+        return InfraCheckResult.PENDING
 
 
 class InfraCheckResult(Enum):
@@ -237,75 +303,6 @@ class Signal:
 
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
-    def confirm_not_an_infra_issue(
-        self, partition: PartitionedCommits
-    ) -> InfraCheckResult:
-        """
-        Checks if there is a "sandwich" pattern where:
-        - The failure of the newer commit is between (time-wise) two successes from the older commits.
-
-        The goal of this it to rule out the transient infra / outside issue
-        (i.e. issue not caused by the change in the newer commit).
-
-        Invariants established:
-        - CONFIRMED: at least one failure (newer commit) timestamp lies strictly between two
-          actual success timestamps (older commits).
-        - PENDING: success-like and failure-like time ranges overlap, but no
-          confirmed sandwich yet; pending events could complete the sandwich.
-        - RESTART_SUCCESS: no success-like event occurs after any failure-like
-          event (ranges do not overlap in that direction).
-        - RESTART_FAILURE: no failure-like event occurs after any success-like
-          event (ranges do not overlap in that direction).
-
-        Notes:
-        - success-like = SUCCESS or PENDING; failure-like = FAILURE or PENDING.
-        - Only commits from the failed/successful partitions are considered;
-          unknown is ignored here.
-        - Flakiness is assumed to be ruled out upstream.
-        """
-
-        def bounds(
-            commits: List[SignalCommit], keep
-        ) -> Tuple[Optional[datetime], Optional[datetime]]:
-            lo: Optional[datetime] = None
-            hi: Optional[datetime] = None
-            for c in commits:
-                for e in c.events:
-                    if keep(e):
-                        t = e.started_at
-                        if lo is None or t < lo:
-                            lo = t
-                        if hi is None or t > hi:
-                            hi = t
-            return lo, hi
-
-        # success-like includes pending; actual-success excludes pending
-        min_succ_like, max_succ_like = bounds(
-            partition.successful, lambda e: e.is_success or e.is_pending
-        )
-        min_succ, max_succ = bounds(partition.successful, lambda e: e.is_success)
-        # failure-like includes pending
-        min_fail_like, max_fail_like = bounds(
-            partition.failed, lambda e: e.is_failure or e.is_pending
-        )
-
-        # Strict ordering without overlap → restart
-        if min_succ_like is None or max_succ_like <= min_fail_like:
-            return InfraCheckResult.RESTART_SUCCESS
-        if min_fail_like is None or max_fail_like <= min_succ_like:
-            return InfraCheckResult.RESTART_FAILURE
-
-        # Confirmed: any actual failure of the newer commit falls strictly
-        # between two actual successes of the older commit
-        if min_succ is not None and max_succ is not None and min_succ < max_succ:
-            for c in partition.failed:
-                for e in c.events:
-                    if e.is_failure and (min_succ < e.started_at < max_succ):
-                        return InfraCheckResult.CONFIRMED
-
-        # Overlap exists, but not confirmed yet → pending
-        return InfraCheckResult.PENDING
-
     def process_valid_autorevert_pattern(
         self,
     ) -> Optional[Union[AutorevertPattern, RestartCommits]]:
@@ -332,7 +329,7 @@ class Signal:
             if not c.events:
                 restart_commits.add(c.head_sha)
 
-        infra_check_result = self.confirm_not_an_infra_issue(partition)
+        infra_check_result = partition.confirm_not_an_infra_issue()
         # note re: event_count < 2:
         # this is a confidence heuristic to detect flakiness, can adjust as needed
         if (
