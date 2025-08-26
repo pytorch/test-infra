@@ -159,9 +159,10 @@ class Signal:
         """
         # find the first non-pending existing commit in the signal
         for commit in self.commits:
-            if not all(event.is_pending for event in commit):
-                # If we found a commit with no pending jobs, check if it has any failed jobs
-                return any(event.is_success for event in commit)  # recovered
+            # not all events are pending
+            if commit.has_success or commit.has_failure:
+                # If we found a commit that has resolved jobs, check if it has failed jobs
+                return commit.has_success  # recovered
         return False
 
     def detect_flaky(self) -> bool:
