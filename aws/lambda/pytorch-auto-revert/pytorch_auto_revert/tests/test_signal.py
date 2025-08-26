@@ -192,8 +192,12 @@ class TestSignal(unittest.TestCase):
         self.assertIsNotNone(res)
         self.assertIsInstance(res, AutorevertPattern)
         self.assertEqual(res.workflow_name, "wf")
-        self.assertEqual(res.newer_commits, ["sha_newer", "sha_mid"])
-        self.assertEqual(res.older_commit, "sha_old")
+        # newer failing commits are those after the suspected one (newest->older)
+        self.assertEqual(
+            res.newer_failing_commits, ["sha_newer"]
+        )  # only newer of the two
+        self.assertEqual(res.suspected_commit, "sha_mid")
+        self.assertEqual(res.older_successful_commit, "sha_old")
 
     def test_detect_autorevert_pattern_none_when_missing_failure(self):
         c_newer = SignalCommit(

@@ -19,15 +19,18 @@ class SignalStatus(Enum):
 class AutorevertPattern:
     """
     Represents an autorevert pattern detected in a signal.
+
+    - newer_failing_commits: list of newer commits (after the suspected commit)
+      that have failures for this signal (newest → older order).
+    - suspected_commit: the oldest commit that first started to fail.
+    - older_successful_commit: the most recent successful commit before
+      failures started (direct parent of the suspected commit for this signal).
     """
 
-    pattern_detected: bool
     workflow_name: str
-    newer_commits: List[str]
-    older_commit: str
-    # failed_job_names: List[str]  # TODO: Uncomment when needed
-    # failure_rule: str              # TODO: Uncomment when needed
-    # job_name_base: str             # TODO: Uncomment when needed
+    newer_failing_commits: List[str]
+    suspected_commit: str
+    older_successful_commit: str
 
 
 @dataclass
@@ -349,9 +352,12 @@ class Signal:
             return None
 
         # all invariants validated, confirmed not infra, pattern exists
+        # failed is newest -> older; the last element is the suspected commit
+        suspected = partition.failed[-1]
+        newer_failures = [c.head_sha for c in partition.failed[:-1]]
         return AutorevertPattern(
-            pattern_detected=True,
             workflow_name=self.workflow_name,
-            newer_commits=[c.head_sha for c in partition.failed[-2:]],
-            older_commit=partition.successful[0].head_sha,
+            newer_failing_commits=newer_failures,
+            suspected_commit=suspected.head_sha,
+            older_successful_commit=partition.successful[0].head_sha,
         )
