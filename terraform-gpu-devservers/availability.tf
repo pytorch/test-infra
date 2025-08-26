@@ -26,7 +26,7 @@ resource "aws_lambda_function" "availability_updater" {
   role             = aws_iam_role.availability_updater_role.arn
   handler          = "index.handler"
   runtime          = "python3.11"
-  timeout          = 60
+  timeout          = 300
   source_code_hash = data.archive_file.availability_updater_zip.output_base64sha256
 
   environment {
@@ -215,7 +215,7 @@ resource "null_resource" "availability_updater_build" {
 # Archive file for availability updater Lambda deployment
 data "archive_file" "availability_updater_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/lambda/availability_updater/"
+  source_dir  = "${path.module}/lambda/availability_updater/package"
   output_path = "${path.module}/lambda/availability_updater.zip"
 
   depends_on = [null_resource.availability_updater_build]

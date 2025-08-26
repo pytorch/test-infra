@@ -240,6 +240,70 @@ def handler(event, context):
         except Exception as e:
             logger.error(f"Error processing failed reservations: {e}")
 
+        # Clean up expired and cancelled reservations that still have running pods
+        try:
+            expired_statuses = ["expired", "cancelled"]
+            expired_cancelled_reservations = []
+            
+            for status in expired_statuses:
+                response = reservations_table.query(
+                    IndexName="StatusIndex", 
+                    KeyConditionExpression="#status = :status",
+                    ExpressionAttributeNames={"#status": "status"},
+                    ExpressionAttributeValues={":status": status},
+                )
+                expired_cancelled_reservations.extend(response.get("Items", []))
+            
+            logger.info(f"Found {len(expired_cancelled_reservations)} expired/cancelled reservations")
+            
+            # Clean up pods from expired/cancelled reservations (within last 7 days to avoid processing very old ones)
+            EXPIRED_CLEANUP_WINDOW = 7 * 24 * 3600  # 7 days
+            expired_cleanup_threshold = current_time - EXPIRED_CLEANUP_WINDOW
+            
+            for reservation in expired_cancelled_reservations:
+                reservation_id = reservation["reservation_id"]
+                pod_name = reservation.get("pod_name")
+                
+                if not pod_name:
+                    continue  # No pod to clean up
+                
+                # Check if expired/cancelled recently (within cleanup window)
+                expired_at = reservation.get("expired_at", reservation.get("cancelled_at", ""))
+                if not expired_at:
+                    continue  # No expiry/cancel timestamp
+                
+                try:
+                    if isinstance(expired_at, str):
+                        expired_timestamp = int(
+                            datetime.fromisoformat(
+                                expired_at.replace("Z", "+00:00")
+                            ).timestamp()
+                        )
+                    else:
+                        expired_timestamp = int(expired_at)
+                        
+                    if expired_timestamp < expired_cleanup_threshold:
+                        continue  # Too old, skip cleanup
+                        
+                except (ValueError, AttributeError):
+                    continue  # Can't parse timestamp, skip
+                
+                logger.info(
+                    f"Cleaning up {reservation.get('status', 'unknown')} reservation {reservation_id[:8]} with pod {pod_name}"
+                )
+                try:
+                    cleanup_pod(pod_name)
+                    logger.info(
+                        f"Successfully cleaned up {reservation.get('status', 'unknown')} reservation {reservation_id[:8]}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to cleanup {reservation.get('status', 'unknown')} reservation {reservation_id[:8]}: {e}"
+                    )
+        
+        except Exception as e:
+            logger.error(f"Error processing expired/cancelled reservations: {e}")
+
         # Also check for stale queued/pending reservations
         stale_statuses = ["queued", "pending"]
         stale_reservations = []

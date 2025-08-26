@@ -37,19 +37,27 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         logger.info(f"Event: {event_type}, ASG: {asg_name}, Instance: {instance_id}")
         logger.info("Updating availability for ALL GPU types...")
 
+        # Set up Kubernetes client once for all GPU types
+        k8s_client = None
+        try:
+            logger.info("Setting up shared Kubernetes client for all GPU types")
+            from shared import setup_kubernetes_client
+            k8s_client = setup_kubernetes_client()
+            logger.info("Shared Kubernetes client ready")
+        except Exception as k8s_setup_error:
+            logger.error(f"Failed to setup Kubernetes client: {k8s_setup_error}")
+            k8s_client = None
+
         # Update availability for ALL GPU types (use any ASG event as trigger to refresh all)
         updated_types = []
         for gpu_type in SUPPORTED_GPU_TYPES.keys():
             try:
-                update_gpu_availability(gpu_type)
+                logger.info(f"=== Starting update for GPU type: {gpu_type} ===")
+                update_gpu_availability(gpu_type, k8s_client)
                 updated_types.append(gpu_type)
-                logger.info(
-                    f"Successfully updated availability for GPU type: {gpu_type}"
-                )
+                logger.info(f"=== Successfully updated availability for GPU type: {gpu_type} ===")
             except Exception as gpu_error:
-                logger.error(
-                    f"Failed to update availability for {gpu_type}: {gpu_error}"
-                )
+                logger.error(f"=== Failed to update availability for {gpu_type}: {gpu_error} ===")
                 # Continue with other GPU types
 
         return {
@@ -70,11 +78,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         raise
 
 
-def update_gpu_availability(gpu_type: str) -> None:
+def update_gpu_availability(gpu_type: str, k8s_client=None) -> None:
     """Update availability information for a specific GPU type"""
     try:
+        logger.info(f"Starting availability update for GPU type: {gpu_type}")
+
         # Get current ASG capacity
         asg_name = f"pytorch-gpu-dev-gpu-nodes-self-managed-{gpu_type}"
+        logger.info(f"Checking ASG: {asg_name}")
 
         asg_response = autoscaling.describe_auto_scaling_groups(
             AutoScalingGroupNames=[asg_name]
@@ -83,6 +94,8 @@ def update_gpu_availability(gpu_type: str) -> None:
         if not asg_response["AutoScalingGroups"]:
             logger.warning(f"ASG not found: {asg_name}")
             return
+
+        logger.info(f"Found ASG {asg_name}, processing capacity info")
 
         asg = asg_response["AutoScalingGroups"][0]
 
@@ -101,22 +114,22 @@ def update_gpu_availability(gpu_type: str) -> None:
         gpus_per_instance = gpu_config.get("gpus_per_instance", 8)
 
         total_gpus = running_instances * gpus_per_instance
+        logger.info(
+            f"ASG calculation: {running_instances} instances * {gpus_per_instance} GPUs = {total_gpus} total GPUs")
 
         # Query Kubernetes API for actual GPU allocations
-        try:
-            from shared.k8s_client import setup_kubernetes_client
+        if k8s_client is not None:
+            try:
+                logger.info(f"Starting Kubernetes query for {gpu_type} GPU availability")
+                available_gpus = check_schedulable_gpus_for_type(k8s_client, gpu_type)
+                logger.info(f"Kubernetes reports {available_gpus} schedulable {gpu_type.upper()} GPUs")
 
-            k8s_client = setup_kubernetes_client()
-            available_gpus = check_schedulable_gpus_for_type(k8s_client, gpu_type)
-
-            logger.info(
-                f"Kubernetes reports {available_gpus} schedulable {gpu_type.upper()} GPUs"
-            )
-
-        except Exception as k8s_error:
-            logger.warning(
-                f"Failed to query Kubernetes for {gpu_type} availability: {k8s_error}"
-            )
+            except Exception as k8s_error:
+                logger.warning(f"Failed to query Kubernetes for {gpu_type} availability: {k8s_error}")
+                # Fallback to ASG-based calculation (assume all GPUs available)
+                available_gpus = total_gpus
+        else:
+            logger.warning(f"No Kubernetes client available for {gpu_type}, using ASG-based calculation")
             # Fallback to ASG-based calculation (assume all GPUs available)
             available_gpus = total_gpus
 
@@ -153,13 +166,18 @@ import time
 def check_schedulable_gpus_for_type(k8s_client, gpu_type: str) -> int:
     """Check how many GPUs of a specific type are schedulable (available for new pods)"""
     try:
+        logger.info(f"Starting schedulable GPU check for type: {gpu_type}")
         from kubernetes import client
 
         v1 = client.CoreV1Api(k8s_client)
+        logger.info(f"Created CoreV1Api client for {gpu_type}")
 
         # Get all nodes with the specified GPU type
         gpu_type_selector = f"GpuType={gpu_type}"
+        logger.info(f"Querying nodes with label selector: {gpu_type_selector}")
+
         nodes = v1.list_node(label_selector=gpu_type_selector)
+        logger.info(f"Retrieved {len(nodes.items) if nodes.items else 0} nodes for {gpu_type}")
 
         if not nodes.items:
             logger.warning(f"No nodes found for GPU type {gpu_type}")
@@ -167,17 +185,20 @@ def check_schedulable_gpus_for_type(k8s_client, gpu_type: str) -> int:
 
         total_schedulable = 0
 
-        for node in nodes.items:
+        for i, node in enumerate(nodes.items):
+            logger.info(f"Processing node {i + 1}/{len(nodes.items)}: {node.metadata.name}")
+
             if not is_node_ready_and_schedulable(node):
+                logger.info(f"Node {node.metadata.name} is not ready/schedulable, skipping")
                 continue
 
+            logger.info(f"Node {node.metadata.name} is ready, checking GPU availability")
             # Get available GPUs on this node
             available_on_node = get_available_gpus_on_node(v1, node)
             total_schedulable += available_on_node
+            logger.info(f"Node {node.metadata.name}: {available_on_node} GPUs available")
 
-        logger.info(
-            f"Found {total_schedulable} schedulable {gpu_type.upper()} GPUs across {len(nodes.items)} nodes"
-        )
+        logger.info(f"Found {total_schedulable} schedulable {gpu_type.upper()} GPUs across {len(nodes.items)} nodes")
         return total_schedulable
 
     except Exception as e:
@@ -212,11 +233,12 @@ def get_available_gpus_on_node(v1_api, node) -> int:
     """Get number of available GPUs on a specific node"""
     try:
         node_name = node.metadata.name
+        logger.info(f"Checking GPU availability on node: {node_name}")
 
         # Get all pods on this node
-        pods = v1_api.list_pod_for_all_namespaces(
-            field_selector=f"spec.nodeName={node_name}"
-        )
+        logger.info(f"Querying pods on node {node_name}")
+        pods = v1_api.list_pod_for_all_namespaces(field_selector=f"spec.nodeName={node_name}")
+        logger.info(f"Found {len(pods.items)} pods on node {node_name}")
 
         # Calculate GPU usage
         used_gpus = 0
