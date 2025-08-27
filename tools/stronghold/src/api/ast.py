@@ -80,7 +80,9 @@ def _function_def_to_parameters(node: ast.FunctionDef) -> api.Parameters:
         )
         for i, arg in enumerate(args.kwonlyargs)
     ]
-    dec_names = tuple(_decorator_to_name(d) for d in node.decorator_list)
+    dec_names = tuple(
+        n for n in (_decorator_to_name(d) for d in node.decorator_list) if n
+    )
     return api.Parameters(
         parameters=params,
         variadic_args=args.vararg is not None,
@@ -108,7 +110,9 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
         # class name pushed onto a new context.
         if self._classes is not None:
             name = ".".join(self._context + [node.name])
-            dec_names = [_decorator_to_name(d) for d in node.decorator_list]
+            dec_names = [
+                n for n in (_decorator_to_name(d) for d in node.decorator_list) if n
+            ]
             is_dataclass = any(
                 (n == "dataclass" or n.endswith(".dataclass")) for n in dec_names
             )
