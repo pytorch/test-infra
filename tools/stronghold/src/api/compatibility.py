@@ -9,38 +9,27 @@ from collections.abc import Iterable, Mapping, Sequence
 
 import api
 import api.ast
+import api.config
 import api.git
 import api.violations
 
 
 def check_range(
-    repo: api.git.Repository, *, head: str, base: str
+    repo: api.git.Repository,
+    *,
+    head: str,
+    base: str,
+    config: api.config.Config | None = None,
 ) -> Mapping[pathlib.Path, Sequence[api.violations.Violation]]:
+    cfg = config or api.config.default_config()
     result = {}
     for file in repo.get_files_in_range(f"{base}..{head}"):
-        # Someday, we'll want to customize the filters we use to
-        # ignore files.
+        # Only consider Python files.
         if file.suffix != ".py":
-            # Only consider Python files.
             continue
-        if any(dir.name.startswith("_") for dir in file.parents):
-            # Ignore any internal packages.
-            continue
-        if any(dir.name.startswith(".") for dir in file.parents):
-            # Ignore any internal packages and ci modules
-            continue
-        if file.name.startswith("_"):
-            # Ignore internal modules.
-            continue
-        if any(dir.name == "test" for dir in file.parents):
-            # Ignore tests (not part of PyTorch package).
-            continue
-        if any(dir.name == "benchmarks" for dir in file.parents):
-            # Ignore benchmarks (not part of PyTorch package).
-            continue
-        if file.name.startswith("test_") or file.stem.endswith("_test"):
-            # Ignore test files.
-            continue
+        # Note: path allow/deny is applied at symbol-level inside `check` so that
+        # annotation-based overrides can include symbols even from otherwise
+        # excluded files.
 
         # Get the contents before and after the diff.
         #
@@ -57,7 +46,9 @@ def check_range(
                 after_path = pathlib.Path(after_file.name)
                 after_path.write_text(after)
 
-                violations = api.compatibility.check(before_path, after_path)
+                violations = api.compatibility.check(
+                    before_path, after_path, file_path=file, config=cfg
+                )
                 if len(violations) > 0:
                     result[file] = violations
 
@@ -65,9 +56,14 @@ def check_range(
 
 
 def check(
-    before: pathlib.Path, after: pathlib.Path
+    before: pathlib.Path,
+    after: pathlib.Path,
+    *,
+    file_path: pathlib.Path | None = None,
+    config: api.config.Config | None = None,
 ) -> Sequence[api.violations.Violation]:
     """Identifies API compatibility issues between two files."""
+    cfg = config or api.config.default_config()
     before_api = api.ast.extract(before, include_classes=True)
     after_api = api.ast.extract(after, include_classes=True)
     before_funcs = before_api.functions
@@ -75,12 +71,78 @@ def check(
     before_classes = before_api.classes
     after_classes = after_api.classes
 
+    # File path allowance (paths include/exclude) influences default symbol inclusion
+    file_allowed = True
+    if file_path is not None:
+        file_allowed = api.config.match_any(
+            file_path, cfg.include
+        ) and not api.config.match_any(file_path, cfg.exclude)
+
+    def _is_public(name: str) -> bool:
+        """Returns True if no qualname component starts with an underscore."""
+        return not any(token.startswith("_") for token in name.split("."))
+
+    def _matches_ann(
+        decorators: Sequence[str], specs: Sequence[api.config.AnnotationSpec]
+    ) -> bool:
+        if not decorators or not specs:
+            return False
+        for d in decorators:
+            for spec in specs:
+                if d == spec.name or d.endswith(f".{spec.name}"):
+                    return True
+        return False
+
+    def _symbol_included(name: str, kind: str) -> bool:
+        # kind: 'func' or 'class'
+        if cfg.scan.public_only and not _is_public(name):
+            return False
+
+        # decorators on the symbol in `after`
+        decs: Sequence[str] = ()
+        if kind == "func":
+            decs = after_funcs.get(name).decorators if name in after_funcs else ()
+        else:
+            decs = after_classes.get(name).decorators if name in after_classes else ()
+
+        # decorators on ancestor classes (apply only if propagate_to_members is True)
+        def _ancestor_has(specs: Sequence[api.config.AnnotationSpec]) -> bool:
+            tokens = name.split(".")
+            for i in range(1, len(tokens)):
+                cls_name = ".".join(tokens[:i])
+                cls = after_classes.get(cls_name)
+                if cls is None:
+                    continue
+                if not cls.decorators:
+                    continue
+                for d in cls.decorators:
+                    for s in specs:
+                        if not s.propagate_to_members:
+                            continue
+                        if d == s.name or d.endswith(f".{s.name}"):
+                            return True
+            return False
+
+        excluded_by_ann = _matches_ann(decs, cfg.annotations_exclude) or _ancestor_has(
+            cfg.annotations_exclude
+        )
+        if excluded_by_ann:
+            return False
+
+        included_by_ann = _matches_ann(decs, cfg.annotations_include) or _ancestor_has(
+            cfg.annotations_include
+        )
+        if included_by_ann:
+            return True
+
+        # Fallback to file-level allow
+        return file_allowed
+
     # Identify deleted classes to avoid double-reporting their methods as deleted
     deleted_classes = {
         name
         for name in before_classes
-        if not any(token.startswith("_") for token in name.split("."))
-        and name not in after_classes
+        if (not cfg.scan.public_only or _is_public(name)) and name not in after_classes
     }
 
     def _under_deleted_class(func_name: str) -> bool:
@@ -93,50 +155,64 @@ def check(
         return False
 
     violations: list[api.violations.Violation] = []
-    for name, before_def in before_funcs.items():
-        if any(token.startswith("_") for token in name.split(".")):
-            continue
-        if _under_deleted_class(name):
-            # Will be reported as a class deletion instead
-            continue
+    if cfg.scan.functions:
+        for name, before_def in before_funcs.items():
+            if not _symbol_included(name, "func"):
+                continue
+            if _under_deleted_class(name):
+                # Will be reported as a class deletion instead
+                continue
 
-        after_def = after_funcs.get(name)
-        if after_def is None:
-            violations.append(api.violations.FunctionDeleted(func=name, line=1))
-            continue
+            after_def = after_funcs.get(name)
+            if after_def is None:
+                violations.append(api.violations.FunctionDeleted(func=name, line=1))
+                continue
 
-        # Let's refine some terminology. Parameters come in three flavors:
-        #  * positional only
-        #  * keyword only
-        #  * flexible: may be provided positionally or via keyword
-        #
-        # Required parameter: a parameter that must be provided as an
-        # argument by callers. In other words, the function does not
-        # have a default value.
-        #
-        # Variadic parameters: additional arguments that may only be
-        # provided positionally, traditionally specified as *args in a
-        # function definition.
-        #
-        # Variadic keywords: additional arguments that may only be
-        # provided by name, traditionally specified as **kwargs in a
-        # function definition.
+            # Let's refine some terminology. Parameters come in three flavors:
+            #  * positional only
+            #  * keyword only
+            #  * flexible: may be provided positionally or via keyword
+            #
+            # Required parameter: a parameter that must be provided as an
+            # argument by callers. In other words, the function does not
+            # have a default value.
+            #
+            # Variadic parameters: additional arguments that may only be
+            # provided positionally, traditionally specified as *args in a
+            # function definition.
+            #
+            # Variadic keywords: additional arguments that may only be
+            # provided by name, traditionally specified as **kwargs in a
+            # function definition.
 
-        violations += _check_by_name(name, before_def, after_def)
-        violations += _check_by_position(name, before_def, after_def)
-        violations += _check_by_requiredness(name, before_def, after_def)
-        violations += _check_variadic_parameters(name, before_def, after_def)
+            violations += _check_by_name(name, before_def, after_def)
+            violations += _check_by_position(name, before_def, after_def)
+            violations += _check_by_requiredness(name, before_def, after_def)
+            violations += _check_variadic_parameters(name, before_def, after_def)
 
-    for name, before_class in before_classes.items():
-        if any(token.startswith("_") for token in name.split(".")):
-            continue
-        after_class = after_classes.get(name)
-        if after_class is None:
-            continue
-        violations += list(_check_class_fields(name, before_class, after_class))
+    if cfg.scan.classes:
+        for name, before_class in before_classes.items():
+            if not _symbol_included(name, "class"):
+                continue
+            after_class = after_classes.get(name)
+            if after_class is None:
+                continue
+            violations += list(_check_class_fields(name, before_class, after_class))
 
     # Classes deleted between before and after
-    violations += list(_check_deleted_classes(before_classes, after_classes))
+    def _class_included(name: str) -> bool:
+        return _symbol_included(name, "class")
+
+    violations += list(
+        _check_deleted_classes(
+            before_classes, after_classes, include_pred=_class_included
+        )
+    )
+
+    # Apply violation suppression based on config
+    if cfg.excluded_violations:
+        vset = set(cfg.excluded_violations)
+        violations = [v for v in violations if v.__class__.__name__ not in vset]
 
     return violations
 
@@ -321,15 +397,13 @@ def _check_class_fields(
 
 
 def _check_deleted_classes(
-    before_classes: Mapping[str, api.Class], after_classes: Mapping[str, api.Class]
+    before_classes: Mapping[str, api.Class],
+    after_classes: Mapping[str, api.Class],
+    *,
+    include_pred=None,
 ) -> Iterable[api.violations.Violation]:
     """Emits violations for classes deleted between before and after."""
-    deleted = [
-        name
-        for name in before_classes
-        if not any(token.startswith("_") for token in name.split("."))
-        and name not in after_classes
-    ]
+    deleted = [name for name in before_classes if name not in after_classes]
 
     deleted_set = set(deleted)
 
@@ -342,6 +416,8 @@ def _check_deleted_classes(
 
     for name in deleted:
         if not has_deleted_ancestor(name):
+            if include_pred is not None and not include_pred(name):
+                continue
             # Align with FunctionDeleted's use of line=1
             yield api.violations.ClassDeleted(func=name, line=1)
 

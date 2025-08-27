@@ -717,14 +717,12 @@ def test_no_parameter_type_change_generic(tmp_path: pathlib.Path) -> None:
     "path",
     [
         "python.cpp",
-        "_internal/module.py",
-        "_module.py",
-        "test/module.py",
-        "test_module.py",
-        "module_test.py",
     ],
 )
-def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
+def test_check_range_skips_non_python_by_default(
+    path: str, git_repo: api.git.Repository
+) -> None:
+    # Non-Python files are always skipped by default include ["**/*.py"]
     git.commit_file(
         git_repo,
         pathlib.Path(path),
@@ -737,6 +735,88 @@ def test_check_range_skips(path: str, git_repo: api.git.Repository) -> None:
     )
     git.commit_file(git_repo, pathlib.Path(path), "")
     violations = api.compatibility.check_range(git_repo, head="HEAD", base="HEAD~")
+    assert violations == {}
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "_internal/module.py",
+        "_module.py",
+        "test/module.py",
+        "test_module.py",
+        "module_test.py",
+    ],
+)
+def test_check_range_includes_by_default(
+    path: str, git_repo: api.git.Repository
+) -> None:
+    # With new defaults, these Python paths are included unless excluded by config
+    git.commit_file(
+        git_repo,
+        pathlib.Path(path),
+        textwrap.dedent(
+            """
+            def will_be_deleted():
+              pass
+            """
+        ),
+    )
+    git.commit_file(git_repo, pathlib.Path(path), "")
+    violations = api.compatibility.check_range(git_repo, head="HEAD", base="HEAD~")
+    assert violations == {
+        pathlib.Path(path): [
+            api.violations.FunctionDeleted(func="will_be_deleted", line=1)
+        ]
+    }
+
+
+@pytest.mark.parametrize(
+    "path",
+    [
+        "_internal/module.py",
+        "_module.py",
+        "test/module.py",
+        "test_module.py",
+        "module_test.py",
+    ],
+)
+def test_check_range_skips_with_legacy_config(
+    path: str, git_repo: api.git.Repository
+) -> None:
+    # Simulate legacy PyTorch-like exclusions via config
+    git.commit_file(
+        git_repo,
+        pathlib.Path(path),
+        textwrap.dedent(
+            """
+            def will_be_deleted():
+              pass
+            """
+        ),
+    )
+    git.commit_file(git_repo, pathlib.Path(path), "")
+
+    cfg = api.config.Config()
+    cfg.include = ["**/*.py"]
+    cfg.exclude = [
+        ".*",
+        ".*/**",
+        "**/.*/**",
+        "**/.*",
+        "**/_*/**",
+        "**/_*.py",
+        "**/test/**",
+        "**/benchmarks/**",
+        "**/test_*.py",
+        "**/*_test.py",
+        # Some repos also want this; include it to be explicit
+        "**/tests/**",
+    ]
+
+    violations = api.compatibility.check_range(
+        git_repo, head="HEAD", base="HEAD~", config=cfg
+    )
     assert violations == {}
 
 
