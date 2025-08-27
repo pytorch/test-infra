@@ -13,13 +13,6 @@ export async function decrypt(
 ): Promise<string | undefined> {
   /* istanbul ignore next */
   if (!kms) {
-    // JS SDK v3 does not support global configuration.
-    // Codemod has attempted to pass values to each service client in this file.
-    // You may need to update clients outside of this file, if they use global config.
-    AWS.config.update({
-      region: Config.Instance.awsRegion,
-    });
-
     kms = new KMS({
       region: Config.Instance.awsRegion,
     });
@@ -30,19 +23,13 @@ export async function decrypt(
 
   const decripted = await expBackOff(() => {
     return metrics.trackRequest(metrics.kmsDecryptAWSCallSuccess, metrics.kmsDecryptAWSCallFailure, () => {
-      return (
-        // The `.promise()` call might be on an JS SDK v2 client API.
-        // If yes, please remove .promise(). If not, remove this comment.
-        kmsD
-          .decrypt({
-            CiphertextBlob: Buffer.from(encrypted, 'base64'),
-            KeyId: key,
-            EncryptionContext: {
-              ['Environment']: environmentName,
-            },
-          })
-          .promise()
-      );
+      return kmsD.decrypt({
+        CiphertextBlob: Buffer.from(encrypted, 'base64'),
+        KeyId: key,
+        EncryptionContext: {
+          ['Environment']: environmentName,
+        },
+      });
     });
   });
 
