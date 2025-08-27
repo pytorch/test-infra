@@ -4,42 +4,42 @@ Terraform configuration for PyTorch GPU development servers using AWS EKS with K
 
 ## Quick Start
 
-### 1. Testing Setup (Current Default)
+### 1. Test Environment (Default)
+
+Deploy to us-west-1 with 2x T4 instances for cost-effective testing:
 
 ```bash
-# Deploy with 4x T4 instances for testing (default configuration)
 terraform init
-terraform plan
 terraform apply
-
-# Set up email notifications (get notified when GPU instances launch)
-# Replace YOUR_EMAIL with your actual email address
-aws sns subscribe --topic-arn arn:aws:sns:us-east-2:ACCOUNT:pytorch-gpu-dev-asg-notifications --protocol email --notification-endpoint YOUR_EMAIL@company.com
+# This deploys to us-west-1 with 2x g4dn.12xlarge instances (8x T4 GPUs total)
 ```
 
-### 2. Production Setup (Future)
+### 2. Production Environment
+
+Deploy to us-east-2 with A100 instances for production workloads:
 
 ```bash
-# Deploy with H100 instances for production
-terraform plan -var="instance_type=p5.48xlarge" -var="gpu_instance_count=5"
-terraform apply -var="instance_type=p5.48xlarge" -var="gpu_instance_count=5"
+terraform init
+terraform apply -var-file="prod.tfvars"
+# This deploys to us-east-2 with 2x p4d.24xlarge instances (16x A100 GPUs total)
 ```
 
-## Current Configuration
+## Environment Configurations
 
-**Testing Environment:**
+| Environment | Region | Command | Instance Type | GPU Type | Total GPUs | Cost/hour |
+|-------------|--------|---------|---------------|----------|------------|-----------|
+| **Test (default)** | us-west-1 | `terraform apply` | g4dn.12xlarge | T4 | 8 | ~$7.82 |
+| **Production** | us-east-2 | `terraform apply -var-file="prod.tfvars"` | p4d.24xlarge | A100 | 16 | ~$49.54 |
 
-- **Instance Type**: `g4dn.12xlarge` (4x T4 GPUs per instance)
-- **Node Count**: 2 instances
-- **Total GPUs**: 8x T4 GPUs available
-- **Cost**: ~$7.82/hour total for cluster
+**Test Environment Features:**
+- Cost-effective T4 GPUs for development and testing
+- Reduced capacity to minimize costs
+- Same functionality as production
 
-**Production Plan:**
-
-- **Instance Type**: `p5.48xlarge` (8x H100 GPUs per instance)
-- **Node Count**: 5 instances
-- **Total GPUs**: 40x H100 GPUs available
-- **Cost**: ~$490/hour total for cluster
+**Production Environment Features:**
+- High-performance A100 GPUs for production workloads
+- Full GPU type support (T4/A100/H100/H200/B200)
+- Current live setup
 
 ## Configuration Options
 
@@ -65,6 +65,10 @@ To debug pods and services, configure kubectl to connect to your EKS cluster:
 brew install kubectl
 
 # Configure kubectl for your EKS cluster
+# For test environment (us-west-1):
+aws eks update-kubeconfig --region us-west-1 --name pytorch-gpu-dev-cluster
+
+# For production environment (us-east-2):
 aws eks update-kubeconfig --region us-east-2 --name pytorch-gpu-dev-cluster
 
 # Test connectivity
@@ -269,29 +273,61 @@ The system uses **Kubernetes-native GPU tracking** instead of manual allocation:
 
 ### Deployment Configuration
 
-#### Testing Environment (Current)
+#### Test Environment (Default)
 
-- **2x g4dn.12xlarge** instances (4 GPUs each = 8 total)
+- **Region**: us-west-1
+- **Instances**: 2x g4dn.12xlarge (4x T4 GPUs each = 8 total)
+- **GPU Types**: T4 only (cost-effective testing)
 - **Cost**: ~$7.82/hour
-- **Region**: us-east-2
+- **Usage**: `terraform apply`
 
-#### Production Environment (Planned)
+#### Production Environment
 
-- **5x p5.48xlarge** instances (8 H100 GPUs each = 40 total)
-- **Cost**: ~$490/hour
-- **Single AZ**: Placement groups for EFA networking
+- **Region**: us-east-2  
+- **Instances**: 2x p4d.24xlarge (8x A100 GPUs each = 16 total)
+- **GPU Types**: T4, A100, H100, H200, B200 (full support)
+- **Cost**: ~$49.54/hour
+- **Usage**: `terraform apply -var-file="prod.tfvars"`
 
 ## CLI Usage
 
-Once deployed, use the CLI to make reservations:
+The CLI connects to different regions based on environment variables.
+
+### Production Environment (Default)
+
+The CLI defaults to us-east-2 (production). No configuration needed:
 
 ```bash
 # Configure your GitHub username for SSH access
 gpu-dev config set github_user your-github-username
 
-# Reserve GPUs
+# Reserve GPUs (connects to us-east-2 production)
 gpu-dev reserve --gpus 2 --hours 4
 
 # List your reservations
 gpu-dev list
 ```
+
+### Test Environment
+
+For the test environment (us-west-1), set the AWS region:
+
+```bash
+# Set region for test environment
+export AWS_DEFAULT_REGION=us-west-1
+
+# Now CLI commands connect to us-west-1 test environment
+gpu-dev reserve --gpus 1 --hours 2  # T4 GPUs available
+gpu-dev list
+
+# Or set region for a single command
+AWS_DEFAULT_REGION=us-west-1 gpu-dev reserve --gpus 1 --hours 2
+```
+
+### Region Selection Priority
+
+The CLI determines which region to use in this order:
+
+1. `AWS_REGION` environment variable
+2. `AWS_DEFAULT_REGION` environment variable  
+3. Hardcoded default: `us-east-2` (production)

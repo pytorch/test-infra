@@ -2,7 +2,7 @@
 
 # IAM role for Lambda function
 resource "aws_iam_role" "reservation_processor_role" {
-  name = "${var.prefix}-reservation-processor-role"
+  name = "${local.workspace_prefix}-reservation-processor-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -19,13 +19,13 @@ resource "aws_iam_role" "reservation_processor_role" {
 
   tags = {
     Name        = "${var.prefix}-reservation-processor-role"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
 # IAM policy for Lambda function
 resource "aws_iam_role_policy" "reservation_processor_policy" {
-  name = "${var.prefix}-reservation-processor-policy"
+  name = "${local.workspace_prefix}-reservation-processor-policy"
   role = aws_iam_role.reservation_processor_role.id
 
   policy = jsonencode({
@@ -82,7 +82,16 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
         Effect = "Allow"
         Action = [
           "ec2:DescribeInstances",
-          "ec2:DescribeInstanceStatus"
+          "ec2:DescribeInstanceStatus",
+          "ec2:DescribeVolumes",
+          "ec2:CreateVolume",
+          "ec2:AttachVolume",
+          "ec2:DetachVolume",
+          "ec2:DeleteVolume",
+          "ec2:CreateSnapshot",
+          "ec2:DescribeSnapshots",
+          "ec2:DeleteSnapshot",
+          "ec2:CreateTags"
         ]
         Resource = "*"
       },
@@ -119,11 +128,12 @@ resource "aws_lambda_function" "reservation_processor" {
       RESERVATIONS_TABLE                 = aws_dynamodb_table.gpu_reservations.name
       AVAILABILITY_TABLE                 = aws_dynamodb_table.gpu_availability.name
       EKS_CLUSTER_NAME                   = aws_eks_cluster.gpu_dev_cluster.name
-      REGION                             = var.aws_region
+      REGION                             = local.current_config.aws_region
       MAX_RESERVATION_HOURS              = var.max_reservation_hours
       DEFAULT_TIMEOUT_HOURS              = var.reservation_timeout_hours
       QUEUE_URL                          = aws_sqs_queue.gpu_reservation_queue.url
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
+      PRIMARY_AVAILABILITY_ZONE          = data.aws_availability_zones.available.names[0]
     }
   }
 
@@ -135,7 +145,7 @@ resource "aws_lambda_function" "reservation_processor" {
 
   tags = {
     Name        = "${var.prefix}-reservation-processor"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -146,7 +156,7 @@ resource "aws_cloudwatch_log_group" "reservation_processor_log_group" {
 
   tags = {
     Name        = "${var.prefix}-reservation-processor-logs"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -209,7 +219,7 @@ resource "aws_cloudwatch_event_rule" "reservation_processor_schedule" {
 
   tags = {
     Name        = "${var.prefix}-reservation-processor-schedule"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 

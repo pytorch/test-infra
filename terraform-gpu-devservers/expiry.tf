@@ -15,7 +15,7 @@ resource "aws_lambda_function" "reservation_expiry" {
     variables = {
       RESERVATIONS_TABLE                 = aws_dynamodb_table.gpu_reservations.name
       EKS_CLUSTER_NAME                   = aws_eks_cluster.gpu_dev_cluster.name
-      REGION                             = var.aws_region
+      REGION                             = local.current_config.aws_region
       WARNING_MINUTES                    = "30"  # Warn 30 minutes before expiry
       GRACE_PERIOD_SECONDS               = "120" # 2 minutes grace period after expiry
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
@@ -29,13 +29,13 @@ resource "aws_lambda_function" "reservation_expiry" {
 
   tags = {
     Name        = "${var.prefix}-reservation-expiry"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
 # IAM role for expiry lambda
 resource "aws_iam_role" "reservation_expiry_role" {
-  name = "${var.prefix}-reservation-expiry-role"
+  name = "${local.workspace_prefix}-reservation-expiry-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -52,13 +52,13 @@ resource "aws_iam_role" "reservation_expiry_role" {
 
   tags = {
     Name        = "${var.prefix}-reservation-expiry-role"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
 # IAM policy for expiry lambda
 resource "aws_iam_role_policy" "reservation_expiry_policy" {
-  name = "${var.prefix}-reservation-expiry-policy"
+  name = "${local.workspace_prefix}-reservation-expiry-policy"
   role = aws_iam_role.reservation_expiry_role.id
 
   policy = jsonencode({
@@ -101,7 +101,11 @@ resource "aws_iam_role_policy" "reservation_expiry_policy" {
         Effect = "Allow"
         Action = [
           "ec2:DescribeInstances",
-          "ec2:DescribeInstanceStatus"
+          "ec2:DescribeInstanceStatus",
+          "ec2:DescribeVolumes",
+          "ec2:CreateSnapshot",
+          "ec2:DescribeSnapshots",
+          "ec2:DeleteSnapshot"
         ]
         Resource = "*"
       },
@@ -182,7 +186,7 @@ resource "aws_cloudwatch_event_rule" "reservation_expiry_schedule" {
 
   tags = {
     Name        = "${var.prefix}-reservation-expiry-schedule"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 

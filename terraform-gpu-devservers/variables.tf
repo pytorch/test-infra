@@ -3,13 +3,13 @@
 variable "aws_region" {
   description = "AWS region for GPU dev servers"
   type        = string
-  default     = "us-east-2"
+  default     = "us-west-1" # Default to testing region
 }
 
 variable "environment" {
-  description = "Environment name"
+  description = "Environment name (dev/test/prod)"
   type        = string
-  default     = "dev"
+  default     = "test" # Default to test environment
 }
 
 variable "prefix" {
@@ -27,30 +27,25 @@ variable "vpc_cidr" {
 variable "subnet_cidr" {
   description = "CIDR block for subnet"
   type        = string
-  default     = "10.0.1.0/24"
+  default     = "10.0.0.0/22"  # Expanded from /24 to /22 (1024 IPs instead of 256)
 }
 
 variable "gpu_instance_count" {
   description = "Number of GPU instances to provision"
   type        = number
-  default     = 2 # Start with 2 for testing, scale to 5 for production
-  # default     = 5  # Production setup
+  default     = 2 # Test environment default
 }
 
 variable "use_self_managed_nodes" {
   description = "Use self-managed ASG instead of EKS managed node group (faster for development)"
   type        = bool
-  default     = true # false = managed (production), true = self-managed (development)
+  default     = true # Test environment default
 }
 
 variable "instance_type" {
   description = "EC2 instance type for GPU servers"
   type        = string
-  # default     = "g4dn.12xlarge" # Testing multi-GPU: 4x T4 GPU, ~$3.91/hour
-  # default     = "g5.2xlarge"    # Mid-range: 1x A10G GPU, ~$1.21/hour  
-  default = "p4d.24xlarge" # Production: 8x A100 GPUs, ~$24.77/hour
-  # default     = "p5.48xlarge"   # Production: 8x H100 GPUs, ~$55/hour
-  # default     = "p6-b200.48xlarge" # Latest: 8x B200 GPUs, ~$114/hour
+  default     = "g4dn.12xlarge" # Test environment default: 4x T4 GPUs
 
   validation {
     condition = contains([
@@ -121,31 +116,7 @@ variable "supported_gpu_types" {
     use_placement_group = bool
   }))
   default = {
-    "b200" = {
-      instance_type       = "p6-b200.48xlarge" # 8x B200 GPUs
-      instance_count      = 2
-      gpus_per_instance   = 8
-      use_placement_group = false
-    }
-    "h200" = {
-      instance_type       = "p5e.48xlarge"                    # Primary: 8x H200 GPUs
-      instance_types      = ["p5e.48xlarge", "p5en.48xlarge"] # Both H200 variants
-      instance_count      = 2                                 # Total of 2 instances (mix of p5e/p5en)
-      gpus_per_instance   = 8
-      use_placement_group = false
-    }
-    "h100" = {
-      instance_type       = "p5.48xlarge" # 8x H100 GPUs
-      instance_count      = 2
-      gpus_per_instance   = 8
-      use_placement_group = false
-    }
-    "a100" = {
-      instance_type       = "p4d.24xlarge" # 8x A100 GPUs  
-      instance_count      = 2
-      gpus_per_instance   = 8
-      use_placement_group = false
-    }
+    # Test environment default - only T4
     "t4" = {
       instance_type       = "g4dn.12xlarge" # 4x T4 GPUs
       instance_count      = 2

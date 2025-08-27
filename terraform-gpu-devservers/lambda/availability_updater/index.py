@@ -84,7 +84,7 @@ def update_gpu_availability(gpu_type: str, k8s_client=None) -> None:
         logger.info(f"Starting availability update for GPU type: {gpu_type}")
 
         # Get current ASG capacity
-        asg_name = f"pytorch-gpu-dev-gpu-nodes-self-managed-{gpu_type}"
+        asg_name = f"pytorch-gpu-dev-gpu-nodes-{gpu_type}"
         logger.info(f"Checking ASG: {asg_name}")
 
         asg_response = autoscaling.describe_auto_scaling_groups(

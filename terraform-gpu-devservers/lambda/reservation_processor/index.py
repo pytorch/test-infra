@@ -17,6 +17,7 @@ from typing import Any
 import boto3
 
 from shared import K8sGPUTracker, setup_kubernetes_client
+from shared.snapshot_utils import create_pod_shutdown_snapshot, get_latest_snapshot
 
 # Setup logging
 logger = logging.getLogger()
@@ -35,6 +36,7 @@ REGION = os.environ["REGION"]
 MAX_RESERVATION_HOURS = int(os.environ["MAX_RESERVATION_HOURS"])
 DEFAULT_TIMEOUT_HOURS = int(os.environ["DEFAULT_TIMEOUT_HOURS"])
 QUEUE_URL = os.environ["QUEUE_URL"]
+PRIMARY_AVAILABILITY_ZONE = os.environ["PRIMARY_AVAILABILITY_ZONE"]
 
 # Global Kubernetes client (reused across Lambda execution)
 _k8s_client = None
@@ -48,6 +50,245 @@ def get_k8s_client():
         _k8s_client = setup_kubernetes_client()
         logger.info("Global Kubernetes client initialized successfully")
     return _k8s_client
+
+
+def get_target_az_for_reservation(gpu_type, gpus_requested):
+    """
+    Dynamically determine which AZ the pod will land in based on available capacity.
+    Returns the AZ where the pod will actually be scheduled.
+    """
+    try:
+        k8s_client = get_k8s_client()
+        from kubernetes import client
+        
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Get all nodes with the requested GPU type
+        logger.info(f"Querying nodes for GPU type {gpu_type} with {gpus_requested} GPUs needed")
+        nodes = v1.list_node(label_selector=f"GpuType={gpu_type}")
+        
+        candidate_nodes = []
+        
+        for node in nodes.items:
+            # Check if node is ready and schedulable
+            ready = False
+            schedulable = True
+            
+            if node.status and node.status.conditions:
+                for condition in node.status.conditions:
+                    if condition.type == "Ready" and condition.status == "True":
+                        ready = True
+                        break
+            
+            if node.spec and node.spec.unschedulable:
+                schedulable = False
+            
+            if not ready or not schedulable:
+                logger.debug(f"Skipping node {node.metadata.name} - not ready or not schedulable")
+                continue
+            
+            # Get node's availability zone
+            node_az = None
+            if node.metadata.labels:
+                node_az = node.metadata.labels.get('topology.kubernetes.io/zone')
+                if not node_az:
+                    # Fallback to failure-domain label (older k8s versions)
+                    node_az = node.metadata.labels.get('failure-domain.beta.kubernetes.io/zone')
+            
+            if not node_az:
+                logger.warning(f"Node {node.metadata.name} has no AZ label")
+                continue
+            
+            # Check available GPU capacity on this node
+            available_gpus = get_available_gpus_on_node(v1, node)
+            
+            if available_gpus >= gpus_requested:
+                candidate_nodes.append({
+                    'node_name': node.metadata.name,
+                    'az': node_az,
+                    'available_gpus': available_gpus
+                })
+                logger.info(f"Node {node.metadata.name} in {node_az}: {available_gpus} available GPUs")
+        
+        if not candidate_nodes:
+            logger.warning(f"No nodes found with {gpus_requested} available {gpu_type} GPUs")
+            return None
+        
+        # Return the AZ of the first suitable node (Kubernetes scheduler will make the final decision)
+        # This gives us the best prediction of where the pod will land
+        selected_node = candidate_nodes[0]
+        target_az = selected_node['az']
+        
+        logger.info(f"Target AZ for {gpu_type} reservation: {target_az} (node: {selected_node['node_name']})")
+        return target_az
+        
+    except Exception as e:
+        logger.error(f"Error determining target AZ for {gpu_type}: {str(e)}")
+        # Fallback to primary AZ if detection fails
+        return PRIMARY_AVAILABILITY_ZONE
+
+
+def needs_ebs_migration(user_id, target_az):
+    """Check if user's EBS volume needs to be migrated to a different AZ"""
+    try:
+        logger.info(f"Checking for existing EBS volumes for user {user_id}")
+        
+        # Look for ANY existing EBS volume with user tag, regardless of AZ
+        response = ec2_client.describe_volumes(
+            Filters=[
+                {"Name": "tag:gpu-dev-user", "Values": [user_id]},
+                {"Name": "status", "Values": ["available", "in-use"]},
+            ]
+        )
+        
+        volumes = response.get("Volumes", [])
+        if not volumes:
+            logger.info(f"No existing EBS volumes found for user {user_id} - no migration needed")
+            return False, None, None
+        
+        # Get the most recent volume (by creation time)
+        current_volume = max(volumes, key=lambda v: v["CreateTime"])
+        current_volume_id = current_volume["VolumeId"]
+        current_az = current_volume["AvailabilityZone"]
+        
+        if current_az == target_az:
+            logger.info(f"User {user_id} EBS volume {current_volume_id} already in target AZ {target_az} - no migration needed")
+            return False, current_volume_id, current_az
+        
+        logger.info(f"User {user_id} needs EBS migration: volume {current_volume_id} from {current_az} to {target_az}")
+        return True, current_volume_id, current_az
+        
+    except Exception as e:
+        logger.error(f"Error checking EBS migration need for user {user_id}: {str(e)}")
+        return False, None, None
+
+
+def migrate_ebs_across_az(user_id, current_volume_id, current_az, target_az):
+    """
+    Migrate EBS volume from current AZ to target AZ using snapshots.
+    Returns (new_volume_id, snapshot_id) or raises exception.
+    """
+    try:
+        logger.info(f"Starting EBS migration for user {user_id} from {current_az} to {target_az}")
+        
+        # Step 1: Create snapshot of current volume
+        logger.info(f"Creating snapshot of volume {current_volume_id}")
+        snapshot_response = ec2_client.create_snapshot(
+            VolumeId=current_volume_id,
+            Description=f"gpu-dev migration snapshot for {user_id} from {current_az} to {target_az}",
+            TagSpecifications=[{
+                "ResourceType": "snapshot",
+                "Tags": [
+                    {"Key": "gpu-dev-user", "Value": user_id},
+                    {"Key": "Name", "Value": f"gpu-dev-migration-{user_id.split('@')[0]}-{int(time.time())}"},
+                    {"Key": "Project", "Value": "gpu-dev-servers"},
+                    {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
+                    {"Key": "MigrationType", "Value": "az-migration"},
+                    {"Key": "SourceAZ", "Value": current_az},
+                    {"Key": "TargetAZ", "Value": target_az}
+                ]
+            }]
+        )
+        
+        snapshot_id = snapshot_response["SnapshotId"]
+        logger.info(f"Created snapshot {snapshot_id}, waiting for completion...")
+        
+        # Wait for snapshot to complete
+        waiter = ec2_client.get_waiter("snapshot_completed")
+        waiter.wait(SnapshotIds=[snapshot_id], WaiterConfig={"Delay": 15, "MaxAttempts": 240})  # Up to 1 hour
+        
+        logger.info(f"Snapshot {snapshot_id} completed successfully")
+        
+        # Step 2: Create new volume from snapshot in target AZ
+        logger.info(f"Creating new volume from snapshot {snapshot_id} in AZ {target_az}")
+        new_volume_response = ec2_client.create_volume(
+            AvailabilityZone=target_az,
+            SnapshotId=snapshot_id,
+            VolumeType="gp3",
+            Iops=3000,
+            Throughput=125,
+            TagSpecifications=[{
+                "ResourceType": "volume", 
+                "Tags": [
+                    {"Key": "gpu-dev-user", "Value": user_id},
+                    {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id.split('@')[0]}"},
+                    {"Key": "Project", "Value": "gpu-dev-servers"},
+                    {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
+                    {"Key": "MigratedFrom", "Value": current_az},
+                    {"Key": "SourceSnapshot", "Value": snapshot_id}
+                ]
+            }]
+        )
+        
+        new_volume_id = new_volume_response["VolumeId"]
+        logger.info(f"Created new volume {new_volume_id}, waiting for availability...")
+        
+        # Wait for new volume to be available
+        waiter = ec2_client.get_waiter("volume_available")
+        waiter.wait(VolumeIds=[new_volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
+        
+        # Step 3: Delete old volume (after successful creation)
+        logger.info(f"Deleting old volume {current_volume_id} from {current_az}")
+        ec2_client.delete_volume(VolumeId=current_volume_id)
+        
+        logger.info(f"EBS migration completed: {current_volume_id} ({current_az}) -> {new_volume_id} ({target_az})")
+        return new_volume_id, snapshot_id
+        
+    except Exception as e:
+        logger.error(f"Error during EBS migration for user {user_id}: {str(e)}")
+        raise
+
+
+def get_latest_completed_snapshot(user_id, volume_id=None):
+    """
+    Get the most recent completed snapshot for a user.
+    If volume_id provided, gets snapshots for that specific volume.
+    Otherwise gets any user snapshot.
+    """
+    return get_latest_snapshot(user_id, volume_id, include_pending=False)
+
+
+def restore_ebs_from_existing_snapshot(snapshot_id, target_az, user_id):
+    """
+    Create new EBS volume from existing snapshot in target AZ.
+    Returns volume_id of the restored volume.
+    """
+    try:
+        logger.info(f"Restoring EBS volume from snapshot {snapshot_id} in AZ {target_az}")
+        
+        # Create new volume from existing snapshot in target AZ
+        new_volume_response = ec2_client.create_volume(
+            AvailabilityZone=target_az,
+            SnapshotId=snapshot_id,
+            VolumeType="gp3",
+            Iops=3000,
+            Throughput=125,
+            TagSpecifications=[{
+                "ResourceType": "volume", 
+                "Tags": [
+                    {"Key": "gpu-dev-user", "Value": user_id},
+                    {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id.split('@')[0]}"},
+                    {"Key": "Project", "Value": "gpu-dev-servers"},
+                    {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
+                    {"Key": "RestoredFrom", "Value": snapshot_id},
+                    {"Key": "RestoredToAZ", "Value": target_az}
+                ]
+            }]
+        )
+        
+        new_volume_id = new_volume_response["VolumeId"]
+        logger.info(f"Created new volume {new_volume_id}, waiting for availability...")
+        
+        # Wait for new volume to be available
+        waiter = ec2_client.get_waiter("volume_available")
+        waiter.wait(VolumeIds=[new_volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
+        
+        logger.info(f"EBS restore completed: snapshot {snapshot_id} -> volume {new_volume_id} in {target_az}")
+        return new_volume_id
+        
+    except Exception as e:
+        logger.error(f"Error restoring EBS from snapshot {snapshot_id}: {str(e)}")
+        raise
 
 
 def trigger_availability_update():
@@ -611,6 +852,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         gpu_count = request.get("gpu_count", 1)
         gpu_type = request.get("gpu_type", "a100")
         user_id = request.get("user_id")
+        recreate_env = request.get("recreate_env", False)
         pod_name = f"gpu-dev-{reservation_id[:8]}"
 
         logger.info(
@@ -635,21 +877,86 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 f"Could not fetch GitHub public key for GitHub user '{github_user}'"
             )
 
-        # Check if user should get persistent disk (no existing reservations)
-        use_persistent_disk = should_use_persistent_disk(user_id)
+        # Check if user should get persistent disk (no other existing reservations)
+        use_persistent_disk = should_use_persistent_disk(user_id, reservation_id)
         persistent_volume_id = None
         device_name = None
+        target_az = None  # Initialize target_az for use in connection info update
         
         if use_persistent_disk:
             try:
-                # Create or find persistent disk
+                # Step 1: Determine target AZ for this reservation
                 update_reservation_status(
                     reservation_id,
-                    "preparing", 
-                    "Setting up persistent disk for user data",
+                    "preparing",
+                    "Determining optimal availability zone for GPU placement",
                 )
-                persistent_volume_id = create_or_find_persistent_disk(user_id)
-                logger.info(f"Will use persistent disk {persistent_volume_id} for user {user_id}")
+                
+                target_az = get_target_az_for_reservation(gpu_type, gpu_count)
+                if not target_az:
+                    raise ValueError(f"Could not determine target AZ for {gpu_type} GPUs")
+                
+                logger.info(f"Target AZ for reservation: {target_az}")
+                
+                # Step 2: Check if EBS migration is needed
+                migration_needed, current_volume_id, current_az = needs_ebs_migration(user_id, target_az)
+                
+                if migration_needed:
+                    # User has existing EBS in different AZ - need to migrate
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing",
+                        f"Migrating persistent disk from {current_az} to {target_az} (2-5 minutes)",
+                    )
+                    logger.info(f"Starting EBS migration for user {user_id}: {current_az} -> {target_az}")
+                    
+                    # Check if we have a recent completed or pending snapshot to use instead of creating new one
+                    latest_snapshot = get_latest_snapshot(user_id, current_volume_id, include_pending=True)
+                    
+                    if latest_snapshot and latest_snapshot['State'] == 'completed':
+                        # Use existing completed snapshot for migration
+                        logger.info(f"Using existing completed snapshot {latest_snapshot['SnapshotId']} for migration")
+                        persistent_volume_id = restore_ebs_from_existing_snapshot(
+                            latest_snapshot['SnapshotId'], target_az, user_id
+                        )
+                        snapshot_id = latest_snapshot['SnapshotId']
+                    elif latest_snapshot and latest_snapshot['State'] == 'pending':
+                        # Wait for existing pending snapshot to complete, then use it
+                        snapshot_id = latest_snapshot['SnapshotId']
+                        logger.info(f"Found pending snapshot {snapshot_id}, waiting for completion before migration")
+                        update_reservation_status(
+                            reservation_id, 
+                            "preparing", 
+                            f"Waiting for existing snapshot {snapshot_id} to complete (1-3 minutes)"
+                        )
+                        
+                        # Wait for snapshot to complete (up to 10 minutes)
+                        waiter = ec2_client.get_waiter('snapshot_completed')
+                        waiter.wait(SnapshotIds=[snapshot_id], WaiterConfig={'Delay': 15, 'MaxAttempts': 40})
+                        
+                        logger.info(f"Snapshot {snapshot_id} completed, proceeding with migration")
+                        persistent_volume_id = restore_ebs_from_existing_snapshot(
+                            snapshot_id, target_az, user_id
+                        )
+                    else:
+                        # No recent snapshot - do full migration with new snapshot
+                        persistent_volume_id, snapshot_id = migrate_ebs_across_az(
+                            user_id, current_volume_id, current_az, target_az
+                        )
+                    
+                    is_new_disk = False  # Migrated disk keeps existing data
+                    logger.info(f"EBS migration completed: {persistent_volume_id} (from snapshot {snapshot_id})")
+                    
+                else:
+                    # Either no existing EBS, or existing EBS is already in target AZ
+                    update_reservation_status(
+                        reservation_id,
+                        "preparing", 
+                        "Setting up persistent disk for user data",
+                    )
+                    persistent_volume_id, is_new_disk = create_or_find_persistent_disk_in_az(user_id, target_az)
+                    logger.info(f"Using persistent disk {persistent_volume_id} in {target_az} for user {user_id} (new_disk={is_new_disk})")
+                
             except Exception as disk_error:
                 logger.error(f"Failed to set up persistent disk: {disk_error}")
                 # Continue without persistent disk rather than failing
@@ -684,6 +991,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             jupyter_enabled=jupyter_enabled,
             persistent_volume_id=persistent_volume_id,
             user_id=user_id,
+            is_new_disk=is_new_disk if use_persistent_disk else False,
+            recreate_env=recreate_env,
         )
 
         # Update status: Pod created, waiting for container to start
@@ -729,6 +1038,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 jupyter_url_base=jupyter_url_base,
                 jupyter_enabled=jupyter_enabled,
                 k8s_client=k8s_client,
+                persistent_volume_id=persistent_volume_id,
+                ebs_availability_zone=target_az if use_persistent_disk else None,
             )
 
             # Trigger availability table update after successful reservation
@@ -878,6 +1189,8 @@ def create_kubernetes_resources(
     jupyter_enabled: bool = False,
     persistent_volume_id: str = None,
     user_id: str = None,
+    is_new_disk: bool = False,
+    recreate_env: bool = False,
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
@@ -969,6 +1282,8 @@ def create_kubernetes_resources(
                         jupyter_enabled=True,
                         persistent_volume_id=persistent_volume_id,
                         user_id=user_id,
+                        is_new_disk=is_new_disk,
+                        recreate_env=recreate_env,
                     )
                     logger.info(f"Created new pod {pod_name} with Jupyter")
                     update_reservation_status(
@@ -1020,6 +1335,8 @@ def create_kubernetes_resources(
                         jupyter_enabled=False,
                         persistent_volume_id=persistent_volume_id,
                         user_id=user_id,
+                        is_new_disk=is_new_disk,
+                        recreate_env=recreate_env,
                     )
                     logger.info(f"Created new pod {pod_name} without Jupyter")
                     update_reservation_status(
@@ -1097,6 +1414,8 @@ def create_pod(
     jupyter_enabled: bool = False,
     persistent_volume_id: str = None,
     user_id: str = None,
+    is_new_disk: bool = False,
+    recreate_env: bool = False,
 ):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
@@ -1255,7 +1574,10 @@ def create_pod(
                         # Set up clean environment for dev user (both bash and zsh)
                         mkdir -p /home/dev
 
-                        # Create shared environment file
+                        # Only create shell config files on new disks or when forced recreation is requested
+                        if [ "$CREATE_SH_ENV" = "true" ]; then
+                            echo "[STARTUP] Creating shell configuration (new disk or forced recreation)..."
+                            # Create shared environment file
                         cat > /home/dev/.shell_env << 'SHELL_ENV_EOF'
 # Clean PATH setup (no duplicates)
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
@@ -1353,6 +1675,9 @@ if [ -f /etc/motd ]; then
     cat /etc/motd
 fi
 ZPROFILE_EOF
+                        else
+                            echo "[STARTUP] Preserving existing shell configuration files"
+                        fi
 
                         echo "[STARTUP] Setting up dev user..."
                         # Create dev user with zsh as default shell (same UID as init container)
@@ -1362,18 +1687,39 @@ ZPROFILE_EOF
                         # Allow passwordless sudo for dev user
                         echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
 
-                        echo "[STARTUP] Installing oh-my-zsh with clean theme (no font dependencies)..."
-                        # Install oh-my-zsh for dev user (this creates a default .zshrc)
-                        su - dev -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+                        # Clean up any old warning files from previous sessions
+                        echo "[STARTUP] Cleaning up old warning files..."
+                        rm -f /home/dev/WARN_EXPIRES_IN_*MIN.txt 2>/dev/null || true
+
+                        # Handle lost+found directory (normal for ext4 filesystems)
+                        if [ -d "/home/dev/lost+found" ]; then
+                            echo "[STARTUP] Hiding lost+found directory (normal for ext4 filesystem)"
+                            chattr +h /home/dev/lost+found 2>/dev/null || chmod 700 /home/dev/lost+found
+                        fi
+
+                        # Handle oh-my-zsh installation based on CREATE_SH_ENV flag
+                        if [ "$CREATE_SH_ENV" = "true" ]; then
+                            # Remove existing oh-my-zsh installation if it exists (forced recreation)
+                            if [ -d "/home/dev/.oh-my-zsh" ]; then
+                                echo "[STARTUP] Removing existing oh-my-zsh installation for forced recreation..."
+                                rm -rf /home/dev/.oh-my-zsh
+                            fi
+                            
+                            echo "[STARTUP] Installing oh-my-zsh with clean theme (no font dependencies)..."
+                            # Install oh-my-zsh for dev user (this creates a default .zshrc)
+                            su - dev -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
+                            
+                            # Install useful zsh plugins
+                            su - dev -c 'git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'
+                            su - dev -c 'git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting'
+                        else
+                            echo "[STARTUP] Preserving existing oh-my-zsh installation (if any)"
+                        fi
                         
-                        # Install useful zsh plugins
-                        su - dev -c 'git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'
-                        su - dev -c 'git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting'
-                        
-                        # IMPORTANT: Create our custom .zshrc AFTER oh-my-zsh installation to override the default
-                        echo "[STARTUP] Configuring zsh with clean theme and useful plugins..."
-                        
-                        # Set up .zshrc with oh-my-zsh and clean configuration
+                        # Only create .zshrc when CREATE_SH_ENV is true or if it doesn't exist
+                        if [ "$CREATE_SH_ENV" = "true" ] || [ ! -f "/home/dev/.zshrc" ]; then
+                            echo "[STARTUP] Creating .zshrc configuration..."
+                            # Set up .zshrc with oh-my-zsh and clean configuration
                         cat > /home/dev/.zshrc << 'ZSHRC_EOF'
 # Source shared environment first
 [ -f ~/.shell_env ] && source ~/.shell_env
@@ -1450,12 +1796,20 @@ ZSHRC_EOF
 
                         # Set ownership of config file
                         chown 1000:1000 /home/dev/.zshrc
+                        else
+                            echo "[STARTUP] Preserving existing .zshrc"
+                        fi
                         
-                        echo "[STARTUP] Installing Claude CLI as dev user..."
-                        # Configure npm to use user directory for global packages
-                        su - dev -c "mkdir -p ~/.npm-global"
-                        su - dev -c "npm config set prefix ~/.npm-global"
-                        su - dev -c "npm install -g @anthropic-ai/claude-code" || echo "Claude CLI install failed, continuing..."
+                        # Only install Claude CLI when CREATE_SH_ENV is true or if not installed
+                        if [ "$CREATE_SH_ENV" = "true" ] || [ ! -f "/home/dev/.npm-global/bin/claude" ]; then
+                            echo "[STARTUP] Installing Claude CLI as dev user..."
+                            # Configure npm to use user directory for global packages
+                            su - dev -c "mkdir -p ~/.npm-global"
+                            su - dev -c "npm config set prefix ~/.npm-global"
+                            su - dev -c "npm install -g @anthropic-ai/claude-code" || echo "Claude CLI install failed, continuing..."
+                        else
+                            echo "[STARTUP] Claude CLI already installed"
+                        fi
 
 
                         echo "[STARTUP] Configuring SSH..."
@@ -1665,6 +2019,9 @@ EOF
                     env=[
                         client.V1EnvVar(
                             name="JUPYTER_ENABLED", value=str(jupyter_enabled).lower()
+                        ),
+                        client.V1EnvVar(
+                            name="CREATE_SH_ENV", value=str(is_new_disk or recreate_env).lower()
                         )
                     ],
                     resources=client.V1ResourceRequirements(
@@ -1700,10 +2057,18 @@ EOF
         )
 
         # Create pod metadata
+        # Build annotations with volume info for snapshot handling
+        annotations = {}
+        if persistent_volume_id:
+            annotations["gpu-dev-volume-id"] = persistent_volume_id
+        if user_id:
+            annotations["gpu-dev-user-id"] = user_id
+        
         pod_metadata = client.V1ObjectMeta(
             name=pod_name,
             namespace="gpu-dev",
             labels={"app": "gpu-dev-pod", "reservation": pod_name},
+            annotations=annotations if annotations else None,
         )
 
         # Create pod
@@ -1990,8 +2355,69 @@ def get_node_instance_id() -> str:
         return None
 
 
-def create_or_find_persistent_disk(user_id: str) -> str:
-    """Create or find existing persistent disk for user, returns volume ID"""
+def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -> tuple[str, bool]:
+    """Create or find existing persistent disk for user in specific AZ, returns (volume_id, is_new_disk)"""
+    try:
+        # Use EC2 tags to track user disks
+        disk_tag_key = "gpu-dev-user"
+        disk_tag_value = user_id
+        
+        logger.info(f"Looking for existing persistent disk for user {user_id} in AZ {availability_zone}")
+        
+        # Check for existing disk with this user tag in the specified AZ
+        response = ec2_client.describe_volumes(
+            Filters=[
+                {"Name": "tag:gpu-dev-user", "Values": [user_id]},
+                {"Name": "availability-zone", "Values": [availability_zone]},
+                {"Name": "status", "Values": ["available", "in-use"]},
+            ]
+        )
+        
+        volumes = response.get("Volumes", [])
+        if volumes:
+            volume_id = volumes[0]["VolumeId"]
+            logger.info(f"Found existing persistent disk {volume_id} for user {user_id} in {availability_zone}")
+            return volume_id, False  # existing disk
+        
+        # Create new 1TB gp3 disk in the specified AZ
+        logger.info(f"Creating new 1TB persistent disk for user {user_id} in AZ {availability_zone}")
+        create_response = ec2_client.create_volume(
+            AvailabilityZone=availability_zone,
+            Size=1024,  # 1TB (1024GB)
+            VolumeType="gp3",
+            Iops=3000,
+            Throughput=125,
+            TagSpecifications=[
+                {
+                    "ResourceType": "volume",
+                    "Tags": [
+                        {"Key": disk_tag_key, "Value": disk_tag_value},
+                        {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id.split('@')[0]}"},
+                        {"Key": "Project", "Value": "gpu-dev-servers"},
+                        {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
+                        {"Key": "CreatedInAZ", "Value": availability_zone},
+                    ],
+                }
+            ],
+        )
+        
+        volume_id = create_response["VolumeId"]
+        
+        # Wait for volume to be available
+        logger.info(f"Waiting for volume {volume_id} to become available")
+        waiter = ec2_client.get_waiter("volume_available")
+        waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
+        
+        logger.info(f"Created new persistent disk {volume_id} for user {user_id} in {availability_zone}")
+        return volume_id, True  # new disk
+        
+    except Exception as e:
+        logger.error(f"Error creating/finding persistent disk for user {user_id} in AZ {availability_zone}: {str(e)}")
+        raise
+
+
+def create_or_find_persistent_disk(user_id: str) -> tuple[str, bool]:
+    """Create or find existing persistent disk for user, returns (volume_id, is_new_disk)"""
     try:
         # Use EC2 tags to track user disks
         disk_tag_key = "gpu-dev-user"
@@ -2003,8 +2429,8 @@ def create_or_find_persistent_disk(user_id: str) -> str:
         response = ec2_client.describe_volumes(
             Filters=[
                 {"Name": "tag:gpu-dev-user", "Values": [user_id]},
-                {"Name": "availability-zone", "Values": ["us-east-2a"]},
-                {"Name": "state", "Values": ["available", "in-use"]},
+                {"Name": "availability-zone", "Values": [PRIMARY_AVAILABILITY_ZONE]},
+                {"Name": "status", "Values": ["available", "in-use"]},
             ]
         )
         
@@ -2012,13 +2438,13 @@ def create_or_find_persistent_disk(user_id: str) -> str:
         if volumes:
             volume_id = volumes[0]["VolumeId"]
             logger.info(f"Found existing persistent disk {volume_id} for user {user_id}")
-            return volume_id
+            return volume_id, False  # existing disk
         
         # Create new 1TB gp3 disk
         logger.info(f"Creating new 1TB persistent disk for user {user_id}")
         create_response = ec2_client.create_volume(
-            AvailabilityZone="us-east-2a",
-            Size=1000,  # 1TB
+            AvailabilityZone=PRIMARY_AVAILABILITY_ZONE,
+            Size=1024,  # 1TB (1024GB)
             VolumeType="gp3",
             Iops=3000,
             Throughput=125,
@@ -2027,7 +2453,7 @@ def create_or_find_persistent_disk(user_id: str) -> str:
                     "ResourceType": "volume",
                     "Tags": [
                         {"Key": disk_tag_key, "Value": disk_tag_value},
-                        {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id[:8]}"},
+                        {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id.split('@')[0]}"},
                         {"Key": "Project", "Value": "gpu-dev-servers"},
                         {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
                     ],
@@ -2043,7 +2469,7 @@ def create_or_find_persistent_disk(user_id: str) -> str:
         waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
         
         logger.info(f"Created new persistent disk {volume_id} for user {user_id}")
-        return volume_id
+        return volume_id, True  # new disk
         
     except Exception as e:
         logger.error(f"Error creating/finding persistent disk for user {user_id}: {str(e)}")
@@ -2108,19 +2534,20 @@ def get_node_instance_id_for_pod(k8s_client, pod_name: str) -> str:
         raise
 
 
-def should_use_persistent_disk(user_id: str) -> bool:
+def should_use_persistent_disk(user_id: str, current_reservation_id: str) -> bool:
     """Check if this user should get a persistent disk (no other active reservations)"""
     try:
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         
-        # Check for other active reservations for this user
+        # Check for other active reservations for this user (excluding current one)
         response = reservations_table.query(
             IndexName="UserIndex",
             KeyConditionExpression="user_id = :user_id",
-            FilterExpression="#status IN (:active, :preparing, :queued, :pending)",
+            FilterExpression="#status IN (:active, :preparing, :queued, :pending) AND reservation_id <> :current_id",
             ExpressionAttributeNames={"#status": "status"},
             ExpressionAttributeValues={
                 ":user_id": user_id,
+                ":current_id": current_reservation_id,
                 ":active": "active",
                 ":preparing": "preparing", 
                 ":queued": "queued",
@@ -2130,12 +2557,12 @@ def should_use_persistent_disk(user_id: str) -> bool:
         
         existing_reservations = response.get("Items", [])
         
-        # If no existing reservations, user gets persistent disk
+        # If no other existing reservations, user gets persistent disk
         if not existing_reservations:
-            logger.info(f"User {user_id} has no existing reservations - will use persistent disk")
+            logger.info(f"User {user_id} has no other existing reservations - will use persistent disk")
             return True
         else:
-            logger.info(f"User {user_id} has {len(existing_reservations)} existing reservations - no persistent disk")
+            logger.info(f"User {user_id} has {len(existing_reservations)} other existing reservations - no persistent disk")
             return False
             
     except Exception as e:
@@ -2240,6 +2667,8 @@ def update_reservation_connection_info(
     jupyter_url_base: str,
     jupyter_enabled: bool = False,
     k8s_client=None,
+    persistent_volume_id: str = None,
+    ebs_availability_zone: str = None,
 ):
     """Update reservation with connection details and set proper expiration time"""
     try:
@@ -2359,6 +2788,15 @@ def update_reservation_connection_info(
             ":jupyter_enabled": actual_jupyter_enabled,
             ":status": "active",
         }
+
+        # Add EBS persistent disk information if available
+        if persistent_volume_id:
+            update_expression += ", ebs_volume_id = :ebs_volume_id"
+            expression_values[":ebs_volume_id"] = persistent_volume_id
+        
+        if ebs_availability_zone:
+            update_expression += ", ebs_availability_zone = :ebs_availability_zone"
+            expression_values[":ebs_availability_zone"] = ebs_availability_zone
 
         # Add Jupyter error message if there was one
         if jupyter_error_msg:
@@ -2863,11 +3301,41 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
             if current_status == "active":
                 pod_name = reservation.get("pod_name")
                 namespace = reservation.get("namespace", "gpu-dev")
+                user_id = reservation.get("user_id")
 
-                if pod_name:
+                if pod_name and user_id:
                     try:
+                        # First, create snapshot if pod has persistent storage
+                        k8s_client = get_k8s_client()
+                        from kubernetes import client
+                        v1 = client.CoreV1Api(k8s_client)
+                        
+                        try:
+                            pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+                            volume_id = None
+                            
+                            # Check pod annotations for persistent volume info
+                            if pod.metadata.annotations:
+                                volume_id = pod.metadata.annotations.get("gpu-dev-volume-id")
+                            
+                            # Create cancellation snapshot if we have volume info
+                            if volume_id:
+                                logger.info(f"Creating cancellation snapshot for user {user_id}, volume {volume_id}")
+                                snapshot_id = create_pod_shutdown_snapshot(volume_id, user_id, "cancellation")
+                                if snapshot_id:
+                                    logger.info(f"Cancellation snapshot {snapshot_id} initiated for {pod_name}")
+                                else:
+                                    logger.warning(f"Failed to create cancellation snapshot for {pod_name}")
+                            else:
+                                logger.info(f"No persistent storage found for pod {pod_name} - skipping cancellation snapshot")
+                                
+                        except Exception as pod_read_error:
+                            logger.warning(f"Could not read pod {pod_name} for snapshot info: {pod_read_error}")
+                        
+                        # Now cleanup pod resources
                         cleanup_pod_resources(pod_name, namespace)
                         logger.info(f"Cleaned up pod resources for cancelled reservation {full_reservation_id}")
+                        
                     except Exception as cleanup_error:
                         logger.error(f"Error cleaning up pod {pod_name}: {cleanup_error}")
 

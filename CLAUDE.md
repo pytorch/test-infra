@@ -92,7 +92,10 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **SSORole + instructions for that** - Implement SSO role authentication and provide setup instructions
 
 ### 📋 Remaining Tasks
-
+- **Add network drive (EFS)** - Implement 20TB EFS shared storage mounted at /shared with user folders
+- **Add verbose CLI output** - More detailed status and progress information for debugging
+- **Default reservation edit/cancel** - Auto-select reservation if user only has one active
+- **Custom Docker image scaffold** - Create Dockerfile with pre-installed packages (Jupyter, etc.)
 - **Add a command gpu-dev availability** that shows how many gpus of each type are available to reserve at the moment, and if 0, what the estimated queue time is
 - **Production deployment** - Switch to p5.48xlarge instances when ready
 - **Investigate NFS** - Research NFS integration for shared storage across pods

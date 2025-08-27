@@ -93,6 +93,7 @@ class ReservationManager:
         name: Optional[str] = None,
         github_user: Optional[str] = None,
         jupyter_enabled: bool = False,
+        recreate_env: bool = False,
     ) -> Optional[str]:
         """Create a new GPU reservation"""
         try:
@@ -134,6 +135,7 @@ class ReservationManager:
                 "created_at": created_at,
                 "status": "pending",
                 "jupyter_enabled": jupyter_enabled,
+                "recreate_env": recreate_env,
             }
 
             # Add github_user if provided
@@ -407,46 +409,24 @@ class ReservationManager:
             availability_table_name = self.config.availability_table
             availability_table = self.config.dynamodb.Table(availability_table_name)
 
-            # Get supported GPU types
-            supported_types = ["b200", "h200", "h100", "a100", "t4"]
+            # Just scan the whole availability table
+            response = availability_table.scan()
             availability_info = {}
 
-            for gpu_type in supported_types:
-                # Get queue length for this GPU type
+            for item in response.get("Items", []):
+                gpu_type = item["gpu_type"]
                 queue_length = self._get_queue_length_for_gpu_type(gpu_type)
-
-                # Estimate wait time based on queue length (15 min per position)
                 estimated_wait = queue_length * 15 if queue_length > 0 else 0
-
-                try:
-                    # Query real-time availability table
-                    response = availability_table.get_item(Key={"gpu_type": gpu_type})
-
-                    if "Item" in response:
-                        item = response["Item"]
-                        availability_info[gpu_type] = {
-                            "available": int(item.get("available_gpus", 0)),
-                            "total": int(item.get("total_gpus", 0)),
-                            "queue_length": queue_length,
-                            "estimated_wait_minutes": estimated_wait,
-                            "running_instances": int(item.get("running_instances", 0)),
-                            "desired_capacity": int(item.get("desired_capacity", 0)),
-                            "last_updated": item.get("last_updated_timestamp", 0),
-                        }
-                    else:
-                        # Fallback to static configuration if no real-time data
-                        availability_info[gpu_type] = self._get_static_gpu_config(
-                            gpu_type, queue_length, estimated_wait
-                        )
-
-                except Exception as table_error:
-                    console.print(
-                        f"[dim]Warning: Could not get real-time data for {gpu_type}: {table_error}[/dim]"
-                    )
-                    # Fallback to static configuration
-                    availability_info[gpu_type] = self._get_static_gpu_config(
-                        gpu_type, queue_length, estimated_wait
-                    )
+                
+                availability_info[gpu_type] = {
+                    "available": int(item.get("available_gpus", 0)),
+                    "total": int(item.get("total_gpus", 0)),
+                    "queue_length": queue_length,
+                    "estimated_wait_minutes": estimated_wait,
+                    "running_instances": int(item.get("running_instances", 0)),
+                    "desired_capacity": int(item.get("desired_capacity", 0)),
+                    "last_updated": item.get("last_updated_timestamp", 0),
+                }
 
             return availability_info
 

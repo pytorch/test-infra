@@ -2,7 +2,7 @@
 
 # EKS Cluster Service Role
 resource "aws_iam_role" "eks_cluster_role" {
-  name = "${var.prefix}-eks-cluster-role"
+  name = "${local.workspace_prefix}-eks-cluster-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -19,7 +19,7 @@ resource "aws_iam_role" "eks_cluster_role" {
 
   tags = {
     Name        = "${var.prefix}-eks-cluster-role"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -30,7 +30,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_AmazonEKSClusterPolicy" {
 
 # EKS Node Group Role
 resource "aws_iam_role" "eks_node_role" {
-  name = "${var.prefix}-eks-node-role"
+  name = "${local.workspace_prefix}-eks-node-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -47,7 +47,7 @@ resource "aws_iam_role" "eks_node_role" {
 
   tags = {
     Name        = "${var.prefix}-eks-node-role"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -66,9 +66,14 @@ resource "aws_iam_role_policy_attachment" "eks_node_AmazonEC2ContainerRegistryRe
   role       = aws_iam_role.eks_node_role.name
 }
 
+resource "aws_iam_role_policy_attachment" "eks_node_AmazonEBSCSIDriverPolicy" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.eks_node_role.name
+}
+
 # Add Bedrock permissions to node role for Claude Code access
 resource "aws_iam_role_policy" "eks_node_bedrock_policy" {
-  name = "${var.prefix}-eks-node-bedrock-policy"
+  name = "${local.workspace_prefix}-eks-node-bedrock-policy"
   role = aws_iam_role.eks_node_role.id
 
   policy = jsonencode({
@@ -108,7 +113,7 @@ resource "aws_eks_cluster" "gpu_dev_cluster" {
 
   tags = {
     Name        = "${var.prefix}-cluster"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -121,69 +126,30 @@ resource "aws_eks_addon" "vpc_cni" {
 
   tags = {
     Name        = "${var.prefix}-vpc-cni"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
+# EBS CSI Driver Addon - Required for persistent EBS volumes
+resource "aws_eks_addon" "ebs_csi_driver" {
+  cluster_name = aws_eks_cluster.gpu_dev_cluster.name
+  addon_name   = "aws-ebs-csi-driver"
 
-# EKS Managed Node Groups for GPU instances - one per GPU type
-resource "aws_eks_node_group" "gpu_dev_nodes" {
-  for_each = var.use_self_managed_nodes ? {} : var.supported_gpu_types
-
-  cluster_name    = aws_eks_cluster.gpu_dev_cluster.name
-  node_group_name = "${var.prefix}-gpu-nodes-${each.key}"
-  node_role_arn   = aws_iam_role.eks_node_role.arn
-  subnet_ids      = each.key == "b200" ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
-
-  # Use CUSTOM AMI type when launch template specifies image_id
-  ami_type      = "CUSTOM"
-  capacity_type = "ON_DEMAND"
-
-  # Fixed size - no scaling, much faster
-  scaling_config {
-    desired_size = each.value.instance_count
-    max_size     = each.value.instance_count
-    min_size     = each.value.instance_count
-  }
-
-  # Fast updates - replace all nodes immediately
-  update_config {
-    max_unavailable_percentage = 100
-  }
-
-  # Prevent Terraform from trying to manage lifecycle
-  lifecycle {
-    ignore_changes = [
-      scaling_config[0].desired_size
-    ]
-  }
-
-  # Launch template for custom configuration (EFA, spot instances, etc.)
-  launch_template {
-    name    = aws_launch_template.gpu_dev_launch_template[each.key].name
-    version = aws_launch_template.gpu_dev_launch_template[each.key].latest_version
-  }
-
-  depends_on = [
-    aws_iam_role_policy_attachment.eks_node_AmazonEKSWorkerNodePolicy,
-    aws_iam_role_policy_attachment.eks_node_AmazonEKS_CNI_Policy,
-    aws_iam_role_policy_attachment.eks_node_AmazonEC2ContainerRegistryReadOnly,
-    kubernetes_config_map.aws_auth # Ensure aws-auth is configured before nodes join
-  ]
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
 
   tags = {
-    Name        = "${var.prefix}-gpu-nodes-${each.key}"
-    Environment = var.environment
-    GpuType     = each.key
+    Name        = "${var.prefix}-ebs-csi-driver"
+    Environment = local.current_config.environment
   }
 }
 
-# Self-Managed Auto Scaling Groups - one per GPU type
-resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
-  for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
 
-  name                      = "${var.prefix}-gpu-nodes-self-managed-${each.key}"
-  vpc_zone_identifier       = each.key == "b200" ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
+# Auto Scaling Groups - one per GPU type
+resource "aws_autoscaling_group" "gpu_dev_nodes" {
+  for_each = local.current_config.supported_gpu_types
+
+  name                      = "${var.prefix}-gpu-nodes-${each.key}"
+  vpc_zone_identifier       = (each.key == "b200" || each.key == "t4-small") ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
   target_group_arns         = []
   health_check_type         = "EC2"
   health_check_grace_period = 300
@@ -201,7 +167,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
     content {
       launch_template {
         launch_template_specification {
-          launch_template_id = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
+          launch_template_id = aws_launch_template.gpu_dev_launch_template[each.key].id
           version            = "$Latest"
         }
 
@@ -220,7 +186,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
   dynamic "launch_template" {
     for_each = each.value.instance_types == null ? [1] : []
     content {
-      id      = aws_launch_template.gpu_dev_launch_template_self_managed[each.key].id
+      id      = aws_launch_template.gpu_dev_launch_template[each.key].id
       version = "$Latest"
     }
   }
@@ -235,7 +201,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
 
   tag {
     key                 = "Name"
-    value               = "${var.prefix}-gpu-node-self-managed-${each.key}"
+    value               = "${var.prefix}-gpu-node-${each.key}"
     propagate_at_launch = true
   }
 
@@ -247,7 +213,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
 
   tag {
     key                 = "Environment"
-    value               = var.environment
+    value               = local.current_config.environment
     propagate_at_launch = true
   }
 
@@ -258,11 +224,11 @@ resource "aws_autoscaling_group" "gpu_dev_nodes_self_managed" {
   }
 }
 
-# Launch templates for self-managed nodes - one per GPU type
-resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
-  for_each = var.use_self_managed_nodes ? var.supported_gpu_types : {}
+# Launch templates - one per GPU type
+resource "aws_launch_template" "gpu_dev_launch_template" {
+  for_each = local.current_config.supported_gpu_types
 
-  name_prefix = "${var.prefix}-gpu-self-managed-${each.key}-"
+  name_prefix = "${var.prefix}-gpu-${each.key}-"
   image_id    = data.aws_ami.eks_gpu_ami.id
   key_name    = var.key_pair_name
 
@@ -297,7 +263,7 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    subnet_id                   = each.value.use_placement_group ? null : (each.key == "b200" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
+    subnet_id                   = each.value.use_placement_group ? null : (each.key == "b200" || each.key == "t4-small" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
     interface_type = (
       # Check if any instance type in the list supports EFA
       each.value.instance_types != null ?
@@ -334,104 +300,42 @@ resource "aws_launch_template" "gpu_dev_launch_template_self_managed" {
   }
 
   user_data = base64encode(templatefile("${path.module}/templates/user-data-self-managed.sh", {
-    cluster_name = aws_eks_cluster.gpu_dev_cluster.name
-    region       = var.aws_region
-    gpu_type     = each.key
-  }))
-
-  tag_specifications {
-    resource_type = "instance"
-    tags = {
-      Name        = "${var.prefix}-gpu-instance-self-managed-${each.key}"
-      Environment = var.environment
-      GpuType     = each.key
-    }
-  }
-
-  tags = {
-    Name        = "${var.prefix}-gpu-launch-template-self-managed-${each.key}"
-    Environment = var.environment
-    GpuType     = each.key
-  }
-}
-
-# IAM Instance Profile for self-managed nodes
-resource "aws_iam_instance_profile" "eks_node_instance_profile" {
-  name = "${var.prefix}-eks-node-instance-profile"
-  role = aws_iam_role.eks_node_role.name
-
-  tags = {
-    Name        = "${var.prefix}-eks-node-instance-profile"
-    Environment = var.environment
-  }
-}
-
-# Launch templates for EFA networking (Managed Node Groups) - one per GPU type
-resource "aws_launch_template" "gpu_dev_launch_template" {
-  for_each = var.supported_gpu_types
-
-  name_prefix = "${var.prefix}-gpu-lt-${each.key}-"
-  image_id    = data.aws_ami.eks_gpu_ami.id
-  key_name    = var.key_pair_name
-
-  # Only set instance_type if not using mixed instances policy
-  instance_type = each.value.instance_types == null ? each.value.instance_type : null
-
-  # Block device mapping for 4TB root volume
-  block_device_mappings {
-    device_name = "/dev/xvda"
-    ebs {
-      volume_size           = 4096 # 4TB
-      volume_type           = "gp3"
-      delete_on_termination = true
-      encrypted             = true
-    }
-  }
-
-  # Only use placement group if specified
-  dynamic "placement" {
-    for_each = each.value.use_placement_group ? [1] : []
-    content {
-      group_name = aws_placement_group.gpu_dev_pg.name
-    }
-  }
-
-  # Network interface (EFA for H100/H200 instance types)
-  network_interfaces {
-    associate_public_ip_address = true
-    security_groups             = [aws_security_group.gpu_dev_sg.id]
-    # Explicitly set subnet for instances that don't use placement groups
-    subnet_id = each.value.use_placement_group ? null : (each.key == "b200" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
-    interface_type = (
-      # Check if any instance type in the list supports EFA
-      each.value.instance_types != null ?
-      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
-      # Single instance type check
-      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
-    )
-  }
-
-  user_data = base64encode(templatefile("${path.module}/templates/user-data.sh", {
-    cluster_name = aws_eks_cluster.gpu_dev_cluster.name
-    region       = var.aws_region
-    gpu_type     = each.key
+    cluster_name     = aws_eks_cluster.gpu_dev_cluster.name
+    cluster_endpoint = aws_eks_cluster.gpu_dev_cluster.endpoint
+    cluster_ca       = aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data
+    cluster_cidr     = var.vpc_cidr
+    region           = local.current_config.aws_region
+    gpu_type         = each.key
   }))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
       Name        = "${var.prefix}-gpu-instance-${each.key}"
-      Environment = var.environment
+      Environment = local.current_config.environment
       GpuType     = each.key
     }
   }
 
   tags = {
     Name        = "${var.prefix}-gpu-launch-template-${each.key}"
-    Environment = var.environment
+    Environment = local.current_config.environment
     GpuType     = each.key
   }
 }
+
+# IAM Instance Profile for GPU nodes
+resource "aws_iam_instance_profile" "eks_node_instance_profile" {
+  name = "${local.workspace_prefix}-eks-node-instance-profile"
+  role = aws_iam_role.eks_node_role.name
+
+  tags = {
+    Name        = "${var.prefix}-eks-node-instance-profile"
+    Environment = local.current_config.environment
+  }
+}
+
+# Using only Auto Scaling Groups for GPU nodes
 
 # Get the latest EKS-optimized AL2023 GPU AMI for the cluster version
 data "aws_ami" "eks_gpu_ami" {

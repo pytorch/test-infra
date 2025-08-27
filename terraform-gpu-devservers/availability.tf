@@ -15,7 +15,7 @@ resource "aws_dynamodb_table" "gpu_availability" {
 
   tags = {
     Name        = "${var.prefix}-gpu-availability"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -32,9 +32,9 @@ resource "aws_lambda_function" "availability_updater" {
   environment {
     variables = {
       AVAILABILITY_TABLE  = aws_dynamodb_table.gpu_availability.name
-      SUPPORTED_GPU_TYPES = jsonencode(var.supported_gpu_types)
+      SUPPORTED_GPU_TYPES = jsonencode(local.current_config.supported_gpu_types)
       EKS_CLUSTER_NAME    = aws_eks_cluster.gpu_dev_cluster.name
-      REGION              = var.aws_region
+      REGION              = local.current_config.aws_region
     }
   }
 
@@ -46,13 +46,13 @@ resource "aws_lambda_function" "availability_updater" {
 
   tags = {
     Name        = "${var.prefix}-availability-updater"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
 # IAM role for availability updater Lambda
 resource "aws_iam_role" "availability_updater_role" {
-  name = "${var.prefix}-availability-updater-role"
+  name = "${local.workspace_prefix}-availability-updater-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -69,13 +69,13 @@ resource "aws_iam_role" "availability_updater_role" {
 
   tags = {
     Name        = "${var.prefix}-availability-updater-role"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
 # IAM policy for availability updater Lambda
 resource "aws_iam_role_policy" "availability_updater_policy" {
-  name = "${var.prefix}-availability-updater-policy"
+  name = "${local.workspace_prefix}-availability-updater-policy"
   role = aws_iam_role.availability_updater_role.id
 
   policy = jsonencode({
@@ -88,7 +88,7 @@ resource "aws_iam_role_policy" "availability_updater_policy" {
           "logs:CreateLogStream",
           "logs:PutLogEvents"
         ]
-        Resource = "arn:aws:logs:${var.aws_region}:*:*"
+        Resource = "arn:aws:logs:${local.current_config.aws_region}:*:*"
       },
       {
         Effect = "Allow"
@@ -138,13 +138,13 @@ resource "aws_cloudwatch_event_rule" "asg_capacity_change" {
       "EC2 Instance Terminate Successful"
     ]
     detail = {
-      AutoScalingGroupName = [for gpu_type in keys(var.supported_gpu_types) : "${var.prefix}-gpu-nodes-self-managed-${gpu_type}"]
+      AutoScalingGroupName = [for gpu_type in keys(local.current_config.supported_gpu_types) : "${var.prefix}-gpu-nodes-${gpu_type}"]
     }
   })
 
   tags = {
     Name        = "${var.prefix}-asg-capacity-change"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -171,7 +171,7 @@ resource "aws_cloudwatch_log_group" "availability_updater_logs" {
 
   tags = {
     Name        = "${var.prefix}-availability-updater-logs"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 

@@ -1,6 +1,6 @@
 # GPU Developer Servers Infrastructure
-# Region: us-east-2
-# Target: 5x p5.48xlarge instances with EKS + queue system
+# Default: us-west-1 with 2x T4 instances (test environment)
+# Production: Use -var-file="prod.tfvars" for us-east-2 with A100 instances
 
 terraform {
   required_providers {
@@ -16,17 +16,17 @@ terraform {
 }
 
 provider "aws" {
-  region = var.aws_region
+  region = local.current_config.aws_region
 }
 
-# Configure Kubernetes provider to use the EKS cluster
+# Configure Kubernetes provider to use the EKS cluster (back to original approach for now)
 provider "kubernetes" {
   host                   = aws_eks_cluster.gpu_dev_cluster.endpoint
   cluster_ca_certificate = base64decode(aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data)
   exec {
     api_version = "client.authentication.k8s.io/v1beta1"
     command     = "aws"
-    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.gpu_dev_cluster.name, "--region", var.aws_region]
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.gpu_dev_cluster.name, "--region", local.current_config.aws_region]
   }
 }
 
@@ -37,6 +37,93 @@ data "aws_availability_zones" "available" {
 
 data "aws_caller_identity" "current" {}
 
+# Create workspace-specific prefix for global resources (IAM roles, etc.)
+locals {
+  workspace_prefix = "${var.prefix}-${terraform.workspace}"
+  
+  # Workspace-specific configurations
+  workspace_configs = {
+    default = {
+      aws_region = "us-west-1"
+      environment = "test"
+      gpu_instance_count = 2
+      use_self_managed_nodes = true
+      instance_type = "g4dn.12xlarge"
+      supported_gpu_types = {
+        "t4" = {
+          instance_type       = "g4dn.12xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 4
+          use_placement_group = true
+        }
+        "t4-small" = {
+          instance_type       = "g4dn.2xlarge"
+          instance_types      = null
+          instance_count      = 1
+          gpus_per_instance   = 1
+          use_placement_group = false
+        }
+      }
+    }
+    prod = {
+      aws_region = "us-east-2"
+      environment = "prod"
+      gpu_instance_count = 2
+      use_self_managed_nodes = true
+      instance_type = "p4d.24xlarge"
+      supported_gpu_types = {
+        "b200" = {
+          instance_type       = "p6-b200.48xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = false
+        }
+        "h200" = {
+          instance_type       = "p5e.48xlarge"
+          instance_types      = ["p5e.48xlarge", "p5en.48xlarge"]
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = false
+        }
+        "h100" = {
+          instance_type       = "p5.48xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = false
+        }
+        "a100" = {
+          instance_type       = "p4d.24xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = false
+        }
+        "t4" = {
+          instance_type       = "g4dn.12xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 4
+          use_placement_group = true
+        }
+        "g6" = {
+          instance_type       = "g6.12xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 4  # 4x L4 GPUs
+          use_placement_group = false
+        }
+      }
+    }
+  }
+  
+  # Current workspace configuration
+  current_config = local.workspace_configs[terraform.workspace]
+}
+
+
 # VPC Configuration
 resource "aws_vpc" "gpu_dev_vpc" {
   cidr_block           = var.vpc_cidr
@@ -45,7 +132,7 @@ resource "aws_vpc" "gpu_dev_vpc" {
 
   tags = {
     Name        = "${var.prefix}-gpu-dev-vpc"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -55,7 +142,7 @@ resource "aws_internet_gateway" "gpu_dev_igw" {
 
   tags = {
     Name        = "${var.prefix}-gpu-dev-igw"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -68,7 +155,7 @@ resource "aws_subnet" "gpu_dev_subnet" {
 
   tags = {
     Name                                          = "${var.prefix}-gpu-dev-subnet"
-    Environment                                   = var.environment
+    Environment                                   = local.current_config.environment
     "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
     "kubernetes.io/role/elb"                      = "1"
   }
@@ -77,13 +164,13 @@ resource "aws_subnet" "gpu_dev_subnet" {
 # Secondary subnet for EKS control plane (different AZ)
 resource "aws_subnet" "gpu_dev_subnet_secondary" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
-  cidr_block              = "10.0.2.0/24"
+  cidr_block              = "10.0.4.0/24"
   availability_zone       = data.aws_availability_zones.available.names[1] # us-east-2b for control plane diversity
   map_public_ip_on_launch = true
 
   tags = {
     Name                                          = "${var.prefix}-gpu-dev-subnet-secondary"
-    Environment                                   = var.environment
+    Environment                                   = local.current_config.environment
     "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
     "kubernetes.io/role/elb"                      = "1"
   }
@@ -100,7 +187,7 @@ resource "aws_route_table" "gpu_dev_rt" {
 
   tags = {
     Name        = "${var.prefix}-gpu-dev-rt"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -141,7 +228,7 @@ resource "aws_security_group" "eks_control_plane_sg" {
 
   tags = {
     Name        = "${var.prefix}-eks-control-plane-sg"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -220,7 +307,7 @@ resource "aws_security_group" "gpu_dev_sg" {
 
   tags = {
     Name        = "${var.prefix}-gpu-dev-sg"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -231,6 +318,6 @@ resource "aws_placement_group" "gpu_dev_pg" {
 
   tags = {
     Name        = "${var.prefix}-gpu-dev-cluster"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }

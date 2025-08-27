@@ -15,6 +15,12 @@ import boto3
 from kubernetes import client, stream
 
 from shared import setup_kubernetes_client
+from shared.snapshot_utils import (
+    create_pod_shutdown_snapshot,
+    cleanup_old_snapshots,
+    safe_create_snapshot,
+    cleanup_all_user_snapshots
+)
 
 # Setup logging
 logger = logging.getLogger()
@@ -23,6 +29,7 @@ logger.setLevel(logging.INFO)
 # AWS clients
 dynamodb = boto3.resource("dynamodb")
 sns_client = boto3.client("sns")
+ec2_client = boto3.client("ec2")
 
 # Environment variables
 RESERVATIONS_TABLE = os.environ["RESERVATIONS_TABLE"]
@@ -84,6 +91,8 @@ GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", 120))
 WARNING_LEVELS = [30, 15, 5]
 
 
+
+
 def handler(event, context):
     """Main Lambda handler"""
     try:
@@ -91,6 +100,17 @@ def handler(event, context):
         logger.info(
             f"Running reservation expiry and cleanup check at timestamp {current_time} ({datetime.fromtimestamp(current_time)})"
         )
+
+        # Check if this is a scheduled snapshot cleanup run
+        if event.get("source") == "cloudwatch.schedule" and event.get("cleanup_type") == "snapshots":
+            logger.info("Running scheduled snapshot cleanup for all users")
+            deleted_count = cleanup_all_user_snapshots()
+            return {
+                "statusCode": 200,
+                "body": json.dumps({
+                    "message": f"Snapshot cleanup completed - deleted {deleted_count} old snapshots"
+                }),
+            }
 
         # Get all active, preparing, and failed reservations
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -228,7 +248,7 @@ def handler(event, context):
                     f"Cleaning up failed reservation {reservation_id[:8]} with pod {pod_name}"
                 )
                 try:
-                    cleanup_pod(pod_name)
+                    cleanup_pod(pod_name, reservation_data=reservation)
                     logger.info(
                         f"Successfully cleaned up failed reservation {reservation_id[:8]}"
                     )
@@ -292,7 +312,7 @@ def handler(event, context):
                     f"Cleaning up {reservation.get('status', 'unknown')} reservation {reservation_id[:8]} with pod {pod_name}"
                 )
                 try:
-                    cleanup_pod(pod_name)
+                    cleanup_pod(pod_name, reservation_data=reservation)
                     logger.info(
                         f"Successfully cleaned up {reservation.get('status', 'unknown')} reservation {reservation_id[:8]}"
                     )
@@ -682,7 +702,7 @@ def expire_reservation(reservation: dict[str, Any]) -> None:
                 f"Starting pod cleanup for reservation {reservation_id}, pod: {pod_name}"
             )
             try:
-                cleanup_pod(pod_name, reservation.get("namespace", "gpu-dev"))
+                cleanup_pod(pod_name, reservation.get("namespace", "gpu-dev"), reservation_data=reservation)
                 logger.info(f"Pod cleanup completed for reservation {reservation_id}")
             except Exception as cleanup_error:
                 logger.error(
@@ -756,7 +776,7 @@ def create_warning_message(reservation: dict[str, Any], minutes_left: int) -> st
         return f"📝 INFO: Reservation {reservation_id[:8]} expires in {minutes_left} minutes."
 
 
-def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
+def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dict = None) -> None:
     """Clean up Kubernetes pod and associated resources"""
     try:
         logger.info(f"Cleaning up pod {pod_name} in namespace {namespace}")
@@ -766,6 +786,55 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev") -> None:
         k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
         logger.info(f"Kubernetes client configured successfully")
+        
+        # Create shutdown snapshot if pod has persistent storage
+        try:
+            user_id = None
+            volume_id = None
+            
+            # Get user_id and volume_id from reservation data if provided
+            if reservation_data:
+                user_id = reservation_data.get('user_id')
+                volume_id = reservation_data.get('ebs_volume_id')
+                
+            # Quick check - if we have reservation data with EBS info, use it directly
+            if user_id and volume_id:
+                logger.info(f"Found persistent storage in reservation data: volume {volume_id} for user {user_id}")
+            
+            # If no reservation data or missing info, try to get from pod spec
+            elif not user_id or not volume_id:
+                try:
+                    pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+                    
+                    # Extract user_id from pod labels or annotations
+                    if pod.metadata.labels:
+                        user_id = pod.metadata.labels.get('user-id') or user_id
+                    
+                    # Look for EBS volume in pod spec
+                    if pod.spec.volumes:
+                        for volume in pod.spec.volumes:
+                            if volume.aws_elastic_block_store:
+                                # Extract volume ID from AWS EBS volume
+                                volume_id = volume.aws_elastic_block_store.volume_id
+                                break
+                                
+                except Exception as pod_read_error:
+                    logger.warning(f"Could not read pod {pod_name} for snapshot info: {pod_read_error}")
+            
+            # Create shutdown snapshot if we have the necessary info
+            if user_id and volume_id:
+                logger.info(f"Creating shutdown snapshot for user {user_id}, volume {volume_id}")
+                snapshot_id = create_pod_shutdown_snapshot(volume_id, user_id)
+                if snapshot_id:
+                    logger.info(f"Shutdown snapshot {snapshot_id} initiated for {pod_name}")
+                else:
+                    logger.warning(f"Failed to create shutdown snapshot for {pod_name}")
+            else:
+                logger.info(f"No persistent storage found for pod {pod_name} - skipping shutdown snapshot")
+                
+        except Exception as snapshot_error:
+            logger.warning(f"Error creating shutdown snapshot for {pod_name}: {snapshot_error}")
+            # Continue with pod deletion even if snapshot fails
 
         # Send final warning message before deletion
         try:

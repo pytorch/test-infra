@@ -58,9 +58,9 @@ def main(ctx: click.Context) -> None:
 )
 @click.option(
     "--gpu-type",
-    type=click.Choice(["b200", "h200", "h100", "a100", "t4"]),
+    type=click.Choice(["b200", "h200", "h100", "a100", "t4", "g6", "t4-small"]),
     default="a100",
-    help="GPU type to reserve (b200/h200/h100/a100/t4)",
+    help="GPU type to reserve (b200/h200/h100/a100/t4/g6/t4-small)",
 )
 @click.option(
     "--hours",
@@ -80,6 +80,11 @@ def main(ctx: click.Context) -> None:
     is_flag=True,
     help="Skip persistent disk warning for multiple reservations",
 )
+@click.option(
+    "--recreate-env",
+    is_flag=True,
+    help="Recreate shell environment (bashrc/zshrc/oh-my-zsh) even on existing persistent disk",
+)
 @click.pass_context
 def reserve(
     ctx: click.Context,
@@ -89,6 +94,7 @@ def reserve(
     name: Optional[str],
     jupyter: bool,
     ignore_no_persist: bool,
+    recreate_env: bool,
 ) -> None:
     """Reserve GPU development server(s)
 
@@ -174,6 +180,7 @@ def reserve(
             name=name,
             github_user=user_info["github_user"],
             jupyter_enabled=jupyter,
+            recreate_env=recreate_env,
         )
 
         if reservation_id:

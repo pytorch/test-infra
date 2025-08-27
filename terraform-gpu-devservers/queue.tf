@@ -15,7 +15,7 @@ resource "aws_sqs_queue" "gpu_reservation_queue" {
 
   tags = {
     Name        = "${var.prefix}-reservation-queue"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -26,7 +26,7 @@ resource "aws_sqs_queue" "gpu_reservation_dlq" {
 
   tags = {
     Name        = "${var.prefix}-reservation-dlq"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -69,7 +69,7 @@ resource "aws_cloudwatch_event_rule" "gpu_reservation_trigger" {
 
   tags = {
     Name        = "${var.prefix}-reservation-trigger"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 
@@ -137,7 +137,7 @@ resource "aws_dynamodb_table" "gpu_reservations" {
 
   tags = {
     Name        = "${var.prefix}-reservations"
-    Environment = var.environment
+    Environment = local.current_config.environment
   }
 }
 

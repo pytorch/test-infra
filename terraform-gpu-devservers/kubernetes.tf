@@ -3,6 +3,10 @@
 # AWS Auth ConfigMap to allow Lambda roles to access EKS
 # Use the kubernetes_config_map resource to manage the full ConfigMap
 resource "kubernetes_config_map" "aws_auth" {
+  depends_on = [
+    aws_eks_cluster.gpu_dev_cluster
+  ]
+  
   metadata {
     name      = "aws-auth"
     namespace = "kube-system"
@@ -47,13 +51,12 @@ resource "kubernetes_config_map" "aws_auth" {
   }
 
   # Ensure this is created after the cluster but before nodes try to join
-  depends_on = [
-    aws_eks_cluster.gpu_dev_cluster
-  ]
 }
 
 # Namespace for GPU development pods
 resource "kubernetes_namespace" "gpu_dev" {
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
+  
   metadata {
     name = "gpu-dev"
     labels = {
@@ -61,15 +64,12 @@ resource "kubernetes_namespace" "gpu_dev" {
       purpose = "gpu-development"
     }
   }
-
-  depends_on = [
-    aws_eks_cluster.gpu_dev_cluster
-    # Wait for either managed or self-managed nodes to be ready
-  ]
 }
 
 # Service account for GPU development pods
 resource "kubernetes_service_account" "gpu_dev_sa" {
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
+  
   metadata {
     name      = "gpu-dev-service-account"
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
@@ -78,6 +78,8 @@ resource "kubernetes_service_account" "gpu_dev_sa" {
 
 # Role for GPU development pods (basic permissions)
 resource "kubernetes_role" "gpu_dev_role" {
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
+  
   metadata {
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
     name      = "gpu-dev-role"
@@ -92,6 +94,8 @@ resource "kubernetes_role" "gpu_dev_role" {
 
 # Role binding for GPU development service account
 resource "kubernetes_role_binding" "gpu_dev_role_binding" {
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
+  
   metadata {
     name      = "gpu-dev-role-binding"
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
@@ -112,6 +116,11 @@ resource "kubernetes_role_binding" "gpu_dev_role_binding" {
 
 # NVIDIA Device Plugin to expose GPU resources to Kubernetes
 resource "kubernetes_daemonset" "nvidia_device_plugin" {
+  depends_on = [
+    aws_eks_cluster.gpu_dev_cluster,
+    aws_autoscaling_group.gpu_dev_nodes
+  ]
+  
   metadata {
     name      = "nvidia-device-plugin-daemonset"
     namespace = "kube-system"
@@ -175,9 +184,4 @@ resource "kubernetes_daemonset" "nvidia_device_plugin" {
       }
     }
   }
-
-  depends_on = [
-    aws_eks_cluster.gpu_dev_cluster
-    # Will work with either managed or self-managed nodes
-  ]
 }
