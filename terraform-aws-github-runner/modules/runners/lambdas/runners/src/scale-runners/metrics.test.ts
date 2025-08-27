@@ -8,8 +8,10 @@ const mockCloudWatch = {
   }),
 };
 
-jest.mock('aws-sdk', () => ({
-  CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
+  CloudWatch: jest.fn().mockImplementation(() => ({
+    putMetricData: mockCloudWatch.putMetricData,
+  })),
 }));
 
 beforeEach(() => {
