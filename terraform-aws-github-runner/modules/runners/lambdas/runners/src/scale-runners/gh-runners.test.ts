@@ -20,25 +20,35 @@ import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import { locallyCached, redisCached } from './cache';
 import nock from 'nock';
 
 const mockEC2 = {
   describeInstances: jest.fn(),
   runInstances: jest.fn(),
-  terminateInstances: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  terminateInstances: jest.fn().mockResolvedValue({}),
 };
-const mockSSMdescribeParametersRet = jest.fn();
 const mockSSM = {
-  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
-  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  deleteParameter: jest.fn().mockResolvedValue({}),
+  describeParameters: jest.fn().mockResolvedValue({}),
+  putParameter: jest.fn().mockResolvedValue({}),
 };
-jest.mock('aws-sdk', () => ({
-  EC2: jest.fn().mockImplementation(() => mockEC2),
-  SSM: jest.fn().mockImplementation(() => mockSSM),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
+
+jest.mock('@aws-sdk/client-ec2', () => ({
+  EC2: jest.fn().mockImplementation(() => ({
+    describeInstances: mockEC2.describeInstances,
+    runInstances: mockEC2.runInstances,
+    terminateInstances: mockEC2.terminateInstances,
+  })),
+}));
+
+jest.mock('@aws-sdk/client-ssm', () => ({
+  SSM: jest.fn().mockImplementation(() => ({
+    deleteParameter: mockSSM.deleteParameter,
+    describeParameters: mockSSM.describeParameters,
+    putParameter: mockSSM.putParameter,
+  })),
 }));
 
 jest.mock('./gh-auth');
