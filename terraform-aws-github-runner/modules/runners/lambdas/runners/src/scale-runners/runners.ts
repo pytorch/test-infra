@@ -60,6 +60,7 @@ export interface RunnerTypeOptional {
 
 export interface RunnerType extends RunnerTypeOptional {
   disk_size: number;
+  // This should be RunInstancesCommandInput["InstanceType"] but without undefined
   instance_type: string;
   is_ephemeral: boolean;
   os: string;
@@ -68,11 +69,6 @@ export interface RunnerType extends RunnerTypeOptional {
 
 export interface RunnerTypeScaleConfig extends RunnerType {
   variants?: Map<string, RunnerTypeOptional>;
-}
-
-export interface DescribeInstancesResultRegion {
-  awsRegion: string;
-  describeInstanceResult: PromiseResult<DescribeInstancesCommandOutput, AWS.AWSError>;
 }
 
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
@@ -210,7 +206,7 @@ export async function listRunners(
                     region: awsRegion,
                   })
                     .describeInstances({ Filters: ec2Filters })
-                    .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                    .then((describeInstanceResult) => {
                       (
                         describeInstanceResult?.Reservations?.flatMap((reservation) => {
                           return (
@@ -286,7 +282,7 @@ export async function listSSMParameters(metrics: Metrics, awsRegion: string): Pr
   >;
 
   if (parametersSet === undefined) {
-    parametersSet = new Map<string, SSM.ParameterMetadata>();
+    parametersSet = new Map<string, ParameterMetadata>();
     const ssm = new SSM({
       region: awsRegion,
     });
@@ -806,7 +802,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                     LaunchTemplateName: launchTemplateName,
                     Version: launchTemplateVersion,
                   },
-                  InstanceType: runnerParameters.runnerType.instance_type,
+                  InstanceType: runnerParameters.runnerType.instance_type as RunInstancesCommandInput['InstanceType'],
                   BlockDeviceMappings: [
                     {
                       DeviceName: storageDeviceName,
