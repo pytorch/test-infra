@@ -16,6 +16,7 @@ import { Config } from './config';
 import nock from 'nock';
 import { locallyCached, clearLocalCache, redisLocked } from './cache';
 import moment from 'moment';
+import { DescribeInstancesCommandOutput } from '@aws-sdk/client-ec2';
 
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;
@@ -173,7 +174,7 @@ describe('list instances', () => {
     resetRunnersCaches();
     clearLocalCache();
     mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-    const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+    const mockRunningInstances: DescribeInstancesCommandOutput = {
       Reservations: [
         {
           Instances: [
@@ -198,6 +199,7 @@ describe('list instances', () => {
           ],
         },
       ],
+      $metadata: {},
     };
     mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
@@ -515,8 +517,9 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -560,7 +563,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(30, 'seconds').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -580,6 +583,7 @@ describe('tryReuseRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -627,7 +631,7 @@ describe('tryReuseRunner', () => {
           .getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -647,6 +651,7 @@ describe('tryReuseRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -690,7 +695,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -710,6 +715,7 @@ describe('tryReuseRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -769,7 +775,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -789,6 +795,7 @@ describe('tryReuseRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -846,8 +853,9 @@ describe('tryReuseRunner', () => {
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -892,7 +900,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -912,6 +920,7 @@ describe('tryReuseRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -971,7 +980,7 @@ describe('tryReuseRunner', () => {
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
       const launchTime = moment(new Date()).subtract(5, 'minutes').utc().toDate();
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -991,6 +1000,7 @@ describe('tryReuseRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
 
@@ -1061,7 +1071,7 @@ describe('createRunner', () => {
 
     beforeEach(() => {
       mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -1104,6 +1114,7 @@ describe('createRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
       mockEC2.runInstances.mockImplementation(() => mockRunInstances);
@@ -1465,7 +1476,7 @@ describe('createRunner', () => {
       mockRunInstances.promise.mockReturnValue(runInstanceSuccess);
       mockSSM.putParameter.mockImplementation(() => mockPutParameter);
       mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
-      const mockRunningInstances: AWS.EC2.DescribeInstancesResult = {
+      const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
             Instances: [
@@ -1508,6 +1519,7 @@ describe('createRunner', () => {
             ],
           },
         ],
+        $metadata: {},
       };
       mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
       jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
