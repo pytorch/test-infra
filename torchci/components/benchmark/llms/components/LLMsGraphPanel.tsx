@@ -169,7 +169,7 @@ export default function LLMsGraphPanel({
               const device = record.device;
               const metric = record.metric;
 
-              if (repoName === "vllm-project/vllm") {
+              if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
                 const requestRate = record.extra!["request_rate"];
                 const tensorParallel = record.extra!["tensor_parallel_size"];
                 const inputLen = record.extra!["random_input_len"]

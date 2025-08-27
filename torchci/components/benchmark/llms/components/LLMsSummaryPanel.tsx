@@ -168,7 +168,7 @@ export default function LLMsSummaryPanel({
     });
   }
 
-  if (repoName === "vllm-project/vllm") {
+  if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
     columns.push({
       field: "tensor_parallel_size",
       headerName: "Tensor parallel",
