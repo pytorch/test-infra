@@ -32,7 +32,7 @@ WITH job AS (
         )  -- Should be filtered out by the workflow_event filters, but workflow_event takes some time to populate
         AND job.workflow_event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND job.workflow_event != 'repository_dispatch' -- Filter out repository_dispatch-triggered jobs, which have nothing to do with the SHA
-        AND NOT (job.workflow_event = 'workflow_dispatch' AND job.head_branch LIKE 'trunk/%') -- Filter out restart jobs
+        AND job.head_branch NOT LIKE 'trunk/%' -- Filter out restart jobs
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha in {shas: Array(String)})
         AND job.repository_full_name = {repo: String}
         AND job.workflow_name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
