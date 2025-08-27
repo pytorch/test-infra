@@ -52,7 +52,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "12.8",
 }
 
-CUDA_AARCH64_ARCHES = ["12.9-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.9-aarch64", "13.0-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
