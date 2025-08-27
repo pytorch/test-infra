@@ -1,4 +1,4 @@
-import { Grid2, Paper, Stack, Typography } from "@mui/material";
+import { Grid, Paper, Stack, Typography } from "@mui/material";
 import CheckBoxList from "components/common/CheckBoxList";
 import CopyLink from "components/common/CopyLink";
 import GranularityPicker from "components/common/GranularityPicker";
@@ -260,8 +260,8 @@ export default function Page() {
         />
         <CopyLink textToCopy={permalink || ""} />
       </Stack>
-      <Grid2 container spacing={2}>
-        <Grid2 size={{ xs: 9 }} height={GRAPHS_HEIGHT}>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 9 }} height={GRAPHS_HEIGHT}>
           {error !== undefined ? (
             <Typography>
               error occured while fetching data, perhaps there are too many
@@ -279,15 +279,15 @@ export default function Page() {
               </Paper>
             </Stack>
           )}
-        </Grid2>
-        <Grid2 size={{ xs: 3 }} height={GRAPHS_HEIGHT} overflow={"auto"}>
+        </Grid>
+        <Grid size={{ xs: 3 }} height={GRAPHS_HEIGHT} overflow={"auto"}>
           <CheckBoxList
             items={selectedJobs}
             onChange={setSelectedJobs}
             onClick={(_val) => {}}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </div>
   );
 }

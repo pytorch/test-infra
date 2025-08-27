@@ -78,27 +78,27 @@ WHERE
         (
             ({arch: String } = '' OR {arch: String } = 'a100')
             AND output LIKE CONCAT(
-                '%_',
+                '%\_',
                 {dtype: String },
-                '_',
+                '\_',
                 {mode: String },
-                '_',
+                '\_',
                 {device: String },
-                '_%'
+                '\_%'
             )
         )
         OR (
             {arch: String } != ''
             AND output LIKE CONCAT(
-                '%_',
+                '%\_',
                 {dtype: String },
-                '_',
+                '\_',
                 {mode: String },
-                '_',
+                '\_',
                 {device: String },
-                '_',
+                '\_',
                 {arch: String },
-                '_%'
+                '\_%'
             )
         )
         OR (

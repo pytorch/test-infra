@@ -1,4 +1,4 @@
-import { Grid2, Stack, Typography } from "@mui/material";
+import { Grid, Stack, Typography } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import CopyLink from "components/common/CopyLink";
 import ValuePicker from "components/common/ValuePicker";
@@ -87,7 +87,7 @@ function generateDisabledTestsTable(data: any) {
 
 function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
   return (
-    <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
+    <Grid size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
       <TimeSeriesPanel
         title={"Number of open disabled tests"}
         queryName={"disabled_test_historical"}
@@ -98,7 +98,7 @@ function GraphPanel({ queryParams }: { queryParams: { [key: string]: any } }) {
         yAxisRenderer={(duration) => duration}
         fillMissingData={false}
       />
-    </Grid2>
+    </Grid>
   );
 }
 
@@ -140,8 +140,8 @@ function DisabledTestsPanel({
 
   const disabledTests = generateDisabledTestsTable(data);
   return (
-    <Grid2 container spacing={2} style={{ height: "100%" }}>
-      <Grid2 size={{ xs: 12, lg: 12 }}>
+    <Grid container spacing={2} style={{ height: "100%" }}>
+      <Grid size={{ xs: 12, lg: 12 }}>
         <TablePanelWithData
           title={`Disabled tests (${disabledTests.length})`}
           data={disabledTests}
@@ -226,8 +226,8 @@ function DisabledTestsPanel({
           showFooter={true}
           pageSize={100}
         />
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }
 

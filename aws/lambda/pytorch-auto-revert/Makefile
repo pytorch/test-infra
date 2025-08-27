@@ -27,7 +27,7 @@ run-local-dry: venv/bin/python
 
 .PHONY: run-local-workflows
 run-local-workflows: venv/bin/python
-	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 4380 --ignore-common-errors
+	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 4380 --ignore-common-errors --verbose
 
 deployment.zip:
 	mkdir -p deployment
@@ -43,3 +43,7 @@ create-deployment-package: deployment.zip
 lintrunner: venv/bin/lintrunner
 	# lintrunner only works properly with virtualenv if you activate it first
 	. venv/bin/activate && lintrunner -a -v --force-color --config ../../../.lintrunner.toml --paths-cmd='git grep -Il .'
+
+.PHONY: test
+test: venv/bin/python
+	venv/bin/python -m unittest discover -vs pytorch_auto_revert/tests -p 'test_*.py'

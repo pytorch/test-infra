@@ -49,6 +49,12 @@ class CommitJobs:
     def job_base_names(self) -> Set[str]:
         return self.get_job_base_names()
 
+    def jobs_with_base_name(self, job_base_name: str) -> List[JobResult]:
+        """Get all jobs with a specific normalized base name."""
+        return [
+            j for j in self.jobs if self.normalize_job_name(j.name) == job_base_name
+        ]
+
     def normalize_job_name(self, name: str) -> str:
         """Normalize job name to a stable base for matching across commits.
 
@@ -119,27 +125,38 @@ class AutorevertPatternChecker:
             f"Fetching workflow data for {len(self.workflow_names)} workflows since {lookback_time.isoformat()}..."
         )
 
-        # For pattern detection we consider non-restarted main branch jobs only
-        base_where = "workflow_event != 'workflow_dispatch' AND head_branch = 'main'"
-
-        query = f"""
-        SELECT
-            workflow_name,
-            head_sha,
-            name,
-            conclusion,
-            status,
-            torchci_classification.rule AS classification_rule,
-            created_at AS workflow_created_at
-        FROM
-            workflow_job FINAL
-        WHERE
-            workflow_name IN {{workflow_names:Array(String)}}
-            AND {base_where}
-            AND created_at >= {{lookback_time:DateTime}}
-            AND dynamoKey LIKE 'pytorch/pytorch/%'
-        ORDER BY
-            workflow_name, workflow_created_at DESC, head_sha, name
+        query = """
+            SELECT
+                wf.workflow_name,
+                wf.head_sha,
+                wf.name,
+                wf.conclusion,
+                wf.status,
+                wf.torchci_classification.rule AS classification_rule,
+                wf.created_at AS workflow_created_at
+            FROM workflow_job AS wf FINAL
+            INNER JOIN (
+                -- Deduplicate pushes by head_sha using group+max,
+                -- keeping the most recent timestamp
+                -- this is faster than using distinct
+                SELECT
+                    head_commit.id as sha,
+                    max(head_commit.timestamp) as timestamp
+                FROM default.push
+                WHERE head_commit.timestamp >= {lookback_time:DateTime}
+                AND ref = 'refs/heads/main'
+                GROUP BY sha
+            ) AS push_dedup ON wf.head_sha = push_dedup.sha
+            WHERE
+                wf.workflow_name IN {workflow_names:Array(String)}
+                AND wf.workflow_event != 'workflow_dispatch'
+                AND wf.head_branch = 'main'
+                -- this timestamp should always be bigger than push_dedup.timestamp
+                -- it is just a optimization as this column is indexed
+                AND wf.created_at >= {lookback_time:DateTime}
+                AND wf.dynamoKey LIKE 'pytorch/pytorch/%'
+            ORDER BY
+                wf.workflow_name, push_dedup.timestamp DESC, wf.head_sha, wf.name
         """
 
         result = CHCliFactory().client.query(
@@ -201,14 +218,15 @@ class AutorevertPatternChecker:
         lookback_time = datetime.now() - timedelta(hours=self.lookback_hours)
 
         query = """
-        SELECT DISTINCT
-            head_commit.id as sha,
-            head_commit.message as message,
-            head_commit.timestamp as timestamp
-        FROM default.push
-        WHERE head_commit.timestamp >= {lookback_time:DateTime}
-          AND ref = 'refs/heads/main'
-        ORDER BY head_commit.timestamp DESC
+            SELECT
+                head_commit.id as sha,
+                head_commit.message as message,
+                max(head_commit.timestamp) as timestamp
+            FROM default.push
+            WHERE head_commit.timestamp >= {lookback_time:DateTime}
+            AND ref = 'refs/heads/main'
+            GROUP BY sha, message
+            ORDER BY timestamp DESC
         """
 
         result = CHCliFactory().client.query(
@@ -271,9 +289,6 @@ class AutorevertPatternChecker:
         # We require: a newer commit with the same failure (i-1..0) and an older baseline (i+1..end)
         for i in range(1, len(commits) - 1):
             suspected_commit1 = commits[i]
-
-            if suspected_commit1.has_pending_jobs:
-                continue
 
             # Extract unique (classification_rule, normalized job) pairs for failing jobs on the suspected commit
             suspected_failures = {
@@ -340,8 +355,8 @@ class AutorevertPatternChecker:
                     # No older commit with same normalized job name found
                     continue
 
-                # Ensure the oldest commit has stable signal (no running jobs)
-                if last_commit_with_same_job.has_pending_jobs:
+                # Ensure the oldest commit has stable signal for the jobs we care about (no running jobs)
+                if any(j.status != "completed" for j in last_same_jobs):
                     continue
 
                 if any(
@@ -503,30 +518,30 @@ class AutorevertPatternChecker:
         previous_commit = pattern["older_commit"]
 
         # Fetch restarted jobs for first failing and previous commits
-        failing_jobs = self._fetch_single_commit_jobs(
+        failing_commit_jobs = self._fetch_single_commit_jobs(
             workflow_name, first_failing, restarted_only=True
         )
-        prev_jobs = self._fetch_single_commit_jobs(
+        prev_commit_jobs = self._fetch_single_commit_jobs(
             workflow_name, previous_commit, restarted_only=True
         )
-        if not failing_jobs or not prev_jobs:
+        if not failing_commit_jobs or not prev_commit_jobs:
             return False
 
-        # Pending check
-        if failing_jobs.has_pending_jobs or prev_jobs.has_pending_jobs:
+        failing_suspected_jobs = failing_commit_jobs.jobs_with_base_name(job_base)
+        prev_suspected_jobs = prev_commit_jobs.jobs_with_base_name(job_base)
+        if any(j.status != "completed" for j in prev_suspected_jobs):
+            # Previous commit has pending jobs, cannot confirm
             return False
 
-        def has_rule(cj: CommitJobs, rule: str) -> bool:
+        def has_rule(jobs: Iterable[JobResult], rule: str) -> bool:
             return any(
-                cj.normalize_job_name(j.name) == job_base
-                and j.classification_rule == rule
-                and j.conclusion == "failure"
-                for j in cj.jobs
+                j.classification_rule == rule and j.conclusion == "failure"
+                for j in jobs
             )
 
         # Commit-caused if failing commit reproduces, previous does not
-        return has_rule(failing_jobs, failure_rule) and not has_rule(
-            prev_jobs, failure_rule
+        return has_rule(failing_suspected_jobs, failure_rule) and not has_rule(
+            prev_suspected_jobs, failure_rule
         )
 
     def _get_commits_reverted(self) -> Set[str]:

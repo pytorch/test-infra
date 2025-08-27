@@ -7,30 +7,18 @@ import re
 import urllib.parse
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
-from difflib import SequenceMatcher
-from typing import Any, Dict, List, Set, Tuple
+from enum import StrEnum
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 from setuptools import distutils  # type: ignore[import]
 
 
-ALL_SKIPPED_THRESHOLD = 100
-SIMILARITY_THRESHOLD = 0.75
 FAILURE_CHAIN_THRESHOLD = 2
-MAX_CONCURRENT_ALERTS = 1
-FAILED_JOB_PATTERN = (
-    r"^- \[(.*)\]\(.*\) failed consecutively starting with commit \[.*\]\(.*\)$"
-)
+FAILED_JOB_PATTERN = r"^- \[(.*)\]\(.*\)$"
 # Max number of comments on a Github issue is 2500, so we stop early to avoid
 # hitting that limit
 SOFT_COMMENT_THRESHOLD = 2400
-
-PENDING = "pending"
-NEUTRAL = "neutral"
-SKIPPED = "skipped"
-SUCCESS = "success"
-FAILURE = "failure"
-CANCELED = "canceled"
 
 ISSUES_WITH_LABEL_QUERY = """
 query ($owner: String!, $name: String!, $labels: [String!]) {
@@ -82,109 +70,109 @@ UPDATE_ISSUE_URL = (
 
 GRAPHQL_URL = "https://api.github.com/graphql"
 
+JOB_NAME_REGEX = re.compile(r"^(.* \([^,]*), \d.*\)$")
+
+
+class JobConclusion(StrEnum):
+    PENDING = "pending"
+    FAILURE = "failure"
+    SUCCESS = "success"
+    NEUTRAL = "neutral"
+    SKIPPED = "skipped"
+    CANCELED = "canceled"
+
+
+class JobData:
+    conclusion: Optional[JobConclusion]
+    job_name: str
+    job_name_no_shard: str
+
+    def __init__(self, job_name: str, job_data: Dict[str, Any]):
+        self.job_name = job_name
+        self.conclusion = job_data.get("conclusion", None)
+
+        # Go from "job_name (config, 1...)" to "job_name (config)" if applicable
+        match = JOB_NAME_REGEX.match(job_name)
+        if match is not None:
+            self.job_name_no_shard = f"{match.group(1)})"
+        else:
+            self.job_name_no_shard = job_name
+
+    def is_failed(self) -> bool:
+        """
+        Returns True if the job is failed, i.e. has a conclusion of FAILURE or is canceled.
+        """
+        return self.conclusion is not None and self.conclusion == JobConclusion.FAILURE
+
+    def is_skipped(self) -> bool:
+        """
+        Returns True if the job is skipped, i.e. has a conclusion of NEUTRAL or SKIPPED.
+        """
+        return self.conclusion is not None and (
+            self.conclusion == JobConclusion.NEUTRAL
+            or self.conclusion == JobConclusion.SKIPPED
+        )
+
+    def __repr__(self) -> str:
+        return f"JobData(job_name={self.job_name}, conclusion={self.conclusion})"
+
+
+class JobGroup:
+    """
+    Represents a group of jobs that should be considered together, e.g. all
+    shards of a job.  The list of jobs can be seen as a set, but I don't want to
+    go through the trouble of making JobData hashable.
+    """
+
+    jobs = list[JobData]
+
+    def __init__(self, jobs: list[JobData]):
+        self.jobs = jobs
+
+    def is_successful(self) -> bool:
+        """
+        Returns True if all jobs in this group are successful, i.e. have a conclusion of SUCCESS.
+        """
+        return all(job.conclusion == JobConclusion.SUCCESS for job in self.jobs)
+
+    def any_pending(self) -> bool:
+        """
+        Returns True if any job in this group is pending, i.e. has a conclusion of PENDING.
+        """
+        return any(job.conclusion == JobConclusion.PENDING for job in self.jobs)
+
+    def is_failing(self) -> bool:
+        """
+        Returns True if any job in this group is failing, i.e. has a conclusion of FAILURE.
+        """
+        return any(job.conclusion == JobConclusion.FAILURE for job in self.jobs)
+
+    def __repr__(self) -> str:
+        return f"JobGroup(jobs={self.jobs})"
+
 
 class JobStatus:
-    job_name: str = ""
-    jobs: List[Any] = []
-    current_status: Any = None
-    job_statuses: List[Any] = []
-    filtered_statuses: List[Any] = []
-    failure_chain: List[Any] = []
-    flaky_jobs: List[Any] = []
+    job_name: str
+    job_statuses: list[JobGroup]
 
-    def __init__(self, job_name: str, job_statuses: List[Any]):
+    def __init__(self, job_name: str, job_statuses: list[JobGroup]):
         self.job_name = job_name
         self.job_statuses = job_statuses
 
-        self.filtered_statuses = list(
-            filter(lambda j: not is_job_skipped(j), job_statuses)
-        )
-        self.current_status = self.get_current_status()
-        self.failure_chain = self.get_most_recent_failure_chain()
-        self.flaky_jobs = self.get_flaky_jobs()
-
-    def get_current_status(self) -> Any:
-        """
-        When getting the current status, we want the latest status which is not pending,
-        be it success or failure
-        """
-        for status in self.filtered_statuses:
-            if status["conclusion"] != PENDING:
-                return status
-        return None
-
-    def get_unique_failures(self, jobs: List[Any]) -> Dict[str, List[Any]]:
-        """
-        Returns list of jobs grouped by failureCaptures from the input list
-        """
-        failures = defaultdict(list)
-        for job in jobs:
-            if job["conclusion"] == "failure":
-                found_similar_failure = False
-                if "failureCaptures" not in job:
-                    failures["unclassified"] = [job]
-                    continue
-
-                # This is now a list returned by HUD API, not a string
-                failureCaptures = " ".join(job["failureCaptures"])
-
-                for failure in failures:
-                    seq = SequenceMatcher(None, failureCaptures, failure)
-                    if seq.ratio() > SIMILARITY_THRESHOLD:
-                        failures[failure].append(job)
-                        found_similar_failure = True
-                        break
-                if not found_similar_failure:
-                    failures[failureCaptures] = [job]
-
-        return failures
-
-    # A flaky job is if it's the only job that has that failureCapture and is not the most recent job
-    def get_flaky_jobs(self) -> List[Any]:
-        unique_failures = self.get_unique_failures(self.filtered_statuses)
-        flaky_jobs = []
-        for failure in unique_failures:
-            failure_list = unique_failures[failure]
-            if (
-                len(failure_list) == 1
-                and failure_list[0]["sha"] != self.current_status["sha"]
-            ):
-                flaky_jobs.append(failure_list[0])
-        return flaky_jobs
-
-    # The most recent failure chain is an array of jobs that have the same-ish failures.
-    # A success in the middle of the chain will terminate the chain.
-    def get_most_recent_failure_chain(self) -> List[Any]:
-        failures = []
-        found_most_recent_failure = False
-
-        for job in self.filtered_statuses:
-            if is_job_failed(job):
-                failures.append(job)
-                found_most_recent_failure = True
-            if found_most_recent_failure and not is_job_failed(job):
-                break
-
-        return failures
-
     def should_alert(self) -> bool:
-        # Group jobs by their failures. The length of the failure chain is used
-        # to raise the alert, so we can do a simple tweak here to use the length
-        # of the longest unique chain
-        unique_failures = self.get_unique_failures(self.failure_chain)
+        """
+        Returns True if the job is currently failing, i.e. has a failure in the most recent status.
+        """
+        chain_length = 0
+        for job_group in self.job_statuses:
+            if job_group.is_successful():
+                break
+            if job_group.is_failing():
+                chain_length += 1
+            # If anything is pending, skipped, or neutral, we act like it's not
+            # there because it could be a schrodingers failure
 
-        return (
-            self.current_status is not None
-            and self.current_status["conclusion"] != SUCCESS
-            and any(
-                len(failure_chain) >= FAILURE_CHAIN_THRESHOLD
-                for failure_chain in unique_failures.values()
-            )
-            and all(
-                disabled_alert not in self.job_name
-                for disabled_alert in DISABLED_ALERTS
-            )
-        )
+        return chain_length >= FAILURE_CHAIN_THRESHOLD
 
     def __repr__(self) -> str:
         return f"jobName: {self.job_name}"
@@ -276,12 +264,7 @@ def generate_failed_job_issue(
     )
     body = "Within the last 50 commits, there are the following failures on the main branch of pytorch: \n"
     for job in failed_jobs:
-        failing_sha = job.failure_chain[-1]["sha"]
-        body += (
-            f"- {generate_failed_job_hud_link(job)} failed consecutively starting with "
-        )
-        body += f"commit [{failing_sha}](https://hud.pytorch.org/commit/{repo}/{failing_sha})"
-        body += "\n\n"
+        body += f"- {generate_failed_job_hud_link(job)}\n"
 
     body += "Please review the errors and revert if needed."
     issue["body"] = body
@@ -367,68 +350,52 @@ def create_issue(issue: Dict, dry_run: bool) -> Dict:
     return {"number": res["number"], "closed": False, "body": res["body"]}
 
 
-def fetch_hud_data(repo: str, branch: str) -> Any:
+def fetch_hud_data(repo: str, branch: str) -> Tuple[List[str], list[list[JobData]]]:
     response = requests.get(f"https://hud.pytorch.org/api/hud/{repo}/{branch}/0")
     response.raise_for_status()
     hud_data = json.loads(response.text)
-    return (hud_data["jobNames"], hud_data["shaGrid"])
+
+    job_names = hud_data["jobNames"]
+    # Do the conversion into classes here so we don't have to worry about it
+    # later.  Lost sha info but we don't need it atm.  Commit order is list
+    # order
+    sha_grid = []
+    for row in hud_data["shaGrid"]:
+        jobs: list[JobData] = []
+        for ind, job in enumerate(row["jobs"]):
+            job_name = job_names[ind]
+            if len(job) == 0:
+                # Job is a dict but for historical reasons if its an empty dict
+                # it means there is no job
+                continue
+            jobs.append(JobData(job_name, job))
+        sha_grid.append(jobs)
+    return (hud_data["jobNames"], sha_grid)
 
 
-# TODO: Do something about these flaky jobs, save them or something
-def record_flaky_jobs(flaky_jobs: List[Any]) -> None:
-    return
+def map_job_data(
+    shaGrid: list[list[JobData]], filteredJobsNames: Set[str]
+) -> dict[str, list[JobGroup]]:
+    """
+    The result is a dictionary mapping job names without shard info -> list of
+    JobGroup.  The JobGroup list is grouped according to SHA and the order is
+    according to recency of the SHA
+    """
+    jobData: dict[str, list[list[JobData]]] = defaultdict(list)
+    for row in shaGrid:
+        # First group by job name (no shard info) within a row
+        row_job_name_mapping: dict[str, list[JobData]] = defaultdict(list)
+        for job in row:
+            if job.job_name not in filteredJobsNames:
+                continue
+            row_job_name_mapping[job.job_name_no_shard].append(job)
 
-
-# Creates a Dict of Job Name -> [JobData]. Essentially a Column in HUD
-def map_job_data(jobNames: Any, shaGrid: Any) -> Dict[str, Any]:
-    jobData = defaultdict(list)
-    for sha in shaGrid:
-        for ind, job in enumerate(sha["jobs"]):
-            jobData[jobNames[ind]].append(job)
+        # Then add to the list as one group to preserve the order
+        for job_name, jobs in row_job_name_mapping.items():
+            if job_name not in jobData:
+                jobData[job_name] = []
+            jobData[job_name].append(JobGroup(jobs))
     return jobData
-
-
-def is_job_failed(job: Any) -> bool:
-    conclusion = job["conclusion"] if "conclusion" in job else None
-    return conclusion is not None and conclusion != SUCCESS and conclusion != PENDING
-
-
-def is_job_skipped(job: Any) -> bool:
-    conclusion = job["conclusion"] if "conclusion" in job else None
-    return conclusion is None or conclusion == NEUTRAL or conclusion == SKIPPED
-
-
-def get_failed_jobs(job_data: List[Any]) -> List[Any]:
-    return [job for job in job_data if job["conclusion"] == "failure"]
-
-
-def categorize_shas(sha_grid: Any) -> List[Tuple[Any, str]]:
-    categorized_shas = []
-    for sha in sha_grid:
-        conclusions = defaultdict(lambda: 0)
-        for job in sha["jobs"]:
-            if "conclusion" in job:
-                conclusions[job["conclusion"]] += 1
-            else:
-                conclusions[SKIPPED] += 1
-        if conclusions[FAILURE] > 0 or conclusions[CANCELED]:
-            categorized_shas.append((sha, FAILURE))
-        elif conclusions[PENDING] > 0:
-            categorized_shas.append((sha, PENDING))
-        # If the SHA has 100+ skipped jobs, then that means this SHA is part of a stack and
-        # everything in this commit is skipped
-        elif conclusions[SKIPPED] > ALL_SKIPPED_THRESHOLD:
-            categorized_shas.append((sha, SKIPPED))
-        else:
-            categorized_shas.append((sha, SUCCESS))
-    return categorized_shas
-
-
-def find_first_sha(categorized_sha: List[Tuple[str, str]], status: str):
-    for ind, sha in enumerate(categorized_sha):
-        if sha[1] == status:
-            return ind
-    return -1
 
 
 def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
@@ -449,51 +416,18 @@ def clear_alerts(alerts: List[Any], dry_run: bool) -> bool:
     return cleared_alerts > 0
 
 
-# We need to clear alerts if there is a commit that's all green is before a commit that has a red
-# If there's pending things after the all green commit, that's fine, as long as it's all green/pending
-def trunk_is_green(sha_grid: Any):
-    categorized_shas = categorize_shas(sha_grid)
-    first_green_sha_ind = find_first_sha(categorized_shas, SUCCESS)
-    first_red_sha_ind = find_first_sha(categorized_shas, FAILURE)
-    first_green = categorized_shas[first_green_sha_ind][0]
-    first_red = categorized_shas[first_red_sha_ind][0]
-
-    print(
-        f"The first green SHA was at index {first_green_sha_ind} at {first_green['sha']}"
-        + f"and the first red SHA was at index {first_red_sha_ind} at {first_red['sha']}"
-    )
-    if first_green_sha_ind < 0:
-        return False
-    return first_green_sha_ind < first_red_sha_ind
-
-
 def classify_jobs(
-    all_job_names: List[str], sha_grid: Any, filtered_jobs_names: Set[str]
-) -> Tuple[List[JobStatus], List[Any]]:
+    sha_grid: list[list[JobData]], filtered_jobs_names: Set[str]
+) -> List[JobStatus]:
     """
-    Creates Job Statuses which has the logic for if need to alert or if there's flaky jobs.
-    Classifies jobs into jobs to alert on and flaky jobs.
-    :param all_job_names: list of all job names as returned by the HUD
-    :param sha_grid: list of all job data as returned by the HUD (parallel index to all_job_names)
-    :param filtered_jobs_names: set of job names to actually consider
-    :return:
+    Creates Job Statuses which has the logic for if need to alert/
     """
-    job_data = map_job_data(all_job_names, sha_grid)
+    job_data = map_job_data(sha_grid, filtered_jobs_names)
     job_statuses: list[JobStatus] = []
     for job in job_data:
         job_statuses.append(JobStatus(job, job_data[job]))
 
-    jobs_to_alert_on = []
-    flaky_jobs = []
-
-    for job_status in job_statuses:
-        if job_status.job_name not in filtered_jobs_names:
-            continue
-        if job_status.should_alert():
-            jobs_to_alert_on.append(job_status)
-        flaky_jobs.extend(job_status.flaky_jobs)
-
-    return jobs_to_alert_on, flaky_jobs
+    return [job_status for job_status in job_statuses if job_status.should_alert()]
 
 
 def handle_flaky_tests_alert(
@@ -546,9 +480,7 @@ def check_for_recurrently_failing_jobs_alert(
         else:
             print("\n".join(sorted(filtered_job_names)))
 
-    (jobs_to_alert_on, flaky_jobs) = classify_jobs(
-        job_names, sha_grid, filtered_job_names
-    )
+    jobs_to_alert_on = classify_jobs(sha_grid, filtered_job_names)
 
     # Fetch alerts
     existing_alerts = fetch_alerts_filter(
@@ -558,7 +490,7 @@ def check_for_recurrently_failing_jobs_alert(
     )
 
     # Auto-clear any existing alerts if the current status is green
-    if len(jobs_to_alert_on) == 0 or trunk_is_green(sha_grid):
+    if len(jobs_to_alert_on) == 0:
         print(f"Didn't find anything to alert on for {repo} {branch}")
         clear_alerts(existing_alerts, dry_run=dry_run)
         return

@@ -43,13 +43,15 @@ export default async function handler(
   res: NextApiResponse
 ) {
   if (req.method !== "POST") {
-    return res.status(504).end();
+    res.status(504).end();
+    return;
   }
 
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
   if (session === undefined || session === null || session.user === undefined) {
-    return res.status(401).end();
+    res.status(401).end();
+    return;
   }
 
   const { repoOwner, repoName, annotation } = req.query;
@@ -60,7 +62,8 @@ export default async function handler(
     session.user.id
   );
   if (!hasPermission) {
-    return res.status(401).end();
+    res.status(401).end();
+    return;
   }
 
   const client = getDynamoClient();
@@ -93,5 +96,5 @@ export default async function handler(
     await Promise.all(queries);
   }
 
-  return res.status(200).end();
+  res.status(200).end();
 }

@@ -2,7 +2,7 @@ import { PutObjectCommand } from "@aws-sdk/client-s3";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { fetchJSON, isTime0 } from "lib/bot/utils";
-import { queryClickhouse } from "lib/clickhouse";
+import { queryClickhouse, queryClickhouseSaved } from "lib/clickhouse";
 import {
   CANCELLED_STEP_ERROR,
   fetchPRLabels,
@@ -83,18 +83,21 @@ export default async function handler(
     // Check that they are only updating a single PR
     const { prNumber } = req.query;
     if (prNumber === undefined) {
-      return res.status(403).end();
+      res.status(403).end();
+      return;
     }
     // Check if they exceed the rate limit
     const userOctokit = await getOctokitWithUserToken(authorization as string);
     const user = await userOctokit.rest.users.getAuthenticated();
     if (await drCIRateLimitExceeded(user.data.login)) {
-      return res.status(429).end();
+      res.status(429).end();
+      return;
     }
     incrementDrCIRateLimit(user.data.login);
   } else {
     // No authorization provided, return 403
-    return res.status(403).end();
+    res.status(403).end();
+    return;
   }
 
   const { prNumber } = req.query;
@@ -106,7 +109,7 @@ export default async function handler(
     repo,
     prNumber ? [parseInt(prNumber as string)] : []
   );
-  res.status(200).json(failures);
+  return res.status(200).json(failures);
 }
 
 export async function updateDrciComments(
@@ -354,23 +357,11 @@ async function addMergeBaseCommits(
   head: string,
   workflowsByPR: Map<number, PRandJobs>
 ) {
-  const mergeBasesQuery = `
-select
-    sha as head_sha,
-    merge_base,
-    merge_base_commit_date,
-from
-    merge_bases
-where
-    sha in {shas: Array(String)}
-    and merge_base_commit_date != 0
-    and repo = {repo: String}
-  `;
   const s3client = getS3Client();
 
   const chMergeBases = new Map(
     (
-      await queryClickhouse(mergeBasesQuery, {
+      await queryClickhouseSaved("merge_bases", {
         shas: Array.from(workflowsByPR.values()).map((v) => v.head_sha),
         repo: `${OWNER}/${repo}`,
       })

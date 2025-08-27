@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, Grid2, Skeleton } from "@mui/material";
+import { Card, CardContent, CardHeader, Grid, Skeleton } from "@mui/material";
 import { styled } from "@mui/material/styles";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
 import { COMMIT_TO_WORKFLOW_ID } from "components/benchmark/RepositoryPicker";
@@ -160,8 +160,8 @@ function SingleGraphPanel({
 
   return (
     <>
-      <Grid2 container spacing={2}>
-        <Grid2 size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
+      <Grid container spacing={2}>
+        <Grid size={{ xs: 12, lg: 6 }} height={GRAPH_ROW_HEIGHT}>
           <TimeSeriesPanelWithData
             data={metricData}
             series={metricTimeSeries}
@@ -185,8 +185,8 @@ function SingleGraphPanel({
             }}
             legendPadding={310}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </>
   );
 }

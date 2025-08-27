@@ -1,7 +1,7 @@
 import {
   Divider,
   FormControl,
-  Grid2,
+  Grid,
   InputLabel,
   MenuItem,
   Select,
@@ -317,8 +317,8 @@ function Report({
 
   return (
     <div>
-      <Grid2 container spacing={2} style={{ height: "100%" }}>
-        <Grid2
+      <Grid container spacing={2} style={{ height: "100%" }}>
+        <Grid
           size={{ xs: 12, lg: 12 }}
           height={minEntries * ROW_HEIGHT + ROW_GAP}
         >
@@ -398,8 +398,8 @@ function Report({
               getRowId: (el: any) => el.name,
             }}
           />
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </div>
   );
 }

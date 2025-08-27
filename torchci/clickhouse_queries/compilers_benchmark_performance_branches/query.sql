@@ -16,27 +16,27 @@ WHERE
         (
             ({arch: String } = '' OR {arch: String } = 'a100')
             AND benchmark_extra_info['output'] LIKE CONCAT(
-                '%_',
+                '%\_',
                 {dtype: String },
-                '_',
+                '\_',
                 {mode: String },
-                '_',
+                '\_',
                 {device: String },
-                '_performance%'
+                '\_performance%'
             )
         )
         OR (
             {arch: String } != ''
             AND benchmark_extra_info['output'] LIKE CONCAT(
-                '%_',
+                '%\_',
                 {dtype: String },
-                '_',
+                '\_',
                 {mode: String },
-                '_',
+                '\_',
                 {device: String },
-                '_',
+                '\_',
                 {arch: String },
-                '_performance%'
+                '\_performance%'
             )
         )
         OR (

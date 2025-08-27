@@ -1,4 +1,4 @@
-import { Divider, Grid2, Skeleton, Stack, Typography } from "@mui/material";
+import { Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import {
@@ -389,7 +389,7 @@ export default function Page() {
         />
       </Stack>
 
-      <Grid2 size={{ xs: 12 }}>
+      <Grid size={{ xs: 12 }}>
         <Report
           dashboard={dashboard}
           queryName={queryName}
@@ -406,7 +406,7 @@ export default function Page() {
           lBranchAndCommit={{ branch: lBranch, commit: lCommit }}
           rBranchAndCommit={{ branch: rBranch, commit: rCommit }}
         />
-      </Grid2>
+      </Grid>
     </div>
   );
 }

@@ -32,14 +32,14 @@ jobs:
       JOB_NAME_REGEX: ${{ matrix.job_filter_regex }}
       # Don't do actual work on pull request
       DRY_RUN: ${{ github.event_name == 'pull_request'}}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install Dependencies
-        run: pip3 install requests setuptools==61.2.0
+        run: pip3 install requests setuptools==80.9.0
       - name: Check for alerts and creates issue
         run: |
           cd tools
@@ -51,14 +51,14 @@ jobs:
   update-queue-alert:
     env:
       DRY_RUN: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Install Dependencies
-        run: pip3 install requests setuptools==61.2.0
+        run: pip3 install requests setuptools==80.9.0
       - name: Check for alerts and creates issue
         run: |
           cd tools

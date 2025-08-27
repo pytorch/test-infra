@@ -152,7 +152,7 @@ export function useClickHouseAPI<T = any>(
  */
 export function useClickHouseAPIImmutable<T = any>(
   queryName: string,
-  parameters: { [key: string]: string },
+  parameters: { [key: string]: any },
   condition: boolean = true
 ) {
   // Helper function to format the URL nicely

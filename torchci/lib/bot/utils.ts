@@ -16,17 +16,17 @@ export function repoKey(context: Context): string {
   return `${repo.owner}/${repo.repo}`;
 }
 
-export function isPyTorchOrg(owner: string): boolean {
-  return owner === "pytorch";
+export function isPyTorchManagedOrg(owner: string): boolean {
+  return owner === "pytorch" || owner === "meta-pytorch";
 }
 
 export function isPyTorchPyTorch(owner: string, repo: string): boolean {
-  return isPyTorchOrg(owner) && repo === "pytorch";
+  return owner === "pytorch" && repo === "pytorch";
 }
 
 export function isDrCIEnabled(owner: string, repo: string): boolean {
   return (
-    isPyTorchOrg(owner) &&
+    isPyTorchManagedOrg(owner) &&
     [
       "pytorch",
       "vision",

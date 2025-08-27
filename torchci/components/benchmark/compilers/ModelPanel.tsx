@@ -1,4 +1,4 @@
-import { Grid2 } from "@mui/material";
+import { Grid } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
 import { LOG_PREFIX, SHA_DISPLAY_LENGTH } from "components/benchmark/common";
 import {
@@ -142,8 +142,8 @@ export function ModelPanel({
 
   const minEntries = data.length > MIN_ENTRIES ? data.length : MIN_ENTRIES;
   return (
-    <Grid2 container spacing={2} style={{ height: "100%" }}>
-      <Grid2
+    <Grid container spacing={2} style={{ height: "100%" }}>
+      <Grid
         size={{ xs: 12, lg: 12 }}
         height={minEntries * ROW_HEIGHT + ROW_GAP}
       >
@@ -544,7 +544,7 @@ export function ModelPanel({
           ]}
           dataGridProps={{ getRowId: (el: any) => el.name }}
         />
-      </Grid2>
-    </Grid2>
+      </Grid>
+    </Grid>
   );
 }
