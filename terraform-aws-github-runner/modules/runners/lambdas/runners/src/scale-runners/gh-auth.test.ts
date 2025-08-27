@@ -28,13 +28,12 @@ jest.mock('./cache', () => ({
     }),
 }));
 
-const mockSMgetSecretValuePromise = jest.fn();
 const mockSMgetSecretValue = jest.fn();
-jest.mock('aws-sdk', () => ({
+
+jest.mock('@aws-sdk/client-secrets-manager', () => ({
   SecretsManager: jest.fn().mockImplementation(() => ({
     getSecretValue: mockSMgetSecretValue,
   })),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
 }));
 
 const metrics = new ScaleUpMetrics();
@@ -95,8 +94,7 @@ describe('Test createGithubAuth', () => {
   describe('tests where aws-sdk fails', () => {
     const message = 'Error message on exception';
     beforeEach(() => {
-      mockSMgetSecretValuePromise.mockClear().mockRejectedValue(Error(message));
-      mockSMgetSecretValue.mockClear().mockImplementation(() => ({ promise: mockSMgetSecretValuePromise }));
+      mockSMgetSecretValue.mockClear().mockRejectedValue(Error(message));
 
       jest.spyOn(Config, 'Instance', 'get').mockImplementation(
         () =>
@@ -115,11 +113,10 @@ describe('Test createGithubAuth', () => {
 
   describe('tests where aws-sdk works as expected', () => {
     beforeEach(() => {
-      mockSMgetSecretValuePromise
+      mockSMgetSecretValue
         .mockClear()
         .mockResolvedValueOnce({ SecretString: undefined })
         .mockResolvedValueOnce({ SecretString: secretString });
-      mockSMgetSecretValue.mockClear().mockImplementation(() => ({ promise: mockSMgetSecretValuePromise }));
     });
 
     describe('github keys are not from environment, nor secretsManagerSecretsId is provided', () => {
@@ -286,12 +283,12 @@ describe('Test createGithubAuth', () => {
         const result2 = await createGithubAuth(installationId, authType, '', metrics);
 
         expect(mockSMgetSecretValue).toBeCalledTimes(2);
-        expect(mockSMgetSecretValue).toHaveBeenCalledWith({ SecretId: Config.Instance.secretsManagerSecretsId });
-        expect(mockSMgetSecretValuePromise).toBeCalledTimes(2);
+        expect(mockSMgetSecretValue).toHaveBeenCalledWith({
+          SecretId: Config.Instance.secretsManagerSecretsId,
+        });
 
         expect(mockedDecrypt).toBeCalledWith('github_app_client_secret', config.kmsKeyId, config.environment, metrics);
         expect(mockedDecrypt).toBeCalledWith('github_app_key_base64', config.kmsKeyId, config.environment, metrics);
-        expect(mockSMgetSecretValuePromise).toBeCalledTimes(2);
         expect(mockedCreatAppAuth).toBeCalledWith(authOptions);
         expect(mockedAuth).toBeCalledWith({ type: authType });
         expect(result1).toBe(token);
