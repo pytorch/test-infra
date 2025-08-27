@@ -7,9 +7,11 @@ import { Metrics } from './metrics';
 
 function getQueueUrl(evt: SQSRecord, sqs: SQS) {
   const splitARN = evt.eventSourceARN.split(':');
+  // arn:aws:sqs:region:account-id:queue-name
+  const region = splitARN[3];
   const accountId = splitARN[4];
   const queueName = splitARN[5];
-  return sqs.endpoint.href + accountId + '/' + queueName;
+  return `https://sqs.${region}.amazonaws.com/${accountId}/${queueName}`;
 }
 
 export async function sqsSendMessages(metrics: Metrics, bodyList: Array<ActionRequestMessage>, queueUrl: string) {
@@ -87,10 +89,12 @@ export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSR
       return sqs.deleteMessageBatch(parameters);
     });
   });
-  if (response.Failed.length || response.Successful.length < events.length) {
+  const failedCount = response.Failed?.length ?? 0;
+  const successfulCount = response.Successful?.length ?? 0;
+  if (failedCount || successfulCount < events.length) {
     const msg =
       `Failed to delete messages from SQS, this might cause them to be retried. Total: ${events.length} ` +
-      `Successful: ${response.Successful.length} Failed: ${response.Failed.length}`;
+      `Successful: ${successfulCount} Failed: ${failedCount}`;
     console.error(msg);
     throw Error(msg);
   }
