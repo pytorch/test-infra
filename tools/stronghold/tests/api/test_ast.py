@@ -240,6 +240,7 @@ def test_extract_dataclass(tmp_path: pathlib.Path) -> None:
             ],
             line=2,
             dataclass=True,
+            decorators=("dataclasses.dataclass",),
         )
     }
 
