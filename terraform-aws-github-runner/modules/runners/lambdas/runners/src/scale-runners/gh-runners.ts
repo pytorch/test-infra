@@ -323,6 +323,10 @@ export async function getRunnerTypes(
         ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
         : await createGitHubClientForRunnerRepo(repo, metrics);
 
+      console.debug(
+        `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${repo.owner}/${repo.repo}/`,
+      );
+
       const response = await expBackOff(() => {
         return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
           return githubAppClient.repos.getContent({
@@ -435,6 +439,9 @@ export async function getRunnerTypes(
       status = 'success';
       return filteredResult;
     } catch (e) {
+      console.error(
+        `[getRunnerTypes]: Error for path '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+      );
       console.error(`[getRunnerTypes]: ${e}`);
       throw e;
     } finally {
