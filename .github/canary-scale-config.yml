@@ -194,7 +194,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.windows.g4dn.xlarge.nonephemeral:
     disk_size: 256
     instance_type: g4dn.xlarge
@@ -202,7 +204,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.windows.4xlarge:
     disk_size: 256
     instance_type: c5d.4xlarge
@@ -210,7 +214,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.windows.4xlarge.nonephemeral:
     disk_size: 256
     instance_type: c5d.4xlarge
@@ -218,7 +224,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.windows.8xlarge.nvidia.gpu:
     disk_size: 256
     instance_type: p3.2xlarge
@@ -226,7 +234,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.windows.8xlarge.nvidia.gpu.nonephemeral:
     disk_size: 256
     instance_type: p3.2xlarge
@@ -234,7 +244,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.windows.g5.4xlarge.nvidia.gpu:
     disk_size: 256
     instance_type: g5.4xlarge
@@ -242,7 +254,9 @@ runner_types:
     os: windows
     variants:
       wincanary:
-        ami: Windows 2019 GHA CI - 20250526202723
+        ami: Windows 2019 GHA CI - 20250812161628|308535385114
+      wincanarylf:
+        ami: Windows 2019 GHA CI - 20250825191007|391835788720
   c.linux.2xlarge.memory:
     disk_size: 200
     instance_type: r5.2xlarge
