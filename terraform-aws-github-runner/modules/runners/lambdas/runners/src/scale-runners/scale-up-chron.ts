@@ -14,8 +14,11 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   // 3. For each runner queued for longer than the minimum delay, try to scale it up
 
   try {
-    const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
-    const validRunnerTypes = await getRunnerTypes(scaleConfigRepo, metrics, Config.Instance.scaleConfigRepoPath);
+    const validRunnerTypes = await getRunnerTypes(
+      getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo),
+      metrics,
+      Config.Instance.scaleConfigRepoPath,
+    );
 
     if (!Config.Instance.scaleUpChronRecordQueueUrl) {
       throw new Error('scaleUpChronRecordQueueUrl is not set. Cannot send queued scale up requests');

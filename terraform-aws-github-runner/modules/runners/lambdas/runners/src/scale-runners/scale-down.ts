@@ -250,23 +250,25 @@ export async function getGHRunnerRepo(ec2runner: RunnerInfo, metrics: ScaleDownM
   return ghRunner;
 }
 
+export function backwardCompatibleGetRepoForgetRunnerTypes(ec2runner: RunnerInfo): Repo {
+  if (Config.Instance.scaleConfigRepo) {
+    if (Config.Instance.scaleConfigOrg) {
+      return getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
+    }
+    return getRepo(
+      ec2runner.org !== undefined ? (ec2runner.org as string) : getRepo(ec2runner.repo as string).owner,
+      Config.Instance.scaleConfigRepo,
+    );
+  }
+  return getRepo(ec2runner.repo as string);
+}
+
 export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<boolean> {
   if (ec2runner.runnerType === undefined) {
     return false;
   }
 
-  const repo: Repo = (() => {
-    if (Config.Instance.scaleConfigRepo) {
-      return {
-        owner: ec2runner.org !== undefined ? (ec2runner.org as string) : getRepo(ec2runner.repo as string).owner,
-        repo: Config.Instance.scaleConfigRepo,
-      };
-    }
-    return getRepo(ec2runner.repo as string);
-  })();
-
-  const runnerTypes = await getRunnerTypes(repo, metrics);
-
+  const runnerTypes = await getRunnerTypes(backwardCompatibleGetRepoForgetRunnerTypes(ec2runner), metrics);
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
 }
 
@@ -276,18 +278,7 @@ export async function minRunners(ec2runner: RunnerInfo, metrics: ScaleDownMetric
     return Config.Instance.minAvailableRunners;
   }
 
-  const repo: Repo = (() => {
-    if (Config.Instance.scaleConfigRepo) {
-      return {
-        owner: ec2runner.org !== undefined ? (ec2runner.org as string) : getRepo(ec2runner.repo as string).owner,
-        repo: Config.Instance.scaleConfigRepo,
-      };
-    }
-    return getRepo(ec2runner.repo as string);
-  })();
-
-  const runnerTypes = await getRunnerTypes(repo, metrics);
-
+  const runnerTypes = await getRunnerTypes(backwardCompatibleGetRepoForgetRunnerTypes(ec2runner), metrics);
   return runnerTypes.get(ec2runner.runnerType)?.min_available ?? Config.Instance.minAvailableRunners;
 }
 
