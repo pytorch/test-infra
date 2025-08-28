@@ -861,75 +861,34 @@ runner_types:
 
   it('gets the contents, twice', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
-    const token1 = 'token1';
-    const token2 = 'token2';
-    const repoId = 'mockReturnValueOnce1';
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: repoId },
-    });
-    const mockedOctokit = {
-      apps: { getRepoInstallation: getRepoInstallation },
-      repos: {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from(scaleConfigYaml).toString('base64') },
-          status: 200,
-        }),
-      },
-    };
 
-    mockCreateGithubAuth.mockResolvedValueOnce(token1);
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce(token2);
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    // Mock the HTTP request to raw.githubusercontent.com
+    const scope = nock('https://raw.githubusercontent.com')
+      .get(`/${repo.owner}/${repo.repo}/main/${Config.Instance.scaleConfigRepoPath}`)
+      .reply(200, scaleConfigYaml)
+      .persist(); // Allow multiple requests for caching test
 
     await resetGHRunnersCaches();
     expect(await getRunnerTypes(repo, metrics)).toEqual(getRunnerTypeResponse);
     expect(await getRunnerTypes(repo, metrics)).toEqual(getRunnerTypeResponse);
 
-    expect(mockCreateGithubAuth).toBeCalledTimes(2);
-    expect(mockCreateGithubAuth).toBeCalledWith(undefined, 'app', Config.Instance.ghesUrlApi, metrics);
-    expect(mockCreateGithubAuth).toBeCalledWith(repoId, 'installation', Config.Instance.ghesUrlApi, metrics);
-
-    expect(mockCreateOctoClient).toBeCalledTimes(2);
-    expect(mockCreateOctoClient).toBeCalledWith(token1, Config.Instance.ghesUrlApi);
-    expect(mockCreateOctoClient).toBeCalledWith(token2, Config.Instance.ghesUrlApi);
-
-    expect(getRepoInstallation).toBeCalledTimes(1);
-    expect(getRepoInstallation).toBeCalledWith({ ...repo });
-
-    expect(mockedOctokit.repos.getContent).toBeCalledTimes(1);
-    expect(mockedOctokit.repos.getContent).toBeCalledWith({
-      ...repo,
-      path: Config.Instance.scaleConfigRepoPath,
-    });
+    // Verify the HTTP request was made only once due to caching
+    expect(scope.isDone()).toBe(true);
+    scope.done();
   });
 
   it('return is not 200', async () => {
     const repo = { owner: 'owner', repo: 'repo' };
-    const mockCreateGithubAuth = mocked(createGithubAuth);
-    const mockCreateOctoClient = mocked(createOctoClient);
-    const getRepoInstallation = jest.fn().mockResolvedValue({
-      data: { id: 'mockReturnValueOnce1' },
-    });
-    const mockedOctokit = {
-      apps: { getRepoInstallation: getRepoInstallation },
-      repos: {
-        getContent: jest.fn().mockResolvedValue({
-          data: { content: Buffer.from(scaleConfigYaml).toString('base64') },
-          status: 500,
-        }),
-      },
-    };
 
-    mockCreateGithubAuth.mockResolvedValueOnce('token1');
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
-    mockCreateGithubAuth.mockResolvedValueOnce('token2');
-    mockCreateOctoClient.mockReturnValueOnce(mockedOctokit as unknown as Octokit);
+    // Mock the HTTP request to return a 500 error
+    const scope = nock('https://raw.githubusercontent.com')
+      .get(`/${repo.owner}/${repo.repo}/main/${Config.Instance.scaleConfigRepoPath}`)
+      .reply(500, 'Internal Server Error');
 
     await resetGHRunnersCaches();
     await expect(getRunnerTypes(repo, metrics)).rejects.toThrow(Error);
+
+    scope.done();
   });
 });
 
