@@ -310,9 +310,8 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
 
 /**
  * Download a file from GitHub using a direct HTTP request to raw.githubusercontent.com
- * Good for files in public repos.
  */
-export async function downloadFileViaHttp(repo: Repo, filepath: string, metrics: Metrics): Promise<string> {
+export async function downloadFileFromGitHub(repo: Repo, filepath: string, metrics: Metrics): Promise<string> {
   const rawFileUrl = `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/main/${filepath}`;
 
   const response = await expBackOff(() => {
@@ -328,45 +327,12 @@ export async function downloadFileViaHttp(repo: Repo, filepath: string, metrics:
     );
   }
 
-  console.debug(`[downloadFileViaHttp]: Successfully fetched file via HTTP`);
+  console.debug(`[downloadFileFromGitHub]: Successfully fetched file via HTTP`);
   return response.data;
 }
 
 /**
- * Download a file from GitHub using the GitHub App client.
- * Good for private repos.
- */
-export async function downloadFileViaGithubClient(repo: Repo, filepath: string, metrics: Metrics): Promise<string> {
-  /* istanbul ignore next */
-  const githubAppClient = Config.Instance.enableOrganizationRunners
-    ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
-    : await createGitHubClientForRunnerRepo(repo, metrics);
-
-  const response = await expBackOff(() => {
-    return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
-      return githubAppClient.repos.getContent({
-        ...repo,
-        path: filepath,
-      });
-    });
-  });
-
-  /* istanbul ignore next */
-  const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
-  if (response?.status != 200 || !content) {
-    throw Error(
-      `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
-    );
-  }
-
-  const buff = Buffer.from(content, 'base64');
-  const fileContent = buff.toString('ascii');
-  console.debug(`[downloadFileViaGithubApp]: Successfully fetched file via GitHub API client`);
-  return fileContent;
-}
-
-/**
- * Parses runner types from scale-config.yml
+ * Get runner types from scale-config.yml
  */
 export async function getRunnerTypes(
   scale_config_repo: Repo,
@@ -391,17 +357,8 @@ export async function getRunnerTypes(
           `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${scale_config_repo.owner}/${scale_config_repo.repo}/`,
         );
 
-        try {
-          // First attempt: try to get the file directly via HTTP
-          configYml = await downloadFileViaHttp(scale_config_repo, filepath, metrics);
-        } catch (error) {
-          // Fallback: If HTTP request fails (404, 403, etc.), we may not have access to the repo.
-          // Try using GitHub API client instead
-          console.debug(
-            `[getRunnerTypes]: Failed to fetch file via HTTP: ${error} (is the repo ${scale_config_repo.owner}/${scale_config_repo.repo} private?). Falling back to GitHub API client.`,
-          );
-          configYml = await downloadFileViaGithubClient(scale_config_repo, filepath, metrics);
-        }
+        // Get the file via HTTP request
+        configYml = await downloadFileFromGitHub(scale_config_repo, filepath, metrics);
 
         console.debug(`'${filepath}' contents: ${configYml}`);
 
