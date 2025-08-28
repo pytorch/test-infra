@@ -2,6 +2,7 @@ import { Config } from '../config';
 import { decrypt } from './index';
 import { ScaleUpMetrics } from '../metrics';
 import nock from 'nock';
+import { DecryptCommand, KMSClient } from '@aws-sdk/client-kms';
 
 const decryptedStr = 'The Decrypted String';
 const awsRegion = 'the-aws-region';
@@ -15,7 +16,15 @@ const mockKms = {
 };
 
 jest.mock('@aws-sdk/client-kms', () => ({
-  KMS: jest.fn().mockImplementation(() => mockKms),
+  ...jest.requireActual('@aws-sdk/client-kms'),
+  KMSClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      if (command instanceof DecryptCommand) {
+        return await mockKms.decrypt(command.input);
+      }
+      return {};
+    }),
+  })),
 }));
 
 beforeEach(() => {

@@ -1,9 +1,9 @@
-import { KMS } from '@aws-sdk/client-kms';
+import { DecryptCommand, KMSClient } from '@aws-sdk/client-kms';
 import { Config } from '../config';
 import { expBackOff } from '../utils';
 import { Metrics } from '../metrics';
 
-let kms: KMS | undefined = undefined;
+let kms: KMSClient | undefined = undefined;
 
 export async function decrypt(
   encrypted: string,
@@ -13,7 +13,7 @@ export async function decrypt(
 ): Promise<string | undefined> {
   /* istanbul ignore next */
   if (!kms) {
-    kms = new KMS({
+    kms = new KMSClient({
       region: Config.Instance.awsRegion,
     });
   }
@@ -23,13 +23,15 @@ export async function decrypt(
 
   const decripted = await expBackOff(() => {
     return metrics.trackRequest(metrics.kmsDecryptAWSCallSuccess, metrics.kmsDecryptAWSCallFailure, () => {
-      return kmsD.decrypt({
-        CiphertextBlob: Buffer.from(encrypted, 'base64'),
-        KeyId: key,
-        EncryptionContext: {
-          ['Environment']: environmentName,
-        },
-      });
+      return kmsD.send(
+        new DecryptCommand({
+          CiphertextBlob: Buffer.from(encrypted, 'base64'),
+          KeyId: key,
+          EncryptionContext: {
+            ['Environment']: environmentName,
+          },
+        }),
+      );
     });
   });
 
