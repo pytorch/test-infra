@@ -8,6 +8,7 @@ import LRU from 'lru-cache';
 import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import YAML from 'yaml';
+import axios from 'axios';
 
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
@@ -307,151 +308,208 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
   }
 }
 
+/**
+ * Download a file from GitHub using a direct HTTP request to raw.githubusercontent.com
+ * Good for files in public repos.
+ */
+export async function downloadFileViaHttp(repo: Repo, filepath: string, metrics: Metrics): Promise<string> {
+  const rawFileUrl = `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/main/${filepath}`;
+
+  const response = await expBackOff(() => {
+    return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
+      return axios.get(rawFileUrl);
+    });
+  });
+
+  /* istanbul ignore next */
+  if (response?.status != 200 || !response.data) {
+    throw Error(
+      `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+    );
+  }
+
+  console.debug(`[downloadFileViaHttp]: Successfully fetched file via HTTP`);
+  return response.data;
+}
+
+/**
+ * Download a file from GitHub using the GitHub App client.
+ * Good for private repos.
+ */
+export async function downloadFileViaGithubClient(repo: Repo, filepath: string, metrics: Metrics): Promise<string> {
+  /* istanbul ignore next */
+  const githubAppClient = Config.Instance.enableOrganizationRunners
+    ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
+    : await createGitHubClientForRunnerRepo(repo, metrics);
+
+  const response = await expBackOff(() => {
+    return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
+      return githubAppClient.repos.getContent({
+        ...repo,
+        path: filepath,
+      });
+    });
+  });
+
+  /* istanbul ignore next */
+  const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
+  if (response?.status != 200 || !content) {
+    throw Error(
+      `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+    );
+  }
+
+  const buff = Buffer.from(content, 'base64');
+  const fileContent = buff.toString('ascii');
+  console.debug(`[downloadFileViaGithubApp]: Successfully fetched file via GitHub API client`);
+  return fileContent;
+}
+
+/**
+ * Parses runner types from scale-config.yml
+ */
 export async function getRunnerTypes(
-  repo: Repo,
+  scale_config_repo: Repo,
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
   const alphaNumericStr = /^[a-zA-Z0-9.-]+$/;
 
-  return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
-    let status = 'noRun';
-    try {
-      status = 'doRun';
-      /* istanbul ignore next */
-      const githubAppClient = Config.Instance.enableOrganizationRunners
-        ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
-        : await createGitHubClientForRunnerRepo(repo, metrics);
+  return await redisCached(
+    'ghRunners',
+    `getRunnerTypes-${scale_config_repo.owner}.${scale_config_repo.repo}`,
+    10 * 60,
+    0.5,
+    async () => {
+      let status = 'noRun';
+      let configYml: string;
 
-      console.debug(
-        `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${repo.owner}/${repo.repo}/`,
-      );
+      try {
+        status = 'doRun';
 
-      const response = await expBackOff(() => {
-        return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
-          return githubAppClient.repos.getContent({
-            ...repo,
-            path: filepath,
-          });
-        });
-      });
-
-      /* istanbul ignore next */
-      const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
-      if (response?.status != 200 || !content) {
-        throw Error(
-          `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+        console.debug(
+          `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${scale_config_repo.owner}/${scale_config_repo.repo}/`,
         );
-      }
 
-      const buff = Buffer.from(content, 'base64');
-      const configYml = buff.toString('ascii');
-
-      console.debug(`'${filepath}' contents: ${configYml}`);
-
-      const config = YAML.parse(configYml);
-      const result: Map<string, RunnerTypeScaleConfig> = new Map(
-        /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
-        (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
-          prop,
-          {
-            /* istanbul ignore next */
-            ami_experiment: runner_type.ami_experiment,
-            /* istanbul ignore next */
-            ami: runner_type.ami?.trim(),
-            disk_size: runner_type.disk_size,
-            instance_type: runner_type.instance_type,
-            /* istanbul ignore next */
-            is_ephemeral: runner_type.is_ephemeral || false,
-            /* istanbul ignore next */
-            labels: runner_type.labels?.map((label: string) => label.trim()),
-            min_available: runner_type.min_available || Config.Instance.minAvailableRunners,
-            max_available: runner_type.max_available,
-            os: runner_type.os,
-            runnerTypeName: prop,
-            variants: new Map(Object.entries(runner_type.variants || {})),
-          },
-        ]),
-      );
-
-      Array.from(result.keys()).forEach((key) => {
-        const runnerType = result.get(key);
-        /* istanbul ignore next */
-        if (runnerType?.variants === undefined) {
-          return;
+        try {
+          // First attempt: try to get the file directly via HTTP
+          configYml = await downloadFileViaHttp(scale_config_repo, filepath, metrics);
+        } catch (error) {
+          // Fallback: If HTTP request fails (404, 403, etc.), we may not have access to the repo.
+          // Try using GitHub API client instead
+          console.debug(
+            `[getRunnerTypes]: Failed to fetch file via HTTP: ${error} (is the repo ${scale_config_repo.owner}/${scale_config_repo.repo} private?). Falling back to GitHub API client.`,
+          );
+          configYml = await downloadFileViaGithubClient(scale_config_repo, filepath, metrics);
         }
 
-        Array.from(runnerType.variants.keys()).forEach((variant) => {
-          const variantType = runnerType.variants?.get(variant);
+        console.debug(`'${filepath}' contents: ${configYml}`);
+
+        const config = YAML.parse(configYml);
+        const result: Map<string, RunnerTypeScaleConfig> = new Map(
+          /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
+          (Object.entries(config.runner_types) as [string, any][]).map(([prop, runner_type]) => [
+            prop,
+            {
+              /* istanbul ignore next */
+              ami_experiment: runner_type.ami_experiment,
+              /* istanbul ignore next */
+              ami: runner_type.ami?.trim(),
+              disk_size: runner_type.disk_size,
+              instance_type: runner_type.instance_type,
+              /* istanbul ignore next */
+              is_ephemeral: runner_type.is_ephemeral || false,
+              /* istanbul ignore next */
+              labels: runner_type.labels?.map((label: string) => label.trim()),
+              min_available: runner_type.min_available || Config.Instance.minAvailableRunners,
+              max_available: runner_type.max_available,
+              os: runner_type.os,
+              runnerTypeName: prop,
+              variants: new Map(Object.entries(runner_type.variants || {})),
+            },
+          ]),
+        );
+
+        Array.from(result.keys()).forEach((key) => {
+          const runnerType = result.get(key);
           /* istanbul ignore next */
-          if (!variantType) {
+          if (runnerType?.variants === undefined) {
             return;
           }
 
-          let variantRunnTypeName: string;
-          if (key.startsWith('lf.c.')) {
-            variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
-          } else if (key.startsWith('lf.')) {
-            variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
-          } else if (key.startsWith('c.')) {
-            variantRunnTypeName = `c.${variant}.${key.slice(2)}`;
-          } else {
-            variantRunnTypeName = `${variant}.${key}`;
-          }
+          Array.from(runnerType.variants.keys()).forEach((variant) => {
+            const variantType = runnerType.variants?.get(variant);
+            /* istanbul ignore next */
+            if (!variantType) {
+              return;
+            }
 
-          result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
+            let variantRunnTypeName: string;
+            if (key.startsWith('lf.c.')) {
+              variantRunnTypeName = `lf.c.${variant}.${key.slice(5)}`;
+            } else if (key.startsWith('lf.')) {
+              variantRunnTypeName = `lf.${variant}.${key.slice(3)}`;
+            } else if (key.startsWith('c.')) {
+              variantRunnTypeName = `c.${variant}.${key.slice(2)}`;
+            } else {
+              variantRunnTypeName = `${variant}.${key}`;
+            }
+
+            result.set(variantRunnTypeName, { ...runnerType, ...variantType, runnerTypeName: variantRunnTypeName });
+          });
         });
-      });
 
-      const filteredResult: Map<string, RunnerType> = new Map(
-        [...result.entries()]
-          .filter(
-            ([, runnerType]) =>
-              typeof runnerType.runnerTypeName === 'string' &&
-              alphaNumericStr.test(runnerType.runnerTypeName) &&
-              typeof runnerType.instance_type === 'string' &&
-              alphaNumericStr.test(runnerType.instance_type) &&
-              ['linux', 'windows'].includes(runnerType.os) &&
-              /* istanbul ignore next */
-              (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ?? true) &&
-              (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
-              (typeof runnerType.min_available === 'number' || runnerType.min_available === undefined) &&
-              (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
-              (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
-              (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
-              (typeof runnerType.ami_experiment?.percentage === 'number' || runnerType.ami_experiment === undefined),
-          )
-          .map(([key, runnerType]) => {
-            const rt: RunnerTypeScaleConfig = { ...runnerType };
-            delete rt.variants;
-            return [key, rt];
-          }),
-      );
-
-      if (result.size != filteredResult.size) {
-        console.error(
-          `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
+        const filteredResult: Map<string, RunnerType> = new Map(
+          [...result.entries()]
+            .filter(
+              ([, runnerType]) =>
+                typeof runnerType.runnerTypeName === 'string' &&
+                alphaNumericStr.test(runnerType.runnerTypeName) &&
+                typeof runnerType.instance_type === 'string' &&
+                alphaNumericStr.test(runnerType.instance_type) &&
+                ['linux', 'windows'].includes(runnerType.os) &&
+                /* istanbul ignore next */
+                (runnerType.labels?.every((label) => typeof label === 'string' && alphaNumericStr.test(label)) ??
+                  true) &&
+                (typeof runnerType.disk_size === 'number' || runnerType.disk_size === undefined) &&
+                (typeof runnerType.min_available === 'number' || runnerType.min_available === undefined) &&
+                (typeof runnerType.max_available === 'number' || runnerType.max_available === undefined) &&
+                (typeof runnerType.ami === 'string' || runnerType.ami === undefined) &&
+                (typeof runnerType.ami_experiment?.ami === 'string' || runnerType.ami_experiment === undefined) &&
+                (typeof runnerType.ami_experiment?.percentage === 'number' || runnerType.ami_experiment === undefined),
+            )
+            .map(([key, runnerType]) => {
+              const rt: RunnerTypeScaleConfig = { ...runnerType };
+              delete rt.variants;
+              return [key, rt];
+            }),
         );
-        console.error(`Original runner types: ${JSON.stringify(Array.from(result.keys()).sort())}`);
-        console.error(`Filtered runner types: ${JSON.stringify(Array.from(filteredResult.keys()).sort())}`);
-      }
 
-      status = 'success';
-      return filteredResult;
-    } catch (e) {
-      console.error(
-        `[getRunnerTypes]: Error for path '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
-      );
-      console.error(`[getRunnerTypes]: ${e}`);
-      throw e;
-    } finally {
-      if (status == 'doRun') {
-        metrics.getRunnerTypesFailure();
-      } else if (status == 'success') {
-        metrics.getRunnerTypesSuccess();
+        if (result.size != filteredResult.size) {
+          console.error(
+            `Some runner types were filtered out due to invalid values: ${result.size} -> ${filteredResult.size}`,
+          );
+          console.error(`Original runner types: ${JSON.stringify(Array.from(result.keys()).sort())}`);
+          console.error(`Filtered runner types: ${JSON.stringify(Array.from(filteredResult.keys()).sort())}`);
+        }
+
+        status = 'success';
+        return filteredResult;
+      } catch (e) {
+        console.error(
+          `[getRunnerTypes]: Error for path '${filepath}' for https://github.com/${scale_config_repo.owner}/${scale_config_repo.repo}/`,
+        );
+        console.error(`[getRunnerTypes]: ${e}`);
+        throw e;
+      } finally {
+        if (status == 'doRun') {
+          metrics.getRunnerTypesFailure();
+        } else if (status == 'success') {
+          metrics.getRunnerTypesSuccess();
+        }
       }
-    }
-  });
+    },
+  );
 }
 
 export async function createRegistrationTokenRepo(
