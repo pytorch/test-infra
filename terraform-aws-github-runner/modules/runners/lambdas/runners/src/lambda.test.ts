@@ -15,7 +15,7 @@ const mockCloudWatch = {
     return { promise: jest.fn().mockResolvedValue(true) };
   }),
 };
-jest.mock("@aws-sdk/client-cloudwatch", () => ({
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
   CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
 }));
 
