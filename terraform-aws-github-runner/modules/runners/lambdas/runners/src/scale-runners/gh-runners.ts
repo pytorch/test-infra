@@ -350,7 +350,7 @@ export async function getRunnerTypes(
 
       console.debug(
         `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/` +
-        `${filerepo.owner}/${filerepo.repo}/`,
+          `${filerepo.owner}/${filerepo.repo}/`,
       );
 
       // Get the file via HTTP request
