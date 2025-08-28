@@ -3,7 +3,7 @@ import { scaleDown as scaleDownL, scaleUp as scaleUpL, scaleUpChron as scaleUpCh
 import nock from 'nock';
 import { Config } from './scale-runners/config';
 import { Context, SQSEvent, ScheduledEvent } from 'aws-lambda';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import { scaleDown } from './scale-runners/scale-down';
 import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
 import { scaleUpChron } from './scale-runners/scale-up-chron';
@@ -15,7 +15,7 @@ const mockCloudWatch = {
     return { promise: jest.fn().mockResolvedValue(true) };
   }),
 };
-jest.mock('aws-sdk', () => ({
+jest.mock("@aws-sdk/client-cloudwatch", () => ({
   CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
 }));
 
