@@ -26,8 +26,6 @@ export const NUM_MINUTES = 30;
 export const REPO: string = "pytorch";
 export const OWNER: string = "pytorch";
 export const DRCI_COMMENT_START = "<!-- drci-comment-start -->\n";
-export const OH_URL =
-  "https://github.com/pytorch/pytorch/wiki/Dev-Infra-Office-Hours";
 export const DOCS_URL = "https://docs-preview.pytorch.org";
 export const PYTHON_DOCS_PATH = "index.html";
 export const CPP_DOCS_PATH = "cppdocs/index.html";
@@ -82,7 +80,7 @@ export function formDrciHeader(
 ### :test_tube: See artifacts and rendered test results at [hud.pytorch.org/pr/${prNum}](${HUD_URL}/pr/${prNum})
 * :page_facing_up: Preview [Python docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${PYTHON_DOCS_PATH})
 * :page_facing_up: Preview [C++ docs built from this PR](${DOCS_URL}/${owner}/${repo}/${prNum}/${CPP_DOCS_PATH})
-* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL}) or our [office hours](${OH_URL})
+* :question: Need help or want to give feedback on the CI? Visit the [bot commands wiki](${BOT_COMMANDS_WIKI_URL})
 
 Note: Links to docs will display an error until the docs builds have been completed.`;
   }
