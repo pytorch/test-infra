@@ -878,7 +878,7 @@ runner_types:
   });
 
   it('return is not 200', async () => {
-    const repo = { owner: 'owner', repo: 'repo' };
+    const repo = { owner: 'owner', repo: 'repo_fail' };
 
     // Mock the HTTP request to return a 500 error
     const scope = nock('https://raw.githubusercontent.com')
