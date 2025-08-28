@@ -16,45 +16,95 @@ import { Config } from './config';
 import nock from 'nock';
 import { locallyCached, clearLocalCache, redisLocked } from './cache';
 import moment from 'moment';
-import { DescribeInstancesCommandOutput } from '@aws-sdk/client-ec2';
+import {
+  CreateReplaceRootVolumeTaskCommand,
+  CreateTagsCommand,
+  DeleteTagsCommand,
+  DescribeImagesCommand,
+  DescribeInstancesCommand,
+  DescribeInstancesCommandOutput,
+  RunInstancesCommand,
+  TerminateInstancesCommand,
+} from '@aws-sdk/client-ec2';
+import { DeleteParameterCommand, DescribeParametersCommand, PutParameterCommand } from '@aws-sdk/client-ssm';
 
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;
 });
-const mockEC2runInstances = jest.fn();
-const mockEC2terminateInstances = jest.fn();
 const mockEC2 = {
-  createTags: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  deleteTags: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  createReplaceRootVolumeTask: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeInstances: jest.fn(),
-  runInstances: jest.fn().mockReturnValue({ promise: mockEC2runInstances }),
-  terminateInstances: jest.fn().mockReturnValue({ promise: mockEC2terminateInstances }),
-  describeImages: jest.fn().mockReturnValue({
-    promise: jest.fn().mockImplementation(async () => {
-      return {
-        Images: [
-          { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-234' },
-          { CreationDate: '2024-07-09T13:55:23+0000', ImageId: 'ami-AGDGADU113' },
-          { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-113' },
-          { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-1113' },
-        ],
-      };
+  createTags: jest.fn().mockResolvedValue({}),
+  deleteTags: jest.fn().mockResolvedValue({}),
+  createReplaceRootVolumeTask: jest.fn().mockResolvedValue({}),
+  describeInstances: jest.fn().mockResolvedValue({}),
+  runInstances: jest.fn().mockResolvedValue({}),
+  terminateInstances: jest.fn().mockResolvedValue({}),
+  describeImages: jest.fn().mockImplementation(() =>
+    Promise.resolve({
+      Images: [
+        { CreationDate: '2024-07-09T12:32:23+0000', ImageId: 'ami-234' },
+        { CreationDate: '2024-07-09T13:55:23+0000', ImageId: 'ami-AGDGADU113' },
+        { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-113' },
+        { CreationDate: '2024-07-09T13:32:23+0000', ImageId: 'ami-1113' },
+      ],
     }),
-  }),
+  ),
 };
 
-const mockSSMdescribeParametersRet = jest.fn();
 const mockSSM = {
-  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
-  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  deleteParameter: jest.fn().mockResolvedValue({}),
+  putParameter: jest.fn().mockResolvedValue({}),
 };
-jest.mock('aws-sdk', () => ({
-  EC2: jest.fn().mockImplementation(() => mockEC2),
-  SSM: jest.fn().mockImplementation(() => mockSSM),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
+const mockSSMdescribeParametersRet = jest.fn();
+
+jest.mock('@aws-sdk/client-ec2', () => ({
+  ...jest.requireActual('@aws-sdk/client-ec2'),
+  EC2Client: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      // Delegate to original mockEC2 for each command type
+      if (command instanceof DescribeInstancesCommand) {
+        return await mockEC2.describeInstances(command.input);
+      }
+      if (command instanceof RunInstancesCommand) {
+        return await mockEC2.runInstances(command.input);
+      }
+      if (command instanceof TerminateInstancesCommand) {
+        return await mockEC2.terminateInstances(command.input);
+      }
+      if (command instanceof DescribeImagesCommand) {
+        return await mockEC2.describeImages(command.input);
+      }
+      if (command instanceof CreateTagsCommand) {
+        return await mockEC2.createTags(command.input);
+      }
+      if (command instanceof DeleteTagsCommand) {
+        return await mockEC2.deleteTags(command.input);
+      }
+      if (command instanceof CreateReplaceRootVolumeTaskCommand) {
+        return await mockEC2.createReplaceRootVolumeTask(command.input);
+      }
+      return {};
+    }),
+  })),
 }));
+jest.mock('@aws-sdk/client-ssm', () => ({
+  ...jest.requireActual('@aws-sdk/client-ssm'),
+  SSMClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      // Delegate to original mockSSM for each command type
+      if (command instanceof DescribeParametersCommand) {
+        return await mockSSMdescribeParametersRet(command.input);
+      }
+      if (command instanceof PutParameterCommand) {
+        return await mockSSM.putParameter(command.input);
+      }
+      if (command instanceof DeleteParameterCommand) {
+        return await mockSSM.deleteParameter(command.input);
+      }
+      return {};
+    }),
+  })),
+}));
+
 jest.mock('./utils', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./utils') as any),
@@ -162,7 +212,7 @@ beforeEach(async () => {
 });
 
 describe('list instances', () => {
-  const mockDescribeInstances = { promise: jest.fn() };
+  const mockDescribeInstances = mockEC2.describeInstances;
   const config = {
     awsRegion: 'us-east-1',
     environment: 'gi-ci',
@@ -173,7 +223,7 @@ describe('list instances', () => {
   beforeEach(() => {
     resetRunnersCaches();
     clearLocalCache();
-    mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
+    mockDescribeInstances.mockClear();
     const mockRunningInstances: DescribeInstancesCommandOutput = {
       Reservations: [
         {
@@ -201,13 +251,13 @@ describe('list instances', () => {
       ],
       $metadata: {},
     };
-    mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
+    mockDescribeInstances.mockResolvedValue(mockRunningInstances);
     jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
   });
 
   it('ec2 fails', async () => {
     const errMsg = 'Error message';
-    mockDescribeInstances.promise.mockClear().mockRejectedValue(Error(errMsg));
+    mockDescribeInstances.mockClear().mockRejectedValue(Error(errMsg));
     expect(listRunners(metrics)).rejects.toThrowError(errMsg);
   });
 
@@ -322,9 +372,9 @@ describe('listSSMParameters', () => {
     await expect(listSSMParameters(metrics, Config.Instance.awsRegion)).resolves.toEqual(ret2);
 
     expect(mockSSMdescribeParametersRet).toBeCalledTimes(3);
-    expect(mockSSM.describeParameters).toBeCalledWith();
-    expect(mockSSM.describeParameters).toBeCalledWith({ NextToken: 'token' });
-    expect(mockSSM.describeParameters).toBeCalledWith();
+    expect(mockSSMdescribeParametersRet).toBeCalledWith({});
+    expect(mockSSMdescribeParametersRet).toBeCalledWith({ NextToken: 'token' });
+    expect(mockSSMdescribeParametersRet).toBeCalledWith({});
   });
 });
 
@@ -360,9 +410,7 @@ describe('terminateRunner', () => {
       awsRegion: Config.Instance.awsRegion,
       instanceId: '1234',
     };
-    mockEC2.terminateInstances.mockClear().mockReturnValue({
-      promise: jest.fn().mockRejectedValueOnce(Error(errMsg)),
-    });
+    mockEC2.terminateInstances.mockClear().mockRejectedValueOnce(Error(errMsg));
     expect(terminateRunner(runner, metrics)).rejects.toThrowError(errMsg);
   });
 
@@ -488,7 +536,7 @@ describe('tryReuseRunner', () => {
   });
 
   describe('repo', () => {
-    const mockDescribeInstances = { promise: jest.fn() };
+    const mockDescribeInstances = jest.fn().mockResolvedValue({});
     const runnerParameters: RunnerInputParameters = {
       runnerConfig: runnerConfigFn,
       environment: 'wg113',
@@ -504,24 +552,24 @@ describe('tryReuseRunner', () => {
 
     it('does not have any runner', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createTags.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const mockDescribeInstances = mockEC2.describeInstances;
       const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
@@ -546,16 +594,16 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, but free less than a minute ago', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createTags.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
@@ -585,7 +633,7 @@ describe('tryReuseRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
@@ -610,16 +658,16 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, but free more than minimumRunningTimeInMinutes ago', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createTags.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
@@ -653,7 +701,7 @@ describe('tryReuseRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
@@ -678,16 +726,16 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createTags.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      const mockDescribeInstances = mockEC2.describeInstances;
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
@@ -717,7 +765,7 @@ describe('tryReuseRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
         awsRegion: 'us-east-1',
@@ -758,19 +806,18 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, and fail', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn().mockRejectedValue('Error') }));
+      mockEC2.createTags.mockClear().mockRejectedValue('Error');
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -797,7 +844,7 @@ describe('tryReuseRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
@@ -824,7 +871,7 @@ describe('tryReuseRunner', () => {
   });
 
   describe('org', () => {
-    const mockDescribeInstances = { promise: jest.fn() };
+    const mockDescribeInstances = jest.fn().mockResolvedValue({});
     const runnerParameters: RunnerInputParameters = {
       runnerConfig: runnerConfigFn,
       environment: 'wg113',
@@ -840,16 +887,16 @@ describe('tryReuseRunner', () => {
 
     it('does not have any runner', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createTags.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
       mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
@@ -857,7 +904,7 @@ describe('tryReuseRunner', () => {
         Reservations: [],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
@@ -883,19 +930,20 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, and succeeds', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createTags.mockClear().mockResolvedValue({});
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const mockDescribeInstances = mockEC2.describeInstances;
+
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -922,7 +970,7 @@ describe('tryReuseRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       expect(await tryReuseRunner(runnerParameters, metrics)).toEqual({
         awsRegion: 'us-east-1',
@@ -963,19 +1011,19 @@ describe('tryReuseRunner', () => {
 
     it('has a runner, and fail', async () => {
       // SSM putParameter
-      mockSSM.putParameter.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockSSM.putParameter.mockClear().mockResolvedValue({});
 
       //createTags
-      mockEC2.createTags.mockClear().mockImplementation(() => ({ promise: jest.fn().mockRejectedValue('Error') }));
+      mockEC2.createTags.mockClear().mockRejectedValue('Error');
 
       //deleteTags
-      mockEC2.deleteTags.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.deleteTags.mockClear().mockResolvedValue({});
 
       //createReplaceRootVolumeTask
-      mockEC2.createReplaceRootVolumeTask.mockClear().mockImplementation(() => ({ promise: jest.fn() }));
+      mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      const mockDescribeInstances = mockEC2.describeInstances;
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -1002,7 +1050,7 @@ describe('tryReuseRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockClear().mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockClear().mockResolvedValue(mockRunningInstances);
 
       await expect(tryReuseRunner(runnerParameters, metrics)).rejects.toThrow(NoRunnersAvailable);
 
@@ -1031,8 +1079,8 @@ describe('tryReuseRunner', () => {
 
 describe('createRunner', () => {
   describe('single region', () => {
-    const mockRunInstances = { promise: jest.fn() };
-    const mockPutParameter = { promise: jest.fn() };
+    const mockRunInstances = jest.fn().mockResolvedValue({});
+    const mockPutParameter = jest.fn().mockResolvedValue({});
     const regionToVpc = new Map([['us-east-1', ['vpc-agdgaduwg113']]]);
     const config = {
       launchTemplateNameLinux: 'launch-template-name-linux',
@@ -1067,10 +1115,10 @@ describe('createRunner', () => {
       environment: 'gi-ci',
       minimumRunningTimeInMinutes: 45,
     };
-    const mockDescribeInstances = { promise: jest.fn() };
+    const mockDescribeInstances = jest.fn().mockResolvedValue({});
 
     beforeEach(() => {
-      mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
+      mockEC2.describeInstances = mockDescribeInstances;
       const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
@@ -1116,9 +1164,9 @@ describe('createRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
-      mockEC2.runInstances.mockImplementation(() => mockRunInstances);
-      mockRunInstances.promise.mockReturnValue({
+      mockDescribeInstances.mockResolvedValue(mockRunningInstances);
+      mockEC2.runInstances = mockRunInstances;
+      mockRunInstances.mockReturnValue({
         Instances: [
           {
             InstanceId: 'i-1234',
@@ -1345,7 +1393,7 @@ describe('createRunner', () => {
     });
 
     it('does not create ssm parameters when no instance is created', async () => {
-      mockRunInstances.promise.mockReturnValue({
+      mockRunInstances.mockReturnValue({
         Instances: [],
       });
       await expect(
@@ -1373,7 +1421,7 @@ describe('createRunner', () => {
 
     it('fails to attach to any network and raises exception', async () => {
       const errorMsg = 'test error msg ASDF';
-      mockRunInstances.promise.mockClear().mockRejectedValue(new Error(errorMsg));
+      mockRunInstances.mockClear().mockRejectedValue(new Error(errorMsg));
       const runnerParameters = {
         runnerConfig: runnerConfigFn,
         environment: 'wg113',
@@ -1403,8 +1451,8 @@ describe('createRunner', () => {
   });
 
   describe('multiregion', () => {
-    const mockRunInstances = { promise: jest.fn() };
-    const mockPutParameter = { promise: jest.fn() };
+    const mockRunInstances = jest.fn().mockResolvedValue({});
+    const mockPutParameter = jest.fn().mockResolvedValue({});
     const regionToVpc = new Map([
       ['us-east-1', ['vpc-agdgaduwg113-11', 'vpc-agdgaduwg113-12']],
       ['us-west-1', ['vpc-agdgaduwg113-21', 'vpc-agdgaduwg113-22']],
@@ -1469,13 +1517,13 @@ describe('createRunner', () => {
         },
       ],
     };
-    const mockDescribeInstances = { promise: jest.fn() };
+    const mockDescribeInstances = jest.fn().mockResolvedValue({});
 
     beforeEach(() => {
-      mockEC2.runInstances.mockImplementation(() => mockRunInstances);
-      mockRunInstances.promise.mockReturnValue(runInstanceSuccess);
-      mockSSM.putParameter.mockImplementation(() => mockPutParameter);
-      mockEC2.describeInstances.mockImplementation(() => mockDescribeInstances);
+      mockEC2.runInstances = mockRunInstances;
+      mockRunInstances.mockReturnValue(runInstanceSuccess);
+      mockSSM.putParameter = mockPutParameter;
+      mockEC2.describeInstances = mockDescribeInstances;
       const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [
           {
@@ -1521,7 +1569,7 @@ describe('createRunner', () => {
         ],
         $metadata: {},
       };
-      mockDescribeInstances.promise.mockResolvedValue(mockRunningInstances);
+      mockDescribeInstances.mockResolvedValue(mockRunningInstances);
       jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
     });
 
@@ -1550,8 +1598,8 @@ describe('createRunner', () => {
     });
 
     it('succeed, 2nd subnet and 1st region', async () => {
-      mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
-      mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
+      mockRunInstances.mockClear().mockRejectedValueOnce(new Error('test error msg'));
+      mockRunInstances.mockClear().mockResolvedValueOnce(runInstanceSuccess);
 
       const runnerParameters = {
         runnerConfig: runnerConfigFn,
@@ -1583,9 +1631,9 @@ describe('createRunner', () => {
 
     it('succeed, 1nd subnet and 2nd region', async () => {
       for (let i = 0; i < 4; i++) {
-        mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
+        mockRunInstances.mockRejectedValueOnce(new Error('test error msg'));
       }
-      mockRunInstances.promise.mockClear().mockResolvedValueOnce(runInstanceSuccess);
+      mockRunInstances.mockResolvedValueOnce(runInstanceSuccess);
 
       const runnerParameters = {
         runnerConfig: runnerConfigFn,
@@ -1631,7 +1679,7 @@ describe('createRunner', () => {
 
     it('fails, everywere', async () => {
       for (let i = 0; i < 8; i++) {
-        mockRunInstances.promise.mockClear().mockRejectedValueOnce(new Error('test error msg'));
+        mockRunInstances.mockClear().mockRejectedValueOnce(new Error('test error msg'));
       }
 
       const runnerParameters = {
