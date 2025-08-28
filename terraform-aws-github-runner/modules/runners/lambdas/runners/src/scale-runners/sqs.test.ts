@@ -3,23 +3,48 @@ import { ActionRequestMessage } from './scale-up';
 import * as MetricsModule from './metrics';
 import nock from 'nock';
 import { SQSRecord } from 'aws-lambda';
+import {
+  ChangeMessageVisibilityBatchCommand,
+  DeleteMessageBatchCommand,
+  SendMessageBatchCommand,
+} from '@aws-sdk/client-sqs';
 
 const mockCloudWatch = {
   putMetricData: jest.fn().mockImplementation(() => {
     return { promise: jest.fn().mockResolvedValue(true) };
   }),
 };
-const deleteMessageBatchPromise = jest.fn();
 const mockSQS = {
-  changeMessageVisibilityBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  deleteMessageBatch: jest.fn().mockReturnValue({ promise: deleteMessageBatchPromise }),
+  changeMessageVisibilityBatch: jest.fn(),
+  deleteMessageBatch: jest.fn(),
   endpoint: { href: 'AGDGADUWG113' },
-  sendMessageBatch: jest.fn().mockReturnValue({ promise: jest.fn() }),
+  sendMessageBatch: jest.fn(),
 };
-jest.mock('aws-sdk', () => ({
-  SQS: jest.fn().mockImplementation(() => mockSQS),
-  CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
+
+jest.mock('@aws-sdk/client-sqs', () => ({
+  ...jest.requireActual('@aws-sdk/client-sqs'),
+  SQSClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      // Delegate to original mockSQS for each command type
+      if (command instanceof ChangeMessageVisibilityBatchCommand) {
+        return await mockSQS.changeMessageVisibilityBatch(command.input);
+      }
+      if (command instanceof DeleteMessageBatchCommand) {
+        return await mockSQS.deleteMessageBatch(command.input);
+      }
+      if (command instanceof SendMessageBatchCommand) {
+        return await mockSQS.sendMessageBatch(command.input);
+      }
+      return {};
+    }),
+  })),
 }));
+
+jest.mock('@aws-sdk/client-cloudwatch', () => {
+  return {
+    CloudWatch: jest.fn(() => mockCloudWatch),
+  };
+});
 
 const metrics = new MetricsModule.ScaleUpMetrics();
 
@@ -96,7 +121,7 @@ describe('sqs', () => {
   it('sqsChangeMessageVisibilityBatch', async () => {
     await sqsChangeMessageVisibilityBatch(metrics, sqsRecords, 0);
     expect(mockSQS.changeMessageVisibilityBatch).toBeCalledWith({
-      QueueUrl: 'AGDGADUWG1135/6',
+      QueueUrl: "https://sqs.4.amazonaws.com/5/6",
       Entries: [
         {
           Id: '1',
@@ -113,14 +138,14 @@ describe('sqs', () => {
   });
 
   it('sqsDeleteMessageBatch - succeed all', async () => {
-    deleteMessageBatchPromise.mockResolvedValue({
+    mockSQS.deleteMessageBatch.mockResolvedValue({
       Failed: [],
       Successful: sqsRecords,
     });
     await sqsDeleteMessageBatch(metrics, sqsRecords);
     expect(mockSQS.deleteMessageBatch).toBeCalledTimes(1);
     expect(mockSQS.deleteMessageBatch).toBeCalledWith({
-      QueueUrl: 'AGDGADUWG1135/6',
+      QueueUrl: 'https://sqs.4.amazonaws.com/5/6',
       Entries: [
         {
           Id: '1',
@@ -135,14 +160,14 @@ describe('sqs', () => {
   });
 
   it('sqsDeleteMessageBatch - fail all', async () => {
-    deleteMessageBatchPromise.mockResolvedValue({
+    mockSQS.deleteMessageBatch.mockResolvedValue({
       Failed: sqsRecords,
       Successful: [],
     });
     expect(sqsDeleteMessageBatch(metrics, sqsRecords)).rejects.toThrowError();
     expect(mockSQS.deleteMessageBatch).toBeCalledTimes(1);
     expect(mockSQS.deleteMessageBatch).toBeCalledWith({
-      QueueUrl: 'AGDGADUWG1135/6',
+      QueueUrl: 'https://sqs.4.amazonaws.com/5/6',
       Entries: [
         {
           Id: '1',

@@ -1,11 +1,17 @@
 import { ActionRequestMessage } from './scale-up';
-import { SendMessageBatchCommandInput, SQS } from '@aws-sdk/client-sqs';
+import {
+  ChangeMessageVisibilityBatchCommand,
+  DeleteMessageBatchCommand,
+  SendMessageBatchCommand,
+  SendMessageBatchCommandInput,
+  SQSClient,
+} from '@aws-sdk/client-sqs';
 import { SQSRecord } from 'aws-lambda';
 
 import { expBackOff } from './utils';
 import { Metrics } from './metrics';
 
-function getQueueUrl(evt: SQSRecord, sqs: SQS) {
+function getQueueUrl(evt: SQSRecord, sqs: SQSClient) {
   const splitARN = evt.eventSourceARN.split(':');
   // arn:aws:sqs:region:account-id:queue-name
   const region = splitARN[3];
@@ -15,7 +21,7 @@ function getQueueUrl(evt: SQSRecord, sqs: SQS) {
 }
 
 export async function sqsSendMessages(metrics: Metrics, bodyList: Array<ActionRequestMessage>, queueUrl: string) {
-  const sqs: SQS = new SQS();
+  const sqs: SQSClient = new SQSClient();
 
   const sqsPayload: SendMessageBatchCommandInput = {
     QueueUrl: queueUrl,
@@ -31,7 +37,7 @@ export async function sqsSendMessages(metrics: Metrics, bodyList: Array<ActionRe
   console.log(`Sending ${bodyList.length} messages to ${queueUrl}`);
   await expBackOff(() => {
     return metrics.trackRequest(metrics.sqsSendMessagesBatchSuccess, metrics.sqsSendMessagesBatchFailure, () => {
-      return sqs.sendMessageBatch(sqsPayload);
+      return sqs.send(new SendMessageBatchCommand(sqsPayload));
     });
   });
   console.log(`Sent ${bodyList.length} messages to ${queueUrl}`);
@@ -42,7 +48,7 @@ export async function sqsChangeMessageVisibilityBatch(
   events: Array<SQSRecord>,
   visibilityTimeout: number,
 ) {
-  const sqs: SQS = new SQS();
+  const sqs: SQSClient = new SQSClient();
 
   const queueUrl = getQueueUrl(events[0], sqs);
   const parameters = {
@@ -62,7 +68,7 @@ export async function sqsChangeMessageVisibilityBatch(
       metrics.sqsChangeMessageVisibilityBatchSuccess,
       metrics.sqsChangeMessageVisibilityBatchFailure,
       () => {
-        return sqs.changeMessageVisibilityBatch(parameters);
+        return sqs.send(new ChangeMessageVisibilityBatchCommand(parameters));
       },
     );
   });
@@ -70,7 +76,7 @@ export async function sqsChangeMessageVisibilityBatch(
 }
 
 export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSRecord>) {
-  const sqs: SQS = new SQS();
+  const sqs: SQSClient = new SQSClient();
 
   const queueUrl = getQueueUrl(events[0], sqs);
   const parameters = {
@@ -86,7 +92,7 @@ export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSR
   console.log(`Deleting ${events.length} messages`);
   const response = await expBackOff(() => {
     return metrics.trackRequest(metrics.sqsDeleteMessageBatchSuccess, metrics.sqsDeleteMessageBatchFailure, () => {
-      return sqs.deleteMessageBatch(parameters);
+      return sqs.send(new DeleteMessageBatchCommand(parameters));
     });
   });
   const failedCount = response.Failed?.length ?? 0;
