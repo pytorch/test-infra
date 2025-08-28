@@ -1,16 +1,21 @@
+import { CloudWatchClient, PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 import { Config } from './config';
 import { ScaleUpMetrics, ScaleDownMetrics } from './metrics';
 import nock from 'nock';
 
 const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
+  putMetricData: jest.fn().mockResolvedValue(true),
 };
 
 jest.mock('@aws-sdk/client-cloudwatch', () => ({
-  CloudWatch: jest.fn().mockImplementation(() => ({
-    putMetricData: mockCloudWatch.putMetricData,
+  ...jest.requireActual('@aws-sdk/client-cloudwatch'),
+  CloudWatchClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      if (command instanceof PutMetricDataCommand) {
+        return mockCloudWatch.putMetricData(command.input);
+      }
+      return {};
+    }),
   })),
 }));
 

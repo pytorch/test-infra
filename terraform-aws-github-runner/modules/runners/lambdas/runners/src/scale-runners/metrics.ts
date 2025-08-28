@@ -1,4 +1,4 @@
-import { CloudWatch, StandardUnit } from '@aws-sdk/client-cloudwatch';
+import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from '@aws-sdk/client-cloudwatch';
 import { Config } from './config';
 import { expBackOff, Repo, RunnerInfo, getRepo } from './utils';
 
@@ -34,7 +34,7 @@ type CWMetricsDimensionsEntries = Map<CWMetricsDimensionStoredValues, CWMetricEn
 type CWMetrics = Map<CWMetricsKeyName, CWMetricsDimensionsEntries>;
 
 export class Metrics {
-  protected cloudwatch: CloudWatch;
+  protected cloudwatch: CloudWatchClient;
   protected lambdaName: string;
   protected metrics: CWMetrics;
   protected metricsDimensions: Map<CWMetricsKeyName, CWMetricsDimensionNames>;
@@ -111,7 +111,7 @@ export class Metrics {
   }
 
   protected constructor(lambdaName: string) {
-    this.cloudwatch = new CloudWatch({
+    this.cloudwatch = new CloudWatchClient({
       region: Config.Instance.awsRegion,
     });
     this.lambdaName = lambdaName;
@@ -222,7 +222,7 @@ export class Metrics {
             `NS: ${metricsReq.Namespace}] (${i} of ${awsMetrics.length})`,
         );
         await expBackOff(async () => {
-          return await this.cloudwatch.putMetricData(metricsReq);
+          return await this.cloudwatch.send(new PutMetricDataCommand(metricsReq));
         });
         console.info(`Success sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length})`);
       } catch (e) {

@@ -9,14 +9,21 @@ import { scaleUp, RetryableScalingError } from './scale-runners/scale-up';
 import { scaleUpChron } from './scale-runners/scale-up-chron';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 import * as MetricsModule from './scale-runners/metrics';
+import { PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 
 const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
+  putMetricData: jest.fn().mockResolvedValue(true),
 };
 jest.mock('@aws-sdk/client-cloudwatch', () => ({
-  CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
+  ...jest.requireActual('@aws-sdk/client-cloudwatch'),
+  CloudWatchClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      if (command instanceof PutMetricDataCommand) {
+        return mockCloudWatch.putMetricData(command.input);
+      }
+      return {};
+    }),
+  })),
 }));
 
 jest.mock('./scale-runners/scale-down');

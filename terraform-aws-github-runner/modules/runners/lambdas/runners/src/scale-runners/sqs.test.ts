@@ -8,12 +8,12 @@ import {
   DeleteMessageBatchCommand,
   SendMessageBatchCommand,
 } from '@aws-sdk/client-sqs';
+import { PutMetricDataCommand } from '@aws-sdk/client-cloudwatch';
 
 const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
+  putMetricData: jest.fn().mockResolvedValue(true),
 };
+
 const mockSQS = {
   changeMessageVisibilityBatch: jest.fn(),
   deleteMessageBatch: jest.fn(),
@@ -40,11 +40,17 @@ jest.mock('@aws-sdk/client-sqs', () => ({
   })),
 }));
 
-jest.mock('@aws-sdk/client-cloudwatch', () => {
-  return {
-    CloudWatch: jest.fn(() => mockCloudWatch),
-  };
-});
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
+  ...jest.requireActual('@aws-sdk/client-cloudwatch'),
+  CloudWatchClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      if (command instanceof PutMetricDataCommand) {
+        return mockCloudWatch.putMetricData(command.input);
+      }
+      return {};
+    }),
+  })),
+}));
 
 const metrics = new MetricsModule.ScaleUpMetrics();
 
