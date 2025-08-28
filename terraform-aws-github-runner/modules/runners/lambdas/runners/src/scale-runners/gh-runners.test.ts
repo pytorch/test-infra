@@ -24,33 +24,6 @@ import { mocked } from 'jest-mock';
 import { locallyCached, redisCached } from './cache';
 import nock from 'nock';
 
-const mockEC2 = {
-  describeInstances: jest.fn(),
-  runInstances: jest.fn(),
-  terminateInstances: jest.fn().mockResolvedValue({}),
-};
-const mockSSM = {
-  deleteParameter: jest.fn().mockResolvedValue({}),
-  describeParameters: jest.fn().mockResolvedValue({}),
-  putParameter: jest.fn().mockResolvedValue({}),
-};
-
-jest.mock('@aws-sdk/client-ec2', () => ({
-  EC2: jest.fn().mockImplementation(() => ({
-    describeInstances: mockEC2.describeInstances,
-    runInstances: mockEC2.runInstances,
-    terminateInstances: mockEC2.terminateInstances,
-  })),
-}));
-
-jest.mock('@aws-sdk/client-ssm', () => ({
-  SSM: jest.fn().mockImplementation(() => ({
-    deleteParameter: mockSSM.deleteParameter,
-    describeParameters: mockSSM.describeParameters,
-    putParameter: mockSSM.putParameter,
-  })),
-}));
-
 jest.mock('./gh-auth');
 jest.mock('./cache', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
