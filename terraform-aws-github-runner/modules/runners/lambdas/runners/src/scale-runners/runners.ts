@@ -498,7 +498,7 @@ export async function tryReuseRunner(
   runnerParameters: RunnerInputParameters,
   metrics: ScaleUpMetrics,
 ): Promise<RunnerInfo> {
-  console.log("here")
+  console.log('here');
   const filters: ListRunnerFilters = {
     applicationDeployDatetime: Config.Instance.datetimeDeploy,
     containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished'],
