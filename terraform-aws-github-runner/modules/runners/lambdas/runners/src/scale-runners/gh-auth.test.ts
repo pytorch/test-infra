@@ -8,6 +8,7 @@ import { decrypt } from './kms';
 import { ScaleUpMetrics } from './metrics';
 import nock from 'nock';
 import { request } from '@octokit/request';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 
 const secretString = JSON.stringify({
   github_app_key_base64: 'github_app_key_base64',
@@ -31,11 +32,16 @@ jest.mock('./cache', () => ({
 const mockSMgetSecretValue = jest.fn();
 
 jest.mock('@aws-sdk/client-secrets-manager', () => ({
-  SecretsManager: jest.fn().mockImplementation(() => ({
-    getSecretValue: mockSMgetSecretValue,
+  ...jest.requireActual('@aws-sdk/client-secrets-manager'),
+  SecretsManagerClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      if (command instanceof GetSecretValueCommand) {
+        return mockSMgetSecretValue(command.input);
+      }
+      return {};
+    }),
   })),
 }));
-
 const metrics = new ScaleUpMetrics();
 
 beforeEach(() => {
