@@ -8,7 +8,6 @@ import {
   formDrciSevBody,
   getActiveSEVs,
   HUD_URL,
-  OH_URL,
 } from "lib/drciUtils";
 import * as fetchPR from "lib/fetchPR";
 import * as fetchRecentWorkflows from "lib/fetchRecentWorkflows";
@@ -395,7 +394,6 @@ describe("Update Dr. CI Bot Unit Tests", () => {
     expect(
       comment.includes("Need help or want to give feedback on the CI?")
     ).toBeTruthy();
-    expect(comment.includes(OH_URL)).toBeTruthy();
     expect(comment.includes(DOCS_URL)).toBeTruthy();
   });
 

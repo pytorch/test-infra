@@ -71,7 +71,6 @@ describe("verify-drci-functionality", () => {
         expect(
           comment.includes("Need help or want to give feedback on the CI?")
         ).toBeTruthy();
-        expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
         expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
         return true;
       })
@@ -119,7 +118,6 @@ describe("verify-drci-functionality", () => {
           expect(
             comment.includes("Need help or want to give feedback on the CI?")
           ).toBeTruthy();
-          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
           expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
           return true;
         }
@@ -252,7 +250,6 @@ describe("verify-drci-functionality", () => {
           expect(
             comment.includes("Need help or want to give feedback on the CI?")
           ).toBeTruthy();
-          expect(comment.includes(drciUtils.OH_URL)).toBeTruthy();
           expect(comment.includes(drciUtils.DOCS_URL)).toBeTruthy();
           return true;
         }
