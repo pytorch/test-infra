@@ -356,8 +356,6 @@ export async function getRunnerTypes(
       // Get the file via HTTP request
       configYml = await downloadFileFromGitHub(filerepo, filepath, metrics);
 
-      console.debug(`'${filepath}' contents: ${configYml}`);
-
       const config = YAML.parse(configYml);
       const result: Map<string, RunnerTypeScaleConfig> = new Map(
         /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
