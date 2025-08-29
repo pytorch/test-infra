@@ -8,7 +8,6 @@ import LRU from 'lru-cache';
 import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import YAML from 'yaml';
-import axios from 'axios';
 
 const ghMainClientCache = new LRU({ maxAge: 10 * 1000 });
 const ghClientCache = new LRU({ maxAge: 10 * 1000 });
@@ -327,7 +326,8 @@ export async function getRunnerTypes(
         : await createGitHubClientForRunnerRepo(authrepo, metrics);
 
       console.debug(
-        `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${filerepo.owner}/${filerepo.repo}/`,
+        `[getRunnerTypes]: Fetching runner types from ${filepath} for ` +
+          `https://github.com/${filerepo.owner}/${filerepo.repo}/`,
       );
 
       const response = await expBackOff(() => {
@@ -343,7 +343,8 @@ export async function getRunnerTypes(
       const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
       if (response?.status != 200 || !content) {
         throw Error(
-          `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${filerepo.owner}/${filerepo.repo}/`,
+          `Issue (${response.status}) retrieving '${filepath}' for ` +
+            `https://github.com/${filerepo.owner}/${filerepo.repo}/`,
         );
       }
 

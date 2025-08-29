@@ -455,7 +455,11 @@ describe('scale-down', () => {
       expect(mockedListGithubRunnersOrg).toBeCalledWith(theOrg, metrics);
 
       expect(mockedGetRunnerTypes).toBeCalledTimes(9);
-      expect(mockedGetRunnerTypes).toBeCalledWith({ owner: theOrg, repo: scaleConfigRepo }, { owner: theOrg, repo: "" }, metrics);
+      expect(mockedGetRunnerTypes).toBeCalledWith(
+        { owner: theOrg, repo: scaleConfigRepo },
+        { owner: theOrg, repo: '' },
+        metrics,
+      );
 
       expect(mockedRemoveGithubRunnerOrg).toBeCalledTimes(5);
       {
@@ -1253,10 +1257,19 @@ describe('scale-down', () => {
 
         mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, {} as RunnerType]]));
 
-        expect(await isEphemeralRunner({ runnerType: runnerType, org: owner, repo: `${owner}/${scaleConfigRepo}` } as RunnerInfo, metrics)).toEqual(false);
+        expect(
+          await isEphemeralRunner(
+            { runnerType: runnerType, org: owner, repo: `${owner}/${scaleConfigRepo}` } as RunnerInfo,
+            metrics,
+          ),
+        ).toEqual(false);
 
         expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-        expect(mockedGetRunnerTypes).toBeCalledWith({ owner: owner, repo: scaleConfigRepo }, { owner: owner, repo: scaleConfigRepo }, metrics);
+        expect(mockedGetRunnerTypes).toBeCalledWith(
+          { owner: owner, repo: scaleConfigRepo },
+          { owner: owner, repo: scaleConfigRepo },
+          metrics,
+        );
       });
 
       it('org in runner, is_ephemeral === false', async () => {
@@ -1265,10 +1278,19 @@ describe('scale-down', () => {
 
         mockedGetRunnerTypes.mockResolvedValueOnce(new Map([[runnerType, { is_ephemeral: false } as RunnerType]]));
 
-        expect(await isEphemeralRunner({ runnerType: runnerType, org: owner, repo: `${owner}/${scaleConfigRepo}` } as RunnerInfo, metrics)).toEqual(false);
+        expect(
+          await isEphemeralRunner(
+            { runnerType: runnerType, org: owner, repo: `${owner}/${scaleConfigRepo}` } as RunnerInfo,
+            metrics,
+          ),
+        ).toEqual(false);
 
         expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-        expect(mockedGetRunnerTypes).toBeCalledWith({ owner: owner, repo: scaleConfigRepo }, { owner: owner, repo: scaleConfigRepo }, metrics);
+        expect(mockedGetRunnerTypes).toBeCalledWith(
+          { owner: owner, repo: scaleConfigRepo },
+          { owner: owner, repo: scaleConfigRepo },
+          metrics,
+        );
       });
 
       it('org not in runner, is_ephemeral === true', async () => {
@@ -1282,7 +1304,11 @@ describe('scale-down', () => {
         ).toEqual(true);
 
         expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-        expect(mockedGetRunnerTypes).toBeCalledWith({ owner: owner, repo: scaleConfigRepo }, { owner: owner, repo: 'a-repo' }, metrics);
+        expect(mockedGetRunnerTypes).toBeCalledWith(
+          { owner: owner, repo: scaleConfigRepo },
+          { owner: owner, repo: 'a-repo' },
+          metrics,
+        );
       });
     });
 
