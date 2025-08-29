@@ -9,6 +9,7 @@ export const supportedPlatforms = new Map([
   ["mac", ["module: macos"]],
   ["macos", ["module: macos"]],
   ["rocm", ["module: rocm"]],
+  ["xpu", ["module: xpu"]],
   ["slow", []],
   ["win", ["module: windows"]],
   ["windows", ["module: windows"]],
