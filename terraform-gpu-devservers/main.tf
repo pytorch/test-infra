@@ -40,7 +40,7 @@ data "aws_caller_identity" "current" {}
 # Create workspace-specific prefix for global resources (IAM roles, etc.)
 locals {
   workspace_prefix = "${var.prefix}-${terraform.workspace}"
-  
+
   # Workspace-specific configurations
   workspace_configs = {
     default = {
@@ -108,7 +108,7 @@ locals {
           gpus_per_instance   = 4
           use_placement_group = true
         }
-        "g6" = {
+        "l4" = {
           instance_type       = "g6.12xlarge"
           instance_types      = null
           instance_count      = 2
@@ -118,7 +118,7 @@ locals {
       }
     }
   }
-  
+
   # Current workspace configuration
   current_config = local.workspace_configs[terraform.workspace]
 }

@@ -1,0 +1,70 @@
+# Source shared environment first
+[ -f ~/.shell_env ] && source ~/.shell_env
+
+# Function to check for GPU reservation expiry warnings
+check_warnings() {
+    setopt NULL_GLOB 2>/dev/null
+    local warning_files=(/home/dev/WARN_EXPIRES_IN_*MIN.txt)
+    if [[ ${#warning_files[@]} -gt 0 ]] && [[ -f "${warning_files[1]}" ]]; then
+        # Extract minutes from filename (e.g., WARN_EXPIRES_IN_15MIN.txt -> 15)
+        local minutes="${warning_files[1]:t:r}"  # Get basename without extension
+        minutes="${minutes#WARN_EXPIRES_IN_}"    # Remove prefix
+        minutes="${minutes%MIN}"                 # Remove suffix
+        echo -e "\033[1;31m🚨 URGENT: Server expires in <${minutes} minutes! 🚨\033[0m"
+    fi
+}
+
+# Run warning check before every command prompt (zsh hook)
+precmd() { check_warnings }
+
+# Add conda to PATH
+export PATH="/opt/conda/bin:$PATH"
+
+# Path to oh-my-zsh installation
+export ZSH="$HOME/.oh-my-zsh"
+
+# Use robbyrussell theme (clean, no font dependencies)
+ZSH_THEME="robbyrussell"
+
+# Plugins - enable autosuggestions and syntax highlighting
+plugins=(
+    git
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    docker
+    kubectl
+    npm
+    python
+    sudo
+    colored-man-pages
+    command-not-found
+)
+
+# Load oh-my-zsh
+source $ZSH/oh-my-zsh.sh
+
+# Configure autosuggestions - light grey, history-based
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"  # Light grey (works in all terminals)
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+# Shell selection helpers
+alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
+alias use-zsh='echo "Already using zsh with autocompletion! 🚀"'
+
+# Additional zsh settings for better UX
+setopt AUTO_CD              # Auto change to directory without cd
+setopt CORRECT              # Correct typos
+setopt HIST_VERIFY          # Show command with history expansion to user before running it
+setopt SHARE_HISTORY        # Share history between sessions
+setopt HIST_IGNORE_DUPS     # Don't record duplicate commands
+setopt HIST_IGNORE_SPACE    # Don't record commands starting with space
+
+# Custom aliases for GPU development
+alias gpu-info='nvidia-smi'
+alias gpu-watch='watch -n 1 nvidia-smi'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Custom prompt to show full path (no time)
+PROMPT='%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%} $ '

@@ -36,20 +36,20 @@ def get_bearer_token() -> str:
     STS_TOKEN_EXPIRES_IN = 60
     session = boto3.session.Session(region_name=REGION)
     logger.info(f"Created boto3 session for region {REGION}")
-    
+
     sts_client = session.client("sts")
     logger.info("Created STS client")
-    
+
     service_id = sts_client.meta.service_model.service_id
 
     logger.info("Getting session credentials")
     credentials = session.get_credentials()
     logger.info("Creating request signer")
-    
+
     signer = RequestSigner(
         service_id, REGION, "sts", "v4", credentials, session.events
     )
-    
+
     logger.info("Preparing STS request parameters")
     params = {
         "method": "GET",
@@ -63,7 +63,7 @@ def get_bearer_token() -> str:
     presigned = signer.generate_presigned_url(
         params, region_name=REGION, expires_in=STS_TOKEN_EXPIRES_IN, operation_name=""
     )
-    
+
     logger.info("Encoding bearer token")
     b64 = base64.urlsafe_b64encode(presigned.encode("utf-8")).decode("utf-8")
     token = "k8s-aws-v1." + re.sub(r"=*$", "", b64)
@@ -79,7 +79,7 @@ def setup_kubernetes_client() -> client.ApiClient:
     try:
         logger.info(f"Creating EKS client for region {REGION}")
         eks = boto3.client("eks", region_name=REGION)
-        
+
         logger.info(f"Describing EKS cluster: {EKS_CLUSTER_NAME}")
         cluster = eks.describe_cluster(name=EKS_CLUSTER_NAME)["cluster"]
         logger.info(f"Retrieved EKS cluster info for {EKS_CLUSTER_NAME}")

@@ -134,6 +134,7 @@ resource "aws_lambda_function" "reservation_processor" {
       QUEUE_URL                          = aws_sqs_queue.gpu_reservation_queue.url
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
       PRIMARY_AVAILABILITY_ZONE          = data.aws_availability_zones.available.names[0]
+      GPU_DEV_CONTAINER_IMAGE            = local.full_image_uri
     }
   }
 
@@ -141,6 +142,7 @@ resource "aws_lambda_function" "reservation_processor" {
     aws_iam_role_policy.reservation_processor_policy,
     aws_cloudwatch_log_group.reservation_processor_log_group,
     data.archive_file.reservation_processor_zip,
+    null_resource.docker_build_and_push,
   ]
 
   tags = {
@@ -177,18 +179,18 @@ resource "null_resource" "reservation_processor_build" {
       echo "Building Lambda package..."
       rm -rf package *.zip
       mkdir -p package
-      
+
       # Install dependencies with specific Python version
       python3 -m pip install --upgrade pip
       python3 -m pip install -r requirements.txt --target package/ --force-reinstall
-      
+
       # Copy source code and shared modules
       cp index.py package/
       cp -r ../shared package/
-      
+
       # Remove shared module's __pycache__ if it exists
       rm -rf package/shared/__pycache__
-      
+
       echo "Lambda package built successfully"
       ls -la package/
     EOT

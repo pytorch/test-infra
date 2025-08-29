@@ -1,0 +1,22 @@
+# Terraform files
+*.tf
+*.tfstate*
+*.tfvars
+.terraform/
+
+# Git
+.git/
+.gitignore
+
+# Build artifacts
+*.log
+*.tmp
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store

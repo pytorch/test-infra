@@ -11,10 +11,20 @@ class Config:
     """Zero-config AWS-based configuration"""
 
     def __init__(self):
-        # Get region from AWS env or default
-        self.aws_region = os.getenv(
-            "AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-2")
-        )
+        # Config file paths
+        self.config_file = Path.home() / ".gpu-dev-config"
+        self.environment_config_file = Path.home() / ".gpu-dev-environment.json"
+        
+        # Load environment config first to get region
+        self.environment_config = self._load_environment_config()
+        
+        # Get region from environment config file, then AWS env vars, or default
+        if self.environment_config.get("region"):
+            self.aws_region = self.environment_config["region"]
+        else:
+            self.aws_region = os.getenv(
+                "AWS_REGION", os.getenv("AWS_DEFAULT_REGION", "us-east-2")
+            )
 
         # Resource naming convention - no config needed!
         self.prefix = "pytorch-gpu-dev"
@@ -32,9 +42,6 @@ class Config:
         self._sts_client = None
         self._sqs_client = None
         self._dynamodb = None
-
-        # Config file path
-        self.config_file = Path.home() / ".gpu-dev-config"
 
         # Load user config
         self.user_config = self._load_user_config()
@@ -94,6 +101,18 @@ class Config:
             raise RuntimeError(
                 f"Cannot get AWS caller identity. Check AWS credentials: {e}"
             )
+
+    def _load_environment_config(self) -> Dict[str, Any]:
+        """Load environment configuration from ~/.gpu-dev-environment.json"""
+        if not self.environment_config_file.exists():
+            return {}
+
+        try:
+            with open(self.environment_config_file, "r") as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"Warning: Could not load environment config file {self.environment_config_file}: {e}")
+            return {}
 
     def _load_user_config(self) -> Dict[str, Any]:
         """Load user configuration from ~/.gpu-dev-config"""

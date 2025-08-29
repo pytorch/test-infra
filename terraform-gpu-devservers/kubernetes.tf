@@ -6,7 +6,7 @@ resource "kubernetes_config_map" "aws_auth" {
   depends_on = [
     aws_eks_cluster.gpu_dev_cluster
   ]
-  
+
   metadata {
     name      = "aws-auth"
     namespace = "kube-system"
@@ -56,7 +56,7 @@ resource "kubernetes_config_map" "aws_auth" {
 # Namespace for GPU development pods
 resource "kubernetes_namespace" "gpu_dev" {
   depends_on = [aws_eks_cluster.gpu_dev_cluster]
-  
+
   metadata {
     name = "gpu-dev"
     labels = {
@@ -69,7 +69,7 @@ resource "kubernetes_namespace" "gpu_dev" {
 # Service account for GPU development pods
 resource "kubernetes_service_account" "gpu_dev_sa" {
   depends_on = [aws_eks_cluster.gpu_dev_cluster]
-  
+
   metadata {
     name      = "gpu-dev-service-account"
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
@@ -79,7 +79,7 @@ resource "kubernetes_service_account" "gpu_dev_sa" {
 # Role for GPU development pods (basic permissions)
 resource "kubernetes_role" "gpu_dev_role" {
   depends_on = [aws_eks_cluster.gpu_dev_cluster]
-  
+
   metadata {
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
     name      = "gpu-dev-role"
@@ -95,7 +95,7 @@ resource "kubernetes_role" "gpu_dev_role" {
 # Role binding for GPU development service account
 resource "kubernetes_role_binding" "gpu_dev_role_binding" {
   depends_on = [aws_eks_cluster.gpu_dev_cluster]
-  
+
   metadata {
     name      = "gpu-dev-role-binding"
     namespace = kubernetes_namespace.gpu_dev.metadata[0].name
@@ -120,7 +120,7 @@ resource "kubernetes_daemonset" "nvidia_device_plugin" {
     aws_eks_cluster.gpu_dev_cluster,
     aws_autoscaling_group.gpu_dev_nodes
   ]
-  
+
   metadata {
     name      = "nvidia-device-plugin-daemonset"
     namespace = "kube-system"

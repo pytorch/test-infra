@@ -91,8 +91,6 @@ GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", 120))
 WARNING_LEVELS = [30, 15, 5]
 
 
-
-
 def handler(event, context):
     """Main Lambda handler"""
     try:
@@ -264,34 +262,34 @@ def handler(event, context):
         try:
             expired_statuses = ["expired", "cancelled"]
             expired_cancelled_reservations = []
-            
+
             for status in expired_statuses:
                 response = reservations_table.query(
-                    IndexName="StatusIndex", 
+                    IndexName="StatusIndex",
                     KeyConditionExpression="#status = :status",
                     ExpressionAttributeNames={"#status": "status"},
                     ExpressionAttributeValues={":status": status},
                 )
                 expired_cancelled_reservations.extend(response.get("Items", []))
-            
+
             logger.info(f"Found {len(expired_cancelled_reservations)} expired/cancelled reservations")
-            
+
             # Clean up pods from expired/cancelled reservations (within last 7 days to avoid processing very old ones)
             EXPIRED_CLEANUP_WINDOW = 7 * 24 * 3600  # 7 days
             expired_cleanup_threshold = current_time - EXPIRED_CLEANUP_WINDOW
-            
+
             for reservation in expired_cancelled_reservations:
                 reservation_id = reservation["reservation_id"]
                 pod_name = reservation.get("pod_name")
-                
+
                 if not pod_name:
                     continue  # No pod to clean up
-                
+
                 # Check if expired/cancelled recently (within cleanup window)
                 expired_at = reservation.get("expired_at", reservation.get("cancelled_at", ""))
                 if not expired_at:
                     continue  # No expiry/cancel timestamp
-                
+
                 try:
                     if isinstance(expired_at, str):
                         expired_timestamp = int(
@@ -301,13 +299,13 @@ def handler(event, context):
                         )
                     else:
                         expired_timestamp = int(expired_at)
-                        
+
                     if expired_timestamp < expired_cleanup_threshold:
                         continue  # Too old, skip cleanup
-                        
+
                 except (ValueError, AttributeError):
                     continue  # Can't parse timestamp, skip
-                
+
                 logger.info(
                     f"Cleaning up {reservation.get('status', 'unknown')} reservation {reservation_id[:8]} with pod {pod_name}"
                 )
@@ -320,7 +318,7 @@ def handler(event, context):
                     logger.error(
                         f"Failed to cleanup {reservation.get('status', 'unknown')} reservation {reservation_id[:8]}: {e}"
                     )
-        
+
         except Exception as e:
             logger.error(f"Error processing expired/cancelled reservations: {e}")
 
@@ -786,30 +784,30 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dic
         k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
         logger.info(f"Kubernetes client configured successfully")
-        
+
         # Create shutdown snapshot if pod has persistent storage
         try:
             user_id = None
             volume_id = None
-            
+
             # Get user_id and volume_id from reservation data if provided
             if reservation_data:
                 user_id = reservation_data.get('user_id')
                 volume_id = reservation_data.get('ebs_volume_id')
-                
+
             # Quick check - if we have reservation data with EBS info, use it directly
             if user_id and volume_id:
                 logger.info(f"Found persistent storage in reservation data: volume {volume_id} for user {user_id}")
-            
+
             # If no reservation data or missing info, try to get from pod spec
             elif not user_id or not volume_id:
                 try:
                     pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
-                    
+
                     # Extract user_id from pod labels or annotations
                     if pod.metadata.labels:
                         user_id = pod.metadata.labels.get('user-id') or user_id
-                    
+
                     # Look for EBS volume in pod spec
                     if pod.spec.volumes:
                         for volume in pod.spec.volumes:
@@ -817,10 +815,10 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dic
                                 # Extract volume ID from AWS EBS volume
                                 volume_id = volume.aws_elastic_block_store.volume_id
                                 break
-                                
+
                 except Exception as pod_read_error:
                     logger.warning(f"Could not read pod {pod_name} for snapshot info: {pod_read_error}")
-            
+
             # Create shutdown snapshot if we have the necessary info
             if user_id and volume_id:
                 logger.info(f"Creating shutdown snapshot for user {user_id}, volume {volume_id}")
@@ -831,7 +829,7 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dic
                     logger.warning(f"Failed to create shutdown snapshot for {pod_name}")
             else:
                 logger.info(f"No persistent storage found for pod {pod_name} - skipping shutdown snapshot")
-                
+
         except Exception as snapshot_error:
             logger.warning(f"Error creating shutdown snapshot for {pod_name}: {snapshot_error}")
             # Continue with pod deletion even if snapshot fails
@@ -896,7 +894,7 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dic
             raise
 
         logger.info(f"Pod cleanup completed successfully for {pod_name}")
-        
+
         # NOTE: EBS volumes (persistent disks) are NOT deleted here
         # They automatically detach when the pod is deleted and remain
         # available for the user's next reservation

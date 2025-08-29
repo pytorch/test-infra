@@ -40,8 +40,9 @@ def main(ctx: click.Context) -> None:
         gpu-dev show abc12345                   # Get detailed reservation info
         gpu-dev edit abc12345 --enable-jupyter  # Enable Jupyter on active reservation
         gpu-dev cancel abc12345                 # Cancel a reservation
-        gpu-dev availability                    # Check GPU availability by type
+        gpu-dev avail                           # Check GPU availability by type
         gpu-dev status                          # Check cluster status
+        gpu-dev help                            # Show this help message
 
     Use 'gpu-dev <command> --help' for detailed help on each command.
     """
@@ -58,9 +59,9 @@ def main(ctx: click.Context) -> None:
 )
 @click.option(
     "--gpu-type",
-    type=click.Choice(["b200", "h200", "h100", "a100", "t4", "g6", "t4-small"]),
+    type=click.Choice(["b200", "h200", "h100", "a100", "t4", "l4", "t4-small"], case_sensitive=False),
     default="a100",
-    help="GPU type to reserve (b200/h200/h100/a100/t4/g6/t4-small)",
+    help="GPU type to reserve (b200/h200/h100/a100/t4/l4/t4-small)",
 )
 @click.option(
     "--hours",
@@ -120,6 +121,28 @@ def reserve(
     try:
         gpu_count = int(gpus)
 
+        # Validate GPU type and count
+        gpu_type = gpu_type.lower()  # Normalize to lowercase
+        gpu_configs = {
+            "t4": {"max_gpus": 4, "instance_type": "g4dn.12xlarge"},
+            "l4": {"max_gpus": 4, "instance_type": "g6.12xlarge"},
+            "t4-small": {"max_gpus": 1, "instance_type": "g4dn.xlarge"},
+            "a100": {"max_gpus": 8, "instance_type": "p4d.24xlarge"},
+            "h100": {"max_gpus": 8, "instance_type": "p5.48xlarge"},
+            "h200": {"max_gpus": 8, "instance_type": "p5e.48xlarge"},
+            "b200": {"max_gpus": 8, "instance_type": "p6-b200.48xlarge"},
+        }
+
+        if gpu_type not in gpu_configs:
+            valid_types = ', '.join(sorted(gpu_configs.keys()))
+            rprint(f"[red]❌ Invalid GPU type '{gpu_type}'. Valid types: {valid_types}[/red]")
+            return
+
+        max_gpus = gpu_configs[gpu_type]["max_gpus"]
+        if gpu_count > max_gpus:
+            rprint(f"[red]❌ GPU type '{gpu_type}' supports maximum {max_gpus} GPUs per node, requested {gpu_count}[/red]")
+            return
+
         # Validate parameters
         if hours > 24:
             rprint("[red]❌ Maximum reservation time is 24 hours[/red]")
@@ -139,7 +162,7 @@ def reserve(
             rprint(f"[red]❌ {str(e)}[/red]")
             return
 
-        # Check for existing active reservations (persistent disk warning)
+        # Check for existing reservations with persistent disks (persistent disk warning)
         reservation_mgr = ReservationManager(config)
         if not ignore_no_persist:
             existing_reservations = reservation_mgr.list_reservations(
@@ -147,18 +170,22 @@ def reserve(
                 statuses_to_include=["active", "preparing", "queued", "pending"]
             )
             
-            if existing_reservations:
-                rprint(f"\n[yellow]⚠️  Warning: You have {len(existing_reservations)} existing reservation(s)[/yellow]")
+            # Find reservations that actually have persistent disks
+            persistent_reservations = [
+                res for res in existing_reservations 
+                if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
+            ]
+            
+            if persistent_reservations:
+                persistent_res = persistent_reservations[0]  # Should only be one
+                persistent_res_id = persistent_res.get("reservation_id", "unknown")[:8]
+                
+                rprint(f"\n[yellow]⚠️  Warning: Your persistent disk is currently mounted on reservation {persistent_res_id}[/yellow]")
                 rprint("[yellow]This new reservation will NOT have a persistent disk and will start empty.[/yellow]")
                 rprint("[yellow]Your data will NOT be automatically backed up when it expires.[/yellow]")
                 rprint("\n[cyan]Options:[/cyan]")
                 rprint("1. Continue and make this new reservation without persistent data disk")
-                
-                # Show cancel commands for existing reservations
-                for res in existing_reservations:
-                    res_id = res.get("reservation_id", "unknown")[:8]
-                    rprint(f"2. Cancel existing reservation: [cyan]gpu-dev cancel {res_id}[/cyan]")
-                
+                rprint(f"2. Cancel existing reservation with persistent disk: [cyan]gpu-dev cancel {persistent_res_id}[/cyan]")
                 rprint(f"3. Use [cyan]--ignore-no-persist[/cyan] flag to skip this warning")
                 
                 # Ask for confirmation
@@ -306,6 +333,7 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
         table.add_column("User", style="green")
         table.add_column("GPUs", style="magenta")
         table.add_column("Status", style="yellow")
+        table.add_column("Storage", style="dim", no_wrap=True)
         table.add_column("Queue Info", style="cyan")
         table.add_column("Created", style="blue")
         table.add_column("Expires/ETA", style="red")
@@ -319,6 +347,14 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                 gpu_type = reservation.get("gpu_type", "unknown")
                 status = reservation.get("status", "unknown")
                 created_at = reservation.get("created_at", "N/A")
+                
+                # Extract persistent disk info for storage indicator
+                ebs_volume_id = reservation.get("ebs_volume_id", None)
+                
+                # Format user display (part before @)
+                user_display = user_id
+                if "@" in user_id:
+                    user_display = user_id.split("@")[0]
 
                 # Format GPU information
                 if gpu_type and gpu_type not in ["unknown", "Unknown"]:
@@ -396,22 +432,50 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                     else:
                         queue_info = "Ready"
 
-                # Format created_at date
+                # Format storage indicator
+                if ebs_volume_id and ebs_volume_id.strip():
+                    storage_display = "persistent"
+                else:
+                    storage_display = "temporary"
+
+                # Format created_at datetime (similar to expires formatting)
                 created_formatted = "N/A"
                 if created_at and created_at != "N/A":
                     try:
+                        from datetime import datetime
+                        if isinstance(created_at, str):
+                            # Handle different ISO format variations
+                            if created_at.endswith("Z"):
+                                created_dt_utc = datetime.fromisoformat(
+                                    created_at.replace("Z", "+00:00")
+                                )
+                            elif "+" in created_at or created_at.endswith("00:00"):
+                                created_dt_utc = datetime.fromisoformat(created_at)
+                            else:
+                                # Assume naive datetime is UTC
+                                from datetime import timezone
+                                naive_dt = datetime.fromisoformat(created_at)
+                                created_dt_utc = naive_dt.replace(tzinfo=timezone.utc)
+                            
+                            created_dt = created_dt_utc.astimezone()  # Convert to local
+                            created_formatted = created_dt.strftime("%m-%d %H:%M")
+                        else:
+                            # Legacy timestamp
+                            created_dt = datetime.fromtimestamp(created_at)
+                            created_formatted = created_dt.strftime("%m-%d %H:%M")
+                    except (ValueError, TypeError):
+                        # Fallback to old format
                         if len(str(created_at)) > 10:
                             created_formatted = str(created_at)[:10]
                         else:
                             created_formatted = str(created_at)
-                    except (TypeError, AttributeError):
-                        created_formatted = "N/A"
 
                 table.add_row(
                     str(reservation_id)[:8],
-                    str(user_id),
+                    user_display,
                     gpu_display,
                     str(status),
+                    storage_display,
                     queue_info,
                     created_formatted,
                     expires_formatted,
@@ -779,7 +843,22 @@ def _show_availability() -> None:
 
 @main.command()
 @click.pass_context
-def availability(ctx: click.Context) -> None:
+def help(ctx: click.Context) -> None:
+    """Show help information (equivalent to --help)
+    
+    Displays the same help information as using --help flag.
+    
+    \b
+    Examples:
+        gpu-dev help                            # Show main help
+        gpu-dev help                            # Same as gpu-dev --help
+    """
+    click.echo(ctx.parent.get_help())
+
+
+@main.command(name="avail")
+@click.pass_context
+def avail(ctx: click.Context) -> None:
     """Show GPU availability by type and queue estimates
 
     Displays real-time information about GPU availability for each GPU type.
@@ -792,19 +871,9 @@ def availability(ctx: click.Context) -> None:
 
     \b
     Examples:
-        gpu-dev availability                     # Show availability for all GPU types
+        gpu-dev avail                           # Show availability for all GPU types
 
     This helps you choose the right GPU type and understand wait times before reserving.
-    """
-    _show_availability()
-
-
-@main.command(name="avail")
-@click.pass_context
-def avail(ctx: click.Context) -> None:
-    """Show GPU availability by type and queue estimates (alias for 'availability')
-
-    This is a shorter alias for the 'availability' command.
     """
     _show_availability()
 
@@ -903,9 +972,15 @@ def show() -> None:
         identity = config.get_user_identity()
         github_user = config.get_github_username()
 
+        # Get current environment info
+        env_config = getattr(config, 'environment_config', {})
+        current_env = env_config.get('current_environment', 'Not set')
+        env_source = "Environment config" if env_config else "Default/ENV vars"
+        
         config_text = (
             f"[green]Configuration (Zero-Config)[/green]\n\n"
-            f"[blue]Region:[/blue] {config.aws_region}\n"
+            f"[blue]Environment:[/blue] {current_env}\n"
+            f"[blue]Region:[/blue] {config.aws_region} ({env_source})\n"
             f"[blue]Queue:[/blue] {config.queue_name}\n"
             f"[blue]Cluster:[/blue] {config.cluster_name}\n"
             f"[blue]User:[/blue] {identity['arn']}\n"
@@ -961,6 +1036,77 @@ def set(key: str, value: str) -> None:
 
     except Exception as e:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
+
+
+@config.command()
+@click.argument("env_name", type=click.Choice(["test", "prod"]))
+def environment(env_name: str) -> None:
+    """Set the environment (test or prod)
+    
+    Sets the AWS region and Terraform workspace for the specified environment.
+    This configuration is used by the switch-to.sh script.
+    
+    Arguments:
+        ENV_NAME: Environment name (test or prod)
+    
+    \b
+    Examples:
+        gpu-dev config environment test   # Set to test environment (us-west-1)  
+        gpu-dev config environment prod   # Set to prod environment (us-east-2)
+        
+    Environment configurations:
+        test: us-west-1, Terraform workspace 'default'
+        prod: us-east-2, Terraform workspace 'prod'
+    """
+    import os
+    import json
+    from pathlib import Path
+    
+    try:
+        # Environment configurations
+        environments = {
+            "test": {
+                "region": "us-west-1",
+                "workspace": "default",
+                "description": "Test environment"
+            },
+            "prod": {
+                "region": "us-east-2", 
+                "workspace": "prod",
+                "description": "Production environment"
+            }
+        }
+        
+        env_config = environments[env_name]
+        
+        # Save environment configuration
+        config_file = Path.home() / ".gpu-dev-environment.json"
+        config_data = {
+            "current_environment": env_name,
+            "region": env_config["region"],
+            "workspace": env_config["workspace"]
+        }
+        
+        with open(config_file, 'w') as f:
+            json.dump(config_data, f, indent=2)
+        
+        # Set environment variable for current session
+        os.environ['AWS_DEFAULT_REGION'] = env_config["region"]
+        
+        rprint(f"[green]✅ Environment set to {env_name}[/green]")
+        rprint(f"[blue]Region:[/blue] {env_config['region']}")
+        rprint(f"[blue]Workspace:[/blue] {env_config['workspace']}")
+        rprint(f"[blue]Description:[/blue] {env_config['description']}")
+        rprint(f"[dim]Configuration saved to {config_file}[/dim]")
+        
+        # Instructions for shell export
+        rprint(f"\n[yellow]💡 To apply in your current shell:[/yellow]")
+        rprint(f"   export AWS_DEFAULT_REGION={env_config['region']}")
+        rprint(f"\n[yellow]💡 Or use the switch-to.sh script:[/yellow]")
+        rprint(f"   ./switch-to.sh {env_name}")
+        
+    except Exception as e:
+        rprint(f"[red]❌ Error setting environment: {str(e)}[/red]")
 
 
 @main.command()

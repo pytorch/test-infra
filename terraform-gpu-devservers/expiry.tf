@@ -151,18 +151,18 @@ resource "null_resource" "reservation_expiry_build" {
       echo "Building expiry Lambda package..."
       rm -rf package *.zip
       mkdir -p package
-      
+
       # Install dependencies with specific Python version
       python3 -m pip install --upgrade pip
       python3 -m pip install -r requirements.txt --target package/ --force-reinstall
-      
+
       # Copy source code and shared modules
       cp index.py package/
       cp -r ../shared package/
-      
+
       # Remove shared module's __pycache__ if it exists
       rm -rf package/shared/__pycache__
-      
+
       echo "Expiry Lambda package built successfully"
       ls -la package/
     EOT

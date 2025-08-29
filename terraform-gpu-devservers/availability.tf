@@ -192,20 +192,20 @@ resource "null_resource" "availability_updater_build" {
       echo "Building availability updater Lambda package..."
       rm -rf package *.zip
       mkdir -p package
-      
+
       # Install dependencies if requirements.txt exists
       if [ -f requirements.txt ]; then
         python3 -m pip install --upgrade pip
         python3 -m pip install -r requirements.txt --target package/ --force-reinstall
       fi
-      
+
       # Copy source code and shared modules
       cp index.py package/
       cp -r ../shared package/
-      
+
       # Remove shared module's __pycache__ if it exists
       rm -rf package/shared/__pycache__
-      
+
       echo "Availability updater Lambda package built successfully"
       ls -la package/
     EOT

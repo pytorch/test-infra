@@ -1,0 +1,9 @@
+# Source .zshrc for login shells (like SSH)
+if [ -f ~/.zshrc ]; then
+    source ~/.zshrc
+fi
+
+# Show MOTD on login
+if [ -f /etc/motd ]; then
+    cat /etc/motd
+fi

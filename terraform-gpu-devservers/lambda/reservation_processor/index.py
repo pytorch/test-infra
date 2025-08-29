@@ -6,10 +6,11 @@ Handles reservation requests and manages K8s pod allocation
 import json
 import logging
 import os
-import subprocess
-import tempfile
 import time
 import uuid
+import socket
+import random
+
 from datetime import datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -18,6 +19,9 @@ import boto3
 
 from shared import K8sGPUTracker, setup_kubernetes_client
 from shared.snapshot_utils import create_pod_shutdown_snapshot, get_latest_snapshot
+
+from kubernetes import client
+from kubernetes.stream import stream
 
 # Setup logging
 logger = logging.getLogger()
@@ -37,6 +41,7 @@ MAX_RESERVATION_HOURS = int(os.environ["MAX_RESERVATION_HOURS"])
 DEFAULT_TIMEOUT_HOURS = int(os.environ["DEFAULT_TIMEOUT_HOURS"])
 QUEUE_URL = os.environ["QUEUE_URL"]
 PRIMARY_AVAILABILITY_ZONE = os.environ["PRIMARY_AVAILABILITY_ZONE"]
+GPU_DEV_CONTAINER_IMAGE = os.environ.get("GPU_DEV_CONTAINER_IMAGE", "pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel")
 
 # Global Kubernetes client (reused across Lambda execution)
 _k8s_client = None
@@ -59,34 +64,33 @@ def get_target_az_for_reservation(gpu_type, gpus_requested):
     """
     try:
         k8s_client = get_k8s_client()
-        from kubernetes import client
-        
+
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Get all nodes with the requested GPU type
         logger.info(f"Querying nodes for GPU type {gpu_type} with {gpus_requested} GPUs needed")
         nodes = v1.list_node(label_selector=f"GpuType={gpu_type}")
-        
+
         candidate_nodes = []
-        
+
         for node in nodes.items:
             # Check if node is ready and schedulable
             ready = False
             schedulable = True
-            
+
             if node.status and node.status.conditions:
                 for condition in node.status.conditions:
                     if condition.type == "Ready" and condition.status == "True":
                         ready = True
                         break
-            
+
             if node.spec and node.spec.unschedulable:
                 schedulable = False
-            
+
             if not ready or not schedulable:
                 logger.debug(f"Skipping node {node.metadata.name} - not ready or not schedulable")
                 continue
-            
+
             # Get node's availability zone
             node_az = None
             if node.metadata.labels:
@@ -94,14 +98,14 @@ def get_target_az_for_reservation(gpu_type, gpus_requested):
                 if not node_az:
                     # Fallback to failure-domain label (older k8s versions)
                     node_az = node.metadata.labels.get('failure-domain.beta.kubernetes.io/zone')
-            
+
             if not node_az:
                 logger.warning(f"Node {node.metadata.name} has no AZ label")
                 continue
-            
+
             # Check available GPU capacity on this node
             available_gpus = get_available_gpus_on_node(v1, node)
-            
+
             if available_gpus >= gpus_requested:
                 candidate_nodes.append({
                     'node_name': node.metadata.name,
@@ -109,19 +113,19 @@ def get_target_az_for_reservation(gpu_type, gpus_requested):
                     'available_gpus': available_gpus
                 })
                 logger.info(f"Node {node.metadata.name} in {node_az}: {available_gpus} available GPUs")
-        
+
         if not candidate_nodes:
             logger.warning(f"No nodes found with {gpus_requested} available {gpu_type} GPUs")
             return None
-        
+
         # Return the AZ of the first suitable node (Kubernetes scheduler will make the final decision)
         # This gives us the best prediction of where the pod will land
         selected_node = candidate_nodes[0]
         target_az = selected_node['az']
-        
+
         logger.info(f"Target AZ for {gpu_type} reservation: {target_az} (node: {selected_node['node_name']})")
         return target_az
-        
+
     except Exception as e:
         logger.error(f"Error determining target AZ for {gpu_type}: {str(e)}")
         # Fallback to primary AZ if detection fails
@@ -132,7 +136,7 @@ def needs_ebs_migration(user_id, target_az):
     """Check if user's EBS volume needs to be migrated to a different AZ"""
     try:
         logger.info(f"Checking for existing EBS volumes for user {user_id}")
-        
+
         # Look for ANY existing EBS volume with user tag, regardless of AZ
         response = ec2_client.describe_volumes(
             Filters=[
@@ -140,24 +144,25 @@ def needs_ebs_migration(user_id, target_az):
                 {"Name": "status", "Values": ["available", "in-use"]},
             ]
         )
-        
+
         volumes = response.get("Volumes", [])
         if not volumes:
             logger.info(f"No existing EBS volumes found for user {user_id} - no migration needed")
             return False, None, None
-        
+
         # Get the most recent volume (by creation time)
         current_volume = max(volumes, key=lambda v: v["CreateTime"])
         current_volume_id = current_volume["VolumeId"]
         current_az = current_volume["AvailabilityZone"]
-        
+
         if current_az == target_az:
-            logger.info(f"User {user_id} EBS volume {current_volume_id} already in target AZ {target_az} - no migration needed")
+            logger.info(
+                f"User {user_id} EBS volume {current_volume_id} already in target AZ {target_az} - no migration needed")
             return False, current_volume_id, current_az
-        
+
         logger.info(f"User {user_id} needs EBS migration: volume {current_volume_id} from {current_az} to {target_az}")
         return True, current_volume_id, current_az
-        
+
     except Exception as e:
         logger.error(f"Error checking EBS migration need for user {user_id}: {str(e)}")
         return False, None, None
@@ -170,7 +175,7 @@ def migrate_ebs_across_az(user_id, current_volume_id, current_az, target_az):
     """
     try:
         logger.info(f"Starting EBS migration for user {user_id} from {current_az} to {target_az}")
-        
+
         # Step 1: Create snapshot of current volume
         logger.info(f"Creating snapshot of volume {current_volume_id}")
         snapshot_response = ec2_client.create_snapshot(
@@ -189,16 +194,16 @@ def migrate_ebs_across_az(user_id, current_volume_id, current_az, target_az):
                 ]
             }]
         )
-        
+
         snapshot_id = snapshot_response["SnapshotId"]
         logger.info(f"Created snapshot {snapshot_id}, waiting for completion...")
-        
+
         # Wait for snapshot to complete
         waiter = ec2_client.get_waiter("snapshot_completed")
         waiter.wait(SnapshotIds=[snapshot_id], WaiterConfig={"Delay": 15, "MaxAttempts": 240})  # Up to 1 hour
-        
+
         logger.info(f"Snapshot {snapshot_id} completed successfully")
-        
+
         # Step 2: Create new volume from snapshot in target AZ
         logger.info(f"Creating new volume from snapshot {snapshot_id} in AZ {target_az}")
         new_volume_response = ec2_client.create_volume(
@@ -208,7 +213,7 @@ def migrate_ebs_across_az(user_id, current_volume_id, current_az, target_az):
             Iops=3000,
             Throughput=125,
             TagSpecifications=[{
-                "ResourceType": "volume", 
+                "ResourceType": "volume",
                 "Tags": [
                     {"Key": "gpu-dev-user", "Value": user_id},
                     {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id.split('@')[0]}"},
@@ -219,21 +224,21 @@ def migrate_ebs_across_az(user_id, current_volume_id, current_az, target_az):
                 ]
             }]
         )
-        
+
         new_volume_id = new_volume_response["VolumeId"]
         logger.info(f"Created new volume {new_volume_id}, waiting for availability...")
-        
+
         # Wait for new volume to be available
         waiter = ec2_client.get_waiter("volume_available")
         waiter.wait(VolumeIds=[new_volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
-        
+
         # Step 3: Delete old volume (after successful creation)
         logger.info(f"Deleting old volume {current_volume_id} from {current_az}")
         ec2_client.delete_volume(VolumeId=current_volume_id)
-        
+
         logger.info(f"EBS migration completed: {current_volume_id} ({current_az}) -> {new_volume_id} ({target_az})")
         return new_volume_id, snapshot_id
-        
+
     except Exception as e:
         logger.error(f"Error during EBS migration for user {user_id}: {str(e)}")
         raise
@@ -255,7 +260,7 @@ def restore_ebs_from_existing_snapshot(snapshot_id, target_az, user_id):
     """
     try:
         logger.info(f"Restoring EBS volume from snapshot {snapshot_id} in AZ {target_az}")
-        
+
         # Create new volume from existing snapshot in target AZ
         new_volume_response = ec2_client.create_volume(
             AvailabilityZone=target_az,
@@ -264,7 +269,7 @@ def restore_ebs_from_existing_snapshot(snapshot_id, target_az, user_id):
             Iops=3000,
             Throughput=125,
             TagSpecifications=[{
-                "ResourceType": "volume", 
+                "ResourceType": "volume",
                 "Tags": [
                     {"Key": "gpu-dev-user", "Value": user_id},
                     {"Key": "Name", "Value": f"gpu-dev-persistent-{user_id.split('@')[0]}"},
@@ -275,17 +280,17 @@ def restore_ebs_from_existing_snapshot(snapshot_id, target_az, user_id):
                 ]
             }]
         )
-        
+
         new_volume_id = new_volume_response["VolumeId"]
         logger.info(f"Created new volume {new_volume_id}, waiting for availability...")
-        
+
         # Wait for new volume to be available
         waiter = ec2_client.get_waiter("volume_available")
         waiter.wait(VolumeIds=[new_volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
-        
+
         logger.info(f"EBS restore completed: snapshot {snapshot_id} -> volume {new_volume_id} in {target_az}")
         return new_volume_id
-        
+
     except Exception as e:
         logger.error(f"Error restoring EBS from snapshot {snapshot_id}: {str(e)}")
         raise
@@ -331,7 +336,7 @@ def update_reservation_error(reservation_id: str, error_message: str, error_fiel
     try:
         if not reservation_id:
             return
-        
+
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
         reservations_table.update_item(
             Key={"reservation_id": reservation_id},
@@ -350,25 +355,25 @@ def find_reservation_by_prefix(reservation_id: str, user_id: str = None) -> dict
     """Find reservation by ID prefix with optional user validation"""
     try:
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        
+
         filter_expression = "begins_with(reservation_id, :prefix)"
         expression_values = {":prefix": reservation_id}
-        
+
         if user_id:
             filter_expression += " AND user_id = :user_id"
             expression_values[":user_id"] = user_id
-        
+
         scan_response = reservations_table.scan(
             FilterExpression=filter_expression,
             ExpressionAttributeValues=expression_values
         )
-        
+
         items = scan_response.get("Items", [])
         if len(items) == 0:
             raise ValueError(f"Reservation {reservation_id} not found" + (f" for user {user_id}" if user_id else ""))
         elif len(items) > 1:
             raise ValueError(f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches")
-        
+
         return items[0]
     except Exception as e:
         logger.error(f"Error finding reservation {reservation_id}: {e}")
@@ -639,8 +644,6 @@ def check_gpu_availability(gpu_type: str = None) -> int:
 def check_schedulable_gpus_for_type(k8s_client, gpu_type: str) -> int:
     """Check how many GPUs are available on schedulable nodes of the specified type"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Get all nodes with the specified GPU type that are ready and schedulable
@@ -740,8 +743,6 @@ def update_gpu_availability_table(
 ) -> None:
     """Update the GPU availability table with real-time data from Kubernetes"""
     try:
-        from kubernetes import client
-
         # Get total GPUs for this type by checking all nodes with this GPU type
         v1 = client.CoreV1Api(k8s_client)
         nodes = v1.list_node()
@@ -761,9 +762,11 @@ def update_gpu_availability_table(
         # Get GPU configuration for this type (for gpus_per_instance)
         gpu_type_configs = {
             "t4": {"gpus_per_instance": 4},
+            "l4": {"gpus_per_instance": 4},
             "a100": {"gpus_per_instance": 8},
             "h100": {"gpus_per_instance": 8},
             "h200": {"gpus_per_instance": 8},
+            "b200": {"gpus_per_instance": 8},
         }
 
         gpu_config = gpu_type_configs.get(gpu_type, {"gpus_per_instance": 8})
@@ -882,7 +885,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         persistent_volume_id = None
         device_name = None
         target_az = None  # Initialize target_az for use in connection info update
-        
+        is_new_disk = False  # Initialize is_new_disk for all code paths
+
         if use_persistent_disk:
             try:
                 # Step 1: Determine target AZ for this reservation
@@ -891,16 +895,16 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                     "preparing",
                     "Determining optimal availability zone for GPU placement",
                 )
-                
+
                 target_az = get_target_az_for_reservation(gpu_type, gpu_count)
                 if not target_az:
                     raise ValueError(f"Could not determine target AZ for {gpu_type} GPUs")
-                
+
                 logger.info(f"Target AZ for reservation: {target_az}")
-                
+
                 # Step 2: Check if EBS migration is needed
                 migration_needed, current_volume_id, current_az = needs_ebs_migration(user_id, target_az)
-                
+
                 if migration_needed:
                     # User has existing EBS in different AZ - need to migrate
                     update_reservation_status(
@@ -909,10 +913,10 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         f"Migrating persistent disk from {current_az} to {target_az} (2-5 minutes)",
                     )
                     logger.info(f"Starting EBS migration for user {user_id}: {current_az} -> {target_az}")
-                    
+
                     # Check if we have a recent completed or pending snapshot to use instead of creating new one
                     latest_snapshot = get_latest_snapshot(user_id, current_volume_id, include_pending=True)
-                    
+
                     if latest_snapshot and latest_snapshot['State'] == 'completed':
                         # Use existing completed snapshot for migration
                         logger.info(f"Using existing completed snapshot {latest_snapshot['SnapshotId']} for migration")
@@ -925,15 +929,15 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         snapshot_id = latest_snapshot['SnapshotId']
                         logger.info(f"Found pending snapshot {snapshot_id}, waiting for completion before migration")
                         update_reservation_status(
-                            reservation_id, 
-                            "preparing", 
+                            reservation_id,
+                            "preparing",
                             f"Waiting for existing snapshot {snapshot_id} to complete (1-3 minutes)"
                         )
-                        
+
                         # Wait for snapshot to complete (up to 10 minutes)
                         waiter = ec2_client.get_waiter('snapshot_completed')
                         waiter.wait(SnapshotIds=[snapshot_id], WaiterConfig={'Delay': 15, 'MaxAttempts': 40})
-                        
+
                         logger.info(f"Snapshot {snapshot_id} completed, proceeding with migration")
                         persistent_volume_id = restore_ebs_from_existing_snapshot(
                             snapshot_id, target_az, user_id
@@ -943,20 +947,21 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         persistent_volume_id, snapshot_id = migrate_ebs_across_az(
                             user_id, current_volume_id, current_az, target_az
                         )
-                    
+
                     is_new_disk = False  # Migrated disk keeps existing data
                     logger.info(f"EBS migration completed: {persistent_volume_id} (from snapshot {snapshot_id})")
-                    
+
                 else:
                     # Either no existing EBS, or existing EBS is already in target AZ
                     update_reservation_status(
                         reservation_id,
-                        "preparing", 
+                        "preparing",
                         "Setting up persistent disk for user data",
                     )
                     persistent_volume_id, is_new_disk = create_or_find_persistent_disk_in_az(user_id, target_az)
-                    logger.info(f"Using persistent disk {persistent_volume_id} in {target_az} for user {user_id} (new_disk={is_new_disk})")
-                
+                    logger.info(
+                        f"Using persistent disk {persistent_volume_id} in {target_az} for user {user_id} (new_disk={is_new_disk})")
+
             except Exception as disk_error:
                 logger.error(f"Failed to set up persistent disk: {disk_error}")
                 # Continue without persistent disk rather than failing
@@ -968,6 +973,9 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 )
         else:
             logger.info(f"User {user_id} has existing reservations - no persistent disk")
+            # Non-persistent reservations always need shell environment setup
+            is_new_disk = True
+            logger.info(f"Non-persistent reservation - will always set up shell environment (CREATE_SH_ENV=true)")
 
         # Update status: Creating Kubernetes resources
         disk_status = "with persistent disk" if use_persistent_disk else "without persistent disk"
@@ -991,7 +999,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             jupyter_enabled=jupyter_enabled,
             persistent_volume_id=persistent_volume_id,
             user_id=user_id,
-            is_new_disk=is_new_disk if use_persistent_disk else False,
+            is_new_disk=is_new_disk,
             recreate_env=recreate_env,
         )
 
@@ -1194,8 +1202,6 @@ def create_kubernetes_resources(
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
-        from kubernetes import client
-
         # Configure Kubernetes client
         k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
@@ -1371,10 +1377,6 @@ def create_kubernetes_resources(
 def find_available_node_port(k8s_client) -> int:
     """Find an available NodePort in the valid range"""
     try:
-        import random
-
-        from kubernetes import client
-
         # Get all services to check used ports
         v1 = client.CoreV1Api(k8s_client)
         services = v1.list_service_for_all_namespaces()
@@ -1400,8 +1402,6 @@ def find_available_node_port(k8s_client) -> int:
 
     except Exception as e:
         logger.error(f"Error finding available node port: {str(e)}")
-        import random
-
         return random.randint(30000, 32767)
 
 
@@ -1419,18 +1419,15 @@ def create_pod(
 ):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Handle persistent disk setup if provided
         ebs_volume_spec = None
-        device_name = None
         use_persistent_disk = persistent_volume_id is not None
 
         if use_persistent_disk:
             logger.info(f"Setting up persistent disk {persistent_volume_id} for pod {pod_name}")
-            
+
             # Get node instance ID where pod will be scheduled
             # For now, we'll handle this in the container startup script
             # The EBS volume will be attached when pod is scheduled
@@ -1461,11 +1458,11 @@ def create_pod(
                         # Handle persistent disk setup
                         if [ "{use_persistent_disk}" = "True" ]; then
                             echo "[INIT] Persistent disk detected - checking filesystem..."
-                            
+
                             # Check if /home/dev is mounted (EBS volume)
                             if mountpoint -q /home/dev; then
                                 echo "[INIT] EBS volume already mounted at /home/dev"
-                                
+
                                 # Check if it has existing user data
                                 if [ ! -d "/home/dev/.ssh" ]; then
                                     echo "[INIT] First-time setup - creating SSH directory"
@@ -1491,14 +1488,12 @@ def create_pod(
                         echo '{github_public_key}' > /home/dev/.ssh/authorized_keys
                         chmod 700 /home/dev/.ssh
                         chmod 600 /home/dev/.ssh/authorized_keys
-                        chown -R 1000:1000 /home/dev/.ssh
 
                         # Ensure proper ownership of entire home directory
-                        chown 1000:1000 /home/dev
+                        chown -R 1000:1000 /home/dev
 
                         # Create marker file to verify init completed
                         echo "SSH keys initialized at $(date)" > /home/dev/.ssh/init_complete
-                        chown 1000:1000 /home/dev/.ssh/init_complete
 
                         echo "[INIT] Dev user and SSH key setup complete"
                         """,
@@ -1511,173 +1506,101 @@ def create_pod(
             containers=[
                 client.V1Container(
                     name="gpu-dev",
-                    image="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel",
+                    image=GPU_DEV_CONTAINER_IMAGE,
                     command=["/bin/bash"],
                     args=[
                         "-c",
                         """
                         set -e  # Exit on any error
 
-                        echo "[STARTUP] Installing SSH server and essential tools..."
-                        # Retry apt-get update with backoff to handle mirror sync issues
-                        for attempt in 1 2 3; do
-                            echo "Attempt $attempt: Updating package lists..."
-                            apt-get update -qq && break
-                            if [ $attempt -lt 3 ]; then
-                                echo "Update failed, waiting 30s before retry..."
-                                sleep 30
-                            else
-                                echo "All update attempts failed, continuing with cached packages..."
-                            fi
-                        done
+                        echo "[STARTUP] Starting GPU development container with pre-installed environment..."
 
-                        apt-get install -y openssh-server sudo curl vim git coreutils util-linux procps zsh
+                        # All packages and configurations are pre-installed in Docker image
+                        echo "[STARTUP] Using pre-built Docker image with Jupyter, SSH, zsh, oh-my-zsh, and Claude CLI..."
 
-                        echo "[STARTUP] Installing modern Node.js..."
-                        # Install Node.js 20 from NodeSource (Claude CLI requires Node 18+)
-                        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-                        apt-get install -y nodejs
-
-                        # Ensure PATH includes standard directories for this session
-                        export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH"
+                        # Debug environment variables
+                        echo "[STARTUP] Environment variables:"
+                        echo "[STARTUP] - CREATE_SH_ENV=$CREATE_SH_ENV"
+                        echo "[STARTUP] - JUPYTER_ENABLED=$JUPYTER_ENABLED"
+                        echo "[STARTUP] - USE_PERSISTENT_DISK=$USE_PERSISTENT_DISK"
 
                         echo "[STARTUP] Checking persistent disk setup..."
-                        # Handle EBS volume formatting if needed (first-time setup)
-                        if mountpoint -q /home/dev; then
-                            echo "[STARTUP] /home/dev is mounted (EBS volume detected)"
+                        
+                        # Check if we have a mounted disk and handle accordingly
+                        if mountpoint -q /home/dev && [ "$(df /home/dev | tail -1 | awk '{print $1}')" != "tmpfs" ]; then
+                            echo "[STARTUP] Real disk mounted at /home/dev"
                             
-                            # Check if this is a new, unformatted EBS volume
-                            if [ ! -f "/home/dev/.disk_initialized" ]; then
-                                echo "[STARTUP] First-time EBS volume setup detected"
+                            if [ "$USE_PERSISTENT_DISK" = "false" ]; then
+                                echo "[STARTUP] WARNING: Since your persistent disk is mounted to your first reservation, this current reservation will NOT store your /home/dev folder."
+                                # Set flag for MOTD warning
+                                TEMPORARY_DISK_WARNING="true"
+                            else
+                                echo "[STARTUP] Persistent disk properly configured"
+                            fi
+                            
+                            # Handle disk initialization if needed (CREATE_SH_ENV indicates new disk or recreate)
+                            if [ "$CREATE_SH_ENV" = "true" ]; then
+                                echo "[STARTUP] New disk setup or recreate requested (CREATE_SH_ENV=true)"
                                 
                                 # Verify filesystem is accessible and writable
                                 if ! touch /home/dev/.test_write 2>/dev/null; then
-                                    echo "[STARTUP] EBS volume not writable - may need formatting"
-                                    # In practice, Kubernetes should handle this with fsType: ext4
-                                    echo "[STARTUP] WARNING: EBS volume mount issue - continuing anyway"
+                                    echo "[STARTUP] Disk not writable - may need formatting"
+                                    echo "[STARTUP] WARNING: Disk mount issue - continuing anyway"
                                 else
                                     rm -f /home/dev/.test_write
-                                    echo "[STARTUP] EBS volume is accessible and writable"
-                                    
+                                    echo "[STARTUP] Disk is accessible and writable"
+
                                     # Mark as initialized
                                     echo "Initialized at $(date)" > /home/dev/.disk_initialized
                                     chown 1000:1000 /home/dev/.disk_initialized
                                 fi
                             else
-                                echo "[STARTUP] EBS volume already initialized"
+                                echo "[STARTUP] Using existing disk configuration (CREATE_SH_ENV=false)"
                             fi
                         else
-                            echo "[STARTUP] /home/dev is EmptyDir (no persistent disk)"
+                            echo "[STARTUP] Using EmptyDir (no real persistent disk)"
                         fi
 
-                        echo "[STARTUP] Setting up dev user shell environments..."
-                        # Set up clean environment for dev user (both bash and zsh)
+                        echo "[STARTUP] Setting up dev user environment..."
+                        # Ensure /home/dev exists and has correct ownership
                         mkdir -p /home/dev
 
-                        # Only create shell config files on new disks or when forced recreation is requested
+                        # Copy shell configs from Docker image to persistent disk if needed
+                        echo "[STARTUP] Shell config setup - CREATE_SH_ENV='$CREATE_SH_ENV'"
+                        
+                        # List what's available in the source directory
+                        echo "[STARTUP] Available files in /devserver-setup:"
+                        ls -la /devserver-setup/ || echo "[STARTUP] ERROR: /devserver-setup directory not found!"
+                        
                         if [ "$CREATE_SH_ENV" = "true" ]; then
-                            echo "[STARTUP] Creating shell configuration (new disk or forced recreation)..."
-                            # Create shared environment file
-                        cat > /home/dev/.shell_env << 'SHELL_ENV_EOF'
-# Clean PATH setup (no duplicates)
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+                            echo "[STARTUP] CREATE_SH_ENV=true - Copying shell configurations to persistent disk..."
+                            
+                            # Copy pre-built configs from Docker image to persistent disk with error checking
+                            echo "[STARTUP] Copying shell configurations from /devserver-setup to /home/dev..."
+                            
+                            for file in .shell_env .bashrc .bash_profile .profile .zshrc .zprofile; do
+                                if [ -f "/devserver-setup/$file" ]; then
+                                    echo "[STARTUP] Copying $file..."
+                                    if cp "/devserver-setup/$file" "/home/dev/$file"; then
+                                        echo "[STARTUP] ✓ Successfully copied $file"
+                                    else
+                                        echo "[STARTUP] ✗ FAILED to copy $file"
+                                    fi
+                                else
+                                    echo "[STARTUP] ✗ Source file /devserver-setup/$file does not exist"
+                                fi
+                            done
 
-# CUDA environment
-export CUDA_HOME=/usr/local/cuda
-export PATH="/usr/local/cuda/bin:$PATH"
-export LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}"
+                            echo "[STARTUP] Shell configuration files copied to persistent disk"
 
-# Node.js user global packages (for Claude CLI)
-export PATH="$HOME/.npm-global/bin:$PATH"
-
-# Claude Code configuration for Bedrock
-export CLAUDE_CODE_USE_BEDROCK=1
-export ANTHROPIC_MODEL="us.anthropic.claude-sonnet-4-20250514-v1:0"
-SHELL_ENV_EOF
-
-                        # Set up .bashrc
-                        cat > /home/dev/.bashrc << 'BASHRC_EOF'
-# Source shared environment
-[ -f ~/.shell_env ] && source ~/.shell_env
-
-# Function to check for GPU reservation expiry warnings
-check_warnings() {
-    for warning_file in /home/dev/WARN_EXPIRES_IN_*MIN.txt; do
-        if [ -f "$warning_file" ]; then
-            # Extract minutes from filename (e.g., WARN_EXPIRES_IN_15MIN.txt -> 15)
-            minutes=$(echo "$warning_file" | sed 's/.*WARN_EXPIRES_IN_\\([0-9]*\\)MIN.txt/\\1/')
-            echo -e "\033[1;31m🚨 URGENT: Server expires in <${minutes} minutes! 🚨\033[0m"
-            return
-        fi
-    done 2>/dev/null
-}
-
-# Run warning check before every command prompt
-PROMPT_COMMAND="check_warnings; $PROMPT_COMMAND"
-
-# Bash-specific settings
-if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
-    . /etc/bash_completion
-fi
-
-# Shell selection helper
-alias use-zsh='echo "To switch to zsh permanently, run: chsh -s /usr/bin/zsh"'
-alias use-bash='echo "Already using bash! To get the full experience, try: zsh"'
-
-BASHRC_EOF
-
-
-                        # Set up .bash_profile to source .bashrc for SSH login shells
-                        cat > /home/dev/.bash_profile << 'BASH_PROFILE_EOF'
-# Source shared environment directly (failsafe)
-if [ -f ~/.shell_env ]; then
-    source ~/.shell_env
-fi
-
-# Source .bashrc for additional bash-specific settings
-if [ -f ~/.bashrc ]; then
-    source ~/.bashrc
-fi
-
-# Show MOTD on login
-if [ -f /etc/motd ]; then
-    cat /etc/motd
-fi
-BASH_PROFILE_EOF
-
-                        # Also create .profile as a fallback (some systems prefer this)
-                        cat > /home/dev/.profile << 'PROFILE_EOF'
-# Source shared environment
-if [ -f ~/.shell_env ]; then
-    source ~/.shell_env
-fi
-
-# Source .bashrc if bash
-if [ -n "$BASH_VERSION" ] && [ -f ~/.bashrc ]; then
-    source ~/.bashrc
-fi
-
-# Show MOTD on login
-if [ -f /etc/motd ]; then
-    cat /etc/motd
-fi
-PROFILE_EOF
-
-                        # Set up .zprofile to source .zshrc for zsh login shells
-                        cat > /home/dev/.zprofile << 'ZPROFILE_EOF'
-# Source .zshrc for login shells (like SSH)
-if [ -f ~/.zshrc ]; then
-    source ~/.zshrc
-fi
-
-# Show MOTD on login
-if [ -f /etc/motd ]; then
-    cat /etc/motd
-fi
-ZPROFILE_EOF
                         else
-                            echo "[STARTUP] Preserving existing shell configuration files"
+                            echo "[STARTUP] CREATE_SH_ENV='$CREATE_SH_ENV' - Using existing shell configuration from persistent disk"
+                            echo "[STARTUP] Current files in /home/dev:"
+                            ls -la /home/dev/.??* 2>/dev/null || echo "[STARTUP] No hidden files found in /home/dev"
                         fi
+
+                        # Ensure correct ownership
+                        chown -R dev:dev /home/dev
 
                         echo "[STARTUP] Setting up dev user..."
                         # Create dev user with zsh as default shell (same UID as init container)
@@ -1696,121 +1619,6 @@ ZPROFILE_EOF
                             echo "[STARTUP] Hiding lost+found directory (normal for ext4 filesystem)"
                             chattr +h /home/dev/lost+found 2>/dev/null || chmod 700 /home/dev/lost+found
                         fi
-
-                        # Handle oh-my-zsh installation based on CREATE_SH_ENV flag
-                        if [ "$CREATE_SH_ENV" = "true" ]; then
-                            # Remove existing oh-my-zsh installation if it exists (forced recreation)
-                            if [ -d "/home/dev/.oh-my-zsh" ]; then
-                                echo "[STARTUP] Removing existing oh-my-zsh installation for forced recreation..."
-                                rm -rf /home/dev/.oh-my-zsh
-                            fi
-                            
-                            echo "[STARTUP] Installing oh-my-zsh with clean theme (no font dependencies)..."
-                            # Install oh-my-zsh for dev user (this creates a default .zshrc)
-                            su - dev -c 'sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)" "" --unattended'
-                            
-                            # Install useful zsh plugins
-                            su - dev -c 'git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions'
-                            su - dev -c 'git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting'
-                        else
-                            echo "[STARTUP] Preserving existing oh-my-zsh installation (if any)"
-                        fi
-                        
-                        # Only create .zshrc when CREATE_SH_ENV is true or if it doesn't exist
-                        if [ "$CREATE_SH_ENV" = "true" ] || [ ! -f "/home/dev/.zshrc" ]; then
-                            echo "[STARTUP] Creating .zshrc configuration..."
-                            # Set up .zshrc with oh-my-zsh and clean configuration
-                        cat > /home/dev/.zshrc << 'ZSHRC_EOF'
-# Source shared environment first
-[ -f ~/.shell_env ] && source ~/.shell_env
-
-# Function to check for GPU reservation expiry warnings
-check_warnings() {
-    setopt NULL_GLOB 2>/dev/null
-    local warning_files=(/home/dev/WARN_EXPIRES_IN_*MIN.txt)
-    if [[ ${#warning_files[@]} -gt 0 ]] && [[ -f "${warning_files[1]}" ]]; then
-        # Extract minutes from filename (e.g., WARN_EXPIRES_IN_15MIN.txt -> 15)
-        local minutes="${warning_files[1]:t:r}"  # Get basename without extension
-        minutes="${minutes#WARN_EXPIRES_IN_}"    # Remove prefix
-        minutes="${minutes%MIN}"                 # Remove suffix
-        echo -e "\033[1;31m🚨 URGENT: Server expires in <${minutes} minutes! 🚨\033[0m"
-    fi
-}
-
-# Run warning check before every command prompt (zsh hook)
-precmd() { check_warnings }
-
-# Add conda to PATH
-export PATH="/opt/conda/bin:$PATH"
-
-# Path to oh-my-zsh installation
-export ZSH="$HOME/.oh-my-zsh"
-
-# Use robbyrussell theme (clean, no font dependencies)
-ZSH_THEME="robbyrussell"
-
-# Plugins - enable autosuggestions and syntax highlighting
-plugins=(
-    git
-    zsh-autosuggestions
-    zsh-syntax-highlighting
-    docker
-    kubectl
-    npm
-    python
-    sudo
-    colored-man-pages
-    command-not-found
-)
-
-# Load oh-my-zsh
-source $ZSH/oh-my-zsh.sh
-
-# Configure autosuggestions - light grey, history-based
-ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"  # Light grey (works in all terminals)
-ZSH_AUTOSUGGEST_STRATEGY=(history completion)
-
-# Shell selection helpers
-alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
-alias use-zsh='echo "Already using zsh with autocompletion! 🚀"'
-
-# Additional zsh settings for better UX
-setopt AUTO_CD              # Auto change to directory without cd
-setopt CORRECT              # Correct typos
-setopt HIST_VERIFY          # Show command with history expansion to user before running it
-setopt SHARE_HISTORY        # Share history between sessions
-setopt HIST_IGNORE_DUPS     # Don't record duplicate commands
-setopt HIST_IGNORE_SPACE    # Don't record commands starting with space
-
-# Custom aliases for GPU development
-alias gpu-info='nvidia-smi'
-alias gpu-watch='watch -n 1 nvidia-smi'
-alias ll='ls -alF'
-alias la='ls -A'
-alias l='ls -CF'
-
-# Custom prompt to show full path (no time)
-PROMPT='%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%} $ '
-
-ZSHRC_EOF
-
-                        # Set ownership of config file
-                        chown 1000:1000 /home/dev/.zshrc
-                        else
-                            echo "[STARTUP] Preserving existing .zshrc"
-                        fi
-                        
-                        # Only install Claude CLI when CREATE_SH_ENV is true or if not installed
-                        if [ "$CREATE_SH_ENV" = "true" ] || [ ! -f "/home/dev/.npm-global/bin/claude" ]; then
-                            echo "[STARTUP] Installing Claude CLI as dev user..."
-                            # Configure npm to use user directory for global packages
-                            su - dev -c "mkdir -p ~/.npm-global"
-                            su - dev -c "npm config set prefix ~/.npm-global"
-                            su - dev -c "npm install -g @anthropic-ai/claude-code" || echo "Claude CLI install failed, continuing..."
-                        else
-                            echo "[STARTUP] Claude CLI already installed"
-                        fi
-
 
                         echo "[STARTUP] Configuring SSH..."
                         mkdir -p /run/sshd
@@ -1839,13 +1647,11 @@ EOF
 
                         echo "[STARTUP] Setting up dev user home directory..."
                         # Ensure all shell config files have correct ownership
-                        chown 1000:1000 /home/dev/.shell_env /home/dev/.bashrc /home/dev/.zshrc /home/dev/.bash_profile /home/dev/.zprofile /home/dev/.profile
                         chown -R 1000:1000 /home/dev
 
                         # Verify SSH keys were set up by init container
                         if [ -f /home/dev/.ssh/authorized_keys ]; then
                             echo "[STARTUP] SSH keys found, setting proper ownership"
-                            chown -R 1000:1000 /home/dev/.ssh
                             chmod 700 /home/dev/.ssh
                             chmod 600 /home/dev/.ssh/authorized_keys
                         else
@@ -1853,17 +1659,22 @@ EOF
                         fi
 
                         echo "[STARTUP] Setting up custom MOTD..."
+                        
                         # Remove ALL default Ubuntu MOTD files and disclaimers
+                        echo "[STARTUP] Removing default MOTD files..."
                         rm -f /etc/motd /etc/update-motd.d/* /etc/legal /usr/share/base-files/motd 2>/dev/null || true
 
                         # Create necessary directories if they don't exist
+                        echo "[STARTUP] Creating MOTD directories..."
                         mkdir -p /etc/motd.d /etc/update-motd.d /var/lib/sudo/lectured
 
                         # Disable Ubuntu's built-in copyright notices
+                        echo "[STARTUP] Disabling Ubuntu copyright notices..."
                         touch /etc/motd.d/00-header
                         chmod 644 /etc/motd.d/00-header
 
                         # Disable the sudo reminder by creating empty file and all possible methods
+                        echo "[STARTUP] Disabling sudo lecture..."
                         touch /var/lib/sudo/lectured/dev
                         mkdir -p /var/lib/sudo/lectured
                         echo "dev" > /var/lib/sudo/lectured/dev
@@ -1873,15 +1684,31 @@ EOF
                         echo 'Defaults !lecture' >> /etc/sudoers.d/dev
 
                         # Create custom MOTD script with proper error handling
-                        cat > /etc/update-motd.d/00-custom << 'MOTD_EOF'
+                        echo "[STARTUP] Creating custom MOTD script..."
+                        
+                        # Pass temporary disk warning flag to MOTD script
+                        if [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
+                            echo "[STARTUP] Adding temporary disk warning to MOTD"
+                            echo "TEMPORARY_DISK=true" > /etc/gpu-dev-flags
+                        else
+                            echo "TEMPORARY_DISK=false" > /etc/gpu-dev-flags
+                        fi
+                        
+                        cat > /etc/update-motd.d/00-custom << MOTD_EOF
 #!/bin/bash
 # Custom MOTD for GPU dev servers
+
+# Read GPU dev flags
+TEMPORARY_DISK="false"
+if [ -f "/etc/gpu-dev-flags" ]; then
+    source /etc/gpu-dev-flags
+fi
 
 # Get OS info
 OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
 
 # Get container info
-CONTAINER_IMAGE="pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel"
+CONTAINER_IMAGE="{GPU_DEV_CONTAINER_IMAGE}"
 
 # Get CUDA toolkit info
 CUDA_INFO="CUDA toolkit unavailable"
@@ -1936,21 +1763,39 @@ Shell: Zsh (default with oh-my-zsh) | Bash available
   • Use 'gpu-info' or 'nvidia-smi' to check GPU status
   • Terminal works in all editors (no special fonts needed)
 
+WELCOME_EOF
+
+# Add temporary disk warning if applicable
+if [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
+    cat << WARNING_EOF
+⚠️  TEMPORARY STORAGE WARNING:
+  • Your persistent disk is already mounted to your first reservation
+  • This reservation uses temporary storage that will be LOST when it ends
+  • Files in /home/dev will NOT persist between sessions
+  • To keep files, use 'scp' to copy them to another server or cloud storage before the reservation ends
+WARNING_EOF
+fi
+
+cat << FOOTER_EOF
 For support, reach out to: oncall:pytorch_release_engineering
 
 Happy coding! 🐍⚡
 
-WELCOME_EOF
+FOOTER_EOF
 MOTD_EOF
 
                         # Make MOTD script executable
+                        echo "[STARTUP] Making MOTD script executable..."
                         chmod +x /etc/update-motd.d/00-custom
 
                         # Generate the MOTD once (no dynamic updates to avoid duplicates)
-                        /etc/update-motd.d/00-custom > /etc/motd 2>/dev/null || echo "Welcome to GPU dev server!" > /etc/motd
-
-                        # Note: MOTD will be shown by .bash_profile sourcing .bashrc which runs MOTD
-                        # No need to create separate .bash_profile for MOTD since we already have environment setup
+                        echo "[STARTUP] Generating MOTD..."
+                        if /etc/update-motd.d/00-custom > /etc/motd 2>/dev/null; then
+                            echo "[STARTUP] ✓ MOTD generated successfully"
+                        else
+                            echo "[STARTUP] ✗ MOTD generation failed, using fallback"
+                            echo "Welcome to GPU dev server!" > /etc/motd
+                        fi
 
                         # Disable PAM's dynamic MOTD completely
                         sed -i 's/session    optional     pam_motd.so/#&/g' /etc/pam.d/sshd 2>/dev/null || true
@@ -1964,17 +1809,15 @@ MOTD_EOF
                         echo 'export UBUNTU_PRO_HIDDEN=1' >> /home/dev/.bashrc
                         touch /etc/motd.d/00-header /etc/motd.d/10-help-text
 
-                        echo "[STARTUP] Installing Jupyter Lab..."
-                        # Install Jupyter Lab with pip (more reliable than conda)
-                        pip install --no-cache-dir jupyterlab ipywidgets matplotlib seaborn pandas numpy
-                        
+                        echo "[STARTUP] Jupyter Lab pre-installed in Docker image..."
+
                         # Always create Jupyter config and token (for later use)
                         echo "[STARTUP] Setting up Jupyter Lab configuration..."
                         su - dev -c "mkdir -p ~/.jupyter"
-                        
+
                         # Generate Jupyter config and token (always, regardless of JUPYTER_ENABLED)
                         JUPYTER_TOKEN=$(openssl rand -hex 32)
-                        
+
                         # Create Jupyter config file
                         cat > /home/dev/.jupyter/jupyter_lab_config.py << EOF
 c.ServerApp.ip = '0.0.0.0'
@@ -1988,7 +1831,7 @@ c.ServerApp.notebook_dir = '/workspace'
 c.ServerApp.root_dir = '/workspace'
 EOF
                         chown 1000:1000 /home/dev/.jupyter/jupyter_lab_config.py
-                        
+
                         # Store Jupyter token in a file for later retrieval
                         echo "$JUPYTER_TOKEN" > /tmp/jupyter_token
                         chown 1000:1000 /tmp/jupyter_token
@@ -2022,6 +1865,9 @@ EOF
                         ),
                         client.V1EnvVar(
                             name="CREATE_SH_ENV", value=str(is_new_disk or recreate_env).lower()
+                        ),
+                        client.V1EnvVar(
+                            name="USE_PERSISTENT_DISK", value=str(use_persistent_disk).lower()
                         )
                     ],
                     resources=client.V1ResourceRequirements(
@@ -2033,7 +1879,13 @@ EOF
                         client.V1VolumeMount(
                             name="shared-workspace", mount_path="/workspace"
                         ),
+                        client.V1VolumeMount(name="dshm", mount_path="/dev/shm"),
                     ],
+                    security_context=client.V1SecurityContext(
+                        capabilities=client.V1Capabilities(
+                            add=["IPC_LOCK"]
+                        )
+                    ),
                 )
             ],
             volumes=[
@@ -2046,6 +1898,10 @@ EOF
                 client.V1Volume(
                     name="shared-workspace",
                     empty_dir=client.V1EmptyDirVolumeSource(size_limit="500Gi"),
+                ),
+                client.V1Volume(
+                    name="dshm",
+                    empty_dir=client.V1EmptyDirVolumeSource(medium="Memory", size_limit="1Gi"),
                 ),
             ],
             node_selector={"GpuType": gpu_type},
@@ -2063,7 +1919,7 @@ EOF
             annotations["gpu-dev-volume-id"] = persistent_volume_id
         if user_id:
             annotations["gpu-dev-user-id"] = user_id
-        
+
         pod_metadata = client.V1ObjectMeta(
             name=pod_name,
             namespace="gpu-dev",
@@ -2085,8 +1941,6 @@ EOF
 def create_service(k8s_client, pod_name: str, node_port: int):
     """Create NodePort service for SSH access"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Create service spec
@@ -2119,8 +1973,6 @@ def create_service(k8s_client, pod_name: str, node_port: int):
 def create_jupyter_service(k8s_client, pod_name: str, jupyter_port: int):
     """Create NodePort service for Jupyter Lab access"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Create service spec for Jupyter
@@ -2150,131 +2002,9 @@ def create_jupyter_service(k8s_client, pod_name: str, jupyter_port: int):
         raise
 
 
-def generate_pod_yaml(pod_name: str, gpu_count: int, github_public_key: str) -> str:
-    """Generate Kubernetes pod YAML with GPU resources and SSH setup"""
-    return f"""
-apiVersion: v1
-kind: Pod
-metadata:
-  name: {pod_name}
-  namespace: gpu-dev
-  labels:
-    app: gpu-dev-pod
-    reservation: {pod_name}
-spec:
-  restartPolicy: Never
-  initContainers:
-  - name: ssh-setup
-    image: alpine:latest
-    command: ["/bin/sh"]
-    args:
-    - -c
-    - |
-      mkdir -p /home/dev/.ssh
-      echo '{github_public_key}' > /home/dev/.ssh/authorized_keys
-      chmod 700 /home/dev/.ssh
-      chmod 600 /home/dev/.ssh/authorized_keys
-      chown -R 1000:1000 /home/dev/.ssh
-    volumeMounts:
-    - name: dev-home
-      mountPath: /home/dev
-  containers:
-  - name: gpu-dev
-    image: pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel
-
-    command: ["/bin/bash"]
-    args:
-    - -c
-    - |
-      # Install SSH server
-      apt-get update && apt-get install -y openssh-server sudo
-
-      # Create dev user
-      useradd -m -s /bin/bash dev
-      echo 'dev:dev' | chpasswd
-      usermod -aG sudo dev
-
-      # Configure SSH
-      mkdir -p /run/sshd
-      echo 'PermitRootLogin no' >> /etc/ssh/sshd_config
-      echo 'PasswordAuthentication no' >> /etc/ssh/sshd_config
-      echo 'PubkeyAuthentication yes' >> /etc/ssh/sshd_config
-
-      # Start SSH daemon
-      /usr/sbin/sshd -D
-    ports:
-    - containerPort: 22
-    resources:
-      limits:
-        nvidia.com/gpu: {gpu_count}
-      requests:
-        nvidia.com/gpu: {gpu_count}
-    volumeMounts:
-    - name: dev-home
-      mountPath: /home/dev
-    - name: shared-workspace
-      mountPath: /workspace
-  volumes:
-  - name: dev-home
-    emptyDir: {{}}
-  - name: shared-workspace
-    emptyDir:
-      sizeLimit: 100Gi
-  tolerations:
-  - key: nvidia.com/gpu
-    operator: Exists
-    effect: NoSchedule
-"""
-
-
-def generate_service_yaml(pod_name: str, node_port: int) -> str:
-    """Generate Kubernetes NodePort service YAML"""
-    return f"""
-apiVersion: v1
-kind: Service
-metadata:
-  name: {pod_name}-ssh
-  namespace: gpu-dev
-spec:
-  type: NodePort
-  ports:
-  - port: 22
-    targetPort: 22
-    nodePort: {node_port}
-    protocol: TCP
-  selector:
-    reservation: {pod_name}
-"""
-
-
-def apply_kubernetes_yaml(yaml_content: str, filename: str):
-    """Apply Kubernetes YAML using kubectl"""
-    try:
-        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
-            f.write(yaml_content)
-            f.flush()
-
-            cmd = ["kubectl", "apply", "-f", f.name]
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            logger.info(f"Applied {filename}: {result.stdout.strip()}")
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to apply {filename}: {e.stderr.decode()}")
-        raise
-    finally:
-        try:
-            os.unlink(f.name)
-        except Exception:
-            pass
-
-
 def wait_for_pod_ready(k8s_client, pod_name: str, timeout_seconds: int = 600):
     """Wait for pod to be ready"""
     try:
-        import time
-
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         start_time = time.time()
@@ -2308,7 +2038,6 @@ def get_node_public_ip() -> str:
     try:
         # Get node information using Kubernetes client
         k8s_client = get_k8s_client()
-        from kubernetes import client
 
         v1 = client.CoreV1Api(k8s_client)
         nodes = v1.list_node()
@@ -2336,7 +2065,6 @@ def get_node_instance_id() -> str:
     """Get EC2 instance ID of one of the EKS nodes"""
     try:
         k8s_client = get_k8s_client()
-        from kubernetes import client
 
         v1 = client.CoreV1Api(k8s_client)
         nodes = v1.list_node()
@@ -2361,9 +2089,9 @@ def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -
         # Use EC2 tags to track user disks
         disk_tag_key = "gpu-dev-user"
         disk_tag_value = user_id
-        
+
         logger.info(f"Looking for existing persistent disk for user {user_id} in AZ {availability_zone}")
-        
+
         # Check for existing disk with this user tag in the specified AZ
         response = ec2_client.describe_volumes(
             Filters=[
@@ -2372,13 +2100,13 @@ def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -
                 {"Name": "status", "Values": ["available", "in-use"]},
             ]
         )
-        
+
         volumes = response.get("Volumes", [])
         if volumes:
             volume_id = volumes[0]["VolumeId"]
             logger.info(f"Found existing persistent disk {volume_id} for user {user_id} in {availability_zone}")
             return volume_id, False  # existing disk
-        
+
         # Create new 1TB gp3 disk in the specified AZ
         logger.info(f"Creating new 1TB persistent disk for user {user_id} in AZ {availability_zone}")
         create_response = ec2_client.create_volume(
@@ -2400,17 +2128,17 @@ def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -
                 }
             ],
         )
-        
+
         volume_id = create_response["VolumeId"]
-        
+
         # Wait for volume to be available
         logger.info(f"Waiting for volume {volume_id} to become available")
         waiter = ec2_client.get_waiter("volume_available")
         waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
-        
+
         logger.info(f"Created new persistent disk {volume_id} for user {user_id} in {availability_zone}")
         return volume_id, True  # new disk
-        
+
     except Exception as e:
         logger.error(f"Error creating/finding persistent disk for user {user_id} in AZ {availability_zone}: {str(e)}")
         raise
@@ -2422,9 +2150,9 @@ def create_or_find_persistent_disk(user_id: str) -> tuple[str, bool]:
         # Use EC2 tags to track user disks
         disk_tag_key = "gpu-dev-user"
         disk_tag_value = user_id
-        
+
         logger.info(f"Looking for existing persistent disk for user {user_id}")
-        
+
         # Check for existing disk with this user tag
         response = ec2_client.describe_volumes(
             Filters=[
@@ -2433,13 +2161,13 @@ def create_or_find_persistent_disk(user_id: str) -> tuple[str, bool]:
                 {"Name": "status", "Values": ["available", "in-use"]},
             ]
         )
-        
+
         volumes = response.get("Volumes", [])
         if volumes:
             volume_id = volumes[0]["VolumeId"]
             logger.info(f"Found existing persistent disk {volume_id} for user {user_id}")
             return volume_id, False  # existing disk
-        
+
         # Create new 1TB gp3 disk
         logger.info(f"Creating new 1TB persistent disk for user {user_id}")
         create_response = ec2_client.create_volume(
@@ -2460,17 +2188,17 @@ def create_or_find_persistent_disk(user_id: str) -> tuple[str, bool]:
                 }
             ],
         )
-        
+
         volume_id = create_response["VolumeId"]
-        
+
         # Wait for volume to be available
         logger.info(f"Waiting for volume {volume_id} to become available")
         waiter = ec2_client.get_waiter("volume_available")
         waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
-        
+
         logger.info(f"Created new persistent disk {volume_id} for user {user_id}")
         return volume_id, True  # new disk
-        
+
     except Exception as e:
         logger.error(f"Error creating/finding persistent disk for user {user_id}: {str(e)}")
         raise
@@ -2481,22 +2209,22 @@ def attach_persistent_disk_to_node(volume_id: str, node_instance_id: str) -> str
     try:
         # Find available device name (/dev/xvdf, /dev/xvdg, etc.)
         device_name = "/dev/xvdf"  # Start with /dev/xvdf
-        
+
         logger.info(f"Attaching volume {volume_id} to instance {node_instance_id} as {device_name}")
-        
+
         attach_response = ec2_client.attach_volume(
             VolumeId=volume_id,
             InstanceId=node_instance_id,
             Device=device_name,
         )
-        
+
         # Wait for attachment to complete
         waiter = ec2_client.get_waiter("volume_in_use")
         waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
-        
+
         logger.info(f"Successfully attached volume {volume_id} to instance {node_instance_id} as {device_name}")
         return device_name
-        
+
     except Exception as e:
         logger.error(f"Error attaching volume {volume_id} to instance {node_instance_id}: {str(e)}")
         raise
@@ -2505,30 +2233,28 @@ def attach_persistent_disk_to_node(volume_id: str, node_instance_id: str) -> str
 def get_node_instance_id_for_pod(k8s_client, pod_name: str) -> str:
     """Get EC2 instance ID for the node where pod is scheduled"""
     try:
-        from kubernetes import client
-        
         v1 = client.CoreV1Api(k8s_client)
-        
+
         # Get pod to find which node it's scheduled on
         pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
         node_name = pod.spec.node_name
-        
+
         if not node_name:
             raise ValueError(f"Pod {pod_name} is not scheduled to any node")
-        
+
         # Get node details to find instance ID
         node = v1.read_node(name=node_name)
         provider_id = node.spec.provider_id
-        
+
         if not provider_id or "aws:///" not in provider_id:
             raise ValueError(f"Node {node_name} has invalid provider ID: {provider_id}")
-        
+
         # Extract instance ID from providerID like "aws:///us-east-2a/i-1234567890abcdef0"
         instance_id = provider_id.split("/")[-1]
-        
+
         logger.info(f"Pod {pod_name} is scheduled on node {node_name} (instance {instance_id})")
         return instance_id
-        
+
     except Exception as e:
         logger.error(f"Error getting instance ID for pod {pod_name}: {str(e)}")
         raise
@@ -2538,7 +2264,7 @@ def should_use_persistent_disk(user_id: str, current_reservation_id: str) -> boo
     """Check if this user should get a persistent disk (no other active reservations)"""
     try:
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        
+
         # Check for other active reservations for this user (excluding current one)
         response = reservations_table.query(
             IndexName="UserIndex",
@@ -2549,22 +2275,31 @@ def should_use_persistent_disk(user_id: str, current_reservation_id: str) -> boo
                 ":user_id": user_id,
                 ":current_id": current_reservation_id,
                 ":active": "active",
-                ":preparing": "preparing", 
+                ":preparing": "preparing",
                 ":queued": "queued",
                 ":pending": "pending",
             },
         )
-        
+
         existing_reservations = response.get("Items", [])
-        
-        # If no other existing reservations, user gets persistent disk
-        if not existing_reservations:
-            logger.info(f"User {user_id} has no other existing reservations - will use persistent disk")
+
+        # Check if any existing reservations actually have a persistent disk
+        reservations_with_persistent_disk = [
+            res for res in existing_reservations 
+            if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
+        ]
+
+        # If no other existing reservations have persistent disks, user gets persistent disk
+        if not reservations_with_persistent_disk:
+            logger.info(f"User {user_id} has no other reservations with persistent disks - will use persistent disk")
             return True
         else:
-            logger.info(f"User {user_id} has {len(existing_reservations)} other existing reservations - no persistent disk")
+            persistent_res = reservations_with_persistent_disk[0]
+            persistent_res_id = persistent_res.get("reservation_id", "unknown")[:8]
+            logger.info(
+                f"User {user_id} has existing reservation {persistent_res_id} with persistent disk - no persistent disk for this reservation")
             return False
-            
+
     except Exception as e:
         logger.error(f"Error checking existing reservations for user {user_id}: {str(e)}")
         # Default to no persistent disk on error
@@ -2574,8 +2309,6 @@ def should_use_persistent_disk(user_id: str, current_reservation_id: str) -> boo
 def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]:
     """Get instance type and GPU type from the node where pod is scheduled"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Get pod to find which node it's scheduled on
@@ -2599,6 +2332,9 @@ def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]
             "g4dn.8xlarge": "T4",
             "g4dn.12xlarge": "T4",
             "g4dn.16xlarge": "T4",
+            "g6.12xlarge": "L4",
+            "g6.16xlarge": "L4",
+            "g6.24xlarge": "L4",
             "p4d.24xlarge": "A100",
             "p5.48xlarge": "H100",
             "p5e.48xlarge": "H200",
@@ -2621,9 +2357,6 @@ def get_instance_type_and_gpu_info(k8s_client, pod_name: str) -> tuple[str, str]
 def get_jupyter_token_from_pod(k8s_client, pod_name: str) -> str:
     """Retrieve Jupyter token from pod's token file"""
     try:
-        from kubernetes import client
-        from kubernetes.stream import stream
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Execute command to read the token file
@@ -2793,7 +2526,7 @@ def update_reservation_connection_info(
         if persistent_volume_id:
             update_expression += ", ebs_volume_id = :ebs_volume_id"
             expression_values[":ebs_volume_id"] = persistent_volume_id
-        
+
         if ebs_availability_zone:
             update_expression += ", ebs_availability_zone = :ebs_availability_zone"
             expression_values[":ebs_availability_zone"] = ebs_availability_zone
@@ -2926,10 +2659,6 @@ def wait_for_ssh_service(
 ) -> bool:
     """Wait for SSH service to be ready by checking pod logs and testing connectivity"""
     try:
-        import socket
-
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
         start_time = time.time()
 
@@ -2981,8 +2710,6 @@ def wait_for_ssh_service(
 def get_detailed_pod_status(k8s_client, pod_name: str) -> dict:
     """Get detailed pod status including phase, conditions, and error messages"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
         pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
 
@@ -3282,7 +3009,8 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
             logger.warning(f"Cannot cancel reservation {full_reservation_id} in status {current_status}")
             return True
 
-        logger.info(f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})")
+        logger.info(
+            f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})")
 
         try:
             reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
@@ -3307,17 +3035,16 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
                     try:
                         # First, create snapshot if pod has persistent storage
                         k8s_client = get_k8s_client()
-                        from kubernetes import client
                         v1 = client.CoreV1Api(k8s_client)
-                        
+
                         try:
                             pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
                             volume_id = None
-                            
+
                             # Check pod annotations for persistent volume info
                             if pod.metadata.annotations:
                                 volume_id = pod.metadata.annotations.get("gpu-dev-volume-id")
-                            
+
                             # Create cancellation snapshot if we have volume info
                             if volume_id:
                                 logger.info(f"Creating cancellation snapshot for user {user_id}, volume {volume_id}")
@@ -3327,15 +3054,16 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
                                 else:
                                     logger.warning(f"Failed to create cancellation snapshot for {pod_name}")
                             else:
-                                logger.info(f"No persistent storage found for pod {pod_name} - skipping cancellation snapshot")
-                                
+                                logger.info(
+                                    f"No persistent storage found for pod {pod_name} - skipping cancellation snapshot")
+
                         except Exception as pod_read_error:
                             logger.warning(f"Could not read pod {pod_name} for snapshot info: {pod_read_error}")
-                        
+
                         # Now cleanup pod resources
                         cleanup_pod_resources(pod_name, namespace)
                         logger.info(f"Cleaned up pod resources for cancelled reservation {full_reservation_id}")
-                        
+
                     except Exception as cleanup_error:
                         logger.error(f"Error cleaning up pod {pod_name}: {cleanup_error}")
 
@@ -3356,8 +3084,6 @@ def enable_jupyter_in_pod(
 ) -> bool:
     """Enable Jupyter Lab in a running pod"""
     try:
-        from kubernetes import client
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Check if Jupyter is already running using standard exec
@@ -3391,14 +3117,14 @@ def enable_jupyter_in_pod(
             "-c",
             """
             set -e
-            
+
             # Start Jupyter as dev user in background (config already exists)
             echo "Starting Jupyter Lab with existing config..."
             nohup su - dev -c "cd /workspace && /opt/conda/bin/jupyter-lab --config=/home/dev/.jupyter/jupyter_lab_config.py" > /tmp/jupyter.log 2>&1 &
-            
+
             # Wait for startup
             sleep 3
-            
+
             # Verify it started
             if pgrep -f "jupyter" > /dev/null; then
                 echo "Jupyter Lab started successfully"
@@ -3428,8 +3154,6 @@ def enable_jupyter_in_pod(
             try:
                 existing_jupyter_port = None
                 try:
-                    from kubernetes import client
-
                     v1 = client.CoreV1Api(k8s_client)
                     jupyter_service = v1.read_namespaced_service(
                         name=f"{pod_name}-jupyter", namespace=namespace
@@ -3489,9 +3213,6 @@ def disable_jupyter_in_pod(
 ) -> bool:
     """Disable Jupyter Lab in a running pod"""
     try:
-        from kubernetes import client
-        from kubernetes.stream import stream
-
         v1 = client.CoreV1Api(k8s_client)
 
         # Kill Jupyter processes
@@ -3500,15 +3221,15 @@ def disable_jupyter_in_pod(
             "-c",
             """
             set -e
-            
+
             echo "Stopping Jupyter Lab..."
-            
+
             # Kill all jupyter processes
             pkill -f jupyter || true
-            
+
             # Wait a moment
             sleep 2
-            
+
             # Verify it stopped
             if ! pgrep -f "jupyter" > /dev/null; then
                 echo "Jupyter Lab stopped successfully"
@@ -3519,7 +3240,7 @@ def disable_jupyter_in_pod(
                 # Force kill if needed
                 pkill -9 -f jupyter || true
                 sleep 1
-                
+
                 if ! pgrep -f "jupyter" > /dev/null; then
                     echo "Jupyter Lab force-stopped"
                     rm -f /tmp/jupyter_token /tmp/jupyter.log 2>/dev/null || true
@@ -3556,8 +3277,6 @@ def disable_jupyter_in_pod(
 
             # Remove Jupyter service
             try:
-                from kubernetes import client
-
                 v1 = client.CoreV1Api(k8s_client)
                 v1.delete_namespaced_service(
                     name=f"{pod_name}-jupyter", namespace=namespace
@@ -3601,9 +3320,6 @@ def add_user_to_pod(
 ) -> bool:
     """Add a GitHub user's SSH keys to a running pod"""
     try:
-        from kubernetes import client
-        from kubernetes.stream import stream
-
         # Fetch GitHub user's public SSH keys using shared function
         keys_to_add = get_github_public_key(github_username, validate=True)
         if not keys_to_add:
@@ -3617,17 +3333,17 @@ def add_user_to_pod(
             "-c",
             f"""
             set -e
-            
+
             echo "Adding SSH keys for user {github_username}..."
-            
+
             # Ensure .ssh directory exists with correct permissions
             mkdir -p /home/dev/.ssh
             chmod 700 /home/dev/.ssh
-            
+
             # Create or append to authorized_keys
             touch /home/dev/.ssh/authorized_keys
             chmod 600 /home/dev/.ssh/authorized_keys
-            
+
             # Add keys (avoid duplicates by checking if key already exists)
             keys_added=0
             while IFS= read -r key; do
@@ -3638,10 +3354,10 @@ def add_user_to_pod(
             done << 'EOF'
 {keys_to_add}
 EOF
-            
+
             # Set proper ownership
             chown -R 1000:1000 /home/dev/.ssh
-            
+
             echo "Added $keys_added new SSH keys for {github_username}"
             echo "SSH keys for {github_username} added successfully"
             """,
@@ -3882,9 +3598,6 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
     try:
         logger.info(f"Cleaning up pod {pod_name} in namespace {namespace}")
 
-        # Configure Kubernetes client
-        from kubernetes import client
-
         k8s_client = get_k8s_client()
         v1 = client.CoreV1Api(k8s_client)
 
@@ -3935,13 +3648,13 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
         message = json.loads(record["body"])
         reservation_id = message.get("reservation_id")
         extension_hours = message.get("extension_hours")
-        
+
         if not all([reservation_id, extension_hours]):
             logger.error(f"Missing required fields in extend reservation action: {message}")
             return True
-        
+
         logger.info(f"Processing extend reservation: {reservation_id} by {extension_hours} hours")
-        
+
         try:
             reservation = find_reservation_by_prefix(reservation_id)
             full_reservation_id = reservation["reservation_id"]
@@ -3952,14 +3665,14 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
         except Exception as db_error:
             logger.error(f"Database error looking up reservation {reservation_id}: {db_error}")
             return False
-        
+
         current_status = reservation.get("status")
         if current_status not in ["active", "preparing"]:
             error_msg = f"Cannot extend reservation in status {current_status}"
             logger.error(error_msg)
             update_reservation_error(full_reservation_id, error_msg, "extension_error")
             return True
-        
+
         try:
             current_expires_at = reservation.get("expires_at")
             if not current_expires_at:
@@ -3967,23 +3680,23 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
                 logger.error(error_msg)
                 update_reservation_error(full_reservation_id, error_msg, "extension_error")
                 return True
-            
+
             if isinstance(current_expires_at, str):
                 current_expiry = datetime.fromisoformat(current_expires_at.replace('Z', '+00:00'))
             else:
                 current_expiry = datetime.fromisoformat(current_expires_at)
-            
+
             new_expiry = current_expiry + timedelta(hours=float(extension_hours))
             new_expires_at = new_expiry.isoformat()
-            
+
             logger.info(f"Extending reservation {full_reservation_id} from {current_expires_at} to {new_expires_at}")
-            
+
         except Exception as date_error:
             error_msg = f"Error calculating new expiration time: {str(date_error)}"
             logger.error(error_msg)
             update_reservation_error(full_reservation_id, error_msg, "extension_error")
             return True
-        
+
         try:
             reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
             update_expression = "SET expires_at = :new_expires_at, last_updated = :timestamp"
@@ -3991,30 +3704,30 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
                 ":new_expires_at": new_expires_at,
                 ":timestamp": int(time.time())
             }
-            
+
             if "duration_hours" in reservation:
                 current_duration = float(reservation.get("duration_hours", 0))
                 new_duration = current_duration + float(extension_hours)
                 update_expression += ", duration_hours = :new_duration"
                 expression_values[":new_duration"] = Decimal(str(new_duration))
-            
+
             update_expression += " REMOVE extension_error"
-            
+
             reservations_table.update_item(
                 Key={"reservation_id": full_reservation_id},
                 UpdateExpression=update_expression,
                 ExpressionAttributeValues=expression_values
             )
-            
+
             logger.info(f"Successfully extended reservation {full_reservation_id} by {extension_hours} hours")
             return True
-            
+
         except Exception as update_error:
             error_msg = f"Database error during extension: {str(update_error)}"
             logger.error(error_msg)
             update_reservation_error(full_reservation_id, error_msg, "extension_error")
             return False
-    
+
     except Exception as e:
         logger.error(f"Error processing extend reservation action: {str(e)}")
         return False
