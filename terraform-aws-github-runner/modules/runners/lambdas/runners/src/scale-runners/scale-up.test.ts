@@ -95,7 +95,7 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' }, metrics);
+    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'repo', owner: 'owner' }, { repo: 'repo', owner: 'owner' }, metrics);
     expect(mockedListGithubRunners).not.toBeCalled();
   });
 
@@ -135,7 +135,7 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'scale-config-repo', owner: 'owner' }, metrics);
+    expect(mockedGetRunnerTypes).toBeCalledWith({ repo: 'scale-config-repo', owner: 'owner' }, { repo: 'repo', owner: 'owner' }, metrics);
     expect(mockedListGithubRunners).not.toBeCalled();
   });
 
@@ -243,7 +243,7 @@ describe('scaleUp', () => {
 
     await scaleUp('aws:sqs', payload, metrics);
     expect(mockedGetRunnerTypes).toBeCalledTimes(1);
-    expect(mockedGetRunnerTypes).toBeCalledWith(repo, metrics);
+    expect(mockedGetRunnerTypes).toBeCalledWith(repo, repo, metrics);
     expect(mockedListGithubRunners).toBeCalledTimes(2);
     expect(mockedListGithubRunners).toBeCalledWith(repo, metrics);
     expect(mockedCreateRegistrationTokenForRepo).not.toBeCalled();

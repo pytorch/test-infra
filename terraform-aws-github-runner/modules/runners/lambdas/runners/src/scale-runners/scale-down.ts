@@ -270,7 +270,7 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
 
   const runnerTypes = await getRunnerTypes(
     backwardCompatibleGetRepoForgetRunnerTypes(ec2runner),
-    getRepo(ec2runner.repo as string),
+    ec2runner.repo ? getRepo(ec2runner.repo as string) : { owner: ec2runner.org as string, repo: '' },
     metrics
   );
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
@@ -284,7 +284,7 @@ export async function minRunners(ec2runner: RunnerInfo, metrics: ScaleDownMetric
 
   const runnerTypes = await getRunnerTypes(
     backwardCompatibleGetRepoForgetRunnerTypes(ec2runner),
-    getRepo(ec2runner.repo as string),
+    ec2runner.repo ? getRepo(ec2runner.repo as string) : { owner: ec2runner.org as string, repo: '' },
     metrics
   );
   return runnerTypes.get(ec2runner.runnerType)?.min_available ?? Config.Instance.minAvailableRunners;
