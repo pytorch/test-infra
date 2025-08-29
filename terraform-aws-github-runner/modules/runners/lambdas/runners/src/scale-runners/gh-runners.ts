@@ -309,33 +309,11 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
 }
 
 /**
- * Download a file from GitHub using a direct HTTP request to raw.githubusercontent.com
- */
-export async function downloadFileFromGitHub(repo: Repo, filepath: string, metrics: Metrics): Promise<string> {
-  const rawFileUrl = `https://raw.githubusercontent.com/${repo.owner}/${repo.repo}/main/${filepath}`;
-
-  const response = await expBackOff(() => {
-    return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
-      return axios.get(rawFileUrl);
-    });
-  });
-
-  /* istanbul ignore next */
-  if (response?.status != 200 || !response.data) {
-    throw Error(
-      `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
-    );
-  }
-
-  console.debug(`[downloadFileFromGitHub]: Successfully fetched file via HTTP`);
-  return response.data;
-}
-
-/**
  Get runner types from scale-config.yml
  */
 export async function getRunnerTypes(
   filerepo: Repo,
+  authrepo: Repo,
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
@@ -343,18 +321,36 @@ export async function getRunnerTypes(
 
   return await redisCached('ghRunners', `getRunnerTypes-${filerepo.owner}.${filerepo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
-    let configYml: string;
-
     try {
-      status = 'doRun';
+      const githubAppClient = Config.Instance.enableOrganizationRunners
+        ? await createGitHubClientForRunnerOrg(authrepo.owner, metrics)
+        : await createGitHubClientForRunnerRepo(authrepo, metrics);
 
       console.debug(
-        `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/` +
-          `${filerepo.owner}/${filerepo.repo}/`,
+        `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${filerepo.owner}/${filerepo.repo}/`,
       );
 
-      // Get the file via HTTP request
-      configYml = await downloadFileFromGitHub(filerepo, filepath, metrics);
+      const response = await expBackOff(() => {
+        return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
+          return githubAppClient.repos.getContent({
+            ...filerepo,
+            path: filepath,
+          });
+        });
+      });
+
+      /* istanbul ignore next */
+      const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
+      if (response?.status != 200 || !content) {
+        throw Error(
+          `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${filerepo.owner}/${filerepo.repo}/`,
+        );
+      }
+
+      const buff = Buffer.from(content, 'base64');
+      const configYml = buff.toString('ascii');
+
+      console.debug(`'${filepath}' contents: ${configYml}`);
 
       const config = YAML.parse(configYml);
       const result: Map<string, RunnerTypeScaleConfig> = new Map(
