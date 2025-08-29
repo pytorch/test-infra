@@ -312,7 +312,7 @@ const toRowData = (
       arch: arch,
     };
 
-    if (repoName === "vllm-project/vllm") {
+    if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
       // These fields are only available on vLLM benchmark
       const extraInfo = JSON.parse(extra);
       row["extra"] = extraInfo;

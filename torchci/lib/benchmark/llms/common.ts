@@ -6,6 +6,7 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "pytorch/executorch": ["ExecuTorch"],
   "pytorch/ao": ["TorchAO benchmark"],
   "vllm-project/vllm": ["vLLM benchmark"],
+  "sgl-project/sglang": ["SGLang benchmark"],
 };
 export const EXCLUDED_METRICS: string[] = [
   "load_status",
