@@ -268,7 +268,11 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
     return false;
   }
 
-  const runnerTypes = await getRunnerTypes(backwardCompatibleGetRepoForgetRunnerTypes(ec2runner), metrics);
+  const runnerTypes = await getRunnerTypes(
+    backwardCompatibleGetRepoForgetRunnerTypes(ec2runner),
+    ec2runner.repo ? getRepo(ec2runner.repo as string) : { owner: ec2runner.org as string, repo: '' },
+    metrics,
+  );
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;
 }
 
@@ -278,7 +282,11 @@ export async function minRunners(ec2runner: RunnerInfo, metrics: ScaleDownMetric
     return Config.Instance.minAvailableRunners;
   }
 
-  const runnerTypes = await getRunnerTypes(backwardCompatibleGetRepoForgetRunnerTypes(ec2runner), metrics);
+  const runnerTypes = await getRunnerTypes(
+    backwardCompatibleGetRepoForgetRunnerTypes(ec2runner),
+    ec2runner.repo ? getRepo(ec2runner.repo as string) : { owner: ec2runner.org as string, repo: '' },
+    metrics,
+  );
   return runnerTypes.get(ec2runner.runnerType)?.min_available ?? Config.Instance.minAvailableRunners;
 }
 

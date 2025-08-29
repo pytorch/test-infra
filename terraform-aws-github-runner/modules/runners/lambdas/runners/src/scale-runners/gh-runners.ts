@@ -307,30 +307,33 @@ export async function getRunnerOrg(org: string, runnerID: string, metrics: Metri
   }
 }
 
+/**
+ Get runner types from scale-config.yml
+ */
 export async function getRunnerTypes(
-  repo: Repo,
+  filerepo: Repo,
+  authrepo: Repo,
   metrics: Metrics,
   filepath = Config.Instance.scaleConfigRepoPath,
 ): Promise<Map<string, RunnerType>> {
   const alphaNumericStr = /^[a-zA-Z0-9.-]+$/;
 
-  return await redisCached('ghRunners', `getRunnerTypes-${repo.owner}.${repo.repo}`, 10 * 60, 0.5, async () => {
+  return await redisCached('ghRunners', `getRunnerTypes-${filerepo.owner}.${filerepo.repo}`, 10 * 60, 0.5, async () => {
     let status = 'noRun';
     try {
-      status = 'doRun';
-      /* istanbul ignore next */
       const githubAppClient = Config.Instance.enableOrganizationRunners
-        ? await createGitHubClientForRunnerOrg(repo.owner, metrics)
-        : await createGitHubClientForRunnerRepo(repo, metrics);
+        ? await createGitHubClientForRunnerOrg(authrepo.owner, metrics)
+        : await createGitHubClientForRunnerRepo(authrepo, metrics);
 
       console.debug(
-        `[getRunnerTypes]: Fetching runner types from ${filepath} for https://github.com/${repo.owner}/${repo.repo}/`,
+        `[getRunnerTypes]: Fetching runner types from ${filepath} for ` +
+          `https://github.com/${filerepo.owner}/${filerepo.repo}/`,
       );
 
       const response = await expBackOff(() => {
         return metrics.trackRequest(metrics.reposGetContentGHCallSuccess, metrics.reposGetContentGHCallFailure, () => {
           return githubAppClient.repos.getContent({
-            ...repo,
+            ...filerepo,
             path: filepath,
           });
         });
@@ -340,7 +343,8 @@ export async function getRunnerTypes(
       const { content }: { content?: string } = { ...(response?.data || {}) } as { content?: string };
       if (response?.status != 200 || !content) {
         throw Error(
-          `Issue (${response.status}) retrieving '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+          `Issue (${response.status}) retrieving '${filepath}' for ` +
+            `https://github.com/${filerepo.owner}/${filerepo.repo}/`,
         );
       }
 
@@ -440,7 +444,7 @@ export async function getRunnerTypes(
       return filteredResult;
     } catch (e) {
       console.error(
-        `[getRunnerTypes]: Error for path '${filepath}' for https://github.com/${repo.owner}/${repo.repo}/`,
+        `[getRunnerTypes]: Error for path '${filepath}' for https://github.com/${filerepo.owner}/${filerepo.repo}/`,
       );
       console.error(`[getRunnerTypes]: ${e}`);
       throw e;
