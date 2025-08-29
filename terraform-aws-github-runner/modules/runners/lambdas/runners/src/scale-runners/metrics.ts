@@ -1,4 +1,4 @@
-import { CloudWatch } from 'aws-sdk';
+import { CloudWatchClient, PutMetricDataCommand, StandardUnit } from '@aws-sdk/client-cloudwatch';
 import { Config } from './config';
 import { expBackOff, Repo, RunnerInfo, getRepo } from './utils';
 
@@ -17,7 +17,7 @@ interface CloudWatchMetric {
   MetricName: string;
   Dimensions?: Array<CloudWatchMetricDim>;
   Timestamp: Date;
-  Unit: string;
+  Unit: StandardUnit;
   Values: Array<number>;
 }
 
@@ -34,16 +34,16 @@ type CWMetricsDimensionsEntries = Map<CWMetricsDimensionStoredValues, CWMetricEn
 type CWMetrics = Map<CWMetricsKeyName, CWMetricsDimensionsEntries>;
 
 export class Metrics {
-  protected cloudwatch: CloudWatch;
+  protected cloudwatch: CloudWatchClient;
   protected lambdaName: string;
   protected metrics: CWMetrics;
   protected metricsDimensions: Map<CWMetricsKeyName, CWMetricsDimensionNames>;
 
-  protected static baseMetricTypes = new Map<string, string>();
+  protected static baseMetricTypes = new Map<string, StandardUnit>();
 
   /* istanbul ignore next */
-  protected getMetricType(metric: string): string {
-    if (Metrics.baseMetricTypes.has(metric)) return Metrics.baseMetricTypes.get(metric) as string;
+  protected getMetricType(metric: string): StandardUnit {
+    if (Metrics.baseMetricTypes.has(metric)) return Metrics.baseMetricTypes.get(metric)!;
     if (metric.endsWith('.wallclock')) return 'Milliseconds';
     if (metric.endsWith('.runningWallclock')) return 'Seconds';
     return 'Count';
@@ -111,7 +111,9 @@ export class Metrics {
   }
 
   protected constructor(lambdaName: string) {
-    this.cloudwatch = new CloudWatch({ region: Config.Instance.awsRegion });
+    this.cloudwatch = new CloudWatchClient({
+      region: Config.Instance.awsRegion,
+    });
     this.lambdaName = lambdaName;
     this.metrics = new Map();
     this.metricsDimensions = new Map();
@@ -220,7 +222,7 @@ export class Metrics {
             `NS: ${metricsReq.Namespace}] (${i} of ${awsMetrics.length})`,
         );
         await expBackOff(async () => {
-          return await this.cloudwatch.putMetricData(metricsReq).promise();
+          return await this.cloudwatch.send(new PutMetricDataCommand(metricsReq));
         });
         console.info(`Success sending metrics with cloudwatch.putMetricData (${i} of ${awsMetrics.length})`);
       } catch (e) {

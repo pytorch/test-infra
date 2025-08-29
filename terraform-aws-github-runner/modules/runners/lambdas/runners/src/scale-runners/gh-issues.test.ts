@@ -2,7 +2,7 @@ import { getRepoIssuesWithLabel, resetIssuesCache } from './gh-issues';
 
 import { Octokit } from '@octokit/rest';
 import { createGitHubClientForRunnerRepo } from './gh-runners';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import nock from 'nock';
 import { ScaleUpMetrics } from './metrics';
 import { redisCached } from './cache';

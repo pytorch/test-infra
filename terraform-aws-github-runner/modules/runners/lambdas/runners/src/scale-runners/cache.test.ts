@@ -7,7 +7,7 @@ import {
   getExperimentValue,
   getJoinedStressTestExperiment,
 } from './cache';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import { v4 as uuidv4 } from 'uuid';
 import nock from 'nock';
 import { RedisClientType, createClient } from 'redis';
@@ -47,7 +47,7 @@ beforeEach(() => {
   jest.restoreAllMocks();
   nock.disableNetConnect();
 
-  mocked(createClient).mockImplementation(produceMockedRedis);
+  (mocked(createClient) as any).mockImplementation(produceMockedRedis);
 
   jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);
 });

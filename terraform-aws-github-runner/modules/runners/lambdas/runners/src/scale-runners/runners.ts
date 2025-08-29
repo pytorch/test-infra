@@ -1,5 +1,25 @@
-import { EC2, SSM } from 'aws-sdk';
-import { PromiseResult } from 'aws-sdk/lib/request';
+import {
+  EC2Client,
+  DescribeInstancesCommand,
+  DescribeImagesCommand,
+  TerminateInstancesCommand,
+  CreateTagsCommand,
+  DeleteTagsCommand,
+  CreateReplaceRootVolumeTaskCommand,
+  RunInstancesCommand,
+  DescribeImagesCommandOutput,
+  Image,
+  RunInstancesCommandInput,
+} from '@aws-sdk/client-ec2';
+
+import {
+  DeleteParameterCommand,
+  DescribeParametersCommand,
+  DescribeParametersCommandInput,
+  ParameterMetadata,
+  PutParameterCommand,
+  SSMClient,
+} from '@aws-sdk/client-ssm';
 import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
 
 import { Config } from './config';
@@ -53,6 +73,7 @@ export interface RunnerTypeOptional {
 
 export interface RunnerType extends RunnerTypeOptional {
   disk_size: number;
+  // This should be RunInstancesCommandInput["InstanceType"] but without undefined
   instance_type: string;
   is_ephemeral: boolean;
   os: string;
@@ -63,11 +84,6 @@ export interface RunnerTypeScaleConfig extends RunnerType {
   variants?: Map<string, RunnerTypeOptional>;
 }
 
-export interface DescribeInstancesResultRegion {
-  awsRegion: string;
-  describeInstanceResult: PromiseResult<EC2.Types.DescribeInstancesResult, AWS.AWSError>;
-}
-
 // Keep the cache as long as half of minimum time, this should reduce calls to AWS API
 const ssmParametersCache = new LRU({ maxAge: (Config.Instance.minimumRunningTimeInMinutes * 60 * 1000) / 2 });
 
@@ -76,7 +92,9 @@ export function resetRunnersCaches() {
 }
 
 export async function findAmiID(metrics: Metrics, region: string, filter: string, owners = 'amazon'): Promise<string> {
-  const ec2 = new EC2({ region: region });
+  const ec2 = new EC2Client({
+    region: region,
+  });
   // Check if filter contains separator '|' and extract image name and account ID
   let imageName = filter;
   let actualOwners = owners;
@@ -112,9 +130,8 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
         metrics.ec2DescribeImagesFailure,
         () => {
           return ec2
-            .describeImages({ Owners: [actualOwners], Filters: filters })
-            .promise()
-            .then((data: EC2.DescribeImagesResult) => {
+            .send(new DescribeImagesCommand({ Owners: [actualOwners], Filters: filters }))
+            .then((data: DescribeImagesCommandOutput) => {
               /* istanbul ignore next */
               if (data.Images?.length === 0) {
                 console.error(`No availabe images found for filter '${filter}'`);
@@ -130,9 +147,9 @@ export async function findAmiID(metrics: Metrics, region: string, filter: string
 }
 
 // Shamelessly stolen from https://ajahne.github.io/blog/javascript/aws/2019/05/15/getting-an-ami-id-nodejs.html
-function sortByCreationDate(data: EC2.DescribeImagesResult): void {
-  const images = data.Images as EC2.ImageList;
-  images.sort(function (a: EC2.Image, b: EC2.Image) {
+function sortByCreationDate(data: DescribeImagesCommandOutput): void {
+  const images = data.Images as Array<Image>;
+  images.sort(function (a: Image, b: Image) {
     const dateA: string = a['CreationDate'] as string;
     const dateB: string = b['CreationDate'] as string;
     if (dateA < dateB) {
@@ -198,10 +215,10 @@ export async function listRunners(
                 metrics.ec2DescribeInstancesAWSCallSuccess,
                 metrics.ec2DescribeInstancesAWSCallFailure,
                 () => {
-                  return new EC2({ region: awsRegion })
-                    .describeInstances({ Filters: ec2Filters })
-                    .promise()
-                    .then((describeInstanceResult): DescribeInstancesResultRegion => {
+                  const ec2Client = new EC2Client({ region: awsRegion });
+                  return ec2Client
+                    .send(new DescribeInstancesCommand({ Filters: ec2Filters }))
+                    .then((describeInstanceResult) => {
                       (
                         describeInstanceResult?.Reservations?.flatMap((reservation) => {
                           return (
@@ -214,8 +231,8 @@ export async function listRunners(
                         }) ?? []
                       ).filter((desc): desc is string => desc !== undefined);
                       console.debug(
-                        `[listRunners]: Result for EC2({ region: ${awsRegion} })` +
-                          `.describeInstances({ Filters: ${JSON.stringify(ec2Filters)} }) = ` +
+                        `[listRunners]: Result for EC2Client({ region: ${awsRegion} })` +
+                          `.send(new DescribeInstancesCommand({ Filters: ${JSON.stringify(ec2Filters)} })) = ` +
                           `${describeInstanceResult?.Reservations?.length ?? 'UNDEF'}`,
                       );
                       return { describeInstanceResult, awsRegion };
@@ -270,18 +287,17 @@ export function getParameterNameForRunner(environment: string, instanceId: strin
   return `${environment}-${instanceId}`;
 }
 
-export async function listSSMParameters(
-  metrics: Metrics,
-  awsRegion: string,
-): Promise<Map<string, SSM.ParameterMetadata>> {
-  let parametersSet: Map<string, SSM.ParameterMetadata> = ssmParametersCache.get(awsRegion) as Map<
+export async function listSSMParameters(metrics: Metrics, awsRegion: string): Promise<Map<string, ParameterMetadata>> {
+  let parametersSet: Map<string, ParameterMetadata> = ssmParametersCache.get(awsRegion) as Map<
     string,
-    SSM.ParameterMetadata
+    ParameterMetadata
   >;
 
   if (parametersSet === undefined) {
-    parametersSet = new Map<string, SSM.ParameterMetadata>();
-    const ssm = new SSM({ region: awsRegion });
+    parametersSet = new Map<string, ParameterMetadata>();
+    const ssm = new SSMClient({
+      region: awsRegion,
+    });
     let nextToken: string | undefined = undefined;
 
     do {
@@ -292,10 +308,10 @@ export async function listSSMParameters(
           metrics.ssmDescribeParametersAWSCallFailure,
           () => {
             if (nextToken) {
-              const reqParam: SSM.DescribeParametersRequest = { NextToken: nextToken };
-              return ssm.describeParameters(reqParam).promise();
+              const reqParam: DescribeParametersCommandInput = { NextToken: nextToken };
+              return ssm.send(new DescribeParametersCommand(reqParam));
             }
-            return ssm.describeParameters().promise();
+            return ssm.send(new DescribeParametersCommand({}));
           },
         );
       });
@@ -317,14 +333,16 @@ export async function listSSMParameters(
 
 export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, awsRegion: string): Promise<boolean> {
   try {
-    const ssm = new SSM({ region: awsRegion });
+    const ssm = new SSMClient({
+      region: awsRegion,
+    });
     await expBackOff(() => {
       return metrics.trackRequestRegion(
         awsRegion,
         metrics.ssmdeleteParameterAWSCallSuccess,
         metrics.ssmdeleteParameterAWSCallFailure,
         () => {
-          return ssm.deleteParameter({ Name: paramName }).promise();
+          return ssm.send(new DeleteParameterCommand({ Name: paramName }));
         },
       );
     });
@@ -342,7 +360,9 @@ export async function doDeleteSSMParameter(paramName: string, metrics: Metrics, 
 
 export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Promise<void> {
   try {
-    const ec2 = new EC2({ region: runner.awsRegion });
+    const ec2 = new EC2Client({
+      region: runner.awsRegion,
+    });
 
     await expBackOff(() => {
       return metrics.trackRequestRegion(
@@ -350,7 +370,7 @@ export async function terminateRunner(runner: RunnerInfo, metrics: Metrics): Pro
         metrics.ec2TerminateInstancesAWSCallSuccess,
         metrics.ec2TerminateInstancesAWSCallFailure,
         () => {
-          return ec2.terminateInstances({ InstanceIds: [runner.instanceId] }).promise();
+          return ec2.send(new TerminateInstancesCommand({ InstanceIds: [runner.instanceId] }));
         },
       );
     });
@@ -365,7 +385,7 @@ async function addSSMParameterRunnerConfig(
   instancesId: string[],
   runnerParameters: RunnerInputParameters,
   customAmiExperiment: boolean,
-  ssm: SSM,
+  ssm: SSMClient,
   metrics: Metrics,
   awsRegion: string,
 ): Promise<void> {
@@ -390,8 +410,8 @@ async function addSSMParameterRunnerConfig(
           metrics.ssmPutParameterAWSCallSuccess,
           metrics.ssmPutParameterAWSCallFailure,
           async () => {
-            await ssm
-              .putParameter({
+            await ssm.send(
+              new PutParameterCommand({
                 Name: parameterName,
                 Value: runnerConfig,
                 Type: 'SecureString',
@@ -407,8 +427,8 @@ async function addSSMParameterRunnerConfig(
                     },
                   },
                 ]),
-              })
-              .promise();
+              }),
+            );
             return parameterName;
           },
         );
@@ -478,6 +498,7 @@ export async function tryReuseRunner(
   runnerParameters: RunnerInputParameters,
   metrics: ScaleUpMetrics,
 ): Promise<RunnerInfo> {
+  console.log('here');
   const filters: ListRunnerFilters = {
     applicationDeployDatetime: Config.Instance.datetimeDeploy,
     containsTags: ['GithubRunnerID', 'EphemeralRunnerFinished'],
@@ -507,8 +528,8 @@ export async function tryReuseRunner(
     );
   }
 
-  const ec2M: Map<string, EC2> = new Map();
-  const ssmM: Map<string, SSM> = new Map();
+  const ec2M: Map<string, EC2Client> = new Map();
+  const ssmM: Map<string, SSMClient> = new Map();
 
   for (const runner of runners) {
     if (runner.ghRunnerId === undefined) {
@@ -555,13 +576,23 @@ export async function tryReuseRunner(
           // I suspect it will be too many requests against GH API to check if runner is really offline
 
           if (ssmM.has(runner.awsRegion) === false) {
-            ssmM.set(runner.awsRegion, new SSM({ region: runner.awsRegion }));
+            ssmM.set(
+              runner.awsRegion,
+              new SSMClient({
+                region: runner.awsRegion,
+              }),
+            );
           }
-          const ssm = ssmM.get(runner.awsRegion) as SSM;
+          const ssm = ssmM.get(runner.awsRegion) as SSMClient;
           if (ec2M.has(runner.awsRegion) === false) {
-            ec2M.set(runner.awsRegion, new EC2({ region: runner.awsRegion }));
+            ec2M.set(
+              runner.awsRegion,
+              new EC2Client({
+                region: runner.awsRegion,
+              }),
+            );
           }
-          const ec2 = ec2M.get(runner.awsRegion) as EC2;
+          const ec2 = ec2M.get(runner.awsRegion) as EC2Client;
 
           // should come before removing other tags, this is useful so
           // there is always a tag present for scaleDown to know that
@@ -572,12 +603,12 @@ export async function tryReuseRunner(
               metrics.ec2CreateTagsAWSCallSuccess,
               metrics.ec2CreateTagsAWSCallFailure,
               () => {
-                return ec2
-                  .createTags({
+                return ec2.send(
+                  new CreateTagsCommand({
                     Resources: [runner.instanceId],
                     Tags: [{ Key: 'EBSVolumeReplacementRequestTm', Value: `${Math.floor(Date.now() / 1000)}` }],
-                  })
-                  .promise();
+                  }),
+                );
               },
             );
           });
@@ -589,12 +620,12 @@ export async function tryReuseRunner(
               metrics.ec2DeleteTagsAWSCallSuccess,
               metrics.ec2DeleteTagsAWSCallFailure,
               () => {
-                return ec2
-                  .deleteTags({
+                return ec2.send(
+                  new DeleteTagsCommand({
                     Resources: [runner.instanceId],
                     Tags: [{ Key: 'GithubRunnerID' }, { Key: 'EphemeralRunnerFinished' }],
-                  })
-                  .promise();
+                  }),
+                );
               },
             );
           });
@@ -606,12 +637,12 @@ export async function tryReuseRunner(
               metrics.ec2CreateReplaceRootVolumeTaskSuccess,
               metrics.ec2CreateReplaceRootVolumeTaskFailure,
               () => {
-                return ec2
-                  .createReplaceRootVolumeTask({
+                return ec2.send(
+                  new CreateReplaceRootVolumeTaskCommand({
                     InstanceId: runner.instanceId,
                     DeleteReplacedRootVolume: true,
-                  })
-                  .promise();
+                  }),
+                );
               },
             );
           });
@@ -756,8 +787,12 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
     for (const [awsRegionIdx, awsRegion] of awsRegionsInstances.entries()) {
       const runnerSubnetSequence = await getCreateRunnerSubnetSequence(runnerParameters, awsRegion, metrics);
 
-      const ec2 = new EC2({ region: awsRegion });
-      const ssm = new SSM({ region: awsRegion });
+      const ec2 = new EC2Client({
+        region: awsRegion,
+      });
+      const ssm = new SSMClient({
+        region: awsRegion,
+      });
 
       const validSubnets = new Set(
         Config.Instance.awsRegionsToVpcIds
@@ -781,14 +816,14 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
               metrics.ec2RunInstancesAWSCallSuccess,
               metrics.ec2RunInstancesAWSCallFailure,
               async () => {
-                const params: EC2.RunInstancesRequest = {
+                const params: RunInstancesCommandInput = {
                   MaxCount: 1,
                   MinCount: 1,
                   LaunchTemplate: {
                     LaunchTemplateName: launchTemplateName,
                     Version: launchTemplateVersion,
                   },
-                  InstanceType: runnerParameters.runnerType.instance_type,
+                  InstanceType: runnerParameters.runnerType.instance_type as RunInstancesCommandInput['InstanceType'],
                   BlockDeviceMappings: [
                     {
                       DeviceName: storageDeviceName,
@@ -819,7 +854,7 @@ export async function createRunner(runnerParameters: RunnerInputParameters, metr
                 if (customAmi) {
                   params.ImageId = await findAmiID(metrics, awsRegion, customAmi);
                 }
-                return await ec2.runInstances(params).promise();
+                return await ec2.send(new RunInstancesCommand(params));
               },
             );
           });

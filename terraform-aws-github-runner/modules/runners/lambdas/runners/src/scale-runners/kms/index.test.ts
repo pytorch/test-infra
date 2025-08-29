@@ -1,8 +1,8 @@
-import AWS from 'aws-sdk';
 import { Config } from '../config';
 import { decrypt } from './index';
 import { ScaleUpMetrics } from '../metrics';
 import nock from 'nock';
+import { DecryptCommand, KMSClient } from '@aws-sdk/client-kms';
 
 const decryptedStr = 'The Decrypted String';
 const awsRegion = 'the-aws-region';
@@ -11,22 +11,20 @@ const mockKmsPromise = {
     toString: jest.fn().mockReturnValue(decryptedStr),
   },
 };
-const mockKmsDecrypt = {
-  promise: jest.fn().mockImplementation(async () => mockKmsPromise),
-};
 const mockKms = {
-  decrypt: jest.fn().mockImplementation(() => mockKmsDecrypt),
+  decrypt: jest.fn().mockResolvedValue(mockKmsPromise),
 };
 
-jest.mock('aws-sdk', () => ({
-  __esModule: true,
-  default: {
-    config: {
-      update: jest.fn(),
-    },
-  },
-  KMS: jest.fn().mockImplementation(() => mockKms),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
+jest.mock('@aws-sdk/client-kms', () => ({
+  ...jest.requireActual('@aws-sdk/client-kms'),
+  KMSClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(async (command) => {
+      if (command instanceof DecryptCommand) {
+        return await mockKms.decrypt(command.input);
+      }
+      return {};
+    }),
+  })),
 }));
 
 beforeEach(() => {
@@ -37,7 +35,7 @@ beforeEach(() => {
 });
 
 describe('decrypt', () => {
-  describe('check AWS && KMS calls', () => {
+  describe('check KMS calls', () => {
     it('simple calls decrypt', async () => {
       const encrypted = Buffer.from('some random buffer');
       const key = 'decrypt key';
@@ -53,9 +51,6 @@ describe('decrypt', () => {
       expect(await decrypt(encrypted.toString('base64'), key, environmentName, new ScaleUpMetrics())).toBe(
         decryptedStr,
       );
-      expect(AWS.config.update).toBeCalledWith({
-        region: awsRegion,
-      });
       expect(mockKms.decrypt).toBeCalledWith({
         CiphertextBlob: encrypted,
         KeyId: key,
@@ -63,7 +58,6 @@ describe('decrypt', () => {
           ['Environment']: environmentName,
         },
       });
-      expect(mockKmsDecrypt.promise).toBeCalled();
       expect(mockKmsPromise.Plaintext.toString).toBeCalled();
     });
   });

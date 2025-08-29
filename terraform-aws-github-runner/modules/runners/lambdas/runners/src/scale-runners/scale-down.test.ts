@@ -1,6 +1,6 @@
 import moment from 'moment';
 import nock from 'nock';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import { Config } from './config';
 import { resetSecretCache } from './gh-auth';
 import { RunnerInfo, Repo } from './utils';

@@ -10,7 +10,7 @@ import {
 
 import { Config } from './config';
 import { getRepoIssuesWithLabel, GhIssues } from './gh-issues';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import nock from 'nock';
 import { scaleUp, _calculateScaleUpAmount } from './scale-up';
 import * as MetricsModule from './metrics';

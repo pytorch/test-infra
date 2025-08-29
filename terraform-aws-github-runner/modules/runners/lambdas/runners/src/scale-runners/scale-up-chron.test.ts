@@ -1,5 +1,5 @@
 import { Config } from './config';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import { getRepo, expBackOff, shuffleArrayInPlace } from './utils';
 import { getRunnerTypes } from './gh-runners';
 
