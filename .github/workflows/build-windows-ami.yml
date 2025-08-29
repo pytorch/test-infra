@@ -30,7 +30,7 @@ jobs:
           ref: ${{ inputs.branch }}
 
       - name: Configure AWS Credentials (PyTorch Account)
-        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::391835788720:role/gha-packer-role
