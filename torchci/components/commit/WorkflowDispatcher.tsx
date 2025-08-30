@@ -8,18 +8,35 @@ import { useState } from "react";
 import useSWR from "swr";
 
 const SUPPORTED_WORKFLOWS: { [k: string]: any } = {
+  // Refer to https://github.com/pytorch/pytorch/blob/main/.github/pytorch-probot.yml
   "pytorch/pytorch": {
+    pull: "Run pull jobs",
     trunk: "Run trunk jobs",
-    inductor: "Run inductor jobs",
     periodic: "Run periodic jobs",
-    slow: "Run slow jobs",
-    rocm: "Run rocm jobs",
-    "linux-aarch64": "Run Linux ARMv8 jobs",
+    // Inductor
+    inductor: "Run inductor jobs",
     "inductor-periodic": "Run periodic inductor jobs",
-    "inductor-cu124": "Run inductor-cu124 jobs",
-    "vllm-test": "Run vllm test jobs",
-    xpu: "Run XPU jobs",
+    // ROCm
+    rocm: "Run rocm jobs",
+    "inductor-rocm": "Run periodic inductor jobs on ROCm",
+    // Other platform-specific workflows
     h100: "Run H100 jobs",
+    "h100-distributed": "Run H100 distributed jobs",
+    "h100-symm-mem": "Run symmetric memory tests on H100",
+    "h100-cutlass-backend": "Run CUTLASS tests on H100",
+    "linux-aarch64": "Run Linux ARMv8 jobs",
+    xpu: "Run XPU jobs",
+    "win-arm64": "Run Windows arm64 jobs",
+    s390: "Run s390 jobs",
+    // Other CI jobs
+    slow: "Run slow jobs",
+    vllm: "Run vLLM x PyTorch tests",
+    // Benchmark jobs
+    "inductor-perf-test-nightly-rocm": "Run PT2 perf benchmark on ROCm",
+    "inductor-micro-benchmark": "Run PT2 micro benchmark",
+    "inductor-micro-benchmark-cpu-x86": "Run PT2 micro benchmark on CPU",
+    "inductor-perf-test-nightly-x86-zen": "Run PT2 perf benchmark on x86 Zen",
+    "op-benchmark": "Run PyTorch operator benchmark",
   },
 };
 
