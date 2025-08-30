@@ -924,6 +924,15 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                             latest_snapshot['SnapshotId'], target_az, user_id
                         )
                         snapshot_id = latest_snapshot['SnapshotId']
+                        
+                        # Clean up old volume after successful restoration
+                        try:
+                            logger.info(f"Deleting old volume {current_volume_id} from {current_az} after snapshot restoration")
+                            ec2_client.delete_volume(VolumeId=current_volume_id)
+                            logger.info(f"Successfully deleted old volume {current_volume_id}")
+                        except Exception as cleanup_error:
+                            logger.warning(f"Failed to delete old volume {current_volume_id}: {cleanup_error}")
+                            # Don't fail the migration if cleanup fails - volume can be cleaned up manually
                     elif latest_snapshot and latest_snapshot['State'] == 'pending':
                         # Wait for existing pending snapshot to complete, then use it
                         snapshot_id = latest_snapshot['SnapshotId']
@@ -942,6 +951,15 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         persistent_volume_id = restore_ebs_from_existing_snapshot(
                             snapshot_id, target_az, user_id
                         )
+                        
+                        # Clean up old volume after successful restoration
+                        try:
+                            logger.info(f"Deleting old volume {current_volume_id} from {current_az} after snapshot restoration")
+                            ec2_client.delete_volume(VolumeId=current_volume_id)
+                            logger.info(f"Successfully deleted old volume {current_volume_id}")
+                        except Exception as cleanup_error:
+                            logger.warning(f"Failed to delete old volume {current_volume_id}: {cleanup_error}")
+                            # Don't fail the migration if cleanup fails - volume can be cleaned up manually
                     else:
                         # No recent snapshot - do full migration with new snapshot
                         persistent_volume_id, snapshot_id = migrate_ebs_across_az(
