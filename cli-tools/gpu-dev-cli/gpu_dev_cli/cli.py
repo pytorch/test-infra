@@ -35,6 +35,191 @@ from .interactive import (
 console = Console()
 
 
+def _show_single_reservation(connection_info: dict) -> None:
+    """Display detailed information for a single reservation"""
+    status = connection_info.get("status", "unknown")
+    gpu_count = connection_info.get("gpu_count", 1)
+    gpu_type = connection_info.get("gpu_type", "Unknown")
+    instance_type = connection_info.get("instance_type", "unknown")
+
+    # Format GPU information
+    if gpu_type != "Unknown" and gpu_type != "unknown":
+        gpu_info = f"{gpu_count}x {gpu_type}"
+    else:
+        gpu_info = f"{gpu_count} GPU(s)"
+
+    # Format timestamps
+    created_at = connection_info.get("created_at", "N/A")
+    launched_at = connection_info.get("launched_at", "N/A")
+    expires_at = connection_info.get("expires_at", "N/A")
+
+    # Convert timestamps to readable format
+    def format_timestamp(timestamp_str):
+        if not timestamp_str or timestamp_str == "N/A":
+            return "N/A"
+        try:
+            from datetime import datetime, timezone
+
+            if isinstance(timestamp_str, str):
+                # Handle different ISO format variations
+                if timestamp_str.endswith("Z"):
+                    # Format: 2025-01-11T23:30:00Z
+                    dt_utc = datetime.fromisoformat(
+                        timestamp_str.replace("Z", "+00:00")
+                    )
+                elif "+" in timestamp_str or timestamp_str.endswith("00:00"):
+                    # Format: 2025-01-11T23:30:00+00:00
+                    dt_utc = datetime.fromisoformat(timestamp_str)
+                else:
+                    # Format: 2025-01-11T23:30:00 (naive datetime, assume UTC)
+                    naive_dt = datetime.fromisoformat(timestamp_str)
+                    dt_utc = naive_dt.replace(tzinfo=timezone.utc)
+
+                dt_local = dt_utc.astimezone()  # Convert to local timezone
+                return dt_local.strftime("%Y-%m-%d %H:%M:%S")
+            else:
+                # Legacy Unix timestamp
+                dt = datetime.fromtimestamp(timestamp_str)
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, TypeError):
+            return str(timestamp_str)[:19]  # Fallback to first 19 chars
+
+    created_formatted = format_timestamp(created_at)
+    launched_formatted = format_timestamp(launched_at)
+    expires_formatted = format_timestamp(expires_at)
+
+    if status == "active":
+        jupyter_info = ""
+        if connection_info.get("jupyter_enabled") and connection_info.get(
+            "jupyter_url"
+        ):
+            jupyter_info = (
+                f"[blue]Jupyter Lab:[/blue] {connection_info['jupyter_url']}\n"
+            )
+        elif connection_info.get("jupyter_enabled") and not connection_info.get(
+            "jupyter_url"
+        ):
+            jupyter_info = (
+                f"[blue]Jupyter Lab:[/blue] [yellow]Starting...[/yellow]\n"
+            )
+        else:
+            # Show enable command if Jupyter is not enabled
+            short_id = connection_info["reservation_id"][:8]
+            jupyter_info = f"[dim]Jupyter Lab:[/dim] [yellow]Not enabled[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --enable-jupyter[/cyan]\n"
+
+        # Format secondary users information
+        secondary_users = connection_info.get("secondary_users", [])
+        secondary_users_info = ""
+        if secondary_users:
+            users_list = ", ".join(secondary_users)
+            secondary_users_info = (
+                f"[blue]Secondary Users:[/blue] {users_list}\n"
+            )
+        else:
+            # Show add-user command if no secondary users
+            short_id = connection_info["reservation_id"][:8]
+            secondary_users_info = f"[dim]Secondary Users:[/dim] [yellow]None[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --add-user <github_username>[/cyan]\n"
+
+        # Generate VS Code command
+        vscode_command = _generate_vscode_command(
+            connection_info["ssh_command"]
+        )
+        vscode_info = ""
+        if vscode_command:
+            vscode_info = f"[blue]VS Code Remote:[/blue] {vscode_command}\n"
+
+        # Add agent forwarding to SSH command for display
+        ssh_with_forwarding = _add_agent_forwarding_to_ssh(
+            connection_info["ssh_command"]
+        )
+
+        panel_content = (
+            f"[green]Reservation Details[/green]\n\n"
+            f"[blue]SSH Command:[/blue] {ssh_with_forwarding}\n"
+            + vscode_info
+            + jupyter_info
+            + f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
+            f"[blue]GPUs:[/blue] {gpu_info}\n"
+            f"[blue]Instance Type:[/blue] {instance_type}\n"
+            + secondary_users_info
+            + f"[blue]Created:[/blue] {created_formatted}\n"
+            f"[blue]Started:[/blue] {launched_formatted}\n"
+            f"[blue]Expires:[/blue] {expires_formatted}"
+        )
+        panel = Panel.fit(panel_content, title="🚀 Active Reservation")
+        console.print(panel)
+    elif status in ["queued", "pending", "preparing"]:
+        panel_content = (
+            f"[yellow]Reservation Details[/yellow]\n\n"
+            f"[blue]Status:[/blue] {status.title()}\n"
+            f"[blue]GPUs Requested:[/blue] {gpu_info}\n"
+            f"[blue]Created:[/blue] {created_formatted}\n"
+            f"[blue]Expected Instance:[/blue] {instance_type if instance_type != 'unknown' else 'TBD'}"
+        )
+        if status == "preparing":
+            panel_content += f"\n[blue]Pod Name:[/blue] {connection_info.get('pod_name', 'N/A')}"
+            # Show dynamic pod events from failure_reason if available
+            failure_reason = connection_info.get("failure_reason", "")
+            if failure_reason:
+                panel_content += (
+                    f"\n[blue]Current Status:[/blue] {failure_reason}"
+                )
+
+        panel = Panel.fit(
+            panel_content, title=f"⏳ {status.title()} Reservation"
+        )
+        console.print(panel)
+
+        if status == "queued":
+            rprint(
+                "[yellow]💡 SSH access will be available once your reservation becomes active[/yellow]"
+            )
+        elif status == "preparing":
+            rprint(
+                "[yellow]💡 Your environment is being prepared. SSH access will be available shortly.[/yellow]"
+            )
+    else:
+        panel_content = (
+            f"[red]Reservation Details[/red]\n\n"
+            f"[blue]Status:[/blue] {status.title()}\n"
+            f"[blue]GPUs:[/blue] {gpu_info}\n"
+            f"[blue]Created:[/blue] {created_formatted}\n"
+            f"[blue]Started:[/blue] {launched_formatted}\n"
+            f"[blue]Ended:[/blue] {expires_formatted}"
+        )
+
+        # Show failure reason for failed reservations
+        if status == "failed":
+            failure_reason = connection_info.get(
+                "failure_reason", "Unknown error"
+            )
+            panel_content += f"\n[blue]Error:[/blue] {failure_reason}"
+
+        panel = Panel.fit(
+            panel_content, title=f"📋 {status.title()} Reservation"
+        )
+        console.print(panel)
+
+        # Show pod logs for failed reservations
+        if status == "failed":
+            pod_logs = connection_info.get("pod_logs", "")
+            if pod_logs and pod_logs.strip():
+                from rich.text import Text
+
+                rprint("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
+
+                # Create logs panel
+                log_text = Text(pod_logs)
+                log_panel = Panel(
+                    log_text,
+                    title="🐚 Container Startup Logs",
+                    title_align="left",
+                    border_style="red",
+                    expand=False,
+                )
+                console.print(log_panel)
+
+
 def _validate_ssh_key_or_exit(config: Config, live: Live) -> bool:
     """
     Validate SSH key matches configured GitHub username.
@@ -92,6 +277,7 @@ def main(ctx: click.Context) -> None:
     \b
     Information Commands:
         gpu-dev list                            # Check your reservations
+        gpu-dev show                            # Show detailed info for active/pending reservations
         gpu-dev show abc12345                   # Get detailed reservation info
         gpu-dev avail                           # Check GPU availability by type
         gpu-dev status                          # Check cluster status
@@ -1035,23 +1221,30 @@ def cancel(
 
 
 @main.command()
-@click.argument("reservation_id")
+@click.argument("reservation_id", required=False)
 @click.pass_context
-def show(ctx: click.Context, reservation_id: str) -> None:
-    """Show detailed information for a reservation
+def show(ctx: click.Context, reservation_id: Optional[str]) -> None:
+    """Show detailed information for reservations
 
-    Shows comprehensive details for a reservation including SSH connection info,
-    GPU specifications, and timing information.
+    Shows comprehensive details for reservations. If no reservation ID is provided,
+    shows details for your active and pending reservations. If a reservation ID is provided,
+    shows detailed information for that specific reservation.
 
     Arguments:
-        RESERVATION_ID: The reservation ID (8-character prefix is sufficient)
+        RESERVATION_ID: Optional reservation ID (8-character prefix is sufficient)
 
     \b
     Examples:
+        gpu-dev show                             # Show details for active/pending reservations
         gpu-dev show abc12345                    # Show details for abc12345
         gpu-dev show abc1                        # Short form works too
 
-    The output includes:
+    When showing multiple reservations, the output includes:
+        - Your active and pending reservations with full details
+        - SSH connection commands for active reservations
+        - Status information for all shown reservations
+
+    When showing a specific reservation, the output includes:
         - SSH connection command
         - Pod name and namespace
         - GPU count and type
@@ -1071,198 +1264,50 @@ def show(ctx: click.Context, reservation_id: str) -> None:
             try:
                 user_info = authenticate_user(config)
                 reservation_mgr = ReservationManager(config)
-                connection_info = reservation_mgr.get_connection_info(
-                    reservation_id, user_info["user_id"]
-                )
+                
+                if reservation_id is None:
+                    # Show user's active and pending reservations
+                    reservations = reservation_mgr.list_reservations(
+                        user_filter=user_info["user_id"],
+                        statuses_to_include=["active", "preparing", "queued", "pending"]
+                    )
+                    
+                    live.stop()
+                    
+                    if not reservations:
+                        rprint("[yellow]📋 No reservations found[/yellow]")
+                        return
+
+                    # Show detailed info for each reservation
+                    for i, reservation in enumerate(reservations):
+                        if i > 0:
+                            rprint("")  # Add spacing between reservations
+                        
+                        res_id = reservation.get("reservation_id", "unknown")
+                        connection_info = reservation_mgr.get_connection_info(
+                            res_id, user_info["user_id"]
+                        )
+                        
+                        if connection_info:
+                            # Use the existing display logic from the original show command
+                            _show_single_reservation(connection_info)
+                    
+                    return
+                else:
+                    # Show specific reservation
+                    connection_info = reservation_mgr.get_connection_info(
+                        reservation_id, user_info["user_id"]
+                    )
+                    
             except RuntimeError as e:
                 live.stop()
                 rprint(f"[red]❌ {str(e)}[/red]")
                 return
 
-        # Stop spinner after getting results
+        live.stop()
 
         if connection_info:
-            status = connection_info.get("status", "unknown")
-            gpu_count = connection_info.get("gpu_count", 1)
-            gpu_type = connection_info.get("gpu_type", "Unknown")
-            instance_type = connection_info.get("instance_type", "unknown")
-
-            # Format GPU information
-            if gpu_type != "Unknown" and gpu_type != "unknown":
-                gpu_info = f"{gpu_count}x {gpu_type}"
-            else:
-                gpu_info = f"{gpu_count} GPU(s)"
-
-            # Format timestamps
-            created_at = connection_info.get("created_at", "N/A")
-            launched_at = connection_info.get("launched_at", "N/A")
-            expires_at = connection_info.get("expires_at", "N/A")
-
-            # Convert timestamps to readable format
-            def format_timestamp(timestamp_str):
-                if not timestamp_str or timestamp_str == "N/A":
-                    return "N/A"
-                try:
-                    from datetime import datetime, timezone
-
-                    if isinstance(timestamp_str, str):
-                        # Handle different ISO format variations
-                        if timestamp_str.endswith("Z"):
-                            # Format: 2025-01-11T23:30:00Z
-                            dt_utc = datetime.fromisoformat(
-                                timestamp_str.replace("Z", "+00:00")
-                            )
-                        elif "+" in timestamp_str or timestamp_str.endswith("00:00"):
-                            # Format: 2025-01-11T23:30:00+00:00
-                            dt_utc = datetime.fromisoformat(timestamp_str)
-                        else:
-                            # Format: 2025-01-11T23:30:00 (naive datetime, assume UTC)
-                            naive_dt = datetime.fromisoformat(timestamp_str)
-                            dt_utc = naive_dt.replace(tzinfo=timezone.utc)
-
-                        dt_local = dt_utc.astimezone()  # Convert to local timezone
-                        return dt_local.strftime("%Y-%m-%d %H:%M:%S")
-                    else:
-                        # Legacy Unix timestamp
-                        dt = datetime.fromtimestamp(timestamp_str)
-                        return dt.strftime("%Y-%m-%d %H:%M:%S")
-                except (ValueError, TypeError):
-                    return str(timestamp_str)[:19]  # Fallback to first 19 chars
-
-            created_formatted = format_timestamp(created_at)
-            launched_formatted = format_timestamp(launched_at)
-            expires_formatted = format_timestamp(expires_at)
-
-            if status == "active":
-                jupyter_info = ""
-                if connection_info.get("jupyter_enabled") and connection_info.get(
-                    "jupyter_url"
-                ):
-                    jupyter_info = (
-                        f"[blue]Jupyter Lab:[/blue] {connection_info['jupyter_url']}\n"
-                    )
-                elif connection_info.get("jupyter_enabled") and not connection_info.get(
-                    "jupyter_url"
-                ):
-                    jupyter_info = (
-                        f"[blue]Jupyter Lab:[/blue] [yellow]Starting...[/yellow]\n"
-                    )
-                else:
-                    # Show enable command if Jupyter is not enabled
-                    short_id = connection_info["reservation_id"][:8]
-                    jupyter_info = f"[dim]Jupyter Lab:[/dim] [yellow]Not enabled[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --enable-jupyter[/cyan]\n"
-
-                # Format secondary users information
-                secondary_users = connection_info.get("secondary_users", [])
-                secondary_users_info = ""
-                if secondary_users:
-                    users_list = ", ".join(secondary_users)
-                    secondary_users_info = (
-                        f"[blue]Secondary Users:[/blue] {users_list}\n"
-                    )
-                else:
-                    # Show add-user command if no secondary users
-                    short_id = connection_info["reservation_id"][:8]
-                    secondary_users_info = f"[dim]Secondary Users:[/dim] [yellow]None[/yellow] [dim]→[/dim] [cyan]gpu-dev edit {short_id} --add-user <github_username>[/cyan]\n"
-
-                # Generate VS Code command
-                vscode_command = _generate_vscode_command(
-                    connection_info["ssh_command"]
-                )
-                vscode_info = ""
-                if vscode_command:
-                    vscode_info = f"[blue]VS Code Remote:[/blue] {vscode_command}\n"
-
-                # Add agent forwarding to SSH command for display
-                ssh_with_forwarding = _add_agent_forwarding_to_ssh(
-                    connection_info["ssh_command"]
-                )
-
-                panel_content = (
-                    f"[green]Reservation Details[/green]\n\n"
-                    f"[blue]SSH Command:[/blue] {ssh_with_forwarding}\n"
-                    + vscode_info
-                    + jupyter_info
-                    + f"[blue]Pod Name:[/blue] {connection_info['pod_name']}\n"
-                    f"[blue]GPUs:[/blue] {gpu_info}\n"
-                    f"[blue]Instance Type:[/blue] {instance_type}\n"
-                    + secondary_users_info
-                    + f"[blue]Created:[/blue] {created_formatted}\n"
-                    f"[blue]Started:[/blue] {launched_formatted}\n"
-                    f"[blue]Expires:[/blue] {expires_formatted}"
-                )
-                panel = Panel.fit(panel_content, title="🚀 Active Reservation")
-                console.print(panel)
-            elif status in ["queued", "pending", "preparing"]:
-                panel_content = (
-                    f"[yellow]Reservation Details[/yellow]\n\n"
-                    f"[blue]Status:[/blue] {status.title()}\n"
-                    f"[blue]GPUs Requested:[/blue] {gpu_info}\n"
-                    f"[blue]Created:[/blue] {created_formatted}\n"
-                    f"[blue]Expected Instance:[/blue] {instance_type if instance_type != 'unknown' else 'TBD'}"
-                )
-                if status == "preparing":
-                    panel_content += f"\n[blue]Pod Name:[/blue] {connection_info.get('pod_name', 'N/A')}"
-                    # Show dynamic pod events from failure_reason if available
-                    failure_reason = connection_info.get("failure_reason", "")
-                    if failure_reason:
-                        panel_content += (
-                            f"\n[blue]Current Status:[/blue] {failure_reason}"
-                        )
-
-                panel = Panel.fit(
-                    panel_content, title=f"⏳ {status.title()} Reservation"
-                )
-                console.print(panel)
-
-                if status == "queued":
-                    rprint(
-                        "[yellow]💡 SSH access will be available once your reservation becomes active[/yellow]"
-                    )
-                elif status == "preparing":
-                    rprint(
-                        "[yellow]💡 Your environment is being prepared. SSH access will be available shortly.[/yellow]"
-                    )
-            else:
-                panel_content = (
-                    f"[red]Reservation Details[/red]\n\n"
-                    f"[blue]Status:[/blue] {status.title()}\n"
-                    f"[blue]GPUs:[/blue] {gpu_info}\n"
-                    f"[blue]Created:[/blue] {created_formatted}\n"
-                    f"[blue]Started:[/blue] {launched_formatted}\n"
-                    f"[blue]Ended:[/blue] {expires_formatted}"
-                )
-
-                # Show failure reason for failed reservations
-                if status == "failed":
-                    failure_reason = connection_info.get(
-                        "failure_reason", "Unknown error"
-                    )
-                    panel_content += f"\n[blue]Error:[/blue] {failure_reason}"
-
-                panel = Panel.fit(
-                    panel_content, title=f"📋 {status.title()} Reservation"
-                )
-                console.print(panel)
-
-                # Show pod logs for failed reservations
-                if status == "failed":
-                    pod_logs = connection_info.get("pod_logs", "")
-                    if pod_logs and pod_logs.strip():
-                        from rich.text import Text
-
-                        rprint("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
-
-                        # Create logs panel
-                        log_text = Text(pod_logs)
-                        log_panel = Panel(
-                            log_text,
-                            title="🐚 Container Startup Logs",
-                            title_align="left",
-                            border_style="red",
-                            expand=False,
-                        )
-                        console.print(log_panel)
+            _show_single_reservation(connection_info)
         else:
             rprint(f"[red]❌ Could not get connection info for {reservation_id}[/red]")
 
