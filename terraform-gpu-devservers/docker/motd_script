@@ -1,0 +1,67 @@
+#!/bin/bash
+# Custom MOTD for GPU dev servers
+
+# Get OS info
+OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
+
+# Get container info
+CONTAINER_IMAGE="pytorch-gpu-devserver:latest"
+
+# Get CUDA toolkit info
+CUDA_INFO="CUDA toolkit unavailable"
+if command -v nvcc >/dev/null 2>&1; then
+    CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([0-9.]*\).*/\1/' 2>/dev/null)
+    if [ -n "$CUDA_VERSION" ]; then
+        CUDA_INFO="CUDA $CUDA_VERSION (nvcc available)"
+    else
+        CUDA_INFO="CUDA toolkit installed (nvcc available)"
+    fi
+elif [ -d "/usr/local/cuda" ]; then
+    CUDA_INFO="CUDA toolkit installed (nvcc not in PATH)"
+fi
+
+# Get GPU info with error handling
+GPU_INFO="GPU detection unavailable"
+if command -v nvidia-smi >/dev/null 2>&1; then
+    # Parse nvidia-smi output to get GPU count and model
+    GPU_DATA=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$GPU_DATA" ]; then
+        # Count GPUs and get first GPU model/memory
+        GPU_COUNT=$(echo "$GPU_DATA" | wc -l)
+        FIRST_GPU=$(echo "$GPU_DATA" | head -1)
+        GPU_NAME=$(echo "$FIRST_GPU" | cut -d',' -f1 | xargs)
+        GPU_MEMORY=$(echo "$FIRST_GPU" | cut -d',' -f2 | xargs)
+
+        if [ "$GPU_COUNT" -eq 1 ]; then
+            GPU_INFO="1x $GPU_NAME, ${GPU_MEMORY}MiB"
+        else
+            GPU_INFO="${GPU_COUNT}x $GPU_NAME, ${GPU_MEMORY}MiB each"
+        fi
+    fi
+fi
+
+# Display custom welcome message
+cat << WELCOME_EOF
+
+🚀 Welcome to your GPU development server!
+
+System: $OS_INFO
+Container: $CONTAINER_IMAGE
+CUDA: $CUDA_INFO
+GPUs: $GPU_INFO
+
+Shell: Zsh (default with oh-my-zsh) | Bash available
+  • Try 'bash' to test bash, or 'use-bash' for switch instructions  
+  • Both shells have the same environment (CUDA, Claude Code, etc.)
+  • Zsh features: autosuggestions, syntax highlighting, git integration
+
+🔧 Quick start:
+  • Conda is available for Python environments
+  • Use 'gpu-info' or 'nvidia-smi' to check GPU status
+  • Terminal works in all editors (no special fonts needed)
+
+For support, reach out to: oncall:pytorch_release_engineering
+
+Happy coding! 🐍⚡
+
+WELCOME_EOF

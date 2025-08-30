@@ -1,0 +1,14 @@
+# Source shared environment
+if [ -f ~/.shell_env ]; then
+    source ~/.shell_env
+fi
+
+# Source .bashrc if bash
+if [ -n "$BASH_VERSION" ] && [ -f ~/.bashrc ]; then
+    source ~/.bashrc
+fi
+
+# Show MOTD on login
+if [ -f /etc/motd ]; then
+    cat /etc/motd
+fi
