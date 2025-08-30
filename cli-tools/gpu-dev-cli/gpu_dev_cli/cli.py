@@ -4,7 +4,6 @@ Reserve and manage GPU development servers
 """
 
 import click
-import json
 from typing import Optional
 from rich.console import Console
 from rich.table import Table
@@ -13,7 +12,7 @@ from rich import print as rprint
 from rich.spinner import Spinner
 from rich.live import Live
 
-from .auth import authenticate_user
+from .auth import authenticate_user, validate_ssh_key_matches_github_user
 from .reservations import (
     ReservationManager,
     _generate_vscode_command,
@@ -34,6 +33,37 @@ from .interactive import (
 )
 
 console = Console()
+
+
+def _validate_ssh_key_or_exit(config: Config, live: Live) -> bool:
+    """
+    Validate SSH key matches configured GitHub username.
+    Returns True if valid, False if validation failed (and exits with error messages).
+    """
+    validation_result = validate_ssh_key_matches_github_user(config)
+    if not validation_result["valid"]:
+        live.stop()
+        rprint("[red]❌ Github SSH key validation failed[/red]")
+
+        # Provide helpful suggestions
+        if validation_result["ssh_user"] and validation_result["configured_user"]:
+            rprint("\n[yellow]💡 Fix by updating your config:[/yellow]")
+            rprint(
+                "   [cyan]gpu-dev config set github_user {validation_result['ssh_user']}[/cyan]"
+            )
+        elif not validation_result["configured_user"]:
+            rprint("\n[yellow]💡 Fix by configuring your GitHub username:[/yellow]")
+            rprint(
+                "   [cyan]gpu-dev config set github_user <your-github-username>[/cyan]"
+            )
+        else:
+            rprint("\n[yellow]💡 gpu-dev utilizes Github keys for auth![/yellow]")
+            rprint(
+                "[yellow]💡 Check https://fburl.com/gh-ssh for info on how to add your ssh key to Github[/yellow]"
+            )
+        return False
+
+    return True
 
 
 @click.group()
@@ -194,6 +224,12 @@ def reserve(
                     rprint(f"[red]❌ {str(e)}[/red]")
                     return
 
+                # Validate SSH key matches configured GitHub username
+                live.update(Spinner("dots", text="🔐 Validating SSH key..."))
+                if not _validate_ssh_key_or_exit(config, live):
+                    return
+
+                live.update(Spinner("dots", text="📡 Loading GPU availability..."))
                 reservation_mgr = ReservationManager(config)
                 availability_info = reservation_mgr.get_gpu_availability_by_type()
 
@@ -305,6 +341,11 @@ def reserve(
                 except RuntimeError as e:
                     live.stop()
                     rprint(f"[red]❌ {str(e)}[/red]")
+                    return
+
+                # Validate SSH key matches configured GitHub username
+                live.update(Spinner("dots", text="🔐 Validating SSH key..."))
+                if not _validate_ssh_key_or_exit(config, live):
                     return
 
                 live.update(
