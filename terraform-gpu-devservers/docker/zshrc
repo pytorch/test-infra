@@ -66,5 +66,5 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 
-# Custom prompt to show full path (no time)
-PROMPT='%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%} $ '
+# Custom prompt to show full path (no time) - override theme prompt
+PROMPT='%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}$ '

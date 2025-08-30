@@ -76,9 +76,17 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master
 RUN git clone https://github.com/zsh-users/zsh-autosuggestions ~/.oh-my-zsh/custom/plugins/zsh-autosuggestions && \
     git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/custom/plugins/zsh-syntax-highlighting
 
-# Create setup directory with all configs for copying to persistent disk after mount
+# Create Jupyter config directory (token will be set at runtime)
+RUN mkdir -p ~/.jupyter
+
+# Create setup directory with all configs and user home items for copying to persistent disk after mount
 USER root
-RUN mkdir -p /devserver-setup
+RUN mkdir -p /devserver-setup && \
+    cp -r /home/dev/.npm-global /devserver-setup/npm-global && \
+    cp -r /home/dev/.oh-my-zsh /devserver-setup/oh-my-zsh && \
+    cp -r /home/dev/.jupyter /devserver-setup/jupyter && \
+    cp /home/dev/.npmrc /devserver-setup/.npmrc
+
 COPY --chown=root:root shell_env /devserver-setup/.shell_env
 COPY --chown=root:root zshrc /devserver-setup/.zshrc
 COPY --chown=root:root bashrc /devserver-setup/.bashrc
@@ -88,9 +96,6 @@ COPY --chown=root:root zprofile /devserver-setup/.zprofile
 
 # Don't copy to /home/dev since persistent disk will overwrite it
 USER dev
-
-# Create Jupyter config directory (token will be set at runtime)
-RUN mkdir -p ~/.jupyter
 
 # Switch back to root for final configuration
 USER root

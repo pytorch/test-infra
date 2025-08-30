@@ -10,6 +10,8 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 from rich import print as rprint
+from rich.spinner import Spinner
+from rich.live import Live
 
 from .auth import authenticate_user
 from .reservations import (
@@ -153,62 +155,72 @@ def reserve(
             return
 
         # Production mode - zero config!
-        config = load_config()
+        with Live(Spinner("dots", text="📡 Contacting reservation service..."), console=console) as live:
+            config = load_config()
 
-        # Authenticate using AWS credentials - if you can call AWS, you're authorized
-        try:
-            user_info = authenticate_user(config)
-        except RuntimeError as e:
-            rprint(f"[red]❌ {str(e)}[/red]")
-            return
+            # Authenticate using AWS credentials - if you can call AWS, you're authorized
+            try:
+                user_info = authenticate_user(config)
+            except RuntimeError as e:
+                live.stop()
+                rprint(f"[red]❌ {str(e)}[/red]")
+                return
 
-        # Check for existing reservations with persistent disks (persistent disk warning)
-        reservation_mgr = ReservationManager(config)
-        if not ignore_no_persist:
-            existing_reservations = reservation_mgr.list_reservations(
-                user_filter=user_info["user_id"], 
-                statuses_to_include=["active", "preparing", "queued", "pending"]
-            )
+            # Check for existing reservations with persistent disks (persistent disk warning)
+            reservation_mgr = ReservationManager(config)
             
-            # Find reservations that actually have persistent disks
-            persistent_reservations = [
-                res for res in existing_reservations 
-                if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
-            ]
+            persistent_reservations = []
+            if not ignore_no_persist:
+                existing_reservations = reservation_mgr.list_reservations(
+                    user_filter=user_info["user_id"], 
+                    statuses_to_include=["active", "preparing", "queued", "pending"]
+                )
+                
+                # Find reservations that actually have persistent disks
+                persistent_reservations = [
+                    res for res in existing_reservations 
+                    if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
+                ]
+        
+        # Stop spinner before user interaction
+        if persistent_reservations:
+            live.stop()
+            persistent_res = persistent_reservations[0]  # Should only be one
+            persistent_res_id = persistent_res.get("reservation_id", "unknown")[:8]
             
-            if persistent_reservations:
-                persistent_res = persistent_reservations[0]  # Should only be one
-                persistent_res_id = persistent_res.get("reservation_id", "unknown")[:8]
-                
-                rprint(f"\n[yellow]⚠️  Warning: Your persistent disk is currently mounted on reservation {persistent_res_id}[/yellow]")
-                rprint("[yellow]This new reservation will NOT have a persistent disk and will start empty.[/yellow]")
-                rprint("[yellow]Your data will NOT be automatically backed up when it expires.[/yellow]")
-                rprint("\n[cyan]Options:[/cyan]")
-                rprint("1. Continue and make this new reservation without persistent data disk")
-                rprint(f"2. Cancel existing reservation with persistent disk: [cyan]gpu-dev cancel {persistent_res_id}[/cyan]")
-                rprint(f"3. Use [cyan]--ignore-no-persist[/cyan] flag to skip this warning")
-                
-                # Ask for confirmation
-                try:
-                    choice = click.confirm("\nDo you want to continue with a new reservation (no persistent disk)?")
-                    if not choice:
-                        rprint("[yellow]Reservation cancelled by user[/yellow]")
-                        return
-                except (KeyboardInterrupt, click.Abort):
-                    rprint("\n[yellow]Reservation cancelled by user[/yellow]")
+            rprint(f"\n[yellow]⚠️  Warning: Your persistent disk is currently mounted on reservation {persistent_res_id}[/yellow]")
+            rprint("[yellow]This new reservation will NOT have a persistent disk and will start empty.[/yellow]")
+            rprint("[yellow]Your data will NOT be automatically backed up when it expires.[/yellow]")
+            rprint("\n[cyan]Options:[/cyan]")
+            rprint("1. Continue and make this new reservation without persistent data disk")
+            rprint(f"2. Cancel existing reservation with persistent disk: [cyan]gpu-dev cancel {persistent_res_id}[/cyan]")
+            rprint(f"3. Use [cyan]--ignore-no-persist[/cyan] flag to skip this warning")
+            
+            # Ask for confirmation
+            try:
+                choice = click.confirm("\nDo you want to continue with a new reservation (no persistent disk)?")
+                if not choice:
+                    rprint("[yellow]Reservation cancelled by user[/yellow]")
                     return
+            except (KeyboardInterrupt, click.Abort):
+                rprint("\n[yellow]Reservation cancelled by user[/yellow]")
+                return
+        else:
+            # No persistent reservations or ignoring warning - stop spinner
+            live.stop()
 
-        # Submit reservation
-        reservation_id = reservation_mgr.create_reservation(
-            user_id=user_info["user_id"],
-            gpu_count=gpu_count,
-            gpu_type=gpu_type,
-            duration_hours=hours,
-            name=name,
-            github_user=user_info["github_user"],
-            jupyter_enabled=jupyter,
-            recreate_env=recreate_env,
-        )
+        # Submit reservation with a new spinner
+        with Live(Spinner("dots", text="📡 Submitting reservation request..."), console=console):
+            reservation_id = reservation_mgr.create_reservation(
+                user_id=user_info["user_id"],
+                gpu_count=gpu_count,
+                gpu_type=gpu_type,
+                duration_hours=hours,
+                name=name,
+                github_user=user_info["github_user"],
+                jupyter_enabled=jupyter,
+                recreate_env=recreate_env,
+            )
 
         if reservation_id:
             rprint(
@@ -264,64 +276,70 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     Available statuses: active, preparing, queued, pending, expired, cancelled, failed, all
     """
     try:
-        config = load_config()
+        with Live(Spinner("dots", text="📡 Fetching reservations..."), console=console) as live:
+            config = load_config()
 
-        # Authenticate using AWS credentials
-        try:
-            user_info = authenticate_user(config)
-            current_user = user_info["user_id"]
-            reservation_mgr = ReservationManager(config)
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                current_user = user_info["user_id"]
+                reservation_mgr = ReservationManager(config)
 
-            # Determine user filter
-            if user == "all":
-                user_filter = None  # Show all users
-            elif user:
-                user_filter = user  # Show specific user
-            else:
-                user_filter = current_user  # Show only current user (default)
-
-            # Determine status filter
-            if status:
-                # Handle special "all" case
-                if status.strip().lower() == "all":
-                    statuses_to_include = None  # None means all statuses
+                # Determine user filter
+                if user == "all":
+                    user_filter = None  # Show all users
+                elif user:
+                    user_filter = user  # Show specific user
                 else:
-                    # Parse comma-separated statuses and validate
-                    requested_statuses = [s.strip() for s in status.split(",")]
-                    valid_statuses = [
-                        "active",
-                        "preparing",
-                        "queued",
-                        "pending",
-                        "expired",
-                        "cancelled",
-                        "failed",
-                    ]
+                    user_filter = current_user  # Show only current user (default)
 
-                    # Validate all requested statuses
-                    invalid_statuses = [
-                        s for s in requested_statuses if s not in valid_statuses
-                    ]
-                    if invalid_statuses:
-                        rprint(
-                            f"[red]❌ Invalid status(es): {', '.join(invalid_statuses)}[/red]"
-                        )
-                        rprint(
-                            f"[yellow]Valid statuses: {', '.join(valid_statuses)}, all[/yellow]"
-                        )
-                        return
+                # Determine status filter
+                if status:
+                    # Handle special "all" case
+                    if status.strip().lower() == "all":
+                        statuses_to_include = None  # None means all statuses
+                    else:
+                        # Parse comma-separated statuses and validate
+                        requested_statuses = [s.strip() for s in status.split(",")]
+                        valid_statuses = [
+                            "active",
+                            "preparing",
+                            "queued",
+                            "pending",
+                            "expired",
+                            "cancelled",
+                            "failed",
+                        ]
 
-                    statuses_to_include = requested_statuses
-            else:
-                # Default: all in-progress statuses (exclude terminal states)
-                statuses_to_include = ["active", "preparing", "queued", "pending"]
+                        # Validate all requested statuses
+                        invalid_statuses = [
+                            s for s in requested_statuses if s not in valid_statuses
+                        ]
+                        if invalid_statuses:
+                            live.stop()
+                            rprint(
+                                f"[red]❌ Invalid status(es): {', '.join(invalid_statuses)}[/red]"
+                            )
+                            rprint(
+                                f"[yellow]Valid statuses: {', '.join(valid_statuses)}, all[/yellow]"
+                            )
+                            return
 
-            reservations = reservation_mgr.list_reservations(
-                user_filter=user_filter, statuses_to_include=statuses_to_include
-            )
-        except RuntimeError as e:
-            rprint(f"[red]❌ {str(e)}[/red]")
-            return
+                        statuses_to_include = requested_statuses
+                else:
+                    # Default: all in-progress statuses (exclude terminal states)
+                    statuses_to_include = ["active", "preparing", "queued", "pending"]
+
+                reservations = reservation_mgr.list_reservations(
+                    user_filter=user_filter, statuses_to_include=statuses_to_include
+                )
+            except RuntimeError as e:
+                live.stop()
+                rprint(f"[red]❌ {str(e)}[/red]")
+                return
+        
+        # Stop spinner after getting results
+        live.stop()
 
         if not reservations:
             rprint("[yellow]📋 No reservations found[/yellow]")
@@ -518,18 +536,22 @@ def cancel(ctx: click.Context, reservation_id: str) -> None:
     Note: Cancelled reservations cannot be restored. Active pods will be terminated.
     """
     try:
-        config = load_config()
+        with Live(Spinner("dots", text="📡 Contacting reservation service..."), console=console) as live:
+            config = load_config()
 
-        # Authenticate using AWS credentials
-        try:
-            user_info = authenticate_user(config)
-            reservation_mgr = ReservationManager(config)
-            success = reservation_mgr.cancel_reservation(
-                reservation_id, user_info["user_id"]
-            )
-        except RuntimeError as e:
-            rprint(f"[red]❌ {str(e)}[/red]")
-            return
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                success = reservation_mgr.cancel_reservation(
+                    reservation_id, user_info["user_id"]
+                )
+            except RuntimeError as e:
+                live.stop()
+                rprint(f"[red]❌ {str(e)}[/red]")
+                return
+        
+        # Stop spinner after operation completes
 
         if success:
             rprint(f"[green]✅ Reservation {reservation_id} cancelled[/green]")
@@ -568,18 +590,22 @@ def show(ctx: click.Context, reservation_id: str) -> None:
     Works for reservations in any status.
     """
     try:
-        config = load_config()
+        with Live(Spinner("dots", text="📡 Fetching reservation details..."), console=console) as live:
+            config = load_config()
 
-        # Authenticate using AWS credentials
-        try:
-            user_info = authenticate_user(config)
-            reservation_mgr = ReservationManager(config)
-            connection_info = reservation_mgr.get_connection_info(
-                reservation_id, user_info["user_id"]
-            )
-        except RuntimeError as e:
-            rprint(f"[red]❌ {str(e)}[/red]")
-            return
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                connection_info = reservation_mgr.get_connection_info(
+                    reservation_id, user_info["user_id"]
+                )
+            except RuntimeError as e:
+                live.stop()
+                rprint(f"[red]❌ {str(e)}[/red]")
+                return
+        
+        # Stop spinner after getting results
 
         if connection_info:
             status = connection_info.get("status", "unknown")
@@ -773,16 +799,20 @@ def show(ctx: click.Context, reservation_id: str) -> None:
 def _show_availability() -> None:
     """Shared function to show GPU availability"""
     try:
-        config = load_config()
+        with Live(Spinner("dots", text="📡 Checking GPU availability..."), console=console) as live:
+            config = load_config()
 
-        # Authenticate using AWS credentials
-        try:
-            user_info = authenticate_user(config)
-            reservation_mgr = ReservationManager(config)
-            availability_info = reservation_mgr.get_gpu_availability_by_type()
-        except RuntimeError as e:
-            rprint(f"[red]❌ {str(e)}[/red]")
-            return
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                availability_info = reservation_mgr.get_gpu_availability_by_type()
+            except RuntimeError as e:
+                live.stop()
+                rprint(f"[red]❌ {str(e)}[/red]")
+                return
+        
+        # Stop spinner after getting results
 
         if availability_info:
             table = Table(title="GPU Availability by Type")
@@ -900,16 +930,20 @@ def status(ctx: click.Context) -> None:
     Note: Status is updated in real-time from the Kubernetes cluster.
     """
     try:
-        config = load_config()
+        with Live(Spinner("dots", text="📡 Checking cluster status..."), console=console) as live:
+            config = load_config()
 
-        # Authenticate using AWS credentials
-        try:
-            user_info = authenticate_user(config)
-            reservation_mgr = ReservationManager(config)
-            cluster_status = reservation_mgr.get_cluster_status()
-        except RuntimeError as e:
-            rprint(f"[red]❌ {str(e)}[/red]")
-            return
+            # Authenticate using AWS credentials
+            try:
+                user_info = authenticate_user(config)
+                reservation_mgr = ReservationManager(config)
+                cluster_status = reservation_mgr.get_cluster_status()
+            except RuntimeError as e:
+                live.stop()
+                rprint(f"[red]❌ {str(e)}[/red]")
+                return
+        
+        # Stop spinner after getting results
 
         if cluster_status:
             table = Table(title="GPU Cluster Status")
@@ -1164,22 +1198,28 @@ def edit(
             return
 
         # Authenticate first
-        config = load_config()
-        user_info = authenticate_user(config)
-        if not user_info:
-            return
+        with Live(Spinner("dots", text="📡 Contacting reservation service..."), console=console) as live:
+            config = load_config()
+            user_info = authenticate_user(config)
+            if not user_info:
+                live.stop()
+                return
 
-        reservation_mgr = ReservationManager(config)
+            reservation_mgr = ReservationManager(config)
 
-        # Check if reservation exists and belongs to user
-        connection_info = reservation_mgr.get_connection_info(
-            reservation_id, user_info["user_id"]
-        )
-        if not connection_info:
-            rprint(
-                f"[red]❌ Reservation {reservation_id} not found or doesn't belong to you[/red]"
+            # Check if reservation exists and belongs to user
+            connection_info = reservation_mgr.get_connection_info(
+                reservation_id, user_info["user_id"]
             )
-            return
+            if not connection_info:
+                live.stop()
+                rprint(
+                    f"[red]❌ Reservation {reservation_id} not found or doesn't belong to you[/red]"
+                )
+                return
+        
+        # Stop spinner before validation and operations
+        live.stop()
 
         if connection_info["status"] != "active":
             rprint(

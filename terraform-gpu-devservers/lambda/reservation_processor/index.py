@@ -1510,13 +1510,8 @@ def create_pod(
                     command=["/bin/bash"],
                     args=[
                         "-c",
-                        """
-                        set -e  # Exit on any error
-
+                        f"""
                         echo "[STARTUP] Starting GPU development container with pre-installed environment..."
-
-                        # All packages and configurations are pre-installed in Docker image
-                        echo "[STARTUP] Using pre-built Docker image with Jupyter, SSH, zsh, oh-my-zsh, and Claude CLI..."
 
                         # Debug environment variables
                         echo "[STARTUP] Environment variables:"
@@ -1527,7 +1522,7 @@ def create_pod(
                         echo "[STARTUP] Checking persistent disk setup..."
                         
                         # Check if we have a mounted disk and handle accordingly
-                        if mountpoint -q /home/dev && [ "$(df /home/dev | tail -1 | awk '{print $1}')" != "tmpfs" ]; then
+                        if mountpoint -q /home/dev && [ "$(df /home/dev | tail -1 | awk '{{print $1}}')" != "tmpfs" ]; then
                             echo "[STARTUP] Real disk mounted at /home/dev"
                             
                             if [ "$USE_PERSISTENT_DISK" = "false" ]; then
@@ -1573,7 +1568,7 @@ def create_pod(
                         ls -la /devserver-setup/ || echo "[STARTUP] ERROR: /devserver-setup directory not found!"
                         
                         if [ "$CREATE_SH_ENV" = "true" ]; then
-                            echo "[STARTUP] CREATE_SH_ENV=true - Copying shell configurations to persistent disk..."
+                            echo "[STARTUP] CREATE_SH_ENV=true - Copying shell configurations and user directories to persistent disk..."
                             
                             # Copy pre-built configs from Docker image to persistent disk with error checking
                             echo "[STARTUP] Copying shell configurations from /devserver-setup to /home/dev..."
@@ -1591,7 +1586,35 @@ def create_pod(
                                 fi
                             done
 
-                            echo "[STARTUP] Shell configuration files copied to persistent disk"
+                            # Copy user directories (npm-global, oh-my-zsh, jupyter) from template
+                            echo "[STARTUP] Copying user directories from /devserver-setup..."
+                            
+                            for directory in npm-global oh-my-zsh jupyter; do
+                                if [ -d "/devserver-setup/$directory" ]; then
+                                    echo "[STARTUP] Copying $directory directory..."
+                                    if cp -r "/devserver-setup/$directory" "/home/dev/.$directory"; then
+                                        echo "[STARTUP] ✓ Successfully copied .$directory directory"
+                                    else
+                                        echo "[STARTUP] ✗ FAILED to copy .$directory directory"
+                                    fi
+                                else
+                                    echo "[STARTUP] ✗ Source directory /devserver-setup/$directory does not exist"
+                                fi
+                            done
+
+                            # Copy npm configuration file
+                            if [ -f "/devserver-setup/.npmrc" ]; then
+                                echo "[STARTUP] Copying .npmrc..."
+                                if cp "/devserver-setup/.npmrc" "/home/dev/.npmrc"; then
+                                    echo "[STARTUP] ✓ Successfully copied .npmrc"
+                                else
+                                    echo "[STARTUP] ✗ FAILED to copy .npmrc"
+                                fi
+                            else
+                                echo "[STARTUP] ✗ Source file /devserver-setup/.npmrc does not exist"
+                            fi
+
+                            echo "[STARTUP] Shell configuration files and user directories copied to persistent disk"
 
                         else
                             echo "[STARTUP] CREATE_SH_ENV='$CREATE_SH_ENV' - Using existing shell configuration from persistent disk"
@@ -1693,7 +1716,7 @@ EOF
                         else
                             echo "TEMPORARY_DISK=false" > /etc/gpu-dev-flags
                         fi
-                        
+
                         cat > /etc/update-motd.d/00-custom << MOTD_EOF
 #!/bin/bash
 # Custom MOTD for GPU dev servers
@@ -1705,7 +1728,7 @@ if [ -f "/etc/gpu-dev-flags" ]; then
 fi
 
 # Get OS info
-OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
+OS_INFO=\\$(lsb_release -d 2>/dev/null | cut -f2 || echo "Couldn't fetch OS data")
 
 # Get container info
 CONTAINER_IMAGE="{GPU_DEV_CONTAINER_IMAGE}"
@@ -1713,9 +1736,9 @@ CONTAINER_IMAGE="{GPU_DEV_CONTAINER_IMAGE}"
 # Get CUDA toolkit info
 CUDA_INFO="CUDA toolkit unavailable"
 if command -v nvcc >/dev/null 2>&1; then
-    CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \\([0-9.]*\\).*/\\1/' 2>/dev/null)
-    if [ -n "$CUDA_VERSION" ]; then
-        CUDA_INFO="CUDA $CUDA_VERSION (nvcc available)"
+    CUDA_VERSION=\\$(nvcc --version | grep "release" | sed 's/.*release \\([0-9.]*\\).*/\\1/' 2>/dev/null)
+    if [ -n "\\$CUDA_VERSION" ]; then
+        CUDA_INFO="CUDA \\$CUDA_VERSION (nvcc available)"
     else
         CUDA_INFO="CUDA toolkit installed (nvcc available)"
     fi
@@ -1727,18 +1750,18 @@ fi
 GPU_INFO="GPU detection unavailable"
 if command -v nvidia-smi >/dev/null 2>&1; then
     # Parse nvidia-smi output to get GPU count and model
-    GPU_DATA=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null)
-    if [ $? -eq 0 ] && [ -n "$GPU_DATA" ]; then
+    GPU_DATA=\\$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null)
+    if [ \\$? -eq 0 ] && [ -n "\\$GPU_DATA" ]; then
         # Count GPUs and get first GPU model/memory
-        GPU_COUNT=$(echo "$GPU_DATA" | wc -l)
-        FIRST_GPU=$(echo "$GPU_DATA" | head -1)
-        GPU_NAME=$(echo "$FIRST_GPU" | cut -d',' -f1 | xargs)
-        GPU_MEMORY=$(echo "$FIRST_GPU" | cut -d',' -f2 | xargs)
+        GPU_COUNT=\\$(echo "\\$GPU_DATA" | wc -l)
+        FIRST_GPU=\\$(echo "\\$GPU_DATA" | head -1)
+        GPU_NAME=\\$(echo "\\$FIRST_GPU" | cut -d',' -f1 | xargs)
+        GPU_MEMORY=\\$(echo "\\$FIRST_GPU" | cut -d',' -f2 | xargs)
 
-        if [ "$GPU_COUNT" -eq 1 ]; then
-            GPU_INFO="1x $GPU_NAME, ${GPU_MEMORY}MiB"
+        if [ "\\$GPU_COUNT" -eq 1 ]; then
+            GPU_INFO="1x \\$GPU_NAME, \\${{GPU_MEMORY}}MiB"
         else
-            GPU_INFO="${GPU_COUNT}x $GPU_NAME, ${GPU_MEMORY}MiB each"
+            GPU_INFO="\\${{GPU_COUNT}}x \\$GPU_NAME, \\${{GPU_MEMORY}}MiB each"
         fi
     fi
 fi
@@ -1748,10 +1771,10 @@ cat << WELCOME_EOF
 
 🚀 Welcome to your GPU development server!
 
-System: $OS_INFO
-Container: $CONTAINER_IMAGE
-CUDA: $CUDA_INFO
-GPUs: $GPU_INFO
+System: \\$OS_INFO
+Container: \\$CONTAINER_IMAGE
+CUDA: \\$CUDA_INFO
+GPUs: \\$GPU_INFO
 
 Shell: Zsh (default with oh-my-zsh) | Bash available
   • Try 'bash' to test bash, or 'use-bash' for switch instructions  
@@ -2285,7 +2308,7 @@ def should_use_persistent_disk(user_id: str, current_reservation_id: str) -> boo
 
         # Check if any existing reservations actually have a persistent disk
         reservations_with_persistent_disk = [
-            res for res in existing_reservations 
+            res for res in existing_reservations
             if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
         ]
 
