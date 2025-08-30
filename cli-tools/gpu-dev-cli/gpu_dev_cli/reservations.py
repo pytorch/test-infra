@@ -46,15 +46,15 @@ def _extract_latest_pod_event(pod_events: str) -> str:
     """Extract the most relevant pod event for display - simplified since Lambda now provides formatted messages"""
     if not pod_events:
         return "Starting pod..."
-    
+
     # Lambda now provides pre-formatted messages, so just return them
     # Handle multi-line messages by taking the first meaningful line
-    lines = pod_events.split('\n')
+    lines = pod_events.split("\n")
     for line in lines:
         line = line.strip()
-        if line and not line.startswith('Events:'):
+        if line and not line.startswith("Events:"):
             return line
-    
+
     return "Starting pod..."
 
 
@@ -413,9 +413,7 @@ class ReservationManager:
             )
 
         except Exception as e:
-            console.print(
-                f"[red]❌ Error submitting extension request: {str(e)}[/red]"
-            )
+            console.print(f"[red]❌ Error submitting extension request: {str(e)}[/red]")
             return False
 
     def get_gpu_availability_by_type(self) -> Optional[Dict[str, Dict[str, Any]]]:
@@ -433,7 +431,7 @@ class ReservationManager:
                 gpu_type = item["gpu_type"]
                 queue_length = self._get_queue_length_for_gpu_type(gpu_type)
                 estimated_wait = queue_length * 15 if queue_length > 0 else 0
-                
+
                 availability_info[gpu_type] = {
                     "available": int(item.get("available_gpus", 0)),
                     "total": int(item.get("total_gpus", 0)),
@@ -456,7 +454,7 @@ class ReservationManager:
         """Get static GPU configuration as fallback when real-time data unavailable"""
         static_configs = {
             "a100": {"available": 0, "total": 16},  # 2x p4d.24xlarge = 16 A100s
-            "b200": {"available": 0, "total": 8},   # 1x p6-b200.48xlarge = 8 B200s
+            "b200": {"available": 0, "total": 8},  # 1x p6-b200.48xlarge = 8 B200s
             "h200": {"available": 0, "total": 16},  # 2x p5e.48xlarge = 16 H200s
             "h100": {"available": 0, "total": 16},  # 2x p5.48xlarge = 16 H100s
             "t4": {"available": 0, "total": 8},  # 2x g4dn.12xlarge = 8 T4s
@@ -712,7 +710,10 @@ class ReservationManager:
             timeout_seconds = timeout_minutes * 60
 
             with Live(console=console, refresh_per_second=2) as live:
-                spinner = Spinner("dots", text=f"🔄 Extending reservation by {extension_hours} hours...")
+                spinner = Spinner(
+                    "dots",
+                    text=f"🔄 Extending reservation by {extension_hours} hours...",
+                )
                 live.update(spinner)
 
                 initial_expiration = None
@@ -746,37 +747,59 @@ class ReservationManager:
                         # Check for extension failure indicators
                         last_updated = reservation.get("last_updated", 0)
                         extension_error = reservation.get("extension_error", "")
-                        
+
                         # If there's an extension error, fail immediately
                         if extension_error:
                             live.stop()
-                            console.print(f"[red]❌ Extension failed: {extension_error}[/red]")
+                            console.print(
+                                f"[red]❌ Extension failed: {extension_error}[/red]"
+                            )
                             return False
 
                         # Check if the expiration has been updated (different from initial)
-                        if current_expiration != initial_expiration and current_expiration:
+                        if (
+                            current_expiration != initial_expiration
+                            and current_expiration
+                        ):
                             live.stop()
                             from datetime import datetime
+
                             try:
-                                exp_dt = datetime.fromisoformat(current_expiration.replace('Z', '+00:00'))
+                                exp_dt = datetime.fromisoformat(
+                                    current_expiration.replace("Z", "+00:00")
+                                )
                                 # Convert to local timezone for display
                                 try:
                                     # Try to get local timezone (Python 3.9+)
                                     local_exp = exp_dt.astimezone()
-                                    formatted_expiration = local_exp.strftime('%Y-%m-%d %H:%M:%S %Z')
+                                    formatted_expiration = local_exp.strftime(
+                                        "%Y-%m-%d %H:%M:%S %Z"
+                                    )
                                 except:
                                     # Fallback to UTC if timezone conversion fails
-                                    formatted_expiration = exp_dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-                                console.print(f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {formatted_expiration}[/green]")
+                                    formatted_expiration = exp_dt.strftime(
+                                        "%Y-%m-%d %H:%M:%S UTC"
+                                    )
+                                console.print(
+                                    f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {formatted_expiration}[/green]"
+                                )
                                 return True
                             except Exception:
                                 # Fallback to UTC display if timezone conversion fails
                                 try:
-                                    exp_dt = datetime.fromisoformat(current_expiration.replace('Z', '+00:00'))
-                                    formatted_expiration = exp_dt.strftime('%Y-%m-%d %H:%M:%S UTC')
-                                    console.print(f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {formatted_expiration}[/green]")
+                                    exp_dt = datetime.fromisoformat(
+                                        current_expiration.replace("Z", "+00:00")
+                                    )
+                                    formatted_expiration = exp_dt.strftime(
+                                        "%Y-%m-%d %H:%M:%S UTC"
+                                    )
+                                    console.print(
+                                        f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {formatted_expiration}[/green]"
+                                    )
                                 except:
-                                    console.print(f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {current_expiration}[/green]")
+                                    console.print(
+                                        f"[green]✅ Extended reservation {reservation_id} by {extension_hours} hours -- your new expiration is {current_expiration}[/green]"
+                                    )
                                 return True
 
                         spinner.text = f"🔄 Processing extension request..."
@@ -1017,7 +1040,7 @@ class ReservationManager:
                             pod_status = reservation.get("pod_status", "")
                             pod_events = reservation.get("pod_events", "")
                             failure_reason = reservation.get("failure_reason", "")
-                            
+
                             # Priority: pod_status > pod_events > failure_reason > default
                             if pod_status:
                                 message = f"🚀 {pod_status}"

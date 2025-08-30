@@ -14,10 +14,10 @@ class Config:
         # Config file paths
         self.config_file = Path.home() / ".gpu-dev-config"
         self.environment_config_file = Path.home() / ".gpu-dev-environment.json"
-        
+
         # Load environment config first to get region
         self.environment_config = self._load_environment_config()
-        
+
         # Get region from environment config file, then AWS env vars, or default
         if self.environment_config.get("region"):
             self.aws_region = self.environment_config["region"]
@@ -111,7 +111,9 @@ class Config:
             with open(self.environment_config_file, "r") as f:
                 return json.load(f)
         except Exception as e:
-            print(f"Warning: Could not load environment config file {self.environment_config_file}: {e}")
+            print(
+                f"Warning: Could not load environment config file {self.environment_config_file}: {e}"
+            )
             return {}
 
     def _load_user_config(self) -> Dict[str, Any]:

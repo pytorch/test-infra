@@ -51,14 +51,14 @@ def main(ctx: click.Context) -> None:
         gpu-dev reserve                         # Interactive reservation (auto-detected)
         gpu-dev cancel                          # Interactive cancellation
         gpu-dev edit                            # Interactive edit
-    
+
     \b
     Command-line Mode:
         gpu-dev reserve --gpus 2 --hours 4     # Reserve 2 GPUs for 4 hours
         gpu-dev reserve --jupyter               # Reserve with Jupyter Lab
         gpu-dev cancel abc12345                 # Cancel specific reservation
         gpu-dev edit abc12345 --enable-jupyter # Enable Jupyter on reservation
-    
+
     \b
     Information Commands:
         gpu-dev list                            # Check your reservations
@@ -67,9 +67,9 @@ def main(ctx: click.Context) -> None:
         gpu-dev status                          # Check cluster status
         gpu-dev help                            # Show this help message
 
-    Interactive mode is automatically enabled when running commands without 
+    Interactive mode is automatically enabled when running commands without
     parameters in a terminal. Use --no-interactive to disable.
-    
+
     Use 'gpu-dev <command> --help' for detailed help on each command.
     """
     ctx.ensure_object(dict)
@@ -84,7 +84,9 @@ def main(ctx: click.Context) -> None:
 )
 @click.option(
     "--gpu-type",
-    type=click.Choice(["b200", "h200", "h100", "a100", "t4", "l4", "t4-small"], case_sensitive=False),
+    type=click.Choice(
+        ["b200", "h200", "h100", "a100", "t4", "l4", "t4-small"], case_sensitive=False
+    ),
     help="GPU type to reserve (b200/h200/h100/a100/t4/l4/t4-small)",
 )
 @click.option(
@@ -118,7 +120,7 @@ def main(ctx: click.Context) -> None:
 def reserve(
     ctx: click.Context,
     gpus: Optional[str],
-    gpu_type: Optional[str],  
+    gpu_type: Optional[str],
     hours: Optional[float],
     name: Optional[str],
     jupyter: bool,
@@ -134,10 +136,10 @@ def reserve(
     \b
     Interactive Mode (NEW):
         gpu-dev reserve                          # Interactive mode - guided setup
-        
+
     The interactive mode will:
     - Show GPU availability table
-    - Let you select GPU type with arrow keys  
+    - Let you select GPU type with arrow keys
     - Choose number of GPUs
     - Select duration with presets
     - Optional Jupyter Lab and naming
@@ -160,7 +162,9 @@ def reserve(
         use_interactive = interactive
         if use_interactive is None:
             # Auto-detect: use interactive if no key parameters provided
-            use_interactive = (gpus is None or gpu_type is None or hours is None) and check_interactive_support()
+            use_interactive = (
+                gpus is None or gpu_type is None or hours is None
+            ) and check_interactive_support()
 
         # GPU config for validation
         gpu_configs = {
@@ -179,7 +183,9 @@ def reserve(
             rprint("[dim]Use --no-interactive flag to disable interactive mode[/dim]\n")
 
             # Setup config early for availability check
-            with Live(Spinner("dots", text="📡 Loading GPU availability..."), console=console) as live:
+            with Live(
+                Spinner("dots", text="📡 Loading GPU availability..."), console=console
+            ) as live:
                 config = load_config()
                 try:
                     user_info = authenticate_user(config)
@@ -187,10 +193,10 @@ def reserve(
                     live.stop()
                     rprint(f"[red]❌ {str(e)}[/red]")
                     return
-                
+
                 reservation_mgr = ReservationManager(config)
                 availability_info = reservation_mgr.get_gpu_availability_by_type()
-                
+
             live.stop()
 
             if not availability_info:
@@ -210,7 +216,7 @@ def reserve(
                 if gpu_type_lower not in gpu_configs:
                     rprint(f"[red]❌ Invalid GPU type '{gpu_type}'[/red]")
                     return
-                
+
                 max_gpus = gpu_configs[gpu_type_lower]["max_gpus"]
                 gpu_count = select_gpu_count_interactive(gpu_type_lower, max_gpus)
                 if gpu_count is None:
@@ -247,20 +253,24 @@ def reserve(
                 gpu_type = "a100"
             if hours is None:
                 hours = 8.0
-            
+
             gpu_count = int(gpus)
 
         # Validate GPU type and count (for both modes)
         gpu_type = gpu_type.lower()  # Normalize to lowercase
 
         if gpu_type not in gpu_configs:
-            valid_types = ', '.join(sorted(gpu_configs.keys()))
-            rprint(f"[red]❌ Invalid GPU type '{gpu_type}'. Valid types: {valid_types}[/red]")
+            valid_types = ", ".join(sorted(gpu_configs.keys()))
+            rprint(
+                f"[red]❌ Invalid GPU type '{gpu_type}'. Valid types: {valid_types}[/red]"
+            )
             return
 
         max_gpus = gpu_configs[gpu_type]["max_gpus"]
         if gpu_count > max_gpus:
-            rprint(f"[red]❌ GPU type '{gpu_type}' supports maximum {max_gpus} GPUs per node, requested {gpu_count}[/red]")
+            rprint(
+                f"[red]❌ GPU type '{gpu_type}' supports maximum {max_gpus} GPUs per node, requested {gpu_count}[/red]"
+            )
             return
 
         # Validate parameters
@@ -273,18 +283,22 @@ def reserve(
             return
 
         # Use a single spinner context for the entire process
-        with Live(Spinner("dots", text="📡 Starting reservation process..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Starting reservation process..."), console=console
+        ) as live:
             # Setup config and reservation manager
             if use_interactive:
                 # Already have config, user_info, and reservation_mgr from interactive setup
                 pass
             else:
                 # Load config for non-interactive mode
-                live.update(Spinner("dots", text="📡 Contacting reservation service..."))
+                live.update(
+                    Spinner("dots", text="📡 Contacting reservation service...")
+                )
                 config = load_config()
 
                 live.update(Spinner("dots", text="📡 Authenticating..."))
-                
+
                 # Authenticate using AWS credentials - if you can call AWS, you're authorized
                 try:
                     user_info = authenticate_user(config)
@@ -293,55 +307,76 @@ def reserve(
                     rprint(f"[red]❌ {str(e)}[/red]")
                     return
 
-                live.update(Spinner("dots", text="📡 Setting up reservation manager..."))
+                live.update(
+                    Spinner("dots", text="📡 Setting up reservation manager...")
+                )
                 reservation_mgr = ReservationManager(config)
 
             # Check for existing reservations with persistent disks (persistent disk warning)
             live.update(Spinner("dots", text="📡 Checking existing reservations..."))
-            
+
             persistent_reservations = []
             if not ignore_no_persist:
                 existing_reservations = reservation_mgr.list_reservations(
-                    user_filter=user_info["user_id"], 
-                    statuses_to_include=["active", "preparing", "queued", "pending"]
+                    user_filter=user_info["user_id"],
+                    statuses_to_include=["active", "preparing", "queued", "pending"],
                 )
-                
+
                 # Find reservations that actually have persistent disks
                 persistent_reservations = [
-                    res for res in existing_reservations 
+                    res
+                    for res in existing_reservations
                     if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
                 ]
-        
+
             # Stop spinner before user interaction
             if persistent_reservations:
                 live.stop()
                 persistent_res = persistent_reservations[0]  # Should only be one
                 persistent_res_id = persistent_res.get("reservation_id", "unknown")[:8]
-                
-                rprint(f"\n[yellow]⚠️  Warning: Your persistent disk is currently mounted on reservation {persistent_res_id}[/yellow]")
-                rprint("[yellow]This new reservation will NOT have a persistent disk and will start empty.[/yellow]")
-                rprint("[yellow]Your data will NOT be automatically backed up when it expires.[/yellow]")
+
+                rprint(
+                    f"\n[yellow]⚠️  Warning: Your persistent disk is currently mounted on reservation {persistent_res_id}[/yellow]"
+                )
+                rprint(
+                    "[yellow]This new reservation will NOT have a persistent disk and will start empty.[/yellow]"
+                )
+                rprint(
+                    "[yellow]Your data will NOT be automatically backed up when it expires.[/yellow]"
+                )
                 rprint("\n[cyan]Options:[/cyan]")
-                rprint("1. Continue and make this new reservation without persistent data disk")
-                rprint(f"2. Cancel existing reservation with persistent disk: [cyan]gpu-dev cancel {persistent_res_id}[/cyan]")
-                rprint(f"3. Use [cyan]--ignore-no-persist[/cyan] flag to skip this warning")
-                
+                rprint(
+                    "1. Continue and make this new reservation without persistent data disk"
+                )
+                rprint(
+                    f"2. Cancel existing reservation with persistent disk: [cyan]gpu-dev cancel {persistent_res_id}[/cyan]"
+                )
+                rprint(
+                    f"3. Use [cyan]--ignore-no-persist[/cyan] flag to skip this warning"
+                )
+
                 # Ask for confirmation
                 try:
-                    choice = click.confirm("\nDo you want to continue with a new reservation (no persistent disk)?")
+                    choice = click.confirm(
+                        "\nDo you want to continue with a new reservation (no persistent disk)?"
+                    )
                     if not choice:
                         rprint("[yellow]Reservation cancelled by user[/yellow]")
                         return
                 except (KeyboardInterrupt, click.Abort):
                     rprint("\n[yellow]Reservation cancelled by user[/yellow]")
                     return
-                
+
                 # Restart spinner for submission
                 live.start()
-                live.update(Spinner("dots", text="📡 Submitting reservation request..."))
+                live.update(
+                    Spinner("dots", text="📡 Submitting reservation request...")
+                )
             else:
                 # No persistent reservations - continue with same spinner
-                live.update(Spinner("dots", text="📡 Submitting reservation request..."))
+                live.update(
+                    Spinner("dots", text="📡 Submitting reservation request...")
+                )
 
             # Submit reservation
             reservation_id = reservation_mgr.create_reservation(
@@ -409,7 +444,9 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     Available statuses: active, preparing, queued, pending, expired, cancelled, failed, all
     """
     try:
-        with Live(Spinner("dots", text="📡 Fetching reservations..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Fetching reservations..."), console=console
+        ) as live:
             config = load_config()
 
             # Authenticate using AWS credentials
@@ -470,7 +507,7 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                 live.stop()
                 rprint(f"[red]❌ {str(e)}[/red]")
                 return
-        
+
         # Stop spinner after getting results
         live.stop()
 
@@ -498,10 +535,10 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                 gpu_type = reservation.get("gpu_type", "unknown")
                 status = reservation.get("status", "unknown")
                 created_at = reservation.get("created_at", "N/A")
-                
+
                 # Extract persistent disk info for storage indicator
                 ebs_volume_id = reservation.get("ebs_volume_id", None)
-                
+
                 # Format user display (part before @)
                 user_display = user_id
                 if "@" in user_id:
@@ -594,6 +631,7 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                 if created_at and created_at != "N/A":
                     try:
                         from datetime import datetime
+
                         if isinstance(created_at, str):
                             # Handle different ISO format variations
                             if created_at.endswith("Z"):
@@ -605,9 +643,10 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                             else:
                                 # Assume naive datetime is UTC
                                 from datetime import timezone
+
                                 naive_dt = datetime.fromisoformat(created_at)
                                 created_dt_utc = naive_dt.replace(tzinfo=timezone.utc)
-                            
+
                             created_dt = created_dt_utc.astimezone()  # Convert to local
                             created_formatted = created_dt.strftime("%m-%d %H:%M")
                         else:
@@ -662,7 +701,12 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     help="Force interactive mode on/off (auto-detected by default)",
 )
 @click.pass_context
-def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interactive: Optional[bool]) -> None:
+def cancel(
+    ctx: click.Context,
+    reservation_id: Optional[str],
+    all: bool,
+    interactive: Optional[bool],
+) -> None:
     """Cancel a GPU reservation
 
     Cancels an active, queued, or pending reservation and releases resources.
@@ -671,7 +715,7 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
     \b
     Interactive Mode (NEW):
         gpu-dev cancel                           # Interactive mode - select from list
-        
+
     Interactive mode shows a table of your cancellable reservations and lets you
     select one with arrow keys. If you have multiple reservations, an "All" option
     will be available to cancel all reservations at once.
@@ -689,10 +733,12 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
         if all and reservation_id:
             rprint("[red]❌ Cannot specify both --all and a reservation ID[/red]")
             return
-        
+
         # Handle --all flag (non-interactive)
         if all:
-            with Live(Spinner("dots", text="📡 Loading your reservations..."), console=console) as live:
+            with Live(
+                Spinner("dots", text="📡 Loading your reservations..."), console=console
+            ) as live:
                 config = load_config()
                 try:
                     user_info = authenticate_user(config)
@@ -702,103 +748,125 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
                     return
 
                 reservation_mgr = ReservationManager(config)
-                
+
                 # Get cancellable reservations
                 reservations = reservation_mgr.list_reservations(
                     user_filter=user_info["user_id"],
-                    statuses_to_include=["active", "queued", "pending", "preparing"]
+                    statuses_to_include=["active", "queued", "pending", "preparing"],
                 )
-                
+
             live.stop()
-            
+
             if not reservations:
                 rprint("[yellow]📋 No cancellable reservations found[/yellow]")
                 return
-            
+
             # Show reservations and confirm
-            rprint(f"[yellow]⚠️  You are about to cancel {len(reservations)} reservation(s):[/yellow]\n")
-            
+            rprint(
+                f"[yellow]⚠️  You are about to cancel {len(reservations)} reservation(s):[/yellow]\n"
+            )
+
             # Create table of reservations to be cancelled
             table = Table()
             table.add_column("ID", style="cyan", no_wrap=True)
             table.add_column("GPUs", style="magenta")
             table.add_column("Status", style="yellow")
             table.add_column("Created", style="blue")
-            
+
             for reservation in reservations:
-                reservation_id_display = reservation.get("reservation_id", "unknown")[:8]
+                reservation_id_display = reservation.get("reservation_id", "unknown")[
+                    :8
+                ]
                 gpu_count = reservation.get("gpu_count", 1)
                 gpu_type = reservation.get("gpu_type", "unknown")
                 status = reservation.get("status", "unknown")
                 created_at = reservation.get("created_at", "N/A")
-                
+
                 # Format GPU information
                 if gpu_type and gpu_type not in ["unknown", "Unknown"]:
                     gpu_display = f"{gpu_count}x {gpu_type.upper()}"
                 else:
                     gpu_display = str(gpu_count)
-                
+
                 # Format created_at
                 created_formatted = "N/A"
                 if created_at and created_at != "N/A":
                     try:
                         from datetime import datetime
+
                         if isinstance(created_at, str):
                             if created_at.endswith("Z"):
-                                created_dt_utc = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                                created_dt_utc = datetime.fromisoformat(
+                                    created_at.replace("Z", "+00:00")
+                                )
                             elif "+" in created_at or created_at.endswith("00:00"):
                                 created_dt_utc = datetime.fromisoformat(created_at)
                             else:
                                 from datetime import timezone
+
                                 naive_dt = datetime.fromisoformat(created_at)
                                 created_dt_utc = naive_dt.replace(tzinfo=timezone.utc)
-                            
+
                             created_dt = created_dt_utc.astimezone()
                             created_formatted = created_dt.strftime("%m-%d %H:%M")
                         else:
                             created_dt = datetime.fromtimestamp(created_at)
                             created_formatted = created_dt.strftime("%m-%d %H:%M")
                     except (ValueError, TypeError):
-                        created_formatted = str(created_at)[:10] if len(str(created_at)) > 10 else str(created_at)
-                
-                table.add_row(reservation_id_display, gpu_display, status, created_formatted)
-            
+                        created_formatted = (
+                            str(created_at)[:10]
+                            if len(str(created_at)) > 10
+                            else str(created_at)
+                        )
+
+                table.add_row(
+                    reservation_id_display, gpu_display, status, created_formatted
+                )
+
             console.print(table)
-            
+
             # Confirmation prompt
             try:
-                confirmed = click.confirm(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
+                confirmed = click.confirm(
+                    f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]"
+                )
                 if not confirmed:
                     rprint("[yellow]Cancellation cancelled by user[/yellow]")
                     return
             except (KeyboardInterrupt, click.Abort):
                 rprint("\n[yellow]Cancellation cancelled by user[/yellow]")
                 return
-            
+
             # Cancel all reservations
             cancelled_count = 0
             failed_count = 0
-            
-            with Live(Spinner("dots", text="📡 Cancelling reservations..."), console=console) as live:
+
+            with Live(
+                Spinner("dots", text="📡 Cancelling reservations..."), console=console
+            ) as live:
                 for reservation in reservations:
                     res_id = reservation.get("reservation_id", "")
                     if res_id:
-                        success = reservation_mgr.cancel_reservation(res_id, user_info["user_id"])
+                        success = reservation_mgr.cancel_reservation(
+                            res_id, user_info["user_id"]
+                        )
                         if success:
                             cancelled_count += 1
                         else:
                             failed_count += 1
-            
+
             live.stop()
-            
+
             # Report results
             if cancelled_count > 0:
-                rprint(f"[green]✅ Successfully cancelled {cancelled_count} reservation(s)[/green]")
+                rprint(
+                    f"[green]✅ Successfully cancelled {cancelled_count} reservation(s)[/green]"
+                )
             if failed_count > 0:
                 rprint(f"[red]❌ Failed to cancel {failed_count} reservation(s)[/red]")
-            
+
             return
-        
+
         # Determine if we should use interactive mode
         use_interactive = interactive
         if use_interactive is None:
@@ -810,7 +878,9 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
             rprint("[cyan]🎯 Interactive cancellation mode[/cyan]")
             rprint("[dim]Use --no-interactive flag to disable interactive mode[/dim]\n")
 
-            with Live(Spinner("dots", text="📡 Loading your reservations..."), console=console) as live:
+            with Live(
+                Spinner("dots", text="📡 Loading your reservations..."), console=console
+            ) as live:
                 config = load_config()
                 try:
                     user_info = authenticate_user(config)
@@ -820,15 +890,15 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
                     return
 
                 reservation_mgr = ReservationManager(config)
-                
+
                 # Get cancellable reservations (active, queued, pending, preparing)
                 reservations = reservation_mgr.list_reservations(
                     user_filter=user_info["user_id"],
-                    statuses_to_include=["active", "queued", "pending", "preparing"]
+                    statuses_to_include=["active", "queued", "pending", "preparing"],
                 )
-                
+
             live.stop()
-            
+
             if not reservations:
                 rprint("[yellow]📋 No cancellable reservations found[/yellow]")
                 return
@@ -838,43 +908,54 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
             if selected_id is None:
                 rprint("[yellow]Cancellation cancelled.[/yellow]")
                 return
-            
+
             # Handle "all" selection
             if selected_id == "__ALL__":
                 # Confirmation prompt for cancelling all
                 try:
-                    confirmed = click.confirm(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
+                    confirmed = click.confirm(
+                        f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]"
+                    )
                     if not confirmed:
                         rprint("[yellow]Cancellation cancelled by user[/yellow]")
                         return
                 except (KeyboardInterrupt, click.Abort):
                     rprint("\n[yellow]Cancellation cancelled by user[/yellow]")
                     return
-                
+
                 # Cancel all reservations
                 cancelled_count = 0
                 failed_count = 0
-                
-                with Live(Spinner("dots", text="📡 Cancelling all reservations..."), console=console) as live:
+
+                with Live(
+                    Spinner("dots", text="📡 Cancelling all reservations..."),
+                    console=console,
+                ) as live:
                     for reservation in reservations:
                         res_id = reservation.get("reservation_id", "")
                         if res_id:
-                            success = reservation_mgr.cancel_reservation(res_id, user_info["user_id"])
+                            success = reservation_mgr.cancel_reservation(
+                                res_id, user_info["user_id"]
+                            )
                             if success:
                                 cancelled_count += 1
                             else:
                                 failed_count += 1
-                
+
                 live.stop()
-                
+
                 # Report results
                 if cancelled_count > 0:
-                    rprint(f"[green]✅ Successfully cancelled {cancelled_count} reservation(s)[/green]")
+                    rprint(
+                        f"[green]✅ Successfully cancelled {cancelled_count} reservation(s)[/green]"
+                    )
                 if failed_count > 0:
-                    rprint(f"[red]❌ Failed to cancel {failed_count} reservation(s)[/red]")
-                
+                    rprint(
+                        f"[red]❌ Failed to cancel {failed_count} reservation(s)[/red]"
+                    )
+
                 return
-                
+
             reservation_id = selected_id
 
         if not reservation_id:
@@ -882,7 +963,10 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
             return
 
         # Proceed with cancellation
-        with Live(Spinner("dots", text="📡 Contacting reservation service..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Contacting reservation service..."),
+            console=console,
+        ) as live:
             if not use_interactive:
                 # Load config if not already loaded
                 config = load_config()
@@ -893,9 +977,11 @@ def cancel(ctx: click.Context, reservation_id: Optional[str], all: bool, interac
                     live.stop()
                     rprint(f"[red]❌ {str(e)}[/red]")
                     return
-            
-            success = reservation_mgr.cancel_reservation(reservation_id, user_info["user_id"])
-        
+
+            success = reservation_mgr.cancel_reservation(
+                reservation_id, user_info["user_id"]
+            )
+
         live.stop()
 
         if success:
@@ -935,7 +1021,9 @@ def show(ctx: click.Context, reservation_id: str) -> None:
     Works for reservations in any status.
     """
     try:
-        with Live(Spinner("dots", text="📡 Fetching reservation details..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Fetching reservation details..."), console=console
+        ) as live:
             config = load_config()
 
             # Authenticate using AWS credentials
@@ -949,7 +1037,7 @@ def show(ctx: click.Context, reservation_id: str) -> None:
                 live.stop()
                 rprint(f"[red]❌ {str(e)}[/red]")
                 return
-        
+
         # Stop spinner after getting results
 
         if connection_info:
@@ -1144,7 +1232,9 @@ def show(ctx: click.Context, reservation_id: str) -> None:
 def _show_availability() -> None:
     """Shared function to show GPU availability"""
     try:
-        with Live(Spinner("dots", text="📡 Checking GPU availability..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Checking GPU availability..."), console=console
+        ) as live:
             config = load_config()
 
             # Authenticate using AWS credentials
@@ -1156,7 +1246,7 @@ def _show_availability() -> None:
                 live.stop()
                 rprint(f"[red]❌ {str(e)}[/red]")
                 return
-        
+
         # Stop spinner after getting results
 
         if availability_info:
@@ -1220,9 +1310,9 @@ def _show_availability() -> None:
 @click.pass_context
 def help(ctx: click.Context) -> None:
     """Show help information (equivalent to --help)
-    
+
     Displays the same help information as using --help flag.
-    
+
     \b
     Examples:
         gpu-dev help                            # Show main help
@@ -1275,7 +1365,9 @@ def status(ctx: click.Context) -> None:
     Note: Status is updated in real-time from the Kubernetes cluster.
     """
     try:
-        with Live(Spinner("dots", text="📡 Checking cluster status..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Checking cluster status..."), console=console
+        ) as live:
             config = load_config()
 
             # Authenticate using AWS credentials
@@ -1287,7 +1379,7 @@ def status(ctx: click.Context) -> None:
                 live.stop()
                 rprint(f"[red]❌ {str(e)}[/red]")
                 return
-        
+
         # Stop spinner after getting results
 
         if cluster_status:
@@ -1352,10 +1444,10 @@ def show() -> None:
         github_user = config.get_github_username()
 
         # Get current environment info
-        env_config = getattr(config, 'environment_config', {})
-        current_env = env_config.get('current_environment', 'Not set')
+        env_config = getattr(config, "environment_config", {})
+        current_env = env_config.get("current_environment", "Not set")
         env_source = "Environment config" if env_config else "Default/ENV vars"
-        
+
         config_text = (
             f"[green]Configuration (Zero-Config)[/green]\n\n"
             f"[blue]Environment:[/blue] {current_env}\n"
@@ -1421,18 +1513,18 @@ def set(key: str, value: str) -> None:
 @click.argument("env_name", type=click.Choice(["test", "prod"]))
 def environment(env_name: str) -> None:
     """Set the environment (test or prod)
-    
+
     Sets the AWS region and Terraform workspace for the specified environment.
     This configuration is used by the switch-to.sh script.
-    
+
     Arguments:
         ENV_NAME: Environment name (test or prod)
-    
+
     \b
     Examples:
-        gpu-dev config environment test   # Set to test environment (us-west-1)  
+        gpu-dev config environment test   # Set to test environment (us-west-1)
         gpu-dev config environment prod   # Set to prod environment (us-east-2)
-        
+
     Environment configurations:
         test: us-west-1, Terraform workspace 'default'
         prod: us-east-2, Terraform workspace 'prod'
@@ -1440,50 +1532,50 @@ def environment(env_name: str) -> None:
     import os
     import json
     from pathlib import Path
-    
+
     try:
         # Environment configurations
         environments = {
             "test": {
                 "region": "us-west-1",
                 "workspace": "default",
-                "description": "Test environment"
+                "description": "Test environment",
             },
             "prod": {
-                "region": "us-east-2", 
+                "region": "us-east-2",
                 "workspace": "prod",
-                "description": "Production environment"
-            }
+                "description": "Production environment",
+            },
         }
-        
+
         env_config = environments[env_name]
-        
+
         # Save environment configuration
         config_file = Path.home() / ".gpu-dev-environment.json"
         config_data = {
             "current_environment": env_name,
             "region": env_config["region"],
-            "workspace": env_config["workspace"]
+            "workspace": env_config["workspace"],
         }
-        
-        with open(config_file, 'w') as f:
+
+        with open(config_file, "w") as f:
             json.dump(config_data, f, indent=2)
-        
+
         # Set environment variable for current session
-        os.environ['AWS_DEFAULT_REGION'] = env_config["region"]
-        
+        os.environ["AWS_DEFAULT_REGION"] = env_config["region"]
+
         rprint(f"[green]✅ Environment set to {env_name}[/green]")
         rprint(f"[blue]Region:[/blue] {env_config['region']}")
         rprint(f"[blue]Workspace:[/blue] {env_config['workspace']}")
         rprint(f"[blue]Description:[/blue] {env_config['description']}")
         rprint(f"[dim]Configuration saved to {config_file}[/dim]")
-        
+
         # Instructions for shell export
         rprint(f"\n[yellow]💡 To apply in your current shell:[/yellow]")
         rprint(f"   export AWS_DEFAULT_REGION={env_config['region']}")
         rprint(f"\n[yellow]💡 Or use the switch-to.sh script:[/yellow]")
         rprint(f"   ./switch-to.sh {env_name}")
-        
+
     except Exception as e:
         rprint(f"[red]❌ Error setting environment: {str(e)}[/red]")
 
@@ -1533,10 +1625,10 @@ def edit(
     \b
     Interactive Mode (NEW):
         gpu-dev edit                            # Interactive mode - select reservation & action
-        
+
     Interactive mode will:
     - Show your active reservations to select from
-    - Let you choose what to edit (Jupyter, users, duration)  
+    - Let you choose what to edit (Jupyter, users, duration)
     - Guide you through the specific changes
 
     \b
@@ -1551,8 +1643,15 @@ def edit(
         use_interactive = interactive
         if use_interactive is None:
             # Auto-detect: use interactive if no reservation_id or no action provided
-            no_action = not enable_jupyter and not disable_jupyter and not add_user and extend is None
-            use_interactive = (reservation_id is None or no_action) and check_interactive_support()
+            no_action = (
+                not enable_jupyter
+                and not disable_jupyter
+                and not add_user
+                and extend is None
+            )
+            use_interactive = (
+                reservation_id is None or no_action
+            ) and check_interactive_support()
 
         if use_interactive:
             # Interactive mode
@@ -1560,7 +1659,9 @@ def edit(
             rprint("[dim]Use --no-interactive flag to disable interactive mode[/dim]\n")
 
             # Load reservations and let user select
-            with Live(Spinner("dots", text="📡 Loading your reservations..."), console=console) as live:
+            with Live(
+                Spinner("dots", text="📡 Loading your reservations..."), console=console
+            ) as live:
                 config = load_config()
                 try:
                     user_info = authenticate_user(config)
@@ -1570,18 +1671,19 @@ def edit(
                     return
 
                 reservation_mgr = ReservationManager(config)
-                
+
                 if reservation_id is None:
                     # Get active reservations (only active can be edited)
                     reservations = reservation_mgr.list_reservations(
-                        user_filter=user_info["user_id"],
-                        statuses_to_include=["active"]
+                        user_filter=user_info["user_id"], statuses_to_include=["active"]
                     )
-                    
+
                     live.stop()
-                    
+
                     if not reservations:
-                        rprint("[yellow]📋 No active reservations found to edit[/yellow]")
+                        rprint(
+                            "[yellow]📋 No active reservations found to edit[/yellow]"
+                        )
                         return
 
                     # Interactive reservation selection
@@ -1589,19 +1691,24 @@ def edit(
                     if selected_id is None:
                         rprint("[yellow]Edit cancelled.[/yellow]")
                         return
-                        
+
                     reservation_id = selected_id
                 else:
                     live.stop()
 
             # Interactive action selection if no action specified
-            no_action = not enable_jupyter and not disable_jupyter and not add_user and extend is None
+            no_action = (
+                not enable_jupyter
+                and not disable_jupyter
+                and not add_user
+                and extend is None
+            )
             if no_action:
                 action = select_edit_action_interactive()
                 if action is None:
                     rprint("[yellow]Edit cancelled.[/yellow]")
                     return
-                
+
                 # Set appropriate flags based on selected action
                 if action == "enable_jupyter":
                     enable_jupyter = True
@@ -1623,7 +1730,12 @@ def edit(
             rprint("[red]❌ Cannot enable and disable Jupyter at the same time[/red]")
             return
 
-        if not enable_jupyter and not disable_jupyter and not add_user and extend is None:
+        if (
+            not enable_jupyter
+            and not disable_jupyter
+            and not add_user
+            and extend is None
+        ):
             rprint(
                 "[red]❌ Please specify --enable-jupyter, --disable-jupyter, --add-user, or --extend[/red]"
             )
@@ -1634,7 +1746,10 @@ def edit(
             return
 
         # Authenticate and validate reservation (skip if already done in interactive mode)
-        with Live(Spinner("dots", text="📡 Contacting reservation service..."), console=console) as live:
+        with Live(
+            Spinner("dots", text="📡 Contacting reservation service..."),
+            console=console,
+        ) as live:
             if not use_interactive:
                 config = load_config()
                 user_info = authenticate_user(config)
@@ -1653,7 +1768,7 @@ def edit(
                     f"[red]❌ Reservation {reservation_id[:8]} not found or doesn't belong to you[/red]"
                 )
                 return
-        
+
         # Stop spinner before validation and operations
         live.stop()
 
@@ -1672,10 +1787,12 @@ def edit(
             if extend > 24:
                 rprint("[red]❌ Maximum extension is 24 hours[/red]")
                 return
-                
+
             success = reservation_mgr.extend_reservation(reservation_id, extend)
             if success:
-                rprint(f"[green]✅ Extended reservation {reservation_id} by {extend} hours[/green]")
+                rprint(
+                    f"[green]✅ Extended reservation {reservation_id} by {extend} hours[/green]"
+                )
             else:
                 rprint(f"[red]❌ Failed to extend reservation {reservation_id}[/red]")
             return
