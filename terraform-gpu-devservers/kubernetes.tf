@@ -185,3 +185,121 @@ resource "kubernetes_daemonset" "nvidia_device_plugin" {
     }
   }
 }
+
+# AWS EFA Device Plugin to expose EFA resources to Kubernetes
+resource "kubernetes_service_account" "efa_device_plugin_sa" {
+  depends_on = [aws_eks_cluster.gpu_dev_cluster]
+
+  metadata {
+    name      = "aws-efa-k8s-device-plugin"
+    namespace = "kube-system"
+  }
+}
+
+resource "kubernetes_daemonset" "efa_device_plugin" {
+  depends_on = [
+    aws_eks_cluster.gpu_dev_cluster,
+    aws_autoscaling_group.gpu_dev_nodes
+  ]
+
+  metadata {
+    name      = "aws-efa-k8s-device-plugin-daemonset"
+    namespace = "kube-system"
+  }
+
+  spec {
+    selector {
+      match_labels = {
+        name = "aws-efa-k8s-device-plugin"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          name = "aws-efa-k8s-device-plugin"
+        }
+      }
+
+      spec {
+        service_account_name = kubernetes_service_account.efa_device_plugin_sa.metadata[0].name
+        host_network        = true
+
+        toleration {
+          key      = "CriticalAddonsOnly"
+          operator = "Exists"
+        }
+
+        toleration {
+          key      = "aws.amazon.com/efa"
+          operator = "Exists"
+          effect   = "NoSchedule"
+        }
+
+        node_selector = {
+          "kubernetes.io/arch" = "amd64"
+        }
+
+        container {
+          image = "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.3.3"
+          name  = "aws-efa-k8s-device-plugin"
+          image_pull_policy = "Always"
+
+          resources {
+            requests = {
+              cpu    = "10m"
+              memory = "10Mi"
+            }
+            limits = {
+              cpu    = "10m"
+              memory = "10Mi"
+            }
+          }
+
+          security_context {
+            allow_privilege_escalation = false
+            capabilities {
+              drop = ["ALL"]
+            }
+          }
+
+          volume_mount {
+            name       = "device-plugin"
+            mount_path = "/var/lib/kubelet/device-plugins"
+          }
+
+          volume_mount {
+            name       = "proc"
+            mount_path = "/host/proc"
+          }
+
+          volume_mount {
+            name       = "sys"
+            mount_path = "/host/sys"
+          }
+        }
+
+        volume {
+          name = "device-plugin"
+          host_path {
+            path = "/var/lib/kubelet/device-plugins"
+          }
+        }
+
+        volume {
+          name = "proc"
+          host_path {
+            path = "/proc"
+          }
+        }
+
+        volume {
+          name = "sys"
+          host_path {
+            path = "/sys"
+          }
+        }
+      }
+    }
+  }
+}

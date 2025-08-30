@@ -50,6 +50,13 @@ locals {
       use_self_managed_nodes = true
       instance_type = "g4dn.12xlarge"
       supported_gpu_types = {
+        "h100" = {
+          instance_type       = "p5.48xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = true
+        }
         "t4" = {
           instance_type       = "g4dn.12xlarge"
           instance_types      = null
@@ -121,6 +128,19 @@ locals {
 
   # Current workspace configuration
   current_config = local.workspace_configs[terraform.workspace]
+
+  # Workspace-specific capacity reservations
+  capacity_reservations = {
+    default = {
+      # Test environment capacity reservations
+      h100 = "cr-PLACEHOLDER_FILL_IN_TEST_H100_RESERVATION_ID"
+    }
+    prod = {
+      # Production environment capacity reservations
+      h100 = "cr-003773252aa2ea59a"
+      b200 = "cr-0e2d0247fafbd380a"
+    }
+  }
 }
 
 

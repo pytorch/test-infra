@@ -10,6 +10,7 @@ import time
 import uuid
 import socket
 import random
+import threading
 
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -27,12 +28,6 @@ from kubernetes.stream import stream
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# AWS clients
-dynamodb = boto3.resource("dynamodb")
-eks_client = boto3.client("eks")
-ec2_client = boto3.client("ec2")
-sqs_client = boto3.client("sqs")
-
 # Environment variables
 RESERVATIONS_TABLE = os.environ["RESERVATIONS_TABLE"]
 EKS_CLUSTER_NAME = os.environ["EKS_CLUSTER_NAME"]
@@ -42,6 +37,15 @@ DEFAULT_TIMEOUT_HOURS = int(os.environ["DEFAULT_TIMEOUT_HOURS"])
 QUEUE_URL = os.environ["QUEUE_URL"]
 PRIMARY_AVAILABILITY_ZONE = os.environ["PRIMARY_AVAILABILITY_ZONE"]
 GPU_DEV_CONTAINER_IMAGE = os.environ.get("GPU_DEV_CONTAINER_IMAGE", "pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel")
+EFS_SECURITY_GROUP_ID = os.environ.get("EFS_SECURITY_GROUP_ID")
+EFS_SUBNET_ID = os.environ.get("EFS_SUBNET_ID")
+
+# AWS clients
+dynamodb = boto3.resource("dynamodb", region_name=REGION)
+eks_client = boto3.client("eks")
+ec2_client = boto3.client("ec2")
+efs_client = boto3.client("efs")
+sqs_client = boto3.client("sqs")
 
 # Global Kubernetes client (reused across Lambda execution)
 _k8s_client = None
@@ -296,6 +300,154 @@ def restore_ebs_from_existing_snapshot(snapshot_id, target_az, user_id):
         raise
 
 
+def create_or_find_user_efs(user_id: str) -> str:
+    """Create or find existing EFS filesystem for user shared storage"""
+    try:
+        logger.info(f"Looking for existing EFS filesystem for user {user_id}")
+
+        # Check for existing EFS with user tag
+        response = efs_client.describe_file_systems()
+
+        for fs in response.get("FileSystems", []):
+            fs_id = fs["FileSystemId"]
+
+            # Get tags for this filesystem
+            try:
+                tags_response = efs_client.describe_tags(FileSystemId=fs_id)
+                tags = {tag["Key"]: tag["Value"] for tag in tags_response.get("Tags", [])}
+
+                if tags.get("gpu-dev-user") == user_id:
+                    logger.info(f"Found existing EFS {fs_id} for user {user_id}")
+
+                    # Ensure mount target exists
+                    ensure_efs_mount_target(fs_id)
+                    return fs_id
+
+            except Exception as tag_error:
+                logger.warning(f"Could not get tags for EFS {fs_id}: {tag_error}")
+                continue
+
+        # Create new EFS filesystem
+        logger.info(f"Creating new EFS filesystem for user {user_id}")
+
+        create_response = efs_client.create_file_system(
+            CreationToken=f"gpu-dev-{user_id}-{int(time.time())}",
+            PerformanceMode="generalPurpose",
+            ThroughputMode="provisioned",
+            ProvisionedThroughputInMibps=125,  # 125 MiB/s for good performance
+            Tags=[
+                {"Key": "gpu-dev-user", "Value": user_id},
+                {"Key": "Name", "Value": f"gpu-dev-shared-{user_id.split('@')[0]}"},
+                {"Key": "Project", "Value": "gpu-dev-servers"},
+                {"Key": "ManagedBy", "Value": "gpu-dev-cli"},
+            ]
+        )
+
+        fs_id = create_response["FileSystemId"]
+
+        # Wait for filesystem to be available
+        logger.info(f"Waiting for EFS {fs_id} to become available")
+
+        max_wait = 300  # 5 minutes
+        start_time = time.time()
+
+        while time.time() - start_time < max_wait:
+            fs_response = efs_client.describe_file_systems(FileSystemId=fs_id)
+            fs_state = fs_response["FileSystems"][0]["LifeCycleState"]
+
+            if fs_state == "available":
+                logger.info(f"EFS {fs_id} is now available")
+                break
+            elif fs_state in ["error", "deleted"]:
+                raise Exception(f"EFS {fs_id} entered error state: {fs_state}")
+
+            logger.info(f"EFS {fs_id} state: {fs_state}, waiting...")
+            time.sleep(10)
+        else:
+            raise Exception(f"EFS {fs_id} did not become available within {max_wait} seconds")
+
+        # Create mount target
+        ensure_efs_mount_target(fs_id)
+
+        # Set up lifecycle policy to move files to cheaper storage after 30 days
+        try:
+            efs_client.put_lifecycle_configuration(
+                FileSystemId=fs_id,
+                LifecyclePolicies=[
+                    {
+                        'TransitionToIA': 'AFTER_30_DAYS',  # Move to Infrequent Access after 30 days (cheaper)
+                        'TransitionToPrimaryStorageClass': 'AFTER_1_ACCESS'  # Move back to standard when accessed
+                    }
+                ]
+            )
+            logger.info(f"Set lifecycle policy for EFS {fs_id} - files move to IA after 30 days")
+        except Exception as lifecycle_error:
+            logger.warning(f"Failed to set lifecycle policy for EFS {fs_id}: {lifecycle_error}")
+            # Don't fail EFS creation for this
+
+        logger.info(f"Created new EFS filesystem {fs_id} for user {user_id}")
+        return fs_id
+
+    except Exception as e:
+        logger.error(f"Error creating/finding EFS for user {user_id}: {str(e)}")
+        raise
+
+
+def ensure_efs_mount_target(fs_id: str) -> str:
+    """Ensure EFS has a mount target in the primary subnet"""
+    try:
+        # Check for existing mount targets
+        response = efs_client.describe_mount_targets(FileSystemId=fs_id)
+
+        for mt in response.get("MountTargets", []):
+            if mt["SubnetId"] == EFS_SUBNET_ID and mt["LifeCycleState"] == "available":
+                logger.info(f"Found existing mount target {mt['MountTargetId']} for EFS {fs_id}")
+                return mt["MountTargetId"]
+
+        # Create mount target
+        logger.info(f"Creating mount target for EFS {fs_id} in subnet {EFS_SUBNET_ID}")
+
+        create_response = efs_client.create_mount_target(
+            FileSystemId=fs_id,
+            SubnetId=EFS_SUBNET_ID,
+            SecurityGroups=[EFS_SECURITY_GROUP_ID]
+        )
+
+        mount_target_id = create_response["MountTargetId"]
+
+        # Wait for mount target to be available
+        logger.info(f"Waiting for mount target {mount_target_id} to become available")
+
+        max_wait = 180  # 3 minutes
+        start_time = time.time()
+
+        while time.time() - start_time < max_wait:
+            mt_response = efs_client.describe_mount_targets(MountTargetId=mount_target_id)
+            mt_state = mt_response["MountTargets"][0]["LifeCycleState"]
+
+            if mt_state == "available":
+                logger.info(f"Mount target {mount_target_id} is now available")
+                break
+            elif mt_state in ["error", "deleted"]:
+                raise Exception(f"Mount target {mount_target_id} entered error state: {mt_state}")
+
+            logger.info(f"Mount target {mount_target_id} state: {mt_state}, waiting...")
+            time.sleep(10)
+        else:
+            raise Exception(f"Mount target {mount_target_id} did not become available within {max_wait} seconds")
+
+        return mount_target_id
+
+    except Exception as e:
+        logger.error(f"Error ensuring mount target for EFS {fs_id}: {str(e)}")
+        raise
+
+
+def get_efs_mount_dns(fs_id: str) -> str:
+    """Get the DNS name for mounting EFS filesystem"""
+    return f"{fs_id}.efs.{REGION}.amazonaws.com"
+
+
 def trigger_availability_update():
     """Trigger the availability updater Lambda function"""
     try:
@@ -334,18 +486,7 @@ def trigger_availability_update():
 def update_reservation_error(reservation_id: str, error_message: str, error_field: str = "failure_reason") -> None:
     """Update reservation with error message in any error field"""
     try:
-        if not reservation_id:
-            return
-
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression=f"SET {error_field} = :error, last_updated = :timestamp",
-            ExpressionAttributeValues={
-                ":error": error_message,
-                ":timestamp": int(time.time())
-            }
-        )
+        update_reservation_fields(reservation_id, **{error_field: error_message})
         logger.info(f"Updated reservation {reservation_id} with {error_field}: {error_message}")
     except Exception as e:
         logger.error(f"Failed to update reservation {reservation_id} with error: {e}")
@@ -476,7 +617,6 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                     initial_record["github_user"] = reservation_request["github_user"]
 
                 # Store initial record
-                dynamodb = boto3.resource("dynamodb", region_name=REGION)
                 reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
                 reservations_table.put_item(Item=initial_record)
 
@@ -887,6 +1027,18 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         target_az = None  # Initialize target_az for use in connection info update
         is_new_disk = False  # Initialize is_new_disk for all code paths
 
+        # If we're using persistent disk, immediately mark this reservation as having a volume
+        # to prevent race conditions with concurrent reservations
+        if use_persistent_disk:
+            try:
+                # Reserve the volume ID slot in DynamoDB immediately to prevent race conditions
+                update_reservation_fields(reservation_id, ebs_volume_reserved=True)
+                update_reservation_status(reservation_id, "preparing", "Reserving persistent disk slot")
+                logger.info(f"Reserved persistent disk slot for reservation {reservation_id}")
+            except Exception as e:
+                logger.error(f"Failed to reserve persistent disk slot: {e}")
+                use_persistent_disk = False
+
         if use_persistent_disk:
             try:
                 # Step 1: Determine target AZ for this reservation
@@ -924,10 +1076,11 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                             latest_snapshot['SnapshotId'], target_az, user_id
                         )
                         snapshot_id = latest_snapshot['SnapshotId']
-                        
+
                         # Clean up old volume after successful restoration
                         try:
-                            logger.info(f"Deleting old volume {current_volume_id} from {current_az} after snapshot restoration")
+                            logger.info(
+                                f"Deleting old volume {current_volume_id} from {current_az} after snapshot restoration")
                             ec2_client.delete_volume(VolumeId=current_volume_id)
                             logger.info(f"Successfully deleted old volume {current_volume_id}")
                         except Exception as cleanup_error:
@@ -940,7 +1093,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         update_reservation_status(
                             reservation_id,
                             "preparing",
-                            f"Waiting for existing snapshot {snapshot_id} to complete (1-3 minutes)"
+                            f"Migrating disk to other AZ using snapshot {snapshot_id} - snapshot pending (can take 5-10min, please retry on timeout)"
                         )
 
                         # Wait for snapshot to complete (up to 10 minutes)
@@ -951,10 +1104,11 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         persistent_volume_id = restore_ebs_from_existing_snapshot(
                             snapshot_id, target_az, user_id
                         )
-                        
+
                         # Clean up old volume after successful restoration
                         try:
-                            logger.info(f"Deleting old volume {current_volume_id} from {current_az} after snapshot restoration")
+                            logger.info(
+                                f"Deleting old volume {current_volume_id} from {current_az} after snapshot restoration")
                             ec2_client.delete_volume(VolumeId=current_volume_id)
                             logger.info(f"Successfully deleted old volume {current_volume_id}")
                         except Exception as cleanup_error:
@@ -993,14 +1147,33 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             logger.info(f"User {user_id} has existing reservations - no persistent disk")
             # Non-persistent reservations always need shell environment setup
             is_new_disk = True
-            logger.info(f"Non-persistent reservation - will always set up shell environment (CREATE_SH_ENV=true)")
+            logger.info("Non-persistent reservation - will always set up shell environment (CREATE_SH_ENV=true)")
+
+        # Set up shared EFS storage for user
+        efs_filesystem_id = None
+        try:
+            if EFS_SECURITY_GROUP_ID and EFS_SUBNET_ID:
+                update_reservation_status(
+                    reservation_id,
+                    "preparing",
+                    "Setting up shared storage (/shared) for user collaboration",
+                )
+                efs_filesystem_id = create_or_find_user_efs(user_id)
+                logger.info(f"EFS filesystem {efs_filesystem_id} ready for user {user_id}")
+            else:
+                logger.warning("EFS configuration missing - skipping shared storage setup")
+        except Exception as efs_error:
+            logger.error(f"Failed to set up EFS: {efs_error}")
+            # Continue without EFS rather than failing
+            efs_filesystem_id = None
 
         # Update status: Creating Kubernetes resources
         disk_status = "with persistent disk" if use_persistent_disk else "without persistent disk"
+        shared_status = "and shared storage" if efs_filesystem_id else ""
         update_reservation_status(
             reservation_id,
             "preparing",
-            f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs {disk_status}",
+            f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs {disk_status}{shared_status}",
         )
 
         # Set up K8s client for resource management
@@ -1019,6 +1192,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             user_id=user_id,
             is_new_disk=is_new_disk,
             recreate_env=recreate_env,
+            efs_filesystem_id=efs_filesystem_id,
         )
 
         # Update status: Pod created, waiting for container to start
@@ -1028,8 +1202,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             f"Pod created, downloading container image and starting services",
         )
 
-        # Get node public IP
-        node_public_ip = get_node_public_ip()
+        # Get node public IP for the specific pod
+        node_public_ip = get_pod_node_public_ip(pod_name)
 
         # Generate SSH command
         ssh_command = f"ssh -p {node_port} dev@{node_public_ip}"
@@ -1079,22 +1253,19 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 # Don't fail the reservation for this
 
         else:
-            # Check pod status to determine if it's failed or still starting
-            pod_status = get_detailed_pod_status(k8s_client, pod_name)
-            if pod_status["phase"] == "Failed" or pod_status["has_errors"]:
+            # Check pod status using our consolidated monitoring function
+            pod_info = update_pod_status_and_events(k8s_client, pod_name, reservation_id)
+            if pod_info["has_errors"]:
                 update_reservation_status(
                     reservation_id,
                     "failed",
-                    f"Pod failed to start properly: {pod_status['reason']}",
+                    f"Pod failed to start properly: {pod_info['display_message']}",
                 )
-                raise RuntimeError(f"Pod failed: {pod_status['reason']}")
+                raise RuntimeError(f"Pod failed: {pod_info['display_message']}")
             else:
                 # Pod is running but SSH not ready yet - keep as preparing
-                update_reservation_status(
-                    reservation_id,
-                    "preparing",
-                    "Pod is running, SSH service still starting",
-                )
+                # Status message already updated by update_pod_status_and_events
+                pass
                 logger.warning(
                     f"SSH not ready yet for {pod_name}, keeping reservation in preparing state"
                 )
@@ -1133,19 +1304,7 @@ def delete_sqs_message(record: dict[str, Any]) -> None:
 def update_reservation_status(reservation_id: str, status: str, reason: str = None) -> None:
     """Update reservation status in DynamoDB"""
     try:
-        if not reservation_id:
-            return
-
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression="SET #status = :status, last_updated = :timestamp",
-            ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues={
-                ":status": status,
-                ":timestamp": int(time.time())
-            },
-        )
+        update_reservation_fields(reservation_id, status=status)
 
         if reason:
             update_reservation_error(reservation_id, reason, "failure_reason")
@@ -1153,6 +1312,58 @@ def update_reservation_status(reservation_id: str, status: str, reason: str = No
         logger.info(f"Updated reservation {reservation_id} status to {status}")
     except Exception as e:
         logger.error(f"Error updating reservation status: {str(e)}")
+
+
+def update_reservation_fields(reservation_id: str, **fields) -> None:
+    """Update arbitrary fields in a reservation record"""
+    try:
+        if not reservation_id or not fields:
+            logger.warning(f"update_reservation_fields called with empty reservation_id={reservation_id} or fields={fields}")
+            return
+
+        if not RESERVATIONS_TABLE:
+            logger.error(f"RESERVATIONS_TABLE environment variable is not set!")
+            return
+
+        if not dynamodb:
+            logger.error(f"dynamodb resource is None!")
+            return
+
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+
+        update_expression = "SET last_updated = :timestamp"
+        expression_attribute_names = {}
+        expression_attribute_values = {":timestamp": int(time.time())}
+
+        for field, value in fields.items():
+            # Handle fields that might be reserved keywords
+            if field in ["status"]:
+                attr_name = f"#{field}"
+                expression_attribute_names[attr_name] = field
+                update_expression += f", {attr_name} = :{field}"
+            else:
+                update_expression += f", {field} = :{field}"
+            expression_attribute_values[f":{field}"] = value
+
+        logger.debug(f"Updating reservation {reservation_id} with expression: {update_expression}")
+        logger.debug(f"Values: {expression_attribute_values}")
+        
+        # Build update_item parameters - only include ExpressionAttributeNames if needed
+        update_params = {
+            "Key": {"reservation_id": reservation_id},
+            "UpdateExpression": update_expression,
+            "ExpressionAttributeValues": expression_attribute_values,
+        }
+        
+        # Only add ExpressionAttributeNames if we have any (don't pass None or empty dict)
+        if expression_attribute_names:
+            update_params["ExpressionAttributeNames"] = expression_attribute_names
+        
+        reservations_table.update_item(**update_params)
+
+        logger.info(f"Updated reservation {reservation_id} fields: {list(fields.keys())}")
+    except Exception as e:
+        logger.error(f"Error updating reservation fields: {str(e)}")
 
 
 def get_github_public_key(github_username: str, validate: bool = True) -> str:
@@ -1217,6 +1428,7 @@ def create_kubernetes_resources(
     user_id: str = None,
     is_new_disk: bool = False,
     recreate_env: bool = False,
+    efs_filesystem_id: str = None,
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
@@ -1308,6 +1520,7 @@ def create_kubernetes_resources(
                         user_id=user_id,
                         is_new_disk=is_new_disk,
                         recreate_env=recreate_env,
+                        efs_filesystem_id=efs_filesystem_id,
                     )
                     logger.info(f"Created new pod {pod_name} with Jupyter")
                     update_reservation_status(
@@ -1316,12 +1529,23 @@ def create_kubernetes_resources(
                         f"Pod created, waiting for container to download and start",
                     )
 
+                    # Start background monitoring immediately after pod creation
+                    logger.info(f"Starting background monitoring for newly created pod {pod_name}")
+                    monitor_stop_event = start_background_pod_monitoring(k8s_client, pod_name, reservation_id)
+
                 # Create SSH service if it doesn't exist
                 if not existing_service_port:
                     create_service(k8s_client, pod_name, node_port)
                     logger.info(
                         f"Created new service {pod_name}-ssh on port {node_port}"
                     )
+
+                # Create headless service for multi-node communication
+                try:
+                    create_headless_service(k8s_client, pod_name)
+                except Exception as headless_error:
+                    logger.warning(f"Failed to create headless service: {headless_error}")
+                    # Don't fail the whole pod creation if headless service fails
 
                 # Create Jupyter service if it doesn't exist
                 if not existing_jupyter_port:
@@ -1361,6 +1585,7 @@ def create_kubernetes_resources(
                         user_id=user_id,
                         is_new_disk=is_new_disk,
                         recreate_env=recreate_env,
+                        efs_filesystem_id=efs_filesystem_id,
                     )
                     logger.info(f"Created new pod {pod_name} without Jupyter")
                     update_reservation_status(
@@ -1376,18 +1601,41 @@ def create_kubernetes_resources(
                         f"Created new service {pod_name}-ssh on port {node_port}"
                     )
 
+                # Create headless service for multi-node communication
+                try:
+                    create_headless_service(k8s_client, pod_name)
+                except Exception as headless_error:
+                    logger.warning(f"Failed to create headless service: {headless_error}")
+                    # Don't fail the whole pod creation if headless service fails
+
         # Wait for pod to be ready (regardless of whether it was just created or already existed)
         update_reservation_status(
             reservation_id, "preparing", f"Waiting for pod {pod_name} to become ready"
         )
-        wait_for_pod_ready(k8s_client, pod_name)
+
+        # Start background monitoring if not already started (for existing pods)
+        if 'monitor_stop_event' not in locals():
+            logger.info(f"Starting background monitoring for existing pod {pod_name}")
+            monitor_stop_event = start_background_pod_monitoring(k8s_client, pod_name, reservation_id)
+
+        wait_for_pod_ready(k8s_client, pod_name)  # Remove reservation_id to avoid blocking
         update_reservation_status(
             reservation_id, "preparing", f"Pod is ready, setting up services"
         )
 
+        # Stop background monitoring since we're done
+        if 'monitor_stop_event' in locals():
+            logger.info("Stopping background pod monitoring")
+            monitor_stop_event.set()
+
         return node_port, jupyter_port
 
     except Exception as e:
+        # Stop monitoring on error too
+        if 'monitor_stop_event' in locals():
+            logger.info("Stopping background pod monitoring due to error")
+            monitor_stop_event.set()
+
         logger.error(f"Error creating Kubernetes resources: {str(e)}")
         raise
 
@@ -1423,6 +1671,44 @@ def find_available_node_port(k8s_client) -> int:
         return random.randint(30000, 32767)
 
 
+def get_pod_resource_limits(gpu_count: int, gpu_type: str) -> dict:
+    """Get resource limits for pod based on GPU type"""
+    limits = {
+        "nvidia.com/gpu": str(gpu_count),
+        "vpc.amazonaws.com/efa": "1"  # Enable EFA for all GPU types
+    }
+    return limits
+
+
+def get_pod_resource_requests(gpu_count: int, gpu_type: str) -> dict:
+    """Get resource requests for pod based on GPU type"""
+    requests = {
+        "nvidia.com/gpu": str(gpu_count),
+        "vpc.amazonaws.com/efa": "1"  # Enable EFA for all GPU types
+    }
+    return requests
+
+
+def get_nccl_env_vars(gpu_type: str) -> list:
+    """Get NCCL environment variables for optimal multi-node communication"""
+    from kubernetes import client
+
+    env_vars = [
+        # Basic NCCL configuration
+        client.V1EnvVar(name="NCCL_DEBUG", value="INFO"),
+        client.V1EnvVar(name="NCCL_ASYNC_ERROR_HANDLING", value="1"),
+        client.V1EnvVar(name="NCCL_SOCKET_IFNAME", value="eth0"),
+        # EFA-specific configuration for all GPUs
+        client.V1EnvVar(name="FI_PROVIDER", value="efa"),
+        client.V1EnvVar(name="NCCL_IB_PCI_RELAXED_ORDERING", value="1"),
+        client.V1EnvVar(name="NCCL_CROSS_NIC", value="1"),
+        # Use single EFA adapter by default (works for all instance types)
+        client.V1EnvVar(name="NCCL_IB_HCA", value="efa0"),
+    ]
+
+    return env_vars
+
+
 def create_pod(
     k8s_client,
     pod_name: str,
@@ -1434,6 +1720,7 @@ def create_pod(
     user_id: str = None,
     is_new_disk: bool = False,
     recreate_env: bool = False,
+    efs_filesystem_id: str = None,
 ):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
@@ -1642,6 +1929,47 @@ def create_pod(
 
                         # Ensure correct ownership
                         chown -R dev:dev /home/dev
+
+                        echo "[STARTUP] Setting up shared personal storage..."
+                        # Set up /shared-personal directory with proper permissions for user collaboration  
+                        if [ -d "/shared-personal" ]; then
+                            echo "[STARTUP] /shared-personal directory found - setting up permissions"
+                            # Create user-specific directory in shared storage
+                            USER_DIR="{user_id.split('@')[0] if user_id else 'default'}"
+                            mkdir -p "/shared-personal/$USER_DIR"
+                            chown -R dev:dev "/shared-personal/$USER_DIR"
+                            chmod 755 /shared-personal
+                            echo "[STARTUP] Shared personal storage configured at /shared-personal/$USER_DIR"
+                            
+                            # Show current usage and add helpful reminder
+                            USAGE=$(df -h /shared-personal | tail -1 | awk '{{print $3}}')
+                            echo "[STARTUP] Current shared storage usage: $USAGE"
+                            echo "[STARTUP] 💡 Reminder: EFS charges per GB used (~$0.30/GB/month)"
+                            echo "[STARTUP] 💡 Files move to cheaper storage after 30 days of no access"
+                            
+                            # Create usage info file for users
+                            cat > "/shared-personal/$USER_DIR/README_STORAGE.md" << 'EOFREADME'
+# Shared Personal Storage (/shared-personal)
+
+This is your persistent shared storage that survives across reservations.
+
+## Cost Information
+- **Standard storage**: ~$0.30/GB/month for frequently accessed files
+- **Infrequent Access**: ~$0.0125/GB/month for files not accessed in 30+ days
+- **Automatic lifecycle**: Files automatically move to cheaper storage after 30 days
+
+## Usage Tips
+- Clean up temporary files and logs regularly
+- Use for datasets, models, and important work - not build artifacts
+- Check usage with: `df -h /shared-personal`
+- Large files (>1GB): Consider compressing when not in active use
+
+## Current Usage
+Check with: `du -sh /shared-personal/$USER_DIR`
+EOFREADME
+                        else
+                            echo "[STARTUP] No /shared-personal directory found - shared storage not available"
+                        fi
 
                         echo "[STARTUP] Setting up dev user..."
                         # Create dev user with zsh as default shell (same UID as init container)
@@ -1909,11 +2237,17 @@ EOF
                         ),
                         client.V1EnvVar(
                             name="USE_PERSISTENT_DISK", value=str(use_persistent_disk).lower()
+                        ),
+                        client.V1EnvVar(
+                            name="GPU_TYPE", value=gpu_type.upper()
+                        ),
+                        client.V1EnvVar(
+                            name="SUPPORTS_EFA", value="true"
                         )
-                    ],
+                    ] + get_nccl_env_vars(gpu_type),
                     resources=client.V1ResourceRequirements(
-                        limits={"nvidia.com/gpu": str(gpu_count)},
-                        requests={"nvidia.com/gpu": str(gpu_count)},
+                        limits=get_pod_resource_limits(gpu_count, gpu_type),
+                        requests=get_pod_resource_requests(gpu_count, gpu_type),
                     ),
                     volume_mounts=[
                         client.V1VolumeMount(name="dev-home", mount_path="/home/dev"),
@@ -1921,7 +2255,7 @@ EOF
                             name="shared-workspace", mount_path="/workspace"
                         ),
                         client.V1VolumeMount(name="dshm", mount_path="/dev/shm"),
-                    ],
+                    ] + ([client.V1VolumeMount(name="shared-efs", mount_path="/shared-personal")] if efs_filesystem_id else []),
                     security_context=client.V1SecurityContext(
                         capabilities=client.V1Capabilities(
                             add=["IPC_LOCK"]
@@ -1942,9 +2276,19 @@ EOF
                 ),
                 client.V1Volume(
                     name="dshm",
-                    empty_dir=client.V1EmptyDirVolumeSource(medium="Memory", size_limit="1Gi"),
+                    empty_dir=client.V1EmptyDirVolumeSource(
+                        medium="Memory", size_limit="8Gi"),  # Increased for NCCL multi-node
                 ),
-            ],
+            ] + ([
+                client.V1Volume(
+                    name="shared-efs",
+                    nfs=client.V1NFSVolumeSource(
+                        server=get_efs_mount_dns(efs_filesystem_id),
+                        path="/",
+                        read_only=False
+                    )
+                )
+            ] if efs_filesystem_id else []),
             node_selector={"GpuType": gpu_type},
             tolerations=[
                 client.V1Toleration(
@@ -1984,7 +2328,7 @@ def create_service(k8s_client, pod_name: str, node_port: int):
     try:
         v1 = client.CoreV1Api(k8s_client)
 
-        # Create service spec
+        # Create service spec with Local traffic policy for node-specific access
         service_spec = client.V1ServiceSpec(
             type="NodePort",
             ports=[
@@ -1993,6 +2337,7 @@ def create_service(k8s_client, pod_name: str, node_port: int):
                 )
             ],
             selector={"reservation": pod_name},
+            external_traffic_policy="Local",  # Only accessible on the node hosting the pod
         )
 
         # Create service metadata
@@ -2011,12 +2356,45 @@ def create_service(k8s_client, pod_name: str, node_port: int):
         raise
 
 
+def create_headless_service(k8s_client, pod_name: str):
+    """Create headless service for stable DNS resolution between pods"""
+    try:
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Create headless service spec (ClusterIP: None)
+        service_spec = client.V1ServiceSpec(
+            type="ClusterIP",
+            cluster_ip="None",  # Makes it headless
+            ports=[
+                client.V1ServicePort(
+                    port=29500, target_port=29500, protocol="TCP", name="torch-rendezvous"
+                )
+            ],
+            selector={"reservation": pod_name},
+        )
+
+        # Create service metadata
+        service_metadata = client.V1ObjectMeta(
+            name=f"{pod_name}-headless", namespace="gpu-dev"
+        )
+
+        # Create service
+        service = client.V1Service(metadata=service_metadata, spec=service_spec)
+        v1.create_namespaced_service(namespace="gpu-dev", body=service)
+
+        logger.info(f"Created headless service {pod_name}-headless for multi-node communication")
+
+    except Exception as e:
+        logger.error(f"Error creating headless service for {pod_name}: {str(e)}")
+        raise
+
+
 def create_jupyter_service(k8s_client, pod_name: str, jupyter_port: int):
     """Create NodePort service for Jupyter Lab access"""
     try:
         v1 = client.CoreV1Api(k8s_client)
 
-        # Create service spec for Jupyter
+        # Create service spec for Jupyter with Local traffic policy
         service_spec = client.V1ServiceSpec(
             type="NodePort",
             ports=[
@@ -2025,6 +2403,7 @@ def create_jupyter_service(k8s_client, pod_name: str, jupyter_port: int):
                 )
             ],
             selector={"reservation": pod_name},
+            external_traffic_policy="Local",  # Only accessible on the node hosting the pod
         )
 
         # Create service metadata
@@ -2044,11 +2423,12 @@ def create_jupyter_service(k8s_client, pod_name: str, jupyter_port: int):
 
 
 def wait_for_pod_ready(k8s_client, pod_name: str, timeout_seconds: int = 600):
-    """Wait for pod to be ready"""
+    """Wait for pod to be ready - simplified since background monitoring handles status updates"""
     try:
         v1 = client.CoreV1Api(k8s_client)
-
         start_time = time.time()
+        logger.info(f"Waiting for pod {pod_name} to be ready")
+
         while time.time() - start_time < timeout_seconds:
             try:
                 pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
@@ -2059,6 +2439,10 @@ def wait_for_pod_ready(k8s_client, pod_name: str, timeout_seconds: int = 600):
                         if condition.type == "Ready" and condition.status == "True":
                             logger.info(f"Pod {pod_name} is ready")
                             return
+
+                # Check for failed state
+                if pod.status.phase == "Failed":
+                    raise RuntimeError(f"Pod {pod_name} failed")
 
             except Exception as e:
                 logger.warning(f"Error checking pod status: {str(e)}")
@@ -2100,6 +2484,36 @@ def get_node_public_ip() -> str:
     except Exception as e:
         logger.error(f"Error getting node public IP: {str(e)}")
         raise
+
+
+def get_pod_node_public_ip(pod_name: str) -> str:
+    """Get public IP of the specific node where a pod is running"""
+    try:
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+        
+        # Get the pod to find which node it's on
+        pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
+        node_name = pod.spec.node_name
+        
+        if not node_name:
+            logger.warning(f"Pod {pod_name} not scheduled to any node yet")
+            return get_node_public_ip()  # Fallback to first available
+        
+        # Get the specific node's external IP
+        node = v1.read_node(name=node_name)
+        if node.status.addresses:
+            for addr in node.status.addresses:
+                if addr.type == "ExternalIP":
+                    logger.info(f"Pod {pod_name} is on node {node_name} with IP {addr.address}")
+                    return addr.address
+        
+        logger.warning(f"No external IP found for node {node_name}")
+        return get_node_public_ip()  # Fallback
+        
+    except Exception as e:
+        logger.error(f"Error getting pod node IP for {pod_name}: {str(e)}")
+        return get_node_public_ip()  # Fallback
 
 
 def get_node_instance_id() -> str:
@@ -2324,10 +2738,10 @@ def should_use_persistent_disk(user_id: str, current_reservation_id: str) -> boo
 
         existing_reservations = response.get("Items", [])
 
-        # Check if any existing reservations actually have a persistent disk
+        # Check if any existing reservations actually have a persistent disk or have reserved one
         reservations_with_persistent_disk = [
             res for res in existing_reservations
-            if res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()
+            if (res.get("ebs_volume_id") and res.get("ebs_volume_id").strip()) or res.get("ebs_volume_reserved") == True
         ]
 
         # If no other existing reservations have persistent disks, user gets persistent disk
@@ -2528,61 +2942,38 @@ def update_reservation_connection_info(
             else jupyter_url_base
         )
 
-        # Build update expression dynamically based on whether there's a Jupyter error
-        update_expression = """
-            SET ssh_command = :ssh_command,
-                pod_name = :pod_name,
-                node_port = :node_port,
-                node_ip = :node_ip,
-                expires_at = :expires_at,
-                launched_at = :launched_at,
-                namespace = :namespace,
-                instance_type = :instance_type,
-                gpu_type = :gpu_type,
-                jupyter_port = :jupyter_port,
-                jupyter_url = :jupyter_url,
-                jupyter_token = :jupyter_token,
-                jupyter_enabled = :jupyter_enabled,
-                #status = :status
-        """
-
-        expression_values = {
-            ":ssh_command": ssh_command,
-            ":pod_name": pod_name,
-            ":node_port": node_port,
-            ":node_ip": node_ip,
-            ":expires_at": expires_at,
-            ":launched_at": launched_at,
-            ":namespace": "gpu-dev",
-            ":instance_type": instance_type,
-            ":gpu_type": gpu_type,
-            ":jupyter_port": jupyter_port,
-            ":jupyter_url": jupyter_url,
-            ":jupyter_token": jupyter_token or "",
-            ":jupyter_enabled": actual_jupyter_enabled,
-            ":status": "active",
+        # Prepare fields to update
+        update_fields = {
+            "ssh_command": ssh_command,
+            "pod_name": pod_name,
+            "node_port": node_port,
+            "node_ip": node_ip,
+            "expires_at": expires_at,
+            "launched_at": launched_at,
+            "namespace": "gpu-dev",
+            "instance_type": instance_type,
+            "gpu_type": gpu_type,
+            "jupyter_port": jupyter_port,
+            "jupyter_url": jupyter_url,
+            "jupyter_token": jupyter_token or "",
+            "jupyter_enabled": actual_jupyter_enabled,
+            "status": "active",
         }
 
         # Add EBS persistent disk information if available
         if persistent_volume_id:
-            update_expression += ", ebs_volume_id = :ebs_volume_id"
-            expression_values[":ebs_volume_id"] = persistent_volume_id
+            update_fields["ebs_volume_id"] = persistent_volume_id
+            update_fields["ebs_volume_reserved"] = False  # Clear reservation flag once volume is attached
 
         if ebs_availability_zone:
-            update_expression += ", ebs_availability_zone = :ebs_availability_zone"
-            expression_values[":ebs_availability_zone"] = ebs_availability_zone
+            update_fields["ebs_availability_zone"] = ebs_availability_zone
 
         # Add Jupyter error message if there was one
         if jupyter_error_msg:
-            update_expression += ", jupyter_error = :jupyter_error"
-            expression_values[":jupyter_error"] = jupyter_error_msg
+            update_fields["jupyter_error"] = jupyter_error_msg
 
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression=update_expression,
-            ExpressionAttributeNames={"#status": "status"},
-            ExpressionAttributeValues=expression_values,
-        )
+        # Update all fields at once
+        update_reservation_fields(reservation_id, **update_fields)
         logger.info(
             f"Updated reservation {reservation_id} with connection info and expires_at={expires_at}"
         )
@@ -2668,24 +3059,12 @@ def update_reservation_with_queue_info(
 ):
     """Update reservation with queue position and wait time information"""
     try:
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression="""
-                SET queue_position = :queue_position,
-                    estimated_wait_minutes = :estimated_wait_minutes,
-                    available_gpus = :available_gpus,
-                    last_queue_update = :last_update
-            """,
-            ExpressionAttributeValues={
-                ":queue_position": queue_position if queue_position != "?" else None,
-                ":estimated_wait_minutes": (
-                    estimated_wait_minutes if estimated_wait_minutes != "?" else None
-                ),
-                ":available_gpus": available_gpus,
-                ":last_update": datetime.utcnow().isoformat(),
-            },
+        update_reservation_fields(
+            reservation_id,
+            queue_position=queue_position if queue_position != "?" else None,
+            estimated_wait_minutes=estimated_wait_minutes if estimated_wait_minutes != "?" else None,
+            available_gpus=available_gpus,
+            last_queue_update=datetime.utcnow().isoformat(),
         )
         logger.info(
             f"Updated reservation {reservation_id} with queue info: pos={queue_position}, wait={estimated_wait_minutes}min"
@@ -2695,10 +3074,232 @@ def update_reservation_with_queue_info(
         logger.error(f"Error updating reservation queue info: {str(e)}")
 
 
+def start_background_pod_monitoring(k8s_client, pod_name: str, reservation_id: str) -> threading.Event:
+    """Start background pod monitoring that updates reservation status continuously"""
+
+    stop_event = threading.Event()
+
+    def monitor_loop():
+        """Background monitoring loop"""
+        logger.info(f"Started background monitoring for pod {pod_name}")
+
+        while not stop_event.is_set():
+            try:
+                update_pod_status_and_events(k8s_client, pod_name, reservation_id)
+
+                # Wait 1 second or until stop signal  
+                if stop_event.wait(1):
+                    break
+
+            except Exception as e:
+                logger.warning(f"Background pod monitoring error: {e}")
+                # Continue monitoring even if one update fails
+                if stop_event.wait(5):
+                    break
+
+        logger.info(f"Stopped background monitoring for pod {pod_name}")
+
+    # Start monitoring thread
+    thread = threading.Thread(target=monitor_loop, daemon=True)
+    thread.start()
+
+    return stop_event
+
+
+def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str) -> dict:
+    """
+    Consolidated function to monitor pod events and logs, updating reservation table.
+    This is the single source of truth for pod monitoring.
+    Returns dict with current status info for immediate use.
+    """
+    try:
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Get pod object
+        try:
+            pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
+            pod_phase = pod.status.phase
+            logger.debug(f"Pod {pod_name} phase: {pod_phase}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.warning(f"Pod {pod_name} not found yet, setting pending status")
+                update_reservation_fields(reservation_id, pod_events="⏳ Pod creation pending")
+                return {
+                    "phase": "Pending",
+                    "display_message": "⏳ Pod creation pending",
+                    "has_errors": False,
+                    "is_ready": False
+                }
+            else:
+                raise
+
+        # Get pod events (scheduling, volume issues, etc.)
+        events = v1.list_namespaced_event(
+            namespace="gpu-dev",
+            field_selector=f"involvedObject.name={pod_name}"
+        )
+
+        # Get pod logs (startup progress)
+        try:
+            logs = v1.read_namespaced_pod_log(
+                name=pod_name, namespace="gpu-dev", tail_lines=50
+            )
+        except Exception:
+            logs = ""
+
+        # Parse events into user-friendly messages
+        event_message = ""
+        logger.info(f"Found {len(events.items)} events for pod {pod_name}")
+
+        if events.items:
+            # Sort events by timestamp, handling None values
+            def get_event_timestamp(event):
+                timestamp = event.last_timestamp or event.first_timestamp
+                if timestamp is None:
+                    # Return epoch time for None timestamps so they sort to the end
+                    from datetime import datetime, timezone
+                    return datetime(1970, 1, 1, tzinfo=timezone.utc)
+                return timestamp
+
+            sorted_events = sorted(events.items, key=get_event_timestamp, reverse=True)
+            logger.info(
+                f"Latest events for {pod_name}: {[(e.reason, e.type, e.message[:50]) for e in sorted_events[:3]]}")
+
+            for event in sorted_events[:3]:  # Check last 3 events
+                event_type = event.type
+                reason = event.reason
+                message = event.message
+
+                if event_type == "Warning":
+                    if "FailedAttachVolume" in reason:
+                        event_message = f"❌ Volume attachment failed: {message[:60]}..."
+                        break
+                    elif "FailedScheduling" in reason:
+                        # Extract resource info from scheduling message
+                        if "nodes are available" in message:
+                            import re
+                            match = re.search(r'(\d+)/(\d+) nodes are available', message)
+                            if match:
+                                available, total = match.groups()
+                                event_message = f"⏳ Waiting for resources ({available}/{total} nodes available)"
+                                break
+                        event_message = f"⏳ Scheduling: {message[:60]}..."
+                        break
+                    elif "Failed" in reason:
+                        event_message = f"❌ {reason}: {message[:50]}..."
+                        break
+                elif event_type == "Normal":
+                    if reason == "Scheduled":
+                        node_name = message.split(" to ")[-1] if " to " in message else "node"
+                        event_message = f"✅ Pod scheduled to {node_name[:20]}"
+                    elif reason == "Pulled":
+                        event_message = "✅ Container image pulled"
+                    elif reason == "Created":
+                        event_message = "🏗️ Container created"
+                    elif reason == "Started":
+                        event_message = "🚀 Container started"
+
+        # Parse startup logs for container initialization progress
+        startup_message = ""
+        if logs and "[STARTUP]" in logs:
+            startup_patterns = {
+                "Starting GPU development container": "Starting container setup",
+                "Checking persistent disk setup": "Checking disk setup",
+                "Real disk mounted": "✓ Persistent disk mounted",
+                "Using EmptyDir": "Using temporary storage",
+                "Setting up dev user environment": "Setting up user environment",
+                "Shell config setup": "Configuring shell environment",
+                "Copying shell configurations": "Copying shell configs",
+                "✓ Successfully copied": "✓ Shell configs copied",
+                "✗ FAILED to copy": "✗ Failed to copy shell configs",
+                "Setting up shared personal storage": "Setting up shared storage",
+                "SSH daemon starting": "✓ SSH daemon ready",
+                "ERROR:": "❌ Setup error occurred"
+            }
+
+            lines = logs.split('\n')
+            startup_lines = [line for line in lines if "[STARTUP]" in line]
+
+            for line in reversed(startup_lines[-5:]):  # Check last 5 startup lines
+                for pattern, display in startup_patterns.items():
+                    if pattern in line:
+                        if "ERROR:" in line or "FAILED" in line:
+                            try:
+                                error_part = line.split("[STARTUP]", 1)[1].strip()
+                                startup_message = f"❌ Setup error: {error_part[:50]}"
+                            except:
+                                startup_message = display
+                        else:
+                            startup_message = display
+                        break
+                if startup_message:
+                    break
+
+        # Determine priority message to display
+        display_message = ""
+        if event_message and ("❌" in event_message or "⏳" in event_message):
+            # Prioritize error/scheduling events
+            display_message = event_message
+        elif startup_message:
+            # Show startup progress
+            display_message = startup_message
+        elif event_message:
+            # Show normal events
+            display_message = event_message
+        else:
+            # Fallback based on phase
+            if pod_phase == "Pending":
+                display_message = "⏳ Pod pending"
+            elif pod_phase == "Running":
+                display_message = "🚀 Container running"
+            else:
+                display_message = f"Pod phase: {pod_phase}"
+
+        # Update reservation table with current status
+        update_fields = {}
+        if display_message:
+            update_fields["pod_events"] = display_message
+        if logs:
+            update_fields["pod_logs"] = logs
+        update_fields["pod_status"] = pod_phase
+
+        logger.info(
+            f"About to update reservation {reservation_id} with: pod_events='{display_message}', pod_status='{pod_phase}'")
+
+        if update_fields:
+            update_reservation_fields(reservation_id, **update_fields)
+            logger.info(f"Successfully updated pod status for {pod_name}: {display_message}")
+        else:
+            logger.warning(
+                f"No update fields for pod {pod_name} - display_message='{display_message}', pod_phase='{pod_phase}'")
+
+        return {
+            "phase": pod_phase,
+            "display_message": display_message,
+            "has_errors": "❌" in display_message,
+            "is_ready": pod_phase == "Running" and "SSH daemon ready" in startup_message
+        }
+
+    except Exception as e:
+        logger.error(f"Error updating pod status for {pod_name}: {e}")
+        # Update with error state
+        error_msg = f"❌ Pod monitoring error: {str(e)[:50]}"
+        update_reservation_fields(reservation_id, pod_events=error_msg)
+        return {
+            "phase": "Unknown",
+            "display_message": error_msg,
+            "has_errors": True,
+            "is_ready": False
+        }
+
+
+# extract_startup_events_from_logs function removed - logic integrated into update_pod_status_and_events
+
+
 def wait_for_ssh_service(
     k8s_client, pod_name: str, node_ip: str, node_port: int, timeout_seconds: int = 180
 ) -> bool:
-    """Wait for SSH service to be ready by checking pod logs and testing connectivity"""
+    """Wait for SSH service to be ready - simplified since background monitoring handles status updates"""
     try:
         v1 = client.CoreV1Api(k8s_client)
         start_time = time.time()
@@ -2707,7 +3308,7 @@ def wait_for_ssh_service(
 
         while time.time() - start_time < timeout_seconds:
             try:
-                # Check pod logs for SSH daemon startup
+                # Check logs for SSH daemon startup
                 logs = v1.read_namespaced_pod_log(
                     name=pod_name, namespace="gpu-dev", tail_lines=50
                 )
@@ -2748,48 +3349,7 @@ def wait_for_ssh_service(
         return False
 
 
-def get_detailed_pod_status(k8s_client, pod_name: str) -> dict:
-    """Get detailed pod status including phase, conditions, and error messages"""
-    try:
-        v1 = client.CoreV1Api(k8s_client)
-        pod = v1.read_namespaced_pod(name=pod_name, namespace="gpu-dev")
-
-        phase = pod.status.phase
-        has_errors = False
-        reason = "Unknown"
-
-        # Check container statuses for errors
-        if pod.status.container_statuses:
-            for container_status in pod.status.container_statuses:
-                if container_status.state.waiting:
-                    if container_status.state.waiting.reason in [
-                        "ImagePullBackOff",
-                        "ErrImagePull",
-                        "CrashLoopBackOff",
-                    ]:
-                        has_errors = True
-                        reason = f"Container {container_status.name}: {container_status.state.waiting.reason}"
-                elif container_status.state.terminated:
-                    if container_status.state.terminated.exit_code != 0:
-                        has_errors = True
-                        reason = f"Container {container_status.name} exited with code {container_status.state.terminated.exit_code}"
-
-        # Check pod conditions
-        if pod.status.conditions:
-            for condition in pod.status.conditions:
-                if condition.type == "PodScheduled" and condition.status == "False":
-                    has_errors = True
-                    reason = f"Scheduling failed: {condition.message}"
-
-        return {"phase": phase, "has_errors": has_errors, "reason": reason}
-
-    except Exception as e:
-        logger.error(f"Error getting pod status: {e}")
-        return {
-            "phase": "Unknown",
-            "has_errors": True,
-            "reason": f"Error getting status: {e}",
-        }
+# get_detailed_pod_status function removed - replaced by update_pod_status_and_events
 
 
 def process_scheduled_queue_management():
@@ -3054,17 +3614,12 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
             f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})")
 
         try:
-            reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
             now = datetime.utcnow().isoformat()
-            reservations_table.update_item(
-                Key={"reservation_id": full_reservation_id},
-                UpdateExpression="SET #status = :status, cancelled_at = :cancelled_at, reservation_ended = :reservation_ended",
-                ExpressionAttributeNames={"#status": "status"},
-                ExpressionAttributeValues={
-                    ":status": "cancelled",
-                    ":cancelled_at": now,
-                    ":reservation_ended": now,
-                },
+            update_reservation_fields(
+                full_reservation_id,
+                status="cancelled",
+                cancelled_at=now,
+                reservation_ended=now,
             )
 
             if current_status == "active":
@@ -3211,23 +3766,19 @@ def enable_jupyter_in_pod(
                     jupyter_port = existing_jupyter_port
 
                 # Get node IP and token for URL
-                node_public_ip = get_node_public_ip()
+                node_public_ip = get_pod_node_public_ip(pod_name)
                 jupyter_token = get_jupyter_token_from_pod(k8s_client, pod_name)
                 jupyter_url = f"http://{node_public_ip}:{jupyter_port}"
                 if jupyter_token:
                     jupyter_url += f"?token={jupyter_token}"
 
                 # Update reservation with full Jupyter info
-                reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-                reservations_table.update_item(
-                    Key={"reservation_id": reservation_id},
-                    UpdateExpression="SET jupyter_enabled = :enabled, jupyter_port = :port, jupyter_url = :url, jupyter_token = :token",
-                    ExpressionAttributeValues={
-                        ":enabled": True,
-                        ":port": jupyter_port,
-                        ":url": jupyter_url,
-                        ":token": jupyter_token or "",
-                    },
+                update_reservation_fields(
+                    reservation_id,
+                    jupyter_enabled=True,
+                    jupyter_port=jupyter_port,
+                    jupyter_url=jupyter_url,
+                    jupyter_token=jupyter_token or "",
                 )
 
                 logger.info(f"Jupyter enabled with URL: {jupyter_url}")
@@ -3439,13 +3990,9 @@ EOF
                         github_username
                     ]
 
-                    reservations_table.update_item(
-                        Key={"reservation_id": reservation_id},
-                        UpdateExpression="SET secondary_users = :users, last_updated = :timestamp",
-                        ExpressionAttributeValues={
-                            ":users": updated_secondary_users,
-                            ":timestamp": current_timestamp,
-                        },
+                    update_reservation_fields(
+                        reservation_id,
+                        secondary_users=updated_secondary_users,
                     )
                     logger.info(
                         f"Updated reservation {reservation_id} with secondary user {github_username}"
@@ -3478,12 +4025,7 @@ def update_reservation_jupyter_status(
 ) -> None:
     """Update the Jupyter enabled status in DynamoDB"""
     try:
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression="SET jupyter_enabled = :jupyter_enabled",
-            ExpressionAttributeValues={":jupyter_enabled": jupyter_enabled},
-        )
+        update_reservation_fields(reservation_id, jupyter_enabled=jupyter_enabled)
     except Exception as e:
         logger.error(
             f"Error updating Jupyter status for reservation {reservation_id}: {str(e)}"

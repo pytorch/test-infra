@@ -42,6 +42,22 @@ def _add_agent_forwarding_to_ssh(ssh_command: str) -> str:
         return ssh_command
 
 
+def _extract_latest_pod_event(pod_events: str) -> str:
+    """Extract the most relevant pod event for display - simplified since Lambda now provides formatted messages"""
+    if not pod_events:
+        return "Starting pod..."
+    
+    # Lambda now provides pre-formatted messages, so just return them
+    # Handle multi-line messages by taking the first meaningful line
+    lines = pod_events.split('\n')
+    for line in lines:
+        line = line.strip()
+        if line and not line.startswith('Events:'):
+            return line
+    
+    return "Starting pod..."
+
+
 def _generate_vscode_command(ssh_command: str) -> Optional[str]:
     """Generate VS Code remote connection command from SSH command"""
     try:
@@ -997,9 +1013,19 @@ class ReservationManager:
                                 show_queue_help = False
 
                         elif current_status == "preparing":
-                            # Show dynamic pod events from failure_reason field
+                            # Show detailed pod status during preparation (updated every poll cycle)
+                            pod_status = reservation.get("pod_status", "")
+                            pod_events = reservation.get("pod_events", "")
                             failure_reason = reservation.get("failure_reason", "")
-                            if failure_reason:
+                            
+                            # Priority: pod_status > pod_events > failure_reason > default
+                            if pod_status:
+                                message = f"🚀 {pod_status}"
+                            elif pod_events:
+                                # Show latest pod event
+                                latest_event = _extract_latest_pod_event(pod_events)
+                                message = f"🚀 Preparing: {latest_event}"
+                            elif failure_reason:
                                 message = f"🚀 Preparing: {failure_reason}"
                             else:
                                 message = status_messages.get(

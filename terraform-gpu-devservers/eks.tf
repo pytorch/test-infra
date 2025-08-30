@@ -259,42 +259,30 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     }
   }
 
-  # Network interface (EFA for H100/H200 instance types)
+  # Network interface (EFA enabled for all GPU types)
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
     subnet_id                   = each.value.use_placement_group ? null : (each.key == "b200" || each.key == "t4-small" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
-    interface_type = (
-      # Check if any instance type in the list supports EFA
-      each.value.instance_types != null ?
-      (length([for it in each.value.instance_types : it if can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", it))]) > 0 ? "efa" : "interface") :
-      # Single instance type check
-      can(regex("^(p5\\.48xlarge|p5e\\.48xlarge|p5en\\.48xlarge|p6-b200\\.48xlarge)$", each.value.instance_type)) ? "efa" : "interface"
-    )
-    delete_on_termination = true
+    interface_type              = "efa"  # Enable EFA for all GPU types
+    delete_on_termination       = true
   }
 
-  # Conditionally add instance_market_options for capacity block instances (H100/B200)
+  # Conditionally add instance_market_options for capacity block instances (only when capacity reservation exists)
   dynamic "instance_market_options" {
-    for_each = (
-      # Check if single instance type needs capacity block
-      each.value.instance_types == null ?
-      (contains(["p5.48xlarge", "p6-b200.48xlarge"], each.value.instance_type) ? [1] : []) :
-      # Check if any instance type in the list needs capacity block
-      (length([for it in each.value.instance_types : it if contains(["p5.48xlarge", "p6-b200.48xlarge"], it)]) > 0 ? [1] : [])
-    )
+    for_each = lookup(local.capacity_reservations[terraform.workspace], each.key, null) != null ? [1] : []
     content {
       market_type = "capacity-block"
     }
   }
 
-  # Add capacity reservation specification for capacity block instances
+  # Add capacity reservation specification for instances that have reservations configured
   dynamic "capacity_reservation_specification" {
-    for_each = (each.key == "h100" || each.key == "b200") ? [1] : []
+    for_each = lookup(local.capacity_reservations[terraform.workspace], each.key, null) != null ? [1] : []
     content {
       capacity_reservation_preference = "capacity-reservations-only"
       capacity_reservation_target {
-        capacity_reservation_id = each.key == "h100" ? "cr-003773252aa2ea59a" : "cr-0e2d0247fafbd380a"
+        capacity_reservation_id = local.capacity_reservations[terraform.workspace][each.key]
       }
     }
   }

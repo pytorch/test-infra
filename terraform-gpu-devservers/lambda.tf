@@ -108,6 +108,29 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
           "lambda:InvokeFunction"
         ]
         Resource = aws_lambda_function.availability_updater.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "elasticfilesystem:CreateFileSystem",
+          "elasticfilesystem:DeleteFileSystem",
+          "elasticfilesystem:DescribeFileSystems",
+          "elasticfilesystem:DescribeFileSystemPolicy",
+          "elasticfilesystem:DescribeMountTargets",
+          "elasticfilesystem:CreateMountTarget",
+          "elasticfilesystem:DeleteMountTarget",
+          "elasticfilesystem:DescribeMountTargetSecurityGroups",
+          "elasticfilesystem:ModifyMountTargetSecurityGroups",
+          "elasticfilesystem:TagResource",
+          "elasticfilesystem:UntagResource",
+          "elasticfilesystem:ListTagsForResource",
+          "ec2:DescribeNetworkInterfaces",
+          "ec2:CreateNetworkInterface",
+          "ec2:DeleteNetworkInterface",
+          "ec2:DescribeSubnets",
+          "ec2:DescribeSecurityGroups"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -135,6 +158,8 @@ resource "aws_lambda_function" "reservation_processor" {
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
       PRIMARY_AVAILABILITY_ZONE          = data.aws_availability_zones.available.names[0]
       GPU_DEV_CONTAINER_IMAGE            = local.full_image_uri
+      EFS_SECURITY_GROUP_ID              = aws_security_group.efs_sg.id
+      EFS_SUBNET_ID                      = aws_subnet.gpu_dev_subnet.id
     }
   }
 
