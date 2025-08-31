@@ -32,6 +32,7 @@ export default async function handler(
       details: formatZodError(request.error),
     });
   }
+
   const qp = request.data;
   const groupTableByFields =
     qp.group_table_by_fields || deepClone(DEFAULT_TABLE_GROUP);
