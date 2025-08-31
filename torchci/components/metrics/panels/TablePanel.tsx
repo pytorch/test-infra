@@ -101,6 +101,7 @@ export function TablePanelWithData({
 
   return (
     <>
+      <Header />
       <DataGrid
         style={customStyle}
         {...dataGridProps}
@@ -112,7 +113,6 @@ export function TablePanelWithData({
           showFooter && pageSize === undefined && !disableAutoPageSize
         }
         pageSize={pageSize}
-        slots={{ toolbar: Header }}
       />
     </>
   );
