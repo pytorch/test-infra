@@ -57,8 +57,7 @@ for pkg in ${pkgs_to_promote}; do
 
 
     if [[ -n "${VERSION_SUFFIX}" ]]; then
-        echo "Calling prep binary for pypi on ${orig_pkg}"
-        OUTPUT_DIR="${output_tmp_dir}" python "./prep_binary_for_pypi.py" "${orig_pkg}" --output-dir .
+        OUTPUT_DIR="${output_tmp_dir}" python "${DIR}/prep_binary_for_pypi.py" "${orig_pkg}" --output-dir .
     else
         mv "${orig_pkg}" "${output_tmp_dir}/"
     fi
