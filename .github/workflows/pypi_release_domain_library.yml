@@ -42,7 +42,7 @@ jobs:
               echo "=-=-=-= Promoting ${package_name}'s v${promote_version} to pypi staging' =-=-=-="
               (
                   set -x
-                  PACKAGE_VERSION="${promote_version}" PACKAGE_NAME="${package_name}" DRY_RUN="${DRY_RUN}" bash ${DIR}/upload_pypi_to_staging.sh
+                  PACKAGE_VERSION="${promote_version}" PACKAGE_NAME="${package_name}" DRY_RUN="${DRY_RUN}" bash ./upload_pypi_to_staging.sh
               )
               echo
             }
