@@ -31,7 +31,7 @@ jobs:
             # Install requirements
             LINUX_VERSION_SUFFIX="%2Bcu128"
             DRY_RUN=enabled
-            TORCHAO_VERSION=1.12.0
+            TORCHAO_VERSION=1.13.0
 
             pwd
             upload_pypi_to_staging() {
