@@ -21,8 +21,12 @@ type GroupedItem<T> = {
   rows: Record<string, Subgroup<T>>;
 };
 type Params = Record<string, any>;
+<<<<<<< HEAD
 const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance_v2";
 >>>>>>> 52d0ced7a (addid)
+=======
+const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance";
+>>>>>>> e259e2663 (addid)
 
 /**
  * API Route: /api/benchmark/get_time_series
