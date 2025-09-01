@@ -1,0 +1,58 @@
+name: Prepare binary for pypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      domain:
+        description: "What domain to prepare and remease"
+        required: false
+        type: choice
+        default: torchao
+        options:
+          - torchao
+          - executorch
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  trigger:
+    runs-on: ubuntu-latest
+    environment: pytorchbot-env
+    timeout-minutes: 60
+    container:
+      image: continuumio/miniconda3:23.10.0-1
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          aws-region: us-east-1
+      - name: Stage torchao binaries for release
+        if: ${{  inputs.domain == 'torchao' }}
+        shell: bash
+        run: |
+            set -ex
+            cd release/pypi
+            # Install requirements
+            LINUX_VERSION_SUFFIX="%2Bcu128"
+            DRY_RUN=enabled
+            TORCHAO_VERSION=1.12.0
+
+            upload_pypi_to_staging() {
+              local package_name
+              package_name=$1
+              local promote_version
+              promote_version=$2
+              echo "=-=-=-= Promoting ${package_name}'s v${promote_version} to pypi staging' =-=-=-="
+              (
+                  set -x
+                  PACKAGE_VERSION="${promote_version}" PACKAGE_NAME="${package_name}" DRY_RUN="${DRY_RUN}" bash ${DIR}/upload_pypi_to_staging.sh
+              )
+              echo
+            }
+            PLATFORM="none-any" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging torchao "${TORCHAO_VERSION}"
+            PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="cu128" upload_pypi_to_staging torchao "${TORCHAO_VERSION}"
