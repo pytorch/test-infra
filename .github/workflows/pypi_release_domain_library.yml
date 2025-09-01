@@ -18,7 +18,6 @@ on:
 jobs:
   trigger:
     runs-on: ubuntu-latest
-    environment: pytorchbot-env
     timeout-minutes: 60
     container:
       image: continuumio/miniconda3:23.10.0-1
