@@ -33,6 +33,7 @@ jobs:
             DRY_RUN=enabled
             TORCHAO_VERSION=1.12.0
 
+            pwd
             upload_pypi_to_staging() {
               local package_name
               package_name=$1
