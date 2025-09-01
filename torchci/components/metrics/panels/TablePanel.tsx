@@ -1,12 +1,12 @@
 import HelpIcon from "@mui/icons-material/Help";
 import { Box, Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
+import { Box } from "@mui/system";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { CSSProperties } from "react";
 import useSWR from "swr";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 
 export default function TablePanel({
   // Human-readable title for this panel.
