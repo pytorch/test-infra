@@ -10,6 +10,7 @@ import { groupByBenchmarkData } from "../utils";
 
 const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance";
 
+// TODO(elainewy): improve the fetch performance
 export async function getCompilerBenchmarkData(inputparams: any) {
   const start = Date.now();
   const rows = await queryClickhouseSaved(BENCNMARK_TABLE_NAME, inputparams);
