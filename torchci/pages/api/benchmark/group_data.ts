@@ -16,7 +16,7 @@ const DEFAULT_TABLE_GROUP = [
 const DEFAULT_ROW_GROUP = ["workflow_id", "job_id", "metadata_info.timestamp"];
 const BENCNMARK_TABLE_NAME = "oss_ci_benchmark_llms";
 
-function getNestedField(obj: any, path: string): any {
+export function getNestedField(obj: any, path: string): any {
   return path.split(".").reduce((o, key) => (o && key in o ? o[key] : ""), obj);
 }
 

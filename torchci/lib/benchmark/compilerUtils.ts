@@ -100,7 +100,10 @@ export function computePassrate(
     const [bucket, workflowId, suite, compiler] = key.split("+");
     passrate.push({
       metric: "passrate",
+<<<<<<< HEAD
       value: p,
+=======
+>>>>>>> 556c0ef04 (addid)
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -166,7 +169,10 @@ export function computeGeomean(
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedGeomean.push({
       metric: "geomean",
+<<<<<<< HEAD
       value: Number(gm),
+=======
+>>>>>>> 556c0ef04 (addid)
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -455,4 +461,52 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
   });
 
   return Object.values(convertData);
+}
+
+export function computePassrateSimple(data: any[]) {
+  if (!Array.isArray(data) || data.length === 0) return [];
+
+  const blocked = new Set(BLOCKLIST_COMPILERS);
+  const passingAcc = new Set(PASSING_ACCURACY);
+  const toDisplay = (c: string) => COMPILER_NAMES_TO_DISPLAY_NAMES[c] ?? c;
+
+  const totalCount = new Map<string, number>();
+  const passCount = new Map<string, number>();
+
+  for (const r of data) {
+    const compilerDisp = toDisplay(r.compiler);
+    if (blocked.has(compilerDisp)) continue;
+
+    const key = `${r.granularity_bucket}+${r.workflow_id}+${r.suite}+${compilerDisp}`;
+
+    // 计总
+    totalCount.set(key, (totalCount.get(key) ?? 0) + 1);
+
+    const acc = r.accuracy ?? "";
+    const speed = r.speedup ?? 0;
+    const pass =
+      (passingAcc.has(acc) && (speed !== 0 || compilerDisp === "export")) ||
+      acc === "pass_due_to_skip";
+
+    if (pass) passCount.set(key, (passCount.get(key) ?? 0) + 1);
+  }
+  const out: any[] = [];
+  for (const [key, tc] of totalCount) {
+    const pc = passCount.get(key) ?? 0;
+    const p = tc > 0 ? pc / tc : 0;
+
+    const [bucket, wfStr, suite, compiler] = key.split("+");
+    out.push({
+      metirc: "passrate",
+      granularity_bucket: bucket,
+      workflow_id: Number(wfStr),
+      suite,
+      compiler,
+      passrate: p,
+      pass_count: pc,
+      total_count: tc,
+      passrate_display: `${(p * 100).toFixed(0)}%, ${pc}/${tc}`,
+    });
+  }
+  return out;
 }
