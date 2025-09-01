@@ -30,6 +30,7 @@ jobs:
             cd release/pypi
             # Install requirements
             LINUX_VERSION_SUFFIX="%2Bcu128"
+            CPU_VERSION_SUFFIX="%2Bcpu"
             DRY_RUN=enabled
             TORCHAO_VERSION=1.13.0
 
