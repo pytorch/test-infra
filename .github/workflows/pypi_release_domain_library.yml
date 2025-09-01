@@ -1,6 +1,9 @@
 name: Prepare binary for pypi
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/pypi_release_domain_library.yml
   workflow_dispatch:
     inputs:
       domain:
