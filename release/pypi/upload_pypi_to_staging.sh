@@ -31,6 +31,7 @@ pkgs_to_promote=$(\
         | cut -d '"' -f2 \
         | cut -d "#" -f1
 )
+echo "Found ${pkgs_to_promote}"
 
 tmp_dir="$(mktemp -d)"
 output_tmp_dir="$(mktemp -d)"
@@ -54,8 +55,10 @@ for pkg in ${pkgs_to_promote}; do
         curl -fSL -o "${orig_pkg}" "https://download.pytorch.org${pkg}"
     )
 
+
     if [[ -n "${VERSION_SUFFIX}" ]]; then
-        OUTPUT_DIR="${output_tmp_dir}" python "${DIR}/prep_binary_for_pypi.py" "${orig_pkg}" --output-dir .
+        echo "Calling prep binary for pypi on ${orig_pkg}"
+        OUTPUT_DIR="${output_tmp_dir}" python "./prep_binary_for_pypi.py" "${orig_pkg}" --output-dir .
     else
         mv "${orig_pkg}" "${output_tmp_dir}/"
     fi
