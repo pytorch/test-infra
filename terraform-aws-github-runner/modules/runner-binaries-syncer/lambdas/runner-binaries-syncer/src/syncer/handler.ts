@@ -18,8 +18,6 @@ async function getCachedVersion(s3: S3, cacheObject: CacheObject): Promise<strin
       Bucket: cacheObject.bucket,
       Key: cacheObject.key,
     });
-    console.log("hello")
-    console.log(objectTagging)
     const versions = objectTagging.TagSet?.filter((t: Tag) => t.Key === versionKey);
     return versions?.length === 1 ? versions[0].Value : undefined;
   } catch (e) {
