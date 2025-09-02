@@ -30,9 +30,6 @@ describe("verify-drci-functionality", () => {
     const mockS3 = {
       send: jest.fn(),
     };
-    jest.mock("aws-sdk", () => ({
-      S3: jest.fn().mockImplementation(() => mockS3),
-    }));
     const mockS3Client = jest.spyOn(getS3Client, "getS3Client");
     mockS3Client.mockImplementation(() => mockS3 as unknown as S3Client);
   });
