@@ -111,9 +111,7 @@ export class Metrics {
   }
 
   protected constructor(lambdaName: string) {
-    this.cloudwatch = new CloudWatch({
-      region: Config.Instance.awsRegion,
-    });
+    this.cloudwatch = new CloudWatch({ region: Config.Instance.awsRegion });
     this.lambdaName = lambdaName;
     this.metrics = new Map();
     this.metricsDimensions = new Map();
