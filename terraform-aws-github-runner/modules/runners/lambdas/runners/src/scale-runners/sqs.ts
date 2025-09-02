@@ -1,5 +1,5 @@
 import { ActionRequestMessage } from './scale-up';
-import { ChangeMessageVisibilityBatchCommand, SendMessageBatchCommandInput, SQS } from '@aws-sdk/client-sqs';
+import { SendMessageBatchCommandInput, SQS } from '@aws-sdk/client-sqs';
 import { SQSRecord } from 'aws-lambda';
 
 import { expBackOff } from './utils';

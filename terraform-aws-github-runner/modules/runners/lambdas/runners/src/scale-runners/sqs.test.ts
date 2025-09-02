@@ -12,7 +12,6 @@ const mockCloudWatch = {
 const mockSQS = {
   changeMessageVisibilityBatch: jest.fn(),
   deleteMessageBatch: jest.fn(),
-  endpoint: { href: 'AGDGADUWG113' },
   sendMessageBatch: jest.fn(),
 };
 
