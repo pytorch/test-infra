@@ -3,11 +3,6 @@ import { ActionRequestMessage } from './scale-up';
 import * as MetricsModule from './metrics';
 import nock from 'nock';
 import { SQSRecord } from 'aws-lambda';
-import {
-  ChangeMessageVisibilityBatchCommand,
-  DeleteMessageBatchCommand,
-  SendMessageBatchCommand,
-} from '@aws-sdk/client-sqs';
 
 const mockCloudWatch = {
   putMetricData: jest.fn().mockImplementation(() => {
@@ -23,21 +18,7 @@ const mockSQS = {
 
 jest.mock('@aws-sdk/client-sqs', () => ({
   ...jest.requireActual('@aws-sdk/client-sqs'),
-  SQSClient: jest.fn().mockImplementation(() => ({
-    send: jest.fn(async (command) => {
-      // Delegate to original mockSQS for each command type
-      if (command instanceof ChangeMessageVisibilityBatchCommand) {
-        return await mockSQS.changeMessageVisibilityBatch(command.input);
-      }
-      if (command instanceof DeleteMessageBatchCommand) {
-        return await mockSQS.deleteMessageBatch(command.input);
-      }
-      if (command instanceof SendMessageBatchCommand) {
-        return await mockSQS.sendMessageBatch(command.input);
-      }
-      return {};
-    }),
-  })),
+  SQS: jest.fn().mockImplementation(() => mockSQS),
 }));
 
 jest.mock('@aws-sdk/client-cloudwatch', () => {
