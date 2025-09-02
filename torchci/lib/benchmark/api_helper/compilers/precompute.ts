@@ -6,7 +6,7 @@ import {
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { queryClickhouseSaved } from "lib/clickhouse";
-import { groupByBenchmarkData } from "../utils";
+import { BenchmarkTimeSeriesResponse, groupByBenchmarkData } from "../utils";
 
 const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance";
 
@@ -17,9 +17,13 @@ export async function getCompilerBenchmarkData(inputparams: any) {
   const end = Date.now();
 
   // TODO(elainewy): add logics to handle the case to return raw data
-  const result = toPrecomputeCompiler(rows, inputparams, "time_series");
+  const benchmark_time_series_response = toPrecomputeCompiler(
+    rows,
+    inputparams,
+    "time_series"
+  );
   console.log("time to get data", end - start);
-  return result;
+  return benchmark_time_series_response;
 }
 
 function toPrecomputeCompiler(
@@ -28,6 +32,7 @@ function toPrecomputeCompiler(
   type: string = "time_series"
 ) {
   const data = convertToCompilerPerformanceData(rawData);
+
   const models = getPassingModels(data);
 
   const passrate = computePassrate(data, models);
@@ -35,6 +40,13 @@ function toPrecomputeCompiler(
   const peakMemory = computePeakMemoryUsage(data, models);
 
   const all_data = [passrate, geomean, peakMemory].flat();
+
+  const earliest_timestamp = Math.min(
+    ...all_data.map((row) => new Date(row.granularity_bucket).getTime())
+  );
+  const latest_timestamp = Math.max(
+    ...all_data.map((row) => new Date(row.granularity_bucket).getTime())
+  );
 
   //TODO(elainewy): remove this after change the schema of compiler database to populate the fields directly
   all_data.map((row) => {
@@ -60,7 +72,6 @@ function toPrecomputeCompiler(
        *       "metric": "latency",
        *       "mode": "eager"
        *     },
-       *     "num_of_dp": 1, // number of datapoints in result list
        *     "rows": [
        *        "f123456": {
        *          "group_info": {
@@ -88,7 +99,6 @@ function toPrecomputeCompiler(
       res = tsd.map((group) => {
         const group_info = group.group_Info;
         const sub_group_data = group.rows;
-
         // extract the first data point for each sub group
         // since we only have one datapoint for each unique workflow id with the same group info
         const ts_list = Object.values(sub_group_data)
@@ -102,10 +112,10 @@ function toPrecomputeCompiler(
         return {
           group_info,
           num_of_dp: ts_list.length,
-          result: ts_list,
+          data: ts_list,
         };
       });
-      return res;
+      break;
     case "table":
       res = groupByBenchmarkData(
         all_data,
@@ -119,7 +129,15 @@ function toPrecomputeCompiler(
         ],
         ["metric", "compiler"]
       );
+      break;
   }
 
-  return res;
+  const response: BenchmarkTimeSeriesResponse = {
+    time_series: res,
+    time_range: {
+      start: new Date(earliest_timestamp).toISOString(),
+      end: new Date(latest_timestamp).toISOString(),
+    },
+  };
+  return response;
 }

@@ -134,3 +134,8 @@ export function groupByBenchmarkData<T>(
 export function getNestedField(obj: any, path: string): any {
   return path.split(".").reduce((o, key) => (o && key in o ? o[key] : ""), obj);
 }
+
+export type BenchmarkTimeSeriesResponse = {
+  time_series: any[];
+  time_range: { start: string; end: string };
+};
