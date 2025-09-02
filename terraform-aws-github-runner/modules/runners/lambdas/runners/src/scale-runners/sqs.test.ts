@@ -5,9 +5,7 @@ import nock from 'nock';
 import { SQSRecord } from 'aws-lambda';
 
 const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
+  putMetricData: jest.fn().mockResolvedValue(true),
 };
 const mockSQS = {
   changeMessageVisibilityBatch: jest.fn(),

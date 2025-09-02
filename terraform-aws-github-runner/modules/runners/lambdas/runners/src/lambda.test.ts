@@ -11,9 +11,7 @@ import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
 import * as MetricsModule from './scale-runners/metrics';
 
 const mockCloudWatch = {
-  putMetricData: jest.fn().mockImplementation(() => {
-    return { promise: jest.fn().mockResolvedValue(true) };
-  }),
+  putMetricData: jest.fn().mockResolvedValue(true),
 };
 jest.mock('@aws-sdk/client-cloudwatch', () => ({
   CloudWatch: jest.fn().mockImplementation(() => mockCloudWatch),
