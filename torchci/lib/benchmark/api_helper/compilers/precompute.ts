@@ -66,7 +66,7 @@ function toPrecomputeCompiler(
        *          "group_info": {
        *           "workflow_id": "f123456"
        *          },
-       *          "data": [ # list of data that has the same same group_info for group keys and sub group keys
+       *          "data": [ # list of data that has the same group_info for group keys and sub group keys
        *           {
        *             "workflow_id": "f123456",
        *             "granularity_bucket": "2022-10-01 00:00:00",
