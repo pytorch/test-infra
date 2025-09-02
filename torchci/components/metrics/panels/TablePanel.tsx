@@ -1,10 +1,9 @@
 import HelpIcon from "@mui/icons-material/Help";
-import { Skeleton, Typography } from "@mui/material";
+import { Box, Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { CSSProperties } from "react";
 import useSWR from "swr";
-import { Box } from "@mui/material";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
@@ -89,7 +88,7 @@ export function TablePanelWithData({
 
   function Header() {
     return (
-     <Typography fontSize="16px" fontWeight="700" sx={{ p: 1 }}>
+      <Typography fontSize="16px" fontWeight="700" sx={{ p: 1 }}>
         {title}{" "}
         {helpLink !== undefined && (
           <IconButton size="small" onClick={helpLinkOnClick}>
