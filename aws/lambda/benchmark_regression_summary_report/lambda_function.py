@@ -7,6 +7,8 @@ import threading
 from collections import defaultdict
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from lib.config import BENCHMARK_REGRESSION_CONFIG
+from jinja2 import Template
 
 # Local imports
 from typing import Any, Dict, Iterable, List, Optional, Set
@@ -69,7 +71,6 @@ def is_unix_timestamp(value: str) -> bool:
 def to_timestap_str(time: datetime) -> str:
     return str(int(time.timestamp()))
 
-
 def write_to_file(data: Any, filename="", path=""):
     """
     Writes data to a specified file. If no path is provided, writes to the current directory.
@@ -95,6 +96,21 @@ def write_to_file(data: Any, filename="", path=""):
         file.write(data)
     logger.info(f"File written to: {os.path.abspath(file_path)}")
 
+BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = "benchmark_regression_summary_report"
+
+
+def get_runtime_config(name: str, start: datetime, end: datetime):
+
+    try:
+        config = BENCHMARK_REGRESSION_CONFIG[name]
+        tmpl = Template(config.source.api_endpoint_params_template)
+        rendered = tmpl.render(
+            startTime=start.isoformat(timespec="milliseconds") + "Z",
+            stopTime=end.isoformat(timespec="milliseconds") + "Z",
+        )
+        cfg = dict(config)  # shallow copy
+        cfg["api_endpoint_params"] = json.loads(rendered)
+    return cfg
 
 
 class BenchmarkSummaryProcessor:
@@ -109,15 +125,10 @@ class BenchmarkSummaryProcessor:
         output_snapshot_file_path: str = "",
     ) -> None:
         self.is_dry_run = is_dry_run
-        self.is_dry_run = is_dry_run
-        self.output_snapshot_file_name = output_snapshot_file_name
-        self.output_snapshot_file_path = output_snapshot_file_path
-        self.local_output = local_output and is_dry_run
 
     def process(
         self,
-        start_time: datetime,
-        end_time: datetime,
+        config: Dict[str, Any],
         cc: Optional[clickhouse_connect.driver.client.Client] = None,
         args: Optional[argparse.Namespace] = None,
     ) -> Dict[str, Any]:
@@ -138,8 +149,6 @@ class BenchmarkSummaryProcessor:
 
         # fetches config to get time series from api
 
-
-        
         queued_jobs = self._fetch_snapshot_from_db(cc, start_time, end_time, repo)
 
         if len(queued_jobs) == 0:
@@ -147,15 +156,6 @@ class BenchmarkSummaryProcessor:
                 f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] "
                 + f"No jobs in queue in time range: [{start_time},{end_time}]"
             )
-
-        # add runner labels to each job based on machine type
-        self._add_runner_labels(
-            queued_jobs,
-            start_time,
-            meta_runner_config_retriever,
-            lf_runner_config_retriever,
-            old_lf_lf_runner_config_retriever,
-        )
 
         if len(queued_jobs) == 0:
             logger.info(
@@ -190,12 +190,14 @@ class BenchmarkSummaryProcessor:
         else:
             self._write_to_db_table(cc, records)
 
+
         return {
             "start_time": to_timestap_str(start_time),
             "end_time": to_timestap_str(end_time),
             "jobs_count": len(queued_jobs),
             "records_count": len(records),
         }
+
 
 
 class WorkerPoolHandler:
