@@ -445,9 +445,6 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
-                # todo: remove once windows cuda 13.0 binaries are available
-                if channel == NIGHTLY and os != LINUX:
-                    arches.remove("13.0")
             elif os == LINUX_AARCH64:
                 arches += CUDA_AARCH64_ARCHES
 
