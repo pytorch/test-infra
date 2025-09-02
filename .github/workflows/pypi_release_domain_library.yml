@@ -1,4 +1,4 @@
-name: Prepare binary for pypi
+name: Prepare binary and release binary to pypi
 
 on:
   pull_request:
@@ -7,13 +7,12 @@ on:
   workflow_dispatch:
     inputs:
       domain:
-        description: "What domain to prepare and remease"
+        description: "Domain to prepare and release"
         required: false
         type: choice
         default: torchao
         options:
           - torchao
-          - executorch
 
 jobs:
   trigger:
@@ -29,7 +28,7 @@ jobs:
             set -ex
             cd release/pypi
             # Install requirements
-            pip install auditwheel
+            pip install auditwheel awscli
             LINUX_VERSION_SUFFIX="%2Bcu128"
             CPU_VERSION_SUFFIX="%2Bcpu"
             DRY_RUN=enabled
