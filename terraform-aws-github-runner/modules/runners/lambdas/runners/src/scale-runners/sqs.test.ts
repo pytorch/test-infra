@@ -102,7 +102,7 @@ describe('sqs', () => {
   it('sqsChangeMessageVisibilityBatch', async () => {
     await sqsChangeMessageVisibilityBatch(metrics, sqsRecords, 0);
     expect(mockSQS.changeMessageVisibilityBatch).toBeCalledWith({
-      QueueUrl: "https://sqs.4.amazonaws.com/5/6",
+      QueueUrl: 'https://sqs.4.amazonaws.com/5/6',
       Entries: [
         {
           Id: '1',

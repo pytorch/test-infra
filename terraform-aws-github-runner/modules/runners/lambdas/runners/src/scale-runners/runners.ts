@@ -1,9 +1,4 @@
-import {
-  EC2,
-  DescribeImagesCommandOutput,
-  Image,
-  RunInstancesCommandInput,
-} from '@aws-sdk/client-ec2';
+import { EC2, DescribeImagesCommandOutput, Image, RunInstancesCommandInput } from '@aws-sdk/client-ec2';
 
 import { SSM, ParameterMetadata, DescribeParametersRequest } from '@aws-sdk/client-ssm';
 import { RunnerInfo, expBackOff, getRepo, shuffleArrayInPlace } from './utils';
