@@ -36,6 +36,7 @@ function toPrecomputeCompiler(
 
   const all_data = [passrate, geomean, peakMemory].flat();
 
+  //TODO(elainewy): remove this after change the schema of compiler database to populate the fields directly
   all_data.map((row) => {
     row["dtype"] = inputparams["dtype"];
     row["arch"] = inputparams["arch"];
@@ -46,19 +47,51 @@ function toPrecomputeCompiler(
   let res: any[] = [];
   switch (type) {
     case "time_series":
-      // grouping data by comipler, device, arch, dtype, suite, metric, mode
-      // then sorted it with granularity_bucket in ascending order
+      /**
+       * Response of groupByBenchmarkData:
+       * [
+       *   {
+       *     "group_info": {
+       *       "dtype": "fp32",
+       *       "arch": "sm80",
+       *       "device": "cuda",
+       *       "suite": "ads_10x",
+       *       "compiler": "gcc9.3.0",
+       *       "metric": "latency",
+       *       "mode": "eager"
+       *     },
+       *     "num_of_dp": 1, // number of datapoints in result list
+       *     "rows": [
+       *        "f123456": {
+       *          "group_info": {
+       *           "workflow_id": "f123456"
+       *          },
+       *          "data": [ # list of data that has the same same group_info for group keys and sub group keys
+       *           {
+       *             "workflow_id": "f123456",
+       *             "granularity_bucket": "2022-10-01 00:00:00",
+       *             "value": 100
+       *             ...
+       *           }
+       *         ],
+       *       },
+       *     ]
+       *   }
+       * ]
+       */
       const tsd = groupByBenchmarkData(
         all_data,
         ["dtype", "arch", "device", "suite", "compiler", "metric", "mode"],
         ["workflow_id"]
       );
+
       res = tsd.map((group) => {
         const group_info = group.group_Info;
-        const group_data = group.rows;
+        const sub_group_data = group.rows;
 
-        // no need for the group_info for subgroup, directly get the data
-        const ts_list = Object.values(group_data)
+        // extract the first data point for each sub group
+        // since we only have one datapoint for each unique workflow id with the same group info
+        const ts_list = Object.values(sub_group_data)
           .filter((item) => item.data.length > 0)
           .map((item) => item.data[0])
           .sort(

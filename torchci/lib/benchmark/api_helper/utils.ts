@@ -2,12 +2,44 @@
 
 import { NextApiRequest } from "next";
 
+/**
+ * Key-value map describing metadata for a group.
+ * Example: { dtype: "fp32", arch: "sm80", device: "cuda" }
+ */
 type GroupInfo = Record<string, string>;
-type Subgroup<T> = { group_Info: GroupInfo; data: T[] };
+
+/**
+ * Represents a subgroup within a larger group.
+ * Contains its own metadata and a list of data items.
+ */
+type Subgroup<T> = {
+  /** Metadata fields for this subgroup (e.g., workflow_id). */
+  group_info: GroupInfo;
+
+  /** The actual list of data items belonging to this subgroup. */
+  data: T[];
+};
+
+/**
+ * Represents a grouped item at the top level.
+ * Contains group-level metadata and a collection of subgroups.
+ */
 type GroupedItem<T> = {
+  /** Metadata fields for this group (e.g., dtype, arch, compiler). */
   group_Info: GroupInfo;
+
+  /**
+   * Rows keyed by a unique identifier string,
+   * derived from a distinct combination of subgroup `group_Info` fields.
+   * Each entry corresponds to one subgroup that contains data points.
+   */
   rows: Record<string, Subgroup<T>>;
 };
+
+/**
+ * Generic parameters map passed into functions or queries.
+ * Example: { startTime: "2025-08-24", device: "cuda", arch: "h100" }
+ */
 type Params = Record<string, any>;
 
 // it accepts both ?parameters=<json string> and POST with JSON body
@@ -82,7 +114,7 @@ export function groupByBenchmarkData<T>(
     const subMap = groups.get(mainKey)!;
 
     if (!subMap.has(subKey)) {
-      subMap.set(subKey, { group_Info: subInfo, data: [] });
+      subMap.set(subKey, { group_info: subInfo, data: [] });
     }
     subMap.get(subKey)!.data.push(row as T);
   }
