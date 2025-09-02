@@ -16,17 +16,7 @@ import { Config } from './config';
 import nock from 'nock';
 import { locallyCached, clearLocalCache, redisLocked } from './cache';
 import moment from 'moment';
-import {
-  CreateReplaceRootVolumeTaskCommand,
-  CreateTagsCommand,
-  DeleteTagsCommand,
-  DescribeImagesCommand,
-  DescribeInstancesCommand,
-  DescribeInstancesCommandOutput,
-  RunInstancesCommand,
-  TerminateInstancesCommand,
-} from '@aws-sdk/client-ec2';
-import { DeleteParameterCommand, DescribeParametersCommand, PutParameterCommand } from '@aws-sdk/client-ssm';
+import { DescribeInstancesCommandOutput } from '@aws-sdk/client-ec2';
 
 const runnerConfigFn = jest.fn().mockImplementation((awsRegion: string) => {
   return `${awsRegion}-BLAH`;
@@ -50,61 +40,21 @@ const mockEC2 = {
   ),
 };
 
+const mockSSMdescribeParametersRet = jest.fn().mockResolvedValue({});
 const mockSSM = {
   deleteParameter: jest.fn().mockResolvedValue({}),
+  describeParameters: mockSSMdescribeParametersRet,
   putParameter: jest.fn().mockResolvedValue({}),
 };
-const mockSSMdescribeParametersRet = jest.fn();
-
 jest.mock('@aws-sdk/client-ec2', () => ({
-  ...jest.requireActual('@aws-sdk/client-ec2'),
-  EC2Client: jest.fn().mockImplementation(() => ({
-    send: jest.fn(async (command) => {
-      // Delegate to original mockEC2 for each command type
-      if (command instanceof DescribeInstancesCommand) {
-        return await mockEC2.describeInstances(command.input);
-      }
-      if (command instanceof RunInstancesCommand) {
-        return await mockEC2.runInstances(command.input);
-      }
-      if (command instanceof TerminateInstancesCommand) {
-        return await mockEC2.terminateInstances(command.input);
-      }
-      if (command instanceof DescribeImagesCommand) {
-        return await mockEC2.describeImages(command.input);
-      }
-      if (command instanceof CreateTagsCommand) {
-        return await mockEC2.createTags(command.input);
-      }
-      if (command instanceof DeleteTagsCommand) {
-        return await mockEC2.deleteTags(command.input);
-      }
-      if (command instanceof CreateReplaceRootVolumeTaskCommand) {
-        return await mockEC2.createReplaceRootVolumeTask(command.input);
-      }
-      return {};
-    }),
-  })),
+  EC2: jest.fn().mockImplementation(() => mockEC2),
 }));
 jest.mock('@aws-sdk/client-ssm', () => ({
-  ...jest.requireActual('@aws-sdk/client-ssm'),
-  SSMClient: jest.fn().mockImplementation(() => ({
-    send: jest.fn(async (command) => {
-      // Delegate to original mockSSM for each command type
-      if (command instanceof DescribeParametersCommand) {
-        return await mockSSMdescribeParametersRet(command.input);
-      }
-      if (command instanceof PutParameterCommand) {
-        return await mockSSM.putParameter(command.input);
-      }
-      if (command instanceof DeleteParameterCommand) {
-        return await mockSSM.deleteParameter(command.input);
-      }
-      return {};
-    }),
-  })),
+  SSM: jest.fn().mockImplementation(() => mockSSM),
 }));
-
+jest.mock('@aws-sdk/client-cloudwatch', () => ({
+  CloudWatch: jest.requireActual('@aws-sdk/client-cloudwatch').CloudWatch,
+}));
 jest.mock('./utils', () => ({
   /* eslint-disable-next-line @typescript-eslint/no-explicit-any */
   ...(jest.requireActual('./utils') as any),
@@ -372,9 +322,9 @@ describe('listSSMParameters', () => {
     await expect(listSSMParameters(metrics, Config.Instance.awsRegion)).resolves.toEqual(ret2);
 
     expect(mockSSMdescribeParametersRet).toBeCalledTimes(3);
-    expect(mockSSMdescribeParametersRet).toBeCalledWith({});
-    expect(mockSSMdescribeParametersRet).toBeCalledWith({ NextToken: 'token' });
-    expect(mockSSMdescribeParametersRet).toBeCalledWith({});
+    expect(mockSSM.describeParameters).toBeCalledWith();
+    expect(mockSSM.describeParameters).toBeCalledWith({ NextToken: 'token' });
+    expect(mockSSM.describeParameters).toBeCalledWith();
   });
 });
 
@@ -606,7 +556,7 @@ describe('tryReuseRunner', () => {
       mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      mockEC2.describeInstances.mockClear().mockImplementation(mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(30, 'seconds').utc().toDate().getTime() / 1000,
       );
@@ -670,7 +620,7 @@ describe('tryReuseRunner', () => {
       mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      mockEC2.describeInstances.mockClear().mockImplementation(mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date())
           .subtract(Config.Instance.minimumRunningTimeInMinutes + 10, 'minutes')
@@ -738,7 +688,7 @@ describe('tryReuseRunner', () => {
       const mockDescribeInstances = mockEC2.describeInstances;
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      mockEC2.describeInstances.mockClear().mockImplementation(mockDescribeInstances);
       const ephemeralRunnerFinished = Math.floor(
         moment(new Date()).subtract(10, 'minutes').utc().toDate().getTime() / 1000,
       );
@@ -899,7 +849,7 @@ describe('tryReuseRunner', () => {
       mockEC2.createReplaceRootVolumeTask.mockClear().mockResolvedValue({});
 
       // describeInstances
-      mockEC2.describeInstances.mockClear().mockImplementation(() => mockDescribeInstances);
+      mockEC2.describeInstances.mockClear().mockImplementation(mockDescribeInstances);
       const mockRunningInstances: DescribeInstancesCommandOutput = {
         Reservations: [],
         $metadata: {},
