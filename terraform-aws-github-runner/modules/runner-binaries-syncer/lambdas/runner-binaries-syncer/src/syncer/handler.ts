@@ -1,8 +1,8 @@
 import { Octokit } from '@octokit/rest';
 import { PassThrough } from 'stream';
 import request from 'request';
-import { S3 } from 'aws-sdk';
-import AWS from 'aws-sdk';
+import { S3, Tag } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import yn from 'yn';
 
 const versionKey = 'name';
@@ -14,14 +14,14 @@ interface CacheObject {
 
 async function getCachedVersion(s3: S3, cacheObject: CacheObject): Promise<string | undefined> {
   try {
-    const objectTagging = await s3
-      .getObjectTagging({
-        Bucket: cacheObject.bucket,
-        Key: cacheObject.key,
-      })
-      .promise();
-    const versions = objectTagging.TagSet?.filter((t: S3.Tag) => t.Key === versionKey);
-    return versions.length === 1 ? versions[0].Value : undefined;
+    const objectTagging = await s3.getObjectTagging({
+      Bucket: cacheObject.bucket,
+      Key: cacheObject.key,
+    });
+    console.log("hello")
+    console.log(objectTagging)
+    const versions = objectTagging.TagSet?.filter((t: Tag) => t.Key === versionKey);
+    return versions?.length === 1 ? versions[0].Value : undefined;
   } catch (e) {
     console.debug('No tags found');
     return undefined;
@@ -65,12 +65,16 @@ async function getReleaseAsset(
 
 async function uploadToS3(s3: S3, cacheObject: CacheObject, actionRunnerReleaseAsset: ReleaseAsset): Promise<void> {
   const writeStream = new PassThrough();
-  s3.upload({
-    Bucket: cacheObject.bucket,
-    Key: cacheObject.key,
-    Tagging: versionKey + '=' + actionRunnerReleaseAsset.name,
-    Body: writeStream,
-  }).promise();
+  const upload = new Upload({
+    client: s3,
+    params: {
+      Bucket: cacheObject.bucket,
+      Key: cacheObject.key,
+      Tagging: `${versionKey}=${actionRunnerReleaseAsset.name}`,
+      Body: writeStream,
+    },
+  });
+  const uploadPromise = upload.done();
 
   await new Promise<void>((resolve, reject) => {
     console.debug('Start downloading %s and uploading to S3.', actionRunnerReleaseAsset.name);
@@ -87,10 +91,11 @@ async function uploadToS3(s3: S3, cacheObject: CacheObject, actionRunnerReleaseA
   }).catch((error) => {
     console.error(`Exception: ${error}`);
   });
+  await uploadPromise;
 }
 
 export const handle = async (): Promise<void> => {
-  const s3 = new AWS.S3();
+  const s3 = new S3();
 
   const fetchPrereleaseBinaries = yn(process.env.GITHUB_RUNNER_ALLOW_PRERELEASE_BINARIES, { default: false });
   const distributions = [
