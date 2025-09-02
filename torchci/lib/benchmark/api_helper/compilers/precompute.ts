@@ -15,6 +15,19 @@ export async function getCompilerBenchmarkData(inputparams: any) {
   const start = Date.now();
   const rows = await queryClickhouseSaved(BENCNMARK_TABLE_NAME, inputparams);
   const end = Date.now();
+  console.log("time to get data", end - start);
+
+  if (rows.length === 0) {
+    const response: BenchmarkTimeSeriesResponse = {
+      time_series: [],
+      time_range: {
+        start: "",
+        end: "",
+      },
+    };
+    return response;
+  }
+
 
   // TODO(elainewy): add logics to handle the case to return raw data
   const benchmark_time_series_response = toPrecomputeCompiler(
@@ -22,7 +35,6 @@ export async function getCompilerBenchmarkData(inputparams: any) {
     inputparams,
     "time_series"
   );
-  console.log("time to get data", end - start);
   return benchmark_time_series_response;
 }
 
