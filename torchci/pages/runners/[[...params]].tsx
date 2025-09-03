@@ -103,7 +103,7 @@ export default function RunnersPage() {
       const newPath = repo
         ? `/runners/${newOrg}/${repo}`
         : `/runners/${newOrg}`;
-      window.location.href = newPath;
+      router.push(newPath);
     }
   };
 
@@ -113,12 +113,12 @@ export default function RunnersPage() {
     if (parts.length === 2 && parts[0] && parts[1]) {
       const [newOrg, newRepo] = parts;
       if (newOrg !== org || newRepo !== repo) {
-        window.location.href = `/runners/${newOrg}/${newRepo}`;
+        router.push(`/runners/${newOrg}/${newRepo}`);
       }
     } else if (parts.length === 1 && parts[0]) {
       // If only org provided, go to org-level view
       if (parts[0] !== org || repo) {
-        window.location.href = `/runners/${parts[0]}`;
+        router.push(`/runners/${parts[0]}`);
       }
     }
   };
@@ -311,11 +311,10 @@ export default function RunnersPage() {
 
                 return (
                   <Grid
-                    size={{
-                      xs: 12,
-                      md: isExpanded ? 12 : 6,
-                      lg: isExpanded ? 12 : 4,
-                    }}
+                    item
+                    xs={12}
+                    md={isExpanded ? 12 : 6}
+                    lg={isExpanded ? 12 : 4}
                     key={group.label}
                   >
                     <RunnerGroupCard

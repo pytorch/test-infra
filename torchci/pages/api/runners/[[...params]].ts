@@ -218,7 +218,7 @@ export default async function handler(
   }
 
   // Check if org is allowed
-  if (!ALLOWED_ORGS.includes(org.toLocaleLowerCase())) {
+  if (!ALLOWED_ORGS.includes(org.toLowerCase())) {
     return res.status(403).json({
       error: `Access denied. Only ${ALLOWED_ORGS.join(
         ", "

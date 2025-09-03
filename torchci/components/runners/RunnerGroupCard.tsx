@@ -43,7 +43,7 @@ export function RunnerGroupCard({
   group: RunnerGroup;
   searchTerm: string;
   isExpanded: boolean;
-  onExpandChange: (_expanded: boolean) => void;
+  onExpandChange: (expanded: boolean) => void;
 }) {
   const theme = useTheme();
 
@@ -74,11 +74,13 @@ export function RunnerGroupCard({
         flexDirection: "column",
         backgroundColor:
           theme.palette.mode === "dark"
-            ? "#3d3a00" // Dark yellow/amber
-            : "#fffbf0", // Light cream-yellow
+            ? theme.palette.warning.dark + "20" // Dark mode with opacity
+            : theme.palette.warning.light + "20", // Light mode with opacity
         "&:hover": {
           backgroundColor:
-            theme.palette.mode === "dark" ? "#4d4800" : "#fff8e1",
+            theme.palette.mode === "dark" 
+              ? theme.palette.warning.dark + "30"
+              : theme.palette.warning.light + "30",
           opacity: 0.9,
         },
       }}
