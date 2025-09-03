@@ -77,7 +77,15 @@ export default function RunnersPage() {
 
   // Handle URL editing for organization
   const handleOrgSubmit = (newOrg: string) => {
-    if (newOrg && newOrg !== orgParam) {
+    if (!newOrg) return;
+
+    // Check if user entered a repo path like "pytorch/pytorch"
+    if (newOrg.includes('/')) {
+      alert('Only organization-level runners are supported. Please enter just the organization name (e.g., "pytorch").');
+      return;
+    }
+
+    if (newOrg !== orgParam) {
       router.push(`/runners/${newOrg}`);
     }
   };
