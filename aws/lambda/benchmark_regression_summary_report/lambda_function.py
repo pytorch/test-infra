@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
+import json
 import logging
 import os
 import threading
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from typing import Any, Optional
 
+from common.regression_utils import BenchmarkRegressionReportGenerator
 import clickhouse_connect
 import requests
 from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
@@ -137,6 +139,15 @@ class BenchmarkSummaryProcessor:
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
             return
+
+        generator = BenchmarkRegressionReportGenerator(
+            config=config, latest_ts=latest, baseline_ts=baseline
+        )
+        result, regression_detected = generator.generate()
+        if self.is_dry_run:
+            print("regression_detected: ", regression_detected)
+            print(json.dumps(result, indent=2, default=str))
+        return
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range
