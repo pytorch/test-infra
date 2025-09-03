@@ -98,7 +98,7 @@ function RunnerGroupCard({
   // Filter runners based on search term
   const filteredRunners = useMemo(() => {
     if (!searchTerm) return group.runners;
-    
+
     const term = searchTerm.toLowerCase();
     return group.runners.filter(
       (runner) =>
@@ -114,9 +114,9 @@ function RunnerGroupCard({
   };
 
   return (
-    <Card sx={{ 
-      mb: 2, 
-      backgroundColor: theme.palette.mode === 'dark' 
+    <Card sx={{
+      mb: 2,
+      backgroundColor: theme.palette.mode === 'dark'
         ? '#3d3a00' // Dark yellow/amber
         : '#fffbf0', // Light cream-yellow
       '&:hover': {
@@ -211,7 +211,7 @@ function RunnerGroupCard({
 const fetcher = async (url: string) => {
   // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
   // const { data: session } = await fetch("/api/auth/session").then(res => res.json());
-  // 
+  //
   // if (!session?.accessToken) {
   //   throw new Error("Not authenticated");
   // }
@@ -261,7 +261,7 @@ export default function RepoRunnersPage() {
     // Filter based on search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      groups = groups.filter((group) => 
+      groups = groups.filter((group) =>
         group.label.toLowerCase().includes(term) ||
         group.runners.some(
           (runner) =>
@@ -338,7 +338,7 @@ export default function RepoRunnersPage() {
           onChange={(e) => setSearchTerm(e.target.value)}
           sx={{ maxWidth: 600, mb: 2 }}
         />
-        
+
         <ButtonGroup variant="outlined" size="small">
           <Button
             variant={sortOrder === 'alphabetical' ? 'contained' : 'outlined'}
@@ -376,20 +376,16 @@ export default function RepoRunnersPage() {
             <Grid container spacing={2}>
               {filteredAndSortedGroups.map((group) => {
                 const isExpanded = expandedGroup === group.label;
-                
+
                 return (
-                  <Grid 
-                    item 
-                    xs={12} 
-                    md={isExpanded ? 12 : 6} 
-                    lg={isExpanded ? 12 : 4}
-                    key={group.label}
+                  <Grid
+                    size={{ xs: 12, md: isExpanded ? 12 : 6, lg: isExpanded ? 12 : 4 }}
                   >
                     <RunnerGroupCard
                       group={group}
                       searchTerm={searchTerm}
                       isExpanded={isExpanded}
-                      onExpandChange={(expanded) => 
+                      onExpandChange={(expanded) =>
                         setExpandedGroup(expanded ? group.label : null)
                       }
                     />
