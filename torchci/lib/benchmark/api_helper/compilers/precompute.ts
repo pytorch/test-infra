@@ -28,7 +28,6 @@ export async function getCompilerBenchmarkData(inputparams: any) {
     return response;
   }
 
-
   // TODO(elainewy): add logics to handle the case to return raw data
   const benchmark_time_series_response = toPrecomputeCompiler(
     rows,
