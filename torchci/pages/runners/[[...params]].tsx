@@ -101,8 +101,8 @@ export default function RunnersPage() {
   const handleOrgSubmit = (newOrg: string) => {
     if (newOrg && newOrg !== org) {
       const newPath = repo
-        ? `/runners/${encodeURIComponent(newOrg)}/${encodeURIComponent(repo)}`
-        : `/runners/${encodeURIComponent(newOrg)}`;
+        ? `/runners/${newOrg}/${repo}`
+        : `/runners/${newOrg}`;
       window.location.href = newPath;
     }
   };
@@ -113,14 +113,12 @@ export default function RunnersPage() {
     if (parts.length === 2 && parts[0] && parts[1]) {
       const [newOrg, newRepo] = parts;
       if (newOrg !== org || newRepo !== repo) {
-        window.location.href = `/runners/${encodeURIComponent(
-          newOrg
-        )}/${encodeURIComponent(newRepo)}`;
+        window.location.href = `/runners/${newOrg}/${newRepo}`;
       }
     } else if (parts.length === 1 && parts[0]) {
       // If only org provided, go to org-level view
       if (parts[0] !== org || repo) {
-        window.location.href = `/runners/${encodeURIComponent(parts[0])}`;
+        window.location.href = `/runners/${parts[0]}`;
       }
     }
   };

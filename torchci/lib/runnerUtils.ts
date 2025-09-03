@@ -32,10 +32,12 @@ export interface RunnersApiResponse {
 export function getRunnerGroupLabel(runner: RunnerData): string {
   const labelNames = runner.labels.map((label) => label.name);
 
-  // Find labels with "." (excluding "pytorch.runners") or starting with "macos-"
+  // Find labels with "." (excluding any that end with ".runners") or starting with "macos-"
+  // Why have such funky logic? We have many labels on our runners today, but this
+  // is what's common in all the ones that jobs actually use.
   const validLabels = labelNames.filter(
     (name) =>
-      (name.includes(".") && name !== "pytorch.runners") ||
+      (name.includes(".") && !name.endsWith(".runners")) || // "*.runners" is added to autoscaled runners
       name.startsWith("macos-")
   );
 

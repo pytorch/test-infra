@@ -131,9 +131,8 @@ function handleAPIError(
 
 // Shared authentication logic
 async function getAuthenticatedOctokit(org: string, repo?: string): Promise<Octokit> {
-  return repo
-    ? await import("lib/github").then((m) => m.getOctokit(org, repo)) // Use existing utility for repo access
-    : await getOctokitForOrg(org); // Use org-specific auth for org access
+  // Both org and repo runner access require organization-level authentication
+  return await getOctokitForOrg(org);
 }
 
 // Cache interface
