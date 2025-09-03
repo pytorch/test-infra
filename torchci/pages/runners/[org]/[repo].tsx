@@ -230,11 +230,15 @@ const fetcher = async (url: string) => {
   return response.json();
 };
 
+type SortOrder = 'alphabetical' | 'count';
+
 export default function RepoRunnersPage() {
   const router = useRouter();
   const { org, repo } = router.query;
   const { data: session, status } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortOrder, setSortOrder] = useState<SortOrder>('alphabetical');
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   // Fetch runners data
   const {
@@ -250,13 +254,14 @@ export default function RepoRunnersPage() {
     }
   );
 
-  // Filter groups based on search term
-  const filteredGroups = useMemo(() => {
-    if (!runnersData || !searchTerm) return runnersData?.groups || [];
+  // Filter and sort groups
+  const filteredAndSortedGroups = useMemo(() => {
+    let groups = runnersData?.groups || [];
 
-    return runnersData.groups.filter((group) => {
+    // Filter based on search term
+    if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      return (
+      groups = groups.filter((group) => 
         group.label.toLowerCase().includes(term) ||
         group.runners.some(
           (runner) =>
@@ -266,8 +271,25 @@ export default function RepoRunnersPage() {
             runner.labels.some((label) => label.name.toLowerCase().includes(term))
         )
       );
+    }
+
+    // Sort groups
+    const sortedGroups = [...groups].sort((a, b) => {
+      if (sortOrder === 'alphabetical') {
+        // Unknown always goes last
+        if (a.label === "unknown" && b.label !== "unknown") return 1;
+        if (a.label !== "unknown" && b.label === "unknown") return -1;
+        return a.label.localeCompare(b.label);
+      } else {
+        // Sort by count (descending), unknown still goes last
+        if (a.label === "unknown" && b.label !== "unknown") return 1;
+        if (a.label !== "unknown" && b.label === "unknown") return -1;
+        return b.totalCount - a.totalCount;
+      }
     });
-  }, [runnersData, searchTerm]);
+
+    return sortedGroups;
+  }, [runnersData, searchTerm, sortOrder]);
 
   // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
   // if (status === "loading") {
@@ -314,8 +336,23 @@ export default function RepoRunnersPage() {
           placeholder="Search runners by name, ID, OS, or labels..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ maxWidth: 600 }}
+          sx={{ maxWidth: 600, mb: 2 }}
         />
+        
+        <ButtonGroup variant="outlined" size="small">
+          <Button
+            variant={sortOrder === 'alphabetical' ? 'contained' : 'outlined'}
+            onClick={() => setSortOrder('alphabetical')}
+          >
+            Sort A-Z
+          </Button>
+          <Button
+            variant={sortOrder === 'count' ? 'contained' : 'outlined'}
+            onClick={() => setSortOrder('count')}
+          >
+            Sort by Count
+          </Button>
+        </ButtonGroup>
       </Box>
 
       {isLoading ? (
@@ -331,18 +368,35 @@ export default function RepoRunnersPage() {
             Total: {runnersData.totalRunners} runners
           </Typography>
 
-          {filteredGroups.length === 0 ? (
+          {filteredAndSortedGroups.length === 0 ? (
             <Alert severity="info">
               No runners found matching your search criteria.
             </Alert>
           ) : (
-            filteredGroups.map((group) => (
-              <RunnerGroupCard
-                key={group.label}
-                group={group}
-                searchTerm={searchTerm}
-              />
-            ))
+            <Grid container spacing={2}>
+              {filteredAndSortedGroups.map((group) => {
+                const isExpanded = expandedGroup === group.label;
+                
+                return (
+                  <Grid 
+                    item 
+                    xs={12} 
+                    md={isExpanded ? 12 : 6} 
+                    lg={isExpanded ? 12 : 4}
+                    key={group.label}
+                  >
+                    <RunnerGroupCard
+                      group={group}
+                      searchTerm={searchTerm}
+                      isExpanded={isExpanded}
+                      onExpandChange={(expanded) => 
+                        setExpandedGroup(expanded ? group.label : null)
+                      }
+                    />
+                  </Grid>
+                );
+              })}
+            </Grid>
           )}
         </>
       ) : null}

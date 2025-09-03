@@ -43,7 +43,7 @@ const CACHE_TTL = 60 * 1000; // 60 seconds
 const ALLOWED_ORGS = ["pytorch", "Meta-Pytorch"];
 
 // Check if user has write access to pytorch/pytorch
-async function checkUserPermissions(authorization: string): Promise<boolean> {
+async function _checkUserPermissions(authorization: string): Promise<boolean> {
   try {
     const userOctokit = new Octokit({ auth: authorization });
     await userOctokit.rest.users.getAuthenticated();
@@ -259,7 +259,7 @@ export default async function handler(
   // }
 
   // Verify user has write access to pytorch/pytorch
-  // if (!(await checkUserPermissions(authorization))) {
+  // if (!(await _checkUserPermissions(authorization))) {
   //   return res.status(403).json({ 
   //     error: "Access denied. Write permissions to pytorch/pytorch required." 
   //   });
