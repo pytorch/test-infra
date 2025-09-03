@@ -1,7 +1,6 @@
 import HelpIcon from "@mui/icons-material/Help";
 import { Box, Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
-import { Box } from "@mui/system";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { CSSProperties } from "react";
 import useSWR from "swr";
