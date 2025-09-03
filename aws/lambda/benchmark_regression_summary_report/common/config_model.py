@@ -1,9 +1,11 @@
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import Any, Dict, Literal, Optional
-from datetime import timedelta
-from jinja2 import Environment, Template, meta
+
 import json
+from dataclasses import dataclass, field
+from datetime import timedelta
+from typing import Any, Dict, Literal, Optional
+
+from jinja2 import Environment, meta, Template
 
 
 # -------- Frequency --------
@@ -168,7 +170,9 @@ class BenchmarkConfig:
     Represents a single benchmark regression configuration.
         - BenchmarkConfig defines the benchmark regression config for a given benchmark.
         - source: defines the source of the benchmark data we want to query
-        - policy: defines the policy for the benchmark regressions, including frequency to generate the report, range of the baseline and new values, and regression thresholds for metrics
+        - policy: defines the policy for the benchmark regressions, including frequency to
+        generate the report, range of the baseline and new values, and regression thresholds
+        for metrics
         - name:  the name of the benchmark
         - id: the id of the benchmark, this must be unique for each benchmark, and cannot be changed once set
     """
@@ -184,7 +188,7 @@ class BenchmarkRegressionConfigBook:
     configs: Dict[str, BenchmarkConfig] = field(default_factory=dict)
 
     def __getitem__(self, key: str) -> BenchmarkConfig:
-        config = self.configs.get(key, None)
+        config = self.configs.get(key)
         if not config:
             raise KeyError(f"Config {key} not found")
         return config

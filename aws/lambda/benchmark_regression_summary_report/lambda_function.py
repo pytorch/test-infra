@@ -1,24 +1,19 @@
 #!/usr/bin/env python
 import argparse
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import json
+import datetime as dt
 import logging
 import os
 import threading
-import requests
-import datetime as dt
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from typing import Any, Optional
+
 import clickhouse_connect
-from common.benchmark_time_series_api_model import (
-    BenchmarkTimeSeriesApiResponse,
-)
-from common.config_model import (
-    BenchmarkApiSource,
-    BenchmarkConfig,
-    Frequency,
-)
+import requests
+from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
 from common.config import get_benchmark_regression_config
+from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
 from dateutil.parser import isoparse
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -197,8 +192,12 @@ class BenchmarkSummaryProcessor:
         config_id: str,
         latest_ts_str: str,
         end_time: dt.datetime,
-        min_delta: dt.timedelta = dt.timedelta(days=2),
+        min_delta: Optional[dt.timedelta] = None,
     ) -> bool:
+        # set default
+        if not min_delta:
+            min_delta = dt.timedelta(days=2)
+
         if not latest_ts_str:
             return False
         latest_dt = isoparse(latest_ts_str)
