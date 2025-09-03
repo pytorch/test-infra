@@ -153,11 +153,3 @@ export function groupRunners(runners: RunnerData[]): RunnerGroup[] {
   return result;
 }
 
-export async function checkUserPermissions(
-  authorization: string
-): Promise<boolean> {
-  // This function would validate user permissions
-  // Implementation depends on how user tokens are structured
-  // For now, return true for testing - this should be implemented properly
-  return true;
-}

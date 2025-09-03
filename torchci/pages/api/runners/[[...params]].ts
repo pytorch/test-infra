@@ -236,20 +236,6 @@ export default async function handler(
   }
 
   try {
-    // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
-    // Check authentication
-    // const authorization = req.headers.authorization;
-    // if (!authorization) {
-    //   return res.status(401).json({ error: "Authorization header required" });
-    // }
-
-    // Verify user has write access to pytorch/pytorch
-    // if (!(await checkUserPermissions(authorization))) {
-    //   return res.status(403).json({
-    //     error: "Access denied. Write permissions to pytorch/pytorch required."
-    //   });
-    // }
-
     // Get authenticated Octokit instance
     const octokit = await getAuthenticatedOctokit(org, repo);
 

@@ -62,18 +62,7 @@ type SortOrder = typeof SORT_ALPHABETICAL | typeof SORT_COUNT;
 
 // Fetcher function for SWR
 const runnersFetcher = async (url: string) => {
-  // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
-  // const { data: session } = await fetch("/api/auth/session").then(res => res.json());
-  //
-  // if (!session?.accessToken) {
-  //   throw new Error("Not authenticated");
-  // }
-
-  const response = await fetch(url, {
-    // headers: {
-    //   Authorization: session.accessToken,
-    // },
-  });
+  const response = await fetch(url);
 
   if (!response.ok) {
     const error = await response.json();
@@ -187,27 +176,6 @@ export default function RunnersPage() {
     );
   }
 
-  // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
-  // if (status === "loading") {
-  //   return (
-  //     <Container maxWidth="lg" sx={{ mt: 4, textAlign: "center" }}>
-  //       <CircularProgress />
-  //       <Typography variant="body2" sx={{ mt: 2 }}>
-  //         Loading authentication...
-  //       </Typography>
-  //     </Container>
-  //   );
-  // }
-
-  // if (!session) {
-  //   return (
-  //     <Container maxWidth="lg" sx={{ mt: 4 }}>
-  //       <Alert severity="error">
-  //         You must be logged in to view runners information.
-  //       </Alert>
-  //     </Container>
-  //   );
-  // }
 
   if (error) {
     return (
