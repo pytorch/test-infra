@@ -1,0 +1,5 @@
+clickhouse_connect==0.8.5
+boto3==1.35.33
+PyGithub==1.59.0
+python-dateutil==2.8.2
+PyYAML==6.0.1
