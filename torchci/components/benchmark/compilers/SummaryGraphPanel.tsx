@@ -235,6 +235,7 @@ function SuiteGraphPanel({
       (id <= lWorkflowId && id >= rWorkflowId)
     );
   });
+
   const peakMemorySeries = seriesWithInterpolatedTimes(
     peakMemory,
     startTime,
