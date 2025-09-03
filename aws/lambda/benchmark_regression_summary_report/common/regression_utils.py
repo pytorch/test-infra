@@ -1,14 +1,12 @@
 import logging
 import math
-from typing import Any, Dict, List, Literal, Optional, Tuple, TypedDict
 import statistics
-from dateutil.parser import isoparse
+from typing import Any, Counter, Dict, List, Literal, Optional, Tuple, TypedDict
+
+from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiData
 from common.config_model import BenchmarkConfig, RegressionPolicy
-from common.benchmark_time_series_api_model import (
-    BenchmarkTimeSeriesApiData,
-    BenchmarkTimeSeriesItem,
-)
-import pprint
+from dateutil.parser import isoparse
+
 
 logger = logging.getLogger()
 
@@ -56,7 +54,7 @@ class BenchmarkRegressionReportGenerator:
         self.latest_ts = self._to_data_map(latest_ts)
         self.baseline_raw = self._to_data_map(baseline_ts)
 
-    def generate(self) -> Tuple[List[PerGroupResult], bool]:
+    def generate(self) -> Tuple[List[PerGroupResult], Dict[str, Any]]:
         return self.detect_regressions_with_policies(
             self.baseline_raw,
             self.latest_ts,
@@ -70,17 +68,16 @@ class BenchmarkRegressionReportGenerator:
         *,
         metric_policies: Dict[str, RegressionPolicy],
         min_points: int = 2,
-    ) -> Tuple[List[PerGroupResult], bool]:
+    ) -> Tuple[List[PerGroupResult], Dict[str, Any]]:
         """
-        For each group:
-        - choose policy by group_info['metric']
-        - compute flags via policy.is_violation(value, baseline)
-        - classify with classify_flags
-        Returns a list of {group_info, baseline, values, flags, label, policy}
+        For each dp_map:
+        - choose policy based on targeting metric from group_info['metric'] (ex passrate, geomean ..)
+        - calculate baseline value based on policy.baseline_aggregation (ex mean, p90, max, min, latest, p50, p95)
+        - use baseline value to generate violation flag list for each point, using policy.is_violation(value, baseline)
+        - classify with classify_flags to detect regression (ex regression, suspicious, no_regression, insufficient_data)
+        Returns a list of Regression result {group_info, baseline, values, flags, label, policy}
         """
         results: List[PerGroupResult] = []
-
-        is_any_regression = False
 
         for key in sorted(dp_map.keys()):
             cur_item = dp_map.get(key)
@@ -115,9 +112,13 @@ class BenchmarkRegressionReportGenerator:
                 continue
 
             baseline_aggre_mode = policy.baseline_aggregation
-            baseline_value = self._get_baseline(base_item,baseline_aggre_mode)
+            baseline_value = self._get_baseline(base_item, baseline_aggre_mode)
             if baseline_value is None or len(points) == 0:
-                logger.warning("baseline_value is %s, len(points) == %s", baseline_value,len(points))
+                logger.warning(
+                    "baseline_value is %s, len(points) == %s",
+                    baseline_value,
+                    len(points),
+                )
                 results.append(
                     PerGroupResult(
                         group_info=gi,
@@ -139,15 +140,27 @@ class BenchmarkRegressionReportGenerator:
             results.append(
                 PerGroupResult(
                     group_info=gi,
-                    baseline= baseline_value["value"],
+                    baseline=baseline_value["value"],
                     points=enriched_points,
                     label=label,
                     policy=policy,
                 )
             )
-            if label == "regression":
-                is_any_regression = True
-        return results, is_any_regression
+
+        regression_counts = Counter([r["label"]=="regression" for r in results])
+        insufficient_data = Counter([r["label"]=="insufficient_data" for r in results])
+        suspicious = Counter([r["label"]=="suspicious" for r in results])
+        nonlocal_regression = Counter([r["label"]=="no_regression" for r in results])
+        total = len(results)
+        return results, {
+            "regression": regression_counts,
+            "insufficient_data": insufficient_data,
+            "suspicious": suspicious,
+            "nonlocal_regression": nonlocal_regression,
+            "total": total,
+        }
+
+
 
     def _to_data_map(
         self, data: "BenchmarkTimeSeriesApiData", field: str = "value"
@@ -181,6 +194,10 @@ class BenchmarkRegressionReportGenerator:
         mode: str = "mean",
         field: str = "value",
     ) -> Optional[BaselineItem]:
+        """
+        calculate the baseline value based on the mode
+        mode: mean, p90, max, min, latest, p50, p95
+        """
         values = [float(d[field]) for d in data["values"] if field in d]
         if not values:
             return None
@@ -204,7 +221,7 @@ class BenchmarkRegressionReportGenerator:
         else:
             logger.warning("Unknown mode: %s", mode)
             return None
-        result:BaselineItem =  {
+        result: BaselineItem = {
             "group_info": data["group_info"],
             "value": val,
         }

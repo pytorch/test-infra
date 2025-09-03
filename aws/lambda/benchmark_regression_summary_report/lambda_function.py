@@ -8,12 +8,12 @@ import threading
 from concurrent.futures import as_completed, ThreadPoolExecutor
 from typing import Any, Optional
 
-from common.regression_utils import BenchmarkRegressionReportGenerator
 import clickhouse_connect
 import requests
 from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
+from common.regression_utils import BenchmarkRegressionReportGenerator
 from dateutil.parser import isoparse
 
 
@@ -143,9 +143,10 @@ class BenchmarkSummaryProcessor:
         generator = BenchmarkRegressionReportGenerator(
             config=config, latest_ts=latest, baseline_ts=baseline
         )
-        result, regression_detected = generator.generate()
+
+        result, regression_summary = generator.generate()
         if self.is_dry_run:
-            print("regression_detected: ", regression_detected)
+            print("regression_detected: ", regression_summary)
             print(json.dumps(result, indent=2, default=str))
         return
 
