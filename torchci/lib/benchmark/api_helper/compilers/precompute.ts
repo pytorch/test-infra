@@ -15,7 +15,7 @@ import {
 } from "../utils";
 
 const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance";
-const BENCHMAR_COMMIT_NAME = "compilers_benchmark_performance_branches";
+const BENCNMARK_COMMIT_NAME = "compilers_benchmark_performance_branches";
 
 // TODO(elainewy): improve the fetch performance
 export async function getCompilerBenchmarkData(inputparams: any) {
@@ -25,7 +25,7 @@ export async function getCompilerBenchmarkData(inputparams: any) {
   console.log("time to get data", end - start);
 
   const startc = Date.now();
-  const commits = await queryClickhouseSaved(BENCHMAR_COMMIT_NAME, inputparams);
+  const commits = await queryClickhouseSaved(BENCNMARK_COMMIT_NAME, inputparams);
   const endc = Date.now();
   console.log("time to get commit data", endc - startc);
   const commitMap = toCommitRowMap(commits);
@@ -161,7 +161,7 @@ function toPrecomputeCompiler(
   }
 
   const response: BenchmarkTimeSeriesResponse = {
-    time_series: res,
+    time_series: rawData,
     time_range: {
       start: new Date(earliest_timestamp).toISOString(),
       end: new Date(latest_timestamp).toISOString(),
