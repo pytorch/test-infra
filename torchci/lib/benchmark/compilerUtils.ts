@@ -100,10 +100,7 @@ export function computePassrate(
     const [bucket, workflowId, suite, compiler] = key.split("+");
     passrate.push({
       metric: "passrate",
-<<<<<<< HEAD
       value: p,
-=======
->>>>>>> 556c0ef04 (addid)
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -169,10 +166,7 @@ export function computeGeomean(
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedGeomean.push({
       metric: "geomean",
-<<<<<<< HEAD
       value: Number(gm),
-=======
->>>>>>> 556c0ef04 (addid)
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
