@@ -88,7 +88,6 @@ class BenchmarkSummaryProcessor:
     ):
         # ensure each thread has its own clickhouse client. clickhouse client
         # is not thread-safe.
-        logger.info("here")
         if cc is None:
             tlocal = threading.local()
             if not hasattr(tlocal, "cc") or tlocal.cc is None:
@@ -101,8 +100,6 @@ class BenchmarkSummaryProcessor:
                 else:
                     tlocal.cc = get_clickhouse_client_environment()
             cc = tlocal.cc
-        logger.info("i'm here")
-
         try:
             config = get_benchmark_regression_config(config_id)
             logger.info("found config for config_id %s",config_id)
@@ -215,7 +212,7 @@ class BenchmarkSummaryProcessor:
         )
         url = source.api_query_url
 
-        logger.info("trying to call %s",url)
+        logger.info("[%s]trying to call %s, with query %s",config_id, url,query)
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
                 BenchmarkTimeSeriesApiResponse.from_request(url, query)

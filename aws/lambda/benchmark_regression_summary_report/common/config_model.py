@@ -98,12 +98,12 @@ class RangeConfig:
 class RegressionPolicy:
     """
     Defines the policy for a given metric.
-        - "greater_than": higher is better; violation if new value < baseline * threshold
-        - "less_than":    lower  is better; violation if new value > baseline * threshold
+    - new value muset be {x} baseline value:
+        - "greater_than": higher is better; new value must be strictly greater to baseline
+        - "less_than":    lower  is better; new value must be strictly lower to baseline
         - "equal_to":     new value should be ~= baseline * threshold within rel_tol
-        - "greater_equal": higher is better; violation if new value <= baseline * threshold
-        - "less_equal":    lower  is better; violation if new value >= baseline * threshold
-
+        - "greater_equal": higher is better; new value must be greater or equal to baseline
+        - "less_equal":    lower  is better; new value must be less or equal to baseline
     """
     name: str
     condition: Literal["greater_than", "less_than", "equal_to","greater_equal","less_equal"]

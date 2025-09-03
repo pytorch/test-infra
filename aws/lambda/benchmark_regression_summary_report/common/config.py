@@ -48,13 +48,13 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         ),
         metrics={
             "passrate": RegressionPolicy(
-                name="passrate", condition="greater_than", threshold=0.9, baseline_aggregation="max"
+                name="passrate", condition="greater_equal", threshold=0.9, baseline_aggregation="max",
             ),
             "geomean": RegressionPolicy(
-                name="geomean", condition="greater_than", threshold=0.95,baseline_aggregation="max"
+                name="geomean", condition="greater_equal", threshold=0.95,baseline_aggregation="max",
             ),
             "compression_ratio": RegressionPolicy(
-                name="compression_ratio", condition="greater_than", threshold=0.9, baseline_aggregation="max"
+                name="compression_ratio", condition="greater_equal", threshold=0.9, baseline_aggregation="max",
             ),
         },
         notification_config={
