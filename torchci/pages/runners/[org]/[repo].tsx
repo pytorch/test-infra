@@ -1,12 +1,15 @@
 import {
   Alert,
   Box,
+  Button,
+  ButtonGroup,
   Card,
   CardContent,
   Chip,
   CircularProgress,
   Collapse,
   Container,
+  Grid,
   IconButton,
   Table,
   TableBody,
@@ -82,11 +85,14 @@ function StatusChip({ runner }: { runner: RunnerData }) {
 function RunnerGroupCard({
   group,
   searchTerm,
+  isExpanded,
+  onExpandChange,
 }: {
   group: RunnerGroup;
   searchTerm: string;
+  isExpanded: boolean;
+  onExpandChange: (expanded: boolean) => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const theme = useTheme();
 
   // Filter runners based on search term
@@ -104,19 +110,19 @@ function RunnerGroupCard({
   }, [group.runners, searchTerm]);
 
   const handleExpandClick = () => {
-    setExpanded(!expanded);
+    onExpandChange(!isExpanded);
   };
 
   return (
     <Card sx={{ 
       mb: 2, 
       backgroundColor: theme.palette.mode === 'dark' 
-        ? theme.palette.success.dark 
-        : theme.palette.success.light,
+        ? '#3d3a00' // Dark yellow/amber
+        : '#fffbf0', // Light cream-yellow
       '&:hover': {
         backgroundColor: theme.palette.mode === 'dark'
-          ? theme.palette.success.main
-          : theme.palette.success.main,
+          ? '#4d4800'
+          : '#fff8e1',
         opacity: 0.9,
       }
     }}>
@@ -151,11 +157,11 @@ function RunnerGroupCard({
             </Box>
           </Box>
           <IconButton>
-            {expanded ? <ExpandLess /> : <ExpandMore />}
+            {isExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
         </Box>
 
-        <Collapse in={expanded} timeout="auto" unmountOnExit>
+        <Collapse in={isExpanded} timeout="auto" unmountOnExit>
           <Box mt={2}>
             <TableContainer>
               <Table size="small">
