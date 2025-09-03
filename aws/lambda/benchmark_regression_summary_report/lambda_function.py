@@ -17,10 +17,8 @@ from common.config_model import (
     BenchmarkConfig,
     Frequency,
 )
-from common.config import BENCHMARK_REGRESSION_CONFIG
+from common.config import get_benchmark_regression_config
 from dateutil.parser import isoparse
-
-from pprint import pprint
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +33,9 @@ ENVS = {
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
 
-BENMARK_REGRESSION_REPORT_DB = "fortesting.benchmark_regression_report"
+BENCHMARK_REGRESSION_REPORT_TABLE = "fortesting.benchmark_regression_report"
+
+BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 
 
 def truncate_to_hour(ts: dt.datetime) -> dt.datetime:
@@ -63,16 +63,11 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
 
-BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = "benchmark_regression_summary_report"
 
-def get_config(config_id: str) -> BenchmarkConfig:
-    try:
-        config: BenchmarkConfig = BENCHMARK_REGRESSION_CONFIG[config_id]
-    except KeyError:
-        raise ValueError(f"Invalid config id: {config_id}")
-    except Exception as e:
-        raise e
-    return config
+BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = (
+    "fortesting.benchmark_regression_summary_report"
+)
+
 
 class BenchmarkSummaryProcessor:
     """ """
@@ -82,53 +77,6 @@ class BenchmarkSummaryProcessor:
         is_dry_run: bool = False,
     ) -> None:
         self.is_dry_run = is_dry_run
-
-    def should_generate_report(
-        self,
-        cc: clickhouse_connect.driver.client.Client,
-        end_time: dt.datetime,
-        config_id: str,
-        f: Frequency,
-    ) -> bool:
-        """
-        decide wether should generate the report based on the frequency in policy
-        """
-
-        def _get_latest_record_ts(
-            cc: clickhouse_connect.driver.Client,
-            config_id: str,
-        ) -> Optional[dt.datetime]:
-            res = cc.query(
-                """
-                SELECT max(last_record_ts)
-                FROM benchmark_regression_report
-                WHERE report_id = {config_id:String}
-                """,
-                parameters={"config_id": config_id},
-            )
-            if not res.result_rows or res.result_rows[0][0] is None:
-                return None
-            latest: dt.datetime = res.result_rows[0][
-                0
-            ]  # typically tz-aware UTC from clickhouse_connect
-            # If not tz-aware, force UTC:
-            if latest.tzinfo is None:
-                latest = latest.replace(tzinfo=dt.timezone.utc)
-            return latest
-
-        freq_delta = f.to_timedelta()
-        latest_record_ts = _get_latest_record_ts(cc, config_id)
-
-        # No report exists yet, generate
-        if not latest_record_ts:
-            return True
-
-        end_utc = (
-            end_time if end_time.tzinfo else end_time.replace(tzinfo=dt.timezone.utc)
-        )
-        end_utc = end_utc.astimezone(dt.timezone.utc)
-        cutoff = end_time - freq_delta
-        return latest_record_ts < cutoff
 
     def process(
         self,
@@ -151,11 +99,21 @@ class BenchmarkSummaryProcessor:
                 else:
                     tlocal.cc = get_clickhouse_client_environment()
             cc = tlocal.cc
-        config = get_config(config_id)
+
+        try:
+            config = get_benchmark_regression_config(config_id)
+        except ValueError as e:
+            logger.error(f"Skip process, Invalid config: {e}")
+            return
+        except Exception as e:
+            print(
+                f"Something else went wrong when call get_benchmark_regression_config: {e}"
+            )
+            return
 
         # check if the current time is > policy's time_delta + previous record_ts from summary_table
         report_freq = config.policy.frequency
-        should_generate = self.should_generate_report(
+        should_generate = self._should_generate_report(
             cc, end_time, config_id, report_freq
         )
         if not should_generate:
@@ -273,6 +231,50 @@ class BenchmarkSummaryProcessor:
         except Exception as e:
             raise RuntimeError(f"[{config_id}]Fetch failed:", e)
 
+    def _should_generate_report(
+        self,
+        cc: clickhouse_connect.driver.client.Client,
+        end_time: dt.datetime,
+        config_id: str,
+        f: Frequency,
+    ) -> bool:
+        def _get_latest_record_ts(
+            cc: clickhouse_connect.driver.Client,
+            config_id: str,
+        ) -> Optional[dt.datetime]:
+            table = BENCHMARK_REGRESSION_REPORT_TABLE
+            res = cc.query(
+                f"""
+                SELECT max(last_record_ts)
+                FROM {table}
+                WHERE report_id = {{config_id:String}}
+                """,
+                parameters={"config_id": config_id},
+            )
+            if not res.result_rows or res.result_rows[0][0] is None:
+                return None
+            latest: dt.datetime = res.result_rows[0][
+                0
+            ]  # typically tz-aware UTC from clickhouse_connect
+            # If not tz-aware, force UTC:
+            if latest.tzinfo is None:
+                latest = latest.replace(tzinfo=dt.timezone.utc)
+            return latest
+
+        freq_delta = f.to_timedelta()
+        latest_record_ts = _get_latest_record_ts(cc, config_id)
+
+        # No report exists yet, generate
+        if not latest_record_ts:
+            return True
+
+        end_utc = (
+            end_time if end_time.tzinfo else end_time.replace(tzinfo=dt.timezone.utc)
+        )
+        end_utc = end_utc.astimezone(dt.timezone.utc)
+        cutoff = end_time - freq_delta
+        return latest_record_ts < cutoff
+
 
 class WorkerPoolHandler:
     """
@@ -284,26 +286,32 @@ class WorkerPoolHandler:
     def __init__(
         self,
         benchmark_summary_processor: BenchmarkSummaryProcessor,
-        max_workers: int = 4,
+        max_workers: int = 6,
     ):
         self.benchmark_summary_processor = benchmark_summary_processor
         self.max_workers = max_workers
 
     def start(
         self,
-        config: Dict[str, Any],
+        config_ids: list[str],
         args: Optional[argparse.Namespace] = None,
     ) -> None:
         logger.info(
-            "[WorkerPoolHandler] start to process benchmark summary data with config %s",
-            config["name"],
+            "[WorkerPoolHandler] start to process benchmark "
+            "summary data with config_ids %s",
+            config_ids,
         )
+        end_time = dt.datetime.now(dt.timezone.utc).replace(
+            minute=0, second=0, microsecond=0
+        )
+        logger.info("current time with hour granularity(utc) %s", end_time)
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
-            for interval in time_intervals:
+            for config_id in config_ids:
                 future = executor.submit(
                     self.benchmark_summary_processor.process,
-                    config,
+                    config_id,
+                    end_time,
                     cc=None,
                     args=args,
                 )
@@ -343,14 +351,12 @@ def main(
         )
     else:
         cc = get_clickhouse_client_environment()
-    time_intervals = TimeIntervalGenerator().generate(cc)
 
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
-        config_retrievers,
         BenchmarkSummaryProcessor(is_dry_run=is_dry_run),
     )
-    handler.start(time_intervals, args)
+    handler.start(BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS, args)
     logger.info(" [Main] Done. work completed.")
 
 
@@ -396,31 +402,11 @@ def parse_args() -> argparse.Namespace:
         help="the github access token to access github api",
     )
     parser.add_argument(
-        "--local-output",
-        action="store_true",
-        help="when set, generate json result in local environment. "
-        + "this is only used for local test environment when dry-run is enabled",
-    )
-    parser.add_argument(
         "--not-dry-run",
         action="store_true",
         help="when set, writing results to destination from local "
         + "environment. By default, we run in dry-run mode for local "
         + "environment",
-    )
-    parser.add_argument(
-        "--output-file-name",
-        type=str,
-        default="job_queue_times_snapshot.json",
-        help="the name of output file for local environment. this "
-        + "is only used for local test environment when local-output is enabled",
-    )
-    parser.add_argument(
-        "--output-file-path",
-        type=str,
-        default="",
-        help="the path of output file for local environment. this is "
-        + "only used for local test environment when local-output is enabled",
     )
     args, _ = parser.parse_known_args()
     return args
@@ -442,9 +428,6 @@ def local_run() -> None:
         args,
         args.github_access_token,
         is_dry_run=is_dry_run,
-        local_output=args.local_output,
-        output_snapshot_file_name=args.output_file_name,
-        output_snapshot_file_path=args.output_file_path,
     )
 
 

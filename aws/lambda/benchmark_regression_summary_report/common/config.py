@@ -64,8 +64,16 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         },
     ),
 )
+
 BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(
     configs={
         "compiler_regression": COMPILER_BENCHMARK_CONFIG,
     }
 )
+
+
+def get_benchmark_regression_config(config_id: str) -> BenchmarkConfig:
+    try:
+        return BENCHMARK_REGRESSION_CONFIG[config_id]
+    except KeyError:
+        raise ValueError(f"Invalid config id: {config_id}")
