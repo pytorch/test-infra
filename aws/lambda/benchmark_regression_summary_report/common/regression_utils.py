@@ -74,9 +74,10 @@ class BenchmarkRegressionReportGenerator:
         - choose policy based on targeting metric from group_info['metric'] (ex passrate, geomean ..)
         - calculate baseline value based on policy.baseline_aggregation (ex mean, p90, max, min, latest, p50, p95)
         - use baseline value to generate violation flag list for each point, using policy.is_violation(value, baseline)
-        - classify with classify_flags to detect regression (ex regression, suspicious, no_regression, insufficient_data)
+        - classify with labels to detect regression, using self.classify_flags(flags, min_points)
         Returns a list of Regression result {group_info, baseline, values, flags, label, policy}
         """
+        logger.info("Generating regression results ...")
         results: List[PerGroupResult] = []
 
         for key in sorted(dp_map.keys()):
@@ -147,20 +148,31 @@ class BenchmarkRegressionReportGenerator:
                 )
             )
 
-        regression_counts = Counter([r["label"]=="regression" for r in results])
-        insufficient_data = Counter([r["label"]=="insufficient_data" for r in results])
-        suspicious = Counter([r["label"]=="suspicious" for r in results])
-        nonlocal_regression = Counter([r["label"]=="no_regression" for r in results])
-        total = len(results)
-        return results, {
-            "regression": regression_counts,
-            "insufficient_data": insufficient_data,
-            "suspicious": suspicious,
-            "nonlocal_regression": nonlocal_regression,
-            "total": total,
+        logger.info("Done. Generated %s regression results", len(results))
+        summary = self.summarize_label_counts(results)
+        return results, summary
+
+    def summarize_label_counts(self, results:list[PerGroupResult]):
+        counts = Counter(self._label_str(r["label"]) for r in results)
+        total_count = len(results)
+        return {
+            "total_count": total_count,
+            "regression_count": counts.get("regression", 0),
+            "suspicious_count": counts.get("suspicious", 0),
+            "no_regression_count": counts.get("no_regression", 0),
+            "insufficient_data_count": counts.get("insufficient_data", 0),
+            "is_regression": int(counts.get("regression", 0) > 0),
+            "counts": counts,  # raw counts if you need others
         }
 
-
+    def _label_str(self, x) -> str:
+        # Robust: works for str or Enum-like labels
+        if isinstance(x, str):
+            return x.lower()
+        if hasattr(x, "value"):
+            v = x.value
+            return (v if isinstance(v, str) else str(v)).lower()
+        return str(x).lower()
 
     def _to_data_map(
         self, data: "BenchmarkTimeSeriesApiData", field: str = "value"

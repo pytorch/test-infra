@@ -5,7 +5,9 @@ import json
 import logging
 import os
 import threading
+import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
+import time
 from typing import Any, Optional
 
 import clickhouse_connect
@@ -43,9 +45,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client(
-        host=host, user=user, password=password, secure=True, verify=False
-    )
+    # return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -242,16 +242,42 @@ class BenchmarkSummaryProcessor:
         )
         url = source.api_query_url
 
-        logger.info("[%s]trying to call %s, with query\n %s", config_id, url, query)
+        logger.info("[%s]trying to call %s", config_id, url)
+        t0 = time.perf_counter()
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
                 BenchmarkTimeSeriesApiResponse.from_request(url, query)
             )
+
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            logger.info(
+                "[%s] call OK in %.1f ms (query_len=%d)",
+                config_id,
+                elapsed_ms,
+                len(query),
+            )
             return resp.data
         except requests.exceptions.HTTPError as e:
-            logger.error("Server error message: %s", e.response.json().get("error"))
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            # Try to extract a useful server message safely
+            try:
+                err_msg = (
+                    e.response.json().get("error") if e.response is not None else str(e)
+                )
+            except Exception:
+                err_msg = (
+                    e.response.text
+                    if (e.response is not None and hasattr(e.response, "text"))
+                    else str(e)
+                )
+            logger.error(
+                "[%s] call FAILED in %.1f ms: %s", config_id, elapsed_ms, err_msg
+            )
             raise
+
         except Exception as e:
+            elapsed_ms = (time.perf_counter() - t0) * 1000.0
+            logger.error("[%s] call CRASHED in %.1f ms", config_id, elapsed_ms)
             raise RuntimeError(f"[{config_id}]Fetch failed: {e}")
 
     def _should_generate_report(
