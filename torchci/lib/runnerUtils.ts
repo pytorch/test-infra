@@ -1,22 +1,4 @@
-/**
- * @fileoverview Shared utilities for GitHub Actions runners functionality
- *
- * This module provides common types, constants, and utility functions for working with
- * GitHub Actions self-hosted runners across the TorchCI application. It handles parsing
- * runner labels, grouping runners by their characteristics, and managing runner data.
- *
- * Key features:
- * - Type definitions for runner data and API responses
- * - Intelligent runner grouping based on labels and naming patterns
- * - Special handling for macOS runners and ROCm runners with custom naming
- * - Sorting and counting logic for runner groups
- * - Authentication permission checking utilities
- *
- * Used by:
- * - API endpoints: /api/runners/[[...params]].ts
- * - Frontend pages: /pages/runners/[[...params]].tsx
- * - UI components: /components/runners/*
- */
+// Shared utilities for GitHub runners functionality
 
 // Types
 export interface RunnerData {
@@ -45,9 +27,6 @@ export interface RunnersApiResponse {
   groups: RunnerGroup[];
   totalRunners: number;
 }
-
-// Constants
-export const ALLOWED_ORGS = ["pytorch", "Meta-Pytorch"];
 
 // Utility functions
 export function getRunnerGroupLabel(runner: RunnerData): string {
