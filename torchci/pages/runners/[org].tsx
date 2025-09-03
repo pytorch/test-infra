@@ -1,38 +1,29 @@
 /**
- * @fileoverview Unified GitHub Actions runners dashboard page
+ * @fileoverview GitHub Actions runners dashboard page
  *
  * Provides a comprehensive dashboard for viewing GitHub Actions
- * self-hosted runners using catch-all routing to handle both organization-level
- * and repository-level views
+ * self-hosted runners at the organization level
  *
  * Supported routes:
  * - /runners/[org] - Show all runners for an organization (e.g., /runners/pytorch)
- * - /runners/[org]/[repo] - Show runners for a specific repository (e.g., /runners/pytorch/pytorch)
  *
  * Features:
- * - Unified component handles both org and repo views with catch-all routing
+ * - Organization-level runner monitoring and management
  * - Editable URL parameters using ParamSelector for easy navigation
  * - Real-time search filtering across runner names, IDs, OS, and labels
  *
  * State management:
  * - Uses SWR for data fetching with caching and revalidation
  * - Local state for search, sorting, and UI interactions
- * - URL-driven navigation with proper encoding
  *
  * UI/UX:
  * - Material-UI components with consistent theming
  * - Loading states and error handling with user-friendly messages
- * - Accessible design with proper ARIA labels and keyboard navigation
  * - Mobile-responsive layout with appropriate breakpoints
- *
- * Authentication:
- * - Infrastructure in place for user session validation
- * - Currently bypassed for testing but ready for production
- * - Will validate write access to pytorch/pytorch when enabled
  *
  * Used by:
  * - TorchCI Dev Infra dropdown navigation
- * - Direct URL access for organization and repository runner monitoring
+ * - Direct URL access for organization runner monitoring
  */
 
 import {
@@ -74,12 +65,10 @@ const runnersFetcher = async (url: string) => {
 
 export default function RunnersPage() {
   const router = useRouter();
-  const { params } = router.query;
+  const { org } = router.query;
 
-  // Parse the route parameters
-  const routeParams = Array.isArray(params) ? params : [];
-  const org = routeParams[0] || null;
-  const repo = routeParams[1] || null;
+  // Ensure org is a string
+  const orgParam = typeof org === 'string' ? org : null;
 
   const { data: _session, status: _status } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
@@ -88,35 +77,16 @@ export default function RunnersPage() {
 
   // Handle URL editing for organization
   const handleOrgSubmit = (newOrg: string) => {
-    if (newOrg && newOrg !== org) {
-      const newPath = repo
-        ? `/runners/${newOrg}/${repo}`
-        : `/runners/${newOrg}`;
-      router.push(newPath);
+    if (newOrg && newOrg !== orgParam) {
+      router.push(`/runners/${newOrg}`);
     }
   };
 
-  // Handle URL editing for org/repo combination
-  const handleOrgRepoSubmit = (orgRepo: string) => {
-    const parts = orgRepo.split("/");
-    if (parts.length === 2 && parts[0] && parts[1]) {
-      const [newOrg, newRepo] = parts;
-      if (newOrg !== org || newRepo !== repo) {
-        router.push(`/runners/${newOrg}/${newRepo}`);
-      }
-    } else if (parts.length === 1 && parts[0]) {
-      // If only org provided, go to org-level view
-      if (parts[0] !== org || repo) {
-        router.push(`/runners/${parts[0]}`);
-      }
-    }
-  };
-
-  // Determine API endpoint based on route parameters
+  // Determine API endpoint - only org-level supported
   const apiEndpoint = useMemo(() => {
-    if (!org) return null;
-    return repo ? `/api/runners/${org}/${repo}` : `/api/runners/${org}`;
-  }, [org, repo]);
+    if (!orgParam) return null;
+    return `/api/runners/${orgParam}`;
+  }, [orgParam]);
 
   // Fetch runners data
   const {
@@ -166,7 +136,7 @@ export default function RunnersPage() {
   }, [runnersData, searchTerm, sortOrder]);
 
   // Show loading state for invalid routes
-  if (!org) {
+  if (!orgParam) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Alert severity="info">
@@ -185,14 +155,9 @@ export default function RunnersPage() {
     );
   }
 
-  // Generate page title and URL selector based on route type
-  const urlSelector = repo ? (
-    <ParamSelector
-      value={`${org}/${repo}`}
-      handleSubmit={handleOrgRepoSubmit}
-    />
-  ) : (
-    <ParamSelector value={org} handleSubmit={handleOrgSubmit} />
+  // Generate page title and URL selector for organization
+  const urlSelector = (
+    <ParamSelector value={orgParam} handleSubmit={handleOrgSubmit} />
   );
 
   return (
@@ -207,22 +172,9 @@ export default function RunnersPage() {
         gutterBottom
         sx={{ mb: 3 }}
       >
-        {repo ? (
-          <>
-            Showing self-hosted GitHub Actions runners for the{" "}
-            <strong>
-              {org}/{repo}
-            </strong>{" "}
-            repository. These are runners specifically assigned to this
-            repository.
-          </>
-        ) : (
-          <>
-            Showing self-hosted GitHub Actions runners for the{" "}
-            <strong>{org}</strong> organization. These runners are available to
-            all repositories within the organization.
-          </>
-        )}
+        Showing self-hosted GitHub Actions runners for the{" "}
+        <strong>{orgParam}</strong> organization. These runners are available to
+        all repositories within the organization.
       </Typography>
 
       <Box mb={3}>

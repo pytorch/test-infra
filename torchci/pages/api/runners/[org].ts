@@ -1,12 +1,10 @@
 /**
- * @fileoverview Unified API endpoint for GitHub Actions runners data
+ * @fileoverview API endpoint for GitHub Actions runners data
  *
- * This route handles both organization-level and repository-level
- * GitHub Actions runner queries using catch-all routing.
+ * This route handles organization-level GitHub Actions runner queries.
  *
  * Supported routes:
  * - GET /api/runners/[org] - Fetch all runners for an organization
- * - GET /api/runners/[org]/[repo] - Fetch runners specific to a repository
  *
  */
 
@@ -83,8 +81,7 @@ async function paginateRunners(
 function handleAPIError(
   error: any,
   res: NextApiResponse<RunnersApiResponse | { error: string }>,
-  org: string,
-  repo?: string
+  org: string
 ) {
   console.error("Error fetching runners:", error);
 
@@ -94,11 +91,8 @@ function handleAPIError(
     const message = error.response.data?.message || error.message;
 
     if (status === 404) {
-      const target = repo
-        ? `Repository '${org}/${repo}'`
-        : `Organization '${org}'`;
       return res.status(404).json({
-        error: `${target} not found or PyTorchBot is not installed`,
+        error: `Organization '${org}' not found or PyTorchBot is not installed`,
       });
     }
 
@@ -124,12 +118,8 @@ function handleAPIError(
   });
 }
 
-// Shared authentication logic
-async function getAuthenticatedOctokit(
-  org: string,
-  repo?: string
-): Promise<Octokit> {
-  // Both org and repo runner access require organization-level authentication
+// Authentication logic - only org-level supported
+async function getAuthenticatedOctokit(org: string): Promise<Octokit> {
   return await getOctokitForOrg(org);
 }
 
@@ -178,17 +168,6 @@ async function fetchAllOrgRunners(
   return paginateRunners(octokit, "GET /orgs/{org}/actions/runners", { org });
 }
 
-// Fetch all runners with proper pagination for a repository
-async function fetchAllRepoRunners(
-  octokit: Octokit,
-  org: string,
-  repo: string
-): Promise<RunnerData[]> {
-  return paginateRunners(octokit, "GET /repos/{owner}/{repo}/actions/runners", {
-    owner: org,
-    repo,
-  });
-}
 
 export default async function handler(
   req: NextApiRequest,
@@ -198,23 +177,12 @@ export default async function handler(
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const { params } = req.query;
-
-  // Parse the route parameters
-  const routeParams = Array.isArray(params) ? params : [];
-  const org = routeParams[0];
-  const repo = routeParams[1];
+  const { org } = req.query;
 
   if (!org || typeof org !== "string") {
     return res
       .status(400)
       .json({ error: "Organization parameter is required" });
-  }
-
-  if (repo && typeof repo !== "string") {
-    return res
-      .status(400)
-      .json({ error: "Repository parameter must be a string" });
   }
 
   // Check if org is allowed
@@ -226,8 +194,8 @@ export default async function handler(
     });
   }
 
-  // Generate cache key based on route type
-  const cacheKey = repo ? `${org}/${repo}` : org;
+  // Generate cache key for organization
+  const cacheKey = org;
 
   // Check cache first
   const cached = cache.get(cacheKey);
@@ -237,12 +205,10 @@ export default async function handler(
 
   try {
     // Get authenticated Octokit instance
-    const octokit = await getAuthenticatedOctokit(org, repo);
+    const octokit = await getAuthenticatedOctokit(org);
 
-    // Fetch runners based on route type
-    const runners = repo
-      ? await fetchAllRepoRunners(octokit, org, repo)
-      : await fetchAllOrgRunners(octokit, org);
+    // Fetch organization runners
+    const runners = await fetchAllOrgRunners(octokit, org);
 
     // Group runners by labels
     const groups = groupRunners(runners);
@@ -260,6 +226,6 @@ export default async function handler(
 
     return res.status(200).json(result);
   } catch (error: any) {
-    return handleAPIError(error, res, org, repo);
+    return handleAPIError(error, res, org);
   }
 }
