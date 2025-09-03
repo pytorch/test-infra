@@ -333,6 +333,8 @@ export function computeMemoryCompressionRatio(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedMemory.push({
+      metric: "compression_ratio",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,

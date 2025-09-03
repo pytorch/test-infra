@@ -88,6 +88,8 @@ function SuiteGraphPanel({
     JSON.stringify(queryParamsWithSuite)
   )}`;
 
+  console.log("url params", queryParamsWithSuite);
+
   let { data, error } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
@@ -235,6 +237,9 @@ function SuiteGraphPanel({
       (id <= lWorkflowId && id >= rWorkflowId)
     );
   });
+
+  console.log("peak Memory",peakMemory)
+
   const peakMemorySeries = seriesWithInterpolatedTimes(
     peakMemory,
     startTime,

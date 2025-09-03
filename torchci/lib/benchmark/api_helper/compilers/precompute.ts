@@ -1,5 +1,6 @@
 import {
   computeGeomean,
+  computeMemoryCompressionRatio,
   computePassrate,
   computePeakMemoryUsage,
   convertToCompilerPerformanceData,
@@ -57,12 +58,11 @@ function toPrecomputeCompiler(
   type: string = "time_series"
 ) {
   const data = convertToCompilerPerformanceData(rawData);
-
   const models = getPassingModels(data);
 
   const passrate = computePassrate(data, models);
   const geomean = computeGeomean(data, models);
-  const peakMemory = computePeakMemoryUsage(data, models);
+  const peakMemory = computeMemoryCompressionRatio(data, models);
 
   const all_data = [passrate, geomean, peakMemory].flat();
 
