@@ -4,13 +4,16 @@ from common.config_model import (
     BenchmarkRegressionConfigBook,
     DayRangeWindow,
     Frequency,
-    RegressionPolicy,
     Policy,
     RangeConfig,
+    RegressionPolicy,
 )
 
+
 # Compiler benchmark regression config
-# todo(elainewy): eventually each team should configure their own benchmark regression config, currenlty place here for lambda
+# todo(elainewy): eventually each team should configure
+# their own benchmark regression config, currenlty place
+# here for lambda
 
 
 COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(

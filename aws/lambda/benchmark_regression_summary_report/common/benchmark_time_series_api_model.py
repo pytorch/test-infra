@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List
+
 import requests
+
 
 # The data class to provide api response model from get_time_series api
 
