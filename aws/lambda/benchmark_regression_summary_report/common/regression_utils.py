@@ -7,6 +7,9 @@ from common.config_model import BenchmarkConfig, RegressionPolicy
 from common.benchmark_time_series_api_model import (
     BenchmarkTimeSeriesApiData,
 )
+import pprint
+
+logger = logging.getLogger()
 
 RegressionClassifyLabel = Literal[
     "regression", "suspicious", "no_regression", "insufficient_data"
@@ -27,7 +30,6 @@ class PerGroupResult(TypedDict, total=True):
     group_info: Dict[str, Any]
     baseline: Optional[float]
     points: List[Any]
-    flags: List[bool]
     label: RegressionClassifyLabel
     policy: Optional["RegressionPolicy"]
 
@@ -53,7 +55,7 @@ class BenchmarkRegressionReportGenerator:
     ) -> None:
         self.metric_policies = config.policy.metrics
         self.latest_ts = self._to_latest_data_map(latest_ts)
-        self.baseline_ts = self._to_baseline_map(baseline_ts)
+        self.baseline_ts = self._to_baseline_map(baseline_ts, mode="max")
 
     def generate(self) -> Tuple[List[PerGroupResult], bool]:
         return self.detect_regressions_with_policies(
@@ -82,35 +84,34 @@ class BenchmarkRegressionReportGenerator:
         is_any_regression = False
 
         for key in sorted(dp_map.keys()):
+            logger.info("key: %s", key)
             cur_item = dp_map.get(key)
             gi = cur_item["group_info"] if cur_item else {}
             points: List[Any] = cur_item["values"] if cur_item else []
 
             base_item = baseline_map.get(key)
+            logger.info("base_item for keys(%s):\n%s ",key, pprint.pformat(base_item))
             baseline_value = base_item.get("value") if base_item else None
-
-            #
             policy = self._resolve_policy(metric_policies, gi.get("metric", ""))
             if not policy:
+                logger.warning("No policy for %s", gi)
                 results.append(
                     PerGroupResult(
                         group_info=gi,
                         baseline=baseline_value,
                         points=[],
-                        flags=[],
                         label="insufficient_data",
                         policy=None,
                     )
                 )
                 continue
-
             if baseline_value is None or len(points) == 0:
+                logger.warning("baseline_value is %s, len(points) == %s", baseline_value,len(points))
                 results.append(
                     PerGroupResult(
                         group_info=gi,
                         baseline=baseline_value,
                         points=[],
-                        flags=[],
                         label="insufficient_data",
                         policy=policy,
                     )
@@ -129,7 +130,6 @@ class BenchmarkRegressionReportGenerator:
                     group_info=gi,
                     baseline=baseline_value,
                     points=enriched_points,
-                    flags=[],
                     label=label,
                     policy=policy,
                 )
@@ -150,12 +150,11 @@ class BenchmarkRegressionReportGenerator:
             ):
                 if field not in d:
                     continue
-
                 points.append(
                     {
                         "value": float(d[field]),
-                        "commit": d.get("head_sha"),
-                        "branch": d.get("head_branch"),
+                        "commit": d.get("commit"),
+                        "branch": d.get("branch"),
                         "timestamp": isoparse(d["granularity_bucket"]),
                     }
                 )
@@ -182,12 +181,14 @@ class BenchmarkRegressionReportGenerator:
                 val = statistics.fmean(values)
             elif mode == "p90":
                 val = percentile(values, 0.9)
+            elif mode == "max":
+                val = max(values)
             else:
                 raise ValueError("mode must be 'mean' or 'p90'")
 
             result[group_keys] = {
                 "group_info": ts_group.group_info,
-                "baseline": val,
+                "value": val,
             }
         return result
 

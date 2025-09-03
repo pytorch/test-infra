@@ -177,7 +177,6 @@ class Policy:
     def get_github_notification_config(self) -> Optional[GitHubNotificationConfig]:
         if not self.notification_config:
             return None
-        if self.notification_config and self.notification_config.get("type") == "github":
         return notification_from_dict(self.notification_config)  # type: ignore
 
 

@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import json
 import logging
 import os
 import threading
-from concurrent.futures import as_completed, ThreadPoolExecutor
+import requests
 import datetime as dt
-from typing import Optional
+from typing import Any, Optional
 from common.regression_utils import BenchmarkRegressionReportGenerator
 import clickhouse_connect
 from common.benchmark_time_series_api_model import (
@@ -46,7 +47,8 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password,secure=True, verify=False)
+    logger.info("trying to connect with clickhouse")
+    return clickhouse_connect.get_client(host=host, user=user, password=password,secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -62,7 +64,6 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
         user=ENVS["CLICKHOUSE_USERNAME"],
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
-
 
 BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = (
     "fortesting.benchmark_regression_summary_report"
@@ -87,6 +88,7 @@ class BenchmarkSummaryProcessor:
     ):
         # ensure each thread has its own clickhouse client. clickhouse client
         # is not thread-safe.
+        logger.info("here")
         if cc is None:
             tlocal = threading.local()
             if not hasattr(tlocal, "cc") or tlocal.cc is None:
@@ -99,9 +101,11 @@ class BenchmarkSummaryProcessor:
                 else:
                     tlocal.cc = get_clickhouse_client_environment()
             cc = tlocal.cc
+        logger.info("i'm here")
 
         try:
             config = get_benchmark_regression_config(config_id)
+            logger.info("found config for config_id %s",config_id)
         except ValueError as e:
             logger.error(f"Skip process, Invalid config: {e}")
             return
@@ -118,15 +122,19 @@ class BenchmarkSummaryProcessor:
         )
         if not should_generate:
             logger.info(
-                "[%s] Skip generate report for date: %s with frequency %s",
+                "[%s] Skip generate report for date:%s with frequency %s, no data found during [%s,%s]",
                 config_id,
                 end_time.isoformat(),
                 report_freq.get_text(),
             )
             return
+        else:
+            logger.info( "[%s] Plan to generate report for time: %s with frequency %s ...",
+                config_id,end_time,report_freq.get_text())
 
         latest = self.get_latest(config, end_time)
         if not latest:
+            logger.info("no latest data found")
             return
         baseline = self.get_basline(config, end_time)
         if not baseline:
@@ -151,25 +159,9 @@ class BenchmarkSummaryProcessor:
             end_time=latest_e,
             source=config.source,
         )
-        if not latest_data.time_range or latest_data.time_range.end:
-            logger.info(
-                "[%s] Skip generate report for date:"
-                "%s with frequency %s, no data found during [%s,%s]",
-                config.id,
-                latest_s.isoformat(),
-                latest_e.isoformat(),
-            )
+        if not latest_data.time_range or not latest_data.time_range.end:
             return None
-
         if not self.should_use_data(latest_data.time_range.end, end_time):
-            logger.info(
-                "[%s] Skip generate report for date: trying to get_basline"
-                " with frequency %s, but no data found during for [%s,%s]",
-                config.id,
-                config.policy.frequency.get_text(),
-                latest_s.isoformat(),
-                latest_e.isoformat(),
-            )
             return None
         return latest_data
 
@@ -213,23 +205,27 @@ class BenchmarkSummaryProcessor:
         start_time: dt.datetime,
         source: BenchmarkApiSource,
     ):
-        str_end_time = end_time.isoformat()
-        str_start_time = start_time.isoformat()
+        str_end_time = end_time.strftime("%Y-%m-%dT%H:%M:%S")
+        str_start_time = start_time.strftime("%Y-%m-%dT%H:%M:%S")
         query = source.render(
             ctx={
                 "startTime": str_start_time,
-                "endTime": str_end_time,
+                "stopTime": str_end_time,
             }
         )
         url = source.api_query_url
+
+        logger.info("trying to call %s",url)
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
                 BenchmarkTimeSeriesApiResponse.from_request(url, query)
             )
-
             return resp.data
+        except requests.exceptions.HTTPError as e:
+            logger.error("Server error message: %s", e.response.json().get("error"))
+            raise
         except Exception as e:
-            raise RuntimeError(f"[{config_id}]Fetch failed:", e)
+            raise RuntimeError(f"[{config_id}]Fetch failed: {e}")
 
     def _should_generate_report(
         self,
@@ -344,13 +340,7 @@ def main(
         raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
 
     # get time intervals.
-    logger.info(" [Main] generating time intervals ....")
-    if args:
-        cc = get_clickhouse_client(
-            args.clickhouse_endpoint, args.clickhouse_username, args.clickhouse_password
-        )
-    else:
-        cc = get_clickhouse_client_environment()
+    logger.info("[Main] start work ....")
 
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
@@ -418,6 +408,9 @@ def local_run() -> None:
     """
 
     args = parse_args()
+
+
+    logger.info("args: %s",args)
 
     # update environment variables for input parameters
 
