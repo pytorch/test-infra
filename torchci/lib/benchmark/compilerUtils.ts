@@ -4,6 +4,7 @@ import {
   PASSING_ACCURACY,
   SCALE,
 } from "components/benchmark/compilers/common";
+import { number } from "echarts";
 import { BenchmarkData, CompilerPerformanceData } from "lib/types";
 
 export function getPassingModels(data: CompilerPerformanceData[]) {
