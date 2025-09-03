@@ -110,11 +110,15 @@ def is_unstable(job: dict[str, Any]) -> bool:
 
 
 def is_green(
-    commit: str, requires: List[str], results: List[Dict[str, Any]]
+    commit: str,
+    requires: List[str],
+    results: List[Dict[str, Any]],
+    excludes: Optional[List[str]] = None,
 ) -> Tuple[bool, str]:
     workflow_checks = get_commit_results(commit, results)
 
     regex = {check: False for check in requires}
+    excludes = excludes or []
 
     for check in workflow_checks:
         jobName = check["name"]
@@ -124,6 +128,16 @@ def is_green(
 
         workflow_name = check["workflowName"]
         conclusion = check["conclusion"]
+
+        # Skip excluded checks
+        excluded = False
+        for exclude_check in excludes:
+            if re.match(exclude_check, workflow_name, flags=re.IGNORECASE):
+                excluded = True
+                break
+        if excluded:
+            continue
+
         for required_check in regex:
             if re.match(required_check, workflow_name, flags=re.IGNORECASE):
                 if conclusion not in ["success", "skipped"]:
@@ -142,11 +156,14 @@ def is_green(
 
 
 def get_latest_green_commit(
-    commits: List[str], requires: List[str], results: List[Dict[str, Any]]
+    commits: List[str],
+    requires: List[str],
+    results: List[Dict[str, Any]],
+    excludes: Optional[List[str]] = None,
 ) -> Optional[str]:
     for commit in commits:
         eprint(f"Checking {commit}")
-        green, msg = is_green(commit, requires, results)
+        green, msg = is_green(commit, requires, results, excludes)
         if green:
             eprint("GREEN")
             return commit
@@ -160,6 +177,7 @@ def parse_args() -> Any:
 
     parser = ArgumentParser("Return the latest green commit from a PyTorch repo")
     parser.add_argument("--required-checks", type=str)
+    parser.add_argument("--exclude-checks", type=str)
     parser.add_argument("--viable-strict-branch", type=str, default="viable/strict")
     parser.add_argument("--main-branch", type=str, default="main")
     return parser.parse_args()
@@ -174,7 +192,17 @@ def main() -> None:
         required_checks = json.loads(args.required_checks)
     except json.JSONDecodeError:
         required_checks = args.required_checks.split(",")
-    latest_viable_commit = get_latest_green_commit(commits, required_checks, results)
+
+    exclude_checks = None
+    if args.exclude_checks:
+        try:
+            exclude_checks = json.loads(args.exclude_checks)
+        except json.JSONDecodeError:
+            exclude_checks = args.exclude_checks.split(",")
+
+    latest_viable_commit = get_latest_green_commit(
+        commits, required_checks, results, exclude_checks
+    )
     print(latest_viable_commit)
 
 
