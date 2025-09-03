@@ -4,37 +4,23 @@ import json
 import logging
 import os
 import threading
-from collections import defaultdict
 from concurrent.futures import as_completed, ThreadPoolExecutor
 import datetime as dt
-from common.regression_utils import (
-    detect_regressions_with_policies,
-    to_baseline_map,
-    to_latest_data_map,
-    to_time_series_item_map,
-)
+from typing import Optional
+from common.regression_utils import BenchmarkRegressionReportGenerator
+import clickhouse_connect
 from common.benchmark_time_series_api_model import (
-    BenchmarkTimeSeriesApiData,
     BenchmarkTimeSeriesApiResponse,
-    TimeRange,
 )
 from common.config_model import (
     BenchmarkApiSource,
     BenchmarkConfig,
     Frequency,
-    Policy,
-    RangeConfig,
 )
 from common.config import BENCHMARK_REGRESSION_CONFIG
-from jinja2 import Template
-import requests
 from dateutil.parser import isoparse
 
-from typing import Any, Dict, Iterable, List, Optional, Set
-import clickhouse_connect
-import yaml
-from github import Auth, Github
-
+from pprint import pprint
 
 logging.basicConfig(
     level=logging.INFO,
@@ -77,35 +63,7 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
 
-
-def write_to_file(data: Any, filename="", path=""):
-    """
-    Writes data to a specified file. If no path is provided, writes to the current directory.
-
-    :param data: The content to write to the file.
-    :param filename: The name of the file (default: 'output.txt').
-    :param path: The directory where the file should be saved (default: current directory).
-    """
-
-    if not filename:
-        filename = "output_snapshot.json"
-    if not path:
-        path = "."
-
-    # Ensure the path exists
-    os.makedirs(path, exist_ok=True)
-
-    # Construct full file path
-    file_path = os.path.join(path, filename)
-
-    # Write data to file
-    with open(file_path, "w", encoding="utf-8") as file:
-        file.write(data)
-    logger.info(f"File written to: {os.path.abspath(file_path)}")
-
-
 BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = "benchmark_regression_summary_report"
-
 
 def get_config(config_id: str) -> BenchmarkConfig:
     try:
@@ -115,7 +73,6 @@ def get_config(config_id: str) -> BenchmarkConfig:
     except Exception as e:
         raise e
     return config
-
 
 class BenchmarkSummaryProcessor:
     """ """
@@ -170,7 +127,6 @@ class BenchmarkSummaryProcessor:
             end_time if end_time.tzinfo else end_time.replace(tzinfo=dt.timezone.utc)
         )
         end_utc = end_utc.astimezone(dt.timezone.utc)
-
         cutoff = end_time - freq_delta
         return latest_record_ts < cutoff
 
@@ -214,24 +170,18 @@ class BenchmarkSummaryProcessor:
         latest = self.get_latest(config, end_time)
         if not latest:
             return
-
-        latest_map = to_latest_data_map(latest)
         baseline = self.get_basline(config, end_time)
         if not baseline:
             return
-        baseline_map = to_baseline_map(baseline)
-        detect_regressions_with_policies(
-            baseline_map=baseline_map,
-            latest_map=latest_map,
-            metric_policies=config.policy.metrics,
-        )
 
-        return {
-            "start_time": to_timestap_str(start_time),
-            "end_time": to_timestap_str(end_time),
-            "jobs_count": len(queued_jobs),
-            "records_count": len(records),
-        }
+        generator = BenchmarkRegressionReportGenerator(
+            config=config, latest_ts=latest, baseline_ts=baseline
+        )
+        result, regression_detected = generator.generate()
+        if self.is_dry_run:
+            print("regression_detected: ", regression_detected)
+            print(json.dumps(result, indent=2, default=str))
+        return
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range

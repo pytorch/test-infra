@@ -166,6 +166,7 @@ class GitHubNotificationConfig(BaseNotificationConfig):
         resp = requests.post(url, headers=headers, json={"body": body})
         resp.raise_for_status()
         return resp.json()
+
 @dataclass
 class Policy:
     frequency: Frequency
@@ -178,7 +179,6 @@ class Policy:
             return None
         if self.notification_config and self.notification_config.get("type") == "github":
         return notification_from_dict(self.notification_config)  # type: ignore
-
 
 
 # -------- Top-level benchmark regression config --------
