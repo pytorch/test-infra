@@ -72,3 +72,4 @@ aws/tools/cleanup-ssm/**/*.rs.bk
 
 # Remove the python version file from pyenv
 .python-version
+

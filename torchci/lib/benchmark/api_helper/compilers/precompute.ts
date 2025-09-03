@@ -60,7 +60,6 @@ function toPrecomputeCompiler(
   type: string = "time_series"
 ) {
   const data = convertToCompilerPerformanceData(rawData);
-
   const models = getPassingModels(data);
 
   const passrate = computePassrate(data, models);
