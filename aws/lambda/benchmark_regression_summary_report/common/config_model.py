@@ -97,30 +97,45 @@ class RangeConfig:
 @dataclass
 class RegressionPolicy:
     """
-        - "greater_than": higher is better; violation if value < baseline * threshold
-        - "less_than":    lower  is better; violation if value > baseline * threshold
-        - "equal_to":     value should be ~= baseline * threshold within rel_tol
+    Defines the policy for a given metric.
+        - "greater_than": higher is better; violation if new value < baseline * threshold
+        - "less_than":    lower  is better; violation if new value > baseline * threshold
+        - "equal_to":     new value should be ~= baseline * threshold within rel_tol
+        - "greater_equal": higher is better; violation if new value <= baseline * threshold
+        - "less_equal":    lower  is better; violation if new value >= baseline * threshold
+
     """
     name: str
-    condition: Literal["greater_than", "less_than", "equal_to"]
+    condition: Literal["greater_than", "less_than", "equal_to","greater_equal","less_equal"]
     threshold: float
+    baseline_aggregation: Literal["avg", "max", "min", "p50", "p90", "p95","latest","earliest"] = "max"
     rel_tol: float = 1e-3  # used only for "equal_to"
 
     def is_violation(self, value: float, baseline: float) -> bool:
         target = baseline * self.threshold
 
         if self.condition == "greater_than":
-            # value should be >= target
+            # value must be strictly greater than target
+            return value <= target
+
+        if self.condition == "greater_equal":
+            # value must be greater or equal to target
             return value < target
 
         if self.condition == "less_than":
-            # value should be <= target
+            # value must be strictly less than target
+            return value >= target
+
+        if self.condition == "less_equal":
+            # value must be less or equal to target
             return value > target
 
-        # equal_to: |value - target| should be within rel_tol * max(1, |target|)
-        denom = max(1.0, abs(target))
-        return abs(value - target) > self.rel_tol * denom
+        if self.condition == "equal_to":
+            # |value - target| should be within rel_tol * max(1, |target|)
+            denom = max(1.0, abs(target))
+            return abs(value - target) > self.rel_tol * denom
 
+        raise ValueError(f"Unknown condition: {self.condition}")
 class BaseNotificationConfig:
     # every subclass must override this
     type_tag: ClassVar[str]

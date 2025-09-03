@@ -6,6 +6,7 @@ from dateutil.parser import isoparse
 from common.config_model import BenchmarkConfig, RegressionPolicy
 from common.benchmark_time_series_api_model import (
     BenchmarkTimeSeriesApiData,
+    BenchmarkTimeSeriesItem,
 )
 import pprint
 
@@ -21,7 +22,7 @@ class BaselineItem(TypedDict):
     value: float
 
 
-class LatestItem(TypedDict):
+class BenchmarkValueItem(TypedDict):
     group_info: Dict[str, Any]
     values: List[Dict[str, Any]]
 
@@ -35,8 +36,6 @@ class PerGroupResult(TypedDict, total=True):
 
 
 def percentile(values: list[float], q: float):
-    if not values:
-        return None
     v = sorted(values)
     k = (len(v) - 1) * q
     f = math.floor(k)
@@ -54,20 +53,20 @@ class BenchmarkRegressionReportGenerator:
         baseline_ts: BenchmarkTimeSeriesApiData,
     ) -> None:
         self.metric_policies = config.policy.metrics
-        self.latest_ts = self._to_latest_data_map(latest_ts)
-        self.baseline_ts = self._to_baseline_map(baseline_ts, mode="max")
+        self.latest_ts = self._to_data_map(latest_ts)
+        self.baseline_raw = self._to_data_map(baseline_ts)
 
     def generate(self) -> Tuple[List[PerGroupResult], bool]:
         return self.detect_regressions_with_policies(
-            self.baseline_ts,
+            self.baseline_raw,
             self.latest_ts,
             metric_policies=self.metric_policies,
         )
 
     def detect_regressions_with_policies(
         self,
-        baseline_map: Dict[tuple, BaselineItem],
-        dp_map: Dict[tuple, LatestItem],
+        baseline_map: Dict[tuple, BenchmarkValueItem],
+        dp_map: Dict[tuple, BenchmarkValueItem],
         *,
         metric_policies: Dict[str, RegressionPolicy],
         min_points: int = 2,
@@ -90,27 +89,41 @@ class BenchmarkRegressionReportGenerator:
             points: List[Any] = cur_item["values"] if cur_item else []
 
             base_item = baseline_map.get(key)
-            logger.info("base_item for keys(%s):\n%s ",key, pprint.pformat(base_item))
-            baseline_value = base_item.get("value") if base_item else None
-            policy = self._resolve_policy(metric_policies, gi.get("metric", ""))
-            if not policy:
-                logger.warning("No policy for %s", gi)
+            if not base_item:
+                logger.warning("Skip. No baseline item found for %s", gi)
                 results.append(
                     PerGroupResult(
                         group_info=gi,
-                        baseline=baseline_value,
+                        baseline=None,
                         points=[],
                         label="insufficient_data",
                         policy=None,
                     )
                 )
                 continue
+            logger.info("base_item for keys(%s):\n%s ",key, pprint.pformat(base_item))
+            policy = self._resolve_policy(metric_policies, gi.get("metric", ""))
+            if not policy:
+                logger.warning("No policy for %s", gi)
+                results.append(
+                    PerGroupResult(
+                        group_info=gi,
+                        baseline=None,
+                        points=[],
+                        label="insufficient_data",
+                        policy=None,
+                    )
+                )
+                continue
+
+            baseline_aggre_mode = policy.baseline_aggregation
+            baseline_value = self._get_baseline(base_item,baseline_aggre_mode)
             if baseline_value is None or len(points) == 0:
                 logger.warning("baseline_value is %s, len(points) == %s", baseline_value,len(points))
                 results.append(
                     PerGroupResult(
                         group_info=gi,
-                        baseline=baseline_value,
+                        baseline=None,
                         points=[],
                         label="insufficient_data",
                         policy=policy,
@@ -120,7 +133,7 @@ class BenchmarkRegressionReportGenerator:
 
             # Per-point violations (True = regression)
             flags: List[bool] = [
-                policy.is_violation(p["value"], baseline_value) for p in points
+                policy.is_violation(p["value"], baseline_value["value"]) for p in points
             ]
             label = self.classify_flags(flags, min_points=min_points)
 
@@ -138,10 +151,10 @@ class BenchmarkRegressionReportGenerator:
                 is_any_regression = True
         return results, is_any_regression
 
-    def _to_latest_data_map(
+    def _to_data_map(
         self, data: "BenchmarkTimeSeriesApiData", field: str = "value"
-    ) -> Dict[tuple, LatestItem]:
-        result: Dict[tuple, LatestItem] = {}
+    ) -> Dict[tuple, BenchmarkValueItem]:
+        result: Dict[tuple, BenchmarkValueItem] = {}
         for ts_group in data.time_series:
             group_keys = tuple(sorted(ts_group.group_info.items()))
             points: List[Dict[str, Any]] = []
@@ -164,32 +177,39 @@ class BenchmarkRegressionReportGenerator:
             }
         return result
 
-    def _to_baseline_map(
+    def _get_baseline(
         self,
-        baseline: BenchmarkTimeSeriesApiData,
+        data: BenchmarkValueItem,
         mode: str = "mean",
         field: str = "value",
-    ) -> Dict[tuple, BaselineItem]:
-        result = {}
-        for ts_group in baseline.time_series:
-            group_keys = tuple(sorted(ts_group.group_info.items()))
-            values = [float(d[field]) for d in ts_group.data if field in d]
-            if not values:
-                continue
+    ) -> Optional[BaselineItem]:
+        values = [float(d[field]) for d in data["values"] if field in d]
+        if not values:
+            return None
 
-            if mode == "mean":
-                val = statistics.fmean(values)
-            elif mode == "p90":
-                val = percentile(values, 0.9)
-            elif mode == "max":
-                val = max(values)
-            else:
-                raise ValueError("mode must be 'mean' or 'p90'")
-
-            result[group_keys] = {
-                "group_info": ts_group.group_info,
-                "value": val,
-            }
+        if mode == "mean":
+            val = statistics.fmean(values)
+        elif mode == "p90":
+            val = percentile(values, 0.9)
+        elif mode == "max":
+            val = max(values)
+        elif mode == "min":
+            val = min(values)
+        elif mode == "latest":
+            val = values[-1]
+        elif mode == "earliest":
+            val = values[0]
+        elif mode == "p50":
+            val = percentile(values, 0.5)
+        elif mode == "p95":
+            val = percentile(values, 0.95)
+        else:
+            logger.warning("Unknown mode: %s", mode)
+            return None
+        result:BaselineItem =  {
+            "group_info": data["group_info"],
+            "value": val,
+        }
         return result
 
     def classify_flags(
