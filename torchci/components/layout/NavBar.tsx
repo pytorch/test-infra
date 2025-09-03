@@ -178,6 +178,10 @@ function NavBar() {
       name: "Utilization Workflow Report",
       href: "/utilization/report?group_by=workflow_name",
     },
+    {
+      name: "PyTorch Runners",
+      href: "/runners/pytorch",
+    },
   ];
 
   const metricsDropdown = [
