@@ -16,20 +16,57 @@ import useSWR from "swr";
 import { RunnersApiResponse } from "lib/runnerUtils";
 import { RunnerGroupCard } from "components/runners/RunnerGroupCard";
 import { runnersFetcher } from "lib/runners/fetcher";
-
-
-
-
+import { ParamSelector } from "lib/ParamSelector";
 
 type SortOrder = 'alphabetical' | 'count';
 
-export default function OrgRunnersPage() {
+export default function RunnersPage() {
   const router = useRouter();
-  const { org } = router.query;
+  const { params } = router.query;
+  
+  // Parse the route parameters
+  const routeParams = Array.isArray(params) ? params : [];
+  const org = routeParams[0] || null;
+  const repo = routeParams[1] || null;
+  
   const { data: _session, status: _status } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>('alphabetical');
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+  // Handle URL editing for organization
+  const handleOrgSubmit = (newOrg: string) => {
+    if (newOrg && newOrg !== org) {
+      const newPath = repo 
+        ? `/runners/${encodeURIComponent(newOrg)}/${encodeURIComponent(repo)}`
+        : `/runners/${encodeURIComponent(newOrg)}`;
+      window.location.href = newPath;
+    }
+  };
+
+  // Handle URL editing for org/repo combination
+  const handleOrgRepoSubmit = (orgRepo: string) => {
+    const parts = orgRepo.split('/');
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      const [newOrg, newRepo] = parts;
+      if (newOrg !== org || newRepo !== repo) {
+        window.location.href = `/runners/${encodeURIComponent(newOrg)}/${encodeURIComponent(newRepo)}`;
+      }
+    } else if (parts.length === 1 && parts[0]) {
+      // If only org provided, go to org-level view
+      if (parts[0] !== org || repo) {
+        window.location.href = `/runners/${encodeURIComponent(parts[0])}`;
+      }
+    }
+  };
+
+  // Determine API endpoint based on route parameters
+  const apiEndpoint = useMemo(() => {
+    if (!org) return null;
+    return repo 
+      ? `/api/runners/${org}/${repo}`
+      : `/api/runners/${org}`;
+  }, [org, repo]);
 
   // Fetch runners data
   const {
@@ -37,7 +74,7 @@ export default function OrgRunnersPage() {
     error,
     isLoading,
   } = useSWR<RunnersApiResponse>(
-    org ? `/api/runners/${org}` : null,
+    apiEndpoint,
     runnersFetcher,
     {
       refreshInterval: 60000, // Refresh every minute
@@ -82,6 +119,17 @@ export default function OrgRunnersPage() {
     return sortedGroups;
   }, [runnersData, searchTerm, sortOrder]);
 
+  // Show loading state for invalid routes
+  if (!org) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Alert severity="info">
+          Please provide an organization in the URL (e.g., /runners/pytorch)
+        </Alert>
+      </Container>
+    );
+  }
+
   // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
   // if (status === "loading") {
   //   return (
@@ -114,10 +162,37 @@ export default function OrgRunnersPage() {
     );
   }
 
+  // Generate page title and URL selector based on route type
+  const urlSelector = repo ? (
+    <ParamSelector 
+      value={`${org}/${repo}`} 
+      handleSubmit={handleOrgRepoSubmit} 
+    />
+  ) : (
+    <ParamSelector 
+      value={org} 
+      handleSubmit={handleOrgSubmit} 
+    />
+  );
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        GitHub Runners - {org}
+        GitHub Runners - {urlSelector}
+      </Typography>
+      
+      <Typography variant="subtitle1" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+        {repo ? (
+          <>
+            Showing self-hosted GitHub Actions runners for the <strong>{org}/{repo}</strong> repository.
+            These are runners specifically assigned to this repository.
+          </>
+        ) : (
+          <>
+            Showing self-hosted GitHub Actions runners for the <strong>{org}</strong> organization.
+            These runners are available to all repositories within the organization.
+          </>
+        )}
       </Typography>
 
       <Box mb={3}>
