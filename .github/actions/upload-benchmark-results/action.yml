@@ -26,7 +26,6 @@ runs:
         if [[ -n "${{ inputs.venv }}" ]]; then
           source "${{ inputs.venv }}"
         fi
-        
         python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
 
         DEVICE_NAME=""
