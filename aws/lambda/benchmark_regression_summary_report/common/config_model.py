@@ -96,11 +96,12 @@ class RangeConfig:
 # -------- Policy: metrics --------
 @dataclass
 class RegressionPolicy:
+    """
+        - "greater_than": higher is better; violation if value < baseline * threshold
+        - "less_than":    lower  is better; violation if value > baseline * threshold
+        - "equal_to":     value should be ~= baseline * threshold within rel_tol
+    """
     name: str
-    # Meaning:
-    # - "greater_than": higher is better; violation if value < baseline * threshold
-    # - "less_than":    lower  is better; violation if value > baseline * threshold
-    # - "equal_to":     value should be ~= baseline * threshold within rel_tol
     condition: Literal["greater_than", "less_than", "equal_to"]
     threshold: float
     rel_tol: float = 1e-3  # used only for "equal_to"

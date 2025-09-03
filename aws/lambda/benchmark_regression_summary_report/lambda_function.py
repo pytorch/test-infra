@@ -7,8 +7,24 @@ import threading
 from collections import defaultdict
 from concurrent.futures import as_completed, ThreadPoolExecutor
 import datetime as dt
-from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiData, BenchmarkTimeSeriesApiResponse, TimeRange
-from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency, Policy, RangeConfig
+from common.regression_utils import (
+    detect_regressions_with_policies,
+    to_baseline_map,
+    to_latest_data_map,
+    to_time_series_item_map,
+)
+from common.benchmark_time_series_api_model import (
+    BenchmarkTimeSeriesApiData,
+    BenchmarkTimeSeriesApiResponse,
+    TimeRange,
+)
+from common.config_model import (
+    BenchmarkApiSource,
+    BenchmarkConfig,
+    Frequency,
+    Policy,
+    RangeConfig,
+)
 from common.config import BENCHMARK_REGRESSION_CONFIG
 from jinja2 import Template
 import requests
@@ -33,7 +49,8 @@ ENVS = {
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
 
-BENMARK_REGRESSION_REPORT_DB="fortesting.benchmark_regression_report"
+BENMARK_REGRESSION_REPORT_DB = "fortesting.benchmark_regression_report"
+
 
 def truncate_to_hour(ts: dt.datetime) -> dt.datetime:
     return ts.replace(minute=0, second=0, microsecond=0)
@@ -61,21 +78,6 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
     )
 
 
-def is_unix_timestamp(value: str) -> bool:
-    """Check if the string is a valid Unix timestamp."""
-    if value.isdigit():  # Ensure it's numeric
-        try:
-            timestamp = int(value)
-            # Check if it's within a reasonable range (1970 to 2100)
-            datetime.fromtimestamp(timestamp)
-            return True
-        except (ValueError, OSError):
-            return False
-    return False
-
-def to_hour_str(ts: dt.datetime) -> str:
-    return truncate_to_hour(ts).isoformat().replace("+00:00", "Z")
-
 def write_to_file(data: Any, filename="", path=""):
     """
     Writes data to a specified file. If no path is provided, writes to the current directory.
@@ -101,9 +103,11 @@ def write_to_file(data: Any, filename="", path=""):
         file.write(data)
     logger.info(f"File written to: {os.path.abspath(file_path)}")
 
+
 BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = "benchmark_regression_summary_report"
 
-def get_config(config_id: str)-> BenchmarkConfig:
+
+def get_config(config_id: str) -> BenchmarkConfig:
     try:
         config: BenchmarkConfig = BENCHMARK_REGRESSION_CONFIG[config_id]
     except KeyError:
@@ -112,9 +116,9 @@ def get_config(config_id: str)-> BenchmarkConfig:
         raise e
     return config
 
+
 class BenchmarkSummaryProcessor:
-    """
-    """
+    """ """
 
     def __init__(
         self,
@@ -127,31 +131,48 @@ class BenchmarkSummaryProcessor:
         cc: clickhouse_connect.driver.client.Client,
         end_time: dt.datetime,
         config_id: str,
-        f: Frequency
+        f: Frequency,
     ) -> bool:
         """
-         decide wether should generate the report based on the frequency in policy
+        decide wether should generate the report based on the frequency in policy
         """
-        def get_latest_regression_report(
+
+        def _get_latest_record_ts(
             cc: clickhouse_connect.driver.Client,
             config_id: str,
-        ):
-            result = cc.query(
-                "SELECT max(report_date) FROM benchmark_regression_report WHERE report_id = {config_id:String}",
+        ) -> Optional[dt.datetime]:
+            res = cc.query(
+                """
+                SELECT max(last_record_ts)
+                FROM benchmark_regression_report
+                WHERE report_id = {config_id:String}
+                """,
                 parameters={"config_id": config_id},
             )
-            if not result.result_rows or result.result_rows[0][0] is None:
+            if not res.result_rows or res.result_rows[0][0] is None:
                 return None
-            return result.result_rows[0][0]
-        freq_delta = f.to_timedelta()
-        latest_date = get_latest_regression_report(cc, config_id)
-        # No report exists yet, generate
-        if not latest_date:
-            return True
-        # we only verify by date to see if we should generate the data
-        cutoff = end_time.date() - freq_delta
-        return latest_date < cutoff
+            latest: dt.datetime = res.result_rows[0][
+                0
+            ]  # typically tz-aware UTC from clickhouse_connect
+            # If not tz-aware, force UTC:
+            if latest.tzinfo is None:
+                latest = latest.replace(tzinfo=dt.timezone.utc)
+            return latest
 
+        freq_delta = f.to_timedelta()
+        latest_record_ts = _get_latest_record_ts(cc, config_id)
+
+        # No report exists yet, generate
+        if not latest_record_ts:
+            return True
+
+        end_utc = (
+            end_time if end_time.tzinfo else end_time.replace(tzinfo=dt.timezone.utc)
+        )
+        end_utc = end_utc.astimezone(dt.timezone.utc)
+
+        cutoff = end_time - freq_delta
+        return latest_record_ts < cutoff
 
     def process(
         self,
@@ -176,39 +197,34 @@ class BenchmarkSummaryProcessor:
             cc = tlocal.cc
         config = get_config(config_id)
 
-        # check if we should generate report for end_time
-        # currently we only verify if end_time > latest report date + policy.freq in db
+        # check if the current time is > policy's time_delta + previous record_ts from summary_table
         report_freq = config.policy.frequency
-        should_generate = self.should_generate_report(cc, end_time,config_id,report_freq)
-        if not should_generate:
-            logger.info("[%s] Skip generate report for date: %s with frequency %s",config_id, end_time.date(), report_freq.get_text())
-            return;
-        data_range = config.policy.range
-        total_timedelta = data_range.baseline_timedelta
-        logger.info("[%s] fetching benchmark data from source",config_id)
-
-        if config.source.type!="benchmark_time_series_api":
-            logger.error(f"{config_id}: currently we only suppport benchmark_time_series_api to fetch source data")
-            return;
-
-        # Comparison: [end_time - 1d, end_time)
-        comp_s = end_time - data_range.comparison_timedelta()
-        comp_e  = end_time
-        comparison_data = self._fetch_from_benchmark_ts_api(
-            config_id=config_id,
-            start_time=baseline_s,
-            end_time=baseline_e,
-            source=config.source,
+        should_generate = self.should_generate_report(
+            cc, end_time, config_id, report_freq
         )
-
-        data = self._fetch_from_benchmark_ts_api(config_id, end_time, start_time, config.source)
-        latest_ts = data.time_range.end
-        # no data in the time range
-        if not latest_ts:
-            logger.info("[%s] No data found for report %s",config_id, end_time.date())
+        if not should_generate:
+            logger.info(
+                "[%s] Skip generate report for date: %s with frequency %s",
+                config_id,
+                end_time.isoformat(),
+                report_freq.get_text(),
+            )
             return
 
-        regression_policy = config.policy.metrics
+        latest = self.get_latest(config, end_time)
+        if not latest:
+            return
+
+        latest_map = to_latest_data_map(latest)
+        baseline = self.get_basline(config, end_time)
+        if not baseline:
+            return
+        baseline_map = to_baseline_map(baseline)
+        detect_regressions_with_policies(
+            baseline_map=baseline_map,
+            latest_map=latest_map,
+            metric_policies=config.policy.metrics,
+        )
 
         return {
             "start_time": to_timestap_str(start_time),
@@ -217,11 +233,42 @@ class BenchmarkSummaryProcessor:
             "records_count": len(records),
         }
 
-    def get_basline(self, config: BenchmarkConfig,end_time: dt.datetime):
+    def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
+        data_range = config.policy.range
+        latest_s = end_time - data_range.comparison_timedelta()
+        latest_e = end_time
+        latest_data = self._fetch_from_benchmark_ts_api(
+            config_id=config.id,
+            start_time=latest_s,
+            end_time=latest_e,
+            source=config.source,
+        )
+        if not latest_data.time_range or latest_data.time_range.end:
+            logger.info(
+                "[%s] Skip generate report for date:"
+                "%s with frequency %s, no data found during [%s,%s]",
+                config.id,
+                latest_s.isoformat(),
+                latest_e.isoformat(),
+            )
+            return None
+
+        if not self.should_use_data(latest_data.time_range.end, end_time):
+            logger.info(
+                "[%s] Skip generate report for date: trying to get_basline"
+                " with frequency %s, but no data found during for [%s,%s]",
+                config.id,
+                config.policy.frequency.get_text(),
+                latest_s.isoformat(),
+                latest_e.isoformat(),
+            )
+            return None
+        return latest_data
+
+    def get_basline(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range
         baseline_s = end_time - data_range.total_timedelta()
-        baseline_e   = end_time - data_range.comparison_timedelta()
-
+        baseline_e = end_time - data_range.comparison_timedelta()
         # fetch baseline from api
         raw_data = self._fetch_from_benchmark_ts_api(
             config_id=config.id,
@@ -229,42 +276,52 @@ class BenchmarkSummaryProcessor:
             end_time=baseline_e,
             source=config.source,
         )
+        if not self.should_use_data(raw_data.time_range.end, end_time):
+            logger.info(
+                "[%s][get_basline] Skip generate report, no data found during [%s,%s]",
+                config.id,
+                baseline_s.isoformat(),
+                baseline_e.isoformat(),
+            )
+            return None
+        return raw_data
 
-        def to_baseline(data:BenchmarkTimeSeriesApiData):
-            data.
+    def should_use_data(
+        self,
+        latest_ts_str: str,
+        end_time: dt.datetime,
+        min_delta: dt.timedelta = dt.timedelta(days=2),
+    ) -> bool:
+        if not latest_ts_str:
+            return False
+        latest_dt = isoparse(latest_ts_str)
+        cutoff = end_time - min_delta
+        return latest_dt >= cutoff
 
-
-
-
-
-
-
-
-
-    def _detect_regression(self,end_time: dt.datetime, data: BenchmarkTimeSeriesApiData, policy: Policy):
-        metrics_dict = policy.metrics
-        baseline_range = policy.range.baseline_timedelta()
-        comparison = policy.range.comparison_timedelta()
-
-
-
-
-        return
-    def _fetch_from_benchmark_ts_api(self,config_id:str, end_time: dt.datetime,start_time:dt.datetime, source: BenchmarkApiSource):
+    def _fetch_from_benchmark_ts_api(
+        self,
+        config_id: str,
+        end_time: dt.datetime,
+        start_time: dt.datetime,
+        source: BenchmarkApiSource,
+    ):
         str_end_time = end_time.isoformat()
         str_start_time = start_time.isoformat()
-        query = source.render(ctx={
-            "startTime": str_start_time,
-            "endTime":  str_end_time,
-        })
+        query = source.render(
+            ctx={
+                "startTime": str_start_time,
+                "endTime": str_end_time,
+            }
+        )
         url = source.api_query_url
         try:
-            resp:BenchmarkTimeSeriesApiResponse = BenchmarkTimeSeriesApiResponse.from_request(url, query)
+            resp: BenchmarkTimeSeriesApiResponse = (
+                BenchmarkTimeSeriesApiResponse.from_request(url, query)
+            )
 
             return resp.data
         except Exception as e:
             raise RuntimeError(f"[{config_id}]Fetch failed:", e)
-
 
 
 class WorkerPoolHandler:
@@ -288,7 +345,8 @@ class WorkerPoolHandler:
         args: Optional[argparse.Namespace] = None,
     ) -> None:
         logger.info(
-            "[WorkerPoolHandler] start to process benchmark summary data with config %s", config["name"]
+            "[WorkerPoolHandler] start to process benchmark summary data with config %s",
+            config["name"],
         )
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
@@ -313,6 +371,7 @@ class WorkerPoolHandler:
                 logger.warning(f"Error processing future: {e}")
                 errors.append({"error": str(e)})
 
+
 def main(
     args: Optional[argparse.Namespace] = None,
     github_access_token: str = "",
@@ -336,13 +395,10 @@ def main(
         cc = get_clickhouse_client_environment()
     time_intervals = TimeIntervalGenerator().generate(cc)
 
-
     # get jobs in queue from clickhouse for list of time intervals, in parallel
     handler = WorkerPoolHandler(
         config_retrievers,
-        BenchmarkSummaryProcessor(
-            is_dry_run=is_dry_run
-        ),
+        BenchmarkSummaryProcessor(is_dry_run=is_dry_run),
     )
     handler.start(time_intervals, args)
     logger.info(" [Main] Done. work completed.")

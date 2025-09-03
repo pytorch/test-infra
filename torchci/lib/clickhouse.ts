@@ -18,13 +18,13 @@ export function getClickhouseClient() {
     request_timeout: 180_000, // 3 mins
   });
 }
-//
 
 export function getClickhouseClientWritable() {
   return createClient({
     host: process.env.CLICKHOUSE_HUD_USER_URL ?? "http://localhost:8123",
     username: process.env.CLICKHOUSE_HUD_USER_WRITE_USERNAME ?? "default",
     password: process.env.CLICKHOUSE_HUD_USER_WRITE_PASSWORD ?? "",
+    request_timeout: 180_000, // 3 minutes
   });
 }
 
