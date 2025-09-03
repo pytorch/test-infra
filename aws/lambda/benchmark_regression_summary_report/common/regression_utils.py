@@ -83,7 +83,6 @@ class BenchmarkRegressionReportGenerator:
         is_any_regression = False
 
         for key in sorted(dp_map.keys()):
-            logger.info("key: %s", key)
             cur_item = dp_map.get(key)
             gi = cur_item["group_info"] if cur_item else {}
             points: List[Any] = cur_item["values"] if cur_item else []
@@ -101,7 +100,6 @@ class BenchmarkRegressionReportGenerator:
                     )
                 )
                 continue
-            logger.info("base_item for keys(%s):\n%s ",key, pprint.pformat(base_item))
             policy = self._resolve_policy(metric_policies, gi.get("metric", ""))
             if not policy:
                 logger.warning("No policy for %s", gi)
@@ -141,7 +139,7 @@ class BenchmarkRegressionReportGenerator:
             results.append(
                 PerGroupResult(
                     group_info=gi,
-                    baseline=baseline_value,
+                    baseline= baseline_value["value"],
                     points=enriched_points,
                     label=label,
                     policy=policy,

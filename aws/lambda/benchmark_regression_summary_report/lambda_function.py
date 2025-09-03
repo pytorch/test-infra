@@ -212,7 +212,7 @@ class BenchmarkSummaryProcessor:
         )
         url = source.api_query_url
 
-        logger.info("[%s]trying to call %s, with query %s",config_id, url,query)
+        logger.info("[%s]trying to call %s, with query\n %s",config_id, url,query)
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
                 BenchmarkTimeSeriesApiResponse.from_request(url, query)
