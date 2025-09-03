@@ -106,7 +106,7 @@ function RunnerGroupCard({
   };
 
   return (
-    <Card sx={{ mb: 2 }}>
+    <Card sx={{ mb: 2, backgroundColor: '#fefcf7' }}>
       <CardContent>
         <Box
           display="flex"
