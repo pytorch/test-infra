@@ -2,7 +2,6 @@ import {
   computeGeomean,
   computeMemoryCompressionRatio,
   computePassrate,
-  computePeakMemoryUsage,
   convertToCompilerPerformanceData,
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
@@ -25,7 +24,10 @@ export async function getCompilerBenchmarkData(inputparams: any) {
   console.log("time to get data", end - start);
 
   const startc = Date.now();
-  const commits = await queryClickhouseSaved(BENCNMARK_COMMIT_NAME, inputparams);
+  const commits = await queryClickhouseSaved(
+    BENCNMARK_COMMIT_NAME,
+    inputparams
+  );
   const endc = Date.now();
   console.log("time to get commit data", endc - startc);
   const commitMap = toCommitRowMap(commits);
