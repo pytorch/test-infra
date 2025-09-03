@@ -116,6 +116,9 @@ function RunnerGroupCard({
   return (
     <Card sx={{
       mb: 2,
+      minHeight: 120,
+      display: 'flex',
+      flexDirection: 'column',
       backgroundColor: theme.palette.mode === 'dark'
         ? '#3d3a00' // Dark yellow/amber
         : '#fffbf0', // Light cream-yellow
