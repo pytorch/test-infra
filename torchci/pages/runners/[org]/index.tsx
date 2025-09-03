@@ -190,17 +190,22 @@ function RunnerGroupCard({
 
 // Fetcher function for SWR
 const fetcher = async (url: string) => {
-  const { data: session } = await fetch("/api/auth/session").then(res => res.json());
+  // TODO: Remove this bypass before production
+  const isDevelopment = process.env.NODE_ENV === "development";
   
-  if (!session?.accessToken) {
-    throw new Error("Not authenticated");
+  let headers: any = {};
+  
+  if (!isDevelopment) {
+    const { data: session } = await fetch("/api/auth/session").then(res => res.json());
+    
+    if (!session?.accessToken) {
+      throw new Error("Not authenticated");
+    }
+    
+    headers.Authorization = session.accessToken;
   }
 
-  const response = await fetch(url, {
-    headers: {
-      Authorization: session.accessToken,
-    },
-  });
+  const response = await fetch(url, { headers });
 
   if (!response.ok) {
     const error = await response.json();
@@ -217,12 +222,13 @@ export default function OrgRunnersPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch runners data
+  const isDevelopment = process.env.NODE_ENV === "development";
   const {
     data: runnersData,
     error,
     isLoading,
   } = useSWR<RunnersApiResponse>(
-    org && session ? `/api/runners/${org}` : null,
+    org && (session || isDevelopment) ? `/api/runners/${org}` : null,
     fetcher,
     {
       refreshInterval: 60000, // Refresh every minute
@@ -249,7 +255,7 @@ export default function OrgRunnersPage() {
     });
   }, [runnersData, searchTerm]);
 
-  if (status === "loading") {
+  if (status === "loading" && !isDevelopment) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, textAlign: "center" }}>
         <CircularProgress />
@@ -260,7 +266,7 @@ export default function OrgRunnersPage() {
     );
   }
 
-  if (!session) {
+  if (!session && !isDevelopment) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <Alert severity="error">
