@@ -6,9 +6,15 @@ import {
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { queryClickhouseSaved } from "lib/clickhouse";
-import { BenchmarkTimeSeriesResponse, groupByBenchmarkData } from "../utils";
+import {
+  BenchmarkTimeSeriesResponse,
+  CommitRow,
+  groupByBenchmarkData,
+  toCommitRowMap,
+} from "../utils";
 
 const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance";
+const BENCHMAR_COMMIT_NAME = "compilers_benchmark_performance_branches";
 
 // TODO(elainewy): improve the fetch performance
 export async function getCompilerBenchmarkData(inputparams: any) {
@@ -16,6 +22,12 @@ export async function getCompilerBenchmarkData(inputparams: any) {
   const rows = await queryClickhouseSaved(BENCNMARK_TABLE_NAME, inputparams);
   const end = Date.now();
   console.log("time to get data", end - start);
+
+  const startc = Date.now();
+  const commits = await queryClickhouseSaved(BENCHMAR_COMMIT_NAME, inputparams);
+  const endc = Date.now();
+  console.log("time to get commit data", endc - startc);
+  const commitMap = toCommitRowMap(commits);
 
   if (rows.length === 0) {
     const response: BenchmarkTimeSeriesResponse = {
@@ -32,6 +44,7 @@ export async function getCompilerBenchmarkData(inputparams: any) {
   const benchmark_time_series_response = toPrecomputeCompiler(
     rows,
     inputparams,
+    commitMap,
     "time_series"
   );
   return benchmark_time_series_response;
@@ -40,6 +53,7 @@ export async function getCompilerBenchmarkData(inputparams: any) {
 function toPrecomputeCompiler(
   rawData: any[],
   inputparams: any,
+  commitMap: Record<string, CommitRow>,
   type: string = "time_series"
 ) {
   const data = convertToCompilerPerformanceData(rawData);
@@ -65,6 +79,9 @@ function toPrecomputeCompiler(
     row["arch"] = inputparams["arch"];
     row["device"] = inputparams["device"];
     row["mode"] = inputparams["mode"];
+    // always keep this:
+    row["commit"] = commitMap[row["workflow_id"]]?.head_sha;
+    row["branch"] = commitMap[row["workflow_id"]]?.head_branch;
   });
 
   let res: any[] = [];

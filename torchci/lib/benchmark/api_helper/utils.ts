@@ -139,3 +139,17 @@ export type BenchmarkTimeSeriesResponse = {
   time_series: any[];
   time_range: { start: string; end: string };
 };
+
+export type CommitRow = {
+  head_branch: string;
+  head_sha: string;
+  id: string;
+};
+
+export function toCommitRowMap(rows: CommitRow[]): Record<string, CommitRow> {
+  const result: Record<string, CommitRow> = {};
+  for (const row of rows) {
+    result[row.id] = row;
+  }
+  return result;
+}
