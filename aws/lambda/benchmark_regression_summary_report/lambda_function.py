@@ -41,12 +41,14 @@ BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 def truncate_to_hour(ts: dt.datetime) -> dt.datetime:
     return ts.replace(minute=0, second=0, microsecond=0)
 
+
 def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    logger.info("trying to connect with clickhouse")
-    # return clickhouse_connect.get_client(host=host, user=user, password=password,secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -63,14 +65,13 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
 
+
 BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = (
     "fortesting.benchmark_regression_summary_report"
 )
 
 
 class BenchmarkSummaryProcessor:
-    """ """
-
     def __init__(
         self,
         is_dry_run: bool = False,
@@ -86,7 +87,8 @@ class BenchmarkSummaryProcessor:
     ):
         def log_info(msg: str):
             logger.info("[%s] %s", config_id, msg)
-        def log_error(msg:str):
+
+        def log_error(msg: str):
             logger.error("[%s] %s", config_id, msg)
 
         # ensure each thread has its own clickhouse client. clickhouse client
@@ -110,9 +112,7 @@ class BenchmarkSummaryProcessor:
             log_error(f"Skip process, Invalid config: {e}")
             return
         except Exception as e:
-            log_error(
-                f"Unexpected error from get_benchmark_regression_config: {e}"
-            )
+            log_error(f"Unexpected error from get_benchmark_regression_config: {e}")
             return
 
         # check if the current time is > policy's time_delta + previous record_ts from summary_table
@@ -126,15 +126,21 @@ class BenchmarkSummaryProcessor:
             )
             return
         else:
-            log_info("Plan to generate report for time:{end_time} with frequency {report_freq.get_text()}...")
+            log_info(
+                "Plan to generate report for time:{end_time} with frequency {report_freq.get_text()}..."
+            )
         latest, ls, le = self.get_latest(config, end_time)
         if not latest:
-            log_info(f"no latest data found for time range [{ls},{le}] with frequency {report_freq.get_text()}...")
+            log_info(
+                f"no latest data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
+            )
             return
 
-        baseline,bs,be = self.get_basline(config, end_time)
+        baseline, bs, be = self.get_basline(config, end_time)
         if not baseline:
-            log_info(f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}...")
+            log_info(
+                f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
+            )
             return
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
@@ -147,11 +153,17 @@ class BenchmarkSummaryProcessor:
             end_time=latest_e,
             source=config.source,
         )
+        logger.info(
+            "[%s] found %s # of data, with time range %s",
+            config.id,
+            len(latest_data.time_series),
+            latest_data.time_range,
+        )
         if not latest_data.time_range or not latest_data.time_range.end:
-            return None,latest_s,latest_e
-        if not self.should_use_data(latest_data.time_range.end, end_time):
-            return None,latest_s,latest_e
-        return latest_data,latest_s,latest_e
+            return None, latest_s, latest_e
+        if not self.should_use_data(config.id, latest_data.time_range.end, end_time):
+            return None, latest_s, latest_e
+        return latest_data, latest_s, latest_e
 
     def get_basline(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range
@@ -164,7 +176,13 @@ class BenchmarkSummaryProcessor:
             end_time=baseline_e,
             source=config.source,
         )
-        if not self.should_use_data(raw_data.time_range.end, end_time):
+
+        logger.info(
+            "found %s # of data, with time range %s",
+            len(raw_data.time_series),
+            raw_data.time_range,
+        )
+        if not self.should_use_data(config.id, raw_data.time_range.end, baseline_e):
             logger.info(
                 "[%s][get_basline] Skip generate report, no data found during [%s,%s]",
                 config.id,
@@ -172,10 +190,11 @@ class BenchmarkSummaryProcessor:
                 baseline_e.isoformat(),
             )
             return None, baseline_s, baseline_e
-        return raw_data, baseline_s,baseline_e
+        return raw_data, baseline_s, baseline_e
 
     def should_use_data(
         self,
+        config_id: str,
         latest_ts_str: str,
         end_time: dt.datetime,
         min_delta: dt.timedelta = dt.timedelta(days=2),
@@ -184,7 +203,16 @@ class BenchmarkSummaryProcessor:
             return False
         latest_dt = isoparse(latest_ts_str)
         cutoff = end_time - min_delta
-        return latest_dt >= cutoff
+
+        if latest_dt >= cutoff:
+            return True
+        logger.info(
+            "[%s] expect latest data to be after %s, but got %s",
+            config_id,
+            cutoff,
+            latest_dt,
+        )
+        return False
 
     def _fetch_from_benchmark_ts_api(
         self,
@@ -203,7 +231,7 @@ class BenchmarkSummaryProcessor:
         )
         url = source.api_query_url
 
-        logger.info("[%s]trying to call %s, with query\n %s",config_id, url,query)
+        logger.info("[%s]trying to call %s, with query\n %s", config_id, url, query)
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
                 BenchmarkTimeSeriesApiResponse.from_request(url, query)
@@ -282,7 +310,7 @@ class WorkerPoolHandler:
     ) -> None:
         logger.info(
             "[WorkerPoolHandler] start to process benchmark "
-            "summary data with config_ids %s",
+            "summary data with required config: %s",
             config_ids,
         )
         end_time = dt.datetime.now(dt.timezone.utc).replace(
@@ -397,8 +425,7 @@ def local_run() -> None:
 
     args = parse_args()
 
-
-    logger.info("args: %s",args)
+    logger.info("args: %s", args)
 
     # update environment variables for input parameters
 

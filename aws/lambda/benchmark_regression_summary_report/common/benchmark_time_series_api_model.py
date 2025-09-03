@@ -4,6 +4,7 @@ import requests
 
 # The data class to provide api response model from get_time_series api
 
+
 @dataclass
 class TimeRange:
     start: str

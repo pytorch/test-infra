@@ -17,7 +17,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     name="Compiler Benchmark Regression",
     id="compiler_regression",
     source=BenchmarkApiSource(
-        api_query_url="http://localhost:3000/api/benchmark/get_time_series",
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
         type="benchmark_time_series_api",
         # currently we only detect the regression for h100 with dtype bfloat16, and mode inference
         # we can extend this to other devices, dtypes and mode in the future
@@ -50,13 +50,22 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         ),
         metrics={
             "passrate": RegressionPolicy(
-                name="passrate", condition="greater_equal", threshold=0.9, baseline_aggregation="max",
+                name="passrate",
+                condition="greater_equal",
+                threshold=0.9,
+                baseline_aggregation="max",
             ),
             "geomean": RegressionPolicy(
-                name="geomean", condition="greater_equal", threshold=0.95,baseline_aggregation="max",
+                name="geomean",
+                condition="greater_equal",
+                threshold=0.95,
+                baseline_aggregation="max",
             ),
             "compression_ratio": RegressionPolicy(
-                name="compression_ratio", condition="greater_equal", threshold=0.9, baseline_aggregation="max",
+                name="compression_ratio",
+                condition="greater_equal",
+                threshold=0.9,
+                baseline_aggregation="max",
             ),
         },
         notification_config={
@@ -72,6 +81,7 @@ BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(
         "compiler_regression": COMPILER_BENCHMARK_CONFIG,
     }
 )
+
 
 def get_benchmark_regression_config(config_id: str) -> BenchmarkConfig:
     """Get benchmark regression config by config id"""
