@@ -161,7 +161,7 @@ function toPrecomputeCompiler(
   }
 
   const response: BenchmarkTimeSeriesResponse = {
-    time_series: rawData,
+    time_series: res,
     time_range: {
       start: new Date(earliest_timestamp).toISOString(),
       end: new Date(latest_timestamp).toISOString(),
