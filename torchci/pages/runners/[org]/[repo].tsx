@@ -91,7 +91,7 @@ function RunnerGroupCard({
   group: RunnerGroup;
   searchTerm: string;
   isExpanded: boolean;
-  onExpandChange: (expanded: boolean) => void;
+  onExpandChange: (_expanded: boolean) => void;
 }) {
   const theme = useTheme();
 
@@ -235,7 +235,7 @@ type SortOrder = 'alphabetical' | 'count';
 export default function RepoRunnersPage() {
   const router = useRouter();
   const { org, repo } = router.query;
-  const { data: session, status } = useSession();
+  const { data: _session, status: _status } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
   const [sortOrder, setSortOrder] = useState<SortOrder>('alphabetical');
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
@@ -380,6 +380,7 @@ export default function RepoRunnersPage() {
                 return (
                   <Grid
                     size={{ xs: 12, md: isExpanded ? 12 : 6, lg: isExpanded ? 12 : 4 }}
+                    key={group.label}
                   >
                     <RunnerGroupCard
                       group={group}
