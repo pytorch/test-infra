@@ -42,37 +42,22 @@ export function getRunnerGroupLabel(runner: RunnerData): string {
   );
 
   if (validLabels.length > 0) {
-    // Handle macOS synonyms
-    const macosLabels = validLabels.filter((name) => name.startsWith("macos-"));
-    if (macosLabels.length > 1) {
-      // Check for known synonym patterns
-      const m1Labels = macosLabels.filter((name) => name.includes("m1"));
-      const m2Labels = macosLabels.filter((name) => name.includes("m2"));
-
-      if (m1Labels.length > 1) {
-        return m1Labels.sort().join(" / "); // e.g., "macos-m1-14 / macos-m1-stable"
-      }
-      if (m2Labels.length > 1) {
-        return m2Labels.sort().join(" / "); // e.g., "macos-m2-15 / macos-m2-stable"
-      }
-
-      // If multiple macOS labels but not synonyms, use first one
-      return macosLabels[0];
-    }
-
-    // Use first valid label (could be dot notation or single macOS label)
-    return validLabels[0];
+    // Handle synonyms. Today these are used by macOS runners which have two
+    // labels that runners could potentially use instead of just one.
+    // The synonymous labels tend to look like "macos-m1-14" and "macos-m1-stable"
+    // If we end up in this situation, assume all valid labels are valid synonyms
+    // and treat them as such.
+    return validLabels.join(" / ");
   }
 
   // Fallback: Parse runner name for grouping info
-  // Special case for ROCm runners provided by external partners that don't have proper GitHub labels
-  // but use naming conventions like: linux.rocm.gpu.gfx942.1-xb8kr-runner-gnr2v
+  // Special case for ROCm runners provided by that don't have proper GitHub labels
+  // but use naming conventions like: linux.rocm.gpu.gfx942.1-xxxx-runner-xxxxx
   const runnerName = runner.name;
 
-  // Look for dotted prefixes before "-runner-" or "-" followed by random suffix
+  // Look for dotted prefixes before "-" followed by random suffix
   const namePatterns = [
-    /^([a-z]+\.[a-z0-9.]+)-[a-z0-9]+-runner-[a-z0-9]+$/i, // linux.rocm.gpu.gfx942.1-xb8kr-runner-gnr2v
-    /^([a-z]+\.[a-z0-9.]+)-[a-z0-9]+$/i, // linux.rocm.gpu.gfx942.1-xb8kr
+    /^([a-z]+\.[a-z0-9.]+)-[a-z0-9]+/i, // linux.rocm.gpu.gfx942.1-xxxx
     /^([a-z]+\.[a-z0-9.]+\.[a-z0-9]+)/i, // linux.rocm.gpu prefix
   ];
 
@@ -92,6 +77,16 @@ export function getRunnerGroupLabel(runner: RunnerData): string {
   }
 
   return "unknown";
+}
+
+// Helper function for sorting - pushes "unknown" labels to the end
+export function unknownGoesLast(
+  a: { label: string },
+  b: { label: string }
+): number {
+  if (a.label === "unknown" && b.label !== "unknown") return 1;
+  if (a.label !== "unknown" && b.label === "unknown") return -1;
+  return 0;
 }
 
 export function groupRunners(runners: RunnerData[]): RunnerGroup[] {
@@ -119,24 +114,22 @@ export function groupRunners(runners: RunnerData[]): RunnerGroup[] {
       (r) => r.status === "offline"
     ).length;
 
+    // Helper function to get status priority: idle (0), busy (1), offline (2)
+    const getStatusPriority = (runner: RunnerData): number => {
+      if (runner.status === "offline") return 2;
+      if (runner.status === "online" && runner.busy) return 1;
+      return 0; // idle
+    };
+
     // Sort runners by status (idle, busy, offline) then by name
     const sortedRunners = groupRunners.sort((a, b) => {
-      // Status priority: idle (0), busy (1), offline (2)
-      const getStatusPriority = (runner: RunnerData) => {
-        if (runner.status === "offline") return 2;
-        if (runner.status === "online" && runner.busy) return 1;
-        return 0; // idle
-      };
+      // First compare by status priority
+      const statusComparison = getStatusPriority(a) - getStatusPriority(b);
 
-      const aPriority = getStatusPriority(a);
-      const bPriority = getStatusPriority(b);
-
-      if (aPriority !== bPriority) {
-        return aPriority - bPriority;
-      }
-
-      // Same status, sort by name
-      return a.name.localeCompare(b.name);
+      // If status is the same, sort by name
+      return statusComparison !== 0
+        ? statusComparison
+        : a.name.localeCompare(b.name);
     });
 
     result.push({
@@ -149,12 +142,12 @@ export function groupRunners(runners: RunnerData[]): RunnerGroup[] {
     });
   }
 
-  // Sort groups by total count (descending), then unknown last
+  // Sort groups by unknown status first, then by total count (descending)
   result.sort((a, b) => {
-    if (a.label === "unknown" && b.label !== "unknown") return 1;
-    if (a.label !== "unknown" && b.label === "unknown") return -1;
-    // Sort by total count descending
-    return b.totalCount - a.totalCount;
+    const unknownComparison = unknownGoesLast(a, b);
+    return unknownComparison !== 0
+      ? unknownComparison
+      : b.totalCount - a.totalCount;
   });
 
   return result;

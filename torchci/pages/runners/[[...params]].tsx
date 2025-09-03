@@ -48,7 +48,7 @@ import {
 } from "@mui/material";
 import { RunnerGroupCard } from "components/runners/RunnerGroupCard";
 import { ParamSelector } from "lib/ParamSelector";
-import { RunnersApiResponse } from "lib/runnerUtils";
+import { RunnersApiResponse, unknownGoesLast } from "lib/runnerUtils";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
 import { useMemo, useState } from "react";
@@ -159,13 +159,6 @@ export default function RunnersPage() {
           )
       );
     }
-
-    // Extract "unknown goes last" comparison into a local function
-    const unknownGoesLast = (a: { label: string }, b: { label: string }) => {
-      if (a.label === "unknown" && b.label !== "unknown") return 1;
-      if (a.label !== "unknown" && b.label === "unknown") return -1;
-      return 0;
-    };
 
     // Sort groups
     const sortedGroups = [...groups].sort((a, b) => {

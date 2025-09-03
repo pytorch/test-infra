@@ -11,11 +11,7 @@
  */
 
 import { createAppAuth } from "@octokit/auth-app";
-import {
-  groupRunners,
-  RunnerData,
-  RunnersApiResponse,
-} from "lib/runnerUtils";
+import { groupRunners, RunnerData, RunnersApiResponse } from "lib/runnerUtils";
 import type { NextApiRequest, NextApiResponse } from "next";
 import { App, Octokit } from "octokit";
 
@@ -26,10 +22,7 @@ export const ALLOWED_ORGS = ["pytorch", "meta-pytorch"];
 function mapRunnerFromGitHubAPI(runner: any): RunnerData {
   // Debug: Log full runner object for runners with no labels
   if (!runner.labels || runner.labels.length === 0) {
-    console.log(
-      "Runner with no labels:",
-      JSON.stringify(runner, null, 2)
-    );
+    console.log("Runner with no labels:", JSON.stringify(runner, null, 2));
   }
 
   return {
@@ -70,7 +63,9 @@ async function paginateRunners(
     });
 
     const runnersPage = response.data;
-    const mappedRunners: RunnerData[] = runnersPage.runners.map(mapRunnerFromGitHubAPI);
+    const mappedRunners: RunnerData[] = runnersPage.runners.map(
+      mapRunnerFromGitHubAPI
+    );
     allRunners.push(...mappedRunners);
 
     // Check if we've fetched all runners
@@ -130,7 +125,10 @@ function handleAPIError(
 }
 
 // Shared authentication logic
-async function getAuthenticatedOctokit(org: string, repo?: string): Promise<Octokit> {
+async function getAuthenticatedOctokit(
+  org: string,
+  repo?: string
+): Promise<Octokit> {
   // Both org and repo runner access require organization-level authentication
   return await getOctokitForOrg(org);
 }
@@ -177,11 +175,7 @@ async function fetchAllOrgRunners(
   octokit: Octokit,
   org: string
 ): Promise<RunnerData[]> {
-  return paginateRunners(
-    octokit,
-    "GET /orgs/{org}/actions/runners",
-    { org }
-  );
+  return paginateRunners(octokit, "GET /orgs/{org}/actions/runners", { org });
 }
 
 // Fetch all runners with proper pagination for a repository
@@ -190,11 +184,10 @@ async function fetchAllRepoRunners(
   org: string,
   repo: string
 ): Promise<RunnerData[]> {
-  return paginateRunners(
-    octokit,
-    "GET /repos/{owner}/{repo}/actions/runners",
-    { owner: org, repo }
-  );
+  return paginateRunners(octokit, "GET /repos/{owner}/{repo}/actions/runners", {
+    owner: org,
+    repo,
+  });
 }
 
 export default async function handler(
