@@ -16,14 +16,14 @@
  */
 
 import { createAppAuth } from "@octokit/auth-app";
-import { App, Octokit } from "octokit";
-import type { NextApiRequest, NextApiResponse } from "next";
 import {
-  RunnerData,
-  RunnersApiResponse,
   ALLOWED_ORGS,
   groupRunners,
+  RunnerData,
+  RunnersApiResponse,
 } from "lib/runnerUtils";
+import type { NextApiRequest, NextApiResponse } from "next";
+import { App, Octokit } from "octokit";
 
 // Cache interface
 interface CacheEntry {
@@ -45,9 +45,12 @@ async function getOctokitForOrg(org: string): Promise<Octokit> {
     privateKey,
   });
 
-  const installation = await app.octokit.request("GET /orgs/{org}/installation", {
-    org,
-  });
+  const installation = await app.octokit.request(
+    "GET /orgs/{org}/installation",
+    {
+      org,
+    }
+  );
 
   return new Octokit({
     authStrategy: createAppAuth,
@@ -60,7 +63,10 @@ async function getOctokitForOrg(org: string): Promise<Octokit> {
 }
 
 // Fetch all runners with proper pagination for organization
-async function fetchAllOrgRunners(octokit: Octokit, org: string): Promise<RunnerData[]> {
+async function fetchAllOrgRunners(
+  octokit: Octokit,
+  org: string
+): Promise<RunnerData[]> {
   const allRunners: RunnerData[] = [];
   let page = 1;
   const perPage = 100; // GitHub API maximum per page
@@ -75,25 +81,36 @@ async function fetchAllOrgRunners(octokit: Octokit, org: string): Promise<Runner
     const runnersPage = response.data;
 
     // Map GitHub API response to our format with proper type safety
-    const mappedRunners: RunnerData[] = runnersPage.runners.map((runner: any) => {
-      // Debug: Log full runner object for runners with no labels
-      if (!runner.labels || runner.labels.length === 0) {
-        console.log('Runner with no labels:', JSON.stringify(runner, null, 2));
-      }
+    const mappedRunners: RunnerData[] = runnersPage.runners.map(
+      (runner: any) => {
+        // Debug: Log full runner object for runners with no labels
+        if (!runner.labels || runner.labels.length === 0) {
+          console.log(
+            "Runner with no labels:",
+            JSON.stringify(runner, null, 2)
+          );
+        }
 
-      return {
-        id: runner.id,
-        name: runner.name,
-        os: runner.os,
-        status: (runner.status === "online" || runner.status === "offline") ? runner.status : "offline",
-        busy: runner.busy,
-        labels: runner.labels.map((label: any) => ({
-          id: label.id,
-          name: label.name,
-          type: (label.type === "read-only" || label.type === "custom") ? label.type : "custom",
-        })),
-      };
-    });
+        return {
+          id: runner.id,
+          name: runner.name,
+          os: runner.os,
+          status:
+            runner.status === "online" || runner.status === "offline"
+              ? runner.status
+              : "offline",
+          busy: runner.busy,
+          labels: runner.labels.map((label: any) => ({
+            id: label.id,
+            name: label.name,
+            type:
+              label.type === "read-only" || label.type === "custom"
+                ? label.type
+                : "custom",
+          })),
+        };
+      }
+    );
 
     allRunners.push(...mappedRunners);
 
@@ -109,34 +126,49 @@ async function fetchAllOrgRunners(octokit: Octokit, org: string): Promise<Runner
 }
 
 // Fetch all runners with proper pagination for a repository
-async function fetchAllRepoRunners(octokit: Octokit, org: string, repo: string): Promise<RunnerData[]> {
+async function fetchAllRepoRunners(
+  octokit: Octokit,
+  org: string,
+  repo: string
+): Promise<RunnerData[]> {
   const allRunners: RunnerData[] = [];
   let page = 1;
   const perPage = 100; // GitHub API maximum per page
 
   while (true) {
-    const response = await octokit.request("GET /repos/{owner}/{repo}/actions/runners", {
-      owner: org,
-      repo,
-      per_page: perPage,
-      page,
-    });
+    const response = await octokit.request(
+      "GET /repos/{owner}/{repo}/actions/runners",
+      {
+        owner: org,
+        repo,
+        per_page: perPage,
+        page,
+      }
+    );
 
     const runnersPage = response.data;
 
     // Map GitHub API response to our format with proper type safety
-    const mappedRunners: RunnerData[] = runnersPage.runners.map((runner: any) => ({
-      id: runner.id,
-      name: runner.name,
-      os: runner.os,
-      status: (runner.status === "online" || runner.status === "offline") ? runner.status : "offline",
-      busy: runner.busy,
-      labels: runner.labels.map((label: any) => ({
-        id: label.id,
-        name: label.name,
-        type: (label.type === "read-only" || label.type === "custom") ? label.type : "custom",
-      })),
-    }));
+    const mappedRunners: RunnerData[] = runnersPage.runners.map(
+      (runner: any) => ({
+        id: runner.id,
+        name: runner.name,
+        os: runner.os,
+        status:
+          runner.status === "online" || runner.status === "offline"
+            ? runner.status
+            : "offline",
+        busy: runner.busy,
+        labels: runner.labels.map((label: any) => ({
+          id: label.id,
+          name: label.name,
+          type:
+            label.type === "read-only" || label.type === "custom"
+              ? label.type
+              : "custom",
+        })),
+      })
+    );
 
     allRunners.push(...mappedRunners);
 
@@ -167,17 +199,23 @@ export default async function handler(
   const repo = routeParams[1];
 
   if (!org || typeof org !== "string") {
-    return res.status(400).json({ error: "Organization parameter is required" });
+    return res
+      .status(400)
+      .json({ error: "Organization parameter is required" });
   }
 
   if (repo && typeof repo !== "string") {
-    return res.status(400).json({ error: "Repository parameter must be a string" });
+    return res
+      .status(400)
+      .json({ error: "Repository parameter must be a string" });
   }
 
   // Check if org is allowed
   if (!ALLOWED_ORGS.includes(org)) {
     return res.status(403).json({
-      error: `Access denied. Only ${ALLOWED_ORGS.join(", ")} organizations are supported.`
+      error: `Access denied. Only ${ALLOWED_ORGS.join(
+        ", "
+      )} organizations are supported.`,
     });
   }
 
@@ -207,8 +245,8 @@ export default async function handler(
 
     // Get authenticated Octokit instance
     const octokit = repo
-      ? await import("lib/github").then(m => m.getOctokit())  // Use existing utility for repo access
-      : await getOctokitForOrg(org);                          // Use org-specific auth for org access
+      ? await import("lib/github").then((m) => m.getOctokit(org, repo)) // Use existing utility for repo access
+      : await getOctokitForOrg(org); // Use org-specific auth for org access
 
     // Fetch runners based on route type
     const runners = repo
@@ -239,15 +277,17 @@ export default async function handler(
       const message = error.response.data?.message || error.message;
 
       if (status === 404) {
-        const target = repo ? `Repository '${org}/${repo}'` : `Organization '${org}'`;
+        const target = repo
+          ? `Repository '${org}/${repo}'`
+          : `Organization '${org}'`;
         return res.status(404).json({
-          error: `${target} not found or PyTorchBot is not installed`
+          error: `${target} not found or PyTorchBot is not installed`,
         });
       }
 
       if (status === 403) {
         return res.status(403).json({
-          error: "Access forbidden. Check authentication and permissions."
+          error: "Access forbidden. Check authentication and permissions.",
         });
       }
 
@@ -255,15 +295,15 @@ export default async function handler(
     }
 
     // Handle network errors
-    if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
+    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
       return res.status(503).json({
-        error: "GitHub API is temporarily unavailable"
+        error: "GitHub API is temporarily unavailable",
       });
     }
 
     // Generic error
     return res.status(500).json({
-      error: "Internal server error"
+      error: "Internal server error",
     });
   }
 }

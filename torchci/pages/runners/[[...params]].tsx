@@ -46,15 +46,19 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { useSession } from "next-auth/react";
-import { useRouter } from "next/router";
-import React, { useState, useMemo } from "react";
-import useSWR from "swr";
-import { RunnersApiResponse } from "lib/runnerUtils";
 import { RunnerGroupCard } from "components/runners/RunnerGroupCard";
 import { ParamSelector } from "lib/ParamSelector";
+import { RunnersApiResponse } from "lib/runnerUtils";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/router";
+import { useMemo, useState } from "react";
+import useSWR from "swr";
 
-type SortOrder = 'alphabetical' | 'count';
+// Define sort order constants to prevent typos
+const SORT_ALPHABETICAL = "alphabetical";
+const SORT_COUNT = "count";
+
+type SortOrder = typeof SORT_ALPHABETICAL | typeof SORT_COUNT;
 
 // Fetcher function for SWR
 const runnersFetcher = async (url: string) => {
@@ -90,7 +94,7 @@ export default function RunnersPage() {
 
   const { data: _session, status: _status } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortOrder, setSortOrder] = useState<SortOrder>('alphabetical');
+  const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ALPHABETICAL);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
 
   // Handle URL editing for organization
@@ -105,11 +109,13 @@ export default function RunnersPage() {
 
   // Handle URL editing for org/repo combination
   const handleOrgRepoSubmit = (orgRepo: string) => {
-    const parts = orgRepo.split('/');
+    const parts = orgRepo.split("/");
     if (parts.length === 2 && parts[0] && parts[1]) {
       const [newOrg, newRepo] = parts;
       if (newOrg !== org || newRepo !== repo) {
-        window.location.href = `/runners/${encodeURIComponent(newOrg)}/${encodeURIComponent(newRepo)}`;
+        window.location.href = `/runners/${encodeURIComponent(
+          newOrg
+        )}/${encodeURIComponent(newRepo)}`;
       }
     } else if (parts.length === 1 && parts[0]) {
       // If only org provided, go to org-level view
@@ -122,9 +128,7 @@ export default function RunnersPage() {
   // Determine API endpoint based on route parameters
   const apiEndpoint = useMemo(() => {
     if (!org) return null;
-    return repo
-      ? `/api/runners/${org}/${repo}`
-      : `/api/runners/${org}`;
+    return repo ? `/api/runners/${org}/${repo}` : `/api/runners/${org}`;
   }, [org, repo]);
 
   // Fetch runners data
@@ -132,13 +136,9 @@ export default function RunnersPage() {
     data: runnersData,
     error,
     isLoading,
-  } = useSWR<RunnersApiResponse>(
-    apiEndpoint,
-    runnersFetcher,
-    {
-      revalidateOnFocus: false, // Disable revalidation on focus to reduce expensive API calls
-    }
-  );
+  } = useSWR<RunnersApiResponse>(apiEndpoint, runnersFetcher, {
+    revalidateOnFocus: false, // Disable revalidation on focus to reduce expensive API calls
+  });
 
   // Filter and sort groups
   const filteredAndSortedGroups = useMemo(() => {
@@ -147,15 +147,18 @@ export default function RunnersPage() {
     // Filter based on search term
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      groups = groups.filter((group) =>
-        group.label.toLowerCase().includes(term) ||
-        group.runners.some(
-          (runner) =>
-            runner.name.toLowerCase().includes(term) ||
-            runner.id.toString().includes(term) ||
-            runner.os.toLowerCase().includes(term) ||
-            runner.labels.some((label) => label.name.toLowerCase().includes(term))
-        )
+      groups = groups.filter(
+        (group) =>
+          group.label.toLowerCase().includes(term) ||
+          group.runners.some(
+            (runner) =>
+              runner.name.toLowerCase().includes(term) ||
+              runner.id.toString().includes(term) ||
+              runner.os.toLowerCase().includes(term) ||
+              runner.labels.some((label) =>
+                label.name.toLowerCase().includes(term)
+              )
+          )
       );
     }
 
@@ -172,7 +175,7 @@ export default function RunnersPage() {
       const unknownComparison = unknownGoesLast(a, b);
       if (unknownComparison !== 0) return unknownComparison;
 
-      if (sortOrder === 'alphabetical') {
+      if (sortOrder === SORT_ALPHABETICAL) {
         return a.label.localeCompare(b.label);
       } else {
         return b.totalCount - a.totalCount;
@@ -218,9 +221,7 @@ export default function RunnersPage() {
   if (error) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="error">
-          Error loading runners: {error.message}
-        </Alert>
+        <Alert severity="error">Error loading runners: {error.message}</Alert>
       </Container>
     );
   }
@@ -232,10 +233,7 @@ export default function RunnersPage() {
       handleSubmit={handleOrgRepoSubmit}
     />
   ) : (
-    <ParamSelector
-      value={org}
-      handleSubmit={handleOrgSubmit}
-    />
+    <ParamSelector value={org} handleSubmit={handleOrgSubmit} />
   );
 
   return (
@@ -244,16 +242,26 @@ export default function RunnersPage() {
         GitHub Runners - {urlSelector}
       </Typography>
 
-      <Typography variant="subtitle1" color="text.secondary" gutterBottom sx={{ mb: 3 }}>
+      <Typography
+        variant="subtitle1"
+        color="text.secondary"
+        gutterBottom
+        sx={{ mb: 3 }}
+      >
         {repo ? (
           <>
-            Showing self-hosted GitHub Actions runners for the <strong>{org}/{repo}</strong> repository.
-            These are runners specifically assigned to this repository.
+            Showing self-hosted GitHub Actions runners for the{" "}
+            <strong>
+              {org}/{repo}
+            </strong>{" "}
+            repository. These are runners specifically assigned to this
+            repository.
           </>
         ) : (
           <>
-            Showing self-hosted GitHub Actions runners for the <strong>{org}</strong> organization.
-            These runners are available to all repositories within the organization.
+            Showing self-hosted GitHub Actions runners for the{" "}
+            <strong>{org}</strong> organization. These runners are available to
+            all repositories within the organization.
           </>
         )}
       </Typography>
@@ -271,14 +279,16 @@ export default function RunnersPage() {
         <Box>
           <ButtonGroup variant="outlined" size="small">
             <Button
-              variant={sortOrder === 'alphabetical' ? 'contained' : 'outlined'}
-              onClick={() => setSortOrder('alphabetical')}
+              variant={
+                sortOrder === SORT_ALPHABETICAL ? "contained" : "outlined"
+              }
+              onClick={() => setSortOrder(SORT_ALPHABETICAL)}
             >
               Sort A-Z
             </Button>
             <Button
-              variant={sortOrder === 'count' ? 'contained' : 'outlined'}
-              onClick={() => setSortOrder('count')}
+              variant={sortOrder === SORT_COUNT ? "contained" : "outlined"}
+              onClick={() => setSortOrder(SORT_COUNT)}
             >
               Sort by Count
             </Button>
@@ -310,7 +320,11 @@ export default function RunnersPage() {
 
                 return (
                   <Grid
-                    size={{ xs: 12, md: isExpanded ? 12 : 6, lg: isExpanded ? 12 : 4 }}
+                    size={{
+                      xs: 12,
+                      md: isExpanded ? 12 : 6,
+                      lg: isExpanded ? 12 : 4,
+                    }}
                     key={group.label}
                   >
                     <RunnerGroupCard

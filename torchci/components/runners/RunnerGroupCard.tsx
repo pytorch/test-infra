@@ -13,6 +13,7 @@
  *
  */
 
+import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import {
   Box,
   Card,
@@ -29,9 +30,8 @@ import {
   Typography,
   useTheme,
 } from "@mui/material";
-import { ExpandLess, ExpandMore } from "@mui/icons-material";
-import { useMemo } from "react";
 import { RunnerGroup } from "lib/runnerUtils";
+import { useMemo } from "react";
 import { StatusChip } from "./StatusChip";
 
 export function RunnerGroupCard({
@@ -66,21 +66,23 @@ export function RunnerGroupCard({
   };
 
   return (
-    <Card sx={{
-      mb: 2,
-      minHeight: 120,
-      display: 'flex',
-      flexDirection: 'column',
-      backgroundColor: theme.palette.mode === 'dark'
-        ? '#3d3a00' // Dark yellow/amber
-        : '#fffbf0', // Light cream-yellow
-      '&:hover': {
-        backgroundColor: theme.palette.mode === 'dark'
-          ? '#4d4800'
-          : '#fff8e1',
-        opacity: 0.9,
-      }
-    }}>
+    <Card
+      sx={{
+        mb: 2,
+        minHeight: 120,
+        display: "flex",
+        flexDirection: "column",
+        backgroundColor:
+          theme.palette.mode === "dark"
+            ? "#3d3a00" // Dark yellow/amber
+            : "#fffbf0", // Light cream-yellow
+        "&:hover": {
+          backgroundColor:
+            theme.palette.mode === "dark" ? "#4d4800" : "#fff8e1",
+          opacity: 0.9,
+        },
+      }}
+    >
       <CardContent>
         <Box
           display="flex"
