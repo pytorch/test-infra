@@ -16,6 +16,7 @@ import {
   TableRow,
   TextField,
   Typography,
+  useTheme,
 } from "@mui/material";
 import { ExpandLess, ExpandMore } from "@mui/icons-material";
 import { useSession } from "next-auth/react";
@@ -86,6 +87,7 @@ function RunnerGroupCard({
   searchTerm: string;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const theme = useTheme();
 
   // Filter runners based on search term
   const filteredRunners = useMemo(() => {
@@ -106,7 +108,18 @@ function RunnerGroupCard({
   };
 
   return (
-    <Card sx={{ mb: 2, backgroundColor: '#fefcf7' }}>
+    <Card sx={{ 
+      mb: 2, 
+      backgroundColor: theme.palette.mode === 'dark' 
+        ? theme.palette.success.dark 
+        : theme.palette.success.light,
+      '&:hover': {
+        backgroundColor: theme.palette.mode === 'dark'
+          ? theme.palette.success.main
+          : theme.palette.success.main,
+        opacity: 0.9,
+      }
+    }}>
       <CardContent>
         <Box
           display="flex"

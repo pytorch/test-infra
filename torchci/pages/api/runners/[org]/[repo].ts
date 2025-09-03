@@ -103,7 +103,7 @@ async function fetchAllRepoRunners(octokit: Octokit, org: string, repo: string):
   return allRunners;
 }
 
-// Group runners by labels with macOS support and synonyms
+// Group runners by labels with macOS support, synonyms, and name-based fallback
 function getRunnerGroupLabel(runner: RunnerData): string {
   const labelNames = runner.labels.map(label => label.name);
   
@@ -134,6 +134,33 @@ function getRunnerGroupLabel(runner: RunnerData): string {
     
     // Use first valid label (could be dot notation or single macOS label)
     return validLabels[0];
+  }
+  
+  // Fallback: Parse runner name for grouping info
+  // Special case for ROCm runners provided by external partners that don't have proper GitHub labels
+  // but use naming conventions like: linux.rocm.gpu.gfx942.1-xb8kr-runner-gnr2v
+  const runnerName = runner.name;
+  
+  // Look for dotted prefixes before "-runner-" or "-" followed by random suffix
+  const namePatterns = [
+    /^([a-z]+\.[a-z0-9.]+)-[a-z0-9]+-runner-[a-z0-9]+$/i, // linux.rocm.gpu.gfx942.1-xb8kr-runner-gnr2v
+    /^([a-z]+\.[a-z0-9.]+)-[a-z0-9]+$/i,                   // linux.rocm.gpu.gfx942.1-xb8kr
+    /^([a-z]+\.[a-z0-9.]+\.[a-z0-9]+)/i,                  // linux.rocm.gpu prefix
+  ];
+  
+  for (const pattern of namePatterns) {
+    const match = runnerName.match(pattern);
+    if (match) {
+      return match[1]; // Return the prefix part
+    }
+  }
+  
+  // If name starts with a dotted pattern, extract it
+  if (runnerName.includes('.')) {
+    const parts = runnerName.split('-');
+    if (parts[0].includes('.')) {
+      return parts[0];
+    }
   }
   
   return "unknown";
