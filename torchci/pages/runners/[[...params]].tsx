@@ -311,10 +311,11 @@ export default function RunnersPage() {
 
                 return (
                   <Grid
-                    item
-                    xs={12}
-                    md={isExpanded ? 12 : 6}
-                    lg={isExpanded ? 12 : 4}
+                    size={{
+                      xs: 12,
+                      md: isExpanded ? 12 : 6,
+                      lg: isExpanded ? 12 : 4,
+                    }}
                     key={group.label}
                   >
                     <RunnerGroupCard
