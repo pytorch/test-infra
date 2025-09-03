@@ -1,3 +1,20 @@
+/**
+ * @fileoverview Unified API endpoint for GitHub Actions runners data
+ *
+ * This Next.js API route handles both organization-level and repository-level
+ * GitHub Actions runner queries using catch-all routing. It provides a unified
+ * interface for fetching self-hosted runner information with proper authentication,
+ * caching, and error handling.
+ *
+ * Supported routes:
+ * - GET /api/runners/[org] - Fetch all runners for an organization
+ * - GET /api/runners/[org]/[repo] - Fetch runners specific to a repository
+ *
+ * Authentication:
+ * - Uses GitHub App authentication for org-level access
+ *
+ */
+
 import { createAppAuth } from "@octokit/auth-app";
 import { App, Octokit } from "octokit";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -56,14 +73,14 @@ async function fetchAllOrgRunners(octokit: Octokit, org: string): Promise<Runner
     });
 
     const runnersPage = response.data;
-    
+
     // Map GitHub API response to our format with proper type safety
     const mappedRunners: RunnerData[] = runnersPage.runners.map((runner: any) => {
       // Debug: Log full runner object for runners with no labels
       if (!runner.labels || runner.labels.length === 0) {
         console.log('Runner with no labels:', JSON.stringify(runner, null, 2));
       }
-      
+
       return {
         id: runner.id,
         name: runner.name,
@@ -106,7 +123,7 @@ async function fetchAllRepoRunners(octokit: Octokit, org: string, repo: string):
     });
 
     const runnersPage = response.data;
-    
+
     // Map GitHub API response to our format with proper type safety
     const mappedRunners: RunnerData[] = runnersPage.runners.map((runner: any) => ({
       id: runner.id,
@@ -143,7 +160,7 @@ export default async function handler(
   }
 
   const { params } = req.query;
-  
+
   // Parse the route parameters
   const routeParams = Array.isArray(params) ? params : [];
   const org = routeParams[0];
@@ -159,8 +176,8 @@ export default async function handler(
 
   // Check if org is allowed
   if (!ALLOWED_ORGS.includes(org)) {
-    return res.status(403).json({ 
-      error: `Access denied. Only ${ALLOWED_ORGS.join(", ")} organizations are supported.` 
+    return res.status(403).json({
+      error: `Access denied. Only ${ALLOWED_ORGS.join(", ")} organizations are supported.`
     });
   }
 
@@ -183,13 +200,13 @@ export default async function handler(
 
     // Verify user has write access to pytorch/pytorch
     // if (!(await checkUserPermissions(authorization))) {
-    //   return res.status(403).json({ 
-    //     error: "Access denied. Write permissions to pytorch/pytorch required." 
+    //   return res.status(403).json({
+    //     error: "Access denied. Write permissions to pytorch/pytorch required."
     //   });
     // }
 
     // Get authenticated Octokit instance
-    const octokit = repo 
+    const octokit = repo
       ? await import("lib/github").then(m => m.getOctokit())  // Use existing utility for repo access
       : await getOctokitForOrg(org);                          // Use org-specific auth for org access
 
@@ -200,7 +217,7 @@ export default async function handler(
 
     // Group runners by labels
     const groups = groupRunners(runners);
-    
+
     const result: RunnersApiResponse = {
       groups,
       totalRunners: runners.length,
@@ -215,38 +232,38 @@ export default async function handler(
     return res.status(200).json(result);
   } catch (error: any) {
     console.error("Error fetching runners:", error);
-    
+
     // Handle GitHub API-specific errors
     if (error.response) {
       const status = error.response.status;
       const message = error.response.data?.message || error.message;
-      
+
       if (status === 404) {
         const target = repo ? `Repository '${org}/${repo}'` : `Organization '${org}'`;
-        return res.status(404).json({ 
-          error: `${target} not found or PyTorchBot is not installed` 
+        return res.status(404).json({
+          error: `${target} not found or PyTorchBot is not installed`
         });
       }
-      
+
       if (status === 403) {
-        return res.status(403).json({ 
-          error: "Access forbidden. Check authentication and permissions." 
+        return res.status(403).json({
+          error: "Access forbidden. Check authentication and permissions."
         });
       }
-      
+
       return res.status(status).json({ error: message });
     }
-    
+
     // Handle network errors
     if (error.code === 'ECONNREFUSED' || error.code === 'ETIMEDOUT') {
-      return res.status(503).json({ 
-        error: "GitHub API is temporarily unavailable" 
+      return res.status(503).json({
+        error: "GitHub API is temporarily unavailable"
       });
     }
-    
+
     // Generic error
-    return res.status(500).json({ 
-      error: "Internal server error" 
+    return res.status(500).json({
+      error: "Internal server error"
     });
   }
 }

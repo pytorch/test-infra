@@ -1,3 +1,18 @@
+/**
+ * @fileoverview Expandable card component for displaying grouped GitHub Actions runners
+ *
+ * This component displays a group of GitHub Actions runners in a collapsible card format.
+ * Each card shows summary statistics (idle, busy, offline counts) and can be expanded to
+ * reveal a detailed table of all runners in the group.
+ *
+ * Props:
+ * - group: RunnerGroup data containing runners and metadata
+ * - searchTerm: Filter string to highlight matching runners
+ * - isExpanded: Controls whether the detailed view is shown
+ * - onExpandChange: Callback when expand/collapse state changes
+ *
+ */
+
 import {
   Box,
   Card,

@@ -1,3 +1,10 @@
+/**
+ * @fileoverview Status chip component for GitHub Actions runners
+ *
+ * Displays the current status of a GitHub Actions runner
+ *
+ */
+
 import { Chip } from "@mui/material";
 import { RunnerData } from "lib/runnerUtils";
 
