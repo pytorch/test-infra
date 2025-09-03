@@ -6,16 +6,17 @@ import os
 import threading
 from collections import defaultdict
 from concurrent.futures import as_completed, ThreadPoolExecutor
-from datetime import datetime, timedelta, timezone
-from lib.config import BENCHMARK_REGRESSION_CONFIG
+import datetime as dt
+from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiData, BenchmarkTimeSeriesApiResponse, TimeRange
+from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency, Policy, RangeConfig
+from common.config import BENCHMARK_REGRESSION_CONFIG
 from jinja2 import Template
+import requests
+from dateutil.parser import isoparse
 
-# Local imports
 from typing import Any, Dict, Iterable, List, Optional, Set
-
 import clickhouse_connect
 import yaml
-from dateutil.parser import parse
 from github import Auth, Github
 
 
@@ -31,6 +32,11 @@ ENVS = {
     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
+
+BENMARK_REGRESSION_REPORT_DB="fortesting.benchmark_regression_report"
+
+def truncate_to_hour(ts: dt.datetime) -> dt.datetime:
+    return ts.replace(minute=0, second=0, microsecond=0)
 
 
 def get_clickhouse_client(
@@ -67,9 +73,8 @@ def is_unix_timestamp(value: str) -> bool:
             return False
     return False
 
-
-def to_timestap_str(time: datetime) -> str:
-    return str(int(time.timestamp()))
+def to_hour_str(ts: dt.datetime) -> str:
+    return truncate_to_hour(ts).isoformat().replace("+00:00", "Z")
 
 def write_to_file(data: Any, filename="", path=""):
     """
@@ -98,20 +103,14 @@ def write_to_file(data: Any, filename="", path=""):
 
 BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = "benchmark_regression_summary_report"
 
-
-def get_runtime_config(name: str, start: datetime, end: datetime):
-
+def get_config(config_id: str)-> BenchmarkConfig:
     try:
-        config = BENCHMARK_REGRESSION_CONFIG[name]
-        tmpl = Template(config.source.api_endpoint_params_template)
-        rendered = tmpl.render(
-            startTime=start.isoformat(timespec="milliseconds") + "Z",
-            stopTime=end.isoformat(timespec="milliseconds") + "Z",
-        )
-        cfg = dict(config)  # shallow copy
-        cfg["api_endpoint_params"] = json.loads(rendered)
-    return cfg
-
+        config: BenchmarkConfig = BENCHMARK_REGRESSION_CONFIG[config_id]
+    except KeyError:
+        raise ValueError(f"Invalid config id: {config_id}")
+    except Exception as e:
+        raise e
+    return config
 
 class BenchmarkSummaryProcessor:
     """
@@ -120,18 +119,47 @@ class BenchmarkSummaryProcessor:
     def __init__(
         self,
         is_dry_run: bool = False,
-        local_output: bool = False,
-        output_snapshot_file_name: str = "summary_report_snapshot",
-        output_snapshot_file_path: str = "",
     ) -> None:
         self.is_dry_run = is_dry_run
 
+    def should_generate_report(
+        self,
+        cc: clickhouse_connect.driver.client.Client,
+        end_time: dt.datetime,
+        config_id: str,
+        f: Frequency
+    ) -> bool:
+        """
+         decide wether should generate the report based on the frequency in policy
+        """
+        def get_latest_regression_report(
+            cc: clickhouse_connect.driver.Client,
+            config_id: str,
+        ):
+            result = cc.query(
+                "SELECT max(report_date) FROM benchmark_regression_report WHERE report_id = {config_id:String}",
+                parameters={"config_id": config_id},
+            )
+            if not result.result_rows or result.result_rows[0][0] is None:
+                return None
+            return result.result_rows[0][0]
+        freq_delta = f.to_timedelta()
+        latest_date = get_latest_regression_report(cc, config_id)
+        # No report exists yet, generate
+        if not latest_date:
+            return True
+        # we only verify by date to see if we should generate the data
+        cutoff = end_time.date() - freq_delta
+        return latest_date < cutoff
+
+
     def process(
         self,
-        config: Dict[str, Any],
+        config_id: str,
+        end_time: dt.datetime,
         cc: Optional[clickhouse_connect.driver.client.Client] = None,
         args: Optional[argparse.Namespace] = None,
-    ) -> Dict[str, Any]:
+    ):
         # ensure each thread has its own clickhouse client. clickhouse client
         # is not thread-safe.
         if cc is None:
@@ -146,50 +174,41 @@ class BenchmarkSummaryProcessor:
                 else:
                     tlocal.cc = get_clickhouse_client_environment()
             cc = tlocal.cc
+        config = get_config(config_id)
 
-        # fetches config to get time series from api
+        # check if we should generate report for end_time
+        # currently we only verify if end_time > latest report date + policy.freq in db
+        report_freq = config.policy.frequency
+        should_generate = self.should_generate_report(cc, end_time,config_id,report_freq)
+        if not should_generate:
+            logger.info("[%s] Skip generate report for date: %s with frequency %s",config_id, end_time.date(), report_freq.get_text())
+            return;
+        data_range = config.policy.range
+        total_timedelta = data_range.baseline_timedelta
+        logger.info("[%s] fetching benchmark data from source",config_id)
 
-        queued_jobs = self._fetch_snapshot_from_db(cc, start_time, end_time, repo)
+        if config.source.type!="benchmark_time_series_api":
+            logger.error(f"{config_id}: currently we only suppport benchmark_time_series_api to fetch source data")
+            return;
 
-        if len(queued_jobs) == 0:
-            logger.info(
-                f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] "
-                + f"No jobs in queue in time range: [{start_time},{end_time}]"
-            )
-
-        if len(queued_jobs) == 0:
-            logger.info(
-                f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] "
-                + "No queued jobs, skipping generating histogram records.."
-            )
-
-        records = QueuedJobHistogramGenerator().generate_histogram_records(
-            queued_jobs,
-            datetime.now(timezone.utc),
-            "half-hour-mark-queue-time-histogram",
-            end_time,
+        # Comparison: [end_time - 1d, end_time)
+        comp_s = end_time - data_range.comparison_timedelta()
+        comp_e  = end_time
+        comparison_data = self._fetch_from_benchmark_ts_api(
+            config_id=config_id,
+            start_time=baseline_s,
+            end_time=baseline_e,
+            source=config.source,
         )
 
-        if len(records) == 0:
-            logger.info(
-                f" [QueueTimeProcessor][Snapshot {to_timestap_str(end_time)}] "
-                + "No histogram records, skipping writing.."
-            )
+        data = self._fetch_from_benchmark_ts_api(config_id, end_time, start_time, config.source)
+        latest_ts = data.time_range.end
+        # no data in the time range
+        if not latest_ts:
+            logger.info("[%s] No data found for report %s",config_id, end_time.date())
+            return
 
-        if self.is_dry_run:
-            logger.info(
-                f" [Dry Run Mode][Snapshot {to_timestap_str(end_time)}] "
-                + "Writing results to terminal/local file ..."
-            )
-            self._output_record(queued_jobs, end_time, type="queued_jobs")
-            self._output_record(records, end_time, type="records")
-            logger.info(
-                f" [Dry Run Mode][Snapshot {to_timestap_str(end_time)}] "
-                + "Done. Write results to terminal/local file ."
-            )
-        else:
-            self._write_to_db_table(cc, records)
-
+        regression_policy = config.policy.metrics
 
         return {
             "start_time": to_timestap_str(start_time),
@@ -197,6 +216,54 @@ class BenchmarkSummaryProcessor:
             "jobs_count": len(queued_jobs),
             "records_count": len(records),
         }
+
+    def get_basline(self, config: BenchmarkConfig,end_time: dt.datetime):
+        data_range = config.policy.range
+        baseline_s = end_time - data_range.total_timedelta()
+        baseline_e   = end_time - data_range.comparison_timedelta()
+
+        # fetch baseline from api
+        raw_data = self._fetch_from_benchmark_ts_api(
+            config_id=config.id,
+            start_time=baseline_s,
+            end_time=baseline_e,
+            source=config.source,
+        )
+
+        def to_baseline(data:BenchmarkTimeSeriesApiData):
+            data.
+
+
+
+
+
+
+
+
+
+    def _detect_regression(self,end_time: dt.datetime, data: BenchmarkTimeSeriesApiData, policy: Policy):
+        metrics_dict = policy.metrics
+        baseline_range = policy.range.baseline_timedelta()
+        comparison = policy.range.comparison_timedelta()
+
+
+
+
+        return
+    def _fetch_from_benchmark_ts_api(self,config_id:str, end_time: dt.datetime,start_time:dt.datetime, source: BenchmarkApiSource):
+        str_end_time = end_time.isoformat()
+        str_start_time = start_time.isoformat()
+        query = source.render(ctx={
+            "startTime": str_start_time,
+            "endTime":  str_end_time,
+        })
+        url = source.api_query_url
+        try:
+            resp:BenchmarkTimeSeriesApiResponse = BenchmarkTimeSeriesApiResponse.from_request(url, query)
+
+            return resp.data
+        except Exception as e:
+            raise RuntimeError(f"[{config_id}]Fetch failed:", e)
 
 
 
@@ -250,19 +317,14 @@ def main(
     args: Optional[argparse.Namespace] = None,
     github_access_token: str = "",
     is_dry_run: bool = False,
-    local_output: bool = False,
-    output_snapshot_file_name: str = "job_queue_times_snapshot",
-    output_snapshot_file_path: str = "",
 ):
     """
     Main method to run in both local environment and lambda handler.
        1. generate intervals[start_time,end_time] using latest timestamp from source table and target table
        2. call WorkerPoolHandler to geneterate and write histogram data for each interval in parallel
     """
-    # gets config retrievers, this is used to generate runner labels for histgram
     if not github_access_token:
         raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
-    config_retrievers = get_config_retrievers(github_access_token)
 
     # get time intervals.
     logger.info(" [Main] generating time intervals ....")
@@ -279,10 +341,7 @@ def main(
     handler = WorkerPoolHandler(
         config_retrievers,
         BenchmarkSummaryProcessor(
-            is_dry_run=is_dry_run,
-            local_output=local_output,
-            output_snapshot_file_name=output_snapshot_file_name,
-            output_snapshot_file_path=output_snapshot_file_path,
+            is_dry_run=is_dry_run
         ),
     )
     handler.start(time_intervals, args)
