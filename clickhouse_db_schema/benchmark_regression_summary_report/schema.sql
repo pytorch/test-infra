@@ -9,7 +9,9 @@ CREATE TABLE benchmark.benchmark_regression_report
     `status` String, -- e.g. 'no_regression',"regression",'failure'
     `regression_count` UInt32 DEFAULT 0,
     `insufficient_data_count` UInt32 DEFAULT 0,
+    `suspected_regression_count` UInt32 DEFAULT 0,
     `total_count` UInt32 DEFAULT 0,
+    `repo` String,
     `report` String DEFAULT '{}'
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
@@ -22,6 +24,7 @@ ORDER BY
     last_record_ts,
     last_record_commit,
     created_at,
+    repo
     id
 )
 TTL created_at + toIntervalYear(10)
