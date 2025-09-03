@@ -68,7 +68,7 @@ export default function RunnersPage() {
   const { org } = router.query;
 
   // Ensure org is a string
-  const orgParam = typeof org === 'string' ? org : null;
+  const orgParam = typeof org === "string" ? org : null;
 
   const { data: _session, status: _status } = useSession();
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,8 +80,10 @@ export default function RunnersPage() {
     if (!newOrg) return;
 
     // Check if user entered a repo path like "pytorch/pytorch"
-    if (newOrg.includes('/')) {
-      alert('Only organization-level runners are supported. Please enter just the organization name (e.g., "pytorch").');
+    if (newOrg.includes("/")) {
+      alert(
+        'Only organization-level runners are supported. Please enter just the organization name (e.g., "pytorch").'
+      );
       return;
     }
 
@@ -153,7 +155,6 @@ export default function RunnersPage() {
       </Container>
     );
   }
-
 
   if (error) {
     return (

@@ -152,4 +152,3 @@ export function groupRunners(runners: RunnerData[]): RunnerGroup[] {
 
   return result;
 }
-

@@ -168,7 +168,6 @@ async function fetchAllOrgRunners(
   return paginateRunners(octokit, "GET /orgs/{org}/actions/runners", { org });
 }
 
-
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse<RunnersApiResponse | { error: string }>

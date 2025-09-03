@@ -78,7 +78,7 @@ export function RunnerGroupCard({
             : theme.palette.warning.light + "20", // Light mode with opacity
         "&:hover": {
           backgroundColor:
-            theme.palette.mode === "dark" 
+            theme.palette.mode === "dark"
               ? theme.palette.warning.dark + "30"
               : theme.palette.warning.light + "30",
           opacity: 0.9,
