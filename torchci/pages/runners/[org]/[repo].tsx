@@ -190,22 +190,18 @@ function RunnerGroupCard({
 
 // Fetcher function for SWR
 const fetcher = async (url: string) => {
-  // TODO: Remove this bypass before production
-  const isDevelopment = process.env.NODE_ENV === "development";
-  
-  let headers: any = {};
-  
-  if (!isDevelopment) {
-    const { data: session } = await fetch("/api/auth/session").then(res => res.json());
-    
-    if (!session?.accessToken) {
-      throw new Error("Not authenticated");
-    }
-    
-    headers.Authorization = session.accessToken;
-  }
+  // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
+  // const { data: session } = await fetch("/api/auth/session").then(res => res.json());
+  // 
+  // if (!session?.accessToken) {
+  //   throw new Error("Not authenticated");
+  // }
 
-  const response = await fetch(url, { headers });
+  const response = await fetch(url, {
+    // headers: {
+    //   Authorization: session.accessToken,
+    // },
+  });
 
   if (!response.ok) {
     const error = await response.json();
@@ -222,13 +218,12 @@ export default function RepoRunnersPage() {
   const [searchTerm, setSearchTerm] = useState("");
 
   // Fetch runners data
-  const isDevelopment = process.env.NODE_ENV === "development";
   const {
     data: runnersData,
     error,
     isLoading,
   } = useSWR<RunnersApiResponse>(
-    org && repo && (session || isDevelopment) ? `/api/runners/${org}/${repo}` : null,
+    org && repo ? `/api/runners/${org}/${repo}` : null,
     fetcher,
     {
       refreshInterval: 60000, // Refresh every minute
@@ -255,26 +250,27 @@ export default function RepoRunnersPage() {
     });
   }, [runnersData, searchTerm]);
 
-  if (status === "loading" && !isDevelopment) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, textAlign: "center" }}>
-        <CircularProgress />
-        <Typography variant="body2" sx={{ mt: 2 }}>
-          Loading authentication...
-        </Typography>
-      </Container>
-    );
-  }
+  // TODO: Remove this bypass before production - AUTH DISABLED FOR TESTING
+  // if (status === "loading") {
+  //   return (
+  //     <Container maxWidth="lg" sx={{ mt: 4, textAlign: "center" }}>
+  //       <CircularProgress />
+  //       <Typography variant="body2" sx={{ mt: 2 }}>
+  //         Loading authentication...
+  //       </Typography>
+  //     </Container>
+  //   );
+  // }
 
-  if (!session && !isDevelopment) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="error">
-          You must be logged in to view runners information.
-        </Alert>
-      </Container>
-    );
-  }
+  // if (!session) {
+  //   return (
+  //     <Container maxWidth="lg" sx={{ mt: 4 }}>
+  //       <Alert severity="error">
+  //         You must be logged in to view runners information.
+  //       </Alert>
+  //     </Container>
+  //   );
+  // }
 
   if (error) {
     return (
