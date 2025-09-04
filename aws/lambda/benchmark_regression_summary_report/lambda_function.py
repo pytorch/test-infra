@@ -49,7 +49,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    logger.info("get_clickhouse_client ....")
+    logger.info("get_clickhouse_client ...")
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True, verify=False
     )
@@ -357,14 +357,25 @@ class BenchmarkSummaryProcessor:
 
         if not should_generate:
             logger.info(
-                "[%s][frequency(%s)] skip generate report.end_time must greater than"
-                "time_boundary %s based on latest_record_ts %s, current end_time is %s",
+                "[%s][frequency(%s)] skip generate report. end_time(%s) must greater than"
+                "time_boundary(%s) based on latest_record_ts(%s)",
                 config_id,
                 f.get_text(),
+                end_time,
                 time_boundary,
                 latest_record_ts,
-                end_time,
             )
+        else:
+            logger.info(
+                "[%s][frequency(%s)] plan to generate report. end_time(%s) is greater than"
+                "time_boundary(%s) based on latest_record_ts(%s)",
+                config_id,
+                f.get_text(),
+                end_time,
+                time_boundary,
+                latest_record_ts,
+            )
+
         return should_generate
 
 
