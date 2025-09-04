@@ -27,11 +27,6 @@ See details in the full report for report type `{{ report_id }}` with id `{{ id 
 - **Start:** `{{ time_range.start }}`
 - **End:** `{{ time_range.end }}`
 
-## Latest Benchmark Run We Used for Report
-- **Timestamp:** `{{ latest.timestamp | default('') }}`
-- **Commit:** `{{ latest.commit | default('') }}`
-- **Branch:** `{{ latest.branch | default('') }}`
-- **Workflow ID:** `{{ latest.workflow_id | default('') }}`
 
 ## Summary
 | Metric | Value |
@@ -42,14 +37,25 @@ See details in the full report for report type `{{ report_id }}` with id `{{ id 
 | No Regression | {{ summary.no_regression_count | default(0) }} |
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
 
+## Latest commit
+- **Timestamp:** `{{ latest.timestamp | default('') }}`
+- **Commit:** `{{ latest.commit | default('') }}`
+- **Branch:** `{{ latest.branch | default('') }}`
+- **Workflow ID:** `{{ latest.workflow_id | default('') }}`
+
 {% if regression_items and regression_items|length > 0 %}
 ## Regression Glance
 
 {% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
 {% for item in items %}
 - **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
-{% endfor %}
-
+{% if item.baseline_item %}
+    baseline commit: {{ item.baseline_item.commit }}),
+    workflow_id: {{ item.baseline_item.workflow_id }}),
+    timestamp:{{item.baseline_item.granularity_bucket}}
+{% else %}
+    baseline item is missing
+{% endif %}
 {% if regression_items|length > 10 %}
 ... (showing first 10 only, total {{ regression_items|length }} regressions)
 {% endif %}
@@ -67,7 +73,6 @@ class ReportManager:
     def __init__(
         self,
         db_table_name: str,
-        config_id: str,
         config: BenchmarkConfig,
         regression_summary: Dict[str, Any],
         latest_meta_info: Dict[str, Any],
@@ -79,12 +84,12 @@ class ReportManager:
     ):
         self.regression_summary = regression_summary
         self.regression_result = result
-        self.config_id = config_id
+        self.config_id = config.id
         self.config = config
         self.status = self._resolve_status(regression_summary)
         self.latest_meta_info = self._validate_latest_meta_info(latest_meta_info)
         self.report_data = self._to_report_data(
-            config_id=config_id,
+            config_id=config.id,
             summary=self.regression_summary,
             report=self.regression_result,
             latest=self.latest_meta_info,
@@ -173,9 +178,16 @@ class ReportManager:
         utc_naive = aware.astimezone(dt.timezone.utc).replace(tzinfo=None)
         last_record_ts = utc_naive.strftime("%Y-%m-%d %H:%M:%S")
 
-        report_json = json.dumps(
-            self.report_data, ensure_ascii=False, separators=(",", ":"), default=str
-        )
+        try:
+            report_json = json.dumps(
+                self.report_data, ensure_ascii=False, separators=(",", ":"), default=str
+            )
+        except Exception:
+            logger.exception(
+                "[%s] failed to serialize report data to json",
+                self.config_id,
+            )
+            raise
 
         params = {
             "id": str(self.id),
@@ -195,7 +207,6 @@ class ReportManager:
             "repo": self.repo,
             "report_json": report_json,
         }
-
         logger.info(
             "[%s]inserting benchmark regression report(%s)", self.config_id, self.id
         )

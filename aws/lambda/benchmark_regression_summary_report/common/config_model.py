@@ -36,6 +36,9 @@ class Frequency:
         else:
             raise ValueError(f"Unsupported unit: {self.unit}")
 
+    def to_timedelta_s(self) -> int:
+        return int(self.to_timedelta().total_seconds())
+
     def get_text(self):
         return f"{self.value}_{self.unit}"
 
@@ -97,11 +100,22 @@ class RangeConfig:
     def total_timedelta(self) -> timedelta:
         return timedelta(days=self.baseline.value + self.comparison.value)
 
+    def total_timedelta_s(self) -> int:
+        return int(
+            timedelta(days=self.baseline.value + self.comparison.value).total_seconds()
+        )
+
     def comparison_timedelta(self) -> timedelta:
         return timedelta(days=self.comparison.value)
 
+    def comparison_timedelta_s(self) -> int:
+        return int(self.comparison_timedelta().total_seconds())
+
     def baseline_timedelta(self) -> timedelta:
         return timedelta(days=self.baseline.value)
+
+    def baseline_timedelta_s(self) -> int:
+        return int(self.baseline_timedelta().total_seconds())
 
 
 # -------- Policy: metrics --------
@@ -122,9 +136,7 @@ class RegressionPolicy:
         "greater_than", "less_than", "equal_to", "greater_equal", "less_equal"
     ]
     threshold: float
-    baseline_aggregation: Literal[
-        "avg", "max", "min", "p50", "p90", "p95", "latest", "earliest"
-    ] = "max"
+    baseline_aggregation: Literal["max", "min", "latest", "earliest"] = "max"
     rel_tol: float = 1e-3  # used only for "equal_to"
 
     def is_violation(self, value: float, baseline: float) -> bool:
