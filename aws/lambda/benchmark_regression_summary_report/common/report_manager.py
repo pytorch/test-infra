@@ -71,12 +71,36 @@ class ReportManager:
         self.db_table_name = db_table_name
         self.id = str(uuid.uuid4())
 
-    def run(self, cc: clickhouse_connect.driver.client.Client) -> None:
+    def run(
+        self, cc: clickhouse_connect.driver.client.Client, github_token: str
+    ) -> None:
         try:
             self.insert_to_db(cc)
         except Exception as e:
             logger.error(f"failed to insert report to db, error: {e}")
             raise
+        self.notify_github_comment(github_token)
+
+    def notify_github_comment(self, github_token: str):
+        if self.status != "regression":
+            logger.info(
+                "[%s] no regression found, skip notification",
+                self.config_id,
+            )
+            return
+
+        github_notification = self.config.policy.get_github_notification_config()
+        if not github_notification:
+            logger.info(
+                "[%s] no github notification config found, skip notification",
+                self.config_id,
+            )
+            return
+        logger.info("[%s] prepareing content", self.config_id)
+        content = self._to_markdoown()
+        logger.info("[%s] create comment to github issue", self.config_id)
+        github_notification.create_github_comment(content, github_token)
+        logger.info("[%s] done. comment is sent to github", self.config_id)
 
     def _to_markdoown(self):
         md = Template(REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True).render(
@@ -108,21 +132,19 @@ class ReportManager:
         # ---- 转 UTC，并格式成 ClickHouse 友好的 'YYYY-MM-DD HH:MM:SS' ----
         aware = dt.datetime.fromisoformat(latest_ts_str.replace("Z", "+00:00"))
         utc_naive = aware.astimezone(dt.timezone.utc).replace(tzinfo=None)
-        last_record_ts = utc_naive.strftime(
-            "%Y-%m-%d %H:%M:%S"
-        )  # 给 {DateTime64(0)} 用
+        last_record_ts = utc_naive.strftime("%Y-%m-%d %H:%M:%S")
 
         report_json = json.dumps(
             self.report_data, ensure_ascii=False, separators=(",", ":"), default=str
         )
 
         params = {
-            "id": str(self.id),  # 列是 UUID，用 {id:UUID}
+            "id": str(self.id),
             "report_id": self.config_id,
             "type": self.type,
             "status": self.status,
             "last_record_commit": self.latest_meta_info.get("commit", ""),
-            "last_record_ts": last_record_ts,  # 已是 UTC，无时区
+            "last_record_ts": last_record_ts,
             "regression_count": int(self.regression_summary.get("regression_count", 0)),
             "insufficient_data_count": int(
                 self.regression_summary.get("insufficient_data_count", 0)
@@ -139,7 +161,7 @@ class ReportManager:
             "[%s]inserting benchmark regression report(%s)", self.config_id, self.id
         )
 
-        # 纯 INSERT ... SELECT ... FROM system.one + NOT EXISTS 保护
+        # INSERT ... SELECT ... FROM system.one + NOT EXISTS protection
         cc.query(
             f"""
             INSERT INTO {table} (

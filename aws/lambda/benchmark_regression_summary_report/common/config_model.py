@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import json
-import requests
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any, ClassVar, Dict, Literal, Optional, Type
+from typing import Any, ClassVar, Dict, Literal, Optional
 
+import requests
 from jinja2 import Environment, meta, Template
 
 
@@ -153,15 +153,11 @@ class RegressionPolicy:
 
         raise ValueError(f"Unknown condition: {self.condition}")
 
-class BaseNotificationConfig:
-    # every subclass must override this
-    type_tag: ClassVar[str]
 
-    @classmethod
-    def from_dict(cls: Type[T], d: Dict[str, Any]) -> T:
-        # pick only known fields for this dataclass
-        kwargs = {f.name: d.get(f.name) for f in fields(cls)}
-        return cls(**kwargs)  # type: ignore
+@dataclass
+class BaseNotificationConfig:
+    # subclasses override this
+    type_tag: ClassVar[str] = ""
 
     @classmethod
     def matches(cls, d: Dict[str, Any]) -> bool:
@@ -170,25 +166,24 @@ class BaseNotificationConfig:
 
 @dataclass
 class GitHubNotificationConfig(BaseNotificationConfig):
-    type: str = "github"
-    repo: str = ""
-    issue_number: str = ""
     type_tag: ClassVar[str] = "github"
 
-    def create_github_comment(self, body: str, github_token: str) -> Dict[str, Any]:
-        """
-            Create a new comment on a GitHub issue.
-            Args:
-                notification_config: dict with keys:
-                    - type: must be "github"
-                    - repo: "owner/repo"
-                    - issue: issue number (string or int)
-                body: text of the comment
-                token: GitHub personal access token or GitHub Actions token
+    # actual fields
+    type: str = "github"
+    repo: str = ""  # e.g. "owner/repo"
+    issue_number: str = ""  # store as str for simplicity
 
-                Returns:
-                    The GitHub API response as a dict (JSON).
-        """
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "GitHubNotificationConfig":
+        # support 'issue' alias
+        issue = d.get("issue_number") or d.get("issue") or ""
+        return cls(
+            type="github",
+            repo=d.get("repo", ""),
+            issue_number=str(issue),
+        )
+
+    def create_github_comment(self, body: str, github_token: str) -> Dict[str, Any]:
         url = f"https://api.github.com/repos/{self.repo}/issues/{self.issue_number}/comments"
         headers = {
             "Authorization": f"token {github_token}",
@@ -202,16 +197,18 @@ class GitHubNotificationConfig(BaseNotificationConfig):
 
 @dataclass
 class Policy:
-    frequency: Frequency
-    range: RangeConfig
-    metrics: Dict[str, RegressionPolicy]
+    frequency: "Frequency"
+    range: "RangeConfig"
+    metrics: Dict[str, "RegressionPolicy"]
 
-    notification_config: Optional[Dict[str, Any]] = None
+    notification_config: Optional[dict[str, Any]] = None
 
     def get_github_notification_config(self) -> Optional[GitHubNotificationConfig]:
         if not self.notification_config:
             return None
-        return notification_from_dict(self.notification_config)  # type: ignore
+        if self.notification_config.get("type") != "github":
+            return None
+        return GitHubNotificationConfig.from_dict(self.notification_config)
 
 
 # -------- Top-level benchmark regression config --------

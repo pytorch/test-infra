@@ -31,7 +31,7 @@ logger = logging.getLogger()
 logger.setLevel("INFO")
 
 ENVS = {
-    "GITHUB_ACCESS_TOKEN": os.getenv("GITHUB_ACCESS_TOKEN", ""),
+    "GITHUB_TOKEN": os.getenv("GITHUB_TOKEN", ""),
     "CLICKHOUSE_ENDPOINT": os.getenv("CLICKHOUSE_ENDPOINT", ""),
     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
@@ -417,7 +417,7 @@ def main(
        2. call WorkerPoolHandler to geneterate and write histogram data for each interval in parallel
     """
     if not github_access_token:
-        raise ValueError("Missing environment variable GITHUB_ACCESS_TOKEN")
+        raise ValueError("Missing environment variable GITHUB_TOKEN")
 
     # get time intervals.
     logger.info("[Main] start work ....")
@@ -436,7 +436,7 @@ def lambda_handler(event: Any, context: Any) -> None:
     """
     main(
         None,
-        github_access_token=ENVS["GITHUB_ACCESS_TOKEN"],
+        github_access_token=ENVS["GITHUB_TOKEN"],
     )
     return
 
@@ -468,7 +468,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--github-access-token",
         type=str,
-        default=ENVS["GITHUB_ACCESS_TOKEN"],
+        default=ENVS["GITHUB_TOKEN"],
         help="the github access token to access github api",
     )
     parser.add_argument(
