@@ -7,7 +7,6 @@ import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-import time
 from typing import Any, Optional
 
 import clickhouse_connect
@@ -45,7 +44,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -133,7 +132,7 @@ class BenchmarkSummaryProcessor:
             )
             return
 
-        baseline, bs, be = self.get_basline(config, end_time)
+        baseline, bs, be = self.get_baseline(config, end_time)
         if not baseline:
             log_info(
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
@@ -172,7 +171,7 @@ class BenchmarkSummaryProcessor:
             return None, latest_s, latest_e
         return latest_data, latest_s, latest_e
 
-    def get_basline(self, config: BenchmarkConfig, end_time: dt.datetime):
+    def get_baseline(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range
         baseline_s = end_time - data_range.total_timedelta()
         baseline_e = end_time - data_range.comparison_timedelta()
@@ -217,7 +216,6 @@ class BenchmarkSummaryProcessor:
 
         if latest_dt >= cutoff:
             return True
-
         logger.info(
             "[%s] expect latest data to be after %s, but got %s",
             config_id,

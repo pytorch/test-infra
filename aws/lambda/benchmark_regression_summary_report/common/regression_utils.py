@@ -152,7 +152,7 @@ class BenchmarkRegressionReportGenerator:
         summary = self.summarize_label_counts(results)
         return results, summary
 
-    def summarize_label_counts(self, results:list[PerGroupResult]):
+    def summarize_label_counts(self, results: list[PerGroupResult]):
         counts = Counter(self._label_str(r["label"]) for r in results)
         total_count = len(results)
         return {

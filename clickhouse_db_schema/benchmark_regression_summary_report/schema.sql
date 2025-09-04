@@ -1,4 +1,4 @@
-CREATE TABLE benchmark.benchmark_regression_report
+CREATE TABLE fortesting.benchmark_regression_report
 (
     `id` UUID DEFAULT generateUUIDv4(),
     `report_id` String, -- unique id for the report config
@@ -15,7 +15,7 @@ CREATE TABLE benchmark.benchmark_regression_report
     `report` String DEFAULT '{}'
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
-PARTITION BY toYYYYMM(report_date)
+PARTITION BY toYYYYMM(created_at)
 ORDER BY
 (
     report_id,
@@ -24,7 +24,7 @@ ORDER BY
     last_record_ts,
     last_record_commit,
     created_at,
-    repo
+    repo,
     id
 )
 TTL created_at + toIntervalYear(10)
