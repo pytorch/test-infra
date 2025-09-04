@@ -211,7 +211,8 @@ class BenchmarkSummaryProcessor:
         )
 
         logger.info(
-            "found %s # of data, with time range %s",
+            "[%s] found %s # of data, with time range %s",
+            config.id,
             len(raw_data.time_series),
             raw_data.time_range,
         )

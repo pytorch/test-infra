@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+import requests
+from dataclasses import dataclass, field, fields
 from datetime import timedelta
-from typing import Any, Dict, Literal, Optional
+from typing import Any, ClassVar, Dict, Literal, Optional, Type
 
 from jinja2 import Environment, meta, Template
 
@@ -152,6 +153,52 @@ class RegressionPolicy:
 
         raise ValueError(f"Unknown condition: {self.condition}")
 
+class BaseNotificationConfig:
+    # every subclass must override this
+    type_tag: ClassVar[str]
+
+    @classmethod
+    def from_dict(cls: Type[T], d: Dict[str, Any]) -> T:
+        # pick only known fields for this dataclass
+        kwargs = {f.name: d.get(f.name) for f in fields(cls)}
+        return cls(**kwargs)  # type: ignore
+
+    @classmethod
+    def matches(cls, d: Dict[str, Any]) -> bool:
+        return d.get("type") == cls.type_tag
+
+
+@dataclass
+class GitHubNotificationConfig(BaseNotificationConfig):
+    type: str = "github"
+    repo: str = ""
+    issue_number: str = ""
+    type_tag: ClassVar[str] = "github"
+
+    def create_github_comment(self, body: str, github_token: str) -> Dict[str, Any]:
+        """
+            Create a new comment on a GitHub issue.
+            Args:
+                notification_config: dict with keys:
+                    - type: must be "github"
+                    - repo: "owner/repo"
+                    - issue: issue number (string or int)
+                body: text of the comment
+                token: GitHub personal access token or GitHub Actions token
+
+                Returns:
+                    The GitHub API response as a dict (JSON).
+        """
+        url = f"https://api.github.com/repos/{self.repo}/issues/{self.issue_number}/comments"
+        headers = {
+            "Authorization": f"token {github_token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "bench-reporter/1.0",
+        }
+        resp = requests.post(url, headers=headers, json={"body": body})
+        resp.raise_for_status()
+        return resp.json()
+
 
 @dataclass
 class Policy:
@@ -159,8 +206,12 @@ class Policy:
     range: RangeConfig
     metrics: Dict[str, RegressionPolicy]
 
-    # TODO(elainewy): add notification config
     notification_config: Optional[Dict[str, Any]] = None
+
+    def get_github_notification_config(self) -> Optional[GitHubNotificationConfig]:
+        if not self.notification_config:
+            return None
+        return notification_from_dict(self.notification_config)  # type: ignore
 
 
 # -------- Top-level benchmark regression config --------
