@@ -173,9 +173,9 @@ class BenchmarkSummaryProcessor:
             latest_meta_info=latest_meta_info,
             result=result,
             db_table_name=BENCHMARK_REGRESSION_REPORT_TABLE,
+            time_range=latest.time_range,
         )
-        reportManager.run(cc)
-
+        reportManager.run(cc, ENVS["GITHUB_TOKEN"])
         return
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):

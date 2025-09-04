@@ -6,6 +6,7 @@ import uuid
 from typing import Any, Dict, List
 
 import clickhouse_connect
+from common.benchmark_time_series_api_model import TimeRange
 from common.config_model import BenchmarkConfig, Frequency
 from common.regression_utils import PerGroupResult
 from jinja2 import Template
@@ -17,11 +18,17 @@ logger = logging.getLogger()
 REPORT_MD_TEMPLATE = """# Benchmark Report {{id}}
 config_id: `{{ report_id }}`
 
+We have detected {{ status }} in the benchmark results for {{ report_id }}:
+
 > **Status:** {{ status }} · **Frequency:** {{ frequency }}
 
-## Latest
+## Data time range used to detect regression
+- **Start:** `{{ time_range.start }}`
+- **End:** `{{ time_range.end }}`
+
+## Latest Benchmark Run We Used for Report
 - **Timestamp:** `{{ latest.timestamp | default('') }}`
-- **Commit:** `{{ (latest.commit | default(''))[:12] }}`
+- **Commit:** `{{ latest.commit | default('') }}`
 - **Branch:** `{{ latest.branch | default('') }}`
 - **Workflow ID:** `{{ latest.workflow_id | default('') }}`
 
@@ -33,6 +40,20 @@ config_id: `{{ report_id }}`
 | Suspicious | {{ summary.suspicious_count | default(0) }} |
 | No Regression | {{ summary.no_regression_count | default(0) }} |
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
+
+{% if regression_items and regression_items|length > 0 %}
+## Regression Details
+
+{% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
+{% for item in items %}
+- **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
+{% endfor %}
+
+{% if regression_items|length > 10 %}
+... (showing first 10 only, total {{ regression_items|length }} regressions)
+See details in the full report: `{{ report_id }}`
+{% endif %}
+{% endif %}
 """
 
 
@@ -48,9 +69,11 @@ class ReportManager:
         config: BenchmarkConfig,
         regression_summary: Dict[str, Any],
         latest_meta_info: Dict[str, Any],
+        time_range: TimeRange,
         result: List[PerGroupResult],
         type: str = "general",
         repo: str = "pytorch/pytorch",
+        is_dry_run: bool = False,
     ):
         self.regression_summary = regression_summary
         self.regression_result = result
@@ -70,6 +93,8 @@ class ReportManager:
         self.repo = repo
         self.db_table_name = db_table_name
         self.id = str(uuid.uuid4())
+        self.time_range = time_range
+        self.is_dry_run = is_dry_run
 
     def run(
         self, cc: clickhouse_connect.driver.client.Client, github_token: str
@@ -103,6 +128,7 @@ class ReportManager:
         logger.info("[%s] done. comment is sent to github", self.config_id)
 
     def _to_markdoown(self):
+        self.regression_items = self._collect_regression_items()
         md = Template(REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True).render(
             id=self.id,
             status=self.status,
@@ -110,8 +136,17 @@ class ReportManager:
             summary=self.regression_summary,
             latest=self.latest_meta_info,
             frequency=self.config.policy.frequency.get_text(),
+            regression_items=self.regression_items,
+            time_range=self.time_range,
         )
         return md
+
+    def _collect_regression_items(self) -> list[PerGroupResult]:
+        items = []
+        for item in self.regression_result:
+            if item["label"] == "regression":
+                items.append(item)
+        return items
 
     def insert_to_db(
         self,
@@ -129,7 +164,6 @@ class ReportManager:
                 f"timestamp from latest is required, latest is {self.latest_meta_info}"
             )
 
-        # ---- 转 UTC，并格式成 ClickHouse 友好的 'YYYY-MM-DD HH:MM:SS' ----
         aware = dt.datetime.fromisoformat(latest_ts_str.replace("Z", "+00:00"))
         utc_naive = aware.astimezone(dt.timezone.utc).replace(tzinfo=None)
         last_record_ts = utc_naive.strftime("%Y-%m-%d %H:%M:%S")
