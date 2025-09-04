@@ -19,11 +19,8 @@ all_runs as (
     default.workflow_run as workflow_run FINAL
     JOIN pushes as push ON workflow_run.head_sha = push.sha
   WHERE
-     (
-      -- Limit it to workflows which block viable/strict upgrades
-      lower(workflow_run.name) in {workflowNames:Array(String)}
-      OR workflow_run.name like 'linux-binary%'
-    )
+    -- Limit it to workflows which block viable/strict upgrades
+    lower(workflow_run.name) in {workflowNames:Array(String)}
     AND workflow_run.event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
     and workflow_run.id in (
         select id from materialized_views.workflow_run_by_head_sha

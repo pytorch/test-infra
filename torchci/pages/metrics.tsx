@@ -470,7 +470,14 @@ export default function Page() {
     JSON.stringify({
       ...timeParams,
       // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-      workflowNames: ["lint", "pull", "trunk"],
+      workflowNames: [
+        "lint",
+        "pull",
+        "trunk",
+        "linux-binary-libtorch-release",
+        "linux-binary-manywheel",
+        "linux-aarch64",
+      ],
     })
   )}`;
 
