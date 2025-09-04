@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
+import json
 import logging
 import os
 import threading
@@ -43,7 +44,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -146,7 +149,6 @@ class BenchmarkSummaryProcessor:
             print("regression_detected: ", regression_summary)
             print(json.dumps(result, indent=2, default=str))
         return
-
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range

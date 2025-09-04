@@ -1,12 +1,13 @@
 CREATE TABLE fortesting.benchmark_regression_report
 (
     `id` UUID DEFAULT generateUUIDv4(),
-    `report_id` String, -- unique id for the report config
+    `report_id` String,
     `created_at` DateTime64(0, 'UTC') DEFAULT now(),
     `last_record_ts` DateTime64(0, 'UTC'),
+    `stamp` Date DEFAULT toDate(last_record_ts),
     `last_record_commit` String,
-    `type` String, -- e.g. 'daily','weekly'
-    `status` String, -- e.g. 'no_regression',"regression",'failure'
+    `type` String,
+    `status` String,
     `regression_count` UInt32 DEFAULT 0,
     `insufficient_data_count` UInt32 DEFAULT 0,
     `suspected_regression_count` UInt32 DEFAULT 0,
@@ -16,10 +17,10 @@ CREATE TABLE fortesting.benchmark_regression_report
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(created_at)
-ORDER BY
-(
+ORDER BY (
     report_id,
     type,
+    stamp,
     status,
     last_record_ts,
     last_record_commit,
@@ -28,4 +29,4 @@ ORDER BY
     id
 )
 TTL created_at + toIntervalYear(10)
-SETTINGS index_granularity = 8192;
+SETTINGS index_granularity = 8192
