@@ -3,9 +3,6 @@
 terraform.tfstate*
 *.tfplan
 
-# Official tf state will be in AWS. This file is for local development only.
-.terraform.lock.hcl
-
 # Lambda build artifacts
 lambda/node_modules/
 lambda/dist/
@@ -13,3 +10,6 @@ infra/lambda.zip
 
 # Misc
 .DS_Store
+
+# Include tfvars files (override parent .gitignore)
+!*.tfvars*
