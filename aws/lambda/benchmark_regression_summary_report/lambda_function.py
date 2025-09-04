@@ -9,10 +9,7 @@ from typing import Any, Optional
 
 import clickhouse_connect
 import requests
-from common.benchmark_time_series_api_model import (
-    BenchmarkTimeSeriesApiResponse,
-    get_latest_meta_info,
-)
+from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
 from dateutil.parser import isoparse
@@ -138,20 +135,13 @@ class BenchmarkSummaryProcessor:
                 f"with frequency {report_freq.get_text()}..."
             )
 
-        self.log_info("get latest data")
-        latest, ls, le = self.get_latest(config, self.end_time)
-        if not latest:
+        self.log_info("get target data")
+        target, ls, le = self.get_target(config, self.end_time)
+        if not target:
             self.log_info(
-                f"no latest data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
+                f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
             return
-
-        latest_meta_info = get_latest_meta_info(latest.time_series)
-        if not latest_meta_info:
-            self.log_error("no meta info found for latest data")
-            return
-        self.log_info(f"latest data info: {latest_meta_info}")
-
         baseline, bs, be = self.get_baseline(config, self.end_time)
         if not baseline:
             self.log_info(
@@ -160,32 +150,29 @@ class BenchmarkSummaryProcessor:
             return
         return
 
-    def get_latest(self, config: BenchmarkConfig, end_time: int):
+    def get_target(self, config: BenchmarkConfig, end_time: int):
         data_range = config.policy.range
-        latest_s = end_time - data_range.comparison_timedelta_s()
-        latest_e = end_time
+        target_s = end_time - data_range.comparison_timedelta_s()
+        target_e = end_time
         self.log_info(
-            f"get baseline data for time range [{format_ts_with_t(latest_s)},{format_ts_with_t(latest_e)}]"
+            f"get baseline data for time range [{format_ts_with_t(target_s)},{format_ts_with_t(target_e)}]"
         )
-        latest_data = self._fetch_from_benchmark_ts_api(
+        target_data = self._fetch_from_benchmark_ts_api(
             config_id=config.id,
-            start_time=latest_s,
-            end_time=latest_e,
+            start_time=target_s,
+            end_time=target_e,
             source=config.source,
         )
-        logger.info(
-            "[%s] found %s # of data, with time range %s",
-            config.id,
-            len(latest_data.time_series),
-            latest_data.time_range,
+        self.log_info(
+            f"found {len(target_data.time_series)} # of data, with time range {target_data.time_range}",
         )
-        if not latest_data.time_range or not latest_data.time_range.end:
-            return None, latest_s, latest_e
+        if not target_data.time_range or not target_data.time_range.end:
+            return None, target_s, target_e
 
-        latest_ts = int(isoparse(latest_data.time_range.end).timestamp())
-        if not self.should_use_data(config.id, latest_ts, end_time):
-            return None, latest_s, latest_e
-        return latest_data, latest_s, latest_e
+        target_ts = int(isoparse(target_data.time_range.end).timestamp())
+        if not self.should_use_data(target_ts, end_time):
+            return None, target_s, target_e
+        return target_data, target_s, target_e
 
     def get_baseline(self, config: BenchmarkConfig, end_time: int):
         data_range = config.policy.range
@@ -202,28 +189,26 @@ class BenchmarkSummaryProcessor:
             source=config.source,
         )
 
-        logger.info(
-            "[%s] found %s # of data, with time range %s",
-            config.id,
-            len(raw_data.time_series),
-            raw_data.time_range,
+        self.log_info(
+            f"get baseline data for time range [{format_ts_with_t(baseline_s)},{format_ts_with_t(baseline_e)}]"
+        )
+
+        self.log_info(
+            f"found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
         )
 
         baseline_latest_ts = int(isoparse(raw_data.time_range.end).timestamp())
 
-        if not self.should_use_data(config.id, baseline_latest_ts, baseline_e):
-            logger.info(
-                "[%s][get_basline] Skip generate report, no data found during [%s,%s]",
-                config.id,
-                format_ts_with_t(baseline_s),
-                format_ts_with_t(baseline_e),
+        if not self.should_use_data(baseline_latest_ts, baseline_e):
+            self.log_info(
+                "[get_basline] Skip generate report, no data found during "
+                f"[{format_ts_with_t(baseline_s)},{format_ts_with_t(baseline_e)}]"
             )
             return None, baseline_s, baseline_e
         return raw_data, baseline_s, baseline_e
 
     def should_use_data(
         self,
-        config_id: str,
         latest_ts: int,
         end_time: int,
         min_delta: Optional[dt.timedelta] = None,
@@ -239,12 +224,7 @@ class BenchmarkSummaryProcessor:
 
         if latest_ts >= cutoff:
             return True
-        logger.info(
-            "[%s] expect latest data to be after %s, but got %s",
-            config_id,
-            cutoff,
-            latest_ts,
-        )
+        self.log_info(f"expect latest data to be after {cutoff}, but got {latest_ts}")
         return False
 
     def _fetch_from_benchmark_ts_api(
@@ -292,14 +272,14 @@ class BenchmarkSummaryProcessor:
                     if (e.response is not None and hasattr(e.response, "text"))
                     else str(e)
                 )
-            logger.error(
-                "[%s] call FAILED in %.1f ms: %s", config_id, elapsed_ms, err_msg
+            self.log_error(
+                f"[{config_id}] call FAILED in {elapsed_ms} ms: {err_msg}",
             )
             raise
 
         except Exception as e:
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
-            logger.error("[%s] call CRASHED in %.1f ms", config_id, elapsed_ms)
+            self.log_error(f"call CRASHED in {elapsed_ms} ms: {e}")
             raise RuntimeError(f"[{config_id}]Fetch failed: {e}")
 
     def _should_generate_report(
@@ -331,35 +311,26 @@ class BenchmarkSummaryProcessor:
         latest_record_ts = _get_latest_record_ts(cc, config_id)
         # No report exists yet, generate
         if not latest_record_ts:
-            logger.info("[%s] no latest record ts from db for the config_id", config_id)
+            self.log_info(
+                f"no latest record ts from db for the config_id, got {latest_record_ts}"
+            )
             return True
-        logger.info(
-            "[%s] found latest record ts from db %s", config_id, latest_record_ts
-        )
+        self.log_info(f"found latest record ts from db {latest_record_ts}")
         time_boundary = latest_record_ts + freq_delta
         should_generate = end_time > time_boundary
 
         if not should_generate:
-            logger.info(
-                "[%s][frequency(%s)] skip generate report. end_time(%s) must greater than "
-                "time_boundary(%s) based on latest_record_ts(%s)",
-                config_id,
-                f.get_text(),
-                end_time,
-                format_ts_with_t(time_boundary),
-                format_ts_with_t(latest_record_ts),
+            self.log_info(
+                f"[{f.get_text()}] skip generate report. end_time({format_ts_with_t(end_time)})"
+                f" must greater than time_boundary({format_ts_with_t(time_boundary)})"
+                f"based on latest_record_ts({format_ts_with_t(latest_record_ts)})",
             )
         else:
-            logger.info(
-                "[%s][frequency(%s)] plan to generate report. end_time(%s) is greater than "
-                "time_boundary(%s) based on latest_record_ts(%s)",
-                config_id,
-                f.get_text(),
-                end_time,
-                time_boundary,
-                latest_record_ts,
+            self.log_info(
+                f"[{f.get_text()}]plan to generate report. end_time({format_ts_with_t(end_time)}) is greater than "
+                f"time_boundary({format_ts_with_t(time_boundary)})"
+                f"based on latest_record_ts({format_ts_with_t(latest_record_ts)})",
             )
-
         return should_generate
 
 
@@ -472,9 +443,6 @@ def local_run() -> None:
     """
 
     args = parse_args()
-
-    logger.info("args: %s", args)
-
     # update environment variables for input parameters
     main(
         config_id=args.config_id,
