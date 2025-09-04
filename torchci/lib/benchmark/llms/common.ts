@@ -42,6 +42,12 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   p99_ttft_ms: "p99 TTFT (ms)",
   requests_per_second: "Requests/s",
   tokens_per_second: "Tokens/s",
+  triton_speedup: "Triton Speedup",
+  triton_accuracy: "Triton Accuracy",
+  torch_compile_speedup: "Torch Compile Speedup",
+  torch_compile_accuracy: "Torch Compile Accuracy",
+  helion_speedup: "Helion Speedup",
+  helion_accuracy: "Helion Accuracy",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
@@ -71,6 +77,12 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   "Warm compile time (s)": false,
   Speedup: true,
   "Speedup (%)": true,
+  triton_speedup: true,
+  triton_accuracy: true,
+  torch_compile_speedup: true,
+  torch_compile_accuracy: true,
+  helion_speedup: true,
+  helion_accuracy: true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -87,6 +99,9 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
 };
 export const UNIT_FOR_METRIC: { [k: string]: string } = {
   "Speedup (%)": "%",
+  triton_speedup: "x",
+  torch_compile_speedup: "x",
+  helion_speedup: "x",
 };
 
 export const DEFAULT_DEVICE_NAME = "All Devices";
