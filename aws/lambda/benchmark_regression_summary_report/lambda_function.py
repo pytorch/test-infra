@@ -49,7 +49,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client(host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -144,7 +146,6 @@ class BenchmarkSummaryProcessor:
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
             return
-
         generator = BenchmarkRegressionReportGenerator(
             config=config, latest_ts=latest, baseline_ts=baseline
         )
@@ -173,6 +174,7 @@ class BenchmarkSummaryProcessor:
         reportManager.run(cc)
 
         return
+
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range
