@@ -1,0 +1,14 @@
+output "sns_topic_arn" {
+  value       = aws_sns_topic.alerts.arn
+  description = "SNS topic ARN"
+}
+
+output "sqs_queue_url" {
+  value       = aws_sqs_queue.alerts.id
+  description = "SQS queue URL"
+}
+
+output "lambda_name" {
+  value       = aws_lambda_function.alerts_handler.function_name
+  description = "Lambda function name"
+}
