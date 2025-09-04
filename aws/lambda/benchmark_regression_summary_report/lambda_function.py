@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
+import json
 import logging
 import os
 import threading
@@ -173,7 +174,6 @@ class BenchmarkSummaryProcessor:
         reportManager.run(cc)
 
         return
-
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
         data_range = config.policy.range
