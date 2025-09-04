@@ -15,7 +15,7 @@ import dayjs from "dayjs";
  * @param deviceName The name of the device.
  * @param archName The name of the architecture.
  * @param granularity The granularity of the graph.
- *
+ * @param repos Compares multiple repos.
  */
 export interface LLMsBenchmarkProps {
   repoName: string;
@@ -36,4 +36,5 @@ export interface LLMsBenchmarkProps {
   rCommit: string;
   lBranch: string;
   rBranch: string;
+  repos: string[];
 }

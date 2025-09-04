@@ -96,6 +96,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
     repo: props.repoName,
     startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    repos: props.repos,
   };
   return queryParams;
 }
@@ -311,6 +312,8 @@ const toRowData = (
       device: device,
       arch: arch,
     };
+
+    row["repo_name"] = repoName;
 
     if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
       // These fields are only available on vLLM benchmark

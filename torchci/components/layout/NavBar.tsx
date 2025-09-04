@@ -122,6 +122,10 @@ function NavBar() {
       name: "SGLang",
       href: "/benchmark/llms?repoName=sgl-project%2Fsglang",
     },
+    {
+      name: "vLLM vs SGLang",
+      href: "/benchmark/llms?repos=vllm-project%2Fvllm%2Csgl-project%2Fsglang",
+    }
   ];
 
   const devInfraDropdown = [

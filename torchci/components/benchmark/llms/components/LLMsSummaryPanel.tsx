@@ -63,6 +63,7 @@ export default function LLMsSummaryPanel({
   archName: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
+  repos: string[];
 }) {
   // The left (base commit)
   const lBranch = lPerfData.branch;
@@ -155,6 +156,19 @@ export default function LLMsSummaryPanel({
       },
     },
   ];
+
+  // Add source repository column for multi-repo comparisons
+  const shouldShowRepoColumn = data.some(row => row.sourceRepo);
+  if (shouldShowRepoColumn) {
+    columns.push({
+      field: "sourceRepo",
+      headerName: "Repository",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return params.value || repoName;
+      },
+    });
+  }
 
   const hasMode = data.length > 0 && "mode" in data[0] ? true : false;
   if (hasMode && benchmarkName === "TorchCache Benchmark") {

@@ -57,10 +57,25 @@ export default function LLMsBenchmarkPage() {
     rCommit: "",
     lBranch: MAIN_BRANCH,
     rBranch: MAIN_BRANCH,
+    repos: [],
   };
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
 
+  if(props.repos && props.repos.length > 0) {
+    console.log("Rendering the different main page");
+    return (
+      <MainPageForComparison
+        props={props}
+        dispatch={dispatch}
+        defaultStartTime={defaultStartTime}
+        defaultStopTime={defaultStopTime}
+        router={router}
+      />
+    );
+  }
+
+  // Default MainPage for single repo
   // pass initial state in runtime for benchmark props
   return (
     <MainPage
@@ -88,7 +103,7 @@ const PrefetchRender = ({
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        {getBenchmarkName(props.benchmarkName, props.repoName)}
+        {getBenchmarkName(props.benchmarkName, props.repoName, props.repos)}
         {formLink(props, baseUrl)}
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -190,12 +205,173 @@ const MainPage = ({
   }
 
   const options = data;
+  console.log("Options: ", options);
   const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
+  console.log("Dropdown Map List: ", dropdownMapList);
+  console.log("Metric Names: ", metricNames);
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        {getBenchmarkName(props.benchmarkName, props.repoName)}
+        {getBenchmarkName(props.benchmarkName, props.repoName, props.repos)}
+        {formLink(props, baseUrl)}
+      </Stack>
+      <LLMsDashboardPicker
+        options={dropdownMapList}
+        props={props}
+        dispatch={dispatch}
+        queryParams={queryParams}
+      />
+      <LLMsReport
+        props={props}
+        metricNames={metricNames}
+        benchmarkPropsQueryParams={queryParams}
+      />
+    </div>
+  );
+};
+
+/**
+ * @returns Main page for the LLMs dashboard comparison mode
+ * the page is routed in pagesM/bencmark/llms.tsx
+ */
+const MainPageForComparison = ({
+  defaultStartTime,
+  defaultStopTime,
+  props,
+  dispatch,
+  router,
+}: {
+  defaultStartTime: dayjs.Dayjs;
+  defaultStopTime: dayjs.Dayjs;
+  router: NextRouter;
+  props: LLMsBenchmarkProps;
+  dispatch: React.Dispatch<any>;
+}) => {
+  const [baseUrl, setBaseUrl] = useState<string>("");
+  const [allRepoData, setAllRepoData] = useState<any[]>([]);
+  const [allRepoErrors, setAllRepoErrors] = useState<any[]>([]);
+  const [allRepoLoading, setAllRepoLoading] = useState<boolean[]>([]);
+
+  useEffect(() => {
+    const newProps = resetProps(
+      router.query,
+      props,
+      defaultStartTime,
+      defaultStopTime
+    );
+    dispatch({ type: "UPDATE_FIELDS", payload: newProps });
+    setBaseUrl(
+      `${window.location.protocol}//${
+        window.location.host
+      }${router.asPath.replace(/\?.+/, "")}`
+    );
+  }, [router.query]);
+
+  // Create query parameters for each repository
+  const repoQueryParams = props.repos.map((repo) => {
+    const repoSpecificProps = { ...props, repoName: repo };
+    return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
+  });
+
+  // Fetch data for all repositories
+  const repoDataHooks = repoQueryParams.map((queryParam) => {
+    const { data, error, isLoading } = useBenchmarkPropsData(queryParam);
+    return { data, error, isLoading };
+  });
+
+  // Update state when data changes
+  useEffect(() => {
+    const data = repoDataHooks.map(hook => hook.data);
+    const errors = repoDataHooks.map(hook => hook.error);
+    const loading = repoDataHooks.map(hook => hook.isLoading);
+
+    setAllRepoData(data);
+    setAllRepoErrors(errors);
+    setAllRepoLoading(loading);
+  }, [repoDataHooks]);
+
+  console.log("All Repo Data: ", allRepoData);
+
+  // Check if any repository has an error
+  const hasError = allRepoErrors.some(error => error);
+  if (hasError) {
+    const errorRepos = props.repos.filter((_, index) => allRepoErrors[index]);
+    return (
+      <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
+        <>
+          Error loading data for repositories: {errorRepos.join(", ")}
+          , please select different time range, if this happens again, please
+          reach out to the pytorch team.
+        </>
+      </PrefetchRender>
+    );
+  }
+
+  // Check if any repository is still loading
+  const isAnyLoading = allRepoLoading.some(loading => loading);
+  const hasAllData = allRepoData.every(data => data !== undefined);
+
+  if (!hasAllData || isAnyLoading) {
+    return (
+      <div>
+        <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
+          <>
+            Loading comparison data for repositories: {props.repos.join(", ")}
+            , please wait a moment...
+          </>
+        </PrefetchRender>
+        <div>
+          <LoadingPage />
+        </div>
+      </div>
+    );
+  }
+
+  // Check if any repository has no data
+  const hasEmptyData = allRepoData.some(data => data.length === 0);
+  if (hasEmptyData) {
+    const emptyRepos = props.repos.filter((_, index) => allRepoData[index]?.length === 0);
+    return (
+      <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
+        <>
+          Found no records for repositories: {emptyRepos.join(", ")}
+          , please select different time range
+        </>
+      </PrefetchRender>
+    );
+  }
+
+  // Combine data from all repositories and add repository identification
+  const combinedData = allRepoData.flatMap((repoData, index) => {
+    const repo = props.repos[index];
+
+    return repoData.map((dataItem: any) => ({
+      ...dataItem,
+      sourceRepo: repo
+    }));
+  });
+  console.log("Combined Data with Repository Info: ", combinedData);
+
+  // Create dropdown features using the first repository as base
+  // This assumes similar structure across repositories
+  const dropdownMapList = getBenchmarkDropdownFeatures(
+    combinedData,
+    props.repos[0]
+  );
+
+  // Get unique metric names across all repositories
+  const metricNames = getMetricNames(combinedData);
+  console.log("Combined Dropdown Map List: ", dropdownMapList);
+  console.log("Combined Metric Names: ", metricNames);
+
+  // Use the original query params but now it includes the repos array
+  const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
+
+  return (
+    <div>
+      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+        {getBenchmarkName(props.benchmarkName, props.repoName, props.repos)}
         {formLink(props, baseUrl)}
       </Stack>
       <LLMsDashboardPicker
@@ -251,6 +427,18 @@ function resetProps(
   if (repoName !== undefined && repoName) {
     newProps.repoName = repoName;
   }
+
+  // Handle multiple repos for comparison mode
+  const repos = urlQuery.repos;
+  if (repos !== undefined) {
+    if (Array.isArray(repos)) {
+      newProps.repos = repos;
+    } else if (typeof repos === 'string') {
+      // Handle comma-separated string
+      newProps.repos = repos.split(',').map(repo => repo.trim());
+    }
+  }
+  console.log("Repos: ", newProps.repos);
 
   const benchmarkName: string = (urlQuery.benchmarkName as string) ?? undefined;
   if (benchmarkName != undefined) {
@@ -310,7 +498,32 @@ function resetProps(
   return newProps;
 }
 
-const getBenchmarkName = (benchmarkName: string | any, repoName: string) => {
+const getBenchmarkName = (benchmarkName: string | any, repoName: string, repos: string[]) => {
+  if (repos && repos.length > 0) {
+    // Generate dynamic title for comparison mode using benchmark names
+    const benchmarkNames = repos.map(repo => {
+      // Get the benchmark name from REPOS_TO_BENCHMARKS mapping
+      const repoKey = repo.trim();
+      if (REPO_TO_BENCHMARKS[repoKey] && REPO_TO_BENCHMARKS[repoKey].length > 0) {
+        // Use the first benchmark name for each repo
+        return REPO_TO_BENCHMARKS[repoKey][0];
+      }
+      // Fallback to repository name if no mapping found
+      const parts = repo.split('/');
+      return parts[parts.length - 1];
+    });
+
+    const title = benchmarkNames.length === 2
+      ? `${benchmarkNames[1]} vs ${benchmarkNames[0]} Comparison Dashboard`
+      : `Multi-Repository Comparison Dashboard (${benchmarkNames.join(', ')})`;
+
+    return (
+      <Typography fontSize={"2rem"} fontWeight={"bold"}>
+        {title}
+      </Typography>
+    );
+  }
+
   return (
     <Typography fontSize={"2rem"} fontWeight={"bold"}>
       {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]} dashboard

@@ -29,6 +29,23 @@ export const LLMsDashboardPicker = ({
   const handleChange = (key: string, newVal: any) => {
     dispatch({ type: "UPDATE_FIELD", field: key, value: newVal });
   };
+
+  // For comparison mode, only show time range picker and limited filters
+  if(props.repos && props.repos.length > 1) {
+    return (
+      <div>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <LLMsTimeRangePicker props={props} dispatch={dispatch} />
+          <LLMsDropdownGroup
+            onChange={handleChange}
+            props={props}
+            optionListMap={options}
+          />
+        </Stack>
+      </div>
+    );
+  }
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

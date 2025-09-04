@@ -75,6 +75,46 @@ export default function LLMsReport({
     }
   }
 
+  if (props.repos && props.repos.length > 1) {
+    return (
+      <div>
+        <LLMsGraphPanel
+          queryParams={benchmarkPropsQueryParams}
+          granularity={props.granularity}
+          repoName={props.repoName}
+          benchmarkName={props.benchmarkName}
+          modelName={props.modelName}
+          backendName={props.backendName}
+          dtypeName={props.dtypeName}
+          deviceName={props.deviceName}
+          metricNames={metricNames}
+          lBranchAndCommit={lBranchAndCommit}
+          rBranchAndCommit={rBranchAndCommit}
+        />
+        <LLMsSummaryPanel
+          startTime={props.startTime}
+          stopTime={props.stopTime}
+          granularity={props.granularity}
+          repoName={props.repoName}
+          benchmarkName={props.benchmarkName}
+          modelName={props.modelName}
+          backendName={props.backendName}
+          metricNames={metricNames}
+          archName={props.archName}
+          lPerfData={{
+            ...lBranchAndCommit,
+            data: lDataWithSpeedup,
+          }}
+          rPerfData={{
+            ...rBranchAndCommit,
+            data: rDataWithSpeedup,
+          }}
+          repos={props.repos}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       <CommitPanel
@@ -128,6 +168,7 @@ export default function LLMsReport({
           ...rBranchAndCommit,
           data: rDataWithSpeedup,
         }}
+        repos={props.repos}
       />
     </div>
   );
