@@ -62,3 +62,57 @@ uv tool install terraform-local
 Notes
 - Ensure you rebuild the Lambda (`yarn build`) before each `terraform apply` if handler code changes.
 - For shared environments, switch to S3 state + DynamoDB lock before multi-user use.
+
+## Environments (dev/prod)
+This repo supports two isolated AWS environments in different regions using
+Terraform workspaces and per-env tfvars files.
+
+- Dev (us-west-2): `infra/dev.us-west-2.tfvars` with `name_prefix=alerting-dev`.
+- Prod (us-east-1): `infra/prod.us-east-1.tfvars` with `name_prefix=alerting-prod`.
+
+Makefile shortcuts
+- Build: `make build`
+- Init backend (dev/prod): `make aws-init-dev` / `make aws-init-prod`
+- Deploy dev: `make aws-apply-dev`
+- Deploy prod: `make aws-apply-prod`
+- Publish test (dev): `make aws-publish-dev`
+- Publish test (prod): `make aws-publish-prod`
+- Tail logs (dev): `make aws-logs-dev`
+- Tail logs (prod): `make aws-logs-prod`
+
+Behind the scenes, each target selects a Terraform workspace (`dev`/`prod`) and
+uses a dedicated TF data dir to keep backend inits separate (`infra/.terraform-dev`
+and `infra/.terraform-prod`). State is isolated per env via distinct S3 keys and
+separate DynamoDB lock tables. Resource names are prefixed via `name_prefix`.
+
+### Remote state (recommended for dev/prod)
+We configure per-env backends explicitly
+using `infra/backend-dev.hcl` and `infra/backend-prod.hcl`.
+
+
+Manual backend.hcl examples:
+
+backend.dev.hcl
+```
+bucket         = "<your-dev-tfstate-bucket>"
+key            = "alerting/dev/terraform.tfstate"
+region         = "us-west-2"
+dynamodb_table = "<your-dev-tflock-table>"
+encrypt        = true
+```
+
+backend.prod.hcl
+```
+bucket         = "<your-prod-tfstate-bucket>"
+key            = "alerting/prod/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "<your-prod-tflock-table>"
+encrypt        = true
+```
+
+Usage:
+- Dev: `cd infra && terraform init -reconfigure -backend-config=../backend.dev.hcl`
+- Prod: `cd infra && terraform init -reconfigure -backend-config=../backend.prod.hcl`
+
+You can continue using the same `make aws-apply-*` targets after initializing the
+backend for each environment.
