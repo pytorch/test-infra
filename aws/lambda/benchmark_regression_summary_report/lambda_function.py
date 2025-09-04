@@ -357,7 +357,7 @@ class BenchmarkSummaryProcessor:
 
         if not should_generate:
             logger.info(
-                "[%s][frequency(%s)] skip generate report. end_time(%s) must greater than"
+                "[%s][frequency(%s)] skip generate report. end_time(%s) must greater than "
                 "time_boundary(%s) based on latest_record_ts(%s)",
                 config_id,
                 f.get_text(),
@@ -367,7 +367,7 @@ class BenchmarkSummaryProcessor:
             )
         else:
             logger.info(
-                "[%s][frequency(%s)] plan to generate report. end_time(%s) is greater than"
+                "[%s][frequency(%s)] plan to generate report. end_time(%s) is greater than "
                 "time_boundary(%s) based on latest_record_ts(%s)",
                 config_id,
                 f.get_text(),
