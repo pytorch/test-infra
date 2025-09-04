@@ -49,6 +49,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
+    logger.info("get_clickhouse_client ....")
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True, verify=False
     )
@@ -115,12 +116,13 @@ class BenchmarkSummaryProcessor:
 
         # check if the current time is > policy's time_delta + previous record_ts from summary_table
         report_freq = config.policy.frequency
+
         should_generate = self._should_generate_report(
             cc, end_time, config_id, report_freq
         )
         if not should_generate:
             log_info(
-                f"Skip generate report for time:{end_time} with frequency {report_freq.get_text()}, no data found",
+                "Skip generate report",
             )
             return
         else:
@@ -326,6 +328,7 @@ class BenchmarkSummaryProcessor:
                 """,
                 parameters={"config_id": config_id},
             )
+
             if not res.result_rows or res.result_rows[0][0] is None:
                 return None
             latest: dt.datetime = res.result_rows[0][
@@ -338,16 +341,31 @@ class BenchmarkSummaryProcessor:
 
         freq_delta = f.to_timedelta()
         latest_record_ts = _get_latest_record_ts(cc, config_id)
-
         # No report exists yet, generate
         if not latest_record_ts:
+            logger.info("[%s] no latest record ts from db for the config_id", config_id)
             return True
+        logger.info(
+            "[%s] found latest record ts from db %s", config_id, latest_record_ts
+        )
         end_utc = (
             end_time if end_time.tzinfo else end_time.replace(tzinfo=dt.timezone.utc)
         )
         end_utc = end_utc.astimezone(dt.timezone.utc)
-        cutoff = end_time - freq_delta
-        return latest_record_ts < cutoff
+        time_boundary = latest_record_ts + freq_delta
+        should_generate = end_time > time_boundary
+
+        if not should_generate:
+            logger.info(
+                "[%s][frequency(%s)] skip generate report.end_time must greater than"
+                "time_boundary %s based on latest_record_ts %s, current end_time is %s",
+                config_id,
+                f.get_text(),
+                time_boundary,
+                latest_record_ts,
+                end_time,
+            )
+        return should_generate
 
 
 class WorkerPoolHandler:
