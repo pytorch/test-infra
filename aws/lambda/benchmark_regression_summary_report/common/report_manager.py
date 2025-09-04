@@ -18,7 +18,8 @@ logger = logging.getLogger()
 REPORT_MD_TEMPLATE = """# Benchmark Report {{id}}
 config_id: `{{ report_id }}`
 
-We have detected {{ status }} in the benchmark results for {{ report_id }}:
+We have detected {{ status }} in the benchmark results for {{ report_id }}.
+See details in the full report for report type `{{ report_id }}` with id `{{ id }}` in HUD[comming soon...]
 
 > **Status:** {{ status }} · **Frequency:** {{ frequency }}
 
@@ -42,7 +43,7 @@ We have detected {{ status }} in the benchmark results for {{ report_id }}:
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
 
 {% if regression_items and regression_items|length > 0 %}
-## Regression Details
+## Regression Glance
 
 {% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
 {% for item in items %}
@@ -51,15 +52,16 @@ We have detected {{ status }} in the benchmark results for {{ report_id }}:
 
 {% if regression_items|length > 10 %}
 ... (showing first 10 only, total {{ regression_items|length }} regressions)
-See details in the full report: `{{ report_id }}`
 {% endif %}
 {% endif %}
+
 """
 
 
 class ReportManager:
     """
     handles db insertion and notification processing
+    Currently, it only supports clickhouse as db and github as notification channel (via github api)
     """
 
     def __init__(
@@ -99,6 +101,9 @@ class ReportManager:
     def run(
         self, cc: clickhouse_connect.driver.client.Client, github_token: str
     ) -> None:
+        """
+        main method used to insert the report to db and create github comment in targeted issue
+        """
         try:
             self.insert_to_db(cc)
         except Exception as e:
