@@ -49,7 +49,6 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    logger.info("get_clickhouse_client ...")
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True, verify=False
     )
@@ -92,6 +91,7 @@ class BenchmarkSummaryProcessor:
 
         # ensure each thread has its own clickhouse client. clickhouse client
         # is not thread-safe.
+        log_info("start process, getting clickhouse client")
         if cc is None:
             tlocal = threading.local()
             if not hasattr(tlocal, "cc") or tlocal.cc is None:
@@ -104,9 +104,10 @@ class BenchmarkSummaryProcessor:
                 else:
                     tlocal.cc = get_clickhouse_client_environment()
             cc = tlocal.cc
+        log_info("done. got clickhouse client")
         try:
             config = get_benchmark_regression_config(config_id)
-            log_info(f"found config for config_id {config_id}")
+            log_info(f"found config with config_id: `{config_id}`")
         except ValueError as e:
             log_error(f"Skip process, Invalid config: {e}")
             return
