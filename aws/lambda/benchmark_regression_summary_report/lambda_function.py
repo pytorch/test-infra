@@ -10,10 +10,7 @@ from typing import Any, Optional
 
 import clickhouse_connect
 import requests
-from common.benchmark_time_series_api_model import (
-    BenchmarkTimeSeriesApiResponse,
-    get_latest_meta_info,
-)
+from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
 from common.regression_utils import BenchmarkRegressionReportGenerator
@@ -141,20 +138,13 @@ class BenchmarkSummaryProcessor:
                 f"with frequency {report_freq.get_text()}..."
             )
 
-        self.log_info("get latest data")
-        latest, ls, le = self.get_latest(config, self.end_time)
-        if not latest:
+        self.log_info("get target data")
+        target, ls, le = self.get_target(config, self.end_time)
+        if not target:
             self.log_info(
-                f"no latest data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
+                f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
             return
-
-        latest_meta_info = get_latest_meta_info(latest.time_series)
-        if not latest_meta_info:
-            self.log_error("no meta info found for latest data")
-            return
-        self.log_info(f"latest data info: {latest_meta_info}")
-
         baseline, bs, be = self.get_baseline(config, self.end_time)
         if not baseline:
             self.log_info(
@@ -162,56 +152,44 @@ class BenchmarkSummaryProcessor:
             )
             return
         generator = BenchmarkRegressionReportGenerator(
-            config=config, latest_ts=latest, baseline_ts=baseline
+            config=config, target_ts=target, baseline_ts=baseline
         )
-        result, regression_summary = generator.generate()
+        regression_report = generator.generate()
         if self.is_dry_run:
-            print("regression_detected: ", regression_summary)
-            print(json.dumps(result, indent=2, default=str))
+            print(json.dumps(regression_report, indent=2, default=str))
             return
-        latest_commit = latest_meta_info.get("commit")
-        if not latest_commit:
-            raise ValueError(
-                f"missing commit from latest is required, latest is {latest}"
-            )
-        lastest_ts_str = latest_meta_info.get("timestamp")
-        if not lastest_ts_str:
-            raise ValueError(f"timestamp from latest is required, latest is {latest}")
 
         reportManager = ReportManager(
             config=config,
-            regression_summary=regression_summary,
-            latest_meta_info=latest_meta_info,
-            result=result,
+            regression_report=regression_report,
             db_table_name=BENCHMARK_REGRESSION_REPORT_TABLE,
-            time_range=latest.time_range,
         )
         reportManager.run(cc, ENVS["GITHUB_TOKEN"])
         return
 
-    def get_latest(self, config: BenchmarkConfig, end_time: int):
+    def get_target(self, config: BenchmarkConfig, end_time: int):
         data_range = config.policy.range
-        latest_s = end_time - data_range.comparison_timedelta_s()
-        latest_e = end_time
+        target_s = end_time - data_range.comparison_timedelta_s()
+        target_e = end_time
         self.log_info(
-            f"get baseline data for time range [{format_ts_with_t(latest_s)},{format_ts_with_t(latest_e)}]"
+            f"get baseline data for time range [{format_ts_with_t(target_s)},{format_ts_with_t(target_e)}]"
         )
-        latest_data = self._fetch_from_benchmark_ts_api(
+        target_data = self._fetch_from_benchmark_ts_api(
             config_id=config.id,
-            start_time=latest_s,
-            end_time=latest_e,
+            start_time=target_s,
+            end_time=target_e,
             source=config.source,
         )
         self.log_info(
-            f"found {len(latest_data.time_series)} # of data, with time range {latest_data.time_range}",
+            f"found {len(target_data.time_series)} # of data, with time range {target_data.time_range}",
         )
-        if not latest_data.time_range or not latest_data.time_range.end:
-            return None, latest_s, latest_e
+        if not target_data.time_range or not target_data.time_range.end:
+            return None, target_s, target_e
 
-        latest_ts = int(isoparse(latest_data.time_range.end).timestamp())
-        if not self.should_use_data(config.id, latest_ts, end_time):
-            return None, latest_s, latest_e
-        return latest_data, latest_s, latest_e
+        target_ts = int(isoparse(target_data.time_range.end).timestamp())
+        if not self.should_use_data(target_ts, end_time):
+            return None, target_s, target_e
+        return target_data, target_s, target_e
 
     def get_baseline(self, config: BenchmarkConfig, end_time: int):
         data_range = config.policy.range
@@ -238,7 +216,7 @@ class BenchmarkSummaryProcessor:
 
         baseline_latest_ts = int(isoparse(raw_data.time_range.end).timestamp())
 
-        if not self.should_use_data(config.id, baseline_latest_ts, baseline_e):
+        if not self.should_use_data(baseline_latest_ts, baseline_e):
             self.log_info(
                 "[get_basline] Skip generate report, no data found during "
                 f"[{format_ts_with_t(baseline_s)},{format_ts_with_t(baseline_e)}]"
@@ -248,7 +226,6 @@ class BenchmarkSummaryProcessor:
 
     def should_use_data(
         self,
-        config_id: str,
         latest_ts: int,
         end_time: int,
         min_delta: Optional[dt.timedelta] = None,

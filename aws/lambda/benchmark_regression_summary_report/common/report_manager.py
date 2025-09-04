@@ -3,30 +3,31 @@ import datetime as dt
 import json
 import logging
 import uuid
-from typing import Any, Dict, List
+from typing import Any, Dict
 
 import clickhouse_connect
-from common.benchmark_time_series_api_model import TimeRange
 from common.config_model import BenchmarkConfig, Frequency
-from common.regression_utils import PerGroupResult
+from common.regression_utils import (
+    BenchmarkRegressionReport,
+    get_regression_status,
+    PerGroupResult,
+)
 from jinja2 import Template
 
 
 logger = logging.getLogger()
 
-
-REPORT_MD_TEMPLATE = """# Benchmark Report {{id}}
+REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
 config_id: `{{ report_id }}`
 
 We have detected {{ status }} in the benchmark results for {{ report_id }}.
-See details in the full report for report type `{{ report_id }}` with id `{{ id }}` in HUD[comming soon...]
+See details in the full report for report type `{{ report_id }}` with id `{{ id }}` in HUD (coming soon...)
 
 > **Status:** {{ status }} · **Frequency:** {{ frequency }}
 
 ## Data time range used to detect regression
 - **Start:** `{{ time_range.start }}`
 - **End:** `{{ time_range.end }}`
-
 
 ## Summary
 | Metric | Value |
@@ -37,7 +38,7 @@ See details in the full report for report type `{{ report_id }}` with id `{{ id 
 | No Regression | {{ summary.no_regression_count | default(0) }} |
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
 
-## Latest commit
+##
 - **Timestamp:** `{{ latest.timestamp | default('') }}`
 - **Commit:** `{{ latest.commit | default('') }}`
 - **Branch:** `{{ latest.branch | default('') }}`
@@ -49,18 +50,18 @@ See details in the full report for report type `{{ report_id }}` with id `{{ id 
 {% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
 {% for item in items %}
 - **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
-{% if item.baseline_item %}
-    baseline commit: {{ item.baseline_item.commit }}),
-    workflow_id: {{ item.baseline_item.workflow_id }}),
-    timestamp:{{item.baseline_item.granularity_bucket}}
-{% else %}
-    baseline item is missing
-{% endif %}
+  {% if item.baseline_item %}
+  (baseline commit: {{ item.baseline_item.commit | default('N/A') }},
+   workflow_id: {{ item.baseline_item.workflow_id | default('N/A') }},
+   timestamp: {{ item.baseline_item.granularity_bucket | default('N/A') }})
+  {% else %}
+  (baseline commit: N/A)
+  {% endif %}
+{% endfor %}
 {% if regression_items|length > 10 %}
-... (showing first 10 only, total {{ regression_items|length }} regressions)
+… (showing first 10 only, total {{ regression_items|length }} regressions)
 {% endif %}
 {% endif %}
-
 """
 
 
@@ -74,34 +75,35 @@ class ReportManager:
         self,
         db_table_name: str,
         config: BenchmarkConfig,
-        regression_summary: Dict[str, Any],
-        latest_meta_info: Dict[str, Any],
-        time_range: TimeRange,
-        result: List[PerGroupResult],
+        regression_report: BenchmarkRegressionReport,
         type: str = "general",
         repo: str = "pytorch/pytorch",
         is_dry_run: bool = False,
     ):
-        self.regression_summary = regression_summary
-        self.regression_result = result
+        self.is_dry_run = is_dry_run
+
+        self.report = regression_report
         self.config_id = config.id
         self.config = config
-        self.status = self._resolve_status(regression_summary)
-        self.latest_meta_info = self._validate_latest_meta_info(latest_meta_info)
-        self.report_data = self._to_report_data(
-            config_id=config.id,
-            summary=self.regression_summary,
-            report=self.regression_result,
-            latest=self.latest_meta_info,
-            status=self.status,
-            frequency=self.config.policy.frequency,
-        )
+
         self.type = type
         self.repo = repo
         self.db_table_name = db_table_name
+
         self.id = str(uuid.uuid4())
-        self.time_range = time_range
-        self.is_dry_run = is_dry_run
+
+        # extract latest meta data from report
+        self.baseline = self.report["baseline_meta_data"]
+        self.target = self.report["new_meta_data"]
+        self.target_latest_commit = self.target["end"]["commit"]
+        self.target_latest_ts_str = self.target["end"]["timestamp"]
+        self.status = get_regression_status(self.report["summary"])
+
+        self.report_data = self._to_report_data(
+            config_id=config.id,
+            regression_report=self.report,
+            frequency=self.config.policy.frequency,
+        )
 
     def run(
         self, cc: clickhouse_connect.driver.client.Client, github_token: str
@@ -143,17 +145,17 @@ class ReportManager:
             id=self.id,
             status=self.status,
             report_id=self.config_id,
-            summary=self.regression_summary,
-            latest=self.latest_meta_info,
+            summary=self.report["summary"],
+            latest=self.target,
+            baseline=self.baseline,
             frequency=self.config.policy.frequency.get_text(),
             regression_items=self.regression_items,
-            time_range=self.time_range,
         )
         return md
 
     def _collect_regression_items(self) -> list[PerGroupResult]:
         items = []
-        for item in self.regression_result:
+        for item in self.report["results"]:
             if item["label"] == "regression":
                 items.append(item)
         return items
@@ -168,19 +170,18 @@ class ReportManager:
 
         table = self.db_table_name
 
-        latest_ts_str = self.latest_meta_info.get("timestamp")
+        latest_ts_str = self.target_latest_ts_str
         if not latest_ts_str:
             raise ValueError(
-                f"timestamp from latest is required, latest is {self.latest_meta_info}"
+                f"timestamp from latest is required, latest is {self.target}"
             )
-
         aware = dt.datetime.fromisoformat(latest_ts_str.replace("Z", "+00:00"))
         utc_naive = aware.astimezone(dt.timezone.utc).replace(tzinfo=None)
         last_record_ts = utc_naive.strftime("%Y-%m-%d %H:%M:%S")
 
         try:
             report_json = json.dumps(
-                self.report_data, ensure_ascii=False, separators=(",", ":"), default=str
+                self.report, ensure_ascii=False, separators=(",", ":"), default=str
             )
         except Exception:
             logger.exception(
@@ -189,21 +190,20 @@ class ReportManager:
             )
             raise
 
+        regression_summary = self.report["summary"]
         params = {
             "id": str(self.id),
             "report_id": self.config_id,
             "type": self.type,
-            "status": self.status,
-            "last_record_commit": self.latest_meta_info.get("commit", ""),
+            "status": get_regression_status(self.report["summary"]),
+            "last_record_commit": self.target_latest_commit,
             "last_record_ts": last_record_ts,
-            "regression_count": int(self.regression_summary.get("regression_count", 0)),
+            "regression_count": regression_summary["regression_count"],
             "insufficient_data_count": int(
-                self.regression_summary.get("insufficient_data_count", 0)
+                regression_summary["insufficient_data_count"]
             ),
-            "suspected_regression_count": int(
-                self.regression_summary.get("suspicious_count", 0)
-            ),
-            "total_count": int(self.regression_summary.get("total_count", 0)),
+            "suspected_regression_count": regression_summary["suspicious_count"],
+            "total_count": regression_summary["total_count"],
             "repo": self.repo,
             "report_json": report_json,
         }
@@ -260,16 +260,6 @@ class ReportManager:
             self.id,
         )
 
-    def _resolve_status(self, regression_summary: Dict[str, Any]) -> str:
-        status = (
-            "regression"
-            if regression_summary.get("regression_count", 0) > 0
-            else "suspicious"
-            if regression_summary.get("suspicious_count", 0) > 0
-            else "no_regression"
-        )
-        return status
-
     def _validate_latest_meta_info(
         self, latest_meta_info: Dict[str, Any]
     ) -> Dict[str, Any]:
@@ -288,20 +278,16 @@ class ReportManager:
     def _to_report_data(
         self,
         config_id: str,
-        summary: Dict[str, Any],
-        report: List[Any],  # List[PerGroupResult] or dicts
-        latest: dict[str, Any],  # {"commit","branch","timestamp","workflow_id"}
-        status: str,
+        regression_report: BenchmarkRegressionReport,
         frequency: Frequency,
     ) -> dict[str, Any]:
-        latest_commit = latest.get("commit")
-        if not latest_commit:
+        if not self.target_latest_commit:
             raise ValueError(
-                f"missing commit from latest is required, latest is {latest}"
+                f"missing commit from new is required, latest is {self.target}"
             )
-        lastest_ts_str = latest.get("timestamp")
+        lastest_ts_str = self.target_latest_ts_str
         if not lastest_ts_str:
-            raise ValueError(f"timestamp from latest is required, latest is {latest}")
+            raise ValueError(f"timestamp from new is required, latest is {self.target}")
 
         def to_dict(x):  # handle dataclass or dict/object
             if dataclasses.is_dataclass(x):
@@ -310,11 +296,10 @@ class ReportManager:
                 return x
             return vars(x) if hasattr(x, "__dict__") else {"value": str(x)}
 
+        report = to_dict(regression_report)
         return {
-            "status": status,
+            "status": self.status,
             "report_id": config_id,
-            "summary": summary,
-            "latest": latest,
-            "details": [to_dict(x) for x in report],
+            "report": report,
             "frequency": frequency.get_text(),
         }
