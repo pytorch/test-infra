@@ -45,7 +45,7 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    # return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -119,12 +119,12 @@ class BenchmarkSummaryProcessor:
         )
         if not should_generate:
             log_info(
-                "Skip generate report for time:{end_time} with frequency {report_freq.get_text()}, no data found",
+                f"Skip generate report for time:{end_time} with frequency {report_freq.get_text()}, no data found",
             )
             return
         else:
             log_info(
-                "Plan to generate report for time:{end_time} with frequency {report_freq.get_text()}..."
+                f"Plan to generate report for time:{end_time} with frequency {report_freq.get_text()}..."
             )
         latest, ls, le = self.get_latest(config, end_time)
         if not latest:
@@ -217,6 +217,7 @@ class BenchmarkSummaryProcessor:
 
         if latest_dt >= cutoff:
             return True
+        
         logger.info(
             "[%s] expect latest data to be after %s, but got %s",
             config_id,

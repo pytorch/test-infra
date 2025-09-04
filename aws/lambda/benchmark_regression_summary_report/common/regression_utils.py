@@ -162,7 +162,6 @@ class BenchmarkRegressionReportGenerator:
             "no_regression_count": counts.get("no_regression", 0),
             "insufficient_data_count": counts.get("insufficient_data", 0),
             "is_regression": int(counts.get("regression", 0) > 0),
-            "counts": counts,  # raw counts if you need others
         }
 
     def _label_str(self, x) -> str:
