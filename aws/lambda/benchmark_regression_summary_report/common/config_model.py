@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import timedelta
-from typing import Any, Dict, Literal, Optional
+from typing import Any, ClassVar, Dict, Literal, Optional
 
+import requests
 from jinja2 import Environment, meta, Template
 
 
@@ -35,8 +36,11 @@ class Frequency:
         else:
             raise ValueError(f"Unsupported unit: {self.unit}")
 
+    def to_timedelta_s(self) -> int:
+        return int(self.to_timedelta().total_seconds())
+
     def get_text(self):
-        return f"{self.value} {self.unit}"
+        return f"{self.value}_{self.unit}"
 
 
 # -------- Source --------
@@ -96,11 +100,22 @@ class RangeConfig:
     def total_timedelta(self) -> timedelta:
         return timedelta(days=self.baseline.value + self.comparison.value)
 
+    def total_timedelta_s(self) -> int:
+        return int(
+            timedelta(days=self.baseline.value + self.comparison.value).total_seconds()
+        )
+
     def comparison_timedelta(self) -> timedelta:
         return timedelta(days=self.comparison.value)
 
+    def comparison_timedelta_s(self) -> int:
+        return int(self.comparison_timedelta().total_seconds())
+
     def baseline_timedelta(self) -> timedelta:
         return timedelta(days=self.baseline.value)
+
+    def baseline_timedelta_s(self) -> int:
+        return int(self.baseline_timedelta().total_seconds())
 
 
 # -------- Policy: metrics --------
@@ -121,9 +136,7 @@ class RegressionPolicy:
         "greater_than", "less_than", "equal_to", "greater_equal", "less_equal"
     ]
     threshold: float
-    baseline_aggregation: Literal[
-        "avg", "max", "min", "p50", "p90", "p95", "latest", "earliest"
-    ] = "max"
+    baseline_aggregation: Literal["max", "min", "latest", "earliest"] = "max"
     rel_tol: float = 1e-3  # used only for "equal_to"
 
     def is_violation(self, value: float, baseline: float) -> bool:
@@ -154,13 +167,60 @@ class RegressionPolicy:
 
 
 @dataclass
-class Policy:
-    frequency: Frequency
-    range: RangeConfig
-    metrics: Dict[str, RegressionPolicy]
+class BaseNotificationConfig:
+    # subclasses override this
+    type_tag: ClassVar[str] = ""
 
-    # TODO(elainewy): add notification config
-    notification_config: Optional[Dict[str, Any]] = None
+    @classmethod
+    def matches(cls, d: Dict[str, Any]) -> bool:
+        return d.get("type") == cls.type_tag
+
+
+@dataclass
+class GitHubNotificationConfig(BaseNotificationConfig):
+    type_tag: ClassVar[str] = "github"
+
+    # actual fields
+    type: str = "github"
+    repo: str = ""  # e.g. "owner/repo"
+    issue_number: str = ""  # store as str for simplicity
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "GitHubNotificationConfig":
+        # support 'issue' alias
+        issue = d.get("issue_number") or d.get("issue") or ""
+        return cls(
+            type="github",
+            repo=d.get("repo", ""),
+            issue_number=str(issue),
+        )
+
+    def create_github_comment(self, body: str, github_token: str) -> Dict[str, Any]:
+        url = f"https://api.github.com/repos/{self.repo}/issues/{self.issue_number}/comments"
+        headers = {
+            "Authorization": f"token {github_token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "bench-reporter/1.0",
+        }
+        resp = requests.post(url, headers=headers, json={"body": body})
+        resp.raise_for_status()
+        return resp.json()
+
+
+@dataclass
+class Policy:
+    frequency: "Frequency"
+    range: "RangeConfig"
+    metrics: Dict[str, "RegressionPolicy"]
+
+    notification_config: Optional[dict[str, Any]] = None
+
+    def get_github_notification_config(self) -> Optional[GitHubNotificationConfig]:
+        if not self.notification_config:
+            return None
+        if self.notification_config.get("type") != "github":
+            return None
+        return GitHubNotificationConfig.from_dict(self.notification_config)
 
 
 # -------- Top-level benchmark regression config --------
