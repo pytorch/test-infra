@@ -46,7 +46,14 @@ type RepoViableStrictBlockingJobsMap = {
 // TODO: Move this to a config file
 const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
   // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
-  "pytorch/pytorch": [/trunk/i, /pull/i, /linux-binary/i, /lint/i],
+  "pytorch/pytorch": [
+    /trunk/i,
+    /pull/i,
+    /lint/i,
+    /linux-binary-libtorch-release /i,
+    /linux-binary-manywheel /i,
+    /linux-aarch64/i,
+  ],
 };
 
 function isJobViableStrictBlocking(
