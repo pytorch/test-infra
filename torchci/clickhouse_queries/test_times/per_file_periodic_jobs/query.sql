@@ -1,23 +1,17 @@
 -- same as test_time_per_file query except for the first select
 WITH good_periodic_sha AS (
-    SELECT job.head_sha AS sha
+    SELECT
+        w.head_sha AS sha
     FROM
-        default.workflow_job job
-    JOIN default.push ON job.head_sha = push.head_commit.'id'
+        default .workflow_run w
     WHERE
-        job.workflow_name = 'periodic'
-        AND job.head_branch LIKE 'main'
-        AND job.repository_full_name = 'pytorch/pytorch'
-    GROUP BY
-        job.head_sha,
-        push.head_commit.'timestamp'
-    HAVING
-        groupBitAnd(
-            job.conclusion = 'success'
-            AND job.conclusion IS NOT null
-        ) = 1
+        w.name = 'periodic'
+        AND w.head_branch = 'main'
+        AND w.repository. 'full_name' = 'pytorch/pytorch'
+        and w.conclusion = 'success'
+        and w.run_attempt = 1
     ORDER BY
-        push.head_commit.'timestamp' DESC
+        w.head_commit. 'timestamp' DESC
     LIMIT
         3
 ),
