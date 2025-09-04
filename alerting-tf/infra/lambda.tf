@@ -20,7 +20,8 @@ resource "aws_lambda_function" "alerts_handler" {
 
   environment {
     variables = {
-      NODE_OPTIONS = "--enable-source-maps"
+      NODE_OPTIONS      = "--enable-source-maps"
+      STATUS_TABLE_NAME = aws_dynamodb_table.alerting_status.name
     }
   }
 

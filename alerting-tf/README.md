@@ -2,7 +2,8 @@
 
 This folder provisions a minimal pipeline:
 - SNS topic → SQS queue (+ DLQ) → Lambda (Node.js/TypeScript)
-- Lambda logs each SQS record body to CloudWatch Logs.
+- Lambda logs each SQS record body to CloudWatch Logs, and writes the raw
+  message to DynamoDB (table: "{prefix}-alerting-status").
 
 ## Prerequisites
 - Terraform >= 1.6
@@ -14,6 +15,9 @@ This folder provisions a minimal pipeline:
 ## Layout
 - `infra/`: Terraform for SNS, SQS, IAM, Lambda, event mapping, logs
 - `lambda/`: TypeScript handler and build script
+  
+Additional resources
+- DynamoDB table: `{prefix}-alerting-status` (stores raw SQS message bodies)
 
 ## Build the Lambda
 - From `lambda/`:
@@ -29,6 +33,9 @@ This folder provisions a minimal pipeline:
 ### Send a test message (AWS)
 - First tail logs: `aws logs tail /aws/lambda/alerting-dev-alerts-handler --follow`
 - Then send an SNS message: `aws sns publish --topic-arn $(terraform output -raw sns_topic_arn) --message '{"hello":"world"}'`
+  
+Verify DynamoDB write (AWS)
+- `aws dynamodb get-item --table-name $$(terraform output -raw status_table_name) --key '{"pk":{"S":"<SQS-MessageId>"}}'`
 
 
 ## Local E2E (LocalStack)

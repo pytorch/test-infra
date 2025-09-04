@@ -41,3 +41,24 @@ resource "aws_iam_role_policy_attachment" "attach_sqs_consume" {
   role       = aws_iam_role.lambda_exec.name
   policy_arn = aws_iam_policy.sqs_consume.arn
 }
+
+resource "aws_iam_policy" "dynamodb_write" {
+  name   = "${local.name_prefix}-alerts-dynamodb-write"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+          "dynamodb:PutItem"
+        ],
+        Resource = aws_dynamodb_table.alerting_status.arn
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach_dynamodb_write" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = aws_iam_policy.dynamodb_write.arn
+}

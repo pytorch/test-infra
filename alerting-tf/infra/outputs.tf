@@ -12,3 +12,8 @@ output "lambda_name" {
   value       = aws_lambda_function.alerts_handler.function_name
   description = "Lambda function name"
 }
+
+output "status_table_name" {
+  value       = aws_dynamodb_table.alerting_status.name
+  description = "DynamoDB status table name"
+}
