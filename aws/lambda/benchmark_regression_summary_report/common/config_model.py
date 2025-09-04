@@ -36,7 +36,7 @@ class Frequency:
             raise ValueError(f"Unsupported unit: {self.unit}")
 
     def get_text(self):
-        return f"{self.value} {self.unit}"
+        return f"{self.value}_{self.unit}"
 
 
 # -------- Source --------

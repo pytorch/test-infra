@@ -11,12 +11,18 @@ from typing import Any, Optional
 
 import clickhouse_connect
 import requests
-from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
+from common.benchmark_time_series_api_model import (
+    BenchmarkTimeSeriesApiResponse,
+    get_latest_meta_info,
+)
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
 from common.regression_utils import BenchmarkRegressionReportGenerator
+from common.report_manager import ReportManager
 from dateutil.parser import isoparse
 
+
+BENCHMARK_REGRESSION_REPORT_TABLE = "fortesting.benchmark_regression_report"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -32,7 +38,6 @@ ENVS = {
 }
 
 # TODO(elainewy): change this to benchmark.benchmark_regression_report once the table is created
-BENCHMARK_REGRESSION_REPORT_TABLE = "fortesting.benchmark_regression_report"
 BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 
 
@@ -44,7 +49,9 @@ def get_clickhouse_client(
     host: str, user: str, password: str
 ) -> clickhouse_connect.driver.client.Client:
     # for local testing only, disable SSL verification
-    return clickhouse_connect.get_client( host=host, user=user, password=password, secure=True, verify=False)
+    return clickhouse_connect.get_client(
+        host=host, user=user, password=password, secure=True, verify=False
+    )
 
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
@@ -60,11 +67,6 @@ def get_clickhouse_client_environment() -> clickhouse_connect.driver.client.Clie
         user=ENVS["CLICKHOUSE_USERNAME"],
         password=ENVS["CLICKHOUSE_PASSWORD"],
     )
-
-
-BENCHMARK_REGRESSION_SUMMARY_REPORT_TABLE = (
-    "fortesting.benchmark_regression_summary_report"
-)
 
 
 class BenchmarkSummaryProcessor:
@@ -132,6 +134,12 @@ class BenchmarkSummaryProcessor:
             )
             return
 
+        latest_meta_info = get_latest_meta_info(latest.time_series)
+        if not latest_meta_info:
+            log_error("no meta info found for latest data")
+            return
+        log_info(f"latest data info: {latest_meta_info}")
+
         baseline, bs, be = self.get_baseline(config, end_time)
         if not baseline:
             log_info(
@@ -142,11 +150,30 @@ class BenchmarkSummaryProcessor:
         generator = BenchmarkRegressionReportGenerator(
             config=config, latest_ts=latest, baseline_ts=baseline
         )
-
         result, regression_summary = generator.generate()
         if self.is_dry_run:
             print("regression_detected: ", regression_summary)
             print(json.dumps(result, indent=2, default=str))
+            return
+        latest_commit = latest_meta_info.get("commit")
+        if not latest_commit:
+            raise ValueError(
+                f"missing commit from latest is required, latest is {latest}"
+            )
+        lastest_ts_str = latest_meta_info.get("timestamp")
+        if not lastest_ts_str:
+            raise ValueError(f"timestamp from latest is required, latest is {latest}")
+
+        reportManager = ReportManager(
+            config_id=config_id,
+            config=config,
+            regression_summary=regression_summary,
+            latest_meta_info=latest_meta_info,
+            result=result,
+            db_table_name=BENCHMARK_REGRESSION_REPORT_TABLE,
+        )
+        reportManager.run(cc)
+
         return
 
     def get_latest(self, config: BenchmarkConfig, end_time: dt.datetime):
@@ -241,7 +268,7 @@ class BenchmarkSummaryProcessor:
         )
         url = source.api_query_url
 
-        logger.info("[%s]trying to call %s", config_id, url)
+        logger.info("[%s] trying to call %s", config_id, url)
         t0 = time.perf_counter()
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
@@ -315,7 +342,6 @@ class BenchmarkSummaryProcessor:
         # No report exists yet, generate
         if not latest_record_ts:
             return True
-
         end_utc = (
             end_time if end_time.tzinfo else end_time.replace(tzinfo=dt.timezone.utc)
         )
@@ -352,7 +378,9 @@ class WorkerPoolHandler:
         end_time = dt.datetime.now(dt.timezone.utc).replace(
             minute=0, second=0, microsecond=0
         )
-        logger.info("current time with hour granularity(utc) %s", end_time)
+        logger.info(
+            "[WorkerPoolHandler] current time with hour granularity(utc) %s", end_time
+        )
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = []
             for config_id in config_ids:

@@ -4,6 +4,7 @@ CREATE TABLE fortesting.benchmark_regression_report
     `report_id` String, -- unique id for the report config
     `created_at` DateTime64(0, 'UTC') DEFAULT now(),
     `last_record_ts` DateTime64(0, 'UTC'),
+    `stamp` Date DEFAULT toDate(last_record_ts),
     `last_record_commit` String,
     `type` String, -- e.g. 'daily','weekly'
     `status` String, -- e.g. 'no_regression',"regression",'failure'
@@ -20,6 +21,7 @@ ORDER BY
 (
     report_id,
     type,
+    stamp,
     status,
     last_record_ts,
     last_record_commit,
