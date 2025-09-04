@@ -122,6 +122,10 @@ function NavBar() {
       name: "SGLang",
       href: "/benchmark/llms?repoName=sgl-project%2Fsglang",
     },
+    {
+      name: "Helion",
+      href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
+    },
   ];
 
   const devInfraDropdown = [

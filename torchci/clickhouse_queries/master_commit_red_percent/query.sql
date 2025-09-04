@@ -32,11 +32,7 @@ all_jobs AS (
             WHERE head_sha in (SELECT distinct p.sha FROM pushes p)
         )
         AND j.workflow_event != 'workflow_run' -- Filter out worflow_run-triggered jobs, which have nothing to do with the SHA
-        AND (
-            -- Limit it to jobs which block viable/strict upgrades
-            has({workflowNames: Array(String) }, lower(j.workflow_name))
-            OR j.workflow_name like 'linux-binary%'
-        )
+        AND has({workflowNames: Array(String) }, lower(j.workflow_name))
         AND j.name != 'ciflow_should_run'
         AND j.name != 'generate-test-matrix'
         AND j.name NOT LIKE '%rerun_disabled_tests%'
