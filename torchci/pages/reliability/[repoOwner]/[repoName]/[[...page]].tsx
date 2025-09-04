@@ -20,7 +20,14 @@ import { useCallback, useState } from "react";
 import useSWR from "swr";
 import { TimeRangePicker } from "../../../metrics";
 
-const PRIMARY_WORKFLOWS = ["lint", "pull", "trunk"];
+const PRIMARY_WORKFLOWS = [
+  "lint",
+  "pull",
+  "trunk",
+  "linux-binary-libtorch-release",
+  "linux-binary-manywheel",
+  "linux-aarch64",
+];
 const SECONDARY_WORKFLOWS = ["periodic", "inductor"];
 const UNSTABLE_WORKFLOWS = ["unstable"];
 const LAST_WEEK = 7;
