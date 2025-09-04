@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
-import json
 import logging
 import os
 import threading
 import time
 from concurrent.futures import as_completed, ThreadPoolExecutor
-import time
 from typing import Any, Optional
 
 import clickhouse_connect
