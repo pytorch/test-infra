@@ -20,7 +20,7 @@ REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
 config_id: `{{ report_id }}`
 
 We have detected **{{ status }}** in benchmark results for `{{ report_id }}` (id: `{{ id }}`).
-Full report details will be available in HUD soon)
+(HUD benchmark regression page coming soon...)
 
 > **Status:** {{ status }} · **Frequency:** {{ frequency }}
 
@@ -138,8 +138,18 @@ class ReportManager:
                 self.config_id,
             )
             return
-        logger.info("[%s] prepareing content", self.config_id)
+        logger.info("[%s] prepareing gitub comment content", self.config_id)
         content = self._to_markdoown()
+        if self.is_dry_run:
+            logger.info(
+                "[%s]dry run, skip sending comment to github, report(%s)",
+                self.config_id,
+                self.id,
+            )
+            logger.info("[dry run] printing comment content")
+            print(json.dumps(content, indent=2, default=str))
+            logger.info("[dry run] Done! Finish printing comment content")
+            return
         logger.info("[%s] create comment to github issue", self.config_id)
         github_notification.create_github_comment(content, github_token)
         logger.info("[%s] done. comment is sent to github", self.config_id)
@@ -214,11 +224,30 @@ class ReportManager:
             "repo": self.repo,
             "report_json": report_json,
         }
+
+        if self.is_dry_run:
+            logger.info(
+                "[%s]dry run, skip inserting report to db, report(%s)",
+                self.config_id,
+                self.id,
+            )
+            logger.info("[dry run] printing db params data")
+            if self.is_dry_run:
+                print(json.dumps(params, indent=2, default=str))
+            logger.info("[dry run] Done! Finish printing db params data")
+            return
         logger.info(
             "[%s]inserting benchmark regression report(%s)", self.config_id, self.id
         )
-        self._db_insert(cc, self.db_table_name, params)
-
+        try:
+            self._db_insert(cc, self.db_table_name, params)
+        except Exception:
+            logger.exception(
+                "[%s] failed to insert report to target table %s",
+                self.config_id,
+                self.db_table_name,
+            )
+            raise
         logger.info(
             "[%s] Done. inserted benchmark regression report(%s)",
             self.config_id,

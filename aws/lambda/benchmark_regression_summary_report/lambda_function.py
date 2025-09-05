@@ -53,7 +53,6 @@ def get_clickhouse_client(
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True, verify=False
     )
-
     return clickhouse_connect.get_client(
         host=host, user=user, password=password, secure=True
     )
@@ -76,8 +75,10 @@ class BenchmarkSummaryProcessor:
         config_id: str,
         end_time: int,
         is_dry_run: bool = False,
+        is_pass_check: bool = False,
     ) -> None:
         self.is_dry_run = is_dry_run
+        self.is_pass_check = is_pass_check
         self.config_id = config_id
         self.end_time = end_time
 
@@ -126,6 +127,7 @@ class BenchmarkSummaryProcessor:
         should_generate = self._should_generate_report(
             cc, self.end_time, self.config_id, report_freq
         )
+
         if not should_generate:
             self.log_info(
                 "Skip generate report",
@@ -341,6 +343,12 @@ class BenchmarkSummaryProcessor:
                 f"time_boundary({format_ts_with_t(time_boundary)})"
                 f"based on latest_record_ts({format_ts_with_t(latest_record_ts)})",
             )
+        # dry_run is True, is_pass_check is True, then we allow to generate report even the time check is not met
+        if self.is_dry_run and self.is_pass_check:
+            should_generate = True
+            self.log_info(
+                f"[{f.get_text()}] dry_run is True, is_pass_check is True, force generate report for print only",
+            )
         return should_generate
 
 
@@ -350,7 +358,12 @@ def main(
     args: Optional[argparse.Namespace] = None,
     *,
     is_dry_run: bool = False,
+    is_forced: bool = False,
 ):
+    if not is_dry_run and is_forced:
+        is_forced = False
+        logger.info("is_dry_run is False, force  must be disabled, this is not allowed")
+
     if not github_access_token:
         raise ValueError("Missing environment variable GITHUB_TOKEN")
 
@@ -371,7 +384,10 @@ def main(
     # caution, raise exception may lead lambda to retry
     try:
         processor = BenchmarkSummaryProcessor(
-            config_id=config_id, end_time=end_time_ts, is_dry_run=is_dry_run
+            config_id=config_id,
+            end_time=end_time_ts,
+            is_dry_run=is_dry_run,
+            is_pass_check=is_forced,
         )
         processor.process(args=args)
     except Exception as e:
@@ -411,6 +427,12 @@ def parse_args() -> argparse.Namespace:
         dest="dry_run",
         action="store_false",
         help="Disable dry-run mode",
+    )
+    parser.add_argument(
+        "--force",
+        dest="force",
+        action="store_true",
+        help="Enable force mode, this only allowed when dry-run is enabled",
     )
     parser.add_argument(
         "--config-id",
@@ -459,6 +481,7 @@ def local_run() -> None:
         github_access_token=args.github_access_token,
         args=args,
         is_dry_run=args.dry_run,
+        is_forced=args.force,
     )
 
 
