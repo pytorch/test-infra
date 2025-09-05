@@ -19,8 +19,8 @@ logger = logging.getLogger()
 REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
 config_id: `{{ report_id }}`
 
-We have detected {{ status }} in the benchmark results for {{ report_id }}.
-See details in the full report for report type `{{ report_id }}` with id `{{ id }}` in HUD (coming soon...)
+We have detected **{{ status }}** in benchmark results for `{{ report_id }}` (id: `{{ id }}`).
+(Full report details will be available in HUD soon)
 
 > **Status:** {{ status }} · **Frequency:** {{ frequency }}
 
@@ -34,31 +34,31 @@ See details in the full report for report type `{{ report_id }}` with id `{{ id 
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
 
 ## Data Windows
-baseline is the data we aggregated (max,min,earlist,latset) as measurement to decide wether meric values
-in target are considered as regressions.
+baseline is the data we aggregated (max, min, earliest, latest) as measurement to decide whether metric values
+in target are considered regressions.
 
 ### Baseline window
-- **Start:** `{{ (baseline.start.timestamp | default('')) }}` (commit: `{{ (baseline.start.commit | default('')) }}`)
-- **End:** `{{ (baseline.end.timestamp   | default('')) }}` (commit: `{{ (baseline.end.commit   | default('')) }}`)
+- **Start:** `{{ baseline.start.timestamp | default('') }}` (commit: `{{ baseline.start.commit | default('') }}`)
+- **End:** `{{ baseline.end.timestamp   | default('') }}` (commit: `{{ baseline.end.commit   | default('') }}`)
 
 ### Target window
-- **Start:** `{{ (target.start.timestamp | default('')) }}` (commit: `{{ (target.start.commit | default('')) }}`)
-- **End:** `{{ (target.end.timestamp   | default('')) }}` (commit: `{{ (target.end.commit   | default('')) }}`)
+- **Start:** `{{ target.start.timestamp | default('') }}` (commit: `{{ target.start.commit | default('') }}`)
+- **End:** `{{ target.end.timestamp   | default('') }}` (commit: `{{ target.end.commit   | default('') }}`)
 
 {% if regression_items and regression_items|length > 0 %}
 ## Regression Glance
 {% if url %}
-Please check the [HUD]({{ url }}) for benchmark information.
-{%  endif %}
+Please check the [HUD]({{ url }}) using the time and commit information below to track regressions.
+{% endif %}
 
 {% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
+
+|{% for k in items[0].group_info.keys() %}{{ k }} |{% endfor %} startTime | endTime | lcommit | rcommit |
+|{% for k in items[0].group_info.keys() %}---|{% endfor %}---|---|---|---|
 {% for item in items %}
-- **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
-  {% if item.baseline_point %}
-  - startTime: {{ target.end.timestamp }}) endTime: {{ item.baseline_point.timestamp }}
-  -lcommit: {{ item.baseline_point.commit) }}, rcommit {{ target.end.commit}}
-  {% endif %}
+| {% for v in item.group_info.values() %}{{ v }} |{% endfor %}{{ item.baseline_point.timestamp if item.baseline_point else '' }} | {{ target.end.timestamp }} | {{ item.baseline_point.commit if item.baseline_point else '' }} | {{ target.end.commit }} |
 {% endfor %}
+
 {% if regression_items|length > 10 %}
 … (showing first 10 only, total {{ regression_items|length }} regressions)
 {% endif %}
