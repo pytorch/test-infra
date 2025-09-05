@@ -34,14 +34,14 @@ Full report details will be available in HUD soon)
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
 
 ## Data Windows
-baseline is the data we aggregated (max, min, earliest, latest) as measurement to decide whether metric values
-in target are considered regressions.
+Baseline is a single reference value (e.g., mean, max, min, latest) aggregated from the previous few days,
+used to detect regressions by comparing against metric values in the target window.
 
-### Baseline window
+### Baseline window (used to calculate baseline value)
 - **Start:** `{{ baseline.start.timestamp | default('') }}` (commit: `{{ baseline.start.commit | default('') }}`)
 - **End:** `{{ baseline.end.timestamp   | default('') }}` (commit: `{{ baseline.end.commit   | default('') }}`)
 
-### Target window
+### Target window (used to compare against baseline value)
 - **Start:** `{{ target.start.timestamp | default('') }}` (commit: `{{ target.start.commit | default('') }}`)
 - **End:** `{{ target.end.timestamp   | default('') }}` (commit: `{{ target.end.commit   | default('') }}`)
 
