@@ -368,8 +368,17 @@ export default function LLMsSummaryPanel({
                 return "";
               }
 
-              const l = v.l.actual;
-              const r = v.r.actual;
+              let l = v.l.actual;
+              let r = v.r.actual;
+
+              if (
+                repoName === "pytorch/helion" &&
+                benchmarkName === "Helion Benchmark" &&
+                metric.includes("accuracy")
+              ) {
+                l = l === 1 ? "Pass" : "Fail";
+                r = r === 1 ? "Pass" : "Fail";
+              }
 
               const unit =
                 metric in UNIT_FOR_METRIC ? UNIT_FOR_METRIC[metric] : "";
