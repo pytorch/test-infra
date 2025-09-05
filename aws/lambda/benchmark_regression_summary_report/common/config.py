@@ -43,6 +43,9 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 }
                 """,
     ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/compilers",
+    },
     # set baseline from past 7 days using avg, and compare with the last 1 day
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),

@@ -46,15 +46,16 @@ baseline is the data we aggregated (max,min,earlist,latset) as measurement to de
 
 {% if regression_items and regression_items|length > 0 %}
 ## Regression Glance
-to track down the regression, please use start with baseline commit below and end with commit of target window {{target.end.commit}}
+{% if url %}
+Please check the [HUD]({{ url }}) for benchmark information.
+{%  endif %}
 
 {% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
 {% for item in items %}
 - **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
   {% if item.baseline_point %}
-  (baseline commit: {{ item.baseline_point.commit | default('N/A') }},
-   workflow_id: {{ item.baseline_point.workflow_id | default('N/A') }},
-   timestamp: {{ item.baseline_point.timestamp | default('N/A') }})
+   startTime: {{ target.end.timestamp }}) endTime: {{ item.baseline_point.timestamp }})
+   lcommit: {{ item.baseline_point.commit) }}, rcommit {{ target.end.commit}}
   {% else %}
   (baseline item: N/A)
   {% endif %}
@@ -142,8 +143,13 @@ class ReportManager:
 
     def _to_markdoown(self):
         self.regression_items = self._collect_regression_items()
+        url = ""
+        if self.config.hud_info:
+            url = self.config.hud_info.get("url", "")
+
         md = Template(REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True).render(
             id=self.id,
+            url=url,
             status=self.status,
             report_id=self.config_id,
             summary=self.report["summary"],

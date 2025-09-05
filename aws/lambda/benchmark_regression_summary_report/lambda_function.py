@@ -17,6 +17,7 @@ from common.regression_utils import BenchmarkRegressionReportGenerator
 from common.report_manager import ReportManager
 from dateutil.parser import isoparse
 
+
 # TODO(elainewy): change this to benchmark.benchmark_regression_report once the table is created
 BENCHMARK_REGRESSION_REPORT_TABLE = "fortesting.benchmark_regression_report"
 BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
@@ -33,7 +34,6 @@ ENVS = {
     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
-
 
 
 def format_ts_with_t(ts: int) -> str:
