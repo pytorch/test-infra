@@ -78,6 +78,11 @@ on:
         description: 'Timeout for the job (in minutes)'
         default: 60
         type: number
+      build-command:
+        description: The build command to use if build-platform is python-build-package
+        required: false
+        default: "python setup.py bdist_wheel"
+        type: string
       architecture:
         description: 'CPU architecture to build for'
         default: "x64"
@@ -270,9 +275,9 @@ jobs:
         run: |
           source "${BUILD_ENV_FILE}"
           if [[ -z "${ENV_SCRIPT}" ]]; then
-            ${CONDA_RUN} python setup.py bdist_wheel
+            ${CONDA_RUN} ${{ inputs.build-command }}
           else
-            ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
+            ${CONDA_RUN} ${ENV_SCRIPT} ${{ inputs.build-command }} ${BUILD_PARAMS}
           fi
       - name: Build the wheel (bdist_wheel) Arm64
         if: inputs.architecture == 'arm64'
