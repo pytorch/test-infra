@@ -572,6 +572,427 @@ def handler(event, context):
         raise
 
 
+def scan_dynamodb_paginated(table, **scan_kwargs) -> list:
+    """Helper function to handle paginated DynamoDB scans"""
+    items = []
+    response = table.scan(**scan_kwargs)
+    items.extend(response.get("Items", []))
+    
+    while "LastEvaluatedKey" in response:
+        scan_kwargs["ExclusiveStartKey"] = response["LastEvaluatedKey"]
+        response = table.scan(**scan_kwargs)
+        items.extend(response.get("Items", []))
+    
+    return items
+
+
+def process_multinode_reservation_request(reservation_request: dict[str, Any]) -> bool:
+    """Process multinode reservation with coordination"""
+    try:
+        master_reservation_id = reservation_request.get("master_reservation_id")
+        node_index = reservation_request.get("node_index", 0)
+        total_nodes = reservation_request.get("total_nodes", 1)
+        reservation_id = reservation_request.get("reservation_id")
+        
+        logger.info(f"Processing multinode reservation node {node_index + 1}/{total_nodes}, master_id: {master_reservation_id}")
+        
+        # Create initial reservation record in DynamoDB with multinode info
+        if reservation_id:
+            try:
+                from datetime import datetime, timedelta
+                duration_hours = reservation_request.get("duration_hours", 8)
+                # Convert to float for timedelta, then back to Decimal for DynamoDB
+                duration_float = float(duration_hours)
+                expires_at = (datetime.utcnow() + timedelta(hours=duration_float)).isoformat()
+                duration_decimal = Decimal(str(duration_hours))
+
+                initial_record = {
+                    "reservation_id": reservation_id,
+                    "master_reservation_id": master_reservation_id,
+                    "node_index": node_index,
+                    "total_nodes": total_nodes,
+                    "user_id": reservation_request.get("user_id"),
+                    "gpu_count": reservation_request.get("gpu_count", 1),
+                    "total_gpu_count": reservation_request.get("total_gpu_count", 1),
+                    "gpu_type": reservation_request.get("gpu_type", "a100"),
+                    "duration_hours": duration_decimal,
+                    "name": reservation_request.get("name", f"Multinode {node_index + 1}/{total_nodes}"),
+                    "created_at": reservation_request.get("created_at", datetime.utcnow().isoformat()),
+                    "status": "pending",
+                    "expires_at": expires_at,
+                    "is_multinode": True,
+                }
+
+                if reservation_request.get("github_user"):
+                    initial_record["github_user"] = reservation_request["github_user"]
+
+                reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+                reservations_table.put_item(Item=initial_record)
+                logger.info(f"Created multinode reservation record: {reservation_id}")
+            except Exception as record_error:
+                logger.error(f"Failed to create multinode reservation record: {record_error}")
+
+        # Check if all nodes in the multinode reservation are ready for coordination
+        all_nodes_ready = check_all_multinode_nodes_ready(master_reservation_id, total_nodes)
+        
+        if not all_nodes_ready:
+            logger.info(f"Waiting for other nodes in multinode reservation {master_reservation_id}")
+            return True  # Successfully processed, but waiting for coordination
+        
+        # All nodes are ready - coordinate the multinode reservation
+        return coordinate_multinode_reservation(master_reservation_id, total_nodes)
+        
+    except Exception as e:
+        logger.error(f"Error processing multinode reservation: {str(e)}")
+        # Update all related nodes to failed status
+        if reservation_request.get("master_reservation_id"):
+            fail_all_multinode_reservations(reservation_request["master_reservation_id"], str(e))
+        return False
+
+
+def check_all_multinode_nodes_ready(master_reservation_id: str, total_nodes: int) -> bool:
+    """Check if all nodes in a multinode reservation are ready for coordination"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        # Query all reservations with the same master_reservation_id
+        nodes = scan_dynamodb_paginated(
+            reservations_table,
+            FilterExpression="master_reservation_id = :master_id",
+            ExpressionAttributeValues={":master_id": master_reservation_id}
+        )
+        logger.info(f"Found {len(nodes)} nodes for master reservation {master_reservation_id}, expected {total_nodes}")
+        
+        # Check if we have all expected nodes
+        if len(nodes) < total_nodes:
+            return False
+            
+        # Check if all nodes are in pending status (ready for coordination)
+        for node in nodes:
+            if node.get("status") != "pending":
+                logger.info(f"Node {node.get('reservation_id')} has status {node.get('status')}, not ready for coordination")
+                return False
+                
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error checking multinode readiness: {str(e)}")
+        return False
+
+
+def coordinate_multinode_reservation(master_reservation_id: str, total_nodes: int) -> bool:
+    """Coordinate a complete multinode reservation - check resources and create all pods together"""
+    try:
+        # Acquire coordination lock to prevent concurrent coordinators
+        if not acquire_multinode_lock(master_reservation_id):
+            logger.info(f"Another coordinator holds the lock for {master_reservation_id}; skipping")
+            return True
+
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        # Get all nodes for this multinode reservation
+        nodes = scan_dynamodb_paginated(
+            reservations_table,
+            FilterExpression="master_reservation_id = :master_id AND #status = :status",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":master_id": master_reservation_id,
+                ":status": "pending"
+            }
+        )
+        if len(nodes) != total_nodes:
+            logger.error(f"Expected {total_nodes} nodes, found {len(nodes)} for {master_reservation_id}")
+            fail_all_multinode_reservations(master_reservation_id, "Incomplete node set")
+            return False
+            
+        # Calculate total GPU requirements
+        first_node = nodes[0]
+        gpu_type = first_node.get("gpu_type", "a100")
+        gpus_per_node = first_node.get("gpu_count", 1)
+        total_gpus_needed = gpus_per_node * total_nodes
+        
+        logger.info(f"Multinode reservation needs {total_gpus_needed} {gpu_type} GPUs ({total_nodes} nodes × {gpus_per_node} GPUs)")
+        
+        # Check if enough resources are available for the entire multinode reservation
+        available_gpus = check_gpu_availability(gpu_type)  
+        
+        if available_gpus >= total_gpus_needed:
+            # Sufficient resources - update status to preparing for all nodes
+            update_all_multinode_status(master_reservation_id, "preparing", 
+                                      f"Found resources for {total_nodes} nodes - preparing multinode environment")
+            
+            # Allocate resources for all nodes with per-pod status tracking
+            success_count = 0
+            for i, node in enumerate(nodes):
+                try:
+                    reservation_id = node.get("reservation_id")
+                    node_index = node.get("node_index", i)
+                    
+                    # Update pod status: starting allocation
+                    update_multinode_pod_status(reservation_id, "preparing pod", node_index, total_nodes)
+                    
+                    # Create individual reservation for each node
+                    created_reservation_id = create_reservation(node)
+                    if created_reservation_id:
+                        # Update pod status: allocating resources  
+                        update_multinode_pod_status(reservation_id, "allocating resources", node_index, total_nodes)
+                        
+                        allocate_gpu_resources(created_reservation_id, node)
+                        success_count += 1
+                        
+                        # Update pod status: ready
+                        update_multinode_pod_status(reservation_id, "ready", node_index, total_nodes)
+                    else:
+                        logger.error(f"Failed to create reservation for node {reservation_id}")
+                        update_multinode_pod_status(reservation_id, "failed to create", node_index, total_nodes)
+                        break
+                except Exception as node_error:
+                    logger.error(f"Failed to allocate resources for node {node.get('reservation_id')}: {node_error}")
+                    reservation_id = node.get("reservation_id")
+                    node_index = node.get("node_index", i)
+                    update_multinode_pod_status(reservation_id, "allocation failed", node_index, total_nodes)
+                    break
+                    
+            if success_count == total_nodes:
+                logger.info(f"Successfully allocated resources for all {total_nodes} nodes in multinode reservation {master_reservation_id}")
+                return True
+            else:
+                logger.error(f"Failed to allocate resources for all nodes ({success_count}/{total_nodes} succeeded)")
+                fail_all_multinode_reservations(master_reservation_id, f"Partial allocation failure ({success_count}/{total_nodes})")
+                return False
+        else:
+            # Insufficient resources - queue all nodes together
+            logger.info(f"Insufficient resources for multinode reservation: need {total_gpus_needed}, available {available_gpus}")
+            queue_all_multinode_reservations(master_reservation_id, total_gpus_needed, gpu_type, available_gpus)
+            return True
+            
+    except Exception as e:
+        logger.error(f"Error coordinating multinode reservation {master_reservation_id}: {str(e)}")
+        fail_all_multinode_reservations(master_reservation_id, str(e))
+        return False
+    finally:
+        try:
+            release_multinode_lock(master_reservation_id)
+        except Exception as lock_release_error:
+            logger.warning(f"Failed to release coordinator lock for {master_reservation_id}: {lock_release_error}")
+
+def acquire_multinode_lock(master_reservation_id: str, ttl_seconds: int = 300) -> bool:
+    """Acquire a best-effort coordination lock using the reservations table.
+    Uses a conditional put on a special lock item keyed by reservation_id = lock:<master_id>.
+    Returns True if acquired, False if already held."""
+    try:
+        lock_id = f"lock:{master_reservation_id}"
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+
+        # Minimal lock item; include numeric expires_at for stale lock takeover and optional TTL
+        now_epoch = int(time.time())
+        expires_at = now_epoch + ttl_seconds
+        reservations_table.put_item(
+            Item={
+                "reservation_id": lock_id,
+                "lock_owner": "coordinator",
+                "master_reservation_id": master_reservation_id,
+                "created_at": datetime.utcnow().isoformat(),
+                "expires_at": expires_at,  # epoch seconds
+                "type": "lock",
+            },
+            ConditionExpression="attribute_not_exists(reservation_id) OR expires_at < :now",
+            ExpressionAttributeValues={":now": now_epoch},
+        )
+        logger.info(f"Acquired coordinator lock {lock_id}")
+        return True
+    except Exception as e:
+        # ConditionalCheckFailedException -> someone else holds the lock
+        logger.info(f"Could not acquire lock for {master_reservation_id}: {e}")
+        return False
+
+def release_multinode_lock(master_reservation_id: str) -> None:
+    """Release the coordination lock (best-effort)."""
+    lock_id = f"lock:{master_reservation_id}"
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.delete_item(Key={"reservation_id": lock_id})
+        logger.info(f"Released coordinator lock {lock_id}")
+    except Exception as e:
+        logger.warning(f"Failed to delete coordinator lock {lock_id}: {e}")
+
+
+def update_all_multinode_status(master_reservation_id: str, status: str, failure_reason: str = None):
+    """Update status for all nodes in a multinode reservation"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        # Get all nodes
+        nodes = scan_dynamodb_paginated(
+            reservations_table,
+            FilterExpression="master_reservation_id = :master_id",
+            ExpressionAttributeValues={":master_id": master_reservation_id}
+        )
+        for node in nodes:
+            reservation_id = node.get("reservation_id")
+            if reservation_id:
+                update_reservation_status(reservation_id, status, failure_reason)
+                
+    except Exception as e:
+        logger.error(f"Error updating multinode status: {str(e)}")
+
+
+def update_multinode_pod_status(reservation_id: str, pod_status: str, node_index: int = None, total_nodes: int = None):
+    """Update individual pod status for multinode reservations"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        # Create a detailed pod status message
+        if node_index is not None and total_nodes is not None:
+            pod_status_message = f"Pod {node_index + 1}/{total_nodes}: {pod_status}"
+        else:
+            pod_status_message = pod_status
+        
+        # Update the reservation with pod-specific status
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET pod_status = :pod_status, pod_status_updated_at = :updated_at",
+            ExpressionAttributeValues={
+                ":pod_status": pod_status_message,
+                ":updated_at": datetime.utcnow().isoformat()
+            }
+        )
+        
+        logger.info(f"Updated pod status for {reservation_id}: {pod_status_message}")
+        
+    except Exception as e:
+        logger.error(f"Error updating pod status for {reservation_id}: {str(e)}")
+
+
+def fail_all_multinode_reservations(master_reservation_id: str, error_message: str):
+    """Mark all nodes in a multinode reservation as failed"""
+    logger.error(f"Failing all nodes in multinode reservation {master_reservation_id}: {error_message}")
+    update_all_multinode_status(master_reservation_id, "failed", error_message)
+
+
+def queue_all_multinode_reservations(master_reservation_id: str, total_gpus_needed: int, gpu_type: str, available_gpus: int):
+    """Queue all nodes in a multinode reservation together"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        # Get all nodes
+        nodes = scan_dynamodb_paginated(
+            reservations_table,
+            FilterExpression="master_reservation_id = :master_id",
+            ExpressionAttributeValues={":master_id": master_reservation_id}
+        )
+        
+        # Calculate queue position for the entire multinode reservation
+        # For simplicity, treat it as one large reservation in the queue
+        queue_info = calculate_multinode_queue_position_and_wait_time(
+            master_reservation_id, total_gpus_needed, gpu_type, available_gpus
+        )
+        
+        # Update all nodes with the same queue information
+        for node in nodes:
+            reservation_id = node.get("reservation_id")
+            if reservation_id:
+                update_reservation_with_queue_info(
+                    reservation_id,
+                    queue_info["position"],
+                    queue_info["estimated_wait_minutes"],
+                    queue_info["message"]
+                )
+                
+        logger.info(f"Queued multinode reservation {master_reservation_id} at position {queue_info['position']}")
+        
+    except Exception as e:
+        logger.error(f"Error queuing multinode reservation: {str(e)}")
+        fail_all_multinode_reservations(master_reservation_id, str(e))
+
+
+def calculate_multinode_queue_position_and_wait_time(master_reservation_id: str, total_gpus_needed: int, gpu_type: str, available_gpus: int) -> dict:
+    """Calculate queue position and wait time for multinode reservations"""
+    try:
+        # For multinode, we need to be more conservative in queue calculations
+        # since we need ALL resources to be available at once
+        
+        # Get current queue for this GPU type
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        queued_reservations = scan_dynamodb_paginated(
+            reservations_table,
+            FilterExpression="#status = :status AND gpu_type = :gpu_type",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": "queued",
+                ":gpu_type": gpu_type
+            }
+        )
+        
+        # Group multinode reservations together and sum their GPU requirements
+        queue_position = 1
+        total_gpus_ahead = 0
+        
+        multinode_groups = {}
+        single_reservations = []
+        
+        for reservation in queued_reservations:
+            if reservation.get("is_multinode"):
+                group_id = reservation.get("master_reservation_id")
+                if group_id not in multinode_groups:
+                    multinode_groups[group_id] = {
+                        "total_gpu_count": reservation.get("total_gpu_count", 0),
+                        "created_at": reservation.get("created_at")
+                    }
+            else:
+                single_reservations.append(reservation)
+        
+        # Sort all reservations by creation time
+        all_ahead = []
+        
+        # Add multinode groups
+        for group_id, group_info in multinode_groups.items():
+            if group_id != master_reservation_id:  # Don't count ourselves
+                all_ahead.append({
+                    "gpus": group_info["total_gpu_count"],
+                    "created_at": group_info["created_at"]
+                })
+        
+        # Add single reservations  
+        for reservation in single_reservations:
+            all_ahead.append({
+                "gpus": reservation.get("gpu_count", 1),
+                "created_at": reservation.get("created_at")
+            })
+        
+        # Sort by creation time
+        all_ahead.sort(key=lambda x: x["created_at"])
+        
+        # Calculate position and GPUs ahead
+        for item in all_ahead:
+            total_gpus_ahead += item["gpus"]
+            queue_position += 1
+        
+        # Estimate wait time (more conservative for multinode)
+        # Assume average reservation duration and add buffer for coordination
+        avg_duration_minutes = 4 * 60  # 4 hours average
+        multinode_buffer = 1.5  # 50% longer for multinode coordination
+        
+        if total_gpus_ahead > 0:
+            estimated_wait_minutes = int((total_gpus_ahead / max(available_gpus, 1)) * avg_duration_minutes * multinode_buffer)
+        else:
+            estimated_wait_minutes = 5  # Minimal wait for coordination
+        
+        return {
+            "position": queue_position,
+            "estimated_wait_minutes": estimated_wait_minutes,
+            "message": f"Multinode reservation queued - position {queue_position} ({total_gpus_ahead} GPUs ahead)"
+        }
+        
+    except Exception as e:
+        logger.error(f"Error calculating multinode queue position: {str(e)}")
+        return {
+            "position": 999,
+            "estimated_wait_minutes": 999,
+            "message": f"Queue calculation error: {str(e)}"
+        }
+
+
 def process_reservation_request(record: dict[str, Any]) -> bool:
     """Process individual reservation request"""
     try:
@@ -579,6 +1000,11 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
         reservation_request = json.loads(record["body"])
 
         logger.info(f"Processing reservation: {reservation_request}")
+
+        # Check if this is a multinode reservation
+        is_multinode = reservation_request.get("is_multinode", False)
+        if is_multinode:
+            return process_multinode_reservation_request(reservation_request)
 
         # Create initial reservation record in DynamoDB
         reservation_id = reservation_request.get("reservation_id")
@@ -588,8 +1014,9 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                 from datetime import datetime, timedelta
 
                 duration_hours = reservation_request.get("duration_hours", 8)
+                duration_float = float(duration_hours)
                 expires_at = (
-                    datetime.utcnow() + timedelta(hours=duration_hours)
+                    datetime.utcnow() + timedelta(hours=duration_float)
                 ).isoformat()
 
                 # Convert duration_hours to Decimal for DynamoDB compatibility
@@ -949,7 +1376,8 @@ def create_reservation(request: dict[str, Any]) -> str:
         reservation_id = request.get("reservation_id", str(uuid.uuid4()))
         now = datetime.utcnow()
         duration_hours = request.get("duration_hours", DEFAULT_TIMEOUT_HOURS)
-        expires_at = now + timedelta(hours=duration_hours)
+        duration_float = float(duration_hours)
+        expires_at = now + timedelta(hours=duration_float)
 
         # Convert duration_hours to Decimal for DynamoDB compatibility
         duration_decimal = Decimal(str(duration_hours))
@@ -997,13 +1425,20 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         user_id = request.get("user_id")
         recreate_env = request.get("recreate_env", False)
         pod_name = f"gpu-dev-{reservation_id[:8]}"
+        
+        # Check if this is part of a multinode reservation
+        is_multinode = request.get("is_multinode", False)
+        node_index = request.get("node_index", 0) if is_multinode else None
+        total_nodes = request.get("total_nodes", 1) if is_multinode else None
 
         logger.info(
             f"Allocating {gpu_count}x {gpu_type.upper()} GPUs for reservation {reservation_id}"
         )
         logger.info(f"Pod name: {pod_name}")
 
-        # Update status: Fetching SSH keys
+        # Update status: Fetching SSH keys (with pod-specific status for multinode)
+        if is_multinode:
+            update_multinode_pod_status(reservation_id, "fetching SSH keys", node_index, total_nodes)
         update_reservation_status(
             reservation_id,
             "preparing",
@@ -1020,8 +1455,13 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 f"Could not fetch GitHub public key for GitHub user '{github_user}'"
             )
 
-        # Check if user should get persistent disk (no other existing reservations)
-        use_persistent_disk = should_use_persistent_disk(user_id, reservation_id)
+        # Check if user should get persistent disk 
+        # For multinode: only node 0 gets persistent disk, others get EFS shared storage
+        if is_multinode and node_index > 0:
+            use_persistent_disk = False  # Only master node gets persistent disk
+            logger.info(f"Multinode node {node_index + 1}/{total_nodes}: using EFS shared storage instead of persistent disk")
+        else:
+            use_persistent_disk = should_use_persistent_disk(user_id, reservation_id)
         persistent_volume_id = None
         device_name = None
         target_az = None  # Initialize target_az for use in connection info update
@@ -1196,6 +1636,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         )
 
         # Update status: Pod created, waiting for container to start
+        if is_multinode:
+            update_multinode_pod_status(reservation_id, "pulling container image", node_index, total_nodes)
         update_reservation_status(
             reservation_id,
             "preparing",
@@ -1675,8 +2117,12 @@ def get_pod_resource_limits(gpu_count: int, gpu_type: str) -> dict:
     """Get resource limits for pod based on GPU type"""
     limits = {
         "nvidia.com/gpu": str(gpu_count),
-        "vpc.amazonaws.com/efa": "1"  # Enable EFA for all GPU types
     }
+    
+    # EFA is not supported on g4dn.2xlarge (t4-small instances)
+    if gpu_type != "t4-small":
+        limits["vpc.amazonaws.com/efa"] = "1"
+    
     return limits
 
 
@@ -1684,8 +2130,12 @@ def get_pod_resource_requests(gpu_count: int, gpu_type: str) -> dict:
     """Get resource requests for pod based on GPU type"""
     requests = {
         "nvidia.com/gpu": str(gpu_count),
-        "vpc.amazonaws.com/efa": "1"  # Enable EFA for all GPU types
     }
+    
+    # EFA is not supported on g4dn.2xlarge (t4-small instances)
+    if gpu_type != "t4-small":
+        requests["vpc.amazonaws.com/efa"] = "1"
+    
     return requests
 
 
@@ -2055,7 +2505,7 @@ EOF
                         # Create custom MOTD script with proper error handling
                         echo "[STARTUP] Creating custom MOTD script..."
                         
-                        # Pass temporary disk warning flag to MOTD script
+                        # Pass storage information to MOTD script
                         if [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
                             echo "[STARTUP] Adding temporary disk warning to MOTD"
                             echo "TEMPORARY_DISK=true" > /etc/gpu-dev-flags
@@ -2133,6 +2583,23 @@ Shell: Zsh (default with oh-my-zsh) | Bash available
   • Terminal works in all editors (no special fonts needed)
 
 WELCOME_EOF
+
+# Add persistent disk status
+if [ "$USE_PERSISTENT_DISK" = "true" ]; then
+    cat << PERSISTENT_EOF
+✅ Persistent disk loaded 
+  • Your files from previous sessions are available in /home/dev
+  • Data will persist between reservations
+
+PERSISTENT_EOF
+elif [ "$TEMPORARY_DISK_WARNING" != "true" ]; then
+    cat << TEMP_DISK_EOF
+💾 Fresh environment
+  • Starting with clean temporary storage
+  • Files in /home/dev will be lost when reservation ends
+
+TEMP_DISK_EOF
+fi
 
 # Add temporary disk warning if applicable
 if [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
@@ -2315,7 +2782,6 @@ EOF
         # Create pod
         pod = client.V1Pod(metadata=pod_metadata, spec=pod_spec)
         v1.create_namespaced_pod(namespace="gpu-dev", body=pod)
-
         logger.info(f"Created pod {pod_name}")
 
     except Exception as e:
@@ -2876,7 +3342,8 @@ def update_reservation_connection_info(
 
         # Set expiration time from NOW (when reservation becomes active)
         now = datetime.utcnow()
-        expires_at = (now + timedelta(hours=duration_hours)).isoformat()
+        duration_float = float(duration_hours)
+        expires_at = (now + timedelta(hours=duration_float)).isoformat()
         launched_at = now.isoformat()
 
         # Get instance type and GPU type info

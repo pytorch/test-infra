@@ -259,12 +259,13 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
     }
   }
 
-  # Network interface (EFA enabled for all GPU types)
+  # Network interface (EFA enabled for supported instance types only)
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
     subnet_id                   = each.value.use_placement_group ? null : (each.key == "b200" || each.key == "t4-small" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
-    interface_type              = "efa"  # Enable EFA for all GPU types
+    # EFA is not supported on g4dn.2xlarge (t4-small), only on larger instances
+    interface_type              = each.key == "t4-small" ? "interface" : "efa"
     delete_on_termination       = true
   }
 

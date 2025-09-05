@@ -35,6 +35,67 @@ from .interactive import (
 console = Console()
 
 
+def _format_relative_time(timestamp_str: str, relative_to: str = "now") -> str:
+    """Format timestamp as relative time if within 24h, otherwise absolute"""
+    if not timestamp_str or timestamp_str == "N/A":
+        return "N/A"
+    
+    try:
+        from datetime import datetime, timezone, timedelta
+        
+        # Parse the timestamp
+        if isinstance(timestamp_str, str):
+            if timestamp_str.endswith("Z"):
+                dt_utc = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
+            elif "+" in timestamp_str or timestamp_str.endswith("00:00"):
+                dt_utc = datetime.fromisoformat(timestamp_str)
+            else:
+                naive_dt = datetime.fromisoformat(timestamp_str)
+                dt_utc = naive_dt.replace(tzinfo=timezone.utc)
+        else:
+            dt_utc = datetime.fromtimestamp(timestamp_str, tz=timezone.utc)
+        
+        now = datetime.now(timezone.utc)
+        delta = dt_utc - now if relative_to == "expires" else now - dt_utc
+        
+        # If more than 24 hours, use absolute time
+        if abs(delta.total_seconds()) > 24 * 3600:
+            dt_local = dt_utc.astimezone()
+            return dt_local.strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Format relative time
+        total_seconds = abs(delta.total_seconds())
+        
+        if total_seconds < 60:
+            if relative_to == "expires":
+                return f"expires in {int(total_seconds)}s"
+            else:
+                return f"{int(total_seconds)}s ago"
+        elif total_seconds < 3600:
+            minutes = int(total_seconds // 60)
+            if relative_to == "expires":
+                return f"expires in {minutes}min"
+            else:
+                return f"{minutes}min ago"
+        else:
+            hours = int(total_seconds // 3600)
+            minutes = int((total_seconds % 3600) // 60)
+            if minutes > 0:
+                if relative_to == "expires":
+                    return f"expires in {hours}h{minutes}min"
+                else:
+                    return f"{hours}h{minutes}min ago"
+            else:
+                if relative_to == "expires":
+                    return f"expires in {hours}h"
+                else:
+                    return f"{hours}h ago"
+    
+    except (ValueError, TypeError):
+        # Fallback to original format
+        return str(timestamp_str)[:19] if len(str(timestamp_str)) > 10 else str(timestamp_str)
+
+
 def _show_single_reservation(connection_info: dict) -> None:
     """Display detailed information for a single reservation"""
     status = connection_info.get("status", "unknown")
@@ -84,9 +145,9 @@ def _show_single_reservation(connection_info: dict) -> None:
         except (ValueError, TypeError):
             return str(timestamp_str)[:19]  # Fallback to first 19 chars
 
-    created_formatted = format_timestamp(created_at)
-    launched_formatted = format_timestamp(launched_at)
-    expires_formatted = format_timestamp(expires_at)
+    created_formatted = _format_relative_time(created_at, "now")
+    launched_formatted = _format_relative_time(launched_at, "now")
+    expires_formatted = _format_relative_time(expires_at, "expires")
 
     if status == "active":
         jupyter_info = ""
@@ -225,7 +286,7 @@ def _validate_ssh_key_or_exit(config: Config, live: Live) -> bool:
     Validate SSH key matches configured GitHub username.
     Returns True if valid, False if validation failed (and exits with error messages).
     """
-    validation_result = validate_ssh_key_matches_github_user(config)
+    validation_result = validate_ssh_key_matches_github_user(config, live)
     if not validation_result["valid"]:
         live.stop()
         rprint("[red]❌ Github SSH key validation failed[/red]")
@@ -295,8 +356,8 @@ def main(ctx: click.Context) -> None:
 @click.option(
     "--gpus",
     "-g",
-    type=click.Choice(["1", "2", "4", "8", "16"]),
-    help="Number of GPUs to reserve (16 = 2x8 GPU setup)",
+    type=click.Choice(["1", "2", "4", "8", "12", "16", "20", "24", "32", "40", "48"]),
+    help="Number of GPUs to reserve (multiples of max-per-node for multinode setups)",
 )
 @click.option(
     "--gpu-type",
@@ -332,6 +393,11 @@ def main(ctx: click.Context) -> None:
     default=None,
     help="Force interactive mode on/off (auto-detected by default)",
 )
+@click.option(
+    "--distributed",
+    is_flag=True,
+    help="Required flag for multinode GPU reservations (> single node max)",
+)
 @click.pass_context
 def reserve(
     ctx: click.Context,
@@ -343,6 +409,7 @@ def reserve(
     ignore_no_persist: bool,
     recreate_env: bool,
     interactive: Optional[bool],
+    distributed: bool,
 ) -> None:
     """Reserve GPU development server(s)
 
@@ -366,10 +433,11 @@ def reserve(
         gpu-dev reserve -g 8 -h 12 -n "training" # 8 GPUs, named reservation
         gpu-dev reserve --jupyter                # Include Jupyter Lab access
         gpu-dev reserve --gpu-type h200 -g 2    # 2 H200 GPUs
+        gpu-dev reserve -g 16 --distributed     # 16 GPUs (2 nodes), required for multinode
 
     GPU Options:
-        1, 2, 4, 8: Single server with specified GPU count
-        16: Two connected servers with 8 GPUs each (high-speed interconnect)
+        Single-node: 1, 2, 4, 8 GPUs (depending on GPU type)
+        Multinode: Multiples of max GPUs per node (e.g., 16=2×8, 24=3×8 for H100)
 
     Authentication: Uses your AWS credentials and GitHub SSH keys
     """
@@ -444,6 +512,25 @@ def reserve(
                 if gpu_count is None:
                     rprint("[yellow]Reservation cancelled.[/yellow]")
                     return
+                
+                # Show distributed warning for interactive multinode selections (always show)
+                if gpu_count > max_gpus:
+                    num_nodes = gpu_count // max_gpus
+                    rprint(f"\n[yellow]⚠️  You selected {gpu_count} GPUs. This is supported for distributed workflows.[/yellow]")
+                    rprint(f"[yellow]This will reserve {num_nodes} pods that have:[/yellow]")
+                    rprint("[yellow]• A shared network drive[/yellow]")
+                    rprint("[yellow]• Network connectivity to each other[/yellow]")
+                    rprint(f"[yellow]• Hostname resolution (<podname>-headless.gpu-dev.svc.cluster.local)[/yellow]")
+                    rprint(f"[yellow]• Master port 29500 available on all nodes[/yellow]\n")
+                    
+                    try:
+                        choice = click.confirm("Do you want to continue?", default=False)
+                        if not choice:
+                            rprint("[yellow]Reservation cancelled by user[/yellow]")
+                            return
+                    except (KeyboardInterrupt, click.Abort):
+                        rprint("\n[yellow]Reservation cancelled by user[/yellow]")
+                        return
             else:
                 gpu_count = int(gpus)
 
@@ -489,11 +576,31 @@ def reserve(
             return
 
         max_gpus = gpu_configs[gpu_type]["max_gpus"]
+        
+        # Check if this is a multinode request
         if gpu_count > max_gpus:
-            rprint(
-                f"[red]❌ GPU type '{gpu_type}' supports maximum {max_gpus} GPUs per node, requested {gpu_count}[/red]"
-            )
-            return
+            # Validate that it's a valid multiple for multinode
+            if gpu_count % max_gpus != 0:
+                rprint(
+                    f"[red]❌ For multinode deployments, GPU count must be a multiple of {max_gpus} (max per node for {gpu_type})[/red]"
+                )
+                rprint(f"[yellow]Valid counts: {max_gpus}, {max_gpus*2}, {max_gpus*3}, etc.[/yellow]")
+                return
+            
+            # Calculate number of nodes needed
+            num_nodes = gpu_count // max_gpus
+            
+            # For non-interactive mode, require --distributed flag
+            if not use_interactive and not distributed:
+                rprint(f"\n[red]❌ Multinode GPU reservations require the --distributed flag[/red]")
+                rprint(f"[yellow]You requested {gpu_count} GPUs ({num_nodes} nodes × {max_gpus} GPUs)[/yellow]")
+                rprint(f"[yellow]This creates a distributed setup with:[/yellow]")
+                rprint("[yellow]• Shared network drive between nodes[/yellow]")
+                rprint("[yellow]• Network connectivity between pods[/yellow]")
+                rprint(f"[yellow]• Hostname resolution (<podname>-headless.gpu-dev.svc.cluster.local)[/yellow]")
+                rprint(f"[yellow]• Master port 29500 available on all nodes[/yellow]")
+                rprint(f"\n[cyan]Add --distributed to proceed: gpu-dev reserve -g {gpu_count} --distributed[/cyan]")
+                return
 
         # Validate parameters
         if hours > 24:
@@ -605,32 +712,71 @@ def reserve(
                     Spinner("dots", text="📡 Submitting reservation request...")
                 )
 
-            # Submit reservation
-            reservation_id = reservation_mgr.create_reservation(
-                user_id=user_info["user_id"],
-                gpu_count=gpu_count,
-                gpu_type=gpu_type,
-                duration_hours=hours,
-                name=name,
-                github_user=user_info["github_user"],
-                jupyter_enabled=jupyter,
-                recreate_env=recreate_env,
-            )
-
-        if reservation_id:
-            rprint(
-                f"[green]✅ Reservation request submitted: {reservation_id[:8]}...[/green]"
-            )
-
-            # Poll for completion with spinner and status updates (no timeout)
-            completed_reservation = reservation_mgr.wait_for_reservation_completion(
-                reservation_id=reservation_id, timeout_minutes=None
-            )
-
-            if not completed_reservation:
-                rprint(
-                    f"[yellow]💡 Use 'gpu-dev show {reservation_id[:8]}' to check connection details later[/yellow]"
+            # Determine if this is multinode and submit appropriate reservation
+            max_gpus = gpu_configs[gpu_type]["max_gpus"]
+            if gpu_count > max_gpus:
+                # Multinode reservation
+                num_nodes = gpu_count // max_gpus
+                live.update(
+                    Spinner("dots", text=f"📡 Submitting multinode reservation ({num_nodes} nodes)...")
                 )
+                reservation_ids = reservation_mgr.create_multinode_reservation(
+                    user_id=user_info["user_id"],
+                    gpu_count=gpu_count,
+                    gpu_type=gpu_type,
+                    duration_hours=hours,
+                    name=name,
+                    github_user=user_info["github_user"],
+                    jupyter_enabled=jupyter,
+                    recreate_env=recreate_env,
+                )
+            else:
+                # Single node reservation
+                reservation_id = reservation_mgr.create_reservation(
+                    user_id=user_info["user_id"],
+                    gpu_count=gpu_count,
+                    gpu_type=gpu_type,
+                    duration_hours=hours,
+                    name=name,
+                    github_user=user_info["github_user"],
+                    jupyter_enabled=jupyter,
+                    recreate_env=recreate_env,
+                )
+                reservation_ids = [reservation_id] if reservation_id else None
+
+        if reservation_ids:
+            if len(reservation_ids) > 1:
+                rprint(
+                    f"[green]✅ Multinode reservation submitted: {len(reservation_ids)} nodes requested[/green]"
+                )
+                # Poll for multinode completion
+                completed_reservations = reservation_mgr.wait_for_multinode_reservation_completion(
+                    reservation_ids=reservation_ids, timeout_minutes=None
+                )
+                
+                if not completed_reservations:
+                    rprint(
+                        f"[yellow]💡 Use 'gpu-dev show' to check multinode reservation status[/yellow]"
+                    )
+                else:
+                    # Show connection details for all nodes
+                    rprint(f"\n[green]🎉 All {len(reservation_ids)} nodes are ready![/green]")
+                    for i, reservation in enumerate(completed_reservations):
+                        rprint(f"\n[cyan]━━━ Node {i+1}/{len(reservation_ids)} ━━━[/cyan]")
+                        _show_single_reservation(reservation)
+            else:
+                rprint(
+                    f"[green]✅ Reservation request submitted: {reservation_ids[0][:8]}...[/green]"
+                )
+                # Poll for single node completion
+                completed_reservation = reservation_mgr.wait_for_reservation_completion(
+                    reservation_id=reservation_ids[0], timeout_minutes=None
+                )
+
+                if not completed_reservation:
+                    rprint(
+                        f"[yellow]💡 Use 'gpu-dev show {reservation_ids[0][:8]}' to check connection details later[/yellow]"
+                    )
         else:
             rprint("[red]❌ Failed to create reservation[/red]")
 
@@ -653,9 +799,10 @@ def reserve(
 )
 @click.pass_context
 def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None:
-    """List GPU reservations (shows your in-progress reservations by default)
+    """List GPU reservations (shows in-progress + recent failed reservations by default)
 
-    By default, shows your in-progress reservations (active, preparing, queued, pending).
+    By default, shows your in-progress reservations (active, preparing, queued, pending)
+    plus recent failed/cancelled reservations (last hour).
     Use --user all to see all users' reservations.
     Use --status to filter by specific statuses.
 
@@ -724,8 +871,8 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
 
                         statuses_to_include = requested_statuses
                 else:
-                    # Default: all in-progress statuses (exclude terminal states)
-                    statuses_to_include = ["active", "preparing", "queued", "pending"]
+                    # Default: in-progress + recent failures (last hour)
+                    statuses_to_include = ["active", "preparing", "queued", "pending", "failed", "cancelled"]
 
                 reservations = reservation_mgr.list_reservations(
                     user_filter=user_filter, statuses_to_include=statuses_to_include
@@ -738,16 +885,71 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
         # Stop spinner after getting results
         live.stop()
 
+        # Filter failed/cancelled reservations to only show recent ones (last hour)
+        if not status or "all" not in (status.split(",") if status else []):
+            # Only apply time filtering when using default filters (not when user specifies --status)
+            from datetime import datetime, timezone, timedelta
+            now = datetime.now(timezone.utc)
+            one_hour_ago = now - timedelta(hours=1)
+            
+            filtered_reservations = []
+            for reservation in reservations:
+                reservation_status = reservation.get("status", "unknown")
+                if reservation_status in ["active", "preparing", "queued", "pending"]:
+                    # Always show active/pending reservations
+                    filtered_reservations.append(reservation)
+                elif reservation_status in ["failed", "cancelled"]:
+                    # Only show failed/cancelled from last hour
+                    created_at = reservation.get("created_at")
+                    if created_at:
+                        try:
+                            if isinstance(created_at, str):
+                                if created_at.endswith("Z"):
+                                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                                elif "+" in created_at or created_at.endswith("00:00"):
+                                    created_dt = datetime.fromisoformat(created_at)
+                                else:
+                                    naive_dt = datetime.fromisoformat(created_at)
+                                    created_dt = naive_dt.replace(tzinfo=timezone.utc)
+                            else:
+                                created_dt = datetime.fromtimestamp(created_at, tz=timezone.utc)
+                            
+                            if created_dt >= one_hour_ago:
+                                filtered_reservations.append(reservation)
+                        except (ValueError, TypeError):
+                            # If timestamp parsing fails, include it to be safe
+                            filtered_reservations.append(reservation)
+                else:
+                    # Include other statuses as-is
+                    filtered_reservations.append(reservation)
+            
+            reservations = filtered_reservations
+
         if not reservations:
             rprint("[yellow]📋 No reservations found[/yellow]")
             return
+
+        # Sort reservations to show successful/pending ones at the bottom
+        def sort_key(reservation):
+            status = reservation.get("status", "unknown")
+            # Priority order: failed first, cancelled/expired middle, active/preparing/queued/pending last
+            if status == "failed":
+                return 0  # Show first (most important)
+            elif status in ["cancelled", "expired"]:
+                return 1  # Show second (less urgent but still notable)
+            elif status in ["active", "preparing", "queued", "pending"]:
+                return 2  # Show last (current work)
+            else:
+                return 1.5  # Unknown statuses between cancelled and active
+        
+        reservations = sorted(reservations, key=sort_key)
 
         # Create table with enhanced columns for queue info
         table = Table(title="GPU Reservations")
         table.add_column("ID", style="cyan", no_wrap=True)
         table.add_column("User", style="green")
         table.add_column("GPUs", style="magenta")
-        table.add_column("Status", style="yellow")
+        table.add_column("Status")
         table.add_column("Storage", style="dim", no_wrap=True)
         table.add_column("Queue Info", style="cyan")
         table.add_column("Created", style="blue")
@@ -887,16 +1089,43 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
                         else:
                             created_formatted = str(created_at)
 
-                table.add_row(
-                    str(reservation_id)[:8],
-                    user_display,
-                    gpu_display,
-                    str(status),
-                    storage_display,
-                    queue_info,
-                    created_formatted,
-                    expires_formatted,
-                )
+                # Add color coding to status and determine if whole row should be dimmed
+                dim_row = False
+                if status == "failed":
+                    status_display = f"[red]{status}[/red]"
+                elif status in ["cancelled", "expired"]:
+                    status_display = f"[dim]{status}[/dim]"
+                    dim_row = True  # Grey out entire row for cancelled/expired
+                elif status in ["queued", "pending", "preparing"]:
+                    status_display = f"[yellow]{status}[/yellow]"
+                elif status == "active":
+                    status_display = f"[green]{status}[/green]"
+                else:
+                    status_display = str(status)  # No color for unknown statuses
+
+                # Apply dimming to entire row for cancelled/expired reservations
+                if dim_row:
+                    table.add_row(
+                        f"[dim]{str(reservation_id)[:8]}[/dim]",
+                        f"[dim]{user_display}[/dim]",
+                        f"[dim]{gpu_display}[/dim]",
+                        status_display,
+                        f"[dim]{storage_display}[/dim]",
+                        f"[dim]{queue_info}[/dim]",
+                        f"[dim]{created_formatted}[/dim]",
+                        f"[dim]{expires_formatted}[/dim]",
+                    )
+                else:
+                    table.add_row(
+                        str(reservation_id)[:8],
+                        user_display,
+                        gpu_display,
+                        status_display,
+                        storage_display,
+                        queue_info,
+                        created_formatted,
+                        expires_formatted,
+                    )
 
             except Exception as row_error:
                 # Skip malformed reservations but log the error
@@ -1053,9 +1282,10 @@ def cancel(
             console.print(table)
 
             # Confirmation prompt
+            rprint(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
             try:
                 confirmed = click.confirm(
-                    f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]"
+                    "Do you want to proceed?", default=False
                 )
                 if not confirmed:
                     rprint("[yellow]Cancellation cancelled by user[/yellow]")
@@ -1139,9 +1369,10 @@ def cancel(
             # Handle "all" selection
             if selected_id == "__ALL__":
                 # Confirmation prompt for cancelling all
+                rprint(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
                 try:
                     confirmed = click.confirm(
-                        f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]"
+                        "Do you want to proceed?", default=False
                     )
                     if not confirmed:
                         rprint("[yellow]Cancellation cancelled by user[/yellow]")
@@ -1227,7 +1458,7 @@ def show(ctx: click.Context, reservation_id: Optional[str]) -> None:
     """Show detailed information for reservations
 
     Shows comprehensive details for reservations. If no reservation ID is provided,
-    shows details for your active and pending reservations. If a reservation ID is provided,
+    shows details for your active and pending reservations only. If a reservation ID is provided,
     shows detailed information for that specific reservation.
 
     Arguments:
@@ -1235,7 +1466,7 @@ def show(ctx: click.Context, reservation_id: Optional[str]) -> None:
 
     \b
     Examples:
-        gpu-dev show                             # Show details for active/pending reservations
+        gpu-dev show                             # Show details for active/pending reservations only
         gpu-dev show abc12345                    # Show details for abc12345
         gpu-dev show abc1                        # Short form works too
 
@@ -1252,7 +1483,7 @@ def show(ctx: click.Context, reservation_id: Optional[str]) -> None:
         - Expiration time
         - Current status
 
-    Works for reservations in any status.
+    Note: Use 'gpu-dev list' to see recent failed/cancelled reservations.
     """
     try:
         with Live(
@@ -1266,7 +1497,7 @@ def show(ctx: click.Context, reservation_id: Optional[str]) -> None:
                 reservation_mgr = ReservationManager(config)
                 
                 if reservation_id is None:
-                    # Show user's active and pending reservations
+                    # Show user's active and pending reservations only
                     reservations = reservation_mgr.list_reservations(
                         user_filter=user_info["user_id"],
                         statuses_to_include=["active", "preparing", "queued", "pending"]

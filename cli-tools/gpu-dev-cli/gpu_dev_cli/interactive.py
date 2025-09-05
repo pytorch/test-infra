@@ -138,22 +138,39 @@ def select_gpu_count_interactive(gpu_type: str, max_gpus: int) -> Optional[int]:
     # Generate valid choices based on GPU type limits
     if gpu_type in ["t4", "l4"]:
         valid_counts = [1, 2, 4]
+        # Add multinode options
+        multinode_counts = [8, 12, 16, 20, 24]  # multiples of 4
     elif gpu_type == "t4-small":
         valid_counts = [1]
+        multinode_counts = [2, 3, 4, 5, 6]  # multiples of 1
     else:  # a100, h100, h200, b200
         valid_counts = [1, 2, 4, 8]
+        # Add multinode options
+        multinode_counts = [16, 24, 32, 40, 48]  # multiples of 8
 
-    # Filter by actual max for this GPU type
+    # Filter single-node by actual max for this GPU type
     valid_counts = [count for count in valid_counts if count <= max_gpus]
+    
+    # Add multinode options (multiples of max_gpus)
+    multinode_counts = [count for count in multinode_counts if count % max_gpus == 0]
 
     choices = []
+    
+    # Add single-node options
     for count in valid_counts:
         if count == 1:
-            label = f"1 GPU"
+            label = f"1 GPU (single node)"
         else:
-            label = f"{count} GPUs"
-
+            label = f"{count} GPUs (single node)"
         choices.append(questionary.Choice(title=label, value=count))
+    
+    # Add separator and multinode options
+    if multinode_counts:
+        choices.append(questionary.Separator("--- Multinode (Distributed) ---"))
+        for count in multinode_counts:
+            nodes = count // max_gpus
+            label = f"{count} GPUs ({nodes} nodes × {max_gpus} GPUs)"
+            choices.append(questionary.Choice(title=label, value=count))
 
     try:
         answer = questionary.select(

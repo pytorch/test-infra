@@ -169,6 +169,84 @@ class ReservationManager:
             console.print(f"[red]❌ Error creating reservation: {str(e)}[/red]")
             return None
 
+    def create_multinode_reservation(
+        self,
+        user_id: str,
+        gpu_count: int,
+        gpu_type: str,
+        duration_hours: Union[int, float],
+        name: Optional[str] = None,
+        github_user: Optional[str] = None,
+        jupyter_enabled: bool = False,
+        recreate_env: bool = False,
+    ) -> Optional[List[str]]:
+        """Create multiple GPU reservations for multinode setup"""
+        try:
+            # Determine GPU config
+            gpu_configs = {
+                "t4": {"max_gpus": 4},
+                "l4": {"max_gpus": 4},
+                "t4-small": {"max_gpus": 1},
+                "a100": {"max_gpus": 8},
+                "h100": {"max_gpus": 8},
+                "h200": {"max_gpus": 8},
+                "b200": {"max_gpus": 8},
+            }
+            
+            max_gpus_per_node = gpu_configs[gpu_type]["max_gpus"]
+            num_nodes = gpu_count // max_gpus_per_node
+            
+            if gpu_count % max_gpus_per_node != 0:
+                console.print(f"[red]❌ GPU count must be multiple of {max_gpus_per_node} for {gpu_type}[/red]")
+                return None
+                
+            # Generate a master reservation ID to group related nodes
+            master_reservation_id = str(uuid.uuid4())
+            created_at = datetime.utcnow().isoformat()
+            reservation_ids = []
+            
+            # Create reservation for each node
+            for node_idx in range(num_nodes):
+                node_reservation_id = str(uuid.uuid4())
+                reservation_ids.append(node_reservation_id)
+                
+                # Node-specific name
+                node_name = f"{name or f'{gpu_count}x {gpu_type.upper()} multinode'} - Node {node_idx + 1}/{num_nodes}"
+                
+                # Create reservation message for this node
+                message = {
+                    "reservation_id": node_reservation_id,
+                    "master_reservation_id": master_reservation_id,  # Group related nodes
+                    "node_index": node_idx,
+                    "total_nodes": num_nodes,
+                    "user_id": user_id,
+                    "gpu_count": max_gpus_per_node,  # GPUs per node
+                    "total_gpu_count": gpu_count,  # Total GPUs across all nodes
+                    "gpu_type": gpu_type,
+                    "duration_hours": float(duration_hours),
+                    "name": node_name,
+                    "created_at": created_at,
+                    "status": "pending",
+                    "jupyter_enabled": jupyter_enabled and node_idx == 0,  # Only enable Jupyter on master node
+                    "recreate_env": recreate_env,
+                    "is_multinode": True,
+                }
+                
+                if github_user:
+                    message["github_user"] = github_user
+                
+                # Send to SQS queue
+                queue_url = self.config.get_queue_url()
+                self.config.sqs_client.send_message(
+                    QueueUrl=queue_url, MessageBody=json.dumps(message)
+                )
+            
+            return reservation_ids
+            
+        except Exception as e:
+            console.print(f"[red]❌ Error creating multinode reservation: {str(e)}[/red]")
+            return None
+
     def list_reservations(
         self,
         user_filter: Optional[str] = None,
@@ -235,6 +313,12 @@ class ReservationManager:
                 f"[red]❌ Error submitting cancellation request: {str(e)}[/red]"
             )
             return False
+
+    def wait_for_multinode_reservation_completion(
+        self, reservation_ids: List[str], timeout_minutes: Optional[int] = 10
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Poll for multiple reservation completion using shared polling logic"""
+        return self._wait_for_reservations_completion(reservation_ids, timeout_minutes, is_multinode=True)
 
     def get_connection_info(
         self, reservation_id: str, user_id: str
@@ -873,11 +957,11 @@ class ReservationManager:
             console.print(f"[red]❌ Error getting cluster status: {str(e)}[/red]")
             return None
 
-    def wait_for_reservation_completion(
-        self, reservation_id: str, timeout_minutes: Optional[int] = 10
-    ) -> Optional[Dict[str, Any]]:
-        """Poll for reservation completion with status updates, queue info, and keyboard controls"""
-
+    def _wait_for_reservations_completion(
+        self, reservation_ids: List[str], timeout_minutes: Optional[int] = 10, is_multinode: bool = False
+    ) -> Optional[List[Dict[str, Any]]]:
+        """Shared polling logic for both single and multinode reservations"""
+        
         status_messages = {
             "pending": "⏳ Reservation request submitted, waiting for processing...",
             "queued": "📋 In queue - waiting for GPU resources...",
@@ -894,39 +978,40 @@ class ReservationManager:
         close_tool = False
         show_queue_help = True
         queue_state = {"initial_estimated_wait": None, "queue_start_time": None}
+        total_nodes = len(reservation_ids)
 
         def handle_interrupt(signum, frame):
-            """Handle Ctrl+C to cancel reservation"""
+            """Handle Ctrl+C to cancel reservation(s)"""
             nonlocal cancelled
             cancelled = True
 
-        # Use SIGTERM for clean exit (can be sent with kill command or Ctrl+\)
-        clean_exit_requested = False
-
         def handle_clean_exit(signum, frame):
             """Handle clean exit signal (SIGTERM)"""
-            nonlocal clean_exit_requested
-            clean_exit_requested = True
+            nonlocal close_tool
+            close_tool = True
+            reservation_text = "reservations" if is_multinode else "reservation"
             console.print(
-                "\n[cyan]🔄 Clean exit requested - keeping reservation active...[/cyan]"
+                f"\n[cyan]🔄 Clean exit requested - keeping {reservation_text} active...[/cyan]"
             )
 
         def check_keyboard_input():
             """Check if clean exit was requested via signal"""
-            return clean_exit_requested
+            return close_tool
 
         # Set up signal handlers
-        # SIGTERM for clean exit (kill <pid> or Ctrl+\ in some terminals)
         signal.signal(signal.SIGTERM, handle_clean_exit)
-        # Try to catch Ctrl+\ (SIGQUIT) for clean exit too
         try:
             signal.signal(signal.SIGQUIT, handle_clean_exit)
+            action_text = "cancel all reservations" if is_multinode else "cancel reservation"
+            keep_text = "keep reservations" if is_multinode else "keep reservation"
             console.print(
-                "[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Press [cyan]Ctrl+backslash[/cyan] to exit but keep reservation[/dim]"
+                f"[dim]💡 Press [cyan]Ctrl+C[/cyan] to {action_text} • Press [cyan]Ctrl+backslash[/cyan] to exit but {keep_text}[/dim]"
             )
         except (AttributeError, OSError):
+            action_text = "cancel all reservations" if is_multinode else "cancel reservation"
+            keep_text = "keep reservations" if is_multinode else "keep reservation"
             console.print(
-                "[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Send [cyan]SIGTERM[/cyan] to exit but keep reservation[/dim]"
+                f"[dim]💡 Press [cyan]Ctrl+C[/cyan] to {action_text} • Send [cyan]SIGTERM[/cyan] to exit but {keep_text}[/dim]"
             )
             console.print(
                 f"[dim]   (From another terminal: [cyan]kill {os.getpid()}[/cyan])[/dim]"
@@ -937,192 +1022,367 @@ class ReservationManager:
 
         try:
             with Live(console=console, refresh_per_second=4) as live:
-                spinner = Spinner("dots", text="🔄 Sending reservation request...")
+                initial_text = f"📡 Starting multinode reservation..." if is_multinode else "🔄 Sending reservation request..."
+                spinner = Spinner("dots", text=initial_text)
                 live.update(spinner)
 
                 while (
-                    (
-                        timeout_seconds is None
-                        or time.time() - start_time < timeout_seconds
-                    )
+                    (timeout_seconds is None or time.time() - start_time < timeout_seconds)
                     and not cancelled
                     and not close_tool
                 ):
                     try:
-                        # Check for keyboard input (q to exit cleanly)
+                        # Check for keyboard input (clean exit)
                         if check_keyboard_input():
-                            close_tool = True
                             break
 
-                        # Get current reservation status
-                        response = self.reservations_table.get_item(
-                            Key={"reservation_id": reservation_id}
-                        )
+                        # Get current status of all reservations
+                        all_reservations = []
+                        node_details = []
+                        
+                        for i, res_id in enumerate(reservation_ids):
+                            try:
+                                response = self.reservations_table.get_item(Key={"reservation_id": res_id})
+                                if "Item" in response:
+                                    reservation = response["Item"]
+                                    all_reservations.append(reservation)
+                                    
+                                    status = reservation.get("status", "unknown")
+                                    failure_reason = reservation.get("failure_reason", "")
+                                    pod_events = reservation.get("pod_events", "")
+                                    pod_status = reservation.get("pod_status", "")
+                                    queue_position = reservation.get("queue_position", "?")
+                                    estimated_wait = reservation.get("estimated_wait_minutes", "?")
+                                    gpu_count = reservation.get("gpu_count", 1)
+                                    
+                                    node_details.append({
+                                        "index": i,
+                                        "status": status,
+                                        "failure_reason": failure_reason,
+                                        "pod_events": pod_events,
+                                        "pod_status": pod_status,
+                                        "queue_position": queue_position,
+                                        "estimated_wait": estimated_wait,
+                                        "gpu_count": gpu_count,
+                                        "reservation": reservation
+                                    })
+                                else:
+                                    # No reservation found yet, keep waiting
+                                    if not is_multinode:
+                                        spinner.text = "📡 Waiting for reservation status update..."
+                                        live.update(spinner)
+                                        time.sleep(2)
+                                        continue
+                                    else:
+                                        node_details.append({
+                                            "index": i, "status": "unknown", "failure_reason": "",
+                                            "pod_events": "", "pod_status": "", "queue_position": "?",
+                                            "estimated_wait": "?", "gpu_count": 0, "reservation": None
+                                        })
+                            except Exception:
+                                node_details.append({
+                                    "index": i, "status": "error", "failure_reason": "Connection error",
+                                    "pod_events": "", "pod_status": "", "queue_position": "?",
+                                    "estimated_wait": "?", "gpu_count": 0, "reservation": None
+                                })
 
-                        if "Item" not in response:
-                            # No reservation found yet, keep waiting
-                            spinner.text = "📡 Waiting for reservation status update..."
-                            live.update(spinner)
-                            time.sleep(2)
-                            continue
-
-                        reservation = response["Item"]
-                        current_status = reservation.get("status", "pending")
-
-                        # Build status message with queue info for queued reservations
-                        if current_status == "queued":
-                            # Try to get queue information from reservation or estimate
-                            gpu_count = reservation.get("gpu_count", 1)
-
-                            # Get queue position and wait time (from reservation or estimate)
-                            queue_position = reservation.get("queue_position", "?")
-                            estimated_wait = reservation.get(
-                                "estimated_wait_minutes", "?"
-                            )
-
-                            # Initialize countdown on first time seeing queue status OR if we have new wait time
-                            if (
-                                current_status != last_status and estimated_wait != "?"
-                            ) or (
-                                estimated_wait != "?"
-                                and queue_state["initial_estimated_wait"] is None
-                            ):
-                                try:
-                                    wait_minutes = (
-                                        int(estimated_wait)
-                                        if isinstance(estimated_wait, (int, str))
-                                        and str(estimated_wait).isdigit()
-                                        else None
-                                    )
-                                    if wait_minutes is not None:
-                                        queue_state["initial_estimated_wait"] = (
-                                            wait_minutes
-                                        )
-                                        queue_state["queue_start_time"] = time.time()
-                                except (ValueError, TypeError):
-                                    pass
-
-                            # Calculate dynamic countdown
-                            if (
-                                queue_state["initial_estimated_wait"] is not None
-                                and queue_state["queue_start_time"] is not None
-                            ):
-                                elapsed_minutes = (
-                                    time.time() - queue_state["queue_start_time"]
-                                ) / 60
-                                remaining_wait = max(
-                                    0,
-                                    queue_state["initial_estimated_wait"]
-                                    - elapsed_minutes,
-                                )
-                                wait_display = (
-                                    f"{remaining_wait:.0f} min"
-                                    if remaining_wait > 0
-                                    else "Soon"
-                                )
+                        # Calculate aggregate status
+                        statuses = [node["status"] for node in node_details]
+                        active_count = statuses.count("active")
+                        failed_count = statuses.count("failed")
+                        cancelled_count = statuses.count("cancelled")
+                        preparing_count = statuses.count("preparing")
+                        queued_count = statuses.count("queued")
+                        
+                        # Determine aggregate status for multinode reservations
+                        # Only consider it failed if ALL nodes are explicitly failed/cancelled
+                        # or if there's a significant portion failed (more than half)
+                        if is_multinode:
+                            # For multinode, be more conservative about declaring failure
+                            if failed_count + cancelled_count >= total_nodes:
+                                # All nodes failed - definitely failed
+                                aggregate_status = "failed"
+                            elif active_count == total_nodes:
+                                # All nodes active - success
+                                aggregate_status = "active"
+                            elif active_count + preparing_count == total_nodes:
+                                # All nodes either active or preparing - still working
+                                aggregate_status = "preparing" if preparing_count > 0 else "active"
+                            elif queued_count > 0:
+                                # Any nodes queued - still in queue
+                                aggregate_status = "queued"
+                            elif failed_count + cancelled_count > total_nodes // 2:
+                                # More than half failed - likely a real failure
+                                aggregate_status = "failed"
                             else:
-                                wait_display = (
-                                    f"{estimated_wait} min"
-                                    if estimated_wait != "?"
-                                    else "Calculating..."
-                                )
-
-                            message = f"📋 You are #{queue_position} in queue • Estimated wait: {wait_display} • {gpu_count} GPU(s) requested"
-
-                            # Show help message once when entering queue
-                            if show_queue_help and current_status != last_status:
-                                help_text = "\n[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Use [cyan]gpu-dev list[/cyan] to check status[/dim]"
-                                console.print(help_text)
-                                show_queue_help = False
-
-                        elif current_status == "preparing":
-                            # Show detailed pod status during preparation (updated every poll cycle)
-                            pod_status = reservation.get("pod_status", "")
-                            pod_events = reservation.get("pod_events", "")
-                            failure_reason = reservation.get("failure_reason", "")
-
-                            # Priority: pod_status > pod_events > failure_reason > default
-                            if pod_status:
-                                message = f"🚀 {pod_status}"
-                            elif pod_events:
-                                # Show latest pod event
-                                latest_event = _extract_latest_pod_event(pod_events)
-                                message = f"🚀 Preparing: {latest_event}"
-                            elif failure_reason:
-                                message = f"🚀 Preparing: {failure_reason}"
-                            else:
-                                message = status_messages.get(
-                                    current_status, f"Status: {current_status}"
-                                )
+                                # Mixed state - keep preparing/pending
+                                aggregate_status = "preparing" if preparing_count > 0 else "pending"
                         else:
-                            message = status_messages.get(
-                                current_status, f"Status: {current_status}"
-                            )
+                            # Single node - use original logic
+                            if failed_count > 0 or cancelled_count > 0:
+                                aggregate_status = "failed"
+                            elif active_count == total_nodes:
+                                aggregate_status = "active"
+                            elif preparing_count > 0:
+                                aggregate_status = "preparing"
+                            elif queued_count > 0:
+                                aggregate_status = "queued"
+                            else:
+                                aggregate_status = "pending"
 
-                        # Update spinner if status changed or we're in queue/preparing (to show updated info)
-                        if current_status != last_status or current_status in [
-                            "queued",
-                            "preparing",
-                        ]:
-                            spinner.text = message
-                            last_status = current_status
-                            live.update(spinner)
+                        # Build status message based on aggregate status and mode
+                        message = ""
+                        
+                        if aggregate_status == "queued":
+                            # Use first queued node's info for display
+                            queued_nodes = [node for node in node_details if node["status"] == "queued"]
+                            if queued_nodes:
+                                first_queued = queued_nodes[0]
+                                queue_position = first_queued["queue_position"]
+                                estimated_wait = first_queued["estimated_wait"]
+                                
+                                # Initialize countdown logic
+                                if (
+                                    aggregate_status != last_status and estimated_wait != "?"
+                                ) or (
+                                    estimated_wait != "?"
+                                    and queue_state["initial_estimated_wait"] is None
+                                ):
+                                    try:
+                                        wait_minutes = (
+                                            int(estimated_wait)
+                                            if isinstance(estimated_wait, (int, str))
+                                            and str(estimated_wait).isdigit()
+                                            else None
+                                        )
+                                        if wait_minutes is not None:
+                                            queue_state["initial_estimated_wait"] = wait_minutes
+                                            queue_state["queue_start_time"] = time.time()
+                                    except (ValueError, TypeError):
+                                        pass
 
-                        # Check for completion states
-                        if current_status == "active":
+                                # Calculate dynamic countdown
+                                if (
+                                    queue_state["initial_estimated_wait"] is not None
+                                    and queue_state["queue_start_time"] is not None
+                                ):
+                                    elapsed_minutes = (
+                                        time.time() - queue_state["queue_start_time"]
+                                    ) / 60
+                                    remaining_wait = max(
+                                        0,
+                                        queue_state["initial_estimated_wait"] - elapsed_minutes,
+                                    )
+                                    wait_display = (
+                                        f"{remaining_wait:.0f} min"
+                                        if remaining_wait > 0
+                                        else "Soon"
+                                    )
+                                else:
+                                    wait_display = (
+                                        f"{estimated_wait} min"
+                                        if estimated_wait != "?"
+                                        else "Calculating..."
+                                    )
+                                
+                                if is_multinode:
+                                    total_gpus = sum(node["gpu_count"] for node in node_details if node["reservation"])
+                                    message = f"📋 Position #{queue_position} in queue • Estimated wait: {wait_display} • {total_gpus} GPUs across {total_nodes} nodes"
+                                else:
+                                    gpu_count = first_queued["gpu_count"]
+                                    message = f"📋 You are #{queue_position} in queue • Estimated wait: {wait_display} • {gpu_count} GPU(s) requested"
+
+                                # Show help message once when entering queue
+                                if show_queue_help and aggregate_status != last_status:
+                                    help_text = "\n[dim]💡 Press [cyan]Ctrl+C[/cyan] to cancel reservation • Use [cyan]gpu-dev list[/cyan] to check status[/dim]"
+                                    console.print(help_text)
+                                    show_queue_help = False
+                            else:
+                                message = f"📋 Nodes in queue... ({active_count}/{total_nodes} ready)" if is_multinode else "📋 In queue..."
+
+                        elif aggregate_status == "preparing":
+                            if is_multinode:
+                                # Show detailed preparation info for multinode - show ALL nodes, not just preparing ones
+                                detailed_events = []
+                                for node in node_details:
+                                    node_status = node["status"]
+                                    if node_status == "active":
+                                        detailed_events.append(f"✓ Ready")
+                                    elif node["pod_events"]:
+                                        detailed_events.append(node["pod_events"])
+                                    elif node["failure_reason"]:
+                                        detailed_events.append(node["failure_reason"])
+                                    elif node_status == "preparing":
+                                        detailed_events.append("Preparing environment...")
+                                    elif node_status in ["pending", "queued"]:
+                                        detailed_events.append(f"{node_status.title()}...")
+                                    else:
+                                        detailed_events.append(node_status)
+                                
+                                if detailed_events and len(detailed_events) <= 16:  # Increased from 4 to 16
+                                    # For multinode, create a custom multi-line display with individual spinners
+                                    from rich.table import Table
+                                    from rich.text import Text
+                                    from rich.panel import Panel
+                                    from rich.console import Group
+                                    
+                                    # Create a list of renderable items
+                                    node_lines = []
+                                    
+                                    for i, event in enumerate(detailed_events):
+                                        node_num = i + 1
+                                        node_status = node_details[i]["status"]
+                                        
+                                        # Create individual spinner or checkmark for each node
+                                        if node_status == "active":
+                                            # Ready node - show checkmark without spinner
+                                            line = Text(f"✓ Node {node_num}: Ready", style="green")
+                                        else:
+                                            # Not ready - create a spinner for this specific node
+                                            node_spinner = Spinner("dots", text=f"Node {node_num}: {event}")
+                                            line = node_spinner
+                                        
+                                        node_lines.append(line)
+                                    
+                                    # Group all lines together
+                                    group = Group(*node_lines)
+                                    
+                                    # Add summary line
+                                    summary = Text(f"({active_count}/{total_nodes} ready)", style="cyan")
+                                    full_display = Group(group, summary)
+                                    
+                                    # Update live display with all spinners
+                                    panel = Panel(full_display, title="🚀 Multinode Setup", expand=False)
+                                    live.update(panel)
+                                    
+                                    # Don't set message since we're using custom display
+                                    message = None
+                                else:
+                                    # Summarize if we have many nodes
+                                    preparing_count = statuses.count("preparing")
+                                    message = f"🚀 Preparing {preparing_count} nodes... ({active_count}/{total_nodes} ready)"
+                            else:
+                                # Show detailed preparation info for single node
+                                preparing_nodes = [node for node in node_details if node["status"] == "preparing"]
+                                node = preparing_nodes[0] if preparing_nodes else node_details[0]
+                                pod_events = node["pod_events"]
+                                failure_reason = node["failure_reason"]
+                                pod_status = node["pod_status"]
+                                
+                                # Priority: pod_events > failure_reason > pod_status > default
+                                if pod_events:
+                                    message = f"🚀 {pod_events}"
+                                elif failure_reason:
+                                    message = f"🚀 Preparing: {failure_reason}"
+                                elif pod_status and pod_status != "Running":
+                                    message = f"🚀 Pod {pod_status.lower()}"
+                                else:
+                                    message = status_messages.get(aggregate_status, f"Status: {aggregate_status}")
+                        
+                        elif aggregate_status == "failed":
+                            failed_nodes = [node for node in node_details if node["status"] in ["failed", "cancelled"]]
+                            if is_multinode:
+                                failure_details = []
+                                for node in failed_nodes:
+                                    reason = node["failure_reason"] if node["failure_reason"] else node["status"]
+                                    failure_details.append(f"Node {node['index']+1}: {reason}")
+                                
+                                # Add debug info about all node statuses for troubleshooting
+                                debug_details = []
+                                for node in node_details:
+                                    status = node["status"]
+                                    debug_details.append(f"Node {node['index']+1}: {status}")
+                                
+                                status_display = "\n".join([f"  {detail}" for detail in failure_details])
+                                debug_display = "\n".join([f"  {detail}" for detail in debug_details])
+                                message = f"❌ Multinode failed ({failed_count + cancelled_count}/{total_nodes})\n{status_display}"
+                                live.update(Spinner("dots", text=message))
+                                time.sleep(2)
+                                console.print(f"\n[red]❌ Multinode reservation failed ({failed_count + cancelled_count}/{total_nodes} nodes failed)[/red]")
+                                for detail in failure_details:
+                                    console.print(f"[red]  {detail}[/red]")
+                                console.print(f"\n[dim]Debug - All node statuses:[/dim]")
+                                for detail in debug_details:
+                                    console.print(f"[dim]  {detail}[/dim]")
+                                return None
+                            else:
+                                # Handle single node failure below in completion check
+                                pass
+                        
+                        elif aggregate_status == "active":
+                            if is_multinode:
+                                live.update(Spinner("dots", text=f"✅ All {total_nodes} nodes ready!"))
+                                time.sleep(1)
+                                console.print(f"\n[green]✅ Multinode reservation complete! All {total_nodes} nodes are ready.[/green]")
+                                
+                                # Show connection info for each node
+                                for node in node_details:
+                                    if node["reservation"]:
+                                        res = node["reservation"]
+                                        ssh_command = res.get("ssh_command", "ssh user@pending")
+                                        ssh_with_forwarding = _add_agent_forwarding_to_ssh(ssh_command)
+                                        console.print(f"[cyan]🖥️  Node {node['index']+1}:[/cyan] {ssh_with_forwarding}")
+                                
+                                return all_reservations
+                            else:
+                                # Handle single node completion below in completion check
+                                pass
+                        
+                        else:
+                            # Default pending/unknown status
+                            if is_multinode:
+                                message = f"⏳ Processing multinode reservation... ({active_count}/{total_nodes} ready)"
+                            else:
+                                message = status_messages.get(aggregate_status, f"Status: {aggregate_status}")
+
+                        # Update spinner if status changed or we're in certain states
+                        if aggregate_status != last_status or aggregate_status in ["queued", "preparing"]:
+                            if message:
+                                spinner.text = message
+                                last_status = aggregate_status
+                                live.update(spinner)
+                            # For multinode preparing with custom display, we already updated above
+
+                        # Check for single-node completion states (when not multinode or already handled above)
+                        if not is_multinode and aggregate_status == "active":
                             live.stop()
-
+                            reservation = all_reservations[0]
+                            
                             # Get connection info
-                            ssh_command = reservation.get(
-                                "ssh_command", "ssh user@pending"
-                            )
+                            ssh_command = reservation.get("ssh_command", "ssh user@pending")
                             duration_hours = reservation.get("duration_hours", 8)
+                            reservation_id = reservation["reservation_id"]
 
                             console.print(f"\n[green]✅ Reservation complete![/green]")
-                            console.print(
-                                f"[cyan]📋 Reservation ID:[/cyan] {reservation_id}"
-                            )
-                            console.print(
-                                f"[cyan]⏰ Valid for:[/cyan] {duration_hours} hours"
-                            )
+                            console.print(f"[cyan]📋 Reservation ID:[/cyan] {reservation_id}")
+                            console.print(f"[cyan]⏰ Valid for:[/cyan] {duration_hours} hours")
+                            
                             # Add agent forwarding to SSH command
-                            ssh_with_forwarding = _add_agent_forwarding_to_ssh(
-                                ssh_command
-                            )
-                            console.print(
-                                f"[cyan]🖥️  Connect with:[/cyan] {ssh_with_forwarding}"
-                            )
+                            ssh_with_forwarding = _add_agent_forwarding_to_ssh(ssh_command)
+                            console.print(f"[cyan]🖥️  Connect with:[/cyan] {ssh_with_forwarding}")
 
                             # Show VS Code remote command
                             vscode_command = _generate_vscode_command(ssh_command)
                             if vscode_command:
-                                console.print(
-                                    f"[cyan]💻 VS Code Remote:[/cyan] {vscode_command}"
-                                )
+                                console.print(f"[cyan]💻 VS Code Remote:[/cyan] {vscode_command}")
 
                             # Show Jupyter link if enabled
                             jupyter_enabled = reservation.get("jupyter_enabled", False)
                             jupyter_url = reservation.get("jupyter_url", "")
                             if jupyter_enabled and jupyter_url:
-                                console.print(
-                                    f"[cyan]📊 Jupyter Lab:[/cyan] {jupyter_url}"
-                                )
+                                console.print(f"[cyan]📊 Jupyter Lab:[/cyan] {jupyter_url}")
 
-                            return reservation
+                            return all_reservations
 
-                        elif current_status in ["failed", "cancelled"]:
+                        elif not is_multinode and aggregate_status in ["failed", "cancelled"]:
                             live.stop()
-                            failure_reason = reservation.get(
-                                "failure_reason", "Unknown error"
-                            )
+                            reservation = all_reservations[0] if all_reservations else {}
+                            failure_reason = reservation.get("failure_reason", "Unknown error")
+                            reservation_id = reservation.get("reservation_id", "unknown")
 
-                            if current_status == "failed":
-                                console.print(
-                                    f"\n[red]❌ Reservation failed: {failure_reason}[/red]"
-                                )
-                                console.print(
-                                    f"[red]📋 Reservation ID: {reservation_id}[/red]"
-                                )
+                            if aggregate_status == "failed":
+                                console.print(f"\n[red]❌ Reservation failed: {failure_reason}[/red]")
+                                console.print(f"[red]📋 Reservation ID: {reservation_id}[/red]")
 
                                 # Show pod logs if available
                                 pod_logs = reservation.get("pod_logs", "")
@@ -1130,11 +1390,7 @@ class ReservationManager:
                                     from rich.panel import Panel
                                     from rich.text import Text
 
-                                    console.print(
-                                        "\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]"
-                                    )
-
-                                    # Create logs panel that's always visible but styled nicely
+                                    console.print("\n[red]🔍 Pod logs (last 20 lines) - Details:[/red]")
                                     log_text = Text(pod_logs)
                                     log_panel = Panel(
                                         log_text,
@@ -1145,9 +1401,7 @@ class ReservationManager:
                                     )
                                     console.print(log_panel)
                             else:
-                                console.print(
-                                    f"\n[yellow]🛑 Reservation was cancelled[/yellow]"
-                                )
+                                console.print(f"\n[yellow]🛑 Reservation was cancelled[/yellow]")
 
                             return None
 
@@ -1155,61 +1409,58 @@ class ReservationManager:
                         time.sleep(3)
 
                     except Exception as e:
-                        console.print(
-                            f"\n[red]❌ Error polling reservation status: {str(e)}[/red]"
-                        )
+                        console.print(f"\n[red]❌ Error polling reservation status: {str(e)}[/red]")
                         return None
 
             # Handle cancellation
             if cancelled:
                 live.stop()
-                console.print("\n[yellow]⚠️  Cancelling reservation request...[/yellow]")
+                action_text = "multinode reservation" if is_multinode else "reservation request"
+                console.print(f"\n[yellow]⚠️  Cancelling {action_text}...[/yellow]")
 
-                # Get user_id for cancellation
-                try:
-                    response = self.reservations_table.get_item(
-                        Key={"reservation_id": reservation_id}
-                    )
-                    if "Item" in response:
-                        user_id = response["Item"].get("user_id", "unknown")
-                        if self.cancel_reservation(reservation_id, user_id):
-                            console.print(
-                                "[green]✅ Reservation cancelled successfully[/green]"
-                            )
-                        else:
-                            console.print("[red]❌ Failed to cancel reservation[/red]")
-                except Exception as e:
-                    console.print(
-                        f"[red]❌ Error cancelling reservation: {str(e)}[/red]"
-                    )
+                # Cancel all reservations
+                success_count = 0
+                for res_id in reservation_ids:
+                    try:
+                        response = self.reservations_table.get_item(Key={"reservation_id": res_id})
+                        if "Item" in response:
+                            user_id = response["Item"].get("user_id", "unknown")
+                            if self.cancel_reservation(res_id, user_id):
+                                success_count += 1
+                    except Exception as e:
+                        console.print(f"[red]❌ Error cancelling reservation {res_id[:8]}: {str(e)}[/red]")
+
+                if success_count == len(reservation_ids):
+                    success_text = "All reservations cancelled successfully" if is_multinode else "Reservation cancelled successfully"
+                    console.print(f"[green]✅ {success_text}[/green]")
+                elif success_count > 0:
+                    console.print(f"[yellow]⚠️  {success_count}/{len(reservation_ids)} reservations cancelled[/yellow]")
+                else:
+                    fail_text = "Failed to cancel reservations" if is_multinode else "Failed to cancel reservation"
+                    console.print(f"[red]❌ {fail_text}[/red]")
 
                 return None
 
-            # Handle clean exit (q key)
+            # Handle clean exit
             if close_tool:
                 live.stop()
-                console.print(
-                    f"\n[cyan]📱 Exiting - reservation {reservation_id[:8]} continues in background...[/cyan]"
-                )
+                if is_multinode:
+                    id_display = ", ".join([res_id[:8] for res_id in reservation_ids])
+                    console.print(f"\n[cyan]📱 Exiting - multinode reservations {id_display} continue in background...[/cyan]")
+                else:
+                    console.print(f"\n[cyan]📱 Exiting - reservation {reservation_ids[0][:8]} continues in background...[/cyan]")
                 console.print("[cyan]💡 Use 'gpu-dev list' to check status[/cyan]")
-                console.print(
-                    "[cyan]💡 Use 'gpu-dev show {id}' to get connection details when ready[/cyan]".format(
-                        id=reservation_id[:8]
-                    )
-                )
+                if not is_multinode:
+                    console.print(f"[cyan]💡 Use 'gpu-dev show {reservation_ids[0][:8]}' to get connection details when ready[/cyan]")
                 return None
 
-            # Timeout reached (should not happen when timeout_minutes is None)
+            # Timeout reached
             live.stop()
             if timeout_minutes is not None:
-                console.print(
-                    f"\n[yellow]⏰ Timeout reached after {timeout_minutes} minutes[/yellow]"
-                )
+                console.print(f"\n[yellow]⏰ Timeout reached after {timeout_minutes} minutes[/yellow]")
             else:
                 console.print(f"\n[yellow]⏰ Polling stopped unexpectedly[/yellow]")
-            console.print(
-                "[yellow]🔍 Check reservation status manually with: gpu-dev list[/yellow]"
-            )
+            console.print("[yellow]🔍 Check reservation status manually with: gpu-dev list[/yellow]")
             return None
 
         finally:
@@ -1220,3 +1471,10 @@ class ReservationManager:
                 signal.signal(signal.SIGQUIT, signal.SIG_DFL)
             except (AttributeError, OSError):
                 pass
+
+    def wait_for_reservation_completion(
+        self, reservation_id: str, timeout_minutes: Optional[int] = 10
+    ) -> Optional[Dict[str, Any]]:
+        """Poll for single reservation completion using shared polling logic"""
+        results = self._wait_for_reservations_completion([reservation_id], timeout_minutes, is_multinode=False)
+        return results[0] if results else None

@@ -2,8 +2,9 @@
 
 import subprocess
 import re
-from typing import Dict, Any, Optional
+from typing import Dict, Any
 from .config import Config
+from rich.spinner import Spinner
 
 
 def authenticate_user(config: Config) -> Dict[str, Any]:
@@ -36,7 +37,7 @@ def authenticate_user(config: Config) -> Dict[str, Any]:
         raise RuntimeError(f"AWS authentication failed: {e}")
 
 
-def validate_ssh_key_matches_github_user(config: Config) -> Dict[str, Any]:
+def validate_ssh_key_matches_github_user(config: Config, live=None) -> Dict[str, Any]:
     """
     Validate that the SSH key matches the configured GitHub username
 
@@ -58,65 +59,98 @@ def validate_ssh_key_matches_github_user(config: Config) -> Dict[str, Any]:
                 "error": "GitHub username not configured. Run: gpu-dev config set github_user <username>",
             }
 
-        # Run ssh git@github.com and capture output
+        # Run ssh git@github.com with interactive host verification support
+        ssh_output = None
+
         try:
-            result = subprocess.run(
-                ["ssh", "git@github.com"],
+            # First try with batch mode to check if host key is already known
+            batch_result = subprocess.run(
+                ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "git@github.com"],
                 capture_output=True,
                 text=True,
-                timeout=10,  # 10 second timeout
+                timeout=10,
             )
 
-            # GitHub SSH always returns non-zero exit code, so we check stderr for the response
-            ssh_output = result.stderr
+            # If batch mode works, use that output
+            ssh_output = batch_result.stderr or ""
 
-            # Parse GitHub SSH response to extract username
-            # Expected format: "Hi <username>! You've successfully authenticated, but GitHub does not provide shell access."
-            username_match = re.search(r"Hi ([^!]+)!", ssh_output)
+            # Check if output indicates host key verification failure
+            if "Host key verification failed" in ssh_output or "authenticity of host" in ssh_output:
+                raise subprocess.CalledProcessError(batch_result.returncode, "ssh", "Host verification needed")
 
-            if not username_match:
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as batch_error:
+            try:
+                # Host key not known, need interactive verification
+                from rich.console import Console
+                console = Console()
+
+                # Stop the spinner to allow interactive input
+                if live:
+                    live.stop()
+
+                console.print(
+                    "[yellow]⚠️  GitHub host key verification required. Please respond to the prompt below.[/yellow]")
+
+                # Use os.system for true terminal interaction
+                import os
+                exit_code = os.system("ssh -o BatchMode=no -o ConnectTimeout=10 git@github.com")
+
+                # Restart the spinner
+                if live:
+                    live.start()
+                    live.update(Spinner("dots", text="🔐 Validating SSH key..."))
+                # SSH should return non-zero (that's normal for GitHub), but if it's 255 it means connection failed
+                if exit_code == 255 * 256:  # os.system returns exit_code * 256
+                    console.print("[red]⚠️  SSH connection failed - host key may not have been accepted.[/red]")
+                    raise Exception("SSH connection failed - host key may not have been accepted")
+
+                # After interactive verification, run again in batch mode to get output
+                final_result = subprocess.run(
+                    ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=5", "git@github.com"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+
+                ssh_output = final_result.stderr or ""
+
+            except Exception as interactive_error:
                 return {
                     "valid": False,
                     "configured_user": github_user,
                     "ssh_user": None,
-                    "error": f"Could not parse GitHub SSH response. Output: {ssh_output[:200]}",
+                    "error": f"Interactive SSH verification failed: {str(interactive_error)}",
                 }
 
-            ssh_detected_user = username_match.group(1).strip()
+        # Ensure ssh_output is not None
+        if ssh_output is None:
+            ssh_output = ""
 
-            # Compare usernames (case-insensitive)
-            is_valid = ssh_detected_user.lower() == github_user.lower()
+        # Parse GitHub SSH response to extract username
+        # Expected format: "Hi <username>! You've successfully authenticated, but GitHub does not provide shell access."
+        username_match = re.search(r"Hi ([^!]+)!", ssh_output)
 
-            return {
-                "valid": is_valid,
-                "configured_user": github_user,
-                "ssh_user": ssh_detected_user,
-                "error": None
-                if is_valid
-                else f"SSH key belongs to '{ssh_detected_user}' but configured user is '{github_user}'",
-            }
-
-        except subprocess.TimeoutExpired:
+        if not username_match:
             return {
                 "valid": False,
                 "configured_user": github_user,
                 "ssh_user": None,
-                "error": "SSH connection to GitHub timed out",
+                "error": f"Could not parse GitHub SSH response. Output: {ssh_output[:200]}",
             }
-        except subprocess.CalledProcessError as e:
-            return {
-                "valid": False,
-                "configured_user": github_user,
-                "ssh_user": None,
-                "error": f"SSH command failed: {e}",
-            }
-        except FileNotFoundError:
-            return {
-                "valid": False,
-                "configured_user": github_user,
-                "ssh_user": None,
-                "error": "SSH command not found. Please install OpenSSH client",
-            }
+
+        ssh_detected_user = username_match.group(1).strip()
+
+        # Compare usernames (case-insensitive)
+        is_valid = ssh_detected_user.lower() == github_user.lower()
+
+        return {
+            "valid": is_valid,
+            "configured_user": github_user,
+            "ssh_user": ssh_detected_user,
+            "error": None
+            if is_valid
+            else f"SSH key belongs to '{ssh_detected_user}' but configured user is '{github_user}'",
+        }
 
     except Exception as e:
         return {

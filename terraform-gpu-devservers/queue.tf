@@ -54,40 +54,7 @@ resource "aws_sqs_queue_policy" "gpu_reservation_queue_policy" {
   })
 }
 
-# EventBridge rule to trigger Lambda on new SQS messages
-resource "aws_cloudwatch_event_rule" "gpu_reservation_trigger" {
-  name        = "${var.prefix}-reservation-trigger"
-  description = "Trigger reservation processor on new SQS messages"
-
-  event_pattern = jsonencode({
-    source      = ["aws.sqs"]
-    detail-type = ["SQS Message"]
-    detail = {
-      queueUrl = [aws_sqs_queue.gpu_reservation_queue.id]
-    }
-  })
-
-  tags = {
-    Name        = "${var.prefix}-reservation-trigger"
-    Environment = local.current_config.environment
-  }
-}
-
-# EventBridge target to invoke Lambda
-resource "aws_cloudwatch_event_target" "gpu_reservation_lambda_target" {
-  rule      = aws_cloudwatch_event_rule.gpu_reservation_trigger.name
-  target_id = "ReservationProcessorLambdaTarget"
-  arn       = aws_lambda_function.reservation_processor.arn
-}
-
-# Permission for EventBridge to invoke Lambda
-resource "aws_lambda_permission" "allow_eventbridge" {
-  statement_id  = "AllowExecutionFromEventBridge"
-  action        = "lambda:InvokeFunction"
-  function_name = aws_lambda_function.reservation_processor.function_name
-  principal     = "events.amazonaws.com"
-  source_arn    = aws_cloudwatch_event_rule.gpu_reservation_trigger.arn
-}
+// Removed EventBridge SQS trigger to avoid duplicate Lambda invocations.
 
 # DynamoDB table for state management
 resource "aws_dynamodb_table" "gpu_reservations" {

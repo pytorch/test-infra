@@ -132,6 +132,7 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **Jupyter notebook integration** - Add `--jupyter` flag to enable Jupyter notebook and TensorBoard access
 - **Add user collaboration feature** - Add `--add-user <github_name>` flag to allow users to add someone to the server
 - **Display Bug:** - CLI shows "G6" instead of "L4" in availability table - likely resolves on prod release when Lambda functions are updated with new GPU type mappings
+- **Fix extend command warning cleanup** - When using `--extend`, the system doesn't remove the WARN_EXPIRES_IN_5MIN.txt file and doesn't reset the expiry warning tracking in the database. Need to either clear the warning state from the table or keep warning history elsewhere for auditing purposes
 - **Future features**:
   - Multi-server (16 GPU) reservations
   - GitHub organization/team verification
