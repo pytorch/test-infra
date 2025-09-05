@@ -12,57 +12,9 @@ from common.regression_utils import (
     get_regression_status,
     PerGroupResult,
 )
-from jinja2 import Template
 
 
 logger = logging.getLogger()
-
-REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
-config_id: `{{ report_id }}`
-
-We have detected {{ status }} in the benchmark results for {{ report_id }}.
-See details in the full report for report type `{{ report_id }}` with id `{{ id }}` in HUD (coming soon...)
-
-> **Status:** {{ status }} · **Frequency:** {{ frequency }}
-
-## Data time range used to detect regression
-- **Start:** `{{ time_range.start }}`
-- **End:** `{{ time_range.end }}`
-
-## Summary
-| Metric | Value |
-| :-- | --: |
-| Total | {{ summary.total_count | default(0) }} |
-| Regressions | {{ summary.regression_count | default(0) }} |
-| Suspicious | {{ summary.suspicious_count | default(0) }} |
-| No Regression | {{ summary.no_regression_count | default(0) }} |
-| Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
-
-##
-- **Timestamp:** `{{ latest.timestamp | default('') }}`
-- **Commit:** `{{ latest.commit | default('') }}`
-- **Branch:** `{{ latest.branch | default('') }}`
-- **Workflow ID:** `{{ latest.workflow_id | default('') }}`
-
-{% if regression_items and regression_items|length > 0 %}
-## Regression Glance
-
-{% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
-{% for item in items %}
-- **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
-  {% if item.baseline_item %}
-  (baseline commit: {{ item.baseline_item.commit | default('N/A') }},
-   workflow_id: {{ item.baseline_item.workflow_id | default('N/A') }},
-   timestamp: {{ item.baseline_item.granularity_bucket | default('N/A') }})
-  {% else %}
-  (baseline commit: N/A)
-  {% endif %}
-{% endfor %}
-{% if regression_items|length > 10 %}
-… (showing first 10 only, total {{ regression_items|length }} regressions)
-{% endif %}
-{% endif %}
-"""
 
 
 class ReportManager:
@@ -116,42 +68,6 @@ class ReportManager:
         except Exception as e:
             logger.error(f"failed to insert report to db, error: {e}")
             raise
-        self.notify_github_comment(github_token)
-
-    def notify_github_comment(self, github_token: str):
-        if self.status != "regression":
-            logger.info(
-                "[%s] no regression found, skip notification",
-                self.config_id,
-            )
-            return
-
-        github_notification = self.config.policy.get_github_notification_config()
-        if not github_notification:
-            logger.info(
-                "[%s] no github notification config found, skip notification",
-                self.config_id,
-            )
-            return
-        logger.info("[%s] prepareing content", self.config_id)
-        content = self._to_markdoown()
-        logger.info("[%s] create comment to github issue", self.config_id)
-        github_notification.create_github_comment(content, github_token)
-        logger.info("[%s] done. comment is sent to github", self.config_id)
-
-    def _to_markdoown(self):
-        self.regression_items = self._collect_regression_items()
-        md = Template(REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True).render(
-            id=self.id,
-            status=self.status,
-            report_id=self.config_id,
-            summary=self.report["summary"],
-            latest=self.target,
-            baseline=self.baseline,
-            frequency=self.config.policy.frequency.get_text(),
-            regression_items=self.regression_items,
-        )
-        return md
 
     def _collect_regression_items(self) -> list[PerGroupResult]:
         items = []
@@ -167,9 +83,6 @@ class ReportManager:
         logger.info(
             "[%s]prepare data for db insertion report (%s)...", self.config_id, self.id
         )
-
-        table = self.db_table_name
-
         latest_ts_str = self.target_latest_ts_str
         if not latest_ts_str:
             raise ValueError(
@@ -210,10 +123,21 @@ class ReportManager:
         logger.info(
             "[%s]inserting benchmark regression report(%s)", self.config_id, self.id
         )
+        self._db_insert(cc, self.db_table_name, params)
 
-        # INSERT ... SELECT ... FROM system.one + NOT EXISTS protection
-        cc.query(
-            f"""
+        logger.info(
+            "[%s] Done. inserted benchmark regression report(%s)",
+            self.config_id,
+            self.id,
+        )
+
+    def _db_insert(
+        self,
+        cc: clickhouse_connect.driver.Client,
+        table: str,
+        params: dict,
+    ) -> tuple[bool, int]:
+        sql = f"""
             INSERT INTO {table} (
                 id,
                 report_id,
@@ -249,16 +173,28 @@ class ReportManager:
                 AND `type`    = {{type:String}}
                 AND repo      = {{repo:String}}
                 AND stamp     = toDate({{last_record_ts:DateTime64(0)}})
-            );
-            """,
-            parameters=params,
+            )
+            LIMIT 1
+        """
+
+        res = cc.query(sql, parameters=params)
+        summary = getattr(res, "summary", {}) or {}
+
+        written_any = (
+            summary.get("written_rows")
+            or summary.get("rows_written")
+            or summary.get("written", 0)
+            or 0
         )
 
-        logger.info(
-            "[%s] Done. inserted benchmark regression report(%s)",
-            self.config_id,
-            self.id,
-        )
+        logger.info("wrting to db summmary %s", summary)
+        try:
+            written = int(written_any)
+        except (TypeError, ValueError):
+            written = 0
+
+        inserted = written > 0
+        return inserted, written
 
     def _validate_latest_meta_info(
         self, latest_meta_info: Dict[str, Any]
