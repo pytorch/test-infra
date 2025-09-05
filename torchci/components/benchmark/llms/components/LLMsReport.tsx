@@ -122,6 +122,7 @@ export default function LLMsReport({
         metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
+        qps={props.qps}
       />
       <LLMsSummaryPanel
         startTime={props.startTime}
@@ -236,6 +237,7 @@ function CompareLLMsReport({
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
         repos={props.repos}
+        qps={props.qps}
       />
       <LLMsSummaryPanel
         startTime={props.startTime}

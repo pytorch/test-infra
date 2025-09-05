@@ -16,6 +16,7 @@ import dayjs from "dayjs";
  * @param archName The name of the architecture.
  * @param granularity The granularity of the graph.
  * @param repos Compares multiple repos.
+ * @param qps The QPS (queries per second) filter for vLLM/SGLang comparison.
  */
 export interface LLMsBenchmarkProps {
   repoName: string;
@@ -37,4 +38,5 @@ export interface LLMsBenchmarkProps {
   lBranch: string;
   rBranch: string;
   repos: string[];
+  qps: string;
 }

@@ -94,6 +94,7 @@ export const DEFAULT_ARCH_NAME = "All Platforms";
 export const DEFAULT_DTYPE_NAME = "All DType";
 export const DEFAULT_MODE_NAME = "All Modes";
 export const DEFAULT_BACKEND_NAME = "All Backends";
+export const DEFAULT_QPS_NAME = "All QPS";
 
 // Only used by ExecuTorch for now
 export const ARCH_NAMES: { [k: string]: string[] } = {

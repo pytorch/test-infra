@@ -21,6 +21,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  DEFAULT_QPS_NAME,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
@@ -58,6 +59,7 @@ export default function LLMsBenchmarkPage() {
     lBranch: MAIN_BRANCH,
     rBranch: MAIN_BRANCH,
     repos: [],
+    qps: DEFAULT_QPS_NAME,
   };
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
@@ -490,6 +492,12 @@ function resetProps(
   if (rCommit !== undefined) {
     newProps.rCommit = rCommit;
   }
+
+  const qps: string = (urlQuery.qps as string) ?? undefined;
+  if (qps !== undefined) {
+    newProps.qps = qps;
+  }
+
   return newProps;
 }
 
@@ -527,31 +535,39 @@ const getBenchmarkName = (benchmarkName: string | any, repoName: string, repos: 
 };
 
 const formLink = (props: LLMsBenchmarkProps, baseUrl: string) => {
-  return (
-    <CopyLink
-      textToCopy={`${baseUrl}?startTime=${encodeURIComponent(
-        props.startTime.toString()
-      )}&stopTime=${encodeURIComponent(
-        props.stopTime.toString()
-      )}&granularity=${props.granularity}&lBranch=${props.lBranch}&lCommit=${
-        props.lCommit
-      }&rBranch=${props.rBranch}&rCommit=${
-        props.rCommit
-      }&repoName=${encodeURIComponent(
-        props.repoName
-      )}&benchmarkName=${encodeURIComponent(
-        props.benchmarkName
-      )}&modelName=${encodeURIComponent(
-        props.modelName
-      )}&backendName=${encodeURIComponent(
-        props.backendName
-      )}&modeName=${encodeURIComponent(
-        props.modeName
-      )}&dtypeName=${encodeURIComponent(
-        props.dtypeName
-      )}&deviceName=${encodeURIComponent(
-        props.deviceName
-      )}&archName=${encodeURIComponent(props.archName)}`}
-    />
-  );
+  let url = `${baseUrl}?startTime=${encodeURIComponent(
+    props.startTime.toString()
+  )}&stopTime=${encodeURIComponent(
+    props.stopTime.toString()
+  )}&granularity=${props.granularity}&lBranch=${props.lBranch}&lCommit=${
+    props.lCommit
+  }&rBranch=${props.rBranch}&rCommit=${
+    props.rCommit
+  }&repoName=${encodeURIComponent(
+    props.repoName
+  )}&benchmarkName=${encodeURIComponent(
+    props.benchmarkName
+  )}&modelName=${encodeURIComponent(
+    props.modelName
+  )}&backendName=${encodeURIComponent(
+    props.backendName
+  )}&modeName=${encodeURIComponent(
+    props.modeName
+  )}&dtypeName=${encodeURIComponent(
+    props.dtypeName
+  )}&deviceName=${encodeURIComponent(
+    props.deviceName
+  )}&archName=${encodeURIComponent(props.archName)}`;
+
+  // Add QPS parameter if it's not the default value
+  if (props.qps !== DEFAULT_QPS_NAME) {
+    url += `&qps=${encodeURIComponent(props.qps)}`;
+  }
+
+  // Add repos parameter for comparison mode
+  if (props.repos && props.repos.length > 0) {
+    url += `&repos=${encodeURIComponent(props.repos.join(','))}`;
+  }
+
+  return <CopyLink textToCopy={url} />;
 };

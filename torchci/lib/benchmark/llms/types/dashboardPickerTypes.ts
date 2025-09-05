@@ -10,6 +10,7 @@ export enum DropdownGroupItemType {
   DtypeName = "dtypeName",
   DeviceName = "deviceName",
   ArchName = "archName",
+  QpsName = "qps",
 }
 
 /**

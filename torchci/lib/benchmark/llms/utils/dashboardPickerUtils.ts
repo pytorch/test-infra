@@ -8,6 +8,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  DEFAULT_QPS_NAME,
 } from "../common";
 import {
   DropdownGroupItem,
@@ -66,6 +67,36 @@ export function getBenchmarkDropdownFeatures(
       labelName: "Dtype",
     },
   ];
+
+  // Check if we have vLLM/SGLang comparison data with QPS information
+  const hasQpsData = data.some((r: any) => {
+    const isVllmOrSglang = r.sourceRepo === "vllm-project/vllm" ||
+                          r.sourceRepo === "sgl-project/sglang";
+    const hasRequestRate = r.extra && r.extra.request_rate !== undefined;
+    return isVllmOrSglang && hasRequestRate;
+  });
+
+  // Add QPS filter for vLLM/SGLang comparison mode
+  if (hasQpsData) {
+    const qpsValues = _.uniq(
+      data
+        .filter((r: any) => (r.sourceRepo === "vllm-project/vllm" ||
+                            r.sourceRepo === "sgl-project/sglang") &&
+                           r.extra && r.extra.request_rate !== undefined)
+        .map((r: any) => r.extra.request_rate)
+    )
+    .map(String) // Convert to strings for consistency
+    .sort((a, b) => Number(a) - Number(b)); // Sort numerically
+
+    if (qpsValues.length > 0) {
+      const qpsFeature: DropdownGroupItem = {
+        type: DropdownGroupItemType.QpsName,
+        options: [DEFAULT_QPS_NAME, ...qpsValues],
+        labelName: "QPS",
+      };
+      items.push(qpsFeature);
+    }
+  }
 
   // TODO(elainewy): add config to handle repos-specific logics, this is only temporary
   const deviceFeature: DropdownGroupItem = {

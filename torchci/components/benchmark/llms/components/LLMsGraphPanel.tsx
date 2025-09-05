@@ -16,7 +16,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { deepClone } from "@mui/x-data-grid/internals";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
@@ -38,6 +37,7 @@ import {
   METRIC_DISPLAY_SHORT_HEADERS,
   DEFAULT_ARCH_NAME,
   DEFAULT_MODE_NAME,
+  DEFAULT_QPS_NAME,
 } from "lib/benchmark/llms/common";
 import {
   computeSpeedup,
@@ -64,6 +64,7 @@ export default function LLMsGraphPanel({
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  qps,
   repos,
 }: {
   queryParams: { [key: string]: any };
@@ -77,6 +78,7 @@ export default function LLMsGraphPanel({
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  qps?: string;
   repos?: string[];
 }) {
   const isCompare = !!(repos && repos.length > 1);
@@ -208,12 +210,26 @@ export default function LLMsGraphPanel({
             })
         : dataWithSpeedup
             .filter((record: LLMsBenchmarkData) => {
-              return (
-                record.model === modelName &&
+              // Basic filtering for model, device, and metric
+              const matchesBasic = record.model === modelName &&
                 (`${record.device} (${record.arch})` === deviceName ||
                   deviceName === DEFAULT_DEVICE_NAME) &&
-                record.metric === metric
-              );
+                record.metric === metric;
+
+              if (!matchesBasic) {
+                return false;
+              }
+
+              // Apply QPS filtering only for vLLM/SGLang repos in comparison mode
+              if (qps && qps !== DEFAULT_QPS_NAME && isCompare) {
+                const srcRepo = (record as any)?.extra?.["source_repo"];
+                if (srcRepo === "vllm-project/vllm" || srcRepo === "sgl-project/sglang") {
+                  const requestRate = record.extra?.["request_rate"];
+                  return requestRate !== undefined && requestRate.toString() === qps;
+                }
+              }
+
+              return true;
             })
             .filter((record: LLMsBenchmarkData) => {
               const id = record.workflow_id;
@@ -228,7 +244,6 @@ export default function LLMsGraphPanel({
               const model = record.model;
               const dtype = record.dtype;
               const device = record.device;
-              const metric = record.metric;
               const srcRepo = (record as any)?.extra?.["source_repo"] || repoName;
               if (
                 srcRepo === "vllm-project/vllm" ||
