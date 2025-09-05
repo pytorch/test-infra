@@ -36,6 +36,8 @@ import {
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
+  DEFAULT_ARCH_NAME,
+  DEFAULT_MODE_NAME,
 } from "lib/benchmark/llms/common";
 import {
   computeSpeedup,
@@ -44,6 +46,7 @@ import {
 import {
   computeGeomean,
   useBenchmark,
+  getLLMsBenchmarkPropsQueryParameter,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 
@@ -61,6 +64,7 @@ export default function LLMsGraphPanel({
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  repos,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
@@ -73,30 +77,83 @@ export default function LLMsGraphPanel({
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  repos?: string[];
 }) {
-  // Do not set the commit here to query all the records in the time range to
-  // draw a chart
-  const { data, error } = useBenchmark(queryParams, {
-    branch: rBranchAndCommit.branch,
-    commit: "",
-  });
+  // For comparison mode, fetch data for both repos; otherwise just one
+  let dataWithSpeedup: any[] = [];
+  if (repos && repos.length > 1) {
+    const repoQueryParams = repos.map((r) =>
+      getLLMsBenchmarkPropsQueryParameter({
+        repoName: r,
+        benchmarkName,
+        modelName,
+        backendName,
+        modeName: DEFAULT_MODE_NAME,
+        dtypeName,
+        deviceName,
+        archName: DEFAULT_ARCH_NAME,
+        startTime: dayjs(queryParams["startTime"]),
+        stopTime: dayjs(queryParams["stopTime"]),
+        timeRange: 0,
+        granularity: granularity,
+        lCommit: "",
+        rCommit: "",
+        lBranch: rBranchAndCommit.branch,
+        rBranch: rBranchAndCommit.branch,
+        repos: repos,
+      } as any)
+    );
 
-  if (data === undefined || data.length === 0) {
-    return (
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading chart for {modelName}...
-        </Typography>
-      </Stack>
+    const hooks = repoQueryParams.map((qp) =>
+      useBenchmark(qp, { branch: rBranchAndCommit.branch, commit: "" })
+    );
+    const datasets = hooks.map((h) => h.data).filter(Boolean) as any[];
+    if (datasets.length !== repos.length || datasets.some((d) => d.length === 0)) {
+      return (
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Typography fontSize={"1rem"} fontStyle={"italic"}>
+            Loading chart for {modelName}...
+          </Typography>
+        </Stack>
+      );
+    }
+
+    const tagged = datasets.flatMap((d: any, i: number) =>
+      d.map((rec: any) => ({
+        ...rec,
+        extra: { ...(rec.extra || {}), source_repo: repos[i] },
+      }))
+    );
+    dataWithSpeedup = computeSpeedup(
+      repoName,
+      computeSpeedup(repoName, tagged, false, true),
+      true,
+      false
+    );
+  } else {
+    // Do not set the commit here to query all the records in the time range to draw a chart
+    const { data } = useBenchmark(queryParams, {
+      branch: rBranchAndCommit.branch,
+      commit: "",
+    });
+
+    if (data === undefined || data.length === 0) {
+      return (
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <Typography fontSize={"1rem"} fontStyle={"italic"}>
+            Loading chart for {modelName}...
+          </Typography>
+        </Stack>
+      );
+    }
+
+    dataWithSpeedup = computeSpeedup(
+      repoName,
+      computeSpeedup(repoName, data, false, true),
+      true,
+      false
     );
   }
-
-  const dataWithSpeedup = computeSpeedup(
-    repoName,
-    computeSpeedup(repoName, data, false, true),
-    true,
-    false
-  );
 
   // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
   // align with the data we get from the database
@@ -168,10 +225,10 @@ export default function LLMsGraphPanel({
               const dtype = record.dtype;
               const device = record.device;
               const metric = record.metric;
-
+              const srcRepo = (record as any)?.extra?.["source_repo"] || repoName;
               if (
-                repoName === "vllm-project/vllm" ||
-                repoName === "sgl-project/sglang"
+                srcRepo === "vllm-project/vllm" ||
+                srcRepo === "sgl-project/sglang"
               ) {
                 const requestRate = record.extra!["request_rate"];
                 const tensorParallel = record.extra!["tensor_parallel_size"];
@@ -212,7 +269,7 @@ export default function LLMsGraphPanel({
             });
     const graphItems = formGraphItem(chartData[metric]);
     // group by timestamp to identify devices with the same timestamp
-    graphSeries[metric] = seriesWithInterpolatedTimes(
+    let series = seriesWithInterpolatedTimes(
       graphItems,
       startTime,
       stopTime,
@@ -222,6 +279,17 @@ export default function LLMsGraphPanel({
       "actual",
       false
     );
+
+    // Differentiate repos by line style when comparing
+    if (repos && repos.length > 1) {
+      const repoStyle = (name: string) => {
+        if (name.startsWith("[SGLang]")) return { type: "dashed" as const };
+        if (name.startsWith("[vLLM]")) return { type: "solid" as const };
+        return { type: "solid" as const };
+      };
+      series = series.map((s: any) => ({ ...s, lineStyle: repoStyle(s.name) }));
+    }
+    graphSeries[metric] = series;
   });
 
   // find the metric with the longest data array, it is used as baseline for rows and mapping in the table.
@@ -477,10 +545,13 @@ function formGraphItem(data: any[]) {
   data.forEach((item) => {
     const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
+    const repo = item?.extra?.["source_repo"] as string | undefined;
+    const repoLabel =
+      repo?.includes("sglang") ? "[SGLang]" : repo?.includes("vllm") ? "[vLLM]" : undefined;
     const group_key =
       deviceId && deviceId !== ""
-        ? `${displayName} (${deviceId})`
-        : displayName;
+        ? `${repoLabel ? repoLabel + " " : ""}${displayName} (${deviceId})`
+        : `${repoLabel ? repoLabel + " " : ""}${displayName}`;
     const seriesData = deepClone(item);
     seriesData.group_key = group_key;
     res.push(seriesData);

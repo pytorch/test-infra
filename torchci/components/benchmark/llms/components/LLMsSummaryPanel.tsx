@@ -51,6 +51,7 @@ export default function LLMsSummaryPanel({
   archName,
   lPerfData,
   rPerfData,
+  repos,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -125,8 +126,9 @@ export default function LLMsSummaryPanel({
             : "";
         const deviceName = `${metadata.device} (${metadata.arch})`;
 
+        const rowRepo = params.row.sourceRepo || params.row.repo_name || repoName;
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
-          repoName
+          rowRepo
         )}&benchmarkName=${encodeURIComponent(
           benchmarkName
         )}&modelName=${encodeURIComponent(
@@ -158,14 +160,15 @@ export default function LLMsSummaryPanel({
   ];
 
   // Add source repository column for multi-repo comparisons
-  const shouldShowRepoColumn = data.some(row => row.sourceRepo);
+  const shouldShowRepoColumn =
+    (repos && repos.length > 1) || data.some((row) => row.sourceRepo || row.repo_name);
   if (shouldShowRepoColumn) {
     columns.push({
       field: "sourceRepo",
       headerName: "Repository",
       flex: 1,
       renderCell: (params: GridRenderCellParams<any>) => {
-        return params.value || repoName;
+        return params.value || (params.row.repo_name as string) || repoName;
       },
     });
   }
@@ -182,7 +185,9 @@ export default function LLMsSummaryPanel({
     });
   }
 
-  if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
+  // If data has vLLM/SGLang specific fields, show them regardless of repoName
+  const hasVLLMSpecific = data.some((row: any) => row.tensor_parallel_size !== undefined);
+  if (hasVLLMSpecific) {
     columns.push({
       field: "tensor_parallel_size",
       headerName: "Tensor parallel",
