@@ -34,7 +34,8 @@ See details in the full report for report type `{{ report_id }}` with id `{{ id 
 | Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
 
 ## Data Windows
-baseline is the data we aggregated (max,min,earlist,latset) as measurement to decide wether meric values in target are considered as regressions.
+baseline is the data we aggregated (max,min,earlist,latset) as measurement to decide wether meric values
+in target are considered as regressions.
 
 ### Baseline window
 - **Start:** `{{ (baseline.start.timestamp | default('')) }}` (commit: `{{ (baseline.start.commit | default('')) }}`)
@@ -54,10 +55,8 @@ Please check the [HUD]({{ url }}) for benchmark information.
 {% for item in items %}
 - **{% for k, v in item.group_info.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}**
   {% if item.baseline_point %}
-   startTime: {{ target.end.timestamp }}) endTime: {{ item.baseline_point.timestamp }})
-   lcommit: {{ item.baseline_point.commit) }}, rcommit {{ target.end.commit}}
-  {% else %}
-  (baseline item: N/A)
+  - startTime: {{ target.end.timestamp }}) endTime: {{ item.baseline_point.timestamp }}
+  -lcommit: {{ item.baseline_point.commit) }}, rcommit {{ target.end.commit}}
   {% endif %}
 {% endfor %}
 {% if regression_items|length > 10 %}
