@@ -1,6 +1,5 @@
 import datetime as dt
 import logging
-from dataclasses import dataclass
 from typing import Any, Counter, Dict, List, Literal, Optional, TypedDict
 
 from common.benchmark_time_series_api_model import (
@@ -30,7 +29,6 @@ class TimeSeriesMetaInfo(TypedDict):
     end: TimeSeriesDataMetaInfo
 
 
-@dataclass
 class BenchmarkRegressionSummary(TypedDict):
     total_count: int
     regression_count: int
@@ -40,20 +38,28 @@ class BenchmarkRegressionSummary(TypedDict):
     is_regression: int
 
 
+class BenchmarkRegressionPoint(TypedDict):
+    value: float
+    commit: str
+    branch: str
+    workflow_id: str
+    timestamp: str
+
+
 class BaselineResult(TypedDict):
     group_info: Dict[str, Any]
-    orignal_item: Dict[str, Any]
+    original_point: BenchmarkRegressionPoint
     value: float
 
 
-class BenchmarkValueItem(TypedDict):
+class BenchmarkRegressionPointGroup(TypedDict):
     group_info: Dict[str, Any]
-    values: List[Dict[str, Any]]
+    values: List[BenchmarkRegressionPoint]
 
 
 class PerGroupResult(TypedDict, total=True):
     group_info: Dict[str, Any]
-    baseline_item: Optional[Dict[str, Any]]
+    baseline_point: Optional[BenchmarkRegressionPoint]
     points: List[Any]
     label: RegressionClassifyLabel
     policy: Optional["RegressionPolicy"]
@@ -103,8 +109,8 @@ class BenchmarkRegressionReportGenerator:
 
     def detect_regressions_with_policies(
         self,
-        baseline_map: Dict[tuple, BenchmarkValueItem],
-        dp_map: Dict[tuple, BenchmarkValueItem],
+        baseline_map: Dict[tuple, BenchmarkRegressionPointGroup],
+        dp_map: Dict[tuple, BenchmarkRegressionPointGroup],
         *,
         metric_policies: Dict[str, RegressionPolicy],
         min_points: int = 2,
@@ -131,7 +137,7 @@ class BenchmarkRegressionReportGenerator:
                 results.append(
                     PerGroupResult(
                         group_info=gi,
-                        baseline_item=None,
+                        baseline_point=None,
                         points=[],
                         label="insufficient_data",
                         policy=None,
@@ -144,7 +150,7 @@ class BenchmarkRegressionReportGenerator:
                 results.append(
                     PerGroupResult(
                         group_info=gi,
-                        baseline_item=None,
+                        baseline_point=None,
                         points=[],
                         label="insufficient_data",
                         policy=None,
@@ -155,18 +161,18 @@ class BenchmarkRegressionReportGenerator:
             baseline_result = self._get_baseline(base_item, baseline_aggre_mode)
             if (
                 not baseline_result
-                or not baseline_result["orignal_item"]
+                or not baseline_result["original_point"]
                 or len(points) == 0
             ):
                 logger.warning(
-                    "No valid baseline result found, baseline_item is %s, len(points) == %s",
+                    "No valid baseline result found, baseline_point is %s, len(points) == %s",
                     baseline_result,
                     len(points),
                 )
                 results.append(
                     PerGroupResult(
                         group_info=gi,
-                        baseline_item=None,
+                        baseline_point=None,
                         points=[],
                         label="insufficient_data",
                         policy=policy,
@@ -174,7 +180,7 @@ class BenchmarkRegressionReportGenerator:
                 )
                 continue
 
-            orignal_baseline_obj = baseline_result["orignal_item"]
+            orignal_baseline_obj = baseline_result["original_point"]
 
             # Per-point violations (True = regression)
             flags: List[bool] = [
@@ -187,7 +193,7 @@ class BenchmarkRegressionReportGenerator:
             results.append(
                 PerGroupResult(
                     group_info=gi,
-                    baseline_item=orignal_baseline_obj,
+                    baseline_point=orignal_baseline_obj,
                     points=enriched_points,
                     label=label,
                     policy=policy,
@@ -229,24 +235,25 @@ class BenchmarkRegressionReportGenerator:
 
     def _to_data_map(
         self, data: "BenchmarkTimeSeriesApiData", field: str = "value"
-    ) -> Dict[tuple, BenchmarkValueItem]:
-        result: Dict[tuple, BenchmarkValueItem] = {}
+    ) -> Dict[tuple, BenchmarkRegressionPointGroup]:
+        result: Dict[tuple, BenchmarkRegressionPointGroup] = {}
         for ts_group in data.time_series:
             group_keys = tuple(sorted(ts_group.group_info.items()))
-            points: List[Dict[str, Any]] = []
+            points: List[BenchmarkRegressionPoint] = []
             for d in sorted(
                 ts_group.data, key=lambda d: isoparse(d["granularity_bucket"])
             ):
                 if field not in d:
                     continue
-                points.append(
-                    {
-                        "value": float(d[field]),
-                        "commit": d.get("commit"),
-                        "branch": d.get("branch"),
-                        "timestamp": isoparse(d["granularity_bucket"]),
-                    }
-                )
+
+                p: BenchmarkRegressionPoint = {
+                    "value": float(d[field]),
+                    "commit": d.get("commit", ""),
+                    "branch": d.get("branch", ""),
+                    "workflow_id": d.get("workflow_id", ""),
+                    "timestamp": d.get("granularity_bucket", ""),
+                }
+                points.append(p)
             result[group_keys] = {
                 "group_info": ts_group.group_info,
                 "values": points,
@@ -255,7 +262,7 @@ class BenchmarkRegressionReportGenerator:
 
     def _get_baseline(
         self,
-        data: BenchmarkValueItem,
+        data: BenchmarkRegressionPointGroup,
         mode: str = "max",
         field: str = "value",
     ) -> Optional[BaselineResult]:
@@ -282,7 +289,7 @@ class BenchmarkRegressionReportGenerator:
         result: BaselineResult = {
             "group_info": data["group_info"],
             "value": float(baseline_obj[field]),
-            "orignal_item": baseline_obj,
+            "original_point": baseline_obj,
         }
         return result
 

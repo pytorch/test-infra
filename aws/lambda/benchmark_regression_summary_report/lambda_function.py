@@ -17,8 +17,9 @@ from common.regression_utils import BenchmarkRegressionReportGenerator
 from common.report_manager import ReportManager
 from dateutil.parser import isoparse
 
-
+# TODO(elainewy): change this to benchmark.benchmark_regression_report once the table is created
 BENCHMARK_REGRESSION_REPORT_TABLE = "fortesting.benchmark_regression_report"
+BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 
 logging.basicConfig(
     level=logging.INFO,
@@ -33,8 +34,6 @@ ENVS = {
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
 }
 
-# TODO(elainewy): change this to benchmark.benchmark_regression_report once the table is created
-BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 
 
 def format_ts_with_t(ts: int) -> str:
@@ -138,7 +137,6 @@ class BenchmarkSummaryProcessor:
                 f"with frequency {report_freq.get_text()}..."
             )
 
-        self.log_info("get target data")
         target, ls, le = self.get_target(config, self.end_time)
         if not target:
             self.log_info(
@@ -172,7 +170,8 @@ class BenchmarkSummaryProcessor:
         target_s = end_time - data_range.comparison_timedelta_s()
         target_e = end_time
         self.log_info(
-            f"get baseline data for time range [{format_ts_with_t(target_s)},{format_ts_with_t(target_e)}]"
+            "getting target data for time range "
+            f"[{format_ts_with_t(target_s)},{format_ts_with_t(target_e)}] ..."
         )
         target_data = self._fetch_from_benchmark_ts_api(
             config_id=config.id,
@@ -181,7 +180,7 @@ class BenchmarkSummaryProcessor:
             source=config.source,
         )
         self.log_info(
-            f"found {len(target_data.time_series)} # of data, with time range {target_data.time_range}",
+            f"done. found {len(target_data.time_series)} # of data groups, with time range {target_data.time_range}",
         )
         if not target_data.time_range or not target_data.time_range.end:
             return None, target_s, target_e
@@ -196,7 +195,8 @@ class BenchmarkSummaryProcessor:
         baseline_s = end_time - data_range.total_timedelta_s()
         baseline_e = end_time - data_range.comparison_timedelta_s()
         self.log_info(
-            f"get baseline data for time range [{format_ts_with_t(baseline_s)},{format_ts_with_t(baseline_e)}]"
+            "getting baseline data for time range "
+            f"[{format_ts_with_t(baseline_s)},{format_ts_with_t(baseline_e)}] ..."
         )
         # fetch baseline from api
         raw_data = self._fetch_from_benchmark_ts_api(
@@ -207,11 +207,7 @@ class BenchmarkSummaryProcessor:
         )
 
         self.log_info(
-            f"get baseline data for time range [{format_ts_with_t(baseline_s)},{format_ts_with_t(baseline_e)}]"
-        )
-
-        self.log_info(
-            f"found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
+            f"Done. found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
         )
 
         baseline_latest_ts = int(isoparse(raw_data.time_range.end).timestamp())
@@ -269,11 +265,8 @@ class BenchmarkSummaryProcessor:
             )
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
-            logger.info(
-                "[%s] call OK in %.1f ms (query_len=%d)",
-                config_id,
-                elapsed_ms,
-                len(query),
+            self.log_info(
+                "call OK in {elapsed_ms} ms (query_len={len(query)})",
             )
             return resp.data
         except requests.exceptions.HTTPError as e:
