@@ -38,7 +38,7 @@ QUEUE_URL = os.environ["QUEUE_URL"]
 PRIMARY_AVAILABILITY_ZONE = os.environ["PRIMARY_AVAILABILITY_ZONE"]
 GPU_DEV_CONTAINER_IMAGE = os.environ.get("GPU_DEV_CONTAINER_IMAGE", "pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel")
 EFS_SECURITY_GROUP_ID = os.environ.get("EFS_SECURITY_GROUP_ID")
-EFS_SUBNET_ID = os.environ.get("EFS_SUBNET_ID")
+EFS_SUBNET_IDS = os.environ.get("EFS_SUBNET_IDS", "").split(",") if os.environ.get("EFS_SUBNET_IDS") else []
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
@@ -394,52 +394,70 @@ def create_or_find_user_efs(user_id: str) -> str:
 
 
 def ensure_efs_mount_target(fs_id: str) -> str:
-    """Ensure EFS has a mount target in the primary subnet"""
+    """Ensure EFS has mount targets in all configured subnets"""
     try:
         # Check for existing mount targets
         response = efs_client.describe_mount_targets(FileSystemId=fs_id)
-
-        for mt in response.get("MountTargets", []):
-            if mt["SubnetId"] == EFS_SUBNET_ID and mt["LifeCycleState"] == "available":
-                logger.info(f"Found existing mount target {mt['MountTargetId']} for EFS {fs_id}")
-                return mt["MountTargetId"]
-
-        # Create mount target
-        logger.info(f"Creating mount target for EFS {fs_id} in subnet {EFS_SUBNET_ID}")
-
-        create_response = efs_client.create_mount_target(
-            FileSystemId=fs_id,
-            SubnetId=EFS_SUBNET_ID,
-            SecurityGroups=[EFS_SECURITY_GROUP_ID]
-        )
-
-        mount_target_id = create_response["MountTargetId"]
-
-        # Wait for mount target to be available
-        logger.info(f"Waiting for mount target {mount_target_id} to become available")
-
-        max_wait = 180  # 3 minutes
-        start_time = time.time()
-
-        while time.time() - start_time < max_wait:
-            mt_response = efs_client.describe_mount_targets(MountTargetId=mount_target_id)
-            mt_state = mt_response["MountTargets"][0]["LifeCycleState"]
-
-            if mt_state == "available":
-                logger.info(f"Mount target {mount_target_id} is now available")
-                break
-            elif mt_state in ["error", "deleted"]:
-                raise Exception(f"Mount target {mount_target_id} entered error state: {mt_state}")
-
-            logger.info(f"Mount target {mount_target_id} state: {mt_state}, waiting...")
-            time.sleep(10)
-        else:
-            raise Exception(f"Mount target {mount_target_id} did not become available within {max_wait} seconds")
-
-        return mount_target_id
+        existing_mount_targets = {mt["SubnetId"]: mt for mt in response.get("MountTargets", [])}
+        
+        created_mount_target_id = None
+        
+        # Ensure we have mount targets in all subnets
+        for subnet_id in EFS_SUBNET_IDS:
+            if subnet_id in existing_mount_targets:
+                mt = existing_mount_targets[subnet_id]
+                if mt["LifeCycleState"] == "available":
+                    logger.info(f"Found existing mount target {mt['MountTargetId']} for EFS {fs_id} in subnet {subnet_id}")
+                    if created_mount_target_id is None:
+                        created_mount_target_id = mt["MountTargetId"]
+                    continue
+            
+            # Create mount target for this subnet
+            logger.info(f"Creating mount target for EFS {fs_id} in subnet {subnet_id}")
+            
+            try:
+                create_response = efs_client.create_mount_target(
+                    FileSystemId=fs_id,
+                    SubnetId=subnet_id,
+                    SecurityGroups=[EFS_SECURITY_GROUP_ID]
+                )
+                
+                mount_target_id = create_response["MountTargetId"]
+                if created_mount_target_id is None:
+                    created_mount_target_id = mount_target_id
+                
+                # Wait for this mount target to be available
+                logger.info(f"Waiting for mount target {mount_target_id} to become available")
+                
+                max_wait = 180  # 3 minutes
+                start_time = time.time()
+                
+                while time.time() - start_time < max_wait:
+                    mt_response = efs_client.describe_mount_targets(MountTargetId=mount_target_id)
+                    mt_state = mt_response["MountTargets"][0]["LifeCycleState"]
+                    
+                    if mt_state == "available":
+                        logger.info(f"Mount target {mount_target_id} is now available")
+                        break
+                    elif mt_state in ["error", "deleted"]:
+                        raise Exception(f"Mount target {mount_target_id} entered error state: {mt_state}")
+                    
+                    logger.info(f"Mount target {mount_target_id} state: {mt_state}, waiting...")
+                    time.sleep(10)
+                else:
+                    raise Exception(f"Mount target {mount_target_id} did not become available within {max_wait} seconds")
+                    
+            except Exception as e:
+                if "MountTargetConflict" in str(e):
+                    logger.info(f"Mount target already exists for subnet {subnet_id}, continuing...")
+                else:
+                    logger.error(f"Error creating mount target in subnet {subnet_id}: {str(e)}")
+                    raise
+        
+        return created_mount_target_id
 
     except Exception as e:
-        logger.error(f"Error ensuring mount target for EFS {fs_id}: {str(e)}")
+        logger.error(f"Error ensuring mount targets for EFS {fs_id}: {str(e)}")
         raise
 
 
@@ -1592,7 +1610,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         # Set up shared EFS storage for user
         efs_filesystem_id = None
         try:
-            if EFS_SECURITY_GROUP_ID and EFS_SUBNET_ID:
+            if EFS_SECURITY_GROUP_ID and EFS_SUBNET_IDS:
                 update_reservation_status(
                     reservation_id,
                     "preparing",
@@ -3659,6 +3677,20 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
                     if reason == "Scheduled":
                         node_name = message.split(" to ")[-1] if " to " in message else "node"
                         event_message = f"✅ Pod scheduled to {node_name[:20]}"
+                    elif reason == "Pulling":
+                        # Extract image name for better status
+                        if "image" in message:
+                            image_part = message.split('"')[1] if '"' in message else "image"
+                            # Simplify long image names
+                            if "ecr" in image_part:
+                                image_name = "GPU dev container"
+                            elif "alpine" in image_part:
+                                image_name = "alpine"
+                            else:
+                                image_name = image_part.split("/")[-1].split(":")[0]
+                            event_message = f"📥 Pulling {image_name} image..."
+                        else:
+                            event_message = "📥 Pulling container image..."
                     elif reason == "Pulled":
                         event_message = "✅ Container image pulled"
                     elif reason == "Created":
@@ -3722,23 +3754,49 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
             else:
                 display_message = f"Pod phase: {pod_phase}"
 
+        # Check current reservation status to avoid duplicate updates
+        try:
+            reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+            current_reservation = reservations_table.get_item(
+                Key={"reservation_id": reservation_id}
+            ).get("Item", {})
+            
+            current_pod_events = current_reservation.get("pod_events", "")
+            current_pod_status = current_reservation.get("pod_status", "")
+            
+            # Only update if status actually changed
+            status_changed = (
+                display_message != current_pod_events or 
+                pod_phase != current_pod_status
+            )
+            
+        except Exception as e:
+            logger.warning(f"Could not fetch current reservation status: {e}")
+            status_changed = True  # Update anyway if we can't check
+
         # Update reservation table with current status
         update_fields = {}
-        if display_message:
+        if display_message and status_changed:
             update_fields["pod_events"] = display_message
         if logs:
             update_fields["pod_logs"] = logs
-        update_fields["pod_status"] = pod_phase
+        if status_changed:
+            update_fields["pod_status"] = pod_phase
 
-        logger.info(
-            f"About to update reservation {reservation_id} with: pod_events='{display_message}', pod_status='{pod_phase}'")
+        if status_changed:
+            logger.info(
+                f"Status changed for {pod_name}: pod_events='{display_message}', pod_status='{pod_phase}'")
+        else:
+            logger.debug(f"Status unchanged for {pod_name}: {display_message}")
 
         if update_fields:
             update_reservation_fields(reservation_id, **update_fields)
-            logger.info(f"Successfully updated pod status for {pod_name}: {display_message}")
+            if status_changed:
+                logger.info(f"Successfully updated pod status for {pod_name}: {display_message}")
         else:
-            logger.warning(
-                f"No update fields for pod {pod_name} - display_message='{display_message}', pod_phase='{pod_phase}'")
+            if status_changed:
+                logger.warning(
+                    f"No update fields for pod {pod_name} - display_message='{display_message}', pod_phase='{pod_phase}'")
 
         return {
             "phase": pod_phase,

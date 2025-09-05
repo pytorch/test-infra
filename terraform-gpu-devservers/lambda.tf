@@ -159,7 +159,7 @@ resource "aws_lambda_function" "reservation_processor" {
       PRIMARY_AVAILABILITY_ZONE          = data.aws_availability_zones.available.names[0]
       GPU_DEV_CONTAINER_IMAGE            = local.full_image_uri
       EFS_SECURITY_GROUP_ID              = aws_security_group.efs_sg.id
-      EFS_SUBNET_ID                      = aws_subnet.gpu_dev_subnet.id
+      EFS_SUBNET_IDS                     = join(",", [aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id])
     }
   }
 

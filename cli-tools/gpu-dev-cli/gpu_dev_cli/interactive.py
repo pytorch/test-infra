@@ -377,6 +377,14 @@ def select_reservation_interactive(
                 title="🗑️  Cancel ALL reservations above", value="__ALL__"
             )
         )
+    
+    # Add quit option at the end for all actions
+    action_verb = "cancel" if action == "cancel" else "edit"
+    choices.append(
+        questionary.Choice(
+            title=f"❌  Quit (don't {action_verb} anything)", value="__QUIT__"
+        )
+    )
 
     try:
         answer = questionary.select(

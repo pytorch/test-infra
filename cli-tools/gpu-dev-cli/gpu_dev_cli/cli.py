@@ -1365,6 +1365,11 @@ def cancel(
             if selected_id is None:
                 rprint("[yellow]Cancellation cancelled.[/yellow]")
                 return
+            
+            # Handle quit selection
+            if selected_id == "__QUIT__":
+                rprint("[yellow]Cancellation cancelled - no changes made.[/yellow]")
+                return
 
             # Handle "all" selection
             if selected_id == "__ALL__":
@@ -2007,6 +2012,11 @@ def edit(
                     selected_id = select_reservation_interactive(reservations, "edit")
                     if selected_id is None:
                         rprint("[yellow]Edit cancelled.[/yellow]")
+                        return
+                    
+                    # Handle quit selection
+                    if selected_id == "__QUIT__":
+                        rprint("[yellow]Edit cancelled - no changes made.[/yellow]")
                         return
 
                     reservation_id = selected_id
