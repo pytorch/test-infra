@@ -79,9 +79,11 @@ export default function LLMsGraphPanel({
   rBranchAndCommit: BranchAndCommit;
   repos?: string[];
 }) {
+  const isCompare = !!(repos && repos.length > 1);
+
   // For comparison mode, fetch data for both repos; otherwise just one
   let dataWithSpeedup: any[] = [];
-  if (repos && repos.length > 1) {
+  if (isCompare) {
     const repoQueryParams = repos.map((r) =>
       getLLMsBenchmarkPropsQueryParameter({
         repoName: r,
@@ -185,6 +187,7 @@ export default function LLMsGraphPanel({
             .filter((record: LLMsBenchmarkData) => {
               const id = record.workflow_id;
               return (
+                isCompare ||
                 (id >= lWorkflowId && id <= rWorkflowId) ||
                 (id <= lWorkflowId && id >= rWorkflowId) ||
                 (lWorkflowId === undefined && rWorkflowId === undefined) ||
@@ -215,6 +218,7 @@ export default function LLMsGraphPanel({
             .filter((record: LLMsBenchmarkData) => {
               const id = record.workflow_id;
               return (
+                isCompare ||
                 (id >= lWorkflowId && id <= rWorkflowId) ||
                 (id <= lWorkflowId && id >= rWorkflowId) ||
                 (lWorkflowId === undefined && rWorkflowId === undefined)
@@ -280,15 +284,7 @@ export default function LLMsGraphPanel({
       false
     );
 
-    // Differentiate repos by line style when comparing
-    if (repos && repos.length > 1) {
-      const repoStyle = (name: string) => {
-        if (name.startsWith("[SGLang]")) return { type: "dashed" as const };
-        if (name.startsWith("[vLLM]")) return { type: "solid" as const };
-        return { type: "solid" as const };
-      };
-      series = series.map((s: any) => ({ ...s, lineStyle: repoStyle(s.name) }));
-    }
+    // Keep all lines solid; repo is indicated in label suffix ("/ sglang" or "/ vllm").
     graphSeries[metric] = series;
   });
 
@@ -543,18 +539,21 @@ const MetricTable = ({
 function formGraphItem(data: any[]) {
   const res: any[] = [];
   data.forEach((item) => {
-    const deviceId = item?.metadata_info?.device_id;
+    // Prefer minimal fields from geomean output; fall back to full objects for raw rows
+    const deviceId = item?.deviceId ?? item?.metadata_info?.device_id;
     const displayName = item.display;
-    const repo = item?.extra?.["source_repo"] as string | undefined;
-    const repoLabel =
-      repo?.includes("sglang") ? "[SGLang]" : repo?.includes("vllm") ? "[vLLM]" : undefined;
+    const repo = item?.repoTag ?? (item?.extra?.["source_repo"] as string | undefined);
+    const repoPrefix = repo?.includes("sglang")
+      ? "sglang / "
+      : repo?.includes("vllm")
+      ? "vllm / "
+      : "";
     const group_key =
       deviceId && deviceId !== ""
-        ? `${repoLabel ? repoLabel + " " : ""}${displayName} (${deviceId})`
-        : `${repoLabel ? repoLabel + " " : ""}${displayName}`;
-    const seriesData = deepClone(item);
-    seriesData.group_key = group_key;
-    res.push(seriesData);
+        ? `${repoPrefix}${displayName} (${deviceId})`
+        : `${repoPrefix}${displayName}`;
+    // Use shallow copy to avoid heavy deep clone cost
+    res.push({ ...item, group_key });
   });
   return res;
 }

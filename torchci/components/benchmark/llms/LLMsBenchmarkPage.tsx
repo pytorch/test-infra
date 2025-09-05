@@ -291,8 +291,6 @@ const MainPageForComparison = ({
     setAllRepoLoading(loading);
   }, [repoDataHooks]);
 
-  console.log("All Repo Data: ", allRepoData);
-
   // Check if any repository has an error
   const hasError = allRepoErrors.some(error => error);
   if (hasError) {
@@ -351,7 +349,6 @@ const MainPageForComparison = ({
       sourceRepo: repo
     }));
   });
-  console.log("Combined Data with Repository Info: ", combinedData);
 
   // Create dropdown features using the first repository as base
   // This assumes similar structure across repositories
@@ -362,8 +359,6 @@ const MainPageForComparison = ({
 
   // Get unique metric names across all repositories
   const metricNames = getMetricNames(combinedData);
-  console.log("Combined Dropdown Map List: ", dropdownMapList);
-  console.log("Combined Metric Names: ", metricNames);
 
   // Use the original query params but now it includes the repos array
   const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
