@@ -20,7 +20,7 @@ REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
 config_id: `{{ report_id }}`
 
 We have detected **{{ status }}** in benchmark results for `{{ report_id }}` (id: `{{ id }}`).
-(Full report details will be available in HUD soon)
+Full report details will be available in HUD soon)
 
 > **Status:** {{ status }} · **Frequency:** {{ frequency }}
 
@@ -48,20 +48,24 @@ in target are considered regressions.
 {% if regression_items and regression_items|length > 0 %}
 ## Regression Glance
 {% if url %}
-Please check the [HUD]({{ url }}) using the time and commit information below to track regressions.
+Use items below in [HUD]({{ url }}) to see regression.
 {% endif %}
 
 {% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
-
-|{% for k in items[0].group_info.keys() %}{{ k }} |{% endfor %} startTime | endTime | lcommit | rcommit |
-|{% for k in items[0].group_info.keys() %}---|{% endfor %}---|---|---|---|
-{% for item in items %}
-| {% for v in item.group_info.values() %}{{ v }} |{% endfor %}{{ item.baseline_point.timestamp if item.baseline_point else '' }} | {{ target.end.timestamp }} | {{ item.baseline_point.commit if item.baseline_point else '' }} | {{ target.end.commit }} |
-{% endfor %}
-
 {% if regression_items|length > 10 %}
 … (showing first 10 only, total {{ regression_items|length }} regressions)
 {% endif %}
+{% for item in items %}
+{% set kv = item.group_info|dictsort %}
+{{ "" }}|{% for k, _ in kv %}{{ k }} |{% endfor %}{{ "\n" -}}
+|{% for _k, _ in kv %}---|{% endfor %}{{ "\n" -}}
+|{% for _k, v in kv %}{{ v }} |{% endfor %}{{ "\n\n" -}}
+{% if item.baseline_point -%}
+- **startTime**: {{ item.baseline_point.timestamp }}, **endTime**: {{ target.end.timestamp }}
+- **lcommit**: `{{ item.baseline_point.commit }}`, **rcommit**: `{{ target.end.commit }}`
+{{ "\n" }}
+{%- endif %}
+{% endfor %}
 {% endif %}
 """
 

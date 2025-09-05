@@ -266,7 +266,7 @@ class BenchmarkSummaryProcessor:
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
             self.log_info(
-                "call OK in {elapsed_ms} ms (query_len={len(query)})",
+                f"call OK in {elapsed_ms} ms (query_len={len(query)})",
             )
             return resp.data
         except requests.exceptions.HTTPError as e:
@@ -283,7 +283,7 @@ class BenchmarkSummaryProcessor:
                     else str(e)
                 )
             self.log_error(
-                f"[{config_id}] call FAILED in {elapsed_ms} ms: {err_msg}",
+                f"call FAILED in {elapsed_ms} ms: {err_msg}",
             )
             raise
 
