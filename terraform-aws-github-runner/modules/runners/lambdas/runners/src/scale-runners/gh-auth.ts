@@ -2,7 +2,7 @@ import { Config } from './config';
 import { Metrics } from './metrics';
 import { Octokit } from '@octokit/rest';
 import { OctokitOptions } from '@octokit/core/dist-types/types';
-import { SecretsManager } from 'aws-sdk';
+import { SecretsManager } from '@aws-sdk/client-secrets-manager';
 import {
   AppAuthentication,
   InstallationAccessTokenAuthentication,
@@ -39,7 +39,7 @@ async function getCredentialsFromSecretsManager(
           metrics.smGetSecretValueAWSCallSuccess,
           metrics.smGetSecretValueAWSCallFailure,
           () => {
-            return secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId }).promise();
+            return secretsManager.getSecretValue({ SecretId: secretsManagerSecretsId });
           },
         );
       });
