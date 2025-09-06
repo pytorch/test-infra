@@ -7,9 +7,17 @@ const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 export const handler: SQSHandler = async (event) => {
   for (const record of event.Records) {
-    console.log("\n\nMy SQS message body:", record.body);
+    try {
+      const parsedBody = JSON.parse(record.body);
+      console.log("\n\nMy SQS message body:\n", JSON.stringify(parsedBody, null, 2));
+    } catch {
+      console.log("\n\nMy SQS message body (not JSON):", record.body);
+    }
     if (record.messageAttributes && Object.keys(record.messageAttributes).length > 0) {
-      console.log("\n\nMy SQS message attributes:", JSON.stringify(record.messageAttributes));
+      console.log(
+        "\n\nMy SQS message attributes:\n",
+        JSON.stringify(record.messageAttributes, null, 2)
+      );
     }
 
     // Emit raw message to DynamoDB table if configured

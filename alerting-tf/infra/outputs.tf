@@ -13,6 +13,7 @@ output "lambda_name" {
   description = "Lambda function name"
 }
 
+
 output "status_table_name" {
   value       = aws_dynamodb_table.alerting_status.name
   description = "DynamoDB status table name"

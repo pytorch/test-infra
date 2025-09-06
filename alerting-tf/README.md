@@ -80,6 +80,28 @@ Makefile shortcuts
 - Tail logs (dev): `make aws-logs-dev`
 - Tail logs (prod): `make aws-logs-prod`
 
+Local secrets overlay (no Git)
+- Create `alerting-tf/infra/secrets.local.tfvars` with sensitive values. A template
+  is provided at `alerting-tf/infra/secrets.local.tfvars.example`.
+- The Makefile automatically appends `-var-file=secrets.local.tfvars` to
+  env-specific apply/destroy commands if the file exists.
+
+## External Alerts Webhook → SNS bridge
+We expose a small HTTPS endpoint (API Gateway HTTP API) that authenticates the caller via a shared header and publishes the payload to the existing SNS topic unchanged. For now, the webhook expects a Grafana-specific header; we can add more sources later without changing the endpoint shape.
+
+Outputs
+- Webhook URL: `terraform output -raw external_alerts_webhook_url`
+- SNS topic ARN: `terraform output -raw sns_topic_arn`
+
+Configure a webhook client (e.g., Grafana)
+- URL: `<webhook_url>` (already includes the path)
+- Header: `X-Grafana-Token: <the value of webhook_grafana_token>`
+- Method: `POST`
+- Body: send your JSON alert body (we forward as-is)
+
+Auth secret
+- Set `webhook_grafana_token` in your local `secrets.local.tfvars` (same for dev/prod).
+
 Behind the scenes, each target selects a Terraform workspace (`dev`/`prod`) and
 uses a dedicated TF data dir to keep backend inits separate (`infra/.terraform-dev`
 and `infra/.terraform-prod`). State is isolated per env via distinct S3 keys and

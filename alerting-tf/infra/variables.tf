@@ -18,3 +18,9 @@ variable "tags" {
     "owner" = "dev-infra"
   }
 }
+
+variable "webhook_grafana_token" {
+  description = "Token expected in X-Grafana-Token header for webhook auth (Grafana only)"
+  sensitive    = true
+  type         = string
+}

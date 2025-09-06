@@ -7,9 +7,17 @@ terraform.tfstate*
 lambda/node_modules/
 lambda/dist/
 infra/lambda.zip
+webhook/node_modules/
+webhook/dist/
+infra/webhook.zip
 
 # Misc
 .DS_Store
 
 # Include tfvars files (override parent .gitignore)
 !*.tfvars*
+
+# Local-only tfvars files. For testing, secrets, etc.
+*.local.tfvars 
+
+sample_data/
