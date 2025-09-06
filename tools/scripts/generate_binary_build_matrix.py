@@ -474,10 +474,6 @@ def generate_wheels_matrix(
             if (gpu_arch_type == "cpu-s390x") and python_version == "3.13t":
                 continue
 
-            # Python 3.14 and 3.14t not yet supported on Windows
-            if os == WINDOWS and python_version.startswith("3.14"):
-                continue
-
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)
             entry = {
                 "python_version": python_version,
