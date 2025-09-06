@@ -1,11 +1,6 @@
-import { SQS } from 'aws-sdk';
-import AWS from 'aws-sdk';
+import { SQS } from '@aws-sdk/client-sqs';
 
-AWS.config.update({
-  region: process.env.AWS_REGION,
-});
-
-const sqs = new SQS();
+const sqs = new SQS({ region: process.env.AWS_REGION });
 
 export interface ActionRequestMessage {
   id: number;
@@ -22,10 +17,8 @@ const NUM_MESSAGE_GROUPS = process.env.NUM_MESSAGE_GROUPS !== undefined ? parseI
 
 export const sendActionRequest = async (message: ActionRequestMessage) => {
   console.info(`Sending message: ${JSON.stringify(message)}`);
-  await sqs
-    .sendMessage({
-      QueueUrl: String(process.env.SQS_URL_WEBHOOK),
-      MessageBody: JSON.stringify(message),
-    })
-    .promise();
+  await sqs.sendMessage({
+    QueueUrl: String(process.env.SQS_URL_WEBHOOK),
+    MessageBody: JSON.stringify(message),
+  });
 };

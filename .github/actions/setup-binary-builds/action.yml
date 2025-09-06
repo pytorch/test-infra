@@ -128,7 +128,6 @@ runs:
           export CONDA_EXTRA_PARAM=""
 
           if [[ "${PYTHON_VERSION:-}" == *t || "${PYTHON_VERSION:-}" == 3.14* ]]; then
-
             # downgrade conda version for python 3.13t, 3.14t, 3.14 install.
             # TODO: remove this once python  3.13t, 3.14t, 3.14 is fully supported on conda
             # Please see : https://github.com/conda/conda/issues/14554
@@ -147,11 +146,11 @@ runs:
           # shellcheck disable=SC2153
           case $PYTHON_VERSION in
             3.14t)
-              export PYTHON_VERSION=3.14.0rc1
+              export PYTHON_VERSION=3.14.0rc2
               export CONDA_EXTRA_PARAM=" python-freethreading -c conda-forge/label/python_rc -c conda-forge"
               ;;
             3.14)
-              export PYTHON_VERSION=3.14.0rc1
+              export PYTHON_VERSION=3.14.0rc2
               export CONDA_EXTRA_PARAM=" -c conda-forge/label/python_rc -c conda-forge"
               ;;
             3.13t)
