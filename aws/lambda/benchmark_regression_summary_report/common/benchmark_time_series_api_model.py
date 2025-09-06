@@ -1,5 +1,6 @@
+import datetime as dt
 from dataclasses import dataclass, field
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import requests
 
@@ -62,3 +63,24 @@ class BenchmarkTimeSeriesApiResponse:
         except Exception as e:
             raise RuntimeError(f"Malformed API payload: {e}")
         return cls(data=BenchmarkTimeSeriesApiData(time_series=ts, time_range=tr))
+
+
+def get_latest_meta_info(
+    time_series: List[BenchmarkTimeSeriesItem],
+) -> Optional[dict[str, Any]]:
+    if not time_series:
+        return None
+
+    pts = [p for s in time_series for p in s.data]
+    latest = max(
+        pts,
+        key=lambda p: dt.datetime.fromisoformat(
+            p["granularity_bucket"].replace("Z", "+00:00")
+        ),
+    )
+    return {
+        "commit": latest.get("commit", ""),
+        "branch": latest.get("branch", ""),
+        "timestamp": latest.get("granularity_bucket", ""),
+        "workflow_id": latest.get("workflow_id", ""),
+    }
