@@ -1,0 +1,17 @@
+{
+  "params": {
+    "branches": "Array(String)",
+    "commits": "Array(String)",
+    "compilers": "Array(String)",
+    "device": "String",
+    "arch": "String",
+    "dtype": "String",
+    "granularity": "String",
+    "mode": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "suites": "Array(String)",
+    "workflowId": "Int64"
+  },
+  "tests": []
+}
