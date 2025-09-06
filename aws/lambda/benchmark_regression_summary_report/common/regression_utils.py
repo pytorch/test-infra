@@ -49,6 +49,7 @@ class BenchmarkRegressionPoint(TypedDict):
 class BaselineResult(TypedDict):
     group_info: Dict[str, Any]
     original_point: BenchmarkRegressionPoint
+    all_baseline_points: List[BenchmarkRegressionPoint]
     value: float
 
 
@@ -63,6 +64,7 @@ class PerGroupResult(TypedDict, total=True):
     points: List[Any]
     label: RegressionClassifyLabel
     policy: Optional["RegressionPolicy"]
+    all_baseline_points: List[BenchmarkRegressionPoint]
 
 
 class BenchmarkRegressionReport(TypedDict):
@@ -141,6 +143,7 @@ class BenchmarkRegressionReportGenerator:
                         points=[],
                         label="insufficient_data",
                         policy=None,
+                        all_baseline_points=[],
                     )
                 )
                 continue
@@ -154,6 +157,7 @@ class BenchmarkRegressionReportGenerator:
                         points=[],
                         label="insufficient_data",
                         policy=None,
+                        all_baseline_points=[],
                     )
                 )
                 continue
@@ -176,6 +180,7 @@ class BenchmarkRegressionReportGenerator:
                         points=[],
                         label="insufficient_data",
                         policy=policy,
+                        all_baseline_points=[],
                     )
                 )
                 continue
@@ -197,6 +202,7 @@ class BenchmarkRegressionReportGenerator:
                     points=enriched_points,
                     label=label,
                     policy=policy,
+                    all_baseline_points=baseline_result["all_baseline_points"],
                 )
             )
         logger.info("Done. Generated %s regression results", len(results))
@@ -290,6 +296,7 @@ class BenchmarkRegressionReportGenerator:
             "group_info": data["group_info"],
             "value": float(baseline_obj[field]),
             "original_point": baseline_obj,
+            "all_baseline_points": items,
         }
         return result
 
