@@ -13,9 +13,6 @@ SELECT
   timestamp,
   DATE_TRUNC({granularity: String}, fromUnixTimestamp(timestamp)) AS granularity_bucket
 FROM benchmark.oss_ci_benchmark_torchinductor
-PREWHERE
-  timestamp >= toUnixTimestamp({startTime:DateTime64(3)}) AND
-  timestamp <  toUnixTimestamp({stopTime:DateTime64(3)})
 WHERE
   (head_sha) IN (
     SELECT DISTINCT
