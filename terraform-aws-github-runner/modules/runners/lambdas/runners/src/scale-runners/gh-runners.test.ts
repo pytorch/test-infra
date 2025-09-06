@@ -20,25 +20,8 @@ import { ScaleUpMetrics } from './metrics';
 
 import { Config } from './config';
 import { Octokit } from '@octokit/rest';
-import { mocked } from 'ts-jest/utils';
+import { mocked } from 'jest-mock';
 import { locallyCached, redisCached } from './cache';
-
-const mockEC2 = {
-  describeInstances: jest.fn(),
-  runInstances: jest.fn(),
-  terminateInstances: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-const mockSSMdescribeParametersRet = jest.fn();
-const mockSSM = {
-  deleteParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-  describeParameters: jest.fn().mockReturnValue({ promise: mockSSMdescribeParametersRet }),
-  putParameter: jest.fn().mockReturnValue({ promise: jest.fn() }),
-};
-jest.mock('aws-sdk', () => ({
-  EC2: jest.fn().mockImplementation(() => mockEC2),
-  SSM: jest.fn().mockImplementation(() => mockSSM),
-  CloudWatch: jest.requireActual('aws-sdk').CloudWatch,
-}));
 
 jest.mock('./gh-auth');
 jest.mock('./cache', () => ({
