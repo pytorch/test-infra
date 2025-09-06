@@ -111,6 +111,10 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
     },
     {
+      name: "PyTorch operator benchmark",
+      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch%20operator%20benchmark",
+    },
+    {
       name: "PT CacheBench",
       href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
     },
