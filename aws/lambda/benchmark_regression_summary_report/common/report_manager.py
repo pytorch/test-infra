@@ -61,6 +61,7 @@ Use items below in [HUD]({{ url }}) to see regression.
 |{% for _k, _ in kv %}---|{% endfor %}{{ "\n" -}}
 |{% for _k, v in kv %}{{ v }} |{% endfor %}{{ "\n\n" -}}
 {% if item.baseline_point -%}
+- **baseline**: {{ item.baseline_point.value}},
 - **startTime**: {{ item.baseline_point.timestamp }}, **endTime**: {{ target.end.timestamp }}
 - **lcommit**: `{{ item.baseline_point.commit }}`, **rcommit**: `{{ target.end.commit }}`
 {{ "\n" }}
@@ -259,14 +260,28 @@ class ReportManager:
         cc: clickhouse_connect.driver.Client,
         table: str,
         params: dict,
-    ) -> tuple[bool, int]:
+    ):
+        """
+        Insert one row into ClickHouse using cc.insert().
+        Returns (inserted, written_rows).
+        """
+        if self._row_exists(
+            cc,
+            table,
+            params["report_id"],
+            params["type"],
+            params["repo"],
+            params["last_record_ts"],
+        ):
+            return False, 0
+
         sql = f"""
             INSERT INTO {table} (
                 id,
                 report_id,
                 last_record_ts,
                 last_record_commit,
-                `type`,
+                type,
                 status,
                 regression_count,
                 insufficient_data_count,
@@ -275,49 +290,56 @@ class ReportManager:
                 repo,
                 report
             )
-            SELECT
-                {{id:UUID}},
-                {{report_id:String}},
-                {{last_record_ts:DateTime64(0)}},
-                {{last_record_commit:String}},
-                {{type:String}},
-                {{status:String}},
-                {{regression_count:UInt32}},
-                {{insufficient_data_count:UInt32}},
-                {{suspected_regression_count:UInt32}},
-                {{total_count:UInt32}},
-                {{repo:String}},
-                {{report_json:String}}
-            FROM system.one
-            WHERE NOT EXISTS (
-                SELECT 1
-                FROM {table}
-                WHERE report_id = {{report_id:String}}
-                AND `type`    = {{type:String}}
-                AND repo      = {{repo:String}}
-                AND stamp     = toDate({{last_record_ts:DateTime64(0)}})
+            VALUES
+            (
+                %(id)s,
+                %(report_id)s,
+                %(last_record_ts)s,
+                %(last_record_commit)s,
+                %(type)s,
+                %(status)s,
+                %(regression_count)s,
+                %(insufficient_data_count)s,
+                %(suspected_regression_count)s,
+                %(total_count)s,
+                %(repo)s,
+                %(report_json)s
             )
+            """
+        cc.command(sql, parameters=params)
+
+    def _row_exists(
+        self,
+        cc: clickhouse_connect.driver.Client,
+        table: str,
+        report_id: str,
+        type_str: str,
+        repo: str,
+        last_record_ts,
+    ) -> bool:
+        """
+        Check if a row already exists with the same (report_id, type, repo, stamp).
+        Returns True if found, False otherwise.
+        """
+        sql = f"""
+            SELECT 1
+            FROM {table}
+            WHERE report_id = %(report_id)s
+            AND type = %(type)s
+            AND repo = %(repo)s
+            AND stamp = toDate(%(last_record_ts)s)
             LIMIT 1
         """
-
-        res = cc.query(sql, parameters=params)
-        summary = getattr(res, "summary", {}) or {}
-
-        written_any = (
-            summary.get("written_rows")
-            or summary.get("rows_written")
-            or summary.get("written", 0)
-            or 0
+        res = cc.query(
+            sql,
+            parameters={
+                "report_id": report_id,
+                "type": type_str,
+                "repo": repo,
+                "last_record_ts": last_record_ts,
+            },
         )
-
-        logger.info("wrting to db summmary %s", summary)
-        try:
-            written = int(written_any)
-        except (TypeError, ValueError):
-            written = 0
-
-        inserted = written > 0
-        return inserted, written
+        return bool(res.result_rows)
 
     def _validate_latest_meta_info(
         self, latest_meta_info: Dict[str, Any]
