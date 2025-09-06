@@ -224,6 +224,7 @@ PACKAGE_ALLOW_LIST = {
         "xformers",
         "executorch",
         "setuptools",
+        "setuptools_scm",
         "wheel",
     ]
 }
