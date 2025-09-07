@@ -1,11 +1,19 @@
 #!/bin/bash
 # Custom MOTD for GPU dev servers
 
+# Read dynamic flags from Lambda setup (if available)
+TEMPORARY_DISK_WARNING="false"
+USE_PERSISTENT_DISK="false"
+GPU_DEV_CONTAINER_IMAGE="pytorch-gpu-devserver:latest"
+if [ -f "/etc/gpu-dev-flags" ]; then
+    source /etc/gpu-dev-flags
+fi
+
 # Get OS info
 OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
 
 # Get container info
-CONTAINER_IMAGE="pytorch-gpu-devserver:latest"
+CONTAINER_IMAGE="$GPU_DEV_CONTAINER_IMAGE"
 
 # Get CUDA toolkit info
 CUDA_INFO="CUDA toolkit unavailable"
@@ -50,18 +58,43 @@ Container: $CONTAINER_IMAGE
 CUDA: $CUDA_INFO
 GPUs: $GPU_INFO
 
-Shell: Zsh (default with oh-my-zsh) | Bash available
-  • Try 'bash' to test bash, or 'use-bash' for switch instructions  
-  • Both shells have the same environment (CUDA, Claude Code, etc.)
-  • Zsh features: autosuggestions, syntax highlighting, git integration
-
 🔧 Quick start:
-  • Conda is available for Python environments
   • Use 'gpu-info' or 'nvidia-smi' to check GPU status
-  • Terminal works in all editors (no special fonts needed)
 
+💾 Storage:
+WELCOME_EOF
+
+# Add dynamic storage section based on Lambda flags
+if [ "$USE_PERSISTENT_DISK" = "true" ]; then
+    cat << STORAGE_EOF
+  • /home/dev: Your home directory (persistent EBS disk)
+  • /shared-personal: Shared persistent EFS storage across all reservations  
+  • /workspace: Temporary workspace for current session
+  ✅ Your files from previous sessions are available and will persist
+
+STORAGE_EOF
+elif [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
+    cat << STORAGE_EOF
+  • /home/dev: Your home directory (temporary - will be LOST)
+  • /shared-personal: Shared persistent EFS storage across all reservations
+  • /workspace: Temporary workspace for current session
+  ⚠️  Your persistent disk is mounted to another reservation
+  ⚠️  Use /shared-personal for files you want to keep
+
+STORAGE_EOF
+else
+    cat << STORAGE_EOF
+  • /home/dev: Your home directory (temporary - will be lost when reservation ends)
+  • /shared-personal: Shared persistent EFS storage across all reservations
+  • /workspace: Temporary workspace for current session
+  💾 Fresh environment with clean temporary storage
+
+STORAGE_EOF
+fi
+
+cat << FOOTER_EOF
 For support, reach out to: oncall:pytorch_release_engineering
 
 Happy coding! 🐍⚡
 
-WELCOME_EOF
+FOOTER_EOF

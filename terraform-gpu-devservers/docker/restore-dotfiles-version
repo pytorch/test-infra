@@ -1,0 +1,79 @@
+#!/bin/bash
+# Restore dotfiles from a specific backup version
+
+if [ $# -ne 1 ]; then
+    echo "Usage: restore-dotfiles-version <timestamp>"
+    echo "Example: restore-dotfiles-version 20250105_143022"
+    echo ""
+    echo "Use 'list-dotfile-versions' to see available versions"
+    exit 1
+fi
+
+TIMESTAMP="$1"
+
+# Get the user ID from environment or derive it
+if [ -n "$GPU_DEV_USER_ID" ]; then
+    USER_ID_CLEAN=$(echo "$GPU_DEV_USER_ID" | cut -d'@' -f1)
+elif [ -f /tmp/gpu-dev-user-id ]; then
+    USER_ID_CLEAN=$(cat /tmp/gpu-dev-user-id | cut -d'@' -f1)
+else
+    USER_ID_CLEAN="dev"
+fi
+
+DOTFILES_DIR="/shared-personal/$USER_ID_CLEAN/.dotfiles"
+VERSION_DIR="$DOTFILES_DIR/.previous/$TIMESTAMP"
+
+if [ ! -d "$VERSION_DIR" ]; then
+    echo "⚠️  Version '$TIMESTAMP' not found"
+    echo "Use 'list-dotfile-versions' to see available versions"
+    exit 1
+fi
+
+echo "Restoring dotfiles from version: $TIMESTAMP"
+
+# Parse timestamp for readable date
+YEAR=${TIMESTAMP:0:4}
+MONTH=${TIMESTAMP:4:2}
+DAY=${TIMESTAMP:6:2}
+HOUR=${TIMESTAMP:9:2}
+MIN=${TIMESTAMP:11:2}
+SEC=${TIMESTAMP:13:2}
+READABLE_DATE="$YEAR-$MONTH-$DAY $HOUR:$MIN:$SEC"
+
+echo "Version date: $READABLE_DATE"
+echo ""
+
+# Show what files are available in this version
+echo "Available files in this version:"
+ls -la "$VERSION_DIR" | grep -v "^d" | awk '{print "  " $9}' | grep -v "^  $"
+
+echo ""
+read -p "Do you want to restore these files? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "Restoration cancelled"
+    exit 0
+fi
+
+# Backup current dotfiles first (if they exist)
+if [ -f ~/.bashrc ] || [ -f ~/.zshrc ]; then
+    echo "Backing up current dotfiles before restoration..."
+    backup-dotfiles
+fi
+
+echo "Restoring files from $VERSION_DIR..."
+
+# Restore files from the specified version
+[ -f "$VERSION_DIR/.bashrc" ] && cp "$VERSION_DIR/.bashrc" ~/.bashrc && echo "  ✓ .bashrc restored"
+[ -f "$VERSION_DIR/.bash_history" ] && cp "$VERSION_DIR/.bash_history" ~/.bash_history && echo "  ✓ .bash_history restored"
+[ -f "$VERSION_DIR/.zshrc" ] && cp "$VERSION_DIR/.zshrc" ~/.zshrc && echo "  ✓ .zshrc restored"
+[ -f "$VERSION_DIR/.zsh_history" ] && cp "$VERSION_DIR/.zsh_history" ~/.zsh_history && echo "  ✓ .zsh_history restored"
+[ -d "$VERSION_DIR/.oh-my-zsh" ] && cp -r "$VERSION_DIR/.oh-my-zsh" ~/ && echo "  ✓ .oh-my-zsh restored"
+[ -f "$VERSION_DIR/.gitconfig" ] && cp "$VERSION_DIR/.gitconfig" ~/.gitconfig && echo "  ✓ .gitconfig restored"
+[ -f "$VERSION_DIR/.profile" ] && cp "$VERSION_DIR/.profile" ~/.profile && echo "  ✓ .profile restored"
+[ -f "$VERSION_DIR/.vimrc" ] && cp "$VERSION_DIR/.vimrc" ~/.vimrc && echo "  ✓ .vimrc restored"
+[ -f "$VERSION_DIR/.condarc" ] && cp "$VERSION_DIR/.condarc" ~/.condarc && echo "  ✓ .condarc restored"
+
+echo ""
+echo "✓ Dotfiles restored from version $TIMESTAMP"
+echo "Restart your shell or source your config files to apply changes"

@@ -100,15 +100,31 @@ USER dev
 # Switch back to root for final configuration
 USER root
 
-# Create custom MOTD
+# Create custom MOTD  
+COPY motd_script /usr/local/bin/motd_script
 COPY motd_script /etc/update-motd.d/00-custom
-RUN chmod +x /etc/update-motd.d/00-custom && \
-    rm -f /etc/motd /etc/update-motd.d/* /etc/legal /usr/share/base-files/motd 2>/dev/null || true && \
+RUN chmod +x /usr/local/bin/motd_script && \
+    chmod +x /etc/update-motd.d/00-custom && \
+    rm -f /etc/motd /etc/legal /usr/share/base-files/motd 2>/dev/null || true && \
     mkdir -p /etc/motd.d /etc/update-motd.d /var/lib/sudo/lectured && \
     touch /etc/motd.d/00-header && \
     chmod 644 /etc/motd.d/00-header && \
     touch /var/lib/sudo/lectured/dev && \
     echo "dev" > /var/lib/sudo/lectured/dev
+
+# Add dotfiles persistence scripts
+COPY setup-dotfiles-persistence /usr/local/bin/setup-dotfiles-persistence
+COPY backup-dotfiles /usr/local/bin/backup-dotfiles
+COPY restore-dotfiles /usr/local/bin/restore-dotfiles
+COPY list-dotfile-versions /usr/local/bin/list-dotfile-versions
+COPY restore-dotfiles-version /usr/local/bin/restore-dotfiles-version
+COPY dotfiles-shutdown-handler /usr/local/bin/dotfiles-shutdown-handler
+RUN chmod +x /usr/local/bin/setup-dotfiles-persistence && \
+    chmod +x /usr/local/bin/backup-dotfiles && \
+    chmod +x /usr/local/bin/restore-dotfiles && \
+    chmod +x /usr/local/bin/list-dotfile-versions && \
+    chmod +x /usr/local/bin/restore-dotfiles-version && \
+    chmod +x /usr/local/bin/dotfiles-shutdown-handler
 
 # Disable PAM MOTD and Ubuntu Pro ads
 RUN sed -i 's/session    optional     pam_motd.so/#&/g' /etc/pam.d/sshd 2>/dev/null || true && \

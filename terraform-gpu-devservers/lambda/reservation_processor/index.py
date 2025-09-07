@@ -11,6 +11,7 @@ import uuid
 import socket
 import random
 import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -49,6 +50,9 @@ sqs_client = boto3.client("sqs")
 
 # Global Kubernetes client (reused across Lambda execution)
 _k8s_client = None
+
+# Global monitoring threads registry (for cancellation cleanup)
+_monitoring_threads = {}
 
 
 def get_k8s_client():
@@ -552,6 +556,11 @@ def handler(event, context):
         # Process SQS messages
         for record in event.get("Records", []):
             if record.get("eventSource") == "aws:sqs":
+                # CRITICAL: Reset Lambda-wide state between each SQS record to prevent cross-contamination
+                # Clear monitoring threads registry to prevent interference between reservations
+                logger.info(f"Clearing {len(_monitoring_threads)} monitoring threads from previous processing")
+                _monitoring_threads.clear()
+                
                 # Determine message type and process accordingly
                 try:
                     message_body = json.loads(record["body"])
@@ -568,6 +577,8 @@ def handler(event, context):
                         success = process_add_user_action(record)
                     elif message_body.get("action") == "extend_reservation":
                         success = process_extend_reservation_action(record)
+                    elif message_body.get("action") == "process_multinode_individual":
+                        success = process_multinode_individual_node(message_body)
                     else:
                         success = process_reservation_request(record)
 
@@ -735,48 +746,71 @@ def coordinate_multinode_reservation(master_reservation_id: str, total_nodes: in
         available_gpus = check_gpu_availability(gpu_type)  
         
         if available_gpus >= total_gpus_needed:
-            # Sufficient resources - update status to preparing for all nodes
-            update_all_multinode_status(master_reservation_id, "preparing", 
-                                      f"Found resources for {total_nodes} nodes - preparing multinode environment")
+            # Sufficient resources - start parallel processing for all nodes
+            logger.info(f"Found resources for {total_nodes} nodes - starting parallel pod creation")
             
-            # Allocate resources for all nodes with per-pod status tracking
-            success_count = 0
-            for i, node in enumerate(nodes):
+            # Release the coordination lock early so individual nodes can process in parallel
+            release_multinode_lock(master_reservation_id)
+            
+            # Process all nodes in parallel using ThreadPoolExecutor
+            logger.info(f"Starting parallel processing for {total_nodes} nodes")
+            
+            def process_single_node(node_data):
+                """Process a single node - to be run in parallel"""
+                i, node = node_data
                 try:
                     reservation_id = node.get("reservation_id")
                     node_index = node.get("node_index", i)
                     
-                    # Update pod status: starting allocation
-                    update_multinode_pod_status(reservation_id, "preparing pod", node_index, total_nodes)
+                    message_body = {
+                        'reservation_id': str(reservation_id),
+                        'action': 'process_multinode_individual', 
+                        'node_index': int(node_index),
+                        'total_nodes': int(total_nodes),
+                        'master_reservation_id': str(master_reservation_id)
+                    }
                     
-                    # Create individual reservation for each node
-                    created_reservation_id = create_reservation(node)
-                    if created_reservation_id:
-                        # Update pod status: allocating resources  
-                        update_multinode_pod_status(reservation_id, "allocating resources", node_index, total_nodes)
-                        
-                        allocate_gpu_resources(created_reservation_id, node)
-                        success_count += 1
-                        
-                        # Update pod status: ready
-                        update_multinode_pod_status(reservation_id, "ready", node_index, total_nodes)
+                    logger.info(f"Starting parallel processing for node {reservation_id} ({node_index+1}/{total_nodes})")
+                    result = process_multinode_individual_node(message_body)
+                    
+                    if result:
+                        logger.info(f"✓ Successfully processed node {reservation_id} ({node_index+1}/{total_nodes})")
                     else:
-                        logger.error(f"Failed to create reservation for node {reservation_id}")
-                        update_multinode_pod_status(reservation_id, "failed to create", node_index, total_nodes)
-                        break
-                except Exception as node_error:
-                    logger.error(f"Failed to allocate resources for node {node.get('reservation_id')}: {node_error}")
-                    reservation_id = node.get("reservation_id")
-                    node_index = node.get("node_index", i)
-                    update_multinode_pod_status(reservation_id, "allocation failed", node_index, total_nodes)
-                    break
+                        logger.error(f"✗ Failed to process node {reservation_id} ({node_index+1}/{total_nodes})")
                     
+                    return result, reservation_id, node_index
+                    
+                except Exception as node_error:
+                    logger.error(f"✗ Exception processing node {reservation_id}: {node_error}")
+                    return False, reservation_id, node_index
+            
+            # Execute all nodes in parallel
+            success_count = 0
+            failed_nodes = []
+            
+            with ThreadPoolExecutor(max_workers=min(total_nodes, 4)) as executor:
+                # Submit all node processing tasks
+                future_to_node = {
+                    executor.submit(process_single_node, (i, node)): node 
+                    for i, node in enumerate(nodes)
+                }
+                
+                # Collect results as they complete
+                for future in as_completed(future_to_node):
+                    success, reservation_id, node_index = future.result()
+                    if success:
+                        success_count += 1
+                    else:
+                        failed_nodes.append(f"{reservation_id} (node {node_index+1})")
+            
+            # Report results
             if success_count == total_nodes:
-                logger.info(f"Successfully allocated resources for all {total_nodes} nodes in multinode reservation {master_reservation_id}")
+                logger.info(f"✓ Successfully processed all {total_nodes} nodes in parallel for multinode reservation {master_reservation_id}")
                 return True
             else:
-                logger.error(f"Failed to allocate resources for all nodes ({success_count}/{total_nodes} succeeded)")
-                fail_all_multinode_reservations(master_reservation_id, f"Partial allocation failure ({success_count}/{total_nodes})")
+                logger.error(f"✗ Failed to process all nodes ({success_count}/{total_nodes} succeeded)")
+                logger.error(f"Failed nodes: {', '.join(failed_nodes)}")
+                fail_all_multinode_reservations(master_reservation_id, f"Partial processing failure ({success_count}/{total_nodes})")
                 return False
         else:
             # Insufficient resources - queue all nodes together
@@ -793,6 +827,55 @@ def coordinate_multinode_reservation(master_reservation_id: str, total_nodes: in
             release_multinode_lock(master_reservation_id)
         except Exception as lock_release_error:
             logger.warning(f"Failed to release coordinator lock for {master_reservation_id}: {lock_release_error}")
+
+def process_multinode_individual_node(message_body: dict) -> bool:
+    """Process an individual node in a multinode reservation (called asynchronously)"""
+    try:
+        reservation_id = message_body.get("reservation_id")
+        node_index = message_body.get("node_index")
+        total_nodes = message_body.get("total_nodes")
+        master_reservation_id = message_body.get("master_reservation_id")
+        
+        logger.info(f"Processing individual multinode node {reservation_id} ({node_index+1}/{total_nodes})")
+        
+        # Get the reservation data
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        response = reservations_table.get_item(Key={"reservation_id": reservation_id})
+        
+        if "Item" not in response:
+            logger.error(f"Reservation {reservation_id} not found")
+            update_multinode_pod_status(reservation_id, "not found", node_index, total_nodes)
+            return False
+        
+        node_data = response["Item"]
+        
+        # Update status to preparing pod
+        update_multinode_pod_status(reservation_id, "preparing pod", node_index, total_nodes)
+        
+        # Create individual reservation for this node
+        created_reservation_id = create_reservation(node_data)
+        if not created_reservation_id:
+            logger.error(f"Failed to create reservation for node {reservation_id}")
+            update_multinode_pod_status(reservation_id, "failed to create", node_index, total_nodes)
+            return False
+        
+        # Update status to allocating resources
+        update_multinode_pod_status(reservation_id, "allocating resources", node_index, total_nodes)
+        
+        # Allocate GPU resources for this node
+        allocate_gpu_resources(created_reservation_id, node_data)
+        
+        # Don't update status here - the main flow will handle setting to "active"
+        # update_multinode_pod_status would override the main flow's status
+        
+        logger.info(f"Successfully processed multinode node {reservation_id} ({node_index+1}/{total_nodes})")
+        return True
+        
+    except Exception as e:
+        logger.error(f"Error processing individual multinode node {reservation_id}: {str(e)}")
+        if 'reservation_id' in locals() and 'node_index' in locals() and 'total_nodes' in locals():
+            update_multinode_pod_status(reservation_id, "processing failed", node_index, total_nodes)
+        return False
 
 def acquire_multinode_lock(master_reservation_id: str, ttl_seconds: int = 300) -> bool:
     """Acquire a best-effort coordination lock using the reservations table.
@@ -856,30 +939,19 @@ def update_all_multinode_status(master_reservation_id: str, status: str, failure
 
 
 def update_multinode_pod_status(reservation_id: str, pod_status: str, node_index: int = None, total_nodes: int = None):
-    """Update individual pod status for multinode reservations"""
+    """Update individual pod status for multinode reservations using unified status tracking"""
     try:
-        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
-        
         # Create a detailed pod status message
         if node_index is not None and total_nodes is not None:
-            pod_status_message = f"Pod {node_index + 1}/{total_nodes}: {pod_status}"
+            detailed_status = f"Pod {node_index + 1}/{total_nodes}: {pod_status}"
         else:
-            pod_status_message = pod_status
+            detailed_status = pod_status
         
-        # Update the reservation with pod-specific status
-        reservations_table.update_item(
-            Key={"reservation_id": reservation_id},
-            UpdateExpression="SET pod_status = :pod_status, pod_status_updated_at = :updated_at",
-            ExpressionAttributeValues={
-                ":pod_status": pod_status_message,
-                ":updated_at": datetime.utcnow().isoformat()
-            }
-        )
-        
-        logger.info(f"Updated pod status for {reservation_id}: {pod_status_message}")
+        # Use unified status tracking - keep high-level status as "preparing" during pod setup
+        update_reservation_status(reservation_id, "preparing", detailed_status=detailed_status)
         
     except Exception as e:
-        logger.error(f"Error updating pod status for {reservation_id}: {str(e)}")
+        logger.error(f"Error updating multinode pod status for {reservation_id}: {str(e)}")
 
 
 def fail_all_multinode_reservations(master_reservation_id: str, error_message: str):
@@ -906,7 +978,7 @@ def queue_all_multinode_reservations(master_reservation_id: str, total_gpus_need
             master_reservation_id, total_gpus_needed, gpu_type, available_gpus
         )
         
-        # Update all nodes with the same queue information
+        # Update all nodes with the same queue information and set status to "queued"
         for node in nodes:
             reservation_id = node.get("reservation_id")
             if reservation_id:
@@ -914,8 +986,10 @@ def queue_all_multinode_reservations(master_reservation_id: str, total_gpus_need
                     reservation_id,
                     queue_info["position"],
                     queue_info["estimated_wait_minutes"],
-                    queue_info["message"]
+                    available_gpus
                 )
+                # CRITICAL: Set status to "queued" so scheduled Lambda can find these reservations
+                update_reservation_status(reservation_id, "queued", queue_info["message"])
                 
         logger.info(f"Queued multinode reservation {master_reservation_id} at position {queue_info['position']}")
         
@@ -994,7 +1068,7 @@ def calculate_multinode_queue_position_and_wait_time(master_reservation_id: str,
         if total_gpus_ahead > 0:
             estimated_wait_minutes = int((total_gpus_ahead / max(available_gpus, 1)) * avg_duration_minutes * multinode_buffer)
         else:
-            estimated_wait_minutes = 5  # Minimal wait for coordination
+            estimated_wait_minutes = 0  # No wait needed if no GPUs ahead in queue
         
         return {
             "position": queue_position,
@@ -1411,7 +1485,7 @@ def create_reservation(request: dict[str, Any]) -> str:
             "duration_hours": duration_decimal,
             "pod_name": f"gpu-dev-{reservation_id[:8]}",
             "namespace": "gpu-dev",
-            "ssh_command": f"ssh user@gpu-dev-{reservation_id[:8]}.cluster.local",  # Placeholder
+            # ssh_command will be set when NodePort service is created with real external access
         }
 
         # Add optional fields
@@ -1460,7 +1534,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         update_reservation_status(
             reservation_id,
             "preparing",
-            f"Fetching SSH keys for GitHub user {request.get('github_user', user_id)}",
+            detailed_status=f"Fetching SSH keys for GitHub user {request.get('github_user', user_id)}"
         )
 
         # Get user's GitHub public key
@@ -1491,7 +1565,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             try:
                 # Reserve the volume ID slot in DynamoDB immediately to prevent race conditions
                 update_reservation_fields(reservation_id, ebs_volume_reserved=True)
-                update_reservation_status(reservation_id, "preparing", "Reserving persistent disk slot")
+                update_reservation_status(reservation_id, "preparing", detailed_status="Reserving persistent disk slot")
                 logger.info(f"Reserved persistent disk slot for reservation {reservation_id}")
             except Exception as e:
                 logger.error(f"Failed to reserve persistent disk slot: {e}")
@@ -1503,7 +1577,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 update_reservation_status(
                     reservation_id,
                     "preparing",
-                    "Determining optimal availability zone for GPU placement",
+                    detailed_status="Determining optimal availability zone for GPU placement"
                 )
 
                 target_az = get_target_az_for_reservation(gpu_type, gpu_count)
@@ -1651,6 +1725,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             is_new_disk=is_new_disk,
             recreate_env=recreate_env,
             efs_filesystem_id=efs_filesystem_id,
+            is_multinode=is_multinode,
         )
 
         # Update status: Pod created, waiting for container to start
@@ -1680,11 +1755,13 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
 
         # Wait for SSH service to be fully ready (additional wait beyond pod ready)
         logger.info(
-            f"Pod is ready, waiting for SSH service to start on {node_public_ip}:{node_port}"
+            f"MAIN FLOW: Pod is ready, testing SSH connectivity on {node_public_ip}:{node_port} for reservation {reservation_id}"
         )
         ssh_ready = wait_for_ssh_service(
             k8s_client, pod_name, node_public_ip, node_port, timeout_seconds=180
         )
+        
+        logger.info(f"MAIN FLOW: SSH connectivity test result for {reservation_id}: ssh_ready={ssh_ready}")
 
         if ssh_ready:
             # Update reservation with connection details and mark as active
@@ -1713,6 +1790,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 # Don't fail the reservation for this
 
         else:
+            logger.warning(f"MAIN FLOW: SSH connectivity test FAILED for reservation {reservation_id}, checking pod status for errors")
             # Check pod status using our consolidated monitoring function
             pod_info = update_pod_status_and_events(k8s_client, pod_name, reservation_id)
             if pod_info["has_errors"]:
@@ -1761,17 +1839,88 @@ def delete_sqs_message(record: dict[str, Any]) -> None:
         logger.error(f"Error deleting SQS message: {str(e)}")
 
 
-def update_reservation_status(reservation_id: str, status: str, reason: str = None) -> None:
-    """Update reservation status in DynamoDB"""
+def update_reservation_status(reservation_id: str, status: str, detailed_status: str = None, failure_reason: str = None) -> None:
+    """
+    Update reservation status with unified status tracking.
+    
+    Args:
+        reservation_id: The reservation ID
+        status: High-level status (preparing/active/cancelled/failed)
+        detailed_status: Current detailed status message for status history
+        failure_reason: Only set when status is 'failed'
+    """
     try:
-        update_reservation_fields(reservation_id, status=status)
-
-        if reason:
-            update_reservation_error(reservation_id, reason, "failure_reason")
-
-        logger.info(f"Updated reservation {reservation_id} status to {status}")
+        current_time = datetime.utcnow().isoformat()
+        
+        # Prepare fields to update
+        fields = {
+            "status": status
+        }
+        
+        # Add detailed status to history if provided  
+        if detailed_status:
+            fields["current_detailed_status"] = detailed_status
+        
+        # Only set failure_reason when actually failing
+        if failure_reason and status == "failed":
+            fields["failure_reason"] = failure_reason
+        
+        # Update regular fields first
+        update_reservation_fields(reservation_id, **fields)
+        
+        # Handle status history append atomically if detailed_status provided
+        if detailed_status:
+            try:
+                append_status_history(reservation_id, current_time, detailed_status)
+            except Exception as history_error:
+                logger.warning(f"Could not append to status history: {history_error}")
+        
+        log_msg = f"Updated reservation {reservation_id} status to {status}"
+        if detailed_status:
+            log_msg += f" - {detailed_status}"
+        logger.info(log_msg)
+        
     except Exception as e:
         logger.error(f"Error updating reservation status: {str(e)}")
+
+
+def append_status_history(reservation_id: str, timestamp: str, message: str) -> None:
+    """Atomically append a status entry to the status_history list using DynamoDB LIST_APPEND"""
+    try:
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        
+        new_entry = {
+            "timestamp": timestamp,
+            "message": message
+        }
+        
+        # Use LIST_APPEND to atomically append to the status_history list
+        # This handles concurrent writes properly
+        try:
+            reservations_table.update_item(
+                Key={"reservation_id": reservation_id},
+                UpdateExpression="SET status_history = list_append(if_not_exists(status_history, :empty_list), :new_entry)",
+                ExpressionAttributeValues={
+                    ":empty_list": [],
+                    ":new_entry": [new_entry]
+                }
+            )
+        except Exception as append_error:
+            # If the above fails (rare edge case), fall back to regular SET operation
+            logger.warning(f"LIST_APPEND failed, falling back to SET: {append_error}")
+            reservations_table.update_item(
+                Key={"reservation_id": reservation_id},
+                UpdateExpression="SET status_history = :history",
+                ExpressionAttributeValues={
+                    ":history": [new_entry]
+                }
+            )
+        
+        logger.debug(f"Appended status history entry for {reservation_id}: {message}")
+        
+    except Exception as e:
+        logger.error(f"Error appending status history: {str(e)}")
+        raise
 
 
 def update_reservation_fields(reservation_id: str, **fields) -> None:
@@ -1889,6 +2038,7 @@ def create_kubernetes_resources(
     is_new_disk: bool = False,
     recreate_env: bool = False,
     efs_filesystem_id: str = None,
+    is_multinode: bool = False,
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
@@ -1981,6 +2131,7 @@ def create_kubernetes_resources(
                         is_new_disk=is_new_disk,
                         recreate_env=recreate_env,
                         efs_filesystem_id=efs_filesystem_id,
+                        is_multinode=is_multinode,
                     )
                     logger.info(f"Created new pod {pod_name} with Jupyter")
                     update_reservation_status(
@@ -1990,8 +2141,11 @@ def create_kubernetes_resources(
                     )
 
                     # Start background monitoring immediately after pod creation
-                    logger.info(f"Starting background monitoring for newly created pod {pod_name}")
-                    monitor_stop_event = start_background_pod_monitoring(k8s_client, pod_name, reservation_id)
+                    if reservation_id not in _monitoring_threads:
+                        logger.info(f"Starting background monitoring for newly created pod {pod_name}")
+                        monitor_stop_event = start_background_pod_monitoring(k8s_client, pod_name, reservation_id)
+                    else:
+                        logger.info(f"Background monitoring already exists for reservation {reservation_id}, skipping duplicate")
 
                 # Create SSH service if it doesn't exist
                 if not existing_service_port:
@@ -2046,6 +2200,7 @@ def create_kubernetes_resources(
                         is_new_disk=is_new_disk,
                         recreate_env=recreate_env,
                         efs_filesystem_id=efs_filesystem_id,
+                        is_multinode=is_multinode,
                     )
                     logger.info(f"Created new pod {pod_name} without Jupyter")
                     update_reservation_status(
@@ -2074,19 +2229,21 @@ def create_kubernetes_resources(
         )
 
         # Start background monitoring if not already started (for existing pods)
-        if 'monitor_stop_event' not in locals():
+        # Check global registry to prevent multiple Lambda executions from monitoring the same pod
+        if 'monitor_stop_event' not in locals() and reservation_id not in _monitoring_threads:
             logger.info(f"Starting background monitoring for existing pod {pod_name}")
             monitor_stop_event = start_background_pod_monitoring(k8s_client, pod_name, reservation_id)
+        elif reservation_id in _monitoring_threads:
+            logger.info(f"Background monitoring already active for reservation {reservation_id}, skipping duplicate")
 
         wait_for_pod_ready(k8s_client, pod_name)  # Remove reservation_id to avoid blocking
         update_reservation_status(
             reservation_id, "preparing", f"Pod is ready, setting up services"
         )
 
-        # Stop background monitoring since we're done
-        if 'monitor_stop_event' in locals():
-            logger.info("Stopping background pod monitoring")
-            monitor_stop_event.set()
+        # Keep background monitoring running - it will track preparation progress but NOT set active status
+        # Only the main flow after SSH connectivity test should set active status
+        # The monitoring will be stopped later when the reservation is cancelled/expired
 
         return node_port, jupyter_port
 
@@ -2131,30 +2288,74 @@ def find_available_node_port(k8s_client) -> int:
         return random.randint(30000, 32767)
 
 
-def get_pod_resource_limits(gpu_count: int, gpu_type: str) -> dict:
-    """Get resource limits for pod based on GPU type"""
+def get_pod_resource_limits(gpu_count: int, gpu_type: str, is_multinode: bool = False) -> dict:
+    """Get resource limits for pod based on GPU type and deployment mode"""
     limits = {
         "nvidia.com/gpu": str(gpu_count),
     }
     
-    # EFA is not supported on g4dn.2xlarge (t4-small instances)
-    if gpu_type != "t4-small":
+    # EFA optimization: Only use EFA for full-node multinode deployments
+    # This prevents partial-node reservations from competing for limited EFA resources
+    gpu_max_per_node = {
+        "t4": 4, "l4": 4, "t4-small": 1,
+        "a100": 8, "h100": 8, "h200": 8, "b200": 8
+    }
+    
+    max_gpus = gpu_max_per_node.get(gpu_type, 1)
+    use_efa = (
+        gpu_type != "t4-small" and  # EFA not supported on t4-small
+        is_multinode and            # Only for multinode deployments
+        gpu_count == max_gpus       # Only when using all GPUs per node
+    )
+    
+    if use_efa:
         limits["vpc.amazonaws.com/efa"] = "1"
+        logger.info(f"Using EFA for multinode full-node deployment: {gpu_count}/{max_gpus} GPUs")
+    else:
+        logger.info(f"Skipping EFA: multinode={is_multinode}, gpu_count={gpu_count}/{max_gpus}, gpu_type={gpu_type}")
     
     return limits
 
 
-def get_pod_resource_requests(gpu_count: int, gpu_type: str) -> dict:
-    """Get resource requests for pod based on GPU type"""
+def get_pod_resource_requests(gpu_count: int, gpu_type: str, is_multinode: bool = False) -> dict:
+    """Get resource requests for pod based on GPU type and deployment mode"""
     requests = {
         "nvidia.com/gpu": str(gpu_count),
     }
     
-    # EFA is not supported on g4dn.2xlarge (t4-small instances)
-    if gpu_type != "t4-small":
+    # EFA optimization: Only use EFA for full-node multinode deployments
+    # This prevents partial-node reservations from competing for limited EFA resources
+    gpu_max_per_node = {
+        "t4": 4, "l4": 4, "t4-small": 1,
+        "a100": 8, "h100": 8, "h200": 8, "b200": 8
+    }
+    
+    max_gpus = gpu_max_per_node.get(gpu_type, 1)
+    use_efa = (
+        gpu_type != "t4-small" and  # EFA not supported on t4-small
+        is_multinode and            # Only for multinode deployments
+        gpu_count == max_gpus       # Only when using all GPUs per node
+    )
+    
+    if use_efa:
         requests["vpc.amazonaws.com/efa"] = "1"
     
     return requests
+
+
+def _pod_uses_efa(gpu_count: int, gpu_type: str, is_multinode: bool = False) -> bool:
+    """Check if pod will use EFA based on configuration"""
+    gpu_max_per_node = {
+        "t4": 4, "l4": 4, "t4-small": 1,
+        "a100": 8, "h100": 8, "h200": 8, "b200": 8
+    }
+    
+    max_gpus = gpu_max_per_node.get(gpu_type, 1)
+    return (
+        gpu_type != "t4-small" and  # EFA not supported on t4-small
+        is_multinode and            # Only for multinode deployments
+        gpu_count == max_gpus       # Only when using all GPUs per node
+    )
 
 
 def get_nccl_env_vars(gpu_type: str) -> list:
@@ -2189,6 +2390,7 @@ def create_pod(
     is_new_disk: bool = False,
     recreate_env: bool = False,
     efs_filesystem_id: str = None,
+    is_multinode: bool = False,
 ):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
@@ -2405,8 +2607,11 @@ def create_pod(
                             # Create user-specific directory in shared storage
                             USER_DIR="{user_id.split('@')[0] if user_id else 'default'}"
                             mkdir -p "/shared-personal/$USER_DIR"
-                            chown -R dev:dev "/shared-personal/$USER_DIR"
-                            chmod 755 /shared-personal
+                            # Only chown if directory doesn't already belong to dev (avoid slow recursive chown)
+                            if [ "$(stat -c %U "/shared-personal/$USER_DIR" 2>/dev/null)" != "dev" ]; then
+                                chown dev:dev "/shared-personal/$USER_DIR"
+                            fi
+                            chmod 755 /shared-personal 2>/dev/null || true
                             echo "[STARTUP] Shared personal storage configured at /shared-personal/$USER_DIR"
                             
                             # Show current usage and add helpful reminder
@@ -2435,8 +2640,25 @@ This is your persistent shared storage that survives across reservations.
 ## Current Usage
 Check with: `du -sh /shared-personal/$USER_DIR`
 EOFREADME
+                            
+                            # Set up dotfiles persistence using pre-built scripts from Docker image
+                            if [ -f "/usr/local/bin/setup-dotfiles-persistence" ]; then
+                                echo "[STARTUP] Setting up dotfiles persistence..."
+                                
+                                # Set up environment variable for backup scripts to use
+                                USER_ID_CLEAN="{user_id.split('@')[0] if user_id else 'default'}"
+                                echo "" >> /home/dev/.bashrc
+                                echo 'export GPU_DEV_USER_ID="{user_id or "dev"}"' >> /home/dev/.bashrc
+                                echo "" >> /home/dev/.zshrc  
+                                echo 'export GPU_DEV_USER_ID="{user_id or "dev"}"' >> /home/dev/.zshrc
+                                
+                                /usr/local/bin/setup-dotfiles-persistence "$USER_ID_CLEAN" "$USE_PERSISTENT_DISK"
+                            else
+                                echo "[STARTUP] Dotfiles persistence scripts not found in container"
+                            fi
                         else
                             echo "[STARTUP] No /shared-personal directory found - shared storage not available"
+                            echo "[STARTUP] Dotfiles persistence not available without shared storage"
                         fi
 
                         echo "[STARTUP] Setting up dev user..."
@@ -2495,173 +2717,71 @@ EOF
                             echo "[STARTUP] WARNING: No SSH keys found from init container!"
                         fi
 
-                        echo "[STARTUP] Setting up custom MOTD..."
+                        echo "[STARTUP] Setting up MOTD with dynamic storage info..."
                         
-                        # Remove ALL default Ubuntu MOTD files and disclaimers
-                        echo "[STARTUP] Removing default MOTD files..."
-                        rm -f /etc/motd /etc/update-motd.d/* /etc/legal /usr/share/base-files/motd 2>/dev/null || true
-
-                        # Create necessary directories if they don't exist
-                        echo "[STARTUP] Creating MOTD directories..."
-                        mkdir -p /etc/motd.d /etc/update-motd.d /var/lib/sudo/lectured
-
-                        # Disable Ubuntu's built-in copyright notices
-                        echo "[STARTUP] Disabling Ubuntu copyright notices..."
-                        touch /etc/motd.d/00-header
-                        chmod 644 /etc/motd.d/00-header
-
-                        # Disable the sudo reminder by creating empty file and all possible methods
-                        echo "[STARTUP] Disabling sudo lecture..."
-                        touch /var/lib/sudo/lectured/dev
-                        mkdir -p /var/lib/sudo/lectured
-                        echo "dev" > /var/lib/sudo/lectured/dev
-
-                        # Also disable sudo lecture in sudoers
-                        echo 'Defaults lecture=never' >> /etc/sudoers.d/dev
-                        echo 'Defaults !lecture' >> /etc/sudoers.d/dev
-
-                        # Create custom MOTD script with proper error handling
-                        echo "[STARTUP] Creating custom MOTD script..."
-                        
-                        # Pass storage information to MOTD script
+                        # Use the existing MOTD from Docker image and append dynamic storage status
+                        # Pass storage information to the Docker MOTD script
                         if [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
-                            echo "[STARTUP] Adding temporary disk warning to MOTD"
-                            echo "TEMPORARY_DISK=true" > /etc/gpu-dev-flags
+                            echo "TEMPORARY_DISK_WARNING=true" > /etc/gpu-dev-flags
                         else
-                            echo "TEMPORARY_DISK=false" > /etc/gpu-dev-flags
+                            echo "TEMPORARY_DISK_WARNING=false" > /etc/gpu-dev-flags
                         fi
-
-                        cat > /etc/update-motd.d/00-custom << MOTD_EOF
-#!/bin/bash
-# Custom MOTD for GPU dev servers
-
-# Read GPU dev flags
-TEMPORARY_DISK="false"
-if [ -f "/etc/gpu-dev-flags" ]; then
-    source /etc/gpu-dev-flags
-fi
-
-# Get OS info
-OS_INFO=\\$(lsb_release -d 2>/dev/null | cut -f2 || echo "Couldn't fetch OS data")
-
-# Get container info
-CONTAINER_IMAGE="{GPU_DEV_CONTAINER_IMAGE}"
-
-# Get CUDA toolkit info
-CUDA_INFO="CUDA toolkit unavailable"
-if command -v nvcc >/dev/null 2>&1; then
-    CUDA_VERSION=\\$(nvcc --version | grep "release" | sed 's/.*release \\([0-9.]*\\).*/\\1/' 2>/dev/null)
-    if [ -n "\\$CUDA_VERSION" ]; then
-        CUDA_INFO="CUDA \\$CUDA_VERSION (nvcc available)"
-    else
-        CUDA_INFO="CUDA toolkit installed (nvcc available)"
-    fi
-elif [ -d "/usr/local/cuda" ]; then
-    CUDA_INFO="CUDA toolkit installed (nvcc not in PATH)"
-fi
-
-# Get GPU info with error handling
-GPU_INFO="GPU detection unavailable"
-if command -v nvidia-smi >/dev/null 2>&1; then
-    # Parse nvidia-smi output to get GPU count and model
-    GPU_DATA=\\$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null)
-    if [ \\$? -eq 0 ] && [ -n "\\$GPU_DATA" ]; then
-        # Count GPUs and get first GPU model/memory
-        GPU_COUNT=\\$(echo "\\$GPU_DATA" | wc -l)
-        FIRST_GPU=\\$(echo "\\$GPU_DATA" | head -1)
-        GPU_NAME=\\$(echo "\\$FIRST_GPU" | cut -d',' -f1 | xargs)
-        GPU_MEMORY=\\$(echo "\\$FIRST_GPU" | cut -d',' -f2 | xargs)
-
-        if [ "\\$GPU_COUNT" -eq 1 ]; then
-            GPU_INFO="1x \\$GPU_NAME, \\${{GPU_MEMORY}}MiB"
-        else
-            GPU_INFO="\\${{GPU_COUNT}}x \\$GPU_NAME, \\${{GPU_MEMORY}}MiB each"
-        fi
-    fi
-fi
-
-# Display custom welcome message
-cat << WELCOME_EOF
-
-🚀 Welcome to your GPU development server!
-
-System: \\$OS_INFO
-Container: \\$CONTAINER_IMAGE
-CUDA: \\$CUDA_INFO
-GPUs: \\$GPU_INFO
-
-Shell: Zsh (default with oh-my-zsh) | Bash available
-  • Try 'bash' to test bash, or 'use-bash' for switch instructions  
-  • Both shells have the same environment (CUDA, Claude Code, etc.)
-  • Zsh features: autosuggestions, syntax highlighting, git integration
-
-🔧 Quick start:
-  • Conda is available for Python environments
-  • Use 'gpu-info' or 'nvidia-smi' to check GPU status
-  • Terminal works in all editors (no special fonts needed)
-
-WELCOME_EOF
-
-# Add persistent disk status
-if [ "$USE_PERSISTENT_DISK" = "true" ]; then
-    cat << PERSISTENT_EOF
-✅ Persistent disk loaded 
-  • Your files from previous sessions are available in /home/dev
-  • Data will persist between reservations
-
-PERSISTENT_EOF
-elif [ "$TEMPORARY_DISK_WARNING" != "true" ]; then
-    cat << TEMP_DISK_EOF
-💾 Fresh environment
-  • Starting with clean temporary storage
-  • Files in /home/dev will be lost when reservation ends
-
-TEMP_DISK_EOF
-fi
-
-# Add temporary disk warning if applicable
-if [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
-    cat << WARNING_EOF
-⚠️  TEMPORARY STORAGE WARNING:
-  • Your persistent disk is already mounted to your first reservation
-  • This reservation uses temporary storage that will be LOST when it ends
-  • Files in /home/dev will NOT persist between sessions
-  • To keep files, use 'scp' to copy them to another server or cloud storage before the reservation ends
-WARNING_EOF
-fi
-
-cat << FOOTER_EOF
-For support, reach out to: oncall:pytorch_release_engineering
-
-Happy coding! 🐍⚡
-
-FOOTER_EOF
-MOTD_EOF
-
-                        # Make MOTD script executable
-                        echo "[STARTUP] Making MOTD script executable..."
-                        chmod +x /etc/update-motd.d/00-custom
-
-                        # Generate the MOTD once (no dynamic updates to avoid duplicates)
-                        echo "[STARTUP] Generating MOTD..."
-                        if /etc/update-motd.d/00-custom > /etc/motd 2>/dev/null; then
-                            echo "[STARTUP] ✓ MOTD generated successfully"
+                        echo "USE_PERSISTENT_DISK=$USE_PERSISTENT_DISK" >> /etc/gpu-dev-flags
+                        echo "GPU_DEV_CONTAINER_IMAGE={GPU_DEV_CONTAINER_IMAGE}" >> /etc/gpu-dev-flags
+                        
+                        # Debug: check if MOTD script exists and is executable
+                        echo "[STARTUP] Checking MOTD script..."
+                        ls -la /etc/update-motd.d/ || echo "[STARTUP] update-motd.d directory not found"
+                        
+                        # The Docker image should have the MOTD script, but Lambda startup might have removed it
+                        # Let's restore it if missing
+                        if [ ! -f /etc/update-motd.d/00-custom ]; then
+                            echo "[STARTUP] MOTD script missing, checking if Docker image has a backup..."
+                            # Try to find the original MOTD script in the Docker image
+                            if [ -f /usr/local/bin/motd_script ] || [ -f /etc/motd_script ]; then
+                                echo "[STARTUP] Found backup MOTD script, copying to update-motd.d..."
+                                cp /usr/local/bin/motd_script /etc/update-motd.d/00-custom 2>/dev/null || \
+                                cp /etc/motd_script /etc/update-motd.d/00-custom 2>/dev/null || \
+                                echo "[STARTUP] Could not find backup MOTD script"
+                            fi
+                        fi
+                        
+                        # Check if flags file exists and show contents
+                        echo "[STARTUP] GPU dev flags:"
+                        cat /etc/gpu-dev-flags || echo "No flags file found"
+                        
+                        # The Docker image already has the MOTD script, just regenerate it with our flags
+                        if [ -f /etc/update-motd.d/00-custom ]; then
+                            echo "[STARTUP] MOTD script found, making executable..."
+                            chmod +x /etc/update-motd.d/00-custom
+                            
+                            echo "[STARTUP] Testing MOTD script syntax..."
+                            if bash -n /etc/update-motd.d/00-custom; then
+                                echo "[STARTUP] Syntax OK, executing MOTD script..."
+                                echo "[STARTUP] Running: /etc/update-motd.d/00-custom"
+                                /etc/update-motd.d/00-custom > /tmp/motd_output.log 2>/tmp/motd_error.log
+                                
+                                if [ $? -eq 0 ]; then
+                                    echo "[STARTUP] ✓ MOTD script executed successfully"
+                                    cat /tmp/motd_output.log > /etc/motd
+                                    echo "[STARTUP] MOTD content preview:"
+                                    head -5 /etc/motd
+                                else
+                                    echo "[STARTUP] ✗ MOTD execution failed, error log:"
+                                    cat /tmp/motd_error.log
+                                    echo "[STARTUP] Output log:"
+                                    cat /tmp/motd_output.log
+                                    echo "Welcome to GPU dev server!" > /etc/motd
+                                fi
+                            else
+                                echo "[STARTUP] ✗ MOTD script has syntax errors, using fallback"
+                                echo "Welcome to GPU dev server!" > /etc/motd
+                            fi
                         else
-                            echo "[STARTUP] ✗ MOTD generation failed, using fallback"
+                            echo "[STARTUP] ✗ MOTD script not found, using fallback"
+                            ls -la /etc/update-motd.d/
                             echo "Welcome to GPU dev server!" > /etc/motd
                         fi
-
-                        # Disable PAM's dynamic MOTD completely
-                        sed -i 's/session    optional     pam_motd.so/#&/g' /etc/pam.d/sshd 2>/dev/null || true
-                        sed -i 's/session    optional     pam_motd.so  motd=/#&/g' /etc/pam.d/sshd 2>/dev/null || true
-
-                        # Remove additional Ubuntu legal notices and update system
-                        rm -rf /etc/update-motd.d/00-header /etc/update-motd.d/10-help-text /etc/update-motd.d/80-esm /etc/update-motd.d/95-hwe-eol 2>/dev/null || true
-                        chmod -x /usr/sbin/update-motd 2>/dev/null || true
-
-                        # Disable Ubuntu Pro advertisements and legal notices
-                        echo 'export UBUNTU_PRO_HIDDEN=1' >> /home/dev/.bashrc
-                        touch /etc/motd.d/00-header /etc/motd.d/10-help-text
 
                         echo "[STARTUP] Jupyter Lab pre-installed in Docker image..."
 
@@ -2700,6 +2820,28 @@ EOF
                             echo "[STARTUP] Jupyter Lab configured but not started (use 'gpu-dev edit --enable-jupyter' to enable)"
                         fi
 
+                        # Set up automatic dotfiles backup on container shutdown
+                        if [ -d "/shared-personal" ]; then
+                            echo "[STARTUP] Setting up automatic dotfiles backup on shutdown..."
+                            
+                            # Set up signal handler to backup dotfiles on graceful shutdown
+                            trap '/usr/local/bin/dotfiles-shutdown-handler; exit 0' TERM INT
+                            
+                            # Also set up periodic backup every 30 minutes if shared storage is available
+                            echo "[STARTUP] Starting periodic backup (every 30 minutes)..."
+                            (
+                                while true; do
+                                    sleep 1800  # 30 minutes
+                                    if [ -f /usr/local/bin/backup-dotfiles ]; then
+                                        echo "$(date): Performing periodic dotfiles backup..."
+                                        su - dev -c "/usr/local/bin/backup-dotfiles" 2>/dev/null || echo "Periodic backup failed"
+                                    fi
+                                done
+                            ) &
+                            
+                            echo "[STARTUP] ✓ Automatic dotfiles backup configured"
+                        fi
+
                         echo "[STARTUP] Starting SSH daemon..."
                         # Test SSH config first
                         /usr/sbin/sshd -t
@@ -2727,12 +2869,12 @@ EOF
                             name="GPU_TYPE", value=gpu_type.upper()
                         ),
                         client.V1EnvVar(
-                            name="SUPPORTS_EFA", value="true"
+                            name="SUPPORTS_EFA", value=str(_pod_uses_efa(gpu_count, gpu_type, is_multinode)).lower()
                         )
                     ] + get_nccl_env_vars(gpu_type),
                     resources=client.V1ResourceRequirements(
-                        limits=get_pod_resource_limits(gpu_count, gpu_type),
-                        requests=get_pod_resource_requests(gpu_count, gpu_type),
+                        limits=get_pod_resource_limits(gpu_count, gpu_type, is_multinode),
+                        requests=get_pod_resource_requests(gpu_count, gpu_type, is_multinode),
                     ),
                     volume_mounts=[
                         client.V1VolumeMount(name="dev-home", mount_path="/home/dev"),
@@ -3343,6 +3485,7 @@ def update_reservation_connection_info(
     ebs_availability_zone: str = None,
 ):
     """Update reservation with connection details and set proper expiration time"""
+    logger.info(f"MAIN FLOW: Starting to update connection info for reservation {reservation_id} (pod: {pod_name})")
     try:
         from datetime import datetime, timedelta
 
@@ -3460,7 +3603,7 @@ def update_reservation_connection_info(
         # Update all fields at once
         update_reservation_fields(reservation_id, **update_fields)
         logger.info(
-            f"Updated reservation {reservation_id} with connection info and expires_at={expires_at}"
+            f"MAIN FLOW: Successfully updated reservation {reservation_id} with connection info and set status=active, expires_at={expires_at}"
         )
 
     except Exception as e:
@@ -3570,7 +3713,12 @@ def start_background_pod_monitoring(k8s_client, pod_name: str, reservation_id: s
 
         while not stop_event.is_set():
             try:
-                update_pod_status_and_events(k8s_client, pod_name, reservation_id)
+                pod_status = update_pod_status_and_events(k8s_client, pod_name, reservation_id)
+                
+                # Check if reservation was terminated (cancelled/failed/expired)
+                if pod_status.get("terminated", False):
+                    logger.info(f"Reservation {reservation_id} terminated, stopping monitoring")
+                    break
 
                 # Wait 1 second or until stop signal  
                 if stop_event.wait(1):
@@ -3583,10 +3731,17 @@ def start_background_pod_monitoring(k8s_client, pod_name: str, reservation_id: s
                     break
 
         logger.info(f"Stopped background monitoring for pod {pod_name}")
+        # Clean up from global registry
+        if reservation_id in _monitoring_threads:
+            del _monitoring_threads[reservation_id]
 
     # Start monitoring thread
     thread = threading.Thread(target=monitor_loop, daemon=True)
     thread.start()
+    
+    # Register in global registry for cancellation cleanup
+    _monitoring_threads[reservation_id] = stop_event
+    logger.info(f"Registered monitoring thread for reservation {reservation_id}")
 
     return stop_event
 
@@ -3607,8 +3762,29 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
             logger.debug(f"Pod {pod_name} phase: {pod_phase}")
         except client.exceptions.ApiException as e:
             if e.status == 404:
+                # Before updating status, check if reservation was already cancelled
+                # This prevents race condition where monitoring thread continues after cancellation
+                try:
+                    reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+                    current_reservation = reservations_table.get_item(
+                        Key={"reservation_id": reservation_id}
+                    ).get("Item", {})
+                    
+                    current_status = current_reservation.get("status", "unknown")
+                    if current_status in ["cancelled", "failed", "expired"]:
+                        logger.info(f"Pod {pod_name} not found, but reservation {reservation_id} is already {current_status} - skipping status update")
+                        return {
+                            "phase": "Terminated",
+                            "display_message": f"Reservation {current_status}",
+                            "has_errors": False,
+                            "is_ready": False,
+                            "terminated": True
+                        }
+                except Exception as status_check_error:
+                    logger.warning(f"Could not check reservation status: {status_check_error}")
+                
                 logger.warning(f"Pod {pod_name} not found yet, setting pending status")
-                update_reservation_fields(reservation_id, pod_events="⏳ Pod creation pending")
+                update_reservation_status(reservation_id, "preparing", detailed_status="⏳ Pod creation pending")
                 return {
                     "phase": "Pending",
                     "display_message": "⏳ Pod creation pending",
@@ -3670,6 +3846,10 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
                                 break
                         event_message = f"⏳ Scheduling: {message[:60]}..."
                         break
+                    elif "FailedMount" in reason and "kube-api-access" in message:
+                        # kube-api-access mount failures are commonly transient in EKS - don't fail immediately
+                        event_message = f"⏳ Setting up pod access (transient)..."
+                        break
                     elif "Failed" in reason:
                         event_message = f"❌ {reason}: {message[:50]}..."
                         break
@@ -3718,6 +3898,11 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
 
             lines = logs.split('\n')
             startup_lines = [line for line in lines if "[STARTUP]" in line]
+            
+            # Debug startup log parsing
+            logger.info(f"Startup lines found: {len(startup_lines)}")
+            if startup_lines:
+                logger.info(f"Last 5 startup lines: {startup_lines[-5:]}")
 
             for line in reversed(startup_lines[-5:]):  # Check last 5 startup lines
                 for pattern, display in startup_patterns.items():
@@ -3754,15 +3939,36 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
             else:
                 display_message = f"Pod phase: {pod_phase}"
 
-        # Check current reservation status to avoid duplicate updates
+        # Check current reservation status to avoid duplicate updates AND prevent race conditions
         try:
             reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
             current_reservation = reservations_table.get_item(
                 Key={"reservation_id": reservation_id}
             ).get("Item", {})
             
+            current_status = current_reservation.get("status", "")
             current_pod_events = current_reservation.get("pod_events", "")
             current_pod_status = current_reservation.get("pod_status", "")
+            status_updated_at = current_reservation.get("status_updated_at")
+            
+            # CRITICAL: If reservation has been cancelled or failed, don't override it
+            # Also check for cancellation markers (cancelled_at field exists)
+            cancelled_at = current_reservation.get("cancelled_at")
+            if current_status in ["cancelled", "failed"] or cancelled_at:
+                effective_status = current_status if current_status in ["cancelled", "failed"] else "cancelled"
+                logger.info(f"Skipping pod status update for {pod_name} - reservation is {effective_status} (cancelled_at: {cancelled_at})")
+                
+                # If status field doesn't match cancellation state, fix it
+                if current_status not in ["cancelled", "failed"] and cancelled_at:
+                    logger.info(f"Correcting status from '{current_status}' to 'cancelled' for reservation {reservation_id}")
+                    update_reservation_fields(reservation_id, status="cancelled")
+                
+                return {
+                    "phase": pod_phase,
+                    "display_message": f"Reservation {effective_status}",
+                    "has_errors": False,
+                    "is_ready": False
+                }
             
             # Only update if status actually changed
             status_changed = (
@@ -3774,21 +3980,53 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
             logger.warning(f"Could not fetch current reservation status: {e}")
             status_changed = True  # Update anyway if we can't check
 
-        # Update reservation table with current status
+        # Update reservation table with current status using unified status tracking
         update_fields = {}
-        if display_message and status_changed:
-            update_fields["pod_events"] = display_message
         if logs:
             update_fields["pod_logs"] = logs
+        
         if status_changed:
-            update_fields["pod_status"] = pod_phase
-
-        if status_changed:
-            logger.info(
-                f"Status changed for {pod_name}: pod_events='{display_message}', pod_status='{pod_phase}'")
+            # Calculate status flags first
+            # Don't treat transient kube-api-access issues as errors
+            has_errors = "❌" in display_message and "transient" not in display_message
+            
+            # CRITICAL: Background monitoring should NOT set "active" status initially
+            # Only the main flow after SSH connectivity test should set "active"
+            # Background monitoring only tracks preparation progress and maintains existing active status
+            
+            if current_status == "active":
+                high_level_status = "active"  # Always maintain active status
+                logger.info(f"Reservation {reservation_id} already active - maintaining status")
+            else:
+                # Background monitoring can only set "preparing" - never "active"
+                # The lock mechanism prevents race conditions with main flow
+                high_level_status = "preparing" if pod_phase != "Running" else "preparing"
+                logger.info(f"Pod preparation status for {pod_name}: pod_phase={pod_phase}")
+            
+            failure_reason = None
+            
+            # Check for failure conditions
+            if has_errors or pod_phase == "Failed":
+                high_level_status = "failed"
+                failure_reason = display_message
+                
+            # Debug the final status decision
+            logger.info(f"Final status decision for {pod_name}: high_level_status={high_level_status}, display_message='{display_message}'")
+                
+            if display_message:
+                # Use unified status tracking
+                update_reservation_status(
+                    reservation_id, 
+                    high_level_status, 
+                    detailed_status=display_message,
+                    failure_reason=failure_reason
+                )
+            
+            logger.info(f"Status changed for {pod_name}: {high_level_status} - {display_message}")
         else:
             logger.debug(f"Status unchanged for {pod_name}: {display_message}")
 
+        # Update any remaining fields (like pod_logs) separately
         if update_fields:
             update_reservation_fields(reservation_id, **update_fields)
             if status_changed:
@@ -3806,14 +4044,13 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
         }
 
     except Exception as e:
-        logger.error(f"Error updating pod status for {pod_name}: {e}")
-        # Update with error state
-        error_msg = f"❌ Pod monitoring error: {str(e)[:50]}"
-        update_reservation_fields(reservation_id, pod_events=error_msg)
+        logger.warning(f"Transient monitoring issue for pod {pod_name}: {e}")
+        # Don't fail reservation on monitoring exceptions - they're usually transient
+        # Let monitoring continue, actual pod failures will be caught in subsequent cycles
         return {
             "phase": "Unknown",
-            "display_message": error_msg,
-            "has_errors": True,
+            "display_message": "⏳ Checking pod status...",
+            "has_errors": False,
             "is_ready": False
         }
 
@@ -3855,6 +4092,17 @@ def wait_for_ssh_service(
                             logger.info(
                                 f"SSH service is responding on {node_ip}:{node_port}"
                             )
+                            
+                            # Trigger dotfiles restore in background (non-blocking)
+                            try:
+                                logger.info("Triggering background dotfiles restore...")
+                                restore_cmd = f"ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 -p {node_port} dev@{node_ip} 'nohup /usr/local/bin/restore-dotfiles > /tmp/dotfiles-restore.log 2>&1 &'"
+                                import subprocess
+                                subprocess.Popen(restore_cmd, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                                logger.info("✓ Background dotfiles restore triggered")
+                            except Exception as restore_error:
+                                logger.warning(f"Could not trigger dotfiles restore: {restore_error}")
+                            
                             return True
                         else:
                             logger.info(f"SSH port not yet accessible: {result}")
@@ -3887,11 +4135,11 @@ def process_scheduled_queue_management():
 
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
 
-        # Get all queued reservations (NOT pending - those are handled by SQS)
-        # Scheduled processing should only handle reservations that are truly queued
+        # Get all queued reservations (NOT pending or preparing - those are handled by SQS and background threads)
+        # Scheduled processing should only handle reservations that are truly queued and need resource allocation
         queued_statuses = [
             "queued"
-        ]  # Only process truly queued, not fresh pending ones
+        ]  # Only process truly queued, not pending/preparing ones with active monitoring
         all_queued_reservations = []
 
         for status in queued_statuses:
@@ -4137,6 +4385,14 @@ def process_cancellation_request(record: dict[str, Any]) -> bool:
 
         logger.info(
             f"Cancelling reservation {full_reservation_id} (prefix: {reservation_id}) for user {user_id} (current status: {current_status})")
+
+        # CRITICAL: Stop background monitoring to prevent race condition
+        if full_reservation_id in _monitoring_threads:
+            logger.info(f"Stopping background monitoring for reservation {full_reservation_id}")
+            _monitoring_threads[full_reservation_id].set()  # Signal thread to stop
+            del _monitoring_threads[full_reservation_id]    # Remove from registry
+        else:
+            logger.info(f"No monitoring thread found for reservation {full_reservation_id}")
 
         try:
             now = datetime.utcnow().isoformat()
@@ -4828,6 +5084,15 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
             )
 
             logger.info(f"Successfully extended reservation {full_reservation_id} by {extension_hours} hours")
+            
+            # Add successful extension to status history
+            try:
+                current_time = datetime.utcnow().isoformat()
+                extension_message = f"Extended by {extension_hours} hours (new expiry: {new_expires_at.strftime('%Y-%m-%d %H:%M:%S')})"
+                append_status_history(full_reservation_id, current_time, extension_message)
+            except Exception as history_error:
+                logger.warning(f"Could not add extension to status history: {history_error}")
+            
             return True
 
         except Exception as update_error:

@@ -1,0 +1,38 @@
+#!/bin/bash
+# Restore dotfiles from shared persistent storage
+# Run this manually if you want to refresh your dotfiles from backup
+
+# Get the user ID from environment or derive it
+if [ -n "$GPU_DEV_USER_ID" ]; then
+    USER_ID_CLEAN=$(echo "$GPU_DEV_USER_ID" | cut -d'@' -f1)
+elif [ -f /tmp/gpu-dev-user-id ]; then
+    USER_ID_CLEAN=$(cat /tmp/gpu-dev-user-id | cut -d'@' -f1)
+else
+    USER_ID_CLEAN="dev"
+fi
+
+DOTFILES_DIR="/shared-personal/$USER_ID_CLEAN/.dotfiles"
+
+if [ -d "$DOTFILES_DIR" ]; then
+    echo "Restoring dotfiles from $DOTFILES_DIR..."
+    
+    # Restore shell config files
+    [ -f "$DOTFILES_DIR/.bashrc" ] && cp "$DOTFILES_DIR/.bashrc" ~/.bashrc
+    [ -f "$DOTFILES_DIR/.bash_history" ] && cp "$DOTFILES_DIR/.bash_history" ~/.bash_history
+    [ -f "$DOTFILES_DIR/.zshrc" ] && cp "$DOTFILES_DIR/.zshrc" ~/.zshrc
+    [ -f "$DOTFILES_DIR/.zsh_history" ] && cp "$DOTFILES_DIR/.zsh_history" ~/.zsh_history
+    [ -d "$DOTFILES_DIR/.oh-my-zsh" ] && cp -r "$DOTFILES_DIR/.oh-my-zsh" ~/
+    
+    # Restore other config files
+    [ -f "$DOTFILES_DIR/.gitconfig" ] && cp "$DOTFILES_DIR/.gitconfig" ~/.gitconfig
+    [ -f "$DOTFILES_DIR/.profile" ] && cp "$DOTFILES_DIR/.profile" ~/.profile
+    [ -f "$DOTFILES_DIR/.vimrc" ] && cp "$DOTFILES_DIR/.vimrc" ~/.vimrc
+    [ -f "$DOTFILES_DIR/.condarc" ] && cp "$DOTFILES_DIR/.condarc" ~/.condarc
+    
+    echo "✓ Dotfiles restored from shared storage"
+    
+    # Show last backup time if available
+    [ -f "$DOTFILES_DIR/.last_backup" ] && cat "$DOTFILES_DIR/.last_backup"
+else
+    echo "⚠️  No dotfiles backup found in shared storage"
+fi

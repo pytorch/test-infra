@@ -109,10 +109,13 @@ def _show_single_reservation(connection_info: dict) -> None:
     else:
         gpu_info = f"{gpu_count} GPU(s)"
 
-    # Format timestamps
-    created_at = connection_info.get("created_at", "N/A")
+    # Format timestamps - only show launched_at (started time), not created time
     launched_at = connection_info.get("launched_at", "N/A")
     expires_at = connection_info.get("expires_at", "N/A")
+    
+    # Get persistent disk status
+    ebs_volume_id = connection_info.get("ebs_volume_id", None)
+    has_persistent_disk = bool(ebs_volume_id and ebs_volume_id.strip())
 
     # Convert timestamps to readable format
     def format_timestamp(timestamp_str):
@@ -145,9 +148,11 @@ def _show_single_reservation(connection_info: dict) -> None:
         except (ValueError, TypeError):
             return str(timestamp_str)[:19]  # Fallback to first 19 chars
 
-    created_formatted = _format_relative_time(created_at, "now")
     launched_formatted = _format_relative_time(launched_at, "now")
     expires_formatted = _format_relative_time(expires_at, "expires")
+    
+    # Format persistent disk status
+    disk_status = "Persistent" if has_persistent_disk else "Temporary"
 
     if status == "active":
         jupyter_info = ""
@@ -203,7 +208,7 @@ def _show_single_reservation(connection_info: dict) -> None:
             f"[blue]GPUs:[/blue] {gpu_info}\n"
             f"[blue]Instance Type:[/blue] {instance_type}\n"
             + secondary_users_info
-            + f"[blue]Created:[/blue] {created_formatted}\n"
+            + f"[blue]Storage:[/blue] {disk_status}\n"
             f"[blue]Started:[/blue] {launched_formatted}\n"
             f"[blue]Expires:[/blue] {expires_formatted}"
         )
@@ -214,16 +219,16 @@ def _show_single_reservation(connection_info: dict) -> None:
             f"[yellow]Reservation Details[/yellow]\n\n"
             f"[blue]Status:[/blue] {status.title()}\n"
             f"[blue]GPUs Requested:[/blue] {gpu_info}\n"
-            f"[blue]Created:[/blue] {created_formatted}\n"
+            f"[blue]Storage:[/blue] {disk_status}\n"
             f"[blue]Expected Instance:[/blue] {instance_type if instance_type != 'unknown' else 'TBD'}"
         )
         if status == "preparing":
             panel_content += f"\n[blue]Pod Name:[/blue] {connection_info.get('pod_name', 'N/A')}"
-            # Show dynamic pod events from failure_reason if available
-            failure_reason = connection_info.get("failure_reason", "")
-            if failure_reason:
+            # Show current detailed status from unified status tracking
+            current_detailed_status = connection_info.get("current_detailed_status", "")
+            if current_detailed_status:
                 panel_content += (
-                    f"\n[blue]Current Status:[/blue] {failure_reason}"
+                    f"\n[blue]Current Status:[/blue] {current_detailed_status}"
                 )
 
         panel = Panel.fit(
@@ -244,7 +249,7 @@ def _show_single_reservation(connection_info: dict) -> None:
             f"[red]Reservation Details[/red]\n\n"
             f"[blue]Status:[/blue] {status.title()}\n"
             f"[blue]GPUs:[/blue] {gpu_info}\n"
-            f"[blue]Created:[/blue] {created_formatted}\n"
+            f"[blue]Storage:[/blue] {disk_status}\n"
             f"[blue]Started:[/blue] {launched_formatted}\n"
             f"[blue]Ended:[/blue] {expires_formatted}"
         )
@@ -361,6 +366,7 @@ def main(ctx: click.Context) -> None:
 )
 @click.option(
     "--gpu-type",
+    "-t",
     type=click.Choice(
         ["b200", "h200", "h100", "a100", "t4", "l4", "t4-small"], case_sensitive=False
     ),
@@ -395,8 +401,15 @@ def main(ctx: click.Context) -> None:
 )
 @click.option(
     "--distributed",
+    "-d",
     is_flag=True,
     help="Required flag for multinode GPU reservations (> single node max)",
+)
+@click.option(
+    "--verbose",
+    "-v",
+    is_flag=True,
+    help="Enable verbose debug output",
 )
 @click.pass_context
 def reserve(
@@ -410,6 +423,7 @@ def reserve(
     recreate_env: bool,
     interactive: Optional[bool],
     distributed: bool,
+    verbose: bool,
 ) -> None:
     """Reserve GPU development server(s)
 
@@ -751,7 +765,7 @@ def reserve(
                 )
                 # Poll for multinode completion
                 completed_reservations = reservation_mgr.wait_for_multinode_reservation_completion(
-                    reservation_ids=reservation_ids, timeout_minutes=None
+                    reservation_ids=reservation_ids, timeout_minutes=None, verbose=verbose
                 )
                 
                 if not completed_reservations:
@@ -763,14 +777,23 @@ def reserve(
                     rprint(f"\n[green]🎉 All {len(reservation_ids)} nodes are ready![/green]")
                     for i, reservation in enumerate(completed_reservations):
                         rprint(f"\n[cyan]━━━ Node {i+1}/{len(reservation_ids)} ━━━[/cyan]")
-                        _show_single_reservation(reservation)
+                        # Convert raw reservation data to connection_info format expected by _show_single_reservation
+                        try:
+                            reservation_id = reservation.get("reservation_id", "")
+                            connection_info = reservation_mgr.get_connection_info(reservation_id, user_info["user_id"])
+                            if connection_info:
+                                _show_single_reservation(connection_info)
+                            else:
+                                rprint(f"[red]❌ Could not get connection info for {reservation_id[:8]}[/red]")
+                        except Exception as e:
+                            rprint(f"[red]❌ Error: {str(e)}[/red]")
             else:
                 rprint(
                     f"[green]✅ Reservation request submitted: {reservation_ids[0][:8]}...[/green]"
                 )
                 # Poll for single node completion
                 completed_reservation = reservation_mgr.wait_for_reservation_completion(
-                    reservation_id=reservation_ids[0], timeout_minutes=None
+                    reservation_id=reservation_ids[0], timeout_minutes=None, verbose=verbose
                 )
 
                 if not completed_reservation:
@@ -1148,6 +1171,7 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
 @click.argument("reservation_id", required=False)
 @click.option(
     "--all",
+    "-a",
     is_flag=True,
     help="Cancel all your cancellable reservations (requires confirmation)",
 )
@@ -1156,12 +1180,19 @@ def list(ctx: click.Context, user: Optional[str], status: Optional[str]) -> None
     default=None,
     help="Force interactive mode on/off (auto-detected by default)",
 )
+@click.option(
+    "--force",
+    "-f",
+    is_flag=True,
+    help="Skip confirmation prompt when using --all",
+)
 @click.pass_context
 def cancel(
     ctx: click.Context,
     reservation_id: Optional[str],
     all: bool,
     interactive: Optional[bool],
+    force: bool,
 ) -> None:
     """Cancel a GPU reservation
 
@@ -1281,18 +1312,19 @@ def cancel(
 
             console.print(table)
 
-            # Confirmation prompt
-            rprint(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
-            try:
-                confirmed = click.confirm(
-                    "Do you want to proceed?", default=False
-                )
-                if not confirmed:
-                    rprint("[yellow]Cancellation cancelled by user[/yellow]")
+            # Confirmation prompt (skip if --force flag is used)
+            if not force:
+                rprint(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
+                try:
+                    confirmed = click.confirm(
+                        "Do you want to proceed?", default=False
+                    )
+                    if not confirmed:
+                        rprint("[yellow]Cancellation cancelled by user[/yellow]")
+                        return
+                except (KeyboardInterrupt, click.Abort):
+                    rprint("\n[yellow]Cancellation cancelled by user[/yellow]")
                     return
-            except (KeyboardInterrupt, click.Abort):
-                rprint("\n[yellow]Cancellation cancelled by user[/yellow]")
-                return
 
             # Cancel all reservations
             cancelled_count = 0
@@ -1373,18 +1405,19 @@ def cancel(
 
             # Handle "all" selection
             if selected_id == "__ALL__":
-                # Confirmation prompt for cancelling all
-                rprint(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
-                try:
-                    confirmed = click.confirm(
-                        "Do you want to proceed?", default=False
-                    )
-                    if not confirmed:
-                        rprint("[yellow]Cancellation cancelled by user[/yellow]")
+                # Confirmation prompt for cancelling all (skip if --force flag is used)
+                if not force:
+                    rprint(f"\n[red]⚠️  Are you sure you want to cancel ALL {len(reservations)} reservations? This cannot be undone.[/red]")
+                    try:
+                        confirmed = click.confirm(
+                            "Do you want to proceed?", default=False
+                        )
+                        if not confirmed:
+                            rprint("[yellow]Cancellation cancelled by user[/yellow]")
+                            return
+                    except (KeyboardInterrupt, click.Abort):
+                        rprint("\n[yellow]Cancellation cancelled by user[/yellow]")
                         return
-                except (KeyboardInterrupt, click.Abort):
-                    rprint("\n[yellow]Cancellation cancelled by user[/yellow]")
-                    return
 
                 # Cancel all reservations
                 cancelled_count = 0

@@ -1,0 +1,83 @@
+#!/bin/bash
+# Setup dotfiles persistence for GPU development servers
+# Called during container startup to configure dotfiles backup/restore
+
+USER_ID_CLEAN="$1"
+USE_PERSISTENT_DISK="$2"
+
+if [ -z "$USER_ID_CLEAN" ]; then
+    echo "Error: USER_ID_CLEAN not provided"
+    exit 1
+fi
+
+DOTFILES_DIR="/shared-personal/$USER_ID_CLEAN/.dotfiles"
+
+if [ ! -d "/shared-personal" ]; then
+    echo "Shared storage not available - dotfiles persistence disabled"
+    exit 0
+fi
+
+echo "Setting up dotfiles persistence for user: $USER_ID_CLEAN"
+mkdir -p "$DOTFILES_DIR"
+
+# Quick setup - just prepare environment, don't restore during startup
+# Dotfiles will be restored automatically when SSH service is ready
+if [ -f "$DOTFILES_DIR/.bashrc" ]; then
+    echo "✓ Found existing dotfiles - restore will be triggered automatically"
+else
+    echo "No existing dotfiles found - fresh start"
+fi
+
+# Store user ID for the backup/restore scripts to use
+echo "$USER_ID_CLEAN" > /tmp/gpu-dev-user-id
+chown dev:dev /tmp/gpu-dev-user-id
+
+# Create symlinks to the system-wide backup/restore commands in user's home
+ln -sf /usr/local/bin/backup-dotfiles /home/dev/.backup-dotfiles
+ln -sf /usr/local/bin/restore-dotfiles /home/dev/.restore-dotfiles
+chown -h dev:dev /home/dev/.backup-dotfiles
+chown -h dev:dev /home/dev/.restore-dotfiles
+
+# Note: list-dotfile-versions and restore-dotfiles-version are available system-wide
+
+# Add backup reminder to shell configs (but only for temporary disk scenarios and only show once per day)
+if [ "$USE_PERSISTENT_DISK" != "true" ]; then
+    # Create a function that shows the reminder only once per day
+    cat >> /home/dev/.bashrc << 'EOF'
+
+# Dotfiles backup reminder (once per day)
+_show_dotfiles_reminder() {
+    local today=$(date +%Y-%m-%d)
+    local reminder_file="/tmp/.dotfiles_reminder_shown_$today"
+    if [ ! -f "$reminder_file" ]; then
+        echo 'Tip: Your shell history and config are automatically backed up to shared storage!'
+        echo 'Commands: ~/.backup-dotfiles | ~/.restore-dotfiles | list-dotfile-versions'
+        touch "$reminder_file"
+    fi
+}
+# Only show reminder in interactive shells, not SSH login
+if [[ $- == *i* ]] && [ -z "$SSH_CONNECTION" ]; then
+    _show_dotfiles_reminder
+fi
+EOF
+    
+    cat >> /home/dev/.zshrc << 'EOF'
+
+# Dotfiles backup reminder (once per day) 
+_show_dotfiles_reminder() {
+    local today=$(date +%Y-%m-%d)
+    local reminder_file="/tmp/.dotfiles_reminder_shown_$today"
+    if [ ! -f "$reminder_file" ]; then
+        echo 'Tip: Your shell history and config are automatically backed up to shared storage!'
+        echo 'Commands: ~/.backup-dotfiles | ~/.restore-dotfiles | list-dotfile-versions'
+        touch "$reminder_file"
+    fi
+}
+# Only show reminder in interactive shells, not SSH login
+if [[ -o interactive ]] && [ -z "$SSH_CONNECTION" ]; then
+    _show_dotfiles_reminder
+fi
+EOF
+fi
+
+echo "✓ Dotfiles persistence configured"
