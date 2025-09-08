@@ -37,6 +37,7 @@ import {
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
 } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
@@ -65,6 +66,7 @@ export default function LLMsGraphPanel({
   lBranchAndCommit,
   rBranchAndCommit,
   repos,
+  mode,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
@@ -78,8 +80,9 @@ export default function LLMsGraphPanel({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
   repos?: string[];
+  mode: LLMsBenchmarkMode;
 }) {
-  const isCompare = !!(repos && repos.length > 1);
+  const isCompare = mode === LLMsBenchmarkMode.RepoComparison;
   const { data } = useBenchmark(queryParams, {
     branch: rBranchAndCommit.branch,
     commit: "",

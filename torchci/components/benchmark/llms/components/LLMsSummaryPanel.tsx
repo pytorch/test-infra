@@ -11,6 +11,7 @@ import {
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 import { MdError } from "react-icons/md";
 import { VscError } from "react-icons/vsc";
@@ -52,6 +53,7 @@ export default function LLMsSummaryPanel({
   lPerfData,
   rPerfData,
   repos,
+  mode,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -65,6 +67,7 @@ export default function LLMsSummaryPanel({
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
   repos: string[];
+  mode: LLMsBenchmarkMode;
 }) {
   // The left (base commit)
   const lBranch = lPerfData.branch;
@@ -162,7 +165,7 @@ export default function LLMsSummaryPanel({
 
   // Add source repository column for multi-repo comparisons
   const shouldShowRepoColumn =
-    (repos && repos.length > 1) ||
+    mode === LLMsBenchmarkMode.RepoComparison ||
     data.some((row) => row.sourceRepo || row.repo_name);
   if (shouldShowRepoColumn) {
     columns.push({

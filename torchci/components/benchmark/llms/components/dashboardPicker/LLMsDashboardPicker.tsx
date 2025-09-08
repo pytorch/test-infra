@@ -1,6 +1,7 @@
 import { Divider } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { Dispatch } from "react";
@@ -31,7 +32,7 @@ export const LLMsDashboardPicker = ({
   };
 
   // For comparison mode, only show time range picker and limited filters
-  if (props.repos && props.repos.length > 1) {
+  if (props.mode === LLMsBenchmarkMode.RepoComparison) {
     return (
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

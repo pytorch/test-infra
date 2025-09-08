@@ -21,30 +21,29 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  LLM_BENCHMARK_CONFIG_QUERY,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
+  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
-  useBenchmarkPropsData,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
-import LLMsReport from "./components/LLMsReport";
+import LLMsComparisonReport from "./components/LLMsComparisonReport";
 
-export default function LLMsBenchmarkPage() {
+export default function LLMsComparingBenchmarkPage() {
   const router = useRouter();
-
-  // Set the default start and stop time to be the last N days when the page is loaded
   const defaultStartTime = dayjs().subtract(LAST_N_DAYS, "day");
   const defaultStopTime = dayjs();
 
   const initialPropsState: LLMsBenchmarkProps = {
     repoName: DEFAULT_REPO_NAME,
     benchmarkName: "",
-    mode: LLMsBenchmarkMode.General,
+    mode: LLMsBenchmarkMode.RepoComparison,
     modelName: DEFAULT_MODEL_NAME,
     backendName: DEFAULT_BACKEND_NAME,
     modeName: DEFAULT_MODE_NAME,
@@ -64,10 +63,8 @@ export default function LLMsBenchmarkPage() {
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
 
-  // Default MainPage for single repo
-  // pass initial state in runtime for benchmark props
   return (
-    <MainPage
+    <MainPageForComparison
       props={props}
       dispatch={dispatch}
       defaultStartTime={defaultStartTime}
@@ -77,7 +74,6 @@ export default function LLMsBenchmarkPage() {
   );
 }
 
-// render the page before the data is loaded or when an error occured
 const PrefetchRender = ({
   children,
   props,
@@ -92,7 +88,7 @@ const PrefetchRender = ({
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        {getBenchmarkName(props.benchmarkName, props.repoName)}
+        {getComparisonBenchmarkName(props.repos)}
         {formLink(props, baseUrl)}
       </Stack>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -103,11 +99,7 @@ const PrefetchRender = ({
   );
 };
 
-/**
- * @returns Main page for the LLMs dashboard
- * the page is routed in pagesM/bencmark/llms.tsx
- */
-const MainPage = ({
+const MainPageForComparison = ({
   defaultStartTime,
   defaultStopTime,
   props,
@@ -121,6 +113,14 @@ const MainPage = ({
   dispatch: React.Dispatch<any>;
 }) => {
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [allRepoData, setAllRepoData] = useState<any[]>([]);
+  const [allRepoErrors, setAllRepoErrors] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const queryParams = useMemo(
+    () => getLLMsBenchmarkPropsQueryParameter(props),
+    [props]
+  );
+
   useEffect(() => {
     const newProps = resetProps(
       router.query,
@@ -135,42 +135,69 @@ const MainPage = ({
       }${router.asPath.replace(/\?.+/, "")}`
     );
   }, [router.query]);
-  const queryParams = useMemo(
-    () => getLLMsBenchmarkPropsQueryParameter(props),
-    [props]
-  );
-  const { data, error, isLoading } = useBenchmarkPropsData(queryParams);
 
-  // an error occured while fetching the benchmark props data
-  // give user choice for time range picker
-  if (error) {
+  useEffect(() => {
+    let cancelled = false;
+    const repoQueryParams = props.repos.map((repo) => {
+      const repoSpecificProps = { ...props, repoName: repo };
+      return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
+    });
+    setIsLoading(true);
+    fetchBenchmarkDataForRepos(
+      LLM_BENCHMARK_CONFIG_QUERY,
+      repoQueryParams
+    ).then((results) => {
+      if (cancelled) {
+        return;
+      }
+      setAllRepoData(results.map((r) => r.data));
+      setAllRepoErrors(results.map((r) => r.error));
+      setIsLoading(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    props.repos,
+    props.benchmarkName,
+    props.modelName,
+    props.backendName,
+    props.modeName,
+    props.dtypeName,
+    props.deviceName,
+    props.archName,
+    props.startTime,
+    props.stopTime,
+    props.granularity,
+    props.lCommit,
+    props.rCommit,
+    props.lBranch,
+    props.rBranch,
+  ]);
+
+  const hasError = allRepoErrors.some((error) => error);
+  if (hasError) {
+    const errorRepos = props.repos.filter((_, index) => allRepoErrors[index]);
     return (
       <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
-          Error loading data for{" "}
-          {(props.benchmarkName
-            ? [props.benchmarkName]
-            : REPO_TO_BENCHMARKS[props.repoName]
-          ).join(", ")}
-          , please select different time range, if this happens again, please
-          reach out to the pytorch team.
+          Error loading data for repositories: {errorRepos.join(", ")}, please
+          select different time range, if this happens again, please reach out
+          to the pytorch team.
         </>
       </PrefetchRender>
     );
   }
 
-  // the benchmark props data is stil loading
-  if (!data && isLoading) {
+  const hasAllData = allRepoData.every((data) => data !== undefined);
+
+  if (!hasAllData || isLoading) {
     return (
       <div>
         <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
           <>
-            Loading data for{" "}
-            {(props.benchmarkName
-              ? [props.benchmarkName]
-              : REPO_TO_BENCHMARKS[props.repoName]
-            ).join(", ")}
-            , please wait a min
+            Loading comparison data for repositories: {props.repos.join(", ")},
+            please wait a moment...
           </>
         </PrefetchRender>
         <div>
@@ -180,29 +207,59 @@ const MainPage = ({
     );
   }
 
-  // no prop data found for the given time range
-  if (data.length === 0) {
+  const hasEmptyData = allRepoData.some((data) => data.length === 0);
+  if (hasEmptyData) {
+    const emptyRepos = props.repos.filter(
+      (_, index) => allRepoData[index]?.length === 0
+    );
     return (
       <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
-          Found no records for{" "}
-          {(props.benchmarkName
-            ? [props.benchmarkName]
-            : REPO_TO_BENCHMARKS[props.repoName]
-          ).join(", ")}
-          , please select different time range
+          Found no records for repositories: {emptyRepos.join(", ")}, please
+          select different time range
         </>
       </PrefetchRender>
     );
   }
 
-  const options = data;
-  const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
-  const metricNames = getMetricNames(data);
+  const combinedData = allRepoData.flatMap((repoData, index) => {
+    const repo = props.repos[index];
+    return repoData.map((dataItem: any) => ({
+      ...dataItem,
+      sourceRepo: repo,
+    }));
+  });
+
+  const dropdownListsPerRepo = allRepoData.map((repoData, idx) =>
+    getBenchmarkDropdownFeatures(repoData, props.repos[idx])
+  );
+
+  const sharedTypes = _.intersection(
+    ...dropdownListsPerRepo.map((list) => list.map((item) => item.type))
+  );
+
+  const dropdownMapList = sharedTypes.map((type) => {
+    const firstRepoItem = dropdownListsPerRepo[0].find((i) => i.type === type);
+    const defaultOption = firstRepoItem?.options[0] || "";
+    const optionsLists = dropdownListsPerRepo.map((list) => {
+      const item = list.find((i) => i.type === type);
+      return item ? item.options.slice(1) : [];
+    });
+    const sharedOptions = _.intersection(...optionsLists);
+    const labelName = firstRepoItem?.labelName || "";
+    return {
+      type,
+      labelName,
+      options: [defaultOption, ...sharedOptions],
+    };
+  });
+
+  const metricNames = getMetricNames(combinedData);
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        {getBenchmarkName(props.benchmarkName, props.repoName)}
+        {getComparisonBenchmarkName(props.repos)}
         {formLink(props, baseUrl)}
       </Stack>
       <LLMsDashboardPicker
@@ -211,7 +268,7 @@ const MainPage = ({
         dispatch={dispatch}
         queryParams={queryParams}
       />
-      <LLMsReport
+      <LLMsComparisonReport
         props={props}
         metricNames={metricNames}
         benchmarkPropsQueryParams={queryParams}
@@ -233,13 +290,13 @@ function resetProps(
 ) {
   const newProps = cloneDeep(prevProps);
   const startTime: string = (urlQuery.startTime as string) ?? undefined;
-
   if (startTime !== undefined) {
     newProps.startTime = dayjs(startTime);
     if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
       newProps.timeRange = -1;
     }
   }
+
   const stopTime: string = (urlQuery.stopTime as string) ?? undefined;
   if (stopTime !== undefined) {
     newProps.stopTime = dayjs(stopTime);
@@ -257,6 +314,15 @@ function resetProps(
   const repoName: string = (urlQuery.repoName as string) ?? undefined;
   if (repoName !== undefined && repoName) {
     newProps.repoName = repoName;
+  }
+
+  const repos = urlQuery.repos;
+  if (repos !== undefined) {
+    if (Array.isArray(repos)) {
+      newProps.repos = repos as string[];
+    } else if (typeof repos === "string") {
+      newProps.repos = repos.split(",").map((repo) => repo.trim());
+    }
   }
 
   const benchmarkName: string = (urlQuery.benchmarkName as string) ?? undefined;
@@ -289,7 +355,6 @@ function resetProps(
     newProps.deviceName = deviceName;
   }
 
-  // Set the default arch to Android for ExecuTorch as it has only 2 options Android and iOS
   const archName: string = (urlQuery.archName as string) ?? undefined;
   if (archName !== undefined) {
     newProps.archName = archName;
@@ -317,13 +382,29 @@ function resetProps(
   return newProps;
 }
 
-const getBenchmarkName = (benchmarkName: string | any, repoName: string) => {
+function getComparisonBenchmarkName(repos: string[]) {
+  // Generate dynamic title for comparison mode using benchmark names
+  const benchmarkNames = repos.map((repo) => {
+    const repoKey = repo.trim();
+    if (REPO_TO_BENCHMARKS[repoKey] && REPO_TO_BENCHMARKS[repoKey].length > 0) {
+      return REPO_TO_BENCHMARKS[repoKey][0];
+    }
+    // Fallback to repository name if no mapping found
+    const parts = repo.split("/");
+    return parts[parts.length - 1];
+  });
+
+  const title =
+    benchmarkNames.length === 2
+      ? `${benchmarkNames[1]} vs ${benchmarkNames[0]} Comparison Dashboard`
+      : `Multi-Repository Comparison Dashboard (${benchmarkNames.join(", ")})`;
+
   return (
     <Typography fontSize={"2rem"} fontWeight={"bold"}>
-      {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]} dashboard
+      {title}
     </Typography>
   );
-};
+}
 
 const formLink = (props: LLMsBenchmarkProps, baseUrl: string) => {
   return (

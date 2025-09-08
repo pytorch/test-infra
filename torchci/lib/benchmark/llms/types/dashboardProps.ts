@@ -1,5 +1,6 @@
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { LLMsBenchmarkMode } from "./benchmarkMode";
 
 /**
  * The props for the LLMs Benchmark props. this is used to pass the props to the LLMs Benchmark components.
@@ -16,6 +17,7 @@ import dayjs from "dayjs";
  * @param archName The name of the architecture.
  * @param granularity The granularity of the graph.
  * @param repos Compares multiple repos.
+ * @param mode The mode of the LLM Benchmark.
  */
 export interface LLMsBenchmarkProps {
   repoName: string;
@@ -37,4 +39,5 @@ export interface LLMsBenchmarkProps {
   lBranch: string;
   rBranch: string;
   repos: string[];
+  mode: LLMsBenchmarkMode;
 }
