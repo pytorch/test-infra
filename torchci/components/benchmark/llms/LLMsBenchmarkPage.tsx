@@ -373,12 +373,32 @@ const MainPageForComparison = ({
     }));
   });
 
-  // Create dropdown features using the first repository as base
-  // This assumes similar structure across repositories
-  const dropdownMapList = getBenchmarkDropdownFeatures(
-    combinedData,
-    props.repos[0]
+  // Build dropdown features for each repository
+  const dropdownListsPerRepo = allRepoData.map((repoData, idx) =>
+    getBenchmarkDropdownFeatures(repoData, props.repos[idx])
   );
+
+  // Determine which dropdown types are shared across all repositories
+  const sharedTypes = _.intersection(
+    ...dropdownListsPerRepo.map((list) => list.map((item) => item.type))
+  );
+
+  // For each shared dropdown type, include only options common to all repos
+  const dropdownMapList = sharedTypes.map((type) => {
+    const firstRepoItem = dropdownListsPerRepo[0].find((i) => i.type === type);
+    const defaultOption = firstRepoItem?.options[0] || "";
+    const optionsLists = dropdownListsPerRepo.map((list) => {
+      const item = list.find((i) => i.type === type);
+      return item ? item.options.slice(1) : [];
+    });
+    const sharedOptions = _.intersection(...optionsLists);
+    const labelName = firstRepoItem?.labelName || "";
+    return {
+      type,
+      labelName,
+      options: [defaultOption, ...sharedOptions],
+    };
+  });
 
   // Get unique metric names across all repositories
   const metricNames = getMetricNames(combinedData);
