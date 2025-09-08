@@ -303,3 +303,84 @@ resource "kubernetes_daemonset" "efa_device_plugin" {
     }
   }
 }
+
+# NVIDIA GPU Operator - manages GPU drivers, device plugin, and monitoring
+resource "helm_release" "nvidia_gpu_operator" {
+  depends_on = [
+    aws_eks_cluster.gpu_dev_cluster,
+    aws_autoscaling_group.gpu_dev_nodes
+  ]
+
+  name       = "gpu-operator"
+  repository = "https://helm.ngc.nvidia.com/nvidia"
+  chart      = "gpu-operator"
+  version    = "v25.3.0"
+  namespace  = "gpu-operator"
+  create_namespace = true
+
+  # Wait for the operator to be ready
+  wait = true
+  timeout = 600
+
+  # Key configuration values
+  set {
+    name  = "operator.defaultRuntime"
+    value = "containerd"
+  }
+
+  set {
+    name  = "driver.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "toolkit.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "devicePlugin.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "dcgmExporter.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "gfd.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "migManager.enabled"
+    value = "true"
+  }
+
+  set {
+    name  = "mig.strategy"
+    value = "mixed"
+  }
+
+  set {
+    name  = "nodeStatusExporter.enabled"
+    value = "true"
+  }
+
+  # Tolerations for GPU nodes
+  set {
+    name  = "operator.tolerations[0].key"
+    value = "nvidia.com/gpu"
+  }
+
+  set {
+    name  = "operator.tolerations[0].operator"
+    value = "Exists"
+  }
+
+  set {
+    name  = "operator.tolerations[0].effect"
+    value = "NoSchedule"
+  }
+}
