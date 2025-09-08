@@ -1,3 +1,4 @@
+import { Tooltip } from "@mui/material";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { useEffect, useState } from "react";
@@ -21,12 +22,11 @@ export function LocalTimeHuman({ timestamp }: { timestamp: string }) {
     }
   }, [timestamp]);
   return (
-    <span
+    <Tooltip
       title={`${durationDisplay(dayjs().diff(timestamp, "seconds"))} ago`}
-      data-toggle="tooltip"
     >
-      {time}
-    </span>
+      <span>{time}</span>
+    </Tooltip>
   );
 }
 
