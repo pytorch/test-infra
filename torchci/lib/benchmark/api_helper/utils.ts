@@ -135,9 +135,12 @@ export function getNestedField(obj: any, path: string): any {
   return path.split(".").reduce((o, key) => (o && key in o ? o[key] : ""), obj);
 }
 
+
 export type BenchmarkTimeSeriesResponse = {
+  total_rows: number;
   time_series: any[];
   time_range: { start: string; end: string };
+  total_raw_rows?: number;
 };
 
 export type CommitRow = {
