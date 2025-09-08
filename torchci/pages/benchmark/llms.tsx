@@ -1,6 +1,6 @@
-import { useRouter } from "next/router";
 import LLMsBenchmarkPage from "components/benchmark/llms/LLMsBenchmarkPage";
 import LLMsComparingBenchmarkPage from "components/benchmark/llms/LLMsComparingBenchmarkPage";
+import { useRouter } from "next/router";
 
 /**
  *

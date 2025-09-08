@@ -23,8 +23,8 @@ import {
   DEFAULT_MODEL_NAME,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
-import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
   getLLMsBenchmarkPropsQueryParameter,
@@ -317,10 +317,7 @@ function resetProps(
   return newProps;
 }
 
-const getBenchmarkName = (
-  benchmarkName: string | any,
-  repoName: string
-) => {
+const getBenchmarkName = (benchmarkName: string | any, repoName: string) => {
   return (
     <Typography fontSize={"2rem"} fontWeight={"bold"}>
       {benchmarkName ? benchmarkName : REPO_TO_BENCHMARKS[repoName]} dashboard

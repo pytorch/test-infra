@@ -11,10 +11,10 @@ import {
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 import { MdError } from "react-icons/md";
 import { VscError } from "react-icons/vsc";
-import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 
 const FlexDiv = styled("div")({
   display: "flex",

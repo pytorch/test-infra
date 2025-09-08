@@ -1,9 +1,9 @@
 import { Divider } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
-import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { Dispatch } from "react";
 import LLMsDropdownGroup from "./LLMsDropdownGroup";
 import { LLMsTimeRangePicker } from "./LLMsTimeRangePicker";

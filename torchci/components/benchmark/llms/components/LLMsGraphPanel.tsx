@@ -37,6 +37,7 @@ import {
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
 } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
@@ -49,7 +50,6 @@ import {
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import { useEffect, useState } from "react";
-import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 
 const GRAPH_ROW_HEIGHT = 245;
 

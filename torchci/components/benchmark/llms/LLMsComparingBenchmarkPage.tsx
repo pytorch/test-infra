@@ -24,8 +24,8 @@ import {
   LLM_BENCHMARK_CONFIG_QUERY,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
-import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
   fetchBenchmarkDataForRepos,
@@ -385,10 +385,7 @@ function resetProps(
 function getComparisonBenchmarkName(repos: string[]) {
   const benchmarkNames = repos.map((repo) => {
     const repoKey = repo.trim();
-    if (
-      REPO_TO_BENCHMARKS[repoKey] &&
-      REPO_TO_BENCHMARKS[repoKey].length > 0
-    ) {
+    if (REPO_TO_BENCHMARKS[repoKey] && REPO_TO_BENCHMARKS[repoKey].length > 0) {
       return REPO_TO_BENCHMARKS[repoKey][0];
     }
     const parts = repo.split("/");

@@ -1,18 +1,16 @@
 import { Stack, Typography } from "@mui/material";
-import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { LLM_BENCHMARK_DATA_QUERY } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import {
   fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import { useEffect, useState } from "react";
-import {
-  computeSpeedup,
-} from "../../../../lib/benchmark/llms/utils/aoUtils";
+import { computeSpeedup } from "../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsGraphPanel from "./LLMsGraphPanel";
 import LLMsSummaryPanel from "./LLMsSummaryPanel";
-import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 
 export default function LLMsComparisonReport({
   props,
