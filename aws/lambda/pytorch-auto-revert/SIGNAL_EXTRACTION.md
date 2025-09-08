@@ -146,11 +146,10 @@ Notes
 
 ### Indexing & Data Structures
 
-- `JobRow`: a single workflow_job row with fields we need (head_sha, workflow_name, wf_run_id, job_id, run_attempt, name, status, conclusion, started_at, created_at, rule).
-- `JobBaseNameKey`: groups jobs by `(workflow, normalized job base name)`.
-- `Commit`: top-level element with `sha: str` and `jobs: Dict[JobBaseNameKey, List[JobRow]]`.
-  - For each commit, the `List[JobRow]` under every key is ordered by `started_at` (None last).
-  - The extractor returns `List[Commit]` ordered newest→older by push timestamp.
+- Strongly-typed ids for clarity (type-checker only), like:
+  - `WfRunId = NewType('WfRunId', int)`
+  - `RunAttempt = NewType('RunAttempt', int)`
+  These are used in the code for readability and to reduce keying mistakes.
 
 ## Implementation Plan
 

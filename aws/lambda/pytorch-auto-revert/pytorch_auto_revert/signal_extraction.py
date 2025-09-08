@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+
 """
 Signal extraction layer.
 
@@ -8,10 +9,10 @@ Transforms raw workflow/job/test data into Signal objects used by signal.py.
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List, Optional, Tuple, DefaultDict, Set
+from typing import Any, Dict, Iterable, List, NewType, Optional, Set, Tuple
 
+from .autorevert_checker import CommitJobs
 from .clickhouse_client_helper import CHCliFactory
-from .autorevert_checker import CommitJobs, JobResult
 from .signal import Signal, SignalCommit, SignalEvent, SignalStatus
 
 
@@ -21,15 +22,25 @@ DEFAULT_TEST_RULES: Set[str] = {
     "Python unittest failure",
 }
 
+# Stronger typing for ids (type-checker only; runtime is still int/str)
+WfRunId = NewType("WfRunId", int)
+RunAttempt = NewType("RunAttempt", int)
+JobId = NewType("JobId", int)
+Sha = NewType("Sha", str)
+WorkflowName = NewType("WorkflowName", str)
+JobName = NewType("JobName", str)
+JobBaseName = NewType("JobBaseName", str)
+TestId = NewType("TestId", str)
+
 
 @dataclass(frozen=True)
 class JobRow:
-    head_sha: str
-    workflow_name: str
-    wf_run_id: int
-    job_id: int
-    run_attempt: int
-    name: str
+    head_sha: Sha
+    workflow_name: WorkflowName
+    wf_run_id: WfRunId
+    job_id: JobId
+    run_attempt: RunAttempt
+    name: JobName
     status: str
     conclusion: str
     started_at: Optional[datetime]
@@ -39,9 +50,9 @@ class JobRow:
 
 @dataclass(frozen=True)
 class TestRow:
-    job_id: int
-    wf_run_id: int
-    workflow_run_attempt: int
+    job_id: JobId
+    wf_run_id: WfRunId
+    workflow_run_attempt: RunAttempt
     file: str
     classname: str
     name: str
@@ -50,53 +61,30 @@ class TestRow:
     rerun_seen: int  # 0/1
 
     @property
-    def test_id(self) -> str:
+    def test_id(self) -> TestId:
         # file::name is a stable, readable key; classname can be added if needed
-        return f"{self.file}::{self.name}" if self.file else self.name
-
-
-@dataclass(frozen=True)
-class JobBaseNameKey:
-    workflow: str
-    job_base_name: str
+        base = f"{self.file}::{self.name}" if self.file else self.name
+        return TestId(base)
 
 
 @dataclass
 class Commit:
-    sha: str
+    sha: Sha
     # Map of (workflow, job_base_name) -> ordered JobRow list (by started_at)
-    jobs: Dict[JobBaseNameKey, List[JobRow]]
+    jobs: Dict[Tuple[WorkflowName, JobBaseName], List[JobRow]]
 
 
 # ---------- Type aliases & small keys for clarity ----------
 
-@dataclass(frozen=True)
-class AttemptKey:
-    """Identifies a unique workflow run attempt for grouping events."""
-
-    wf_run_id: int
-    run_attempt: int
-
-
-@dataclass(frozen=True)
-class AttemptIndexKey:
-    """Index key for test rows: job, run, attempt triple."""
-
-    wf_run_id: int
-    job_id: int
-    run_attempt: int
+# Composite keys are expressed inline as tuples where needed:
+#  - (WorkflowName, JobBaseName)
+#  - (WfRunId, RunAttempt)
 
 
 @dataclass(frozen=True)
 class TestOutcome:
     failing: bool
     errored: bool
-
-
-@dataclass(frozen=True)
-class WorkflowCommitRows:
-    sha: str
-    rows: List[JobRow]
 
 
 class SignalExtractor:
@@ -108,7 +96,9 @@ class SignalExtractor:
     ) -> None:
         self.workflows = list(workflows)
         self.lookback_hours = lookback_hours
-        self.test_rules = set(test_rules) if test_rules is not None else set(DEFAULT_TEST_RULES)
+        self.test_rules = (
+            set(test_rules) if test_rules is not None else set(DEFAULT_TEST_RULES)
+        )
         # Helper instance to reuse normalization logic
         self._norm_dummy = CommitJobs(head_sha="_", created_at=datetime.now(), jobs=[])
 
@@ -116,7 +106,13 @@ class SignalExtractor:
         return self._norm_dummy.normalize_job_name(name or "")
 
     def _fmt_event_name(
-        self, *, workflow: str, kind: str, identifier: str, wf_run_id: int, run_attempt: int
+        self,
+        *,
+        workflow: str,
+        kind: str,
+        identifier: str,
+        wf_run_id: WfRunId,
+        run_attempt: RunAttempt,
     ) -> str:
         """Consistent, debuggable event name for SignalEvent."""
         return f"wf={workflow} kind={kind} id={identifier} run={wf_run_id} attempt={run_attempt}"
@@ -169,7 +165,9 @@ class SignalExtractor:
             wf.run_attempt,
             wf.name,
             wf.status,
-            if(wf.conclusion = '' AND tupleElement(wf.torchci_classification_temp,'line') != '', 'failure', wf.conclusion) AS conclusion_kg,
+            if(wf.conclusion = '' AND
+                tupleElement(wf.torchci_classification_temp,'line') != '', 'failure', wf.conclusion)
+                AS conclusion_kg,
             wf.started_at,
             wf.created_at,
             tupleElement(wf.torchci_classification_kg,'rule') AS rule
@@ -183,14 +181,16 @@ class SignalExtractor:
 
         res = CHCliFactory().client.query(query, parameters=params)
         commits: List[Commit] = []
-        current_sha: Optional[str] = None
-        current_jobs: Dict[JobBaseNameKey, List[JobRow]] = {}
+        current_sha: Optional[Sha] = None
+        current_jobs: Dict[Tuple[WorkflowName, JobBaseName], List[JobRow]] = {}
 
         def flush_current():
             if current_sha is not None:
                 # sort each job list by started_at for stable event ordering
                 for lst in current_jobs.values():
-                    lst.sort(key=lambda r: (r.started_at is None, r.started_at, r.job_id))
+                    lst.sort(
+                        key=lambda r: (r.started_at is None, r.started_at, r.job_id)
+                    )
                 commits.append(Commit(sha=current_sha, jobs=dict(current_jobs)))
 
         for (
@@ -208,22 +208,22 @@ class SignalExtractor:
         ) in res.result_rows:
             # boundary by head_sha – rows are ordered by push ts desc, head_sha grouping
             if current_sha is None:
-                current_sha = head_sha
-            elif head_sha != current_sha:
+                current_sha = Sha(head_sha)
+            elif Sha(head_sha) != current_sha:
                 flush_current()
-                current_sha = head_sha
+                current_sha = Sha(head_sha)
                 current_jobs = {}
 
-            base = self._norm(name)
-            k = JobBaseNameKey(workflow=workflow_name, job_base_name=base)
+            base = JobBaseName(self._norm(name))
+            k: Tuple[WorkflowName, JobBaseName] = (WorkflowName(workflow_name), base)
             current_jobs.setdefault(k, []).append(
                 JobRow(
-                    head_sha=head_sha,
-                    workflow_name=workflow_name,
-                    wf_run_id=int(run_id),
-                    job_id=int(job_id),
-                    run_attempt=int(run_attempt),
-                    name=str(name or ""),
+                    head_sha=current_sha,
+                    workflow_name=WorkflowName(workflow_name),
+                    wf_run_id=WfRunId(int(run_id)),
+                    job_id=JobId(int(job_id)),
+                    run_attempt=RunAttempt(int(run_attempt)),
+                    name=JobName(str(name or "")),
                     status=str(status or ""),
                     conclusion=str(conclusion or ""),
                     started_at=started_at,
@@ -240,16 +240,17 @@ class SignalExtractor:
     # -----------------------------
     def _select_test_track_job_ids(
         self, commits: List[Commit]
-    ) -> Tuple[List[int], set[JobBaseNameKey]]:
+    ) -> Tuple[List[JobId], Set[Tuple[WorkflowName, JobBaseName]]]:
         """
         Select job_ids for the test-track batch fetch.
 
         Strategy:
         1) Identify normalized base names for jobs that exhibited test-related classifications anywhere in the window.
-        2) Include ALL jobs across all commits whose normalized base is in that set (to capture successes or pendings on other commits).
+        2) Include ALL jobs across all commits whose normalized base is in that set
+            (to capture successes or pendings on other commits).
         """
         # Helper for normalization (reuse CommitJobs implementation)
-        bases_to_track: set[JobBaseNameKey] = set()
+        bases_to_track: Set[Tuple[WorkflowName, JobBaseName]] = set()
         for commit in commits:
             for key, rows in commit.jobs.items():
                 for j in rows:
@@ -257,8 +258,8 @@ class SignalExtractor:
                         bases_to_track.add(key)
                         break
 
-        job_ids: List[int] = []
-        seen = set()
+        job_ids: List[JobId] = []
+        seen: Set[JobId] = set()
         if bases_to_track:
             for commit in commits:
                 for key, rows in commit.jobs.items():
@@ -269,7 +270,7 @@ class SignalExtractor:
                                 job_ids.append(j.job_id)
         return job_ids, bases_to_track
 
-    def _fetch_tests_for_jobs(self, job_ids: List[int]) -> List[TestRow]:
+    def _fetch_tests_for_jobs(self, job_ids: List[JobId]) -> List[TestRow]:
         if not job_ids:
             return []
 
@@ -277,7 +278,7 @@ class SignalExtractor:
         # Chunk to avoid very large IN lists
         CHUNK = 300
         for i in range(0, len(job_ids), CHUNK):
-            chunk = job_ids[i : i + CHUNK]
+            chunk = [int(j) for j in job_ids[i: (i + CHUNK)]]
             res = CHCliFactory().client.query(
                 """
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
@@ -294,9 +295,9 @@ class SignalExtractor:
             for r in res.result_rows:
                 rows.append(
                     TestRow(
-                        job_id=int(r[0]),
-                        wf_run_id=int(r[1]),
-                        workflow_run_attempt=int(r[2]),
+                        job_id=JobId(int(r[0])),
+                        wf_run_id=WfRunId(int(r[1])),
+                        workflow_run_attempt=RunAttempt(int(r[2])),
                         file=str(r[3] or ""),
                         classname=str(r[4] or ""),
                         name=str(r[5] or ""),
@@ -314,7 +315,7 @@ class SignalExtractor:
         self,
         commits: List[Commit],
         test_rows: List[TestRow],
-        bases_to_track: set[JobBaseNameKey],
+        bases_to_track: Set[Tuple[WorkflowName, JobBaseName]],
     ) -> List[Signal]:
         """Build per-test Signals across commits, scoped to job base.
 
@@ -330,11 +331,14 @@ class SignalExtractor:
         # Map job_id -> (commit_sha, base key) for fast base resolution
         @dataclass(frozen=True)
         class JobLoc:
-            sha: str
-            base: JobBaseNameKey
+            sha: Sha
+            base: Tuple[WorkflowName, JobBaseName]
 
-        job_loc: Dict[int, JobLoc] = {}
-        attempts_by_commit_base: Dict[Tuple[str, JobBaseNameKey], List[AttemptKey]] = {}
+        job_loc: Dict[JobId, JobLoc] = {}
+        # Keyed by (commit sha, workflow name, job base name) → list of attempts
+        attempts_by_commit_base: Dict[
+            Tuple[Sha, WorkflowName, JobBaseName], List[Tuple[WfRunId, RunAttempt]]
+        ] = {}
 
         @dataclass(frozen=True)
         class GroupMeta:
@@ -349,35 +353,58 @@ class SignalExtractor:
             pending: bool
             canceled: bool
 
-        group_meta: Dict[Tuple[str, JobBaseNameKey, AttemptKey], GroupMeta] = {}
+        # Keyed by (sha, workflow, base, wf_run_id, run_attempt)
+        group_meta: Dict[
+            Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt], GroupMeta
+        ] = {}
 
         for c in commits:
-            for base_key, rows in c.jobs.items():
+            for (wf_name, base_name), rows in c.jobs.items():
+                base_key = (wf_name, base_name)
                 if base_key not in bases_to_track:
                     continue
-                by_attempt: Dict[AttemptKey, List[JobRow]] = {}
+                by_attempt: Dict[Tuple[WfRunId, RunAttempt], List[JobRow]] = {}
                 for j in rows:
                     job_loc[j.job_id] = JobLoc(c.sha, base_key)
-                    by_attempt.setdefault(AttemptKey(j.wf_run_id, j.run_attempt), []).append(j)
+                    by_attempt.setdefault((j.wf_run_id, j.run_attempt), []).append(j)
 
                 for akey, grows in by_attempt.items():
-                    started_at = min((r.started_at for r in grows if r.started_at is not None), default=None)
-                    any_pending = any((r.status or "").lower() != "completed" for r in grows)
-                    any_canceled = any((r.conclusion or "").lower() == "cancelled" for r in grows)
-                    group_meta[(c.sha, base_key, akey)] = GroupMeta(
-                        started_at=started_at, pending=any_pending, canceled=any_canceled
+                    wf_run_id, run_attempt = akey
+                    started_at = min(
+                        (r.started_at for r in grows if r.started_at is not None),
+                        default=None,
                     )
-                    attempts_by_commit_base.setdefault((c.sha, base_key), []).append(akey)
+                    any_pending = any(
+                        (r.status or "").lower() != "completed" for r in grows
+                    )
+                    any_canceled = any(
+                        (r.conclusion or "").lower() == "cancelled" for r in grows
+                    )
+                    group_meta[(c.sha, wf_name, base_name, wf_run_id, run_attempt)] = (
+                        GroupMeta(
+                            started_at=started_at,
+                            pending=any_pending,
+                            canceled=any_canceled,
+                        )
+                    )
+                    attempts_by_commit_base.setdefault(
+                        (c.sha, wf_name, base_name), []
+                    ).append(akey)
 
         # Index test_run_s3 rows per (commit, base, attempt) and collect base-scoped failing tests
-        tests_by_group_attempt: Dict[Tuple[str, JobBaseNameKey, AttemptKey], Dict[str, TestOutcome]] = {}
-        failing_tests_by_base: Dict[JobBaseNameKey, Set[str]] = {}
+        tests_by_group_attempt: Dict[
+            Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt],
+            Dict[TestId, TestOutcome],
+        ] = {}
+        failing_tests_by_base: Dict[Tuple[WorkflowName, JobBaseName], Set[TestId]] = {}
         for tr in test_rows:
             loc = job_loc.get(tr.job_id)
             if not loc:
                 continue
-            akey = AttemptKey(tr.wf_run_id, tr.workflow_run_attempt)
-            key = (loc.sha, loc.base, akey)
+            akey: Tuple[WfRunId, RunAttempt] = (tr.wf_run_id, tr.workflow_run_attempt)
+            wf_run_id, run_attempt = akey
+            wf_name, base_name = loc.base
+            key = (loc.sha, wf_name, base_name, wf_run_id, run_attempt)
             d = tests_by_group_attempt.setdefault(key, {})
             prev = d.get(tr.test_id)
             outcome = TestOutcome(
@@ -390,30 +417,40 @@ class SignalExtractor:
 
         # Emit per (workflow, base, test) across commits
         signals: List[Signal] = []
-        for base_key, failing_tests in failing_tests_by_base.items():
+        for (wf_name, base_name), failing_tests in failing_tests_by_base.items():
             for test_id in failing_tests:
                 commit_objs: List[SignalCommit] = []
                 any_event = False
                 for c in commits:
                     events: List[SignalEvent] = []
-                    akeys = attempts_by_commit_base.get((c.sha, base_key), [])
-                    for akey in akeys:
-                        meta = group_meta.get((c.sha, base_key, akey), GroupMeta(None, False, False))
+                    for wf_run_id, run_attempt in attempts_by_commit_base.get(
+                        (c.sha, wf_name, base_name), []
+                    ):
+                        meta = group_meta.get(
+                            (c.sha, wf_name, base_name, wf_run_id, run_attempt),
+                            GroupMeta(started_at=None, pending=False, canceled=False),
+                        )
                         if meta.canceled:
                             # canceled attempts are treated as missing
                             continue
-                        verdicts = tests_by_group_attempt.get((c.sha, base_key, akey))
+                        verdicts = tests_by_group_attempt.get(
+                            (c.sha, wf_name, base_name, wf_run_id, run_attempt)
+                        )
                         if verdicts and test_id in verdicts:
                             oc = verdicts[test_id]
-                            status = SignalStatus.FAILURE if (oc.failing or oc.errored) else SignalStatus.SUCCESS
+                            status = (
+                                SignalStatus.FAILURE
+                                if (oc.failing or oc.errored)
+                                else SignalStatus.SUCCESS
+                            )
                             events.append(
                                 SignalEvent(
                                     name=self._fmt_event_name(
-                                        workflow=base_key.workflow,
+                                        workflow=wf_name,
                                         kind="test",
                                         identifier=test_id,
-                                        wf_run_id=akey.wf_run_id,
-                                        run_attempt=akey.run_attempt,
+                                        wf_run_id=wf_run_id,
+                                        run_attempt=run_attempt,
                                     ),
                                     status=status,
                                     started_at=meta.started_at or datetime.min,
@@ -424,11 +461,11 @@ class SignalExtractor:
                             events.append(
                                 SignalEvent(
                                     name=self._fmt_event_name(
-                                        workflow=base_key.workflow,
+                                        workflow=wf_name,
                                         kind="test",
                                         identifier=test_id,
-                                        wf_run_id=akey.wf_run_id,
-                                        run_attempt=akey.run_attempt,
+                                        wf_run_id=wf_run_id,
+                                        run_attempt=run_attempt,
                                     ),
                                     status=SignalStatus.PENDING,
                                     started_at=meta.started_at or datetime.min,
@@ -443,30 +480,32 @@ class SignalExtractor:
 
                 if any_event:
                     signals.append(
-                        Signal(key=test_id, workflow_name=base_key.workflow, commits=commit_objs)
+                        Signal(key=test_id, workflow_name=wf_name, commits=commit_objs)
                     )
 
         return signals
 
-
-    def _build_non_test_signals(
-        self, commits: List[Commit]
-    ) -> List[Signal]:
+    def _build_non_test_signals(self, commits: List[Commit]) -> List[Signal]:
         # Build Signals keyed by normalized job base name per workflow
-        # Aggregate across shards within (run_id, run_attempt)
-        signals_by_key: Dict[Tuple[str, str], List[SignalCommit]] = {}
+        # Aggregate across shards within (wf_run_id, run_attempt)
+        signals_by_key: Dict[Tuple[WorkflowName, JobBaseName], List[SignalCommit]] = {}
 
         for c in commits:
             # For each commit, process each (workflow, base) group
             for key, rows in c.jobs.items():
-                by_attempt: Dict[Tuple[int, int], List[JobRow]] = {}
+                wf_name, base_name = key
+                by_attempt: Dict[Tuple[WfRunId, RunAttempt], List[JobRow]] = {}
                 for j in rows:
                     by_attempt.setdefault((j.wf_run_id, j.run_attempt), []).append(j)
 
                 events: List[SignalEvent] = []
                 for (wf_run_id, run_attempt), grows in by_attempt.items():
-                    any_fail = any((gr.conclusion or "").lower() == "failure" for gr in grows)
-                    any_cancel = any((gr.conclusion or "").lower() == "cancelled" for gr in grows)
+                    any_fail = any(
+                        (gr.conclusion or "").lower() == "failure" for gr in grows
+                    )
+                    any_cancel = any(
+                        (gr.conclusion or "").lower() == "cancelled" for gr in grows
+                    )
                     all_success = all(
                         (gr.conclusion or "").lower() == "success"
                         and (gr.status or "").lower() == "completed"
@@ -478,7 +517,11 @@ class SignalExtractor:
                     status = (
                         SignalStatus.FAILURE
                         if any_fail
-                        else (SignalStatus.SUCCESS if all_success else SignalStatus.PENDING)
+                        else (
+                            SignalStatus.SUCCESS
+                            if all_success
+                            else SignalStatus.PENDING
+                        )
                     )
                     started_at = min(
                         (r.started_at for r in grows if r.started_at is not None),
@@ -487,9 +530,9 @@ class SignalExtractor:
                     events.append(
                         SignalEvent(
                             name=self._fmt_event_name(
-                                workflow=key.workflow,
+                                workflow=wf_name,
                                 kind="job",
-                                identifier=key.job_base_name,
+                                identifier=base_name,
                                 wf_run_id=wf_run_id,
                                 run_attempt=run_attempt,
                             ),
@@ -500,10 +543,13 @@ class SignalExtractor:
                     )
 
                 commit_obj = SignalCommit(head_sha=c.sha, events=events)
-                signals_by_key.setdefault((key.workflow, key.job_base_name), []).append(commit_obj)
+                signals_by_key.setdefault((wf_name, base_name), []).append(commit_obj)
 
         # Materialize Signals newest → older (already ordered from the query)
         out: List[Signal] = []
-        for (wf, base), commit_list in signals_by_key.items():
-            out.append(Signal(key=base, workflow_name=wf, commits=commit_list))
+        for key, commit_list in signals_by_key.items():
+            wf_name, base_name = key
+            out.append(
+                Signal(key=base_name, workflow_name=wf_name, commits=commit_list)
+            )
         return out
