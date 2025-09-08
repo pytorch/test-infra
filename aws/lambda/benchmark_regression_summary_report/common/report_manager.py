@@ -118,10 +118,13 @@ class ReportManager:
         main method used to insert the report to db and create github comment in targeted issue
         """
         try:
-            self.insert_to_db(cc)
+            applied_insertion = self.insert_to_db(cc)
         except Exception as e:
             logger.error(f"failed to insert report to db, error: {e}")
             raise
+        if not applied_insertion:
+            logger.info("[%s] skip notification,  already exists in db", self.config_id)
+            return
         self.notify_github_comment(github_token)
 
     def notify_github_comment(self, github_token: str):
@@ -184,7 +187,7 @@ class ReportManager:
     def insert_to_db(
         self,
         cc: clickhouse_connect.driver.client.Client,
-    ) -> None:
+    ) -> bool:
         logger.info(
             "[%s]prepare data for db insertion report (%s)...", self.config_id, self.id
         )
@@ -236,12 +239,32 @@ class ReportManager:
             if self.is_dry_run:
                 print(json.dumps(params, indent=2, default=str))
             logger.info("[dry run] Done! Finish printing db params data")
-            return
+            return False
         logger.info(
             "[%s]inserting benchmark regression report(%s)", self.config_id, self.id
         )
         try:
+            if self._row_exists(
+                cc,
+                self.db_table_name,
+                params["report_id"],
+                params["type"],
+                params["repo"],
+                params["last_record_ts"],
+            ):
+                logger.info(
+                    "[%s] report already exists, skip inserting report to db, report(%s)",
+                    self.config_id,
+                    self.id,
+                )
+                return False
             self._db_insert(cc, self.db_table_name, params)
+            logger.info(
+                "[%s] Done. inserted benchmark regression report(%s)",
+                self.config_id,
+                self.id,
+            )
+            return True
         except Exception:
             logger.exception(
                 "[%s] failed to insert report to target table %s",
@@ -249,11 +272,6 @@ class ReportManager:
                 self.db_table_name,
             )
             raise
-        logger.info(
-            "[%s] Done. inserted benchmark regression report(%s)",
-            self.config_id,
-            self.id,
-        )
 
     def _db_insert(
         self,
@@ -320,6 +338,8 @@ class ReportManager:
         """
         Check if a row already exists with the same (report_id, type, repo, stamp).
         Returns True if found, False otherwise.
+        Stamp is the datetime of the last record ts, this makes sure we only insert one
+        report for a (config,type) per day.
         """
         sql = f"""
             SELECT 1
