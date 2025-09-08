@@ -15,6 +15,8 @@ resource "aws_sqs_queue" "alerts" {
   tags = var.tags
 }
 
+data "aws_caller_identity" "current" {}
+
 resource "aws_sqs_queue_policy" "allow_sns" {
   queue_url = aws_sqs_queue.alerts.id
   policy    = jsonencode({
@@ -22,10 +24,13 @@ resource "aws_sqs_queue_policy" "allow_sns" {
     Statement = [
       {
         Effect    = "Allow",
-        Principal = "*",
+        Principal = { Service = "sns.amazonaws.com" },
         Action    = "sqs:SendMessage",
         Resource  = aws_sqs_queue.alerts.arn,
         Condition = {
+          StringEquals = {
+            "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+          },
           ArnEquals = {
             "aws:SourceArn" = aws_sns_topic.alerts.arn
           }

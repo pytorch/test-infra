@@ -8,10 +8,7 @@ const SHARED_TOKEN = process.env.SHARED_TOKEN!;
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   try {
     const headers = Object.fromEntries(
-      Object.entries(event.headers || {}).map(([k, v]) => [
-        k.toLowerCase(),
-        v ?? "",
-      ]),
+      Object.entries(event.headers || {}).map(([k, v]) => [k.toLowerCase(), v ?? ""]),
     );
 
     const token = headers["x-grafana-token"] || "";
@@ -19,10 +16,7 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
       return { statusCode: 401, body: "unauthorized" };
     }
 
-    const body =
-      typeof event.body === "string"
-        ? event.body
-        : JSON.stringify(event.body ?? {});
+    const body = typeof event.body === "string" ? event.body : JSON.stringify(event.body ?? {});
 
     await sns.send(
       new PublishCommand({
@@ -42,3 +36,4 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
 };
 
 export default handler;
+

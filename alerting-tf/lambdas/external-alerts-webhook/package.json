@@ -1,5 +1,5 @@
 {
-  "name": "grafana-webhook",
+  "name": "external-alerts-webhook",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -18,3 +18,4 @@
     "@aws-sdk/client-sns": "^3.620.0"
   }
 }
+

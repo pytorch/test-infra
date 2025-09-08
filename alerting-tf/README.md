@@ -19,10 +19,9 @@ This folder provisions a minimal pipeline:
 Additional resources
 - DynamoDB table: `{prefix}-alerting-status` (stores raw SQS message bodies)
 
-## Build the Lambda
-- From `lambda/`:
-  - `yarn install`
-  - `yarn build` (outputs `dist/index.js`)
+## Build the Lambdas
+- From alerting-tf:
+  - `make build` (builds both `lambdas/collector` and `lambdas/external-alerts-webhook`)
 
 ## Deploy (AWS)
 - From `infra/`:
@@ -31,7 +30,7 @@ Additional resources
 - Outputs include the SNS topic ARN and SQS URL.
 
 ### Send a test message (AWS)
-- First tail logs: `aws logs tail /aws/lambda/alerting-dev-alerts-handler --follow`
+- First tail logs: `aws logs tail /aws/lambda/alerting-dev-collector --follow`
 - Then send an SNS message: `aws sns publish --topic-arn $(terraform output -raw sns_topic_arn) --message '{"hello":"world"}'`
   
 Verify DynamoDB write (AWS)
@@ -52,7 +51,7 @@ uv tool install terraform-local
 - Use the LocalStack Terraform/CLI wrappers to avoid editing provider config:
   - From `lambda/`: `yarn build`
   - From `infra/`: `tflocal init && tflocal apply -var name_prefix=ls -var aws_region=us-east-1`
-  - Tail Logs: `awslocal logs tail /aws/lambda/ls-alerts-handler --follow`
+  - Tail Logs: `awslocal logs tail /aws/lambda/ls-collector --follow`
   - Publish: `awslocal sns publish --topic-arn $(tflocal output -raw sns_topic_arn) --message '{"hello":"localstack"}'`
 
 ## Clean up

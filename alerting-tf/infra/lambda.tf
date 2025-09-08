@@ -1,22 +1,22 @@
-resource "aws_cloudwatch_log_group" "lambda" {
-  name              = "/aws/lambda/${local.name_prefix}-alerts-handler"
+resource "aws_cloudwatch_log_group" "collector" {
+  name              = "/aws/lambda/${local.name_prefix}-collector"
   retention_in_days = 180
   tags              = var.tags
 }
 
-data "archive_file" "lambda_zip" {
+data "archive_file" "collector_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../lambda/dist"
-  output_path = "${path.module}/lambda.zip"
+  source_dir  = "${path.module}/../lambdas/collector/dist"
+  output_path = "${path.module}/collector.zip"
 }
 
-resource "aws_lambda_function" "alerts_handler" {
-  function_name = "${local.name_prefix}-alerts-handler"
-  role          = aws_iam_role.lambda_exec.arn
+resource "aws_lambda_function" "collector" {
+  function_name = "${local.name_prefix}-collector"
+  role          = aws_iam_role.collector_lambda_role.arn
   runtime       = "nodejs20.x"
   handler       = "index.handler"
-  filename      = data.archive_file.lambda_zip.output_path
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  filename      = data.archive_file.collector_zip.output_path
+  source_code_hash = data.archive_file.collector_zip.output_base64sha256
 
   environment {
     variables = {
@@ -28,12 +28,13 @@ resource "aws_lambda_function" "alerts_handler" {
   tags = var.tags
 }
 
-// Use the queue to trigger this lambda
+// Use the queue to trigger the collector lambda
 resource "aws_lambda_event_source_mapping" "from_sqs" {
   event_source_arn = aws_sqs_queue.alerts.arn
-  function_name    = aws_lambda_function.alerts_handler.arn
+  function_name    = aws_lambda_function.collector.arn
   batch_size       = 10
   maximum_batching_window_in_seconds = 1
+  function_response_types = ["ReportBatchItemFailures"]
 }
 
 #########################
@@ -48,12 +49,12 @@ resource "aws_cloudwatch_log_group" "webhook_lambda" {
 
 data "archive_file" "webhook_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../webhook/dist"
-  output_path = "${path.module}/webhook.zip"
+  source_dir  = "${path.module}/../lambdas/external-alerts-webhook/dist"
+  output_path = "${path.module}/external-alerts-webhook.zip"
 }
 
 resource "aws_iam_role" "webhook_lambda_role" {
-  name = "${local.name_prefix}-external-alerts-webhook-role"
+  name = "${local.name_prefix}-external-alerts-webhook-lambda-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [

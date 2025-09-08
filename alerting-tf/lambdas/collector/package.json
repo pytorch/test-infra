@@ -1,5 +1,5 @@
 {
-  "name": "alerting-lambda",
+  "name": "collector-lambda",
   "private": true,
   "type": "commonjs",
   "scripts": {
@@ -19,3 +19,4 @@
     "@aws-sdk/lib-dynamodb": "^3.620.0"
   }
 }
+

@@ -4,12 +4,10 @@ terraform.tfstate*
 *.tfplan
 
 # Lambda build artifacts
-lambda/node_modules/
-lambda/dist/
-infra/lambda.zip
-webhook/node_modules/
-webhook/dist/
-infra/webhook.zip
+lambdas/**/node_modules/
+lambdas/**/dist/
+infra/collector.zip
+infra/external-alerts-webhook.zip
 
 # Misc
 .DS_Store

@@ -8,9 +8,9 @@ output "sqs_queue_url" {
   description = "SQS queue URL"
 }
 
-output "lambda_name" {
-  value       = aws_lambda_function.alerts_handler.function_name
-  description = "Lambda function name"
+output "collector_name" {
+  value       = aws_lambda_function.collector.function_name
+  description = "Collector Lambda function name"
 }
 
 

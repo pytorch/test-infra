@@ -1,5 +1,5 @@
-resource "aws_iam_role" "lambda_exec" {
-  name = "${local.name_prefix}-alerts-lambda-role"
+resource "aws_iam_role" "collector_lambda_role" {
+  name = "${local.name_prefix}-collector-lambda-role"
   assume_role_policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -13,13 +13,13 @@ resource "aws_iam_role" "lambda_exec" {
   tags = var.tags
 }
 
-resource "aws_iam_role_policy_attachment" "basic_logs" {
-  role       = aws_iam_role.lambda_exec.name
+resource "aws_iam_role_policy_attachment" "collector_basic_logs" {
+  role       = aws_iam_role.collector_lambda_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-resource "aws_iam_policy" "sqs_consume" {
-  name   = "${local.name_prefix}-alerts-sqs-consume"
+resource "aws_iam_policy" "collector_sqs_consume" {
+  name   = "${local.name_prefix}-collector-sqs-consume"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -37,13 +37,13 @@ resource "aws_iam_policy" "sqs_consume" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "attach_sqs_consume" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = aws_iam_policy.sqs_consume.arn
+resource "aws_iam_role_policy_attachment" "collector_attach_sqs_consume" {
+  role       = aws_iam_role.collector_lambda_role.name
+  policy_arn = aws_iam_policy.collector_sqs_consume.arn
 }
 
-resource "aws_iam_policy" "dynamodb_write" {
-  name   = "${local.name_prefix}-alerts-dynamodb-write"
+resource "aws_iam_policy" "collector_dynamodb_write" {
+  name   = "${local.name_prefix}-collector-dynamodb-write"
   policy = jsonencode({
     Version = "2012-10-17",
     Statement = [
@@ -58,7 +58,7 @@ resource "aws_iam_policy" "dynamodb_write" {
   })
 }
 
-resource "aws_iam_role_policy_attachment" "attach_dynamodb_write" {
-  role       = aws_iam_role.lambda_exec.name
-  policy_arn = aws_iam_policy.dynamodb_write.arn
+resource "aws_iam_role_policy_attachment" "collector_attach_dynamodb_write" {
+  role       = aws_iam_role.collector_lambda_role.name
+  policy_arn = aws_iam_policy.collector_dynamodb_write.arn
 }

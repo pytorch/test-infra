@@ -52,3 +52,4 @@ export const handler: SQSHandler = async (event) => {
 };
 
 export default handler;
+
