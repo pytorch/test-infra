@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import _, { cloneDeep } from "lodash";
 import { NextRouter, useRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
-import { useEffect, useReducer, useState, useMemo } from "react";
+import { useEffect, useMemo, useReducer, useState } from "react";
 import { propsReducer } from "./context/BenchmarkProps";
 
 import LoadingPage from "components/common/LoadingPage";
@@ -26,9 +26,9 @@ import {
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
+  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
   useBenchmarkPropsData,
-  fetchBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
@@ -63,7 +63,7 @@ export default function LLMsBenchmarkPage() {
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
 
-  if(props.repos && props.repos.length > 0) {
+  if (props.repos && props.repos.length > 0) {
     console.log("Rendering the different main page");
     return (
       <MainPageForComparison
@@ -313,15 +313,15 @@ const MainPageForComparison = ({
   ]);
 
   // Check if any repository has an error
-  const hasError = allRepoErrors.some(error => error);
+  const hasError = allRepoErrors.some((error) => error);
   if (hasError) {
     const errorRepos = props.repos.filter((_, index) => allRepoErrors[index]);
     return (
       <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
-          Error loading data for repositories: {errorRepos.join(", ")}
-          , please select different time range, if this happens again, please
-          reach out to the pytorch team.
+          Error loading data for repositories: {errorRepos.join(", ")}, please
+          select different time range, if this happens again, please reach out
+          to the pytorch team.
         </>
       </PrefetchRender>
     );
@@ -335,8 +335,8 @@ const MainPageForComparison = ({
       <div>
         <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
           <>
-            Loading comparison data for repositories: {props.repos.join(", ")}
-            , please wait a moment...
+            Loading comparison data for repositories: {props.repos.join(", ")},
+            please wait a moment...
           </>
         </PrefetchRender>
         <div>
@@ -349,12 +349,14 @@ const MainPageForComparison = ({
   // Check if any repository has no data
   const hasEmptyData = allRepoData.some((data) => data.length === 0);
   if (hasEmptyData) {
-    const emptyRepos = props.repos.filter((_, index) => allRepoData[index]?.length === 0);
+    const emptyRepos = props.repos.filter(
+      (_, index) => allRepoData[index]?.length === 0
+    );
     return (
       <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
         <>
-          Found no records for repositories: {emptyRepos.join(", ")}
-          , please select different time range
+          Found no records for repositories: {emptyRepos.join(", ")}, please
+          select different time range
         </>
       </PrefetchRender>
     );
@@ -366,7 +368,7 @@ const MainPageForComparison = ({
 
     return repoData.map((dataItem: any) => ({
       ...dataItem,
-      sourceRepo: repo
+      sourceRepo: repo,
     }));
   });
 
@@ -447,9 +449,9 @@ function resetProps(
   if (repos !== undefined) {
     if (Array.isArray(repos)) {
       newProps.repos = repos;
-    } else if (typeof repos === 'string') {
+    } else if (typeof repos === "string") {
       // Handle comma-separated string
-      newProps.repos = repos.split(',').map(repo => repo.trim());
+      newProps.repos = repos.split(",").map((repo) => repo.trim());
     }
   }
   console.log("Repos: ", newProps.repos);
@@ -512,24 +514,34 @@ function resetProps(
   return newProps;
 }
 
-const getBenchmarkName = (benchmarkName: string | any, repoName: string, repos: string[]) => {
+const getBenchmarkName = (
+  benchmarkName: string | any,
+  repoName: string,
+  repos: string[]
+) => {
   if (repos && repos.length > 1) {
     // Generate dynamic title for comparison mode using benchmark names
-    const benchmarkNames = repos.map(repo => {
+    const benchmarkNames = repos.map((repo) => {
       // Get the benchmark name from REPOS_TO_BENCHMARKS mapping
       const repoKey = repo.trim();
-      if (REPO_TO_BENCHMARKS[repoKey] && REPO_TO_BENCHMARKS[repoKey].length > 0) {
+      if (
+        REPO_TO_BENCHMARKS[repoKey] &&
+        REPO_TO_BENCHMARKS[repoKey].length > 0
+      ) {
         // Use the first benchmark name for each repo
         return REPO_TO_BENCHMARKS[repoKey][0];
       }
       // Fallback to repository name if no mapping found
-      const parts = repo.split('/');
+      const parts = repo.split("/");
       return parts[parts.length - 1];
     });
 
-    const title = benchmarkNames.length === 2
-      ? `${benchmarkNames[1]} vs ${benchmarkNames[0]} Comparison Dashboard`
-      : `Multi-Repository Comparison Dashboard (${benchmarkNames.join(', ')})`;
+    const title =
+      benchmarkNames.length === 2
+        ? `${benchmarkNames[1]} vs ${benchmarkNames[0]} Comparison Dashboard`
+        : `Multi-Repository Comparison Dashboard (${benchmarkNames.join(
+            ", "
+          )})`;
 
     return (
       <Typography fontSize={"2rem"} fontWeight={"bold"}>

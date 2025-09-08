@@ -126,7 +126,8 @@ export default function LLMsSummaryPanel({
             : "";
         const deviceName = `${metadata.device} (${metadata.arch})`;
 
-        const rowRepo = params.row.sourceRepo || params.row.repo_name || repoName;
+        const rowRepo =
+          params.row.sourceRepo || params.row.repo_name || repoName;
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
           rowRepo
         )}&benchmarkName=${encodeURIComponent(
@@ -161,7 +162,8 @@ export default function LLMsSummaryPanel({
 
   // Add source repository column for multi-repo comparisons
   const shouldShowRepoColumn =
-    (repos && repos.length > 1) || data.some((row) => row.sourceRepo || row.repo_name);
+    (repos && repos.length > 1) ||
+    data.some((row) => row.sourceRepo || row.repo_name);
   if (shouldShowRepoColumn) {
     columns.push({
       field: "sourceRepo",
@@ -186,7 +188,9 @@ export default function LLMsSummaryPanel({
   }
 
   // If data has vLLM/SGLang specific fields, show them regardless of repoName
-  const hasSpecificFields = data.some((row: any) => row.tensor_parallel_size !== undefined);
+  const hasSpecificFields = data.some(
+    (row: any) => row.tensor_parallel_size !== undefined
+  );
   if (hasSpecificFields) {
     columns.push({
       field: "tensor_parallel_size",

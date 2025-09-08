@@ -2,18 +2,18 @@ import { Stack, Typography } from "@mui/material";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import {
+  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
   useBenchmark,
-  fetchBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
+import { useEffect, useState } from "react";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
 } from "../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsGraphPanel from "./LLMsGraphPanel";
 import LLMsSummaryPanel from "./LLMsSummaryPanel";
-import { useEffect, useState } from "react";
 
 export default function LLMsReport({
   props,
@@ -194,21 +194,34 @@ function CompareLLMsReport({
       );
     };
 
-    Promise.all([
-      fetchFor(lBranchAndCommit),
-      fetchFor(rBranchAndCommit),
-    ]).then(([lRes, rRes]) => {
-      if (!cancelled) {
-        setLDatas(lRes as any[]);
-        setRDatas(rRes as any[]);
-        setLoading(false);
+    Promise.all([fetchFor(lBranchAndCommit), fetchFor(rBranchAndCommit)]).then(
+      ([lRes, rRes]) => {
+        if (!cancelled) {
+          setLDatas(lRes as any[]);
+          setRDatas(rRes as any[]);
+          setLoading(false);
+        }
       }
-    });
+    );
 
     return () => {
       cancelled = true;
     };
-  }, [props.repos, props.lBranch, props.lCommit, props.rBranch, props.rCommit, props.benchmarkName, props.modelName, props.backendName, props.dtypeName, props.deviceName, props.startTime, props.stopTime, props.granularity]);
+  }, [
+    props.repos,
+    props.lBranch,
+    props.lCommit,
+    props.rBranch,
+    props.rCommit,
+    props.benchmarkName,
+    props.modelName,
+    props.backendName,
+    props.dtypeName,
+    props.deviceName,
+    props.startTime,
+    props.stopTime,
+    props.granularity,
+  ]);
 
   if (
     loading ||
@@ -234,12 +247,22 @@ function CompareLLMsReport({
 
   const lCombined = ([] as any[]).concat(
     ...lDatas.map((d: any, idx: number) =>
-      computeSpeedup(props.repoName, tagWithRepo(d, props.repos[idx]), false, true)
+      computeSpeedup(
+        props.repoName,
+        tagWithRepo(d, props.repos[idx]),
+        false,
+        true
+      )
     )
   );
   const rCombined = ([] as any[]).concat(
     ...rDatas.map((d: any, idx: number) =>
-      computeSpeedup(props.repoName, tagWithRepo(d, props.repos[idx]), false, true)
+      computeSpeedup(
+        props.repoName,
+        tagWithRepo(d, props.repos[idx]),
+        false,
+        true
+      )
     )
   );
 

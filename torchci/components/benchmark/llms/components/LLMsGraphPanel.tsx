@@ -42,9 +42,9 @@ import {
 } from "lib/benchmark/llms/utils/aoUtils";
 import {
   computeGeomean,
+  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
   useBenchmark,
-  fetchBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import { useEffect, useState } from "react";
@@ -264,7 +264,8 @@ export default function LLMsGraphPanel({
               const model = record.model;
               const dtype = record.dtype;
               const device = record.device;
-              const srcRepo = (record as any)?.extra?.["source_repo"] || repoName;
+              const srcRepo =
+                (record as any)?.extra?.["source_repo"] || repoName;
               if (
                 srcRepo === "vllm-project/vllm" ||
                 srcRepo === "sgl-project/sglang"
@@ -574,7 +575,8 @@ function formGraphItem(data: any[]) {
     // Prefer minimal fields from geomean output; fall back to full objects for raw rows
     const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
-    const repo = item?.repoTag ?? (item?.extra?.["source_repo"] as string | undefined);
+    const repo =
+      item?.repoTag ?? (item?.extra?.["source_repo"] as string | undefined);
     // This is added to identify the difference between the two repos having same qps
     const repoPrefix = repo?.includes("sglang")
       ? "sglang / "

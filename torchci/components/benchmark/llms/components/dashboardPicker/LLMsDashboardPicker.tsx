@@ -31,7 +31,7 @@ export const LLMsDashboardPicker = ({
   };
 
   // For comparison mode, only show time range picker and limited filters
-  if(props.repos && props.repos.length > 1) {
+  if (props.repos && props.repos.length > 1) {
     return (
       <div>
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

@@ -353,7 +353,10 @@ const toRowData = (
     row["sourceRepo"] = sourceRepo;
     row["repo_name"] = sourceRepo;
 
-    if (sourceRepo === "vllm-project/vllm" || sourceRepo === "sgl-project/sglang") {
+    if (
+      sourceRepo === "vllm-project/vllm" ||
+      sourceRepo === "sgl-project/sglang"
+    ) {
       // These fields are only available on vLLM benchmark
       row["extra"] = extraInfo;
       row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
