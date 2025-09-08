@@ -133,7 +133,7 @@ jobs:
     environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
     container:
       image: ${{ matrix.container_image }}
-      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all' || ' ' }}
+      options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,video' || ' ' }}
     timeout-minutes: ${{ inputs.timeout }}
     steps:
       - name: Clean workspace
