@@ -225,6 +225,8 @@ PACKAGE_ALLOW_LIST = {
         "executorch",
         "setuptools",
         "wheel",
+        "vllm",
+        "flashinfer_python",
     ]
 }
 
