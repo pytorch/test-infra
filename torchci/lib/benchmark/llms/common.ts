@@ -8,6 +8,7 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "vllm-project/vllm": ["vLLM benchmark"],
   "sgl-project/sglang": ["SGLang benchmark"],
 };
+export const HELION_BENCHMARK_NAME = "Helion Benchmark";
 export const EXCLUDED_METRICS: string[] = [
   "load_status",
   "mean_itl_ms",
@@ -42,11 +43,11 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   p99_ttft_ms: "p99 TTFT (ms)",
   requests_per_second: "Requests/s",
   tokens_per_second: "Tokens/s",
-  triton_speedup: "Triton Speedup",
+  triton_speedup: "Triton Speedup (Geomean)",
   triton_accuracy: "Triton Accuracy",
-  torch_compile_speedup: "Torch Compile Speedup",
+  torch_compile_speedup: "Torch Compile Speedup (Geomean)",
   torch_compile_accuracy: "Torch Compile Accuracy",
-  helion_speedup: "Helion Speedup",
+  helion_speedup: "Helion Speedup (Geomean)",
   helion_accuracy: "Helion Accuracy",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
@@ -127,6 +128,7 @@ export interface LLMsBenchmarkData {
   job_id: number;
   metric: string;
   actual: number;
+  actual_geomean: number;
   target: number;
   mode?: string;
   dtype: string;

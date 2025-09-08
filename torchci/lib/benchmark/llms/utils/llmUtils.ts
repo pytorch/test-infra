@@ -214,6 +214,7 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
       job_id: Number(jobId),
       metric: `${metric} (geomean)`,
       actual: Number(gm),
+      actual_geomean: Number(gm),
       target: 0,
       dtype: dtype,
       device: device,
@@ -383,19 +384,23 @@ const toRowData = (
         l: hasL
           ? {
               actual: Number.MAX_SAFE_INTEGER, // indicate the failure on left side
+              actual_geomean: Number.MAX_SAFE_INTEGER, // indicate the failure on left side
               target: 0,
             }
           : {
               actual: 0,
+              actual_geomean: 0,
               target: 0,
             },
         r: hasR
           ? {
               actual: Number.MAX_SAFE_INTEGER, // indicate the failure on right side
+              actual_geomean: Number.MAX_SAFE_INTEGER, // indicate the failure on right side
               target: 0,
             }
           : {
               actual: 0,
+              actual_geomean: 0,
               target: 0,
             },
         highlight: hasL && hasR,
@@ -405,19 +410,23 @@ const toRowData = (
         l: hasL
           ? {
               actual: record["l"].actual,
+              actual_geomean: record["l"].actual_geomean,
               target: record["l"].target,
             }
           : {
               actual: 0,
+              actual_geomean: 0,
               target: 0,
             },
         r: hasR
           ? {
               actual: record["r"].actual,
+              actual_geomean: record["r"].actual_geomean,
               target: record["r"].target,
             }
           : {
               actual: 0,
+              actual_geomean: 0,
               target: 0,
             },
         highlight: hasL && hasR,

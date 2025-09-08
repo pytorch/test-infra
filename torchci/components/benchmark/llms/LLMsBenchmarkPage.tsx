@@ -21,6 +21,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  HELION_BENCHMARK_NAME,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
@@ -199,6 +200,9 @@ const MainPage = ({
   const options = data;
   const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
+  // Default to latest for Helion Benchmark, otherwise default to oldest commit
+  const lcommitFallbackIdx =
+    props.benchmarkName === HELION_BENCHMARK_NAME ? 0 : -1;
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -210,6 +214,7 @@ const MainPage = ({
         props={props}
         dispatch={dispatch}
         queryParams={queryParams}
+        lcommitFallbackIdx={lcommitFallbackIdx}
       />
       <LLMsReport
         props={props}
