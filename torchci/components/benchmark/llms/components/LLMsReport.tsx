@@ -1,5 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import { CommitPanel } from "components/benchmark/CommitPanel";
+import { LLM_BENCHMARK_DATA_QUERY } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import {
   fetchBenchmarkDataForRepos,
@@ -177,7 +178,6 @@ function CompareLLMsReport({
 
   useEffect(() => {
     let cancelled = false;
-    const queryName = "oss_ci_benchmark_llms";
     setLoading(true);
     const repoQueryParams = props.repos.map((repo) =>
       getLLMsBenchmarkPropsQueryParameter({ ...props, repoName: repo })
@@ -189,9 +189,10 @@ function CompareLLMsReport({
         branches: branchAndCommit.branch ? [branchAndCommit.branch] : [],
         commits: branchAndCommit.commit ? [branchAndCommit.commit] : [],
       }));
-      return fetchBenchmarkDataForRepos(queryName, repoParams).then((res) =>
-        res.map((r) => r.data)
-      );
+      return fetchBenchmarkDataForRepos(
+        LLM_BENCHMARK_DATA_QUERY,
+        repoParams
+      ).then((res) => res.map((r) => r.data));
     };
 
     Promise.all([fetchFor(lBranchAndCommit), fetchFor(rBranchAndCommit)]).then(

@@ -21,6 +21,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  LLM_BENCHMARK_CONFIG_QUERY,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
@@ -64,7 +65,6 @@ export default function LLMsBenchmarkPage() {
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
 
   if (props.repos && props.repos.length > 0) {
-    console.log("Rendering the different main page");
     return (
       <MainPageForComparison
         props={props}
@@ -281,16 +281,17 @@ const MainPageForComparison = ({
       return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
     });
     setIsLoading(true);
-    fetchBenchmarkDataForRepos("oss_ci_benchmark_names", repoQueryParams).then(
-      (results) => {
-        if (cancelled) {
-          return;
-        }
-        setAllRepoData(results.map((r) => r.data));
-        setAllRepoErrors(results.map((r) => r.error));
-        setIsLoading(false);
+    fetchBenchmarkDataForRepos(
+      LLM_BENCHMARK_CONFIG_QUERY,
+      repoQueryParams
+    ).then((results) => {
+      if (cancelled) {
+        return;
       }
-    );
+      setAllRepoData(results.map((r) => r.data));
+      setAllRepoErrors(results.map((r) => r.error));
+      setIsLoading(false);
+    });
     return () => {
       cancelled = true;
     };

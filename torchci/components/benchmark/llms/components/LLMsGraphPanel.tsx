@@ -32,6 +32,7 @@ import dayjs from "dayjs";
 import {
   DEFAULT_DEVICE_NAME,
   DEFAULT_MODEL_NAME,
+  LLM_BENCHMARK_DATA_QUERY,
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
@@ -95,7 +96,6 @@ export default function LLMsGraphPanel({
       return;
     }
     let cancelled = false;
-    const queryName = "oss_ci_benchmark_llms";
     setLoading(true);
     const repoQueryParams = repos.map((r) =>
       getLLMsBenchmarkPropsQueryParameter({
@@ -122,7 +122,10 @@ export default function LLMsGraphPanel({
       branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
       commits: [],
     }));
-    fetchBenchmarkDataForRepos(queryName, repoParamsWithBranch).then((res) => {
+    fetchBenchmarkDataForRepos(
+      LLM_BENCHMARK_DATA_QUERY,
+      repoParamsWithBranch
+    ).then((res) => {
       if (!cancelled) {
         setDatasets(res.map((r) => r.data) as any[]);
         setLoading(false);

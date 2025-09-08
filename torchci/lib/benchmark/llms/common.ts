@@ -140,3 +140,8 @@ export interface LLMsBenchmarkData {
 export interface BranchAndCommitPerfData extends BranchAndCommit {
   data: LLMsBenchmarkData[];
 }
+
+// For fetching available benchmark configuration options
+export const LLM_BENCHMARK_CONFIG_QUERY = "oss_ci_benchmark_names";
+// For fetching actual benchmark performance data
+export const LLM_BENCHMARK_DATA_QUERY = "oss_ci_benchmark_llms";

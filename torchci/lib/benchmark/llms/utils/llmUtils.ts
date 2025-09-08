@@ -13,6 +13,8 @@ import {
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
   EXCLUDED_METRICS,
+  LLM_BENCHMARK_CONFIG_QUERY,
+  LLM_BENCHMARK_DATA_QUERY,
   LLMsBenchmarkData,
   REPO_TO_BENCHMARKS,
 } from "../common";
@@ -23,7 +25,7 @@ export function useBenchmark(
   queryParams: { [key: string]: any },
   branchAndCommit: BranchAndCommit
 ) {
-  const queryName: string = "oss_ci_benchmark_llms";
+  const queryName: string = LLM_BENCHMARK_DATA_QUERY;
 
   const queryParamsWithBranchAndCommit: { [key: string]: any } = queryParams;
   (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
@@ -102,7 +104,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
 }
 
 export const useBenchmarkPropsData = (queryParams: any) => {
-  const queryName = "oss_ci_benchmark_names";
+  const queryName = LLM_BENCHMARK_CONFIG_QUERY;
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
