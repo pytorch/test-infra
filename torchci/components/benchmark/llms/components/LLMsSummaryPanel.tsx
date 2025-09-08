@@ -315,11 +315,29 @@ export default function LLMsSummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
-              if (!v.highlight) {
+              if (!v.highlight && benchmarkName !== "Helion Benchmark") {
                 return "";
               }
 
               if (lCommit === rCommit) {
+                if (benchmarkName === "Helion Benchmark") {
+                  // Highlight the fastest speedup
+                  if (metric.endsWith("_speedup")) {
+                    let maxKey: string | null = null;
+                    let maxValue: number = -Infinity;
+                    for (const key in params.row) {
+                      if (
+                        key.endsWith("_speedup") &&
+                        params.row[key].r.actual_geomean > maxValue
+                      ) {
+                        maxKey = key;
+                        maxValue = params.row[key].r.actual_geomean;
+                      }
+                    }
+                    return maxKey === metric ? styles.ok : "";
+                  }
+                }
+
                 return "";
               } else {
                 if (l === r) {
