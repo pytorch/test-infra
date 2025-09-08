@@ -111,6 +111,22 @@ export const useBenchmarkPropsData = (queryParams: any) => {
   });
 };
 
+export function fetchBenchmarkDataForRepos(
+  queryName: string,
+  queryParamsList: any[]
+): Promise<{ data?: any; error?: any }[]> {
+  return Promise.all(
+    queryParamsList.map((queryParam) => {
+      const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParam)
+      )}`;
+      return fetcher(url)
+        .then((data: any) => ({ data }))
+        .catch((error: any) => ({ error }));
+    })
+  );
+}
+
 export function combineLeftAndRight(
   repoName: string,
   benchmarkName: string,
