@@ -17,11 +17,11 @@ import { LLMsBenchmarkMode } from "./benchmarkMode";
  * @param archName The name of the architecture.
  * @param granularity The granularity of the graph.
  * @param repos Compares multiple repos.
+ * @param mode The mode of the LLM Benchmark.
  */
 export interface LLMsBenchmarkProps {
   repoName: string;
   benchmarkName: string;
-  mode: LLMsBenchmarkMode;
   // dropdown props
   modelName: string;
   backendName: string;
@@ -39,4 +39,5 @@ export interface LLMsBenchmarkProps {
   lBranch: string;
   rBranch: string;
   repos: string[];
+  mode: LLMsBenchmarkMode;
 }

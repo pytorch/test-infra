@@ -292,17 +292,17 @@ function resetProps(
   const startTime: string = (urlQuery.startTime as string) ?? undefined;
   if (startTime !== undefined) {
     newProps.startTime = dayjs(startTime);
+    if (dayjs(startTime).valueOf() !== defaultStartTime.valueOf()) {
+      newProps.timeRange = -1;
+    }
   }
+
   const stopTime: string = (urlQuery.stopTime as string) ?? undefined;
   if (stopTime !== undefined) {
     newProps.stopTime = dayjs(stopTime);
-  }
-
-  const timeRange: number = urlQuery.timeRange
-    ? Number(urlQuery.timeRange)
-    : undefined;
-  if (timeRange !== undefined) {
-    newProps.timeRange = timeRange;
+    if (dayjs(stopTime).valueOf() !== defaultStopTime.valueOf()) {
+      newProps.timeRange = -1;
+    }
   }
 
   const granularity: Granularity =
@@ -383,11 +383,13 @@ function resetProps(
 }
 
 function getComparisonBenchmarkName(repos: string[]) {
+  // Generate dynamic title for comparison mode using benchmark names
   const benchmarkNames = repos.map((repo) => {
     const repoKey = repo.trim();
     if (REPO_TO_BENCHMARKS[repoKey] && REPO_TO_BENCHMARKS[repoKey].length > 0) {
       return REPO_TO_BENCHMARKS[repoKey][0];
     }
+    // Fallback to repository name if no mapping found
     const parts = repo.split("/");
     return parts[parts.length - 1];
   });

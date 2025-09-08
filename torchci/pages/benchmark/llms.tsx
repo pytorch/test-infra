@@ -4,7 +4,8 @@ import { useRouter } from "next/router";
 
 /**
  *
- * API routing endpoint for the LLMs pages. Main code is in components/benchmark/llms/LLMsBenchmarkPage.tsx
+ * API routing endpoint for the LLMs pages. There are different modes of comparison, and based on the query params,
+ * we will render the appropriate Benchmark page.
  */
 export default function Page() {
   const router = useRouter();
