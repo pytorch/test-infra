@@ -26,10 +26,14 @@ all_runs AS (
         workflow_run FINAL
     JOIN commits commit ON workflow_run.head_commit.'id' = commit.sha
     WHERE
-        (
-            -- Limit it to workflows which block viable/strict upgrades
-            workflow_run.name IN ('Lint', 'pull', 'trunk')
-            OR workflow_run.name LIKE 'linux-binary%'
+        -- Limit it to workflows which block viable/strict upgrades
+        workflow_run.name IN (
+            'Lint',
+            'pull',
+            'trunk',
+            'linux-binary-libtorch-release',
+            'linux-binary-manywheel',
+            'linux-aarch64'
         )
         AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
         AND workflow_run.id IN (

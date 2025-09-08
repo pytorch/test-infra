@@ -100,7 +100,7 @@ export function TablePanelWithData({
   }
 
   return (
-    <Box sx={{ mb: 2, overflow: "hidden" }}>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <Header />
       <DataGrid
         style={customStyle}

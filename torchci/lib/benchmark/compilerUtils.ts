@@ -99,6 +99,8 @@ export function computePassrate(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     passrate.push({
+      metric: "passrate",
+      value: p,
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -163,6 +165,8 @@ export function computeGeomean(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedGeomean.push({
+      metric: "geomean",
+      value: Number(gm),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -274,6 +278,7 @@ export function computeCompilationTime(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedCompTime.push({
+      metric: "compilation_latency",
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -328,6 +333,8 @@ export function computeMemoryCompressionRatio(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedMemory.push({
+      metric: "compression_ratio",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -379,6 +386,8 @@ export function computePeakMemoryUsage(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedMemory.push({
+      metric: "dynamo_peak_mem",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
