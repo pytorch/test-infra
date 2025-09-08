@@ -130,7 +130,7 @@ function NavBar() {
       name: "vLLM vs SGLang",
       href: "/benchmark/llms?repos=vllm-project%2Fvllm%2Csgl-project%2Fsglang",
     },
-  ];
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   const devInfraDropdown = [
     {
