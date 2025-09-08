@@ -6,6 +6,7 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {
   BranchAndCommitPerfData,
+  HELION_BENCHMARK_NAME,
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
@@ -315,12 +316,12 @@ export default function LLMsSummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
-              if (!v.highlight && benchmarkName !== "Helion Benchmark") {
+              if (!v.highlight && benchmarkName !== HELION_BENCHMARK_NAME) {
                 return "";
               }
 
               if (lCommit === rCommit) {
-                if (benchmarkName === "Helion Benchmark") {
+                if (benchmarkName === HELION_BENCHMARK_NAME) {
                   // Highlight the fastest speedup
                   if (metric.endsWith("_speedup")) {
                     let maxKey: string | null = null;
@@ -394,10 +395,7 @@ export default function LLMsSummaryPanel({
               let lUnit = unit;
               let rUnit = unit;
 
-              if (
-                repoName === "pytorch/helion" &&
-                benchmarkName === "Helion Benchmark"
-              ) {
+              if (benchmarkName === HELION_BENCHMARK_NAME) {
                 if (metric.includes("accuracy")) {
                   l = l === 1 ? "Pass" : "Fail";
                   r = r === 1 ? "Pass" : "Fail";

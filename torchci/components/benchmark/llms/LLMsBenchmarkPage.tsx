@@ -21,6 +21,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  HELION_BENCHMARK_NAME,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
@@ -194,7 +195,7 @@ const MainPage = ({
   const metricNames = getMetricNames(data);
   // Default to latest for Helion Benchmark, otherwise default to oldest commit
   const lcommitFallbackIdx =
-    props.benchmarkName === "Helion Benchmark" ? 0 : -1;
+    props.benchmarkName === HELION_BENCHMARK_NAME ? 0 : -1;
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>

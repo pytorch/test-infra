@@ -8,6 +8,7 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "vllm-project/vllm": ["vLLM benchmark"],
   "sgl-project/sglang": ["SGLang benchmark"],
 };
+export const HELION_BENCHMARK_NAME = "Helion Benchmark";
 export const EXCLUDED_METRICS: string[] = [
   "load_status",
   "mean_itl_ms",
