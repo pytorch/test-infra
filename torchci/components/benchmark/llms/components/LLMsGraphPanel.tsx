@@ -36,8 +36,6 @@ import {
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
-  DEFAULT_ARCH_NAME,
-  DEFAULT_MODE_NAME,
 } from "lib/benchmark/llms/common";
 import {
   computeSpeedup,
@@ -90,10 +88,8 @@ export default function LLMsGraphPanel({
         benchmarkName,
         modelName,
         backendName,
-        modeName: DEFAULT_MODE_NAME,
         dtypeName,
         deviceName,
-        archName: DEFAULT_ARCH_NAME,
         startTime: dayjs(queryParams["startTime"]),
         stopTime: dayjs(queryParams["stopTime"]),
         timeRange: 0,
@@ -273,7 +269,7 @@ export default function LLMsGraphPanel({
             });
     const graphItems = formGraphItem(chartData[metric]);
     // group by timestamp to identify devices with the same timestamp
-    let series = seriesWithInterpolatedTimes(
+    graphSeries[metric] = seriesWithInterpolatedTimes(
       graphItems,
       startTime,
       stopTime,
@@ -283,9 +279,6 @@ export default function LLMsGraphPanel({
       "actual",
       false
     );
-
-    // Keep all lines solid; repo is indicated in label suffix ("/ sglang" or "/ vllm").
-    graphSeries[metric] = series;
   });
 
   // find the metric with the longest data array, it is used as baseline for rows and mapping in the table.
@@ -540,9 +533,10 @@ function formGraphItem(data: any[]) {
   const res: any[] = [];
   data.forEach((item) => {
     // Prefer minimal fields from geomean output; fall back to full objects for raw rows
-    const deviceId = item?.deviceId ?? item?.metadata_info?.device_id;
+    const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
     const repo = item?.repoTag ?? (item?.extra?.["source_repo"] as string | undefined);
+    // This is added to identify the difference between the two repos having same qps
     const repoPrefix = repo?.includes("sglang")
       ? "sglang / "
       : repo?.includes("vllm")

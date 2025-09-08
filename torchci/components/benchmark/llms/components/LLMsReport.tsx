@@ -87,7 +87,6 @@ export default function LLMsReport({
   }
 
   // Single repo path below
-
   return (
     <div>
       <CommitPanel

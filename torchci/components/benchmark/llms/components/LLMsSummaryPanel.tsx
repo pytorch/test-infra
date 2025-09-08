@@ -186,8 +186,8 @@ export default function LLMsSummaryPanel({
   }
 
   // If data has vLLM/SGLang specific fields, show them regardless of repoName
-  const hasVLLMSpecific = data.some((row: any) => row.tensor_parallel_size !== undefined);
-  if (hasVLLMSpecific) {
+  const hasSpecificFields = data.some((row: any) => row.tensor_parallel_size !== undefined);
+  if (hasSpecificFields) {
     columns.push({
       field: "tensor_parallel_size",
       headerName: "Tensor parallel",

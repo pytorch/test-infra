@@ -205,11 +205,8 @@ const MainPage = ({
   }
 
   const options = data;
-  console.log("Options: ", options);
   const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
-  console.log("Dropdown Map List: ", dropdownMapList);
-  console.log("Metric Names: ", metricNames);
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -494,7 +491,7 @@ function resetProps(
 }
 
 const getBenchmarkName = (benchmarkName: string | any, repoName: string, repos: string[]) => {
-  if (repos && repos.length > 0) {
+  if (repos && repos.length > 1) {
     // Generate dynamic title for comparison mode using benchmark names
     const benchmarkNames = repos.map(repo => {
       // Get the benchmark name from REPOS_TO_BENCHMARKS mapping

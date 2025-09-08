@@ -292,10 +292,7 @@ const toRowData = (
     const hasR = "r" in record;
 
     // Parse extra info once to extract repo, vLLM fields, etc.
-    let extraInfo: any = {};
-    try {
-      extraInfo = JSON.parse(extra);
-    } catch {}
+    const extraInfo = JSON.parse(extra);
 
     // Prefer source repo embedded in extra info if present
     const sourceRepo = extraInfo["source_repo"] || repoName;
