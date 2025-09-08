@@ -47,9 +47,9 @@ output "reservation_processor_function_name" {
   value       = aws_lambda_function.reservation_processor.function_name
 }
 
-output "placement_group_name" {
-  description = "Name of the cluster placement group"
-  value       = aws_placement_group.gpu_dev_pg.name
+output "placement_group_names" {
+  description = "Names of the cluster placement groups by GPU type"
+  value       = { for k, v in aws_placement_group.gpu_dev_pg : k => v.name }
 }
 
 output "security_group_id" {

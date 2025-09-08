@@ -1061,14 +1061,55 @@ def calculate_multinode_queue_position_and_wait_time(master_reservation_id: str,
             queue_position += 1
         
         # Estimate wait time (more conservative for multinode)
-        # Assume average reservation duration and add buffer for coordination
-        avg_duration_minutes = 4 * 60  # 4 hours average
+        # For multinode, we need to check if active reservations block us
         multinode_buffer = 1.5  # 50% longer for multinode coordination
         
         if total_gpus_ahead > 0:
+            # There are reservations ahead in queue
+            avg_duration_minutes = 4 * 60  # 4 hours average
             estimated_wait_minutes = int((total_gpus_ahead / max(available_gpus, 1)) * avg_duration_minutes * multinode_buffer)
+        elif available_gpus >= total_gpus_needed:
+            # Enough GPUs available now
+            estimated_wait_minutes = 0
         else:
-            estimated_wait_minutes = 0  # No wait needed if no GPUs ahead in queue
+            # Not enough GPUs available - need to wait for active reservations to expire
+            # Check when the earliest active reservations will expire
+            try:
+                active_reservations = scan_dynamodb_paginated(
+                    reservations_table,
+                    FilterExpression="#status = :status AND gpu_type = :gpu_type",
+                    ExpressionAttributeNames={"#status": "status"},
+                    ExpressionAttributeValues={
+                        ":status": "active",
+                        ":gpu_type": gpu_type
+                    }
+                )
+                
+                # Find earliest expiry time
+                earliest_expiry_minutes = None
+                for reservation in active_reservations:
+                    expires_at = reservation.get("expires_at")
+                    if expires_at:
+                        try:
+                            from datetime import datetime
+                            if isinstance(expires_at, str):
+                                expire_time = datetime.fromisoformat(expires_at.replace('Z', '+00:00'))
+                            else:
+                                expire_time = datetime.utcfromtimestamp(expires_at)
+                            
+                            minutes_until_expiry = int((expire_time - datetime.utcnow()).total_seconds() / 60)
+                            if minutes_until_expiry > 0:
+                                if earliest_expiry_minutes is None or minutes_until_expiry < earliest_expiry_minutes:
+                                    earliest_expiry_minutes = minutes_until_expiry
+                        except Exception as time_error:
+                            logger.warning(f"Error parsing expiry time: {time_error}")
+                
+                estimated_wait_minutes = earliest_expiry_minutes or 60  # Default 1 hour if can't calculate
+                logger.info(f"Multinode reservation needs to wait for active reservations to expire: {estimated_wait_minutes} minutes")
+                
+            except Exception as active_check_error:
+                logger.warning(f"Error checking active reservations: {active_check_error}")
+                estimated_wait_minutes = 60  # Default 1 hour
         
         return {
             "position": queue_position,
@@ -1155,8 +1196,16 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
 
         # Check availability for the specific GPU type
         gpu_type = reservation_request.get("gpu_type", "a100")
-        available_gpus = check_gpu_availability(gpu_type)
         requested_gpus = reservation_request.get("gpu_count", 1)
+        is_multinode = reservation_request.get("is_multinode", False)
+
+        # For multinode reservations, skip individual resource checks
+        # The multinode coordinator already validated total resources are available
+        if is_multinode:
+            logger.info(f"Multinode node: skipping individual resource check, coordinator already validated resources")
+            available_gpus = requested_gpus  # Assume coordinator validated
+        else:
+            available_gpus = check_gpu_availability(gpu_type)
 
         if available_gpus >= requested_gpus:
             # Update status to show we're preparing the machine

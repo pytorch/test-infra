@@ -149,7 +149,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes" {
   for_each = local.current_config.supported_gpu_types
 
   name                      = "${var.prefix}-gpu-nodes-${each.key}"
-  vpc_zone_identifier       = (each.key == "b200" || each.key == "t4-small") ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
+  vpc_zone_identifier       = local.gpu_subnet_assignments[terraform.workspace][each.key] == "secondary" ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
   target_group_arns         = []
   health_check_type         = "EC2"
   health_check_grace_period = 300
@@ -255,7 +255,7 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   dynamic "placement" {
     for_each = each.value.use_placement_group ? [1] : []
     content {
-      group_name = aws_placement_group.gpu_dev_pg.name
+      group_name = aws_placement_group.gpu_dev_pg[each.key].name
     }
   }
 
@@ -263,7 +263,7 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    subnet_id                   = each.value.use_placement_group ? null : (each.key == "b200" || each.key == "t4-small" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
+    subnet_id                   = each.value.use_placement_group ? null : (local.gpu_subnet_assignments[terraform.workspace][each.key] == "secondary" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
     # EFA is not supported on g4dn.2xlarge (t4-small), only on larger instances
     interface_type              = each.key == "t4-small" ? "interface" : "efa"
     delete_on_termination       = true

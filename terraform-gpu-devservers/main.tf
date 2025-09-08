@@ -132,13 +132,32 @@ locals {
   # Workspace-specific capacity reservations
   capacity_reservations = {
     default = {
-      # Test environment capacity reservations
-      h100 = "cr-PLACEHOLDER_FILL_IN_TEST_H100_RESERVATION_ID"
+      # Test environment capacity reservations - 2x H100 in us-west-1c
+      h100 = "cr-09f598e08ec509a0f"
     }
     prod = {
       # Production environment capacity reservations
       h100 = "cr-003773252aa2ea59a"
       b200 = "cr-0e2d0247fafbd380a"
+    }
+  }
+
+  # Workspace-specific GPU type to subnet mappings
+  gpu_subnet_assignments = {
+    default = {
+      # Test environment - H100 in us-west-1c (secondary subnet)
+      h100 = "secondary"
+      t4 = "primary"
+      "t4-small" = "secondary"
+    }
+    prod = {
+      # Production environment subnet assignments
+      b200 = "secondary"
+      h200 = "primary"
+      h100 = "primary"
+      a100 = "primary"
+      t4 = "primary"
+      l4 = "secondary"
     }
   }
 }
@@ -331,13 +350,21 @@ resource "aws_security_group" "gpu_dev_sg" {
   }
 }
 
-# Cluster Placement Group for optimal networking
+# Cluster Placement Groups - one per GPU type that needs placement groups
 resource "aws_placement_group" "gpu_dev_pg" {
-  name     = "${var.prefix}-gpu-dev-cluster"
+  for_each = {
+    for gpu_type, config in local.current_config.supported_gpu_types : gpu_type => config
+    if config.use_placement_group
+  }
+
+  name     = "${local.workspace_prefix}-gpu-${each.key}-cluster"
   strategy = "cluster"
+  
+  # Note: Placement group AZ will be determined by first instance launched
 
   tags = {
-    Name        = "${var.prefix}-gpu-dev-cluster"
+    Name        = "${local.workspace_prefix}-gpu-${each.key}-cluster"
     Environment = local.current_config.environment
+    GpuType     = each.key
   }
 }
