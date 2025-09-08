@@ -350,6 +350,8 @@ jobs:
           path: ${{ env.RUNNER_DOCS_DIR }}
           # ${{ env.repository }} is $OWNER/$REPO
           s3-prefix: ${{ env.REPOSITORY }}/${{ github.event.pull_request.number }}
+          # Overwrite doc previews for the same PR
+          overwrite: true
 
       - name: Teardown Linux
         if: always() && steps.check_container_runner.outputs.IN_CONTAINER_RUNNER == 'false'
