@@ -1,5 +1,6 @@
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
+import { LLMsBenchmarkMode } from "./benchmarkMode";
 
 /**
  * The props for the LLMs Benchmark props. this is used to pass the props to the LLMs Benchmark components.
@@ -20,6 +21,7 @@ import dayjs from "dayjs";
 export interface LLMsBenchmarkProps {
   repoName: string;
   benchmarkName: string;
+  mode: LLMsBenchmarkMode;
   // dropdown props
   modelName: string;
   backendName: string;

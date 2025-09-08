@@ -49,6 +49,7 @@ import {
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import { useEffect, useState } from "react";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 
 const GRAPH_ROW_HEIGHT = 245;
 
@@ -65,6 +66,7 @@ export default function LLMsGraphPanel({
   lBranchAndCommit,
   rBranchAndCommit,
   repos,
+  mode,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
@@ -78,8 +80,9 @@ export default function LLMsGraphPanel({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
   repos?: string[];
+  mode: LLMsBenchmarkMode;
 }) {
-  const isCompare = !!(repos && repos.length > 1);
+  const isCompare = mode === LLMsBenchmarkMode.RepoComparison;
   const { data } = useBenchmark(queryParams, {
     branch: rBranchAndCommit.branch,
     commit: "",
