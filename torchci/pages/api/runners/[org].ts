@@ -18,11 +18,6 @@ export const ALLOWED_ORGS = ["pytorch", "meta-pytorch"];
 
 // Shared function to map GitHub API runner response to our format
 function mapRunnerFromGitHubAPI(runner: any): RunnerData {
-  // Debug: Log full runner object for runners with no labels
-  if (!runner.labels || runner.labels.length === 0) {
-    console.log("Runner with no labels:", JSON.stringify(runner, null, 2));
-  }
-
   return {
     id: runner.id,
     name: runner.name,
@@ -187,9 +182,7 @@ export default async function handler(
   // Check if org is allowed
   if (!ALLOWED_ORGS.includes(org.toLowerCase())) {
     return res.status(403).json({
-      error: `Access denied. Only ${ALLOWED_ORGS.join(
-        ", "
-      )} organizations are supported.`,
+      error: "Access denied. This organization is not supported.",
     });
   }
 
