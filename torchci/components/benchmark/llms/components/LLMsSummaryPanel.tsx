@@ -384,6 +384,9 @@ export default function LLMsSummaryPanel({
                   l = l === 1 ? "Pass" : "Fail";
                   r = r === 1 ? "Pass" : "Fail";
                 } else if (metric.includes("speedup")) {
+                  l = v.l.actual_geomean;
+                  r = v.r.actual_geomean;
+
                   const accuracy = metric.replace(/_speedup$/, "_accuracy");
                   const accuracy_v = params.row[accuracy];
                   if (accuracy_v.l.actual !== 1) {
