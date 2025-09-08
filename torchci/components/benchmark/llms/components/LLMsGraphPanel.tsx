@@ -16,7 +16,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { deepClone } from "@mui/x-data-grid/internals";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
@@ -43,10 +42,12 @@ import {
 } from "lib/benchmark/llms/utils/aoUtils";
 import {
   computeGeomean,
-  useBenchmark,
   getLLMsBenchmarkPropsQueryParameter,
+  useBenchmark,
+  fetchBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
+import { useEffect, useState } from "react";
 
 const GRAPH_ROW_HEIGHT = 245;
 
@@ -78,10 +79,24 @@ export default function LLMsGraphPanel({
   repos?: string[];
 }) {
   const isCompare = !!(repos && repos.length > 1);
+  const { data } = useBenchmark(queryParams, {
+    branch: rBranchAndCommit.branch,
+    commit: "",
+  });
 
-  // For comparison mode, fetch data for both repos; otherwise just one
-  let dataWithSpeedup: any[] = [];
-  if (isCompare) {
+  const [datasets, setDatasets] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  const startTimeParam = queryParams["startTime"];
+  const stopTimeParam = queryParams["stopTime"];
+
+  useEffect(() => {
+    if (!isCompare || !repos) {
+      return;
+    }
+    let cancelled = false;
+    const queryName = "oss_ci_benchmark_llms";
+    setLoading(true);
     const repoQueryParams = repos.map((r) =>
       getLLMsBenchmarkPropsQueryParameter({
         repoName: r,
@@ -90,8 +105,8 @@ export default function LLMsGraphPanel({
         backendName,
         dtypeName,
         deviceName,
-        startTime: dayjs(queryParams["startTime"]),
-        stopTime: dayjs(queryParams["stopTime"]),
+        startTime: dayjs(startTimeParam),
+        stopTime: dayjs(stopTimeParam),
         timeRange: 0,
         granularity: granularity,
         lCommit: "",
@@ -102,11 +117,42 @@ export default function LLMsGraphPanel({
       } as any)
     );
 
-    const hooks = repoQueryParams.map((qp) =>
-      useBenchmark(qp, { branch: rBranchAndCommit.branch, commit: "" })
-    );
-    const datasets = hooks.map((h) => h.data).filter(Boolean) as any[];
-    if (datasets.length !== repos.length || datasets.some((d) => d.length === 0)) {
+    const repoParamsWithBranch = repoQueryParams.map((qp) => ({
+      ...qp,
+      branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
+      commits: [],
+    }));
+    fetchBenchmarkDataForRepos(queryName, repoParamsWithBranch).then((res) => {
+      if (!cancelled) {
+        setDatasets(res.map((r) => r.data) as any[]);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isCompare,
+    repos,
+    benchmarkName,
+    modelName,
+    backendName,
+    dtypeName,
+    deviceName,
+    granularity,
+    rBranchAndCommit.branch,
+    startTimeParam,
+    stopTimeParam,
+  ]);
+
+  // For comparison mode, fetch data for both repos; otherwise just one
+  let dataWithSpeedup: any[] = [];
+  if (isCompare) {
+    if (
+      loading ||
+      datasets.length !== (repos ? repos.length : 0) ||
+      datasets.some((d) => !d || d.length === 0)
+    ) {
       return (
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
           <Typography fontSize={"1rem"} fontStyle={"italic"}>
@@ -119,7 +165,7 @@ export default function LLMsGraphPanel({
     const tagged = datasets.flatMap((d: any, i: number) =>
       d.map((rec: any) => ({
         ...rec,
-        extra: { ...(rec.extra || {}), source_repo: repos[i] },
+        extra: { ...(rec.extra || {}), source_repo: repos![i] },
       }))
     );
     dataWithSpeedup = computeSpeedup(
@@ -129,12 +175,6 @@ export default function LLMsGraphPanel({
       false
     );
   } else {
-    // Do not set the commit here to query all the records in the time range to draw a chart
-    const { data } = useBenchmark(queryParams, {
-      branch: rBranchAndCommit.branch,
-      commit: "",
-    });
-
     if (data === undefined || data.length === 0) {
       return (
         <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -224,7 +264,6 @@ export default function LLMsGraphPanel({
               const model = record.model;
               const dtype = record.dtype;
               const device = record.device;
-              const metric = record.metric;
               const srcRepo = (record as any)?.extra?.["source_repo"] || repoName;
               if (
                 srcRepo === "vllm-project/vllm" ||

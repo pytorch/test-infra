@@ -8,7 +8,7 @@ export default function LLMsDropdownGroup({
   props,
   optionListMap,
 }: {
-  onChange: (key: string, value: any) => void;
+  onChange: (_key: string, _value: any) => void;
   props: LLMsBenchmarkProps;
   optionListMap: DropdownGroupItem[];
 }) {
@@ -19,7 +19,7 @@ export default function LLMsDropdownGroup({
           const type = option.type;
           const olist = option.options;
           if (!olist || olist.length <= 1) {
-            return <></>;
+            return null;
           }
           return (
             <DTypePicker

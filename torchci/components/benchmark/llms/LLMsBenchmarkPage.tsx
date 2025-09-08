@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import _, { cloneDeep } from "lodash";
 import { NextRouter, useRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
-import { useEffect, useReducer, useState } from "react";
+import { useEffect, useReducer, useState, useMemo } from "react";
 import { propsReducer } from "./context/BenchmarkProps";
 
 import LoadingPage from "components/common/LoadingPage";
@@ -28,6 +28,7 @@ import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboard
 import {
   getLLMsBenchmarkPropsQueryParameter,
   useBenchmarkPropsData,
+  fetchBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
@@ -146,7 +147,10 @@ const MainPage = ({
       }${router.asPath.replace(/\?.+/, "")}`
     );
   }, [router.query]);
-  const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
+  const queryParams = useMemo(
+    () => getLLMsBenchmarkPropsQueryParameter(props),
+    [props]
+  );
   const { data, error, isLoading } = useBenchmarkPropsData(queryParams);
 
   // an error occured while fetching the benchmark props data
@@ -248,7 +252,11 @@ const MainPageForComparison = ({
   const [baseUrl, setBaseUrl] = useState<string>("");
   const [allRepoData, setAllRepoData] = useState<any[]>([]);
   const [allRepoErrors, setAllRepoErrors] = useState<any[]>([]);
-  const [allRepoLoading, setAllRepoLoading] = useState<boolean[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const queryParams = useMemo(
+    () => getLLMsBenchmarkPropsQueryParameter(props),
+    [props]
+  );
 
   useEffect(() => {
     const newProps = resetProps(
@@ -265,28 +273,44 @@ const MainPageForComparison = ({
     );
   }, [router.query]);
 
-  // Create query parameters for each repository
-  const repoQueryParams = props.repos.map((repo) => {
-    const repoSpecificProps = { ...props, repoName: repo };
-    return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
-  });
-
   // Fetch data for all repositories
-  const repoDataHooks = repoQueryParams.map((queryParam) => {
-    const { data, error, isLoading } = useBenchmarkPropsData(queryParam);
-    return { data, error, isLoading };
-  });
-
-  // Update state when data changes
   useEffect(() => {
-    const data = repoDataHooks.map(hook => hook.data);
-    const errors = repoDataHooks.map(hook => hook.error);
-    const loading = repoDataHooks.map(hook => hook.isLoading);
-
-    setAllRepoData(data);
-    setAllRepoErrors(errors);
-    setAllRepoLoading(loading);
-  }, [repoDataHooks]);
+    let cancelled = false;
+    const repoQueryParams = props.repos.map((repo) => {
+      const repoSpecificProps = { ...props, repoName: repo };
+      return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
+    });
+    setIsLoading(true);
+    fetchBenchmarkDataForRepos("oss_ci_benchmark_names", repoQueryParams).then(
+      (results) => {
+        if (cancelled) {
+          return;
+        }
+        setAllRepoData(results.map((r) => r.data));
+        setAllRepoErrors(results.map((r) => r.error));
+        setIsLoading(false);
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    props.repos,
+    props.benchmarkName,
+    props.modelName,
+    props.backendName,
+    props.modeName,
+    props.dtypeName,
+    props.deviceName,
+    props.archName,
+    props.startTime,
+    props.stopTime,
+    props.granularity,
+    props.lCommit,
+    props.rCommit,
+    props.lBranch,
+    props.rBranch,
+  ]);
 
   // Check if any repository has an error
   const hasError = allRepoErrors.some(error => error);
@@ -304,10 +328,9 @@ const MainPageForComparison = ({
   }
 
   // Check if any repository is still loading
-  const isAnyLoading = allRepoLoading.some(loading => loading);
-  const hasAllData = allRepoData.every(data => data !== undefined);
+  const hasAllData = allRepoData.every((data) => data !== undefined);
 
-  if (!hasAllData || isAnyLoading) {
+  if (!hasAllData || isLoading) {
     return (
       <div>
         <PrefetchRender props={props} dispatch={dispatch} baseUrl={baseUrl}>
@@ -324,7 +347,7 @@ const MainPageForComparison = ({
   }
 
   // Check if any repository has no data
-  const hasEmptyData = allRepoData.some(data => data.length === 0);
+  const hasEmptyData = allRepoData.some((data) => data.length === 0);
   if (hasEmptyData) {
     const emptyRepos = props.repos.filter((_, index) => allRepoData[index]?.length === 0);
     return (
@@ -358,7 +381,6 @@ const MainPageForComparison = ({
   const metricNames = getMetricNames(combinedData);
 
   // Use the original query params but now it includes the repos array
-  const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
 
   return (
     <div>

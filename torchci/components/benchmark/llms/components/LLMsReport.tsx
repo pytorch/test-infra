@@ -1,7 +1,11 @@
 import { Stack, Typography } from "@mui/material";
 import { CommitPanel } from "components/benchmark/CommitPanel";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
-import { getLLMsBenchmarkPropsQueryParameter, useBenchmark } from "lib/benchmark/llms/utils/llmUtils";
+import {
+  getLLMsBenchmarkPropsQueryParameter,
+  useBenchmark,
+  fetchBenchmarkDataForRepos,
+} from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
@@ -9,6 +13,7 @@ import {
 } from "../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsGraphPanel from "./LLMsGraphPanel";
 import LLMsSummaryPanel from "./LLMsSummaryPanel";
+import { useEffect, useState } from "react";
 
 export default function LLMsReport({
   props,
@@ -19,16 +24,7 @@ export default function LLMsReport({
   metricNames: string[];
   benchmarkPropsQueryParams: any;
 }) {
-  // If comparison mode, defer to a child to keep hook order stable
-  if (props.repos && props.repos.length > 1) {
-    return (
-      <CompareLLMsReport
-        props={props}
-        metricNames={metricNames}
-        benchmarkPropsQueryParams={benchmarkPropsQueryParams}
-      />
-    );
-  }
+  const isCompare = props.repos && props.repos.length > 1;
 
   const { data: lData, error: _lError } = useBenchmark(
     benchmarkPropsQueryParams,
@@ -51,6 +47,17 @@ export default function LLMsReport({
     benchmarkPropsQueryParams,
     rBranchAndCommit
   );
+
+  if (isCompare) {
+    return (
+      <CompareLLMsReport
+        props={props}
+        metricNames={metricNames}
+        benchmarkPropsQueryParams={benchmarkPropsQueryParams}
+      />
+    );
+  }
+
   if (
     lData === undefined ||
     lData.length === 0 ||
@@ -164,22 +171,51 @@ function CompareLLMsReport({
     commit: props.rCommit,
   };
 
-  const repoQueryParams = props.repos.map((repo) =>
-    getLLMsBenchmarkPropsQueryParameter({ ...props, repoName: repo })
-  );
+  const [lDatas, setLDatas] = useState<any[]>([]);
+  const [rDatas, setRDatas] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
 
-  // Hooks scoped to this component; hook order stable as repos length stays constant after mount
-  const lHooks = repoQueryParams.map((qp) => useBenchmark(qp, lBranchAndCommit));
-  const rHooks = repoQueryParams.map((qp) => useBenchmark(qp, rBranchAndCommit));
+  useEffect(() => {
+    let cancelled = false;
+    const queryName = "oss_ci_benchmark_llms";
+    setLoading(true);
+    const repoQueryParams = props.repos.map((repo) =>
+      getLLMsBenchmarkPropsQueryParameter({ ...props, repoName: repo })
+    );
 
-  const lDatas = lHooks.map((h) => h.data).filter(Boolean) as any[];
-  const rDatas = rHooks.map((h) => h.data).filter(Boolean) as any[];
+    const fetchFor = (branchAndCommit: BranchAndCommit) => {
+      const repoParams = repoQueryParams.map((qp) => ({
+        ...qp,
+        branches: branchAndCommit.branch ? [branchAndCommit.branch] : [],
+        commits: branchAndCommit.commit ? [branchAndCommit.commit] : [],
+      }));
+      return fetchBenchmarkDataForRepos(queryName, repoParams).then((res) =>
+        res.map((r) => r.data)
+      );
+    };
+
+    Promise.all([
+      fetchFor(lBranchAndCommit),
+      fetchFor(rBranchAndCommit),
+    ]).then(([lRes, rRes]) => {
+      if (!cancelled) {
+        setLDatas(lRes as any[]);
+        setRDatas(rRes as any[]);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [props.repos, props.lBranch, props.lCommit, props.rBranch, props.rCommit, props.benchmarkName, props.modelName, props.backendName, props.dtypeName, props.deviceName, props.startTime, props.stopTime, props.granularity]);
 
   if (
+    loading ||
     lDatas.length !== props.repos.length ||
     rDatas.length !== props.repos.length ||
-    lDatas.some((d: any) => d.length === 0) ||
-    rDatas.some((d: any) => d.length === 0)
+    lDatas.some((d: any) => !d || d.length === 0) ||
+    rDatas.some((d: any) => !d || d.length === 0)
   ) {
     return (
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
