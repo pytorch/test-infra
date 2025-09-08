@@ -192,6 +192,9 @@ const MainPage = ({
   const options = data;
   const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
+  // Default to latest for Helion Benchmark, otherwise default to oldest commit
+  const lcommitFallbackIdx =
+    props.benchmarkName === "Helion Benchmark" ? 0 : -1;
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -203,6 +206,7 @@ const MainPage = ({
         props={props}
         dispatch={dispatch}
         queryParams={queryParams}
+        lcommitFallbackIdx={lcommitFallbackIdx}
       />
       <LLMsReport
         props={props}
