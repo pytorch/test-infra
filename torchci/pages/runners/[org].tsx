@@ -94,11 +94,8 @@ export default function RunnersPage() {
   useEffect(() => {
     const searchParam = router.query.search;
     const newSearchTerm = getSearchFromQuery({ search: searchParam });
-    // Only update if different to prevent feedback loops
-    if (newSearchTerm !== searchTerm) {
-      setSearchTerm(newSearchTerm);
-    }
-  }, [router.query.search, searchTerm]);
+    setSearchTerm(newSearchTerm);
+  }, [router.query.search]);
 
   // Debounced function to update search in URL
   // Debouncing lets us limit the rate at which the
