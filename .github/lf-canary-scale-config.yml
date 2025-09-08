@@ -147,7 +147,7 @@ runner_types:
     instance_type: g6.4xlarge
     is_ephemeral: true
     os: linux
-  lf.linux.g6.12xlarge.nvidia.gpu:
+  lf.c.linux.g6.12xlarge.nvidia.gpu:
     disk_size: 150
     instance_type: g6.12xlarge
     is_ephemeral: true
