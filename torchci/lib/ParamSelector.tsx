@@ -15,20 +15,19 @@ export function ParamSelector({
   return (
     <form
       className={styles.branchForm}
-      onSubmit={(e) => {
+      onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
-        // @ts-ignore
-        handleSubmit(e.target[0].value);
+        const form = e.currentTarget;
+        const input = form.elements[0] as HTMLInputElement;
+        handleSubmit(input.value);
       }}
     >
       <input
-        onChange={(e) => {
-          // @ts-ignore
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
           setVal(e.target.value);
         }}
-        onFocus={(e) => {
+        onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
           e.target.select();
-          console.log(e.target.value);
         }}
         onBlur={(e) => {
           if (e.target.value !== value && e.target.value.length > 0) {
@@ -36,14 +35,13 @@ export function ParamSelector({
             handleSubmit(e.target.value);
           }
         }}
-        onKeyDown={(e) => {
+        onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
           if (e.key === "Escape") {
             e.preventDefault();
-            // @ts-ignore
-            e.target.value = value;
+            const input = e.currentTarget;
+            input.value = value;
             setVal(value);
-            // @ts-ignore
-            e.target.blur();
+            input.blur();
           }
         }}
         size={val.length || 0}
