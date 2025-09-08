@@ -371,17 +371,31 @@ export default function LLMsSummaryPanel({
               let l = v.l.actual;
               let r = v.r.actual;
 
-              if (
-                repoName === "pytorch/helion" &&
-                benchmarkName === "Helion Benchmark" &&
-                metric.includes("accuracy")
-              ) {
-                l = l === 1 ? "Pass" : "Fail";
-                r = r === 1 ? "Pass" : "Fail";
-              }
-
               const unit =
                 metric in UNIT_FOR_METRIC ? UNIT_FOR_METRIC[metric] : "";
+              let lUnit = unit;
+              let rUnit = unit;
+
+              if (
+                repoName === "pytorch/helion" &&
+                benchmarkName === "Helion Benchmark"
+              ) {
+                if (metric.includes("accuracy")) {
+                  l = l === 1 ? "Pass" : "Fail";
+                  r = r === 1 ? "Pass" : "Fail";
+                } else if (metric.includes("speedup")) {
+                  const accuracy = metric.replace(/_speedup$/, "_accuracy");
+                  const accuracy_v = params.row[accuracy];
+                  if (accuracy_v.l.actual !== 1) {
+                    l = "FAILED ACCURACY";
+                    lUnit = "";
+                  }
+                  if (accuracy_v.r.actual !== 1) {
+                    r = "FAILED ACCURACY";
+                    rUnit = "";
+                  }
+                }
+              }
 
               // Compute the percentage
               const target = v.r.target;
@@ -412,9 +426,9 @@ export default function LLMsSummaryPanel({
               }
 
               if (lCommit === rCommit || !v.highlight) {
-                return `${r}${unit} ${rPercent} ${showTarget}`;
+                return `${r}${rUnit} ${rPercent} ${showTarget}`;
               } else {
-                return `${l}${unit} ${lPercent} → ${r}${unit} ${rPercent} ${showTarget}`;
+                return `${l}${lUnit} ${lPercent} → ${r}${rUnit} ${rPercent} ${showTarget}`;
               }
             },
           };
