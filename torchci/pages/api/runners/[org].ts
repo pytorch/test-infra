@@ -18,7 +18,6 @@ export const ALLOWED_ORGS = ["pytorch", "meta-pytorch"];
 
 // Shared function to map GitHub API runner response to our format
 function mapRunnerFromGitHubAPI(runner: any): RunnerData {
-
   return {
     id: runner.id,
     name: runner.name,

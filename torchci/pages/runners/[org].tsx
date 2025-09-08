@@ -40,11 +40,11 @@ import {
 import { RunnerGroupCard } from "components/runners/RunnerGroupCard";
 import { ParamSelector } from "lib/ParamSelector";
 import { RunnersApiResponse, unknownGoesLast } from "lib/runnerUtils";
+import debounce from "lodash/debounce";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import debounce from "lodash/debounce";
 import type { ParsedUrlQuery } from "querystring";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import useSWR from "swr";
 
 // Define sort order constants to prevent typos
@@ -73,37 +73,60 @@ export default function RunnersPage() {
   const orgParam = typeof org === "string" ? org : null;
 
   const { data: _session, status: _status } = useSession();
-  
+
   // Utility function to extract search term from URL query
   const getSearchFromQuery = (query: ParsedUrlQuery): string => {
     return typeof query.search === "string" ? query.search : "";
   };
 
   // Get search term from URL parameters
-  const [searchTerm, setSearchTerm] = useState(getSearchFromQuery(router.query));
+  const [searchTerm, setSearchTerm] = useState(
+    getSearchFromQuery(router.query)
+  );
   const [sortOrder, setSortOrder] = useState<SortOrder>(SORT_ALPHABETICAL);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+  // Use ref to access current router.query without causing debounce recreations
+  const routerQueryRef = useRef(router.query);
+  routerQueryRef.current = router.query;
 
   // Sync search state with URL changes
   useEffect(() => {
     const searchParam = router.query.search;
     const newSearchTerm = getSearchFromQuery({ search: searchParam });
-    setSearchTerm(newSearchTerm);
-  }, [router.query.search]);
+    // Only update if different to prevent feedback loops
+    if (newSearchTerm !== searchTerm) {
+      setSearchTerm(newSearchTerm);
+    }
+  }, [router.query.search, searchTerm]);
 
   // Debounced function to update search in URL
+  // Debouncing lets us limit the rate at which the
+  // function is called, so that it doesn't get called on every
+  // keystroke.  Instead, it'll wait for DEBOUNCE_DELAY_MS
+  // before executing.
+  const DEBOUNCE_DELAY_MS = 300;
   const updateSearchInUrl = useCallback(
     debounce((newSearchTerm: string) => {
-      const query = { ...router.query };
+      const query = { ...routerQueryRef.current };
       if (newSearchTerm) {
         query.search = newSearchTerm;
       } else {
         delete query.search;
       }
-      router.push({ pathname: router.pathname, query }, undefined, { shallow: true });
-    }, 300),
-    [router]
+      router.push({ pathname: router.pathname, query }, undefined, {
+        shallow: true,
+      });
+    }, DEBOUNCE_DELAY_MS),
+    [router.pathname]
   );
+
+  // Cleanup debounced function on unmount or when it changes
+  useEffect(() => {
+    return () => {
+      updateSearchInUrl.cancel();
+    };
+  }, [updateSearchInUrl]);
 
   // Handle URL editing for organization
   const handleOrgSubmit = (newOrg: string) => {
@@ -224,8 +247,8 @@ export default function RunnersPage() {
           value={searchTerm}
           onChange={(e) => {
             const value = e.target.value;
-            setSearchTerm(value);  // Immediate UI update
-            updateSearchInUrl(value);  // Debounced URL update
+            setSearchTerm(value); // Immediate UI update
+            updateSearchInUrl(value); // Debounced URL update
           }}
           sx={{ maxWidth: 600, mb: 2 }}
         />

@@ -18,8 +18,12 @@ export function ParamSelector({
       onSubmit={(e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const form = e.currentTarget;
-        const input = form.elements[0] as HTMLInputElement;
-        handleSubmit(input.value);
+        const input = form.querySelector(
+          'input[type="text"]'
+        ) as HTMLInputElement;
+        if (input) {
+          handleSubmit(input.value);
+        }
       }}
     >
       <input
@@ -29,7 +33,7 @@ export function ParamSelector({
         onFocus={(e: React.FocusEvent<HTMLInputElement>) => {
           e.target.select();
         }}
-        onBlur={(e) => {
+        onBlur={(e: React.FocusEvent<HTMLInputElement>) => {
           if (e.target.value !== value && e.target.value.length > 0) {
             e.preventDefault();
             handleSubmit(e.target.value);
