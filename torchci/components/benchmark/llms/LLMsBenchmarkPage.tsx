@@ -10,7 +10,7 @@ import dayjs from "dayjs";
 import _, { cloneDeep } from "lodash";
 import { NextRouter, useRouter } from "next/router";
 import { ParsedUrlQuery } from "querystring";
-import { useEffect, useMemo, useReducer, useState } from "react";
+import { useEffect, useReducer, useState } from "react";
 import { propsReducer } from "./context/BenchmarkProps";
 
 import LoadingPage from "components/common/LoadingPage";
@@ -65,7 +65,6 @@ export default function LLMsBenchmarkPage() {
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
 
-  // Default MainPage for single repo
   // pass initial state in runtime for benchmark props
   return (
     <MainPage
@@ -136,10 +135,7 @@ const MainPage = ({
       }${router.asPath.replace(/\?.+/, "")}`
     );
   }, [router.query]);
-  const queryParams = useMemo(
-    () => getLLMsBenchmarkPropsQueryParameter(props),
-    [props]
-  );
+  const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
   const { data, error, isLoading } = useBenchmarkPropsData(queryParams);
 
   // an error occured while fetching the benchmark props data
