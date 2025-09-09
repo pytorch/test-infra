@@ -126,7 +126,7 @@ function NavBar() {
       name: "Helion",
       href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
     },
-  ];
+  ].sort((a, b) => a.name.localeCompare(b.name));
 
   const devInfraDropdown = [
     {

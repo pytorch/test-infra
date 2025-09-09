@@ -12,11 +12,13 @@ export const LLMsDashboardPicker = ({
   props,
   dispatch,
   queryParams,
+  lcommitFallbackIdx,
 }: {
   props: LLMsBenchmarkProps;
   options?: DropdownGroupItem[];
   dispatch: Dispatch<any>;
   queryParams: any;
+  lcommitFallbackIdx: number;
 }) => {
   if (!options) {
     return (
@@ -29,6 +31,7 @@ export const LLMsDashboardPicker = ({
   const handleChange = (key: string, newVal: any) => {
     dispatch({ type: "UPDATE_FIELD", field: key, value: newVal });
   };
+
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -50,7 +53,7 @@ export const LLMsDashboardPicker = ({
             dispatch({ type: "UPDATE_FIELD", field: "lCommit", value: val });
           }}
           titlePrefix={"Base"}
-          fallbackIndex={-1} // Default to oldest commit
+          fallbackIndex={lcommitFallbackIdx}
           timeRange={props.timeRange}
         />
         <Divider orientation="vertical" flexItem>
