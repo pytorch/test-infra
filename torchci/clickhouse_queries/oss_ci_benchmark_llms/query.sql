@@ -43,7 +43,7 @@ WITH benchmarks AS (
             ),
             -- Used by vLLM
             'request_rate',
-            JSONExtractFloat64(
+            JSONExtractString(
                 tupleElement(o.benchmark, 'extra_info')['args'],
                 'request_rate'
             ),
@@ -134,11 +134,11 @@ WITH benchmarks AS (
             OR empty({excludedMetrics: Array(String) })
         )
         AND (
-            JSONExtractFloat64(
+            JSONExtractString(
                 tupleElement(o.benchmark, 'extra_info')['args'],
                 'request_rate'
-            ) = {requestRate: Float64}
-            OR {requestRate: Float64} = 0
+            ) = {requestRate: String}
+            OR {requestRate: String} = ''
         )
         AND notEmpty(o.metric.'name')
 )

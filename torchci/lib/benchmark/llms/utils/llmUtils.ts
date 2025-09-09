@@ -100,7 +100,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
     startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     repos: props.repos,
-    requestRate: props.qps === DEFAULT_QPS_NAME ? 0 : Number(props.qps),
+    requestRate: props.qps === DEFAULT_QPS_NAME ? "" : props.qps,
   };
   return queryParams;
 }
