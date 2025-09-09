@@ -64,6 +64,8 @@ jobs:
       binary-matrix: ${{ toJSON(matrix) }}
       docker-image: ${{matrix.docker}}
       docker-build-dir: "skip-docker-build"
+      gpu-arch-type: ${{ matrix.cuda == 'cpu' && 'cpu' || 'cuda' }}
+      gpu-arch-version: ${{ matrix.cuda }}
       timeout: 180
       script: |
         set -ex
