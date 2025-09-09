@@ -68,7 +68,7 @@ export default function LLMsComparisonGraphPanel({
         rCommit: "",
         lBranch: rBranchAndCommit.branch,
         rBranch: rBranchAndCommit.branch,
-        repos: repos,
+        repos: [],
       } as any)
     );
 

@@ -41,7 +41,11 @@ export default function LLMsComparisonReport({
     let cancelled = false;
     setLoading(true);
     const repoQueryParams = props.repos.map((repo) =>
-      getLLMsBenchmarkPropsQueryParameter({ ...props, repoName: repo })
+      getLLMsBenchmarkPropsQueryParameter({
+        ...props,
+        repoName: repo,
+        repos: [],
+      })
     );
 
     const fetchFor = (branchAndCommit: BranchAndCommit) => {

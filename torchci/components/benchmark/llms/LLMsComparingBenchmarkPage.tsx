@@ -145,7 +145,7 @@ const MainPageForComparison = ({
   useEffect(() => {
     let cancelled = false;
     const repoQueryParams = props.repos.map((repo) => {
-      const repoSpecificProps = { ...props, repoName: repo };
+      const repoSpecificProps = { ...props, repoName: repo, repos: [] };
       return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
     });
     setIsLoading(true);
@@ -189,7 +189,7 @@ const MainPageForComparison = ({
     }
     let cancelled = false;
     const repoQueryParams = props.repos.map((repo) => {
-      const repoSpecificProps = { ...props, repoName: repo };
+      const repoSpecificProps = { ...props, repoName: repo, repos: [] };
       return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
     });
     fetchBenchmarkDataForRepos(LLM_BENCHMARK_DATA_QUERY, repoQueryParams).then(
