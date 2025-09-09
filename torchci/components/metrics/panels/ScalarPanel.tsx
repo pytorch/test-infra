@@ -66,6 +66,8 @@ export default function ScalarPanel({
   metricName,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
+  // Custom function to retrieve the value from the query
+  getValue = (_data: any) => _data?.[0]?.[metricName],
 }: {
   title: string;
   queryName: string;
@@ -73,6 +75,7 @@ export default function ScalarPanel({
   valueRenderer: (_value: any) => string;
   metricName: string;
   badThreshold: (_value: any) => boolean;
+  getValue?: (_data: any) => any;
 }) {
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
@@ -86,7 +89,7 @@ export default function ScalarPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const value = data.length > 0 ? data[0][metricName] : undefined;
+  const value = getValue(data);
   return (
     <ScalarPanelWithValue
       title={title}
