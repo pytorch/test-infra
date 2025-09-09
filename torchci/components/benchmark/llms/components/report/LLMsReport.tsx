@@ -6,9 +6,9 @@ import { BranchAndCommit } from "lib/types";
 import {
   computeSpeedup,
   TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "../../../../lib/benchmark/llms/utils/aoUtils";
-import LLMsGraphPanel from "./LLMsGraphPanel";
-import LLMsSummaryPanel from "./LLMsSummaryPanel";
+} from "../../../../../lib/benchmark/llms/utils/aoUtils";
+import LLMsGraphPanel from "../graphPanel/LLMsGraphPanel";
+import LLMsSummaryPanel from "../LLMsSummaryPanel";
 
 export default function LLMsReport({
   props,
@@ -40,7 +40,6 @@ export default function LLMsReport({
     benchmarkPropsQueryParams,
     rBranchAndCommit
   );
-
   if (
     lData === undefined ||
     lData.length === 0 ||
@@ -76,7 +75,6 @@ export default function LLMsReport({
     }
   }
 
-  // Single repo path below
   return (
     <div>
       <CommitPanel
@@ -105,14 +103,10 @@ export default function LLMsReport({
         repoName={props.repoName}
         benchmarkName={props.benchmarkName}
         modelName={props.modelName}
-        backendName={props.backendName}
-        dtypeName={props.dtypeName}
         deviceName={props.deviceName}
         metricNames={metricNames}
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
-        mode={props.mode}
-        repos={props.repos}
       />
       <LLMsSummaryPanel
         startTime={props.startTime}

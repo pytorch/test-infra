@@ -8,9 +8,9 @@ import {
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import { useEffect, useState } from "react";
-import { computeSpeedup } from "../../../../lib/benchmark/llms/utils/aoUtils";
-import LLMsGraphPanel from "./LLMsGraphPanel";
-import LLMsSummaryPanel from "./LLMsSummaryPanel";
+import { computeSpeedup } from "../../../../../lib/benchmark/llms/utils/aoUtils";
+import LLMsComparisonGraphPanel from "../graphPanel/LLMsComparisonGraphPanel";
+import LLMsSummaryPanel from "../LLMsSummaryPanel";
 
 export default function LLMsComparisonReport({
   props,
@@ -140,7 +140,7 @@ export default function LLMsComparisonReport({
 
   return (
     <div>
-      <LLMsGraphPanel
+      <LLMsComparisonGraphPanel
         queryParams={benchmarkPropsQueryParams}
         granularity={props.granularity}
         repoName={props.repoName}
@@ -153,7 +153,6 @@ export default function LLMsComparisonReport({
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
         repos={props.repos}
-        mode={LLMsBenchmarkMode.RepoComparison}
       />
       <LLMsSummaryPanel
         startTime={props.startTime}

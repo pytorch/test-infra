@@ -33,7 +33,7 @@ import {
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
-import LLMsReport from "./components/LLMsReport";
+import LLMsReport from "./components/report/LLMsReport";
 
 export default function LLMsBenchmarkPage() {
   const router = useRouter();

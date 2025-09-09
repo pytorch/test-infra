@@ -6,7 +6,6 @@ import {
   IconButton,
   Link,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -21,8 +20,6 @@ import {
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import { arrayToCSV, downloadCSV, generateCSVFilename } from "lib/csvUtils";
-
 import {
   Granularity,
   seriesWithInterpolatedTimes,
@@ -32,179 +29,45 @@ import dayjs from "dayjs";
 import {
   DEFAULT_DEVICE_NAME,
   DEFAULT_MODEL_NAME,
-  LLM_BENCHMARK_DATA_QUERY,
   LLMsBenchmarkData,
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
 } from "lib/benchmark/llms/common";
-import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
-import {
-  computeSpeedup,
-  TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "lib/benchmark/llms/utils/aoUtils";
-import {
-  computeGeomean,
-  fetchBenchmarkDataForRepos,
-  getLLMsBenchmarkPropsQueryParameter,
-  useBenchmark,
-} from "lib/benchmark/llms/utils/llmUtils";
+import { TORCHAO_SPEEDUP_METRIC_NAMES } from "lib/benchmark/llms/utils/aoUtils";
+import { computeGeomean } from "lib/benchmark/llms/utils/llmUtils";
+import { arrayToCSV, downloadCSV, generateCSVFilename } from "lib/csvUtils";
 import { BranchAndCommit } from "lib/types";
-import { useEffect, useState } from "react";
 
 const GRAPH_ROW_HEIGHT = 245;
 
-export default function LLMsGraphPanel({
+export default function LLMsGraphPanelBase({
   queryParams,
   granularity,
   repoName,
   benchmarkName,
   modelName,
-  backendName,
-  dtypeName,
   deviceName,
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
-  repos,
-  mode,
+  dataWithSpeedup,
+  isCompare,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
   repoName: string;
   benchmarkName: string;
   modelName: string;
-  backendName: string;
-  dtypeName: string;
   deviceName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
-  repos?: string[];
-  mode: LLMsBenchmarkMode;
+  dataWithSpeedup: any[];
+  isCompare: boolean;
 }) {
-  const isCompare = mode === LLMsBenchmarkMode.RepoComparison;
-  const { data } = useBenchmark(queryParams, {
-    branch: rBranchAndCommit.branch,
-    commit: "",
-  });
-
-  const [datasets, setDatasets] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-
-  const startTimeParam = queryParams["startTime"];
-  const stopTimeParam = queryParams["stopTime"];
-
-  useEffect(() => {
-    if (!isCompare || !repos) {
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    const repoQueryParams = repos.map((r) =>
-      getLLMsBenchmarkPropsQueryParameter({
-        repoName: r,
-        benchmarkName,
-        modelName,
-        backendName,
-        dtypeName,
-        deviceName,
-        startTime: dayjs(startTimeParam),
-        stopTime: dayjs(stopTimeParam),
-        timeRange: 0,
-        granularity: granularity,
-        lCommit: "",
-        rCommit: "",
-        lBranch: rBranchAndCommit.branch,
-        rBranch: rBranchAndCommit.branch,
-        repos: repos,
-      } as any)
-    );
-
-    const repoParamsWithBranch = repoQueryParams.map((qp) => ({
-      ...qp,
-      branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
-      commits: [],
-    }));
-    fetchBenchmarkDataForRepos(
-      LLM_BENCHMARK_DATA_QUERY,
-      repoParamsWithBranch
-    ).then((res) => {
-      if (!cancelled) {
-        setDatasets(res.map((r) => r.data) as any[]);
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    isCompare,
-    repos,
-    benchmarkName,
-    modelName,
-    backendName,
-    dtypeName,
-    deviceName,
-    granularity,
-    rBranchAndCommit.branch,
-    startTimeParam,
-    stopTimeParam,
-  ]);
-
-  // For comparison mode, fetch data for both repos; otherwise just one
-  let dataWithSpeedup: any[] = [];
-  if (isCompare) {
-    if (
-      loading ||
-      datasets.length !== (repos ? repos.length : 0) ||
-      datasets.some((d) => !d || d.length === 0)
-    ) {
-      return (
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <Typography fontSize={"1rem"} fontStyle={"italic"}>
-            Loading chart for {modelName}...
-          </Typography>
-        </Stack>
-      );
-    }
-
-    const tagged = datasets.flatMap((d: any, i: number) =>
-      d.map((rec: any) => ({
-        ...rec,
-        extra: { ...(rec.extra || {}), source_repo: repos![i] },
-      }))
-    );
-    dataWithSpeedup = computeSpeedup(
-      repoName,
-      computeSpeedup(repoName, tagged, false, true),
-      true,
-      false
-    );
-  } else {
-    if (data === undefined || data.length === 0) {
-      return (
-        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-          <Typography fontSize={"1rem"} fontStyle={"italic"}>
-            Loading chart for {modelName}...
-          </Typography>
-        </Stack>
-      );
-    }
-
-    dataWithSpeedup = computeSpeedup(
-      repoName,
-      computeSpeedup(repoName, data, false, true),
-      true,
-      false
-    );
-  }
-
-  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from the database
   const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
   const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
-  // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rBranchAndCommit.commit];
 
@@ -233,9 +96,6 @@ export default function LLMsGraphPanel({
                 (id >= lWorkflowId && id <= rWorkflowId) ||
                 (id <= lWorkflowId && id >= rWorkflowId) ||
                 (lWorkflowId === undefined && rWorkflowId === undefined) ||
-                // This is a hack to handle the mock workflow ID coming from running TorchAO benchmark locally
-                // In such caase, the workflow ID is actually the epoch timestamp and the value is completely
-                // different than the regular GitHub workflow ID
                 0.5 > rWorkflowId / lWorkflowId ||
                 rWorkflowId / lWorkflowId > 2
               );
@@ -314,7 +174,6 @@ export default function LLMsGraphPanel({
               return record;
             });
     const graphItems = formGraphItem(chartData[metric]);
-    // group by timestamp to identify devices with the same timestamp
     graphSeries[metric] = seriesWithInterpolatedTimes(
       graphItems,
       startTime,
@@ -327,7 +186,6 @@ export default function LLMsGraphPanel({
     );
   });
 
-  // find the metric with the longest data array, it is used as baseline for rows and mapping in the table.
   const maxLengthMetric = metricNames.reduce(
     (longest, metric) =>
       chartData[metric].length > chartData[longest].length ? metric : longest,
@@ -459,7 +317,6 @@ const MetricTable = ({
       metricNames.forEach((metric) => {
         if (chartData[metric]?.length) {
           const label = METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric;
-          // Find the matching record for this metric based on workflow_id and other identifying properties
           const matchingRecord = chartData[metric].find(
             (record: any) =>
               record.workflow_id === entry.workflow_id &&
@@ -547,7 +404,6 @@ const MetricTable = ({
                   {metricNames
                     .filter((metric) => chartData[metric]?.length)
                     .map((metric) => {
-                      // Find the matching record for this metric based on workflow_id and other identifying properties
                       const matchingRecord = chartData[metric].find(
                         (record: any) =>
                           record.workflow_id === entry.workflow_id &&
@@ -574,16 +430,13 @@ const MetricTable = ({
   );
 };
 
-// creates chart items to visualize in the series graph, group by device name and display name
 function formGraphItem(data: any[]) {
   const res: any[] = [];
   data.forEach((item) => {
-    // Prefer minimal fields from geomean output; fall back to full objects for raw rows
     const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
     const repo =
       item?.repoTag ?? (item?.extra?.["source_repo"] as string | undefined);
-    // This is added to identify the difference between the two repos having same qps
     const repoPrefix = repo?.includes("sglang")
       ? "sglang / "
       : repo?.includes("vllm")
@@ -593,7 +446,6 @@ function formGraphItem(data: any[]) {
       deviceId && deviceId !== ""
         ? `${repoPrefix}${displayName} (${deviceId})`
         : `${repoPrefix}${displayName}`;
-    // Use shallow copy to avoid heavy deep clone cost
     res.push({ ...item, group_key });
   });
   return res;
