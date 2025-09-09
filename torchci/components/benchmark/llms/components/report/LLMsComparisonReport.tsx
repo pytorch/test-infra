@@ -1,5 +1,8 @@
 import { Stack, Typography } from "@mui/material";
-import { LLM_BENCHMARK_DATA_QUERY } from "lib/benchmark/llms/common";
+import {
+  DEFAULT_QPS_NAME,
+  LLM_BENCHMARK_DATA_QUERY,
+} from "lib/benchmark/llms/common";
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import {
@@ -104,11 +107,16 @@ export default function LLMsComparisonReport({
       extra: { ...(rec.extra || {}), source_repo: repo },
     }));
 
+  const filterByQps = (arr: any[]) =>
+    props.qps === DEFAULT_QPS_NAME
+      ? arr
+      : arr.filter((rec: any) => rec.extra?.request_rate === props.qps);
+
   const lCombined = ([] as any[]).concat(
     ...lDatas.map((d: any, idx: number) =>
       computeSpeedup(
         props.repoName,
-        tagWithRepo(d, props.repos[idx]),
+        tagWithRepo(filterByQps(d), props.repos[idx]),
         false,
         true
       )
@@ -118,7 +126,7 @@ export default function LLMsComparisonReport({
     ...rDatas.map((d: any, idx: number) =>
       computeSpeedup(
         props.repoName,
-        tagWithRepo(d, props.repos[idx]),
+        tagWithRepo(filterByQps(d), props.repos[idx]),
         false,
         true
       )
@@ -153,6 +161,7 @@ export default function LLMsComparisonReport({
         lBranchAndCommit={lBranchAndCommit}
         rBranchAndCommit={rBranchAndCommit}
         repos={props.repos}
+        qps={props.qps}
       />
       <LLMsSummaryPanel
         startTime={props.startTime}

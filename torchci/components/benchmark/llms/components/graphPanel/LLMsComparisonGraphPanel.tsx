@@ -1,7 +1,10 @@
 import { Stack, Typography } from "@mui/material";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
-import { LLM_BENCHMARK_DATA_QUERY } from "lib/benchmark/llms/common";
+import {
+  DEFAULT_QPS_NAME,
+  LLM_BENCHMARK_DATA_QUERY,
+} from "lib/benchmark/llms/common";
 import { computeSpeedup } from "lib/benchmark/llms/utils/aoUtils";
 import {
   fetchBenchmarkDataForRepos,
@@ -24,6 +27,7 @@ export default function LLMsComparisonGraphPanel({
   lBranchAndCommit,
   rBranchAndCommit,
   repos,
+  qps,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
@@ -37,6 +41,7 @@ export default function LLMsComparisonGraphPanel({
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
   repos: string[];
+  qps: string;
 }) {
   const [datasets, setDatasets] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
@@ -112,10 +117,15 @@ export default function LLMsComparisonGraphPanel({
   }
 
   const tagged = datasets.flatMap((d: any, i: number) =>
-    d.map((rec: any) => ({
-      ...rec,
-      extra: { ...(rec.extra || {}), source_repo: repos[i] },
-    }))
+    d
+      .filter(
+        (rec: any) =>
+          qps === DEFAULT_QPS_NAME || rec.extra?.request_rate === qps
+      )
+      .map((rec: any) => ({
+        ...rec,
+        extra: { ...(rec.extra || {}), source_repo: repos[i] },
+      }))
   );
   const dataWithSpeedup = computeSpeedup(
     repoName,

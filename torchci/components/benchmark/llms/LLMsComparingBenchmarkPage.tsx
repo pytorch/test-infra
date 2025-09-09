@@ -21,11 +21,14 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  DEFAULT_QPS_NAME,
   HELION_BENCHMARK_NAME,
   LLM_BENCHMARK_CONFIG_QUERY,
+  LLM_BENCHMARK_DATA_QUERY,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
+import { DropdownGroupItemType } from "lib/benchmark/llms/types/dashboardPickerTypes";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
@@ -51,6 +54,7 @@ export default function LLMsComparingBenchmarkPage() {
     dtypeName: DEFAULT_DTYPE_NAME,
     deviceName: DEFAULT_DEVICE_NAME,
     archName: DEFAULT_ARCH_NAME,
+    qps: DEFAULT_QPS_NAME,
     startTime: defaultStartTime,
     stopTime: defaultStopTime,
     timeRange: LAST_N_DAYS,
@@ -117,6 +121,7 @@ const MainPageForComparison = ({
   const [allRepoData, setAllRepoData] = useState<any[]>([]);
   const [allRepoErrors, setAllRepoErrors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [qpsOptions, setQpsOptions] = useState<string[]>([]);
   const queryParams = useMemo(
     () => getLLMsBenchmarkPropsQueryParameter(props),
     [props]
@@ -174,6 +179,56 @@ const MainPageForComparison = ({
     props.rCommit,
     props.lBranch,
     props.rBranch,
+  ]);
+
+  useEffect(() => {
+    if (props.modelName === DEFAULT_MODEL_NAME) {
+      setQpsOptions([]);
+      dispatch({ type: "UPDATE_FIELD", field: "qps", value: DEFAULT_QPS_NAME });
+      return;
+    }
+    let cancelled = false;
+    const repoQueryParams = props.repos.map((repo) => {
+      const repoSpecificProps = { ...props, repoName: repo };
+      return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
+    });
+    fetchBenchmarkDataForRepos(LLM_BENCHMARK_DATA_QUERY, repoQueryParams).then(
+      (results) => {
+        if (cancelled) {
+          return;
+        }
+        const qpsLists = results.map((r) => {
+          const data = r.data || [];
+          return _.uniq(
+            data
+              .map((rec: any) => rec.extra?.request_rate)
+              .filter((v: any) => v)
+          );
+        });
+        const shared = qpsLists.length ? _.intersection(...qpsLists) : [];
+        setQpsOptions([DEFAULT_QPS_NAME, ...shared]);
+        if (!shared.includes(props.qps)) {
+          dispatch({
+            type: "UPDATE_FIELD",
+            field: "qps",
+            value: DEFAULT_QPS_NAME,
+          });
+        }
+      }
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    props.modelName,
+    props.repos,
+    props.backendName,
+    props.modeName,
+    props.dtypeName,
+    props.deviceName,
+    props.archName,
+    props.startTime,
+    props.stopTime,
   ]);
 
   const hasError = allRepoErrors.some((error) => error);
@@ -254,6 +309,14 @@ const MainPageForComparison = ({
       options: [defaultOption, ...sharedOptions],
     };
   });
+
+  if (qpsOptions.length > 1) {
+    dropdownMapList.push({
+      type: DropdownGroupItemType.Qps,
+      labelName: "QPS",
+      options: qpsOptions,
+    });
+  }
 
   const metricNames = getMetricNames(combinedData);
   // Default to latest for Helion Benchmark, otherwise default to oldest commit
@@ -364,6 +427,11 @@ function resetProps(
     newProps.archName = archName;
   }
 
+  const qps: string = (urlQuery.qps as string) ?? undefined;
+  if (qps !== undefined) {
+    newProps.qps = qps;
+  }
+
   const lBranch: string = (urlQuery.lBranch as string) ?? undefined;
   if (lBranch !== undefined) {
     newProps.lBranch = lBranch;
@@ -435,7 +503,9 @@ const formLink = (props: LLMsBenchmarkProps, baseUrl: string) => {
         props.dtypeName
       )}&deviceName=${encodeURIComponent(
         props.deviceName
-      )}&archName=${encodeURIComponent(props.archName)}`}
+      )}&archName=${encodeURIComponent(
+        props.archName
+      )}&qps=${encodeURIComponent(props.qps)}`}
     />
   );
 };
