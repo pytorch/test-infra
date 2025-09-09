@@ -203,13 +203,16 @@ const MainPageForComparison = ({
             data
               .map((rec) => rec.extra?.request_rate)
               .filter(
-                (v): v is string | number => v !== undefined && v !== null
+                (v): v is string | number =>
+                  v !== undefined && v !== null && v !== ""
               )
               .map((v) => String(v))
           );
         });
         const shared = qpsLists.length
-          ? _.intersection<string>(...qpsLists)
+          ? _.intersection<string>(...qpsLists).sort(
+              (a, b) => Number(a) - Number(b)
+            )
           : [];
         setQpsOptions([DEFAULT_QPS_NAME, ...shared]);
         if (!shared.includes(props.qps)) {
