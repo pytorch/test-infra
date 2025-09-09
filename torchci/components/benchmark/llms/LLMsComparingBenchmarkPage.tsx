@@ -122,6 +122,7 @@ const MainPageForComparison = ({
   const [allRepoErrors, setAllRepoErrors] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [qpsOptions, setQpsOptions] = useState<string[]>([]);
+  const [modelQpsMap, setModelQpsMap] = useState<Record<string, string[]>>({});
   const queryParams = useMemo(
     () => getLLMsBenchmarkPropsQueryParameter(props),
     [props]
@@ -182,14 +183,14 @@ const MainPageForComparison = ({
   ]);
 
   useEffect(() => {
-    if (props.modelName === DEFAULT_MODEL_NAME) {
-      setQpsOptions([]);
-      dispatch({ type: "UPDATE_FIELD", field: "qps", value: DEFAULT_QPS_NAME });
-      return;
-    }
     let cancelled = false;
     const repoQueryParams = props.repos.map((repo) => {
-      const repoSpecificProps = { ...props, repoName: repo, repos: [] };
+      const repoSpecificProps = {
+        ...props,
+        repoName: repo,
+        repos: [],
+        modelName: DEFAULT_MODEL_NAME,
+      };
       return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
     });
     fetchBenchmarkDataForRepos(LLM_BENCHMARK_DATA_QUERY, repoQueryParams).then(
@@ -197,38 +198,38 @@ const MainPageForComparison = ({
         if (cancelled) {
           return;
         }
-        const qpsLists: string[][] = results.map((r) => {
+        const map: Record<string, string[]> = {};
+        results.forEach((r) => {
           const data = (r.data || []) as any[];
-          return _.uniq(
-            data
-              .map((rec) => rec.extra?.request_rate)
-              .filter(
-                (v): v is string | number =>
-                  v !== undefined && v !== null && v !== "" && !isNaN(Number(v))
-              )
-              .map((v) => String(Number(v)))
-          );
-        });
-        const shared = qpsLists.length
-          ? _.intersection<string>(...qpsLists).sort(
-              (a, b) => Number(a) - Number(b)
-            )
-          : [];
-        setQpsOptions([DEFAULT_QPS_NAME, ...shared]);
-        if (!shared.includes(props.qps)) {
-          dispatch({
-            type: "UPDATE_FIELD",
-            field: "qps",
-            value: DEFAULT_QPS_NAME,
+          const grouped = _.groupBy(data, (rec) => rec.model);
+          Object.entries(grouped).forEach(([model, recs]) => {
+            const qpsValues = _.uniq(
+              recs
+                .map((rec: any) => rec.extra?.request_rate)
+                .filter(
+                  (v): v is string | number =>
+                    v !== undefined &&
+                    v !== null &&
+                    v !== "" &&
+                    !isNaN(Number(v))
+                )
+                .map((v) => String(Number(v)))
+            );
+            map[model] = map[model]
+              ? _.intersection(map[model], qpsValues)
+              : qpsValues;
           });
-        }
+        });
+        Object.keys(map).forEach((m) =>
+          map[m].sort((a, b) => Number(a) - Number(b))
+        );
+        setModelQpsMap(map);
       }
     );
     return () => {
       cancelled = true;
     };
   }, [
-    props.modelName,
     props.repos,
     props.backendName,
     props.modeName,
@@ -237,7 +238,26 @@ const MainPageForComparison = ({
     props.archName,
     props.startTime,
     props.stopTime,
+    props.benchmarkName,
+    props.granularity,
   ]);
+
+  useEffect(() => {
+    if (props.modelName === DEFAULT_MODEL_NAME) {
+      setQpsOptions([]);
+      dispatch({ type: "UPDATE_FIELD", field: "qps", value: DEFAULT_QPS_NAME });
+      return;
+    }
+    const shared = modelQpsMap[props.modelName] || [];
+    setQpsOptions([DEFAULT_QPS_NAME, ...shared]);
+    if (!shared.includes(props.qps)) {
+      dispatch({
+        type: "UPDATE_FIELD",
+        field: "qps",
+        value: DEFAULT_QPS_NAME,
+      });
+    }
+  }, [props.modelName, modelQpsMap]);
 
   const hasError = allRepoErrors.some((error) => error);
   if (hasError) {
