@@ -1,4 +1,5 @@
-import { getCompilerBenchmarkData } from "lib/benchmark/api_helper/compilers/precompute";
+import { getCompilerBenchmarkData } from "lib/benchmark/api_helper/compilers/get_compiler_benchmark_data";
+import { CompilerQueryType } from "lib/benchmark/api_helper/compilers/type";
 import { readApiGetParams } from "lib/benchmark/api_helper/utils";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -56,7 +57,15 @@ async function getBenmarkTimeSeriesData(
 ) {
   switch (request_name) {
     case "compiler_precompute":
-      return await getCompilerBenchmarkData(query_params);
+      return await getCompilerBenchmarkData(
+        query_params,
+        CompilerQueryType.PRECOMPUTE
+      );
+    case "compiler":
+      return await getCompilerBenchmarkData(
+        query_params,
+        CompilerQueryType.GENERAL
+      );
     default:
       throw new Error(`Unsupported request_name: ${request_name}`);
   }

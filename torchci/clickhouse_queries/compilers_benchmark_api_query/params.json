@@ -4,7 +4,7 @@
     "commits": "Array(String)",
     "compilers": "Array(String)",
     "device": "String",
-    "arch": "String",
+    "arch": "Array(String)",
     "dtype": "String",
     "granularity": "String",
     "mode": "String",

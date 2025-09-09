@@ -440,8 +440,8 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
         suite: r.suite,
         workflow_id: r.workflow_id,
         job_id: r.job_id,
-        branch: r.head_branch,
-        commit: r.head_sha,
+        branch: r.branch,
+        commit: r.commit,
       };
     }
 
