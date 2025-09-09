@@ -10,7 +10,10 @@ WITH benchmarks AS (
         o.model.'backend' AS backend,
         o.model.'origins' AS origins,
         o.metric.'name' AS metric,
+        -- Arithmetic mean
         floor(arrayAvg(o.metric.'benchmark_values'), 2) AS actual,
+        -- Geometric mean
+        floor(exp(arrayAvg(arrayMap(x -> log(x), o.metric.'benchmark_values'))), 2) AS actual_geomean,
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
@@ -141,6 +144,7 @@ SELECT DISTINCT
     origins,
     metric,
     actual,
+    actual_geomean,
     target,
     mode,
     dtype,
