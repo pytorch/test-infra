@@ -162,6 +162,7 @@ class BenchmarkSummaryProcessor:
             config=config,
             regression_report=regression_report,
             db_table_name=BENCHMARK_REGRESSION_REPORT_TABLE,
+            is_dry_run=self.is_dry_run,
         )
         reportManager.run(cc, ENVS["GITHUB_TOKEN"])
         return
