@@ -60,6 +60,7 @@ export default function LLMsComparisonGraphPanel({
         backendName,
         dtypeName,
         deviceName,
+        qps,
         startTime: dayjs(startTimeParam),
         stopTime: dayjs(stopTimeParam),
         timeRange: 0,

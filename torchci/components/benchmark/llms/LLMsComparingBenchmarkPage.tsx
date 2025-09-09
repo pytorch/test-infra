@@ -204,9 +204,9 @@ const MainPageForComparison = ({
               .map((rec) => rec.extra?.request_rate)
               .filter(
                 (v): v is string | number =>
-                  v !== undefined && v !== null && v !== ""
+                  v !== undefined && v !== null && v !== "" && !isNaN(Number(v))
               )
-              .map((v) => String(v))
+              .map((v) => String(Number(v)))
           );
         });
         const shared = qpsLists.length

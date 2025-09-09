@@ -12,6 +12,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  DEFAULT_QPS_NAME,
   EXCLUDED_METRICS,
   LLM_BENCHMARK_CONFIG_QUERY,
   LLM_BENCHMARK_DATA_QUERY,
@@ -99,6 +100,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
     startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     repos: props.repos,
+    requestRate: props.qps === DEFAULT_QPS_NAME ? 0 : Number(props.qps),
   };
   return queryParams;
 }
