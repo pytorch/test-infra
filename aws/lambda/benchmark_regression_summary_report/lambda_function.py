@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
+import json
 import logging
 import os
 import threading
@@ -12,6 +13,7 @@ import requests
 from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiResponse
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
+from common.regression_utils import BenchmarkRegressionReportGenerator
 from dateutil.parser import isoparse
 
 
@@ -147,6 +149,13 @@ class BenchmarkSummaryProcessor:
             self.log_info(
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
+            return
+        generator = BenchmarkRegressionReportGenerator(
+            config=config, target_ts=target, baseline_ts=baseline
+        )
+        regression_report = generator.generate()
+        if self.is_dry_run:
+            print(json.dumps(regression_report, indent=2, default=str))
             return
         return
 
