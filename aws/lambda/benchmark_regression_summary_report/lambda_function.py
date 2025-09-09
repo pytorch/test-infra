@@ -14,6 +14,7 @@ from common.benchmark_time_series_api_model import BenchmarkTimeSeriesApiRespons
 from common.config import get_benchmark_regression_config
 from common.config_model import BenchmarkApiSource, BenchmarkConfig, Frequency
 from common.regression_utils import BenchmarkRegressionReportGenerator
+from common.report_manager import ReportManager
 from dateutil.parser import isoparse
 
 
@@ -157,6 +158,13 @@ class BenchmarkSummaryProcessor:
         if self.is_dry_run:
             print(json.dumps(regression_report, indent=2, default=str))
             return
+
+        reportManager = ReportManager(
+            config=config,
+            regression_report=regression_report,
+            db_table_name=BENCHMARK_REGRESSION_REPORT_TABLE,
+        )
+        reportManager.run(cc, ENVS["GITHUB_TOKEN"])
         return
 
     def get_target(self, config: BenchmarkConfig, end_time: int):
