@@ -197,15 +197,20 @@ const MainPageForComparison = ({
         if (cancelled) {
           return;
         }
-        const qpsLists = results.map((r) => {
-          const data = r.data || [];
+        const qpsLists: string[][] = results.map((r) => {
+          const data = (r.data || []) as any[];
           return _.uniq(
             data
-              .map((rec: any) => rec.extra?.request_rate)
-              .filter((v: any) => v)
+              .map((rec) => rec.extra?.request_rate)
+              .filter(
+                (v): v is string | number => v !== undefined && v !== null
+              )
+              .map((v) => String(v))
           );
         });
-        const shared = qpsLists.length ? _.intersection(...qpsLists) : [];
+        const shared = qpsLists.length
+          ? _.intersection<string>(...qpsLists)
+          : [];
         setQpsOptions([DEFAULT_QPS_NAME, ...shared]);
         if (!shared.includes(props.qps)) {
           dispatch({

@@ -110,7 +110,7 @@ export default function LLMsComparisonReport({
   const filterByQps = (arr: any[]) =>
     props.qps === DEFAULT_QPS_NAME
       ? arr
-      : arr.filter((rec: any) => rec.extra?.request_rate === props.qps);
+      : arr.filter((rec: any) => String(rec.extra?.request_rate) === props.qps);
 
   const lCombined = ([] as any[]).concat(
     ...lDatas.map((d: any, idx: number) =>

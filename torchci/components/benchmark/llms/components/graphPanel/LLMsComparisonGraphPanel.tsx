@@ -120,7 +120,7 @@ export default function LLMsComparisonGraphPanel({
     d
       .filter(
         (rec: any) =>
-          qps === DEFAULT_QPS_NAME || rec.extra?.request_rate === qps
+          qps === DEFAULT_QPS_NAME || String(rec.extra?.request_rate) === qps
       )
       .map((rec: any) => ({
         ...rec,
