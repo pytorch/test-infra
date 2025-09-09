@@ -241,6 +241,7 @@ class BenchmarkConfig:
     id: str
     source: BenchmarkApiSource
     policy: Policy
+    hud_info: Optional[dict[str, Any]] = None
 
 
 @dataclass

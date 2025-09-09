@@ -12,9 +12,63 @@ from common.regression_utils import (
     get_regression_status,
     PerGroupResult,
 )
+from jinja2 import Template
 
 
 logger = logging.getLogger()
+REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
+config_id: `{{ report_id }}`
+
+We have detected **{{ status }}** in benchmark results for `{{ report_id }}` (id: `{{ id }}`).
+(HUD benchmark regression page coming soon...)
+
+> **Status:** {{ status }} · **Frequency:** {{ frequency }}
+
+## Summary
+| Metric | Value |
+| :-- | --: |
+| Total | {{ summary.total_count | default(0) }} |
+| Regressions | {{ summary.regression_count | default(0) }} |
+| Suspicious | {{ summary.suspicious_count | default(0) }} |
+| No Regression | {{ summary.no_regression_count | default(0) }} |
+| Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
+
+## Data Windows
+Baseline is a single reference value (e.g., mean, max, min, latest) aggregated from the previous few days,
+used to detect regressions by comparing against metric values in the target window.
+
+### Baseline window (used to calculate baseline value)
+- **Start:** `{{ baseline.start.timestamp | default('') }}` (commit: `{{ baseline.start.commit | default('') }}`)
+- **End:** `{{ baseline.end.timestamp   | default('') }}` (commit: `{{ baseline.end.commit   | default('') }}`)
+
+### Target window (used to compare against baseline value)
+- **Start:** `{{ target.start.timestamp | default('') }}` (commit: `{{ target.start.commit | default('') }}`)
+- **End:** `{{ target.end.timestamp   | default('') }}` (commit: `{{ target.end.commit   | default('') }}`)
+
+{% if regression_items and regression_items|length > 0 %}
+## Regression Glance
+{% if url %}
+Use items below in [HUD]({{ url }}) to see regression.
+{% endif %}
+
+{% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
+{% if regression_items|length > 10 %}
+… (showing first 10 only, total {{ regression_items|length }} regressions)
+{% endif %}
+{% for item in items %}
+{% set kv = item.group_info|dictsort %}
+{{ "" }}|{% for k, _ in kv %}{{ k }} |{% endfor %}{{ "\n" -}}
+|{% for _k, _ in kv %}---|{% endfor %}{{ "\n" -}}
+|{% for _k, v in kv %}{{ v }} |{% endfor %}{{ "\n\n" -}}
+{% if item.baseline_point -%}
+- **baseline**: {{ item.baseline_point.value}},
+- **startTime**: {{ item.baseline_point.timestamp }}, **endTime**: {{ target.end.timestamp }}
+- **lcommit**: `{{ item.baseline_point.commit }}`, **rcommit**: `{{ target.end.commit }}`
+{{ "\n" }}
+{%- endif %}
+{% endfor %}
+{% endif %}
+"""
 
 
 class ReportManager:
@@ -64,10 +118,64 @@ class ReportManager:
         main method used to insert the report to db and create github comment in targeted issue
         """
         try:
-            self.insert_to_db(cc)
+            applied_insertion = self.insert_to_db(cc)
         except Exception as e:
             logger.error(f"failed to insert report to db, error: {e}")
             raise
+        if not applied_insertion:
+            logger.info("[%s] skip notification,  already exists in db", self.config_id)
+            return
+        self.notify_github_comment(github_token)
+
+    def notify_github_comment(self, github_token: str):
+        if self.status != "regression":
+            logger.info(
+                "[%s] no regression found, skip notification",
+                self.config_id,
+            )
+            return
+
+        github_notification = self.config.policy.get_github_notification_config()
+        if not github_notification:
+            logger.info(
+                "[%s] no github notification config found, skip notification",
+                self.config_id,
+            )
+            return
+        logger.info("[%s] prepareing gitub comment content", self.config_id)
+        content = self._to_markdoown()
+        if self.is_dry_run:
+            logger.info(
+                "[%s]dry run, skip sending comment to github, report(%s)",
+                self.config_id,
+                self.id,
+            )
+            logger.info("[dry run] printing comment content")
+            print(json.dumps(content, indent=2, default=str))
+            logger.info("[dry run] Done! Finish printing comment content")
+            return
+        logger.info("[%s] create comment to github issue", self.config_id)
+        github_notification.create_github_comment(content, github_token)
+        logger.info("[%s] done. comment is sent to github", self.config_id)
+
+    def _to_markdoown(self):
+        self.regression_items = self._collect_regression_items()
+        url = ""
+        if self.config.hud_info:
+            url = self.config.hud_info.get("url", "")
+
+        md = Template(REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True).render(
+            id=self.id,
+            url=url,
+            status=self.status,
+            report_id=self.config_id,
+            summary=self.report["summary"],
+            baseline=self.baseline,
+            target=self.target,
+            frequency=self.config.policy.frequency.get_text(),
+            regression_items=self.regression_items,
+        )
+        return md
 
     def _collect_regression_items(self) -> list[PerGroupResult]:
         items = []
