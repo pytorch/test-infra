@@ -32,7 +32,7 @@ jobs:
             exit 1
           fi
 
-          git stash pop pre-format || true
+          git stash pop stash^{/pre-format} || true
 
       - name: yarn prettier --check .
         run: |
