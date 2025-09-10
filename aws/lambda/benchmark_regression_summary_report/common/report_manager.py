@@ -69,7 +69,6 @@ Use items below in [HUD]({{ url }}) to see regression.
 {% endfor %}
 {% endif %}
 """
-=======
 
 
 logger = logging.getLogger()
