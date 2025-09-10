@@ -30,6 +30,7 @@ export interface JobData extends BasicJobData {
   repo?: string;
   failureAnnotation?: string;
   failedPreviousRun?: boolean;
+  runAttempt?: number;
 }
 
 // Used by Dr.CI

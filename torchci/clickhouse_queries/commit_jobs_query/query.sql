@@ -36,7 +36,8 @@ WITH job AS (
         job.torchci_classification_kg.'line_num' as line_num,
         job.torchci_classification_kg.'context' as context,
         job.runner_name AS runner_name,
-        workflow.head_commit. 'author'.'email' AS authorEmail
+        workflow.head_commit. 'author'.'email' AS authorEmail,
+        job.run_attempt AS run_attempt
     FROM
         workflow_job job final
         INNER JOIN workflow_run workflow final ON workflow.id = job.run_id
@@ -50,6 +51,10 @@ WITH job AS (
         AND (
             {workflowId: Int64} = 0
             OR workflow.id = {workflowId: Int64} -- If a specific workflow ID is provided, filter by it
+        )
+        AND (
+            {runAttempt: Int64} = 0
+            OR job.run_attempt = {runAttempt: Int64} -- If a specific run attempt
         )
         AND job.id in (select id from materialized_views.workflow_job_by_head_sha where head_sha = {sha: String})
         AND workflow.repository. 'full_name' = {repo: String } --         UNION
@@ -82,7 +87,8 @@ WITH job AS (
         0 as line_num,
         [ ] as context,
         '' AS runner_name,
-        workflow.head_commit.author.email AS authorEmail
+        workflow.head_commit.author.email AS authorEmail,
+        workflow.run_attempt as run_attempt
     FROM
         workflow_run workflow final
     WHERE
@@ -93,6 +99,10 @@ WITH job AS (
         AND (
             {workflowId: Int64} = 0
             OR workflow.id = {workflowId: Int64} -- If a specific workflow ID is provided, filter by it
+        )
+        AND (
+            {runAttempt: Int64} = 0
+            OR workflow.run_attempt = {runAttempt: Int64} -- If a specific run attempt is provided, filter by it
         )
         AND workflow.repository.full_name = {repo: String }
         AND workflow.name != 'Upload test stats while running' -- Continuously running cron job that cancels itself to avoid running concurrently
@@ -118,6 +128,7 @@ SELECT
     runner_name AS runnerName,
     authorEmail,
     time,
+    run_attempt AS runAttempt
 FROM
     job
 ORDER BY

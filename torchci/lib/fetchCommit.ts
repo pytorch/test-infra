@@ -1,6 +1,9 @@
 import _ from "lodash";
 import { Octokit } from "octokit";
-import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
+import {
+  CommitApiResponse,
+  WorkflowRunInfo,
+} from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { queryClickhouseSaved } from "./clickhouse";
 import { commitDataFromResponse, getOctokit } from "./github";
 import { removeCancelledJobAfterRetry } from "./jobUtils";
@@ -10,12 +13,14 @@ async function fetchDatabaseInfo(
   owner: string,
   repo: string,
   sha: string,
-  workflowId: number
+  workflowId: number,
+  runAttempt: number
 ) {
   const response = await queryClickhouseSaved("commit_jobs_query", {
     repo: `${owner}/${repo}`,
     sha: sha,
     workflowId,
+    runAttempt,
   });
 
   for (const row of response) {
@@ -32,16 +37,29 @@ async function fetchDatabaseInfo(
  * @param jobs
  * @returns
  */
-function getWorkflowIdsByName(jobs: JobData[]): Record<string, number[]> {
+function getWorkflowIdsByName(
+  jobs: JobData[]
+): Record<string, [WorkflowRunInfo]> {
   return _(jobs)
     .groupBy((job) => job.workflowName)
     .map((jobs, key) => {
-      const workflowIds = _(jobs)
-        .map((job) => job.workflowId)
-        .filter((id) => id !== null && id !== undefined)
-        .uniq()
+      const idAndAttempts = _(jobs)
+        .map((job) => {
+          return {
+            id: job.workflowId,
+            attempt: job.runAttempt,
+          };
+        })
+        .filter(
+          (id) =>
+            id.id !== null &&
+            id.id !== undefined &&
+            id.attempt !== null &&
+            id.attempt !== undefined
+        )
+        .uniqBy((id) => `${id.id}-${id.attempt}`)
         .value();
-      return [key, workflowIds];
+      return [key, idAndAttempts];
     })
     .fromPairs()
     .value();
@@ -60,14 +78,15 @@ export default async function fetchCommit(
   owner: string,
   repo: string,
   sha: string,
-  workflowId: number = 0
+  workflowId: number = 0,
+  runAttempt: number = 0
 ): Promise<CommitApiResponse> {
   // Retrieve commit data from GitHub
   const octokit = await getOctokit(owner, repo);
 
   const [githubResponse, response] = await Promise.all([
     octokit.rest.repos.getCommit({ owner, repo, ref: sha }),
-    await fetchDatabaseInfo(owner, repo, sha, workflowId),
+    await fetchDatabaseInfo(owner, repo, sha, workflowId, runAttempt),
   ]);
 
   let jobs = response as any[];

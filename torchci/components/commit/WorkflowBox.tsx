@@ -14,7 +14,10 @@ import {
   ListUtilizationMetadataInfoAPIResponse,
   UtilizationMetadataInfo,
 } from "lib/utilization/types";
-import { CommitApiResponse } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
+import {
+  CommitApiResponse,
+  WorkflowRunInfo,
+} from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import React, { useEffect, useState } from "react";
 import { FaInfoCircle } from "react-icons/fa";
 import useSWR from "swr";
@@ -154,18 +157,18 @@ export default function WorkflowBox({
   jobs: JobData[];
   unstableIssues: IssueData[];
   wide: boolean;
-  allWorkflowIds: number[];
+  allWorkflowIds: [WorkflowRunInfo];
   setWide: any;
   repoFullName: string;
 }) {
   const [selectedWorkflowId, setSelectedWorkflowId] = useState<
-    string | undefined
+    WorkflowRunInfo | undefined
   >(undefined);
-  const workflowId = selectedWorkflowId || jobs[0].workflowId;
+  const workflowId = selectedWorkflowId?.id || jobs[0].workflowId;
 
   const { data: jobsFromSelectedWorkflowId } = useSWR<CommitApiResponse>(
     selectedWorkflowId &&
-      `/api/${repoFullName}/commit/${jobs[0].sha}?workflowId=${selectedWorkflowId}`,
+      `/api/${repoFullName}/commit/${jobs[0].sha}?workflowId=${selectedWorkflowId.id}&runAttempt=${selectedWorkflowId.attempt}`,
     fetcher
   );
 
@@ -180,7 +183,7 @@ export default function WorkflowBox({
 
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
 
-  const { utilMetadataList } = useUtilMetadata(workflowId);
+  const { utilMetadataList } = useUtilMetadata(workflowId?.toString());
   const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
 
   const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
@@ -219,20 +222,30 @@ export default function WorkflowBox({
           <Typography fontWeight="bold" paddingBottom={2}>
             Job Status
           </Typography>
-        </Stack>
+        </Stack>{" "}
         <Stack direction="column" spacing={1}>
           <Stack direction="row" spacing={1}>
             <select
-              value={selectedWorkflowId}
+              value={
+                selectedWorkflowId
+                  ? `${selectedWorkflowId?.id} ${selectedWorkflowId?.attempt}`
+                  : ""
+              }
               onChange={(e) => {
-                setSelectedWorkflowId(e.target.value);
+                const split = e.target.value.split(" ");
+                setSelectedWorkflowId({
+                  id: parseInt(split[0]),
+                  attempt: parseInt(split[1]),
+                });
               }}
-              style={{ width: "100%" }}
             >
               <option value={""}>Select Workflow ID</option>
               {allWorkflowIds.sort().map((id) => (
-                <option key={id} value={id}>
-                  {id}
+                <option
+                  key={`${id.id} ${id.attempt}`}
+                  value={`${id.id} ${id.attempt}`}
+                >
+                  {id.id} (Attempt {id.attempt})
                 </option>
               ))}
             </select>
@@ -275,7 +288,15 @@ export default function WorkflowBox({
         </Stack>
       </Stack>
       {wide && (
-        <TestInfo workflowId={workflowId!} runAttempt={"1"} jobs={jobs} />
+        <TestInfo
+          workflowId={workflowId!.toString()}
+          runAttempt={
+            selectedWorkflowId?.attempt?.toString() ||
+            jobs[0].runAttempt?.toString() ||
+            "1"
+          }
+          jobs={jobs}
+        />
       )}
       <>
         {jobs.sort(sortJobsByConclusion).map((job) => (
