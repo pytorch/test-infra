@@ -224,6 +224,8 @@ export function computeExecutionTime(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedExecutionTime.push({
+      metric: "execution_time",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -279,6 +281,7 @@ export function computeCompilationTime(
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedCompTime.push({
       metric: "compilation_latency",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -440,8 +443,8 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
         suite: r.suite,
         workflow_id: r.workflow_id,
         job_id: r.job_id,
-        branch: r.head_branch,
-        commit: r.head_sha,
+        branch: r.branch,
+        commit: r.commit,
       };
     }
 

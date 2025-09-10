@@ -233,8 +233,8 @@ export interface BenchmarkData {
   suite: string;
   value: number;
   workflow_id: number;
-  head_sha?: string;
-  head_branch?: string;
+  commit?: string;
+  branch?: string;
 }
 
 export interface RepoBranchAndCommit {
