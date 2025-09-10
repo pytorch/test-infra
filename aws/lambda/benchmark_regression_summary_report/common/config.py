@@ -15,7 +15,6 @@ from common.config_model import (
 # their own benchmark regression config, currenlty place
 # here for lambda
 
-
 COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     name="Compiler Benchmark Regression",
     id="compiler_regression",
@@ -44,6 +43,9 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 }
                 """,
     ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/compilers",
+    },
     # set baseline from past 7 days using avg, and compare with the last 1 day
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
@@ -67,7 +69,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             "compression_ratio": RegressionPolicy(
                 name="compression_ratio",
                 condition="greater_equal",
-                threshold=0.9,
+                threshold=0.95,
                 baseline_aggregation="max",
             ),
         },
