@@ -272,6 +272,12 @@ export function to_time_series_data(
           new Date(a.granularity_bucket).getTime() -
           new Date(b.granularity_bucket).getTime()
       );
+
+    if (diffs.length > 0) {
+      console.log(
+        `we detected multiple datapoints for the same group keys ${diffs.length}`
+      );
+    }
     return {
       group_info,
       num_of_dp: ts_list.length,

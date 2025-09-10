@@ -15,7 +15,8 @@ const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
 
 export async function getCompilerBenchmarkData(
   inputparams: any,
-  type: CompilerQueryType = CompilerQueryType.PRECOMPUTE
+  type: CompilerQueryType = CompilerQueryType.PRECOMPUTE,
+  format: string = "time_series"
 ) {
   const rows = await getCompilerDataFromClickhouse(inputparams);
 
@@ -25,9 +26,9 @@ export async function getCompilerBenchmarkData(
 
   switch (type) {
     case CompilerQueryType.PRECOMPUTE:
-      return toPrecomputeCompilerData(rows, "time_series");
+      return toPrecomputeCompilerData(rows, format);
     case CompilerQueryType.GENERAL:
-      return toGeneralCompilerData(rows, "time_series");
+      return toGeneralCompilerData(rows, format);
     default:
       throw new Error(`Invalid compiler query type, got ${type}`);
   }

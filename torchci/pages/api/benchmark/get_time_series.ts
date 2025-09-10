@@ -40,10 +40,13 @@ export default async function handler(
   ) {
     return res.status(400).json({ error: "Missing parameters" });
   }
+
   // get time series data
   try {
-    const { name, query_params } = params;
-    const data = await getBenmarkTimeSeriesData(name, query_params);
+    const { name, response_format, query_params } = params;
+    const format = response_format ?? "time_series";
+
+    const data = await getBenmarkTimeSeriesData(name, query_params, format);
     return res.status(200).json({ data });
   } catch (err: any) {
     console.error("API error:", err.message);
@@ -53,18 +56,21 @@ export default async function handler(
 
 async function getBenmarkTimeSeriesData(
   request_name: string,
-  query_params: any
+  query_params: any,
+  response_format: string = "time_series"
 ) {
   switch (request_name) {
     case "compiler_precompute":
       return await getCompilerBenchmarkData(
         query_params,
-        CompilerQueryType.PRECOMPUTE
+        CompilerQueryType.PRECOMPUTE,
+        response_format
       );
     case "compiler":
       return await getCompilerBenchmarkData(
         query_params,
-        CompilerQueryType.GENERAL
+        CompilerQueryType.GENERAL,
+        response_format
       );
     default:
       throw new Error(`Unsupported request_name: ${request_name}`);

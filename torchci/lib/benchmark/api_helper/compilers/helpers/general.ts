@@ -1,4 +1,8 @@
-import { to_time_series_data, toTimeSeriesResponse } from "../../utils";
+import {
+  groupByBenchmarkData,
+  to_time_series_data,
+  toTimeSeriesResponse,
+} from "../../utils";
 
 const COMPILER_GENERAL_TS_GROUP_KEY = [
   "dtype",
@@ -11,6 +15,17 @@ const COMPILER_GENERAL_TS_GROUP_KEY = [
   "model",
 ];
 const COMPILER_GENERAL_TS_SUB_GROUP_KEY = ["workflow_id"];
+
+const COMPILER_GENERAL_TABLE_GROUP_KEY = [
+  "dtype",
+  "arch",
+  "device",
+  "mode",
+  "workflow_id",
+  "compiler",
+  "model",
+];
+const COMPILER_GENERAL_TABLE_SUB_GROUP_KEY = ["metric"];
 
 /**
  * process general compiler data without precompute or aggregation
@@ -34,6 +49,13 @@ export function toGeneralCompilerData(
         rawData,
         COMPILER_GENERAL_TS_GROUP_KEY,
         COMPILER_GENERAL_TS_SUB_GROUP_KEY
+      );
+      break;
+    case "table":
+      res = groupByBenchmarkData(
+        rawData,
+        COMPILER_GENERAL_TABLE_GROUP_KEY,
+        COMPILER_GENERAL_TABLE_SUB_GROUP_KEY
       );
       break;
     default:
