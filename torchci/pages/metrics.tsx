@@ -24,9 +24,7 @@ import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import { fetcher } from "lib/GeneralUtils";
-import { useEffect, useState
-
-} from "react";
+import { useEffect, useState } from "react";
 import { default as useSWR, default as useSWRImmutable } from "swr";
 
 const DISABLED_TESTS_CONDENSED_URL =

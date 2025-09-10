@@ -19,13 +19,17 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - run: yarn install --frozen-lockfile
       - run: yarn lint
-      - run: |
-          set -euo pipefail
+      - name: Run yarn format
+        run: |
+          set -euox pipefail
+          git --no-pager diff --color
+
           yarn format
 
           if ! git diff --quiet; then
-            git --no-pager diff
-            echo "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m' from the /torchci dir. If it doesn't work, run 'yarn install' and try again."
+            echo "❌ Formatting issues found. See the git diff below"
+            git --no-pager diff --color
+            echo -e "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m' from the /torchci dir. If it doesn't work, run 'yarn install' and try again."
             exit 1
           fi
       - name: yarn prettier --check .
