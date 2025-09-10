@@ -9,9 +9,8 @@ import os
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict
-
-from urllib.request import Request, urlopen
 from urllib.error import HTTPError
+from urllib.request import Request, urlopen
 
 from gen_historical_disabled_issue_data import format_info
 
@@ -34,7 +33,9 @@ def main() -> None:
         ) as result:
             if result.status != 200:
                 # Not sure if this is necessary but just in case
-                raise RuntimeError(f"Failed to fetch data: {result.status} {result.reason}")
+                raise RuntimeError(
+                    f"Failed to fetch data: {result.status} {result.reason}"
+                )
             json_data = json.loads(result.read().decode("utf-8"))
     except HTTPError as e:
         error_body = e.read().decode("utf-8")
