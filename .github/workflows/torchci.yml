@@ -22,19 +22,17 @@ jobs:
       - name: Run yarn format
         run: |
           set -euox pipefail
-          # Installing might change some files but I don't think we care about them
-          git stash push
-
+          git stash push -k -u -m pre-format
           yarn format
 
           if ! git diff --quiet; then
             echo "❌ Formatting issues found. See the git diff below"
             git --no-pager diff --color
             echo -e "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m' from the /torchci dir. If it doesn't work, run 'yarn install' and try again."
-            git stash pop -q   # restore original unstaged changes
             exit 1
           fi
-          git stash pop -q   # restore original unstaged changes
+
+          git stash pop pre-format || true
 
       - name: yarn prettier --check .
         run: |
