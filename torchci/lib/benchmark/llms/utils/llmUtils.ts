@@ -13,6 +13,8 @@ import {
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
   EXCLUDED_METRICS,
+  LLM_BENCHMARK_CONFIG_QUERY,
+  LLM_BENCHMARK_DATA_QUERY,
   LLMsBenchmarkData,
   REPO_TO_BENCHMARKS,
 } from "../common";
@@ -23,7 +25,7 @@ export function useBenchmark(
   queryParams: { [key: string]: any },
   branchAndCommit: BranchAndCommit
 ) {
-  const queryName: string = "oss_ci_benchmark_llms";
+  const queryName: string = LLM_BENCHMARK_DATA_QUERY;
 
   const queryParamsWithBranchAndCommit: { [key: string]: any } = queryParams;
   (queryParamsWithBranchAndCommit as { [key: string]: any })["branches"] =
@@ -96,12 +98,13 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
     repo: props.repoName,
     startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    repos: props.repos,
   };
   return queryParams;
 }
 
 export const useBenchmarkPropsData = (queryParams: any) => {
-  const queryName = "oss_ci_benchmark_names";
+  const queryName = LLM_BENCHMARK_CONFIG_QUERY;
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParams)
   )}`;
@@ -109,6 +112,22 @@ export const useBenchmarkPropsData = (queryParams: any) => {
     refreshInterval: 60 * 60 * 1000, // refresh every
   });
 };
+
+export function fetchBenchmarkDataForRepos(
+  queryName: string,
+  queryParamsList: any[]
+): Promise<{ data?: any; error?: any }[]> {
+  return Promise.all(
+    queryParamsList.map((queryParam) => {
+      const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+        JSON.stringify(queryParam)
+      )}`;
+      return fetcher(url)
+        .then((data: any) => ({ data }))
+        .catch((error: any) => ({ error }));
+    })
+  );
+}
 
 export function combineLeftAndRight(
   repoName: string,
@@ -144,6 +163,7 @@ export function combineLeftAndRight(
 
 export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
   const metricValues: { [key: string]: number[] } = {};
+  const representative: { [key: string]: LLMsBenchmarkData } = {};
   const returnedGeomean: LLMsBenchmarkData[] = [];
 
   data.forEach((r: LLMsBenchmarkData) => {
@@ -155,6 +175,7 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
     const k = `${r.granularity_bucket}+${r.workflow_id}+${r.job_id}+${r.backend}+${r.dtype}+${origins}+${r.device}+${r.arch}+${r.metric}`;
     if (!(k in metricValues)) {
       metricValues[k] = [];
+      representative[k] = r;
     }
 
     if (r.actual !== 0) {
@@ -175,6 +196,15 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
       arch,
       metric,
     ] = k.split("+");
+
+    const rep = representative[k];
+
+    // Extract only minimal fields needed for labeling to keep payloads small
+    const repoTag = (rep as any)?.extra?.["source_repo"] as string | undefined;
+    const deviceId = (rep as any)?.metadata_info?.["device_id"] as
+      | string
+      | undefined;
+
     returnedGeomean.push({
       granularity_bucket: bucket,
       model: "",
@@ -189,6 +219,9 @@ export function computeGeomean(data: LLMsBenchmarkData[], metricName: string) {
       dtype: dtype,
       device: device,
       arch: arch,
+      // Minimal metadata for downstream labeling
+      ...(repoTag ? { repoTag } : {}),
+      ...(deviceId ? { deviceId } : {}),
     });
   });
   return returnedGeomean;
@@ -277,6 +310,12 @@ const toRowData = (
     const hasL = "l" in record;
     const hasR = "r" in record;
 
+    // Parse extra info once to extract repo, vLLM fields, etc.
+    const extraInfo = JSON.parse(extra);
+
+    // Prefer source repo embedded in extra info if present
+    const sourceRepo = extraInfo["source_repo"] || repoName;
+
     if (!("metadata" in row)) {
       row["metadata"] = {
         model: model,
@@ -313,9 +352,15 @@ const toRowData = (
       arch: arch,
     };
 
-    if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
+    // Attach source repo for downstream consumers (summary/links)
+    row["sourceRepo"] = sourceRepo;
+    row["repo_name"] = sourceRepo;
+
+    if (
+      sourceRepo === "vllm-project/vllm" ||
+      sourceRepo === "sgl-project/sglang"
+    ) {
       // These fields are only available on vLLM benchmark
-      const extraInfo = JSON.parse(extra);
       row["extra"] = extraInfo;
       row["tensor_parallel_size"] = extraInfo["tensor_parallel_size"];
       row["request_rate"] = extraInfo["request_rate"];
@@ -331,7 +376,6 @@ const toRowData = (
       repoName === "pytorch/pytorch" &&
       benchmarkName === "TorchCache Benchmark"
     ) {
-      const extraInfo = JSON.parse(extra);
       row["is_dynamic"] = extraInfo["is_dynamic"];
     }
 

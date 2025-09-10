@@ -226,6 +226,8 @@ PACKAGE_ALLOW_LIST = {
         "setuptools",
         "setuptools_scm",
         "wheel",
+        "vllm",
+        "flashinfer_python",
     ]
 }
 
