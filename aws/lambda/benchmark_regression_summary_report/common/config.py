@@ -7,6 +7,7 @@ from common.config_model import (
     Policy,
     RangeConfig,
     RegressionPolicy,
+    ReportConfig,
 )
 
 
@@ -37,7 +38,6 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                     "startTime": "{{ startTime }}",
                     "stopTime": "{{ stopTime }}",
                     "suites": ["torchbench", "huggingface", "timm_models"],
-                    "workflowId": 0,
                     "branches": ["main"]
                   }
                 }
@@ -79,9 +79,9 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             "issue": "7081",
         },
     ),
-    report=ReportConfig(
-        report_level = "regression",
-    )
+    report_config=ReportConfig(
+        report_level="suspicious",
+    ),
 )
 
 BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(

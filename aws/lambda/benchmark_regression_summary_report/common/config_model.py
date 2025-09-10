@@ -227,17 +227,21 @@ class Policy:
 @dataclass
 class ReportConfig:
     """
-    decide what to include in the report
+    decide what to include in db summary report
     report_level: lowest level of regression to store in db
     """
-    report_level: Literal["no_regression","insufficient_data","suspicious","regression"] = "regression"
+
+    report_level: Literal[
+        "no_regression", "suspicious", "regression", "insufficient_data", "none"
+    ] = "regression"
 
     def get_report_orders(self) -> dict[str, int]:
         return {
             "no_regression": 0,
-            "insufficient_data": 1,
-            "suspicious": 2,
-            "regression": 3,
+            "suspicious": 1,
+            "regression": 2,
+            "insufficient_data": 3,
+            "none": 4,
         }
 
     def get_order(self) -> int:
@@ -257,12 +261,14 @@ class BenchmarkConfig:
         - name:  the name of the benchmark
         - id: the id of the benchmark, this must be unique for each benchmark, and cannot be changed once set
     """
+
     name: str
     id: str
     source: BenchmarkApiSource
     policy: Policy
     hud_info: Optional[dict[str, Any]] = None
-    report: ReportConfig = field(default_factory=ReportConfig)
+    report_config: ReportConfig = field(default_factory=ReportConfig)
+
 
 @dataclass
 class BenchmarkRegressionConfigBook:
@@ -274,9 +280,12 @@ class BenchmarkRegressionConfigBook:
             raise KeyError(f"Config {key} not found")
         return config
 
-def to_dict(x):  # handle dataclass or dict/object
+
+def to_dict(x: Any) -> Any:
     if dataclasses.is_dataclass(x):
-        return dataclasses.asdict(x)
+        return {f.name: to_dict(getattr(x, f.name)) for f in dataclasses.fields(x)}
     if isinstance(x, dict):
-        return x
-    return vars(x) if hasattr(x, "__dict__") else {"value": str(x)}
+        return {k: to_dict(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple, set)):
+        return [to_dict(v) for v in x]
+    return x  # primitive or already JSON-serializable

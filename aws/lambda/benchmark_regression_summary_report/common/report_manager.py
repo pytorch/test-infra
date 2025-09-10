@@ -5,7 +5,7 @@ import uuid
 from typing import Any, Dict
 
 import clickhouse_connect
-from common.config_model import BenchmarkConfig, Frequency, ReportConfig, to_dict
+from common.config_model import BenchmarkConfig, ReportConfig, to_dict
 from common.regression_utils import BenchmarkRegressionReport, get_regression_status
 from jinja2 import Template
 
@@ -103,7 +103,7 @@ class ReportManager:
         self.report_data = self._to_report_data(
             config_id=config.id,
             regression_report=self.raw_report,
-            config = self.config,
+            config=self.config,
             status=self.status,
         )
 
@@ -224,9 +224,10 @@ class ReportManager:
                 self.config_id,
                 self.id,
             )
-            logger.info("[dry run] printing db params data")
             if self.is_dry_run:
-                print(json.dumps(params, indent=2, default=str))
+                logger.info("[dry run] printing db params data")
+                print({k: v for k, v in params.items() if k != "report_json"})
+                print(json.dumps(self.report_data, indent=2, default=str))
             logger.info("[dry run] Done! Finish printing db params data")
             return False
         logger.info(
@@ -383,7 +384,7 @@ class ReportManager:
             "status": status,
             "report_id": config_id,
             "policy": to_dict(config.policy),
-            "report": filtered,
+            "report": to_dict(filtered),
         }
 
     def _filter_report(
