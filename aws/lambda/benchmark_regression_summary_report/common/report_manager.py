@@ -69,7 +69,10 @@ Use items below in [HUD]({{ url }}) to see regression.
 {% endfor %}
 {% endif %}
 """
+=======
 
+
+logger = logging.getLogger()
 
 class ReportManager:
     """
@@ -118,6 +121,7 @@ class ReportManager:
         main method used to insert the report to db and create github comment in targeted issue
         """
         try:
+
             applied_insertion = self.insert_to_db(cc)
         except Exception as e:
             logger.error(f"failed to insert report to db, error: {e}")

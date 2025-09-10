@@ -157,7 +157,6 @@ class BenchmarkSummaryProcessor:
         regression_report = generator.generate()
         if self.is_dry_run:
             print(json.dumps(regression_report, indent=2, default=str))
-
         reportManager = ReportManager(
             config=config,
             regression_report=regression_report,
