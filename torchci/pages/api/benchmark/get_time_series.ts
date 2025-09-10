@@ -44,7 +44,7 @@ export default async function handler(
   // get time series data
   try {
     const { name, response_format, query_params } = params;
-    const format = response_format ?? "time_series";
+    const format = response_format && response_format.length>0? response_format: "time_series";
 
     const data = await getBenmarkTimeSeriesData(name, query_params, format);
     return res.status(200).json({ data });
