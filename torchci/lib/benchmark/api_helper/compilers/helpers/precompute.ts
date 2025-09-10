@@ -10,7 +10,18 @@ import {
   toTimeSeriesResponse,
   toWorkflowIdMap,
 } from "../../utils";
-import { to_table_compiler_data, toApiArch } from "./common";
+import { toApiArch } from "./common";
+
+const COMPILER_PRECOMPUTE_TS_GROUP_KEY = [
+  "dtype",
+  "arch",
+  "device",
+  "suite",
+  "compiler",
+  "metric",
+  "mode",
+];
+const COMPILER_PRECOMPUTE_TS_SUB_GROUP_KEY = ["workflow_id"];
 
 export function toPrecomputeCompilerData(
   rawData: any[],
@@ -47,13 +58,12 @@ export function toPrecomputeCompilerData(
     case "time_series":
       res = to_time_series_data(
         all_data,
-        ["dtype", "arch", "device", "suite", "compiler", "metric", "mode"],
-        ["workflow_id"]
+        COMPILER_PRECOMPUTE_TS_GROUP_KEY,
+        COMPILER_PRECOMPUTE_TS_SUB_GROUP_KEY
       );
       break;
-    case "table":
-      res = to_table_compiler_data(all_data);
-      break;
+    default:
+      throw new Error("Invalid type");
   }
   return toTimeSeriesResponse(res, rawData.length, start_ts, end_ts);
 }
