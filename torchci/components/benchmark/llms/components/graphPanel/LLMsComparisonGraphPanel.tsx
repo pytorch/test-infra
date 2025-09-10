@@ -1,8 +1,13 @@
 import { Stack, Typography } from "@mui/material";
+import {
+  COMMIT_TO_WORKFLOW_ID,
+  WORKFLOW_ID_TO_COMMIT,
+} from "components/benchmark/BranchAndCommitPicker";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {
   DEFAULT_QPS_NAME,
+  LLM_BENCHMARK_BRANCHES_QUERY,
   LLM_BENCHMARK_DATA_QUERY,
 } from "lib/benchmark/llms/common";
 import { computeSpeedup } from "lib/benchmark/llms/utils/aoUtils";
@@ -78,12 +83,21 @@ export default function LLMsComparisonGraphPanel({
       branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
       commits: [],
     }));
-    fetchBenchmarkDataForRepos(
-      LLM_BENCHMARK_DATA_QUERY,
-      repoParamsWithBranch
-    ).then((res) => {
+    Promise.all([
+      fetchBenchmarkDataForRepos(
+        LLM_BENCHMARK_DATA_QUERY,
+        repoParamsWithBranch
+      ),
+      fetchBenchmarkDataForRepos(LLM_BENCHMARK_BRANCHES_QUERY, repoQueryParams),
+    ]).then(([dataRes, commitRes]) => {
       if (!cancelled) {
-        setDatasets(res.map((r) => r.data) as any[]);
+        setDatasets(dataRes.map((r) => r.data) as any[]);
+        commitRes.forEach((res) =>
+          res.data?.forEach((r: any) => {
+            COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
+            WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
+          })
+        );
         setLoading(false);
       }
     });
@@ -101,6 +115,7 @@ export default function LLMsComparisonGraphPanel({
     rBranchAndCommit.branch,
     startTimeParam,
     stopTimeParam,
+    qps,
   ]);
 
   if (
