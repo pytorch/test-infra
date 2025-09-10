@@ -22,6 +22,8 @@ jobs:
       - name: Run yarn format
         run: |
           set -euox pipefail
+          # Sometimes installing makes some changes and we don't want to mix it
+          # up with the yarn format result
           git stash push -k -u -m pre-format
           yarn format
 
@@ -36,7 +38,8 @@ jobs:
 
       - name: yarn prettier --check .
         run: |
-          # This should be a noop since the yarn format step should catch it but leaving it just in case
+          # This should be a noop since the yarn format step should catch it but
+          # leaving it just in case
           yarn prettier --check . || (echo -e "\033[31mERROR:\033[0m Please run '\033[33myarn format\033[0m' from the /torchci dir. If it doesn't work, run 'yarn install' and try again." && exit 1)
       - run: yarn tsc
       - run: yarn test
