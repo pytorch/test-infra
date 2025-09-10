@@ -1,7 +1,10 @@
 import {
+  computeCompilationTime,
+  computeExecutionTime,
   computeGeomean,
   computeMemoryCompressionRatio,
   computePassrate,
+  computePeakMemoryUsage,
   convertToCompilerPerformanceData,
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
@@ -54,8 +57,12 @@ export function toPrecomputeCompilerData(
   const passrate = computePassrate(data, models);
   const geomean = computeGeomean(data, models);
   const peakMemory = computeMemoryCompressionRatio(data, models);
+  const compilationTime = computeCompilationTime(data, models);
+  const executionTime = computeExecutionTime(data, models);
+  const peakMemoryUsage = computePeakMemoryUsage(data, models);
 
-  let all_data = [passrate, geomean, peakMemory].flat();
+
+  let all_data = [passrate, geomean, peakMemory, compilationTime, executionTime, peakMemoryUsage].flat();
 
   all_data = [...all_data].sort(
     (a, b) =>

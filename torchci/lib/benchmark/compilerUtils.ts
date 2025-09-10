@@ -4,7 +4,9 @@ import {
   PASSING_ACCURACY,
   SCALE,
 } from "components/benchmark/compilers/common";
+import { number } from "echarts";
 import { BenchmarkData, CompilerPerformanceData } from "lib/types";
+import { values } from "lodash";
 
 export function getPassingModels(data: CompilerPerformanceData[]) {
   const models: { [k: string]: any } = {};
@@ -224,6 +226,8 @@ export function computeExecutionTime(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedExecutionTime.push({
+      metric:"execution_time",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
@@ -279,6 +283,7 @@ export function computeCompilationTime(
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedCompTime.push({
       metric: "compilation_latency",
+      value: Number(m.toFixed(SCALE)),
       granularity_bucket: bucket,
       workflow_id: workflowId,
       suite: suite,
