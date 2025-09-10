@@ -80,7 +80,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         },
     ),
     report_config=ReportConfig(
-        report_level="suspicious",
+        report_level="no_regression",
     ),
 )
 
