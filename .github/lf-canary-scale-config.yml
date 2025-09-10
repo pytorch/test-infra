@@ -172,6 +172,11 @@ runner_types:
     instance_type: m8g.4xlarge
     is_ephemeral: true
     os: linux
+  lf.c.linux.arm64.r7g.12xlarge.memory:
+    disk_size: 600
+    instance_type: r7g.12xlarge
+    is_ephemeral: true
+    os: linux
   lf.c.linux.arm64.2xlarge.ephemeral:
     disk_size: 256
     instance_type: t4g.2xlarge
