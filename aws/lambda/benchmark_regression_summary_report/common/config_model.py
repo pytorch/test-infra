@@ -224,6 +224,25 @@ class Policy:
         return GitHubNotificationConfig.from_dict(self.notification_config)
 
 
+ReportSeverity = Literal[
+    "none",
+    "no_regression",
+    "insufficient_data",
+    "suspicious",
+    "regression",
+    "unknown",
+]
+
+SEVERITY_ORDER: dict[ReportSeverity, int] = {
+    "unknown": -1,  # fallback (bad/invalid input)
+    "none": 0,  # no report generated
+    "no_regression": 1,  # no regression
+    "insufficient_data": 2,  # weak signal
+    "suspicious": 3,  # medium signal
+    "regression": 4,  # strongest severity
+}
+
+
 @dataclass
 class ReportConfig:
     """
@@ -231,21 +250,14 @@ class ReportConfig:
     report_level: lowest level of regression to store in db
     """
 
-    report_level: Literal[
-        "no_regression", "suspicious", "regression", "insufficient_data", "none"
-    ] = "regression"
+    report_level: ReportSeverity = "regression"
 
-    def get_report_orders(self) -> dict[str, int]:
-        return {
-            "no_regression": 0,
-            "suspicious": 1,
-            "regression": 2,
-            "insufficient_data": 3,
-            "none": 4,
-        }
+    def get_severity_map(self) -> dict[ReportSeverity, int]:
+        # shadow copy is safe since this is a flat dict.
+        return SEVERITY_ORDER.copy()
 
     def get_order(self) -> int:
-        return self.get_report_orders().get(self.report_level, 0)
+        return self.get_severity_map().get(self.report_level, -1)
 
 
 # -------- Top-level benchmark regression config --------

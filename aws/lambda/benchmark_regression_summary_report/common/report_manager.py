@@ -391,8 +391,9 @@ class ReportManager:
         self, report: BenchmarkRegressionReport, report_config: ReportConfig
     ) -> dict[str, Any]:
         new_report = {k: v for k, v in report.items() if k != "results"}
-        level_order = report_config.get_report_orders()
+        level_order = report_config.get_severity_map()
         threshold = report_config.get_order()
+
         new_report["results"] = [
             r for r in report["results"] if level_order[r["label"]] >= threshold
         ]
