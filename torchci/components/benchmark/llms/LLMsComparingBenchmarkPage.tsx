@@ -190,42 +190,52 @@ const MainPageForComparison = ({
         repoName: repo,
         repos: [],
         modelName: DEFAULT_MODEL_NAME,
+        qps: DEFAULT_QPS_NAME,
       };
       return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
     });
-    fetchBenchmarkDataForRepos(LLM_BENCHMARK_DATA_QUERY, repoQueryParams).then(
-      (results) => {
-        if (cancelled) {
-          return;
-        }
-        const map: Record<string, string[]> = {};
-        results.forEach((r) => {
-          const data = (r.data || []) as any[];
-          const grouped = _.groupBy(data, (rec) => rec.model);
-          Object.entries(grouped).forEach(([model, recs]) => {
-            const qpsValues = _.uniq(
-              recs
-                .map((rec: any) => rec.extra?.request_rate)
-                .filter(
-                  (v): v is string | number =>
-                    v !== undefined &&
-                    v !== null &&
-                    v !== "" &&
-                    !isNaN(Number(v))
-                )
-                .map((v) => String(Number(v)))
-            );
-            map[model] = map[model]
-              ? _.intersection(map[model], qpsValues)
-              : qpsValues;
-          });
-        });
-        Object.keys(map).forEach((m) =>
-          map[m].sort((a, b) => Number(a) - Number(b))
-        );
-        setModelQpsMap(map);
+    const repoParamsWithBranch = repoQueryParams.map((qp) => ({
+      ...qp,
+      branches: props.rBranch ? [props.rBranch] : [],
+      commits: props.rCommit ? [props.rCommit] : [],
+    }));
+    fetchBenchmarkDataForRepos(
+      LLM_BENCHMARK_DATA_QUERY,
+      repoParamsWithBranch
+    ).then((results) => {
+      if (cancelled) {
+        return;
       }
-    );
+      const map: Record<string, string[]> = {};
+      results.forEach((r) => {
+        const data = (r.data || []) as any[];
+        const grouped = _.groupBy(data, (rec) => rec.model);
+        Object.entries(grouped).forEach(([model, recs]) => {
+          const qpsValues = _.uniq(
+            recs
+              .map((rec: any) => rec.extra?.request_rate)
+              .filter(
+                (v): v is string | number =>
+                  v !== undefined &&
+                  v !== null &&
+                  v !== "" &&
+                  (v === "inf" || !isNaN(Number(v)))
+              )
+              .map((v) => (v === "inf" ? "inf" : String(Number(v))))
+          );
+          map[model] = _.uniq([...(map[model] || []), ...qpsValues]);
+        });
+      });
+      Object.keys(map).forEach((m) =>
+        map[m].sort(
+          (a, b) =>
+            (a === "inf" ? Infinity : Number(a)) -
+            (b === "inf" ? Infinity : Number(b))
+        )
+      );
+      console.log("QPS Map: ", map);
+      setModelQpsMap(map);
+    });
     return () => {
       cancelled = true;
     };
@@ -240,6 +250,8 @@ const MainPageForComparison = ({
     props.stopTime,
     props.benchmarkName,
     props.granularity,
+    props.rBranch,
+    props.rCommit,
   ]);
 
   useEffect(() => {
