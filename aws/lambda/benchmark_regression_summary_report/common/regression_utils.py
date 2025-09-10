@@ -128,28 +128,21 @@ class BenchmarkRegressionReportGenerator:
         logger.info("Generating regression results ...")
         results: List[PerGroupResult] = []
 
+        missing_policy = set()  # for logging
+
         for key in sorted(dp_map.keys()):
             cur_item = dp_map.get(key)
             gi = cur_item["group_info"] if cur_item else {}
             points: List[Any] = cur_item["values"] if cur_item else []
 
+            policy = self._resolve_policy(metric_policies, gi.get("metric", ""))
+            if not policy:
+                missing_policy.add(gi.get("metric", ""))
+                continue
+
             base_item = baseline_map.get(key)
             if not base_item:
                 logger.warning("Skip. No baseline item found for %s", key)
-                results.append(
-                    PerGroupResult(
-                        group_info=gi,
-                        baseline_point=None,
-                        points=[],
-                        label="insufficient_data",
-                        policy=None,
-                        all_baseline_points=[],
-                    )
-                )
-                continue
-            policy = self._resolve_policy(metric_policies, gi.get("metric", ""))
-            if not policy:
-                logger.warning("No policy for %s", gi)
                 results.append(
                     PerGroupResult(
                         group_info=gi,
@@ -207,6 +200,11 @@ class BenchmarkRegressionReportGenerator:
             )
         logger.info("Done. Generated %s regression results", len(results))
         summary = self.summarize_label_counts(results)
+
+        logger.info(
+            "Found metrics existed in data, but no regression policy detected: %s",
+            missing_policy,
+        )
 
         return BenchmarkRegressionReport(
             summary=summary,

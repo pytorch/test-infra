@@ -148,10 +148,141 @@ export type CommitRow = {
   id: string;
 };
 
-export function toCommitRowMap(rows: CommitRow[]): Record<string, CommitRow> {
-  const result: Record<string, CommitRow> = {};
-  for (const row of rows) {
-    result[row.id] = row;
-  }
+export function toWorkflowIdMap(data: any[]) {
+  const commit_map = new Map<string, any>();
+  data.forEach((row) => {
+    const commit = row?.commit;
+    const branch = row?.branch;
+    const workflow_id = `${row.workflow_id}`;
+
+    if (!commit || !branch || !workflow_id) {
+      throw new Error(`failed to convert to workflowid map.
+         commit, branch, workflow_id are required fields, but
+          got ${commit}, ${branch}, ${workflow_id} from row ${row}`);
+    }
+    commit_map.set(workflow_id, {
+      commit,
+      branch,
+      workflow_id,
+    });
+  });
+
+  return commit_map;
+}
+
+export function toJobIdMap(data: any[]) {
+  const commit_map = new Map<string, any>();
+  data.forEach((row) => {
+    const commit = row?.commit;
+    const branch = row?.branch;
+    const workflow_id = `${row.workflow_id}`;
+    const job_id = `${row.job_id}`;
+
+    if (!commit || !branch || !workflow_id) {
+      throw new Error(`failed to convert to workflowid map.
+         commit, branch, workflow_id are required fields, but
+          got ${commit}, ${branch}, ${workflow_id} from row ${row}`);
+    }
+    commit_map.set(job_id, {
+      job_id,
+      workflow_id,
+      commit,
+      branch,
+    });
+  });
+
+  return commit_map;
+}
+
+export function toTimeSeriesResponse(
+  res: any[],
+  rawDataLength: number,
+  start_ts: number,
+  end_ts: number
+) {
+  const response: BenchmarkTimeSeriesResponse = {
+    total_rows: res.length,
+    total_raw_rows: rawDataLength,
+    time_range: {
+      start: new Date(start_ts).toISOString(),
+      end: new Date(end_ts).toISOString(),
+    },
+    time_series: res,
+  };
+  return response;
+}
+
+export function emptyTimeSeriesResponse() {
+  return {
+    total_rows: 0,
+    time_series: [],
+    time_range: {
+      start: new Date().toISOString(),
+      end: new Date().toISOString(),
+    },
+  };
+}
+
+export function makeGroupKey(groupInfo: GroupInfo): string {
+  // Sort keys to make it stable
+  const groupPart = Object.keys(groupInfo)
+    .sort()
+    .map((k) => `${k}=${groupInfo[k]}`)
+    .join(",");
+
+  return `${groupPart}`;
+}
+
+/**
+ * convert the group data to time series data
+ *
+ * @param data
+ * @returns
+ */
+export function to_time_series_data(
+  data: any[],
+  keys: string[],
+  sub_keys: string[]
+) {
+  const tsd = groupByBenchmarkData(data, keys, sub_keys);
+
+  let diffs: any[] = [];
+
+  const result = tsd.map((group) => {
+    const group_info = group.group_Info;
+    const sub_group_data = group.rows;
+    // extract the first data point for each sub group
+    // since we only have one datapoint for each unique workflow id with the same group info
+    const ts_list = Object.values(sub_group_data)
+      .filter((item) => item.data.length > 0)
+      .map((item) => {
+        if (item.data.length > 1) {
+          const key = makeGroupKey(group_info);
+          const sub_key = makeGroupKey(item.group_info);
+
+          diffs.push({
+            key: `${key}___${sub_key}`,
+            data: item.data,
+          });
+        }
+        return item.data[0];
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.granularity_bucket).getTime() -
+          new Date(b.granularity_bucket).getTime()
+      );
+
+    if (diffs.length > 0) {
+      console.log(
+        `we detected multiple datapoints for the same group keys ${diffs.length}`
+      );
+    }
+    return {
+      group_info,
+      num_of_dp: ts_list.length,
+      data: ts_list,
+    };
+  });
   return result;
 }
