@@ -557,6 +557,8 @@ const formLink = (props: LLMsBenchmarkProps, baseUrl: string) => {
         props.deviceName
       )}&archName=${encodeURIComponent(
         props.archName
+      )}&repos=${encodeURIComponent(
+        props.repos.join(",")
       )}&qps=${encodeURIComponent(props.qps)}`}
     />
   );
