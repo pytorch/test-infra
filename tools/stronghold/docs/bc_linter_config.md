@@ -5,8 +5,10 @@ The config enables repo‑specific path selection, rule suppression, and custom
 annotations to include/exclude specific APIs.
 
 ### Config file location
-- Place a YAML file named `.bc-linter.yml` at the repository root being linted
-  (the target repo).
+- By default the linter searches for a `.bc-linter.yml` file at the root of
+  the repository being linted.
+- Provide an alternative directory with `--config-dir` if the file lives
+  somewhere else.
 - If the file is missing or empty, defaults are applied (see below).
 
 ### Schema (YAML)

@@ -32,6 +32,12 @@ def run() -> None:
         action="store_true",
         help="Enable verbose output",
     )
+    parser.add_argument(
+        "--config-dir",
+        type=str,
+        default=None,
+        help="Directory to load .bc-linter.yml from (defaults to repository root)",
+    )
     args = parser.parse_args(sys.argv[1:])
 
     repo = api.git.Repository(pathlib.Path("."))
@@ -46,7 +52,9 @@ def run() -> None:
     print("::endgroup::")
 
     # Load config and optionally print when detected
-    cfg, cfg_status = api.config.load_config_with_status(repo.dir)
+    cfg, cfg_status = api.config.load_config_with_status(
+        repo.dir, config_dir=args.config_dir
+    )
     if cfg_status == "parsed":
         # Explicitly log successful config discovery and parsing
         print("BC-linter: Using .bc-linter.yml (parsed successfully)")

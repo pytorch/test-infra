@@ -54,15 +54,29 @@ def default_config() -> Config:
     return Config()
 
 
-def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
-    """Loads configuration from `.bc-linter.yml` in the given repository root.
+def load_config_with_status(
+    repo_root: pathlib.Path, *, config_dir: pathlib.Path | str | None = None
+) -> tuple[Config, str]:
+    """Loads configuration from `.bc-linter.yml`.
+
+    By default, configuration is loaded from the repository root.  A custom
+    configuration directory may be provided via ``config_dir`` either as an
+    absolute path or a path relative to ``repo_root``.
 
     Returns (config, status) where status is one of:
     - 'parsed'            -> config file existed and parsed successfully
     - 'default_missing'   -> no config file found
     - 'default_error'     -> file existed but YAML missing/invalid or parser unavailable
     """
-    cfg_path = repo_root / ".bc-linter.yml"
+
+    cfg_base = repo_root
+    if config_dir is not None:
+        cfg_dir_path = pathlib.Path(config_dir)
+        if not cfg_dir_path.is_absolute():
+            cfg_dir_path = repo_root / cfg_dir_path
+        cfg_base = cfg_dir_path
+
+    cfg_path = cfg_base / ".bc-linter.yml"
     if not cfg_path.exists():
         return (default_config(), "default_missing")
 
@@ -159,12 +173,16 @@ def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
     return (cfg, "parsed")
 
 
-def load_config(repo_root: pathlib.Path) -> Config:
-    """Loads configuration from `.bc-linter.yml` in the given repository root.
+def load_config(
+    repo_root: pathlib.Path, *, config_dir: pathlib.Path | str | None = None
+) -> Config:
+    """Loads configuration from `.bc-linter.yml`.
 
-    If the file does not exist or cannot be parsed, returns defaults.
+    By default the configuration file is read from the repository root; a
+    custom directory may be supplied via ``config_dir``. If the file does not
+    exist or cannot be parsed, defaults are returned.
     """
-    cfg, _ = load_config_with_status(repo_root)
+    cfg, _ = load_config_with_status(repo_root, config_dir=config_dir)
     return cfg
 
 
