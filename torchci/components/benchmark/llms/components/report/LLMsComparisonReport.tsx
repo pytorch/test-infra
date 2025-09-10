@@ -1,5 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import {
+  DEFAULT_MODEL_NAME,
   DEFAULT_QPS_NAME,
   LLM_BENCHMARK_DATA_QUERY,
 } from "lib/benchmark/llms/common";
@@ -10,6 +11,7 @@ import {
   getLLMsBenchmarkPropsQueryParameter,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
+import _ from "lodash";
 import { useEffect, useState } from "react";
 import { computeSpeedup } from "../../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsComparisonGraphPanel from "../graphPanel/LLMsComparisonGraphPanel";
@@ -63,8 +65,26 @@ export default function LLMsComparisonReport({
     Promise.all([fetchFor(lBranchAndCommit), fetchFor(rBranchAndCommit)]).then(
       ([lRes, rRes]) => {
         if (!cancelled) {
-          setLDatas(lRes as any[]);
-          setRDatas(rRes as any[]);
+          let filteredL = lRes as any[];
+          let filteredR = rRes as any[];
+          if (props.modelName === DEFAULT_MODEL_NAME) {
+            const modelLists = [...filteredL, ...filteredR].map((d: any[]) =>
+              _.uniq(
+                d
+                  .map((rec: any) => rec.model)
+                  .filter((m: any) => m !== undefined && m !== null)
+              )
+            );
+            const sharedModels = _.intersection(...modelLists);
+            const filterToShared = (arrs: any[]) =>
+              arrs.map((arr: any[]) =>
+                arr.filter((rec: any) => sharedModels.includes(rec.model))
+              );
+            filteredL = filterToShared(filteredL);
+            filteredR = filterToShared(filteredR);
+          }
+          setLDatas(filteredL);
+          setRDatas(filteredR);
           setLoading(false);
         }
       }

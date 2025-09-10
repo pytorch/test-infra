@@ -318,7 +318,7 @@ const MainPageForComparison = ({
     );
   }
 
-  const combinedData = allRepoData.flatMap((repoData, index) => {
+  let combinedData = allRepoData.flatMap((repoData, index) => {
     const repo = props.repos[index];
     return repoData.map((dataItem: any) => ({
       ...dataItem,
@@ -356,6 +356,18 @@ const MainPageForComparison = ({
       labelName: "QPS",
       options: qpsOptions,
     });
+  }
+
+  if (props.modelName === DEFAULT_MODEL_NAME) {
+    const modelDropdown = dropdownMapList.find(
+      (d) => d.type === DropdownGroupItemType.ModelName
+    );
+    if (modelDropdown) {
+      const sharedModels = modelDropdown.options.slice(1);
+      combinedData = combinedData.filter((d: any) =>
+        sharedModels.includes(d.model)
+      );
+    }
   }
 
   const metricNames = getMetricNames(combinedData);
