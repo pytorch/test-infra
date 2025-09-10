@@ -19,6 +19,7 @@ export function toGeneralCompilerData(
   const end_ts = new Date(
     rawData[rawData.length - 1].granularity_bucket
   ).getTime();
+
   rawData = rawData.map((data) => {
     return {
       ...data,
@@ -26,7 +27,6 @@ export function toGeneralCompilerData(
       arch: toApiArch(data.device, data.arch),
     };
   });
-
   let res: any[] = [];
   switch (type) {
     case "time_series":
