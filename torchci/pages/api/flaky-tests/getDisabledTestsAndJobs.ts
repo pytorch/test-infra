@@ -55,8 +55,14 @@ export default async function handler(
 ) {
   const authorization = req.headers.authorization;
   if (authorization === process.env.FLAKY_TEST_BOT_KEY) {
-    const octokit = await getOctokit(PYTORCH, PYTORCH);
-    res.status(200).json(await getDisabledTestsAndJobs(octokit));
+    try {
+      const octokit = await getOctokit(PYTORCH, PYTORCH);
+      res.status(200).json(await getDisabledTestsAndJobs(octokit));
+    } catch (err: any) {
+      res
+        .status(500)
+        .json({ error: err instanceof Error ? err.message : String(err) });
+    }
   } else {
     res.status(403).end();
   }
@@ -97,9 +103,9 @@ async function getIssues(octokit: Octokit, prefix: string) {
   } while (cursor);
 
   if (issues.length !== totalCount) {
-    console.warn(
-      `Expected ${totalCount} issues with prefix "${prefix}", but found ${issues.length}.`
-    );
+    const errString = `Expected ${totalCount} issues with prefix "${prefix}", but found ${issues.length}.`;
+    console.error(errString);
+    throw new Error(errString);
   }
 
   return issues.sort((a, b) => a.url.localeCompare(b.url));

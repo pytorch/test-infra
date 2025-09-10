@@ -9,7 +9,9 @@ import os
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict
+
 from urllib.request import Request, urlopen
+from urllib.error import HTTPError
 
 from gen_historical_disabled_issue_data import format_info
 
@@ -23,16 +25,20 @@ def dump_json(data: Dict[str, Any], filename: str):
 
 
 def main() -> None:
-    with urlopen(
-        Request(
-            f"{HUD_URL}/api/flaky-tests/getDisabledTestsAndJobs",
-            headers={"Authorization": os.environ["FLAKY_TEST_BOT_KEY"]},
-        )
-    ) as result:
-        if result.status != 200:
-            raise RuntimeError(f"Failed to fetch data: {result.status} {result.reason}")
-
-        json_data = json.loads(result.read().decode("utf-8"))
+    try:
+        with urlopen(
+            Request(
+                f"{HUD_URL}/api/flaky-tests/getDisabledTestsAndJobs",
+                headers={"Authorization": os.environ["FLAKY_TEST_BOT_KEY"]},
+            )
+        ) as result:
+            if result.status != 200:
+                # Not sure if this is necessary but just in case
+                raise RuntimeError(f"Failed to fetch data: {result.status} {result.reason}")
+            json_data = json.loads(result.read().decode("utf-8"))
+    except HTTPError as e:
+        error_body = e.read().decode("utf-8")
+        raise RuntimeError(f"HTTPError: {e.code} {e.reason} - {error_body}")
 
     dump_json(json_data["disabledTests"], "disabled-tests-condensed.json")
     dump_json(json_data["disabledJobs"], "disabled-jobs.json")
