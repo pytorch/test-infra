@@ -29,7 +29,9 @@ export async function getCompilerBenchmarkData(
   }
 }
 
-async function get_compiler_data_from_clickhouse(inputparams: any): Promise<any[]> {
+async function get_compiler_data_from_clickhouse(
+  inputparams: any
+): Promise<any[]> {
   const start = Date.now();
   const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   inputparams["arch"] = arch_list;
