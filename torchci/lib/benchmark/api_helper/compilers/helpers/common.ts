@@ -1,6 +1,4 @@
-import { OtherHouses } from "@mui/icons-material";
-import { groupByBenchmarkData, makeGroupKey } from "../../utils";
-
+import { groupByBenchmarkData } from "../../utils";
 
 export function to_table_compiler_data(data: any[]) {
   const res = groupByBenchmarkData(
@@ -27,14 +25,13 @@ export function extractBackendSqlStyle(
   return m ? m[1] : null;
 }
 
-
-export function toQueryArch(device: string, arch:string) {
+export function toQueryArch(device: string, arch: string) {
   switch (device) {
     case "rocm":
       if (arch === "mi300x") return ["mi300x", "mi325x"];
       return [arch];
     default:
-      return [arch]
+      return [arch];
   }
 }
 
@@ -42,7 +39,7 @@ export function toApiArch(device: string, arch: string): string {
   const norm = arch.toLowerCase();
   switch (device) {
     case "cpu":
-      return norm
+      return norm;
     case "cuda":
       if (norm.includes("h100")) return "h100";
       if (norm.includes("a100")) return "a100";
@@ -54,12 +51,11 @@ export function toApiArch(device: string, arch: string): string {
       if (norm.includes("mi325x")) return "mi300x";
       return norm;
     case "mps":
-      return norm
+      return norm;
     default:
       return norm;
   }
 }
-
 
 function deepDiff(obj1: any, obj2: any) {
   const diffs: string[] = [];
@@ -67,9 +63,16 @@ function deepDiff(obj1: any, obj2: any) {
   for (const key of allKeys) {
     const v1 = obj1[key];
     const v2 = obj2[key];
-    if (typeof v1 === "object" && v1 !== null && typeof v2 === "object" && v2 !== null) {
+    if (
+      typeof v1 === "object" &&
+      v1 !== null &&
+      typeof v2 === "object" &&
+      v2 !== null
+    ) {
       if (JSON.stringify(v1) !== JSON.stringify(v2)) {
-        diffs.push(`Key "${key}" differs: ${JSON.stringify(v1)} vs ${JSON.stringify(v2)}`);
+        diffs.push(
+          `Key "${key}" differs: ${JSON.stringify(v1)} vs ${JSON.stringify(v2)}`
+        );
       }
     } else if (v1 !== v2) {
       diffs.push(`Key "${key}" differs: ${v1} vs ${v2}`);

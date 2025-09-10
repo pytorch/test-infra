@@ -155,7 +155,7 @@ export function toWorkflowIdMap(data: any[]) {
     const branch = row?.branch;
     const workflow_id = `${row.workflow_id}`;
 
-    if (!commit || !branch || !workflow_id){
+    if (!commit || !branch || !workflow_id) {
       throw new Error(`failed to convert to workflowid map.
          commit, branch, workflow_id are required fields, but
           got ${commit}, ${branch}, ${workflow_id} from row ${row}`);
@@ -178,7 +178,7 @@ export function toJobIdMap(data: any[]) {
     const workflow_id = `${row.workflow_id}`;
     const job_id = `${row.job_id}`;
 
-    if (!commit || !branch || !workflow_id){
+    if (!commit || !branch || !workflow_id) {
       throw new Error(`failed to convert to workflowid map.
          commit, branch, workflow_id are required fields, but
           got ${commit}, ${branch}, ${workflow_id} from row ${row}`);
@@ -194,14 +194,12 @@ export function toJobIdMap(data: any[]) {
   return commit_map;
 }
 
-
-
 export function toTimeSeriesResponse(
   res: any[],
   rawDataLength: number,
   start_ts: number,
-  end_ts: number,
-){
+  end_ts: number
+) {
   const response: BenchmarkTimeSeriesResponse = {
     total_rows: res.length,
     total_raw_rows: rawDataLength,
@@ -225,10 +223,7 @@ export function emptyTimeSeriesResponse() {
   };
 }
 
-
-export function makeGroupKey(
-  groupInfo: GroupInfo,
-): string {
+export function makeGroupKey(groupInfo: GroupInfo): string {
   // Sort keys to make it stable
   const groupPart = Object.keys(groupInfo)
     .sort()
@@ -237,7 +232,6 @@ export function makeGroupKey(
 
   return `${groupPart}`;
 }
-
 
 /**
  * convert the group data to time series data
@@ -250,11 +244,7 @@ export function to_time_series_data(
   keys: string[],
   sub_keys: string[]
 ) {
-  const tsd = groupByBenchmarkData(
-    data,
-    keys,
-    sub_keys
-  );
+  const tsd = groupByBenchmarkData(data, keys, sub_keys);
 
   let diffs: any[] = [];
 
@@ -270,12 +260,12 @@ export function to_time_series_data(
           const key = makeGroupKey(group_info);
           const sub_key = makeGroupKey(item.group_info);
 
-        diffs.push({
-          key: `${key}___${sub_key}`,
-          data: item.data,
-        });
+          diffs.push({
+            key: `${key}___${sub_key}`,
+            data: item.data,
+          });
         }
-        return item.data[0]
+        return item.data[0];
       })
       .sort(
         (a, b) =>

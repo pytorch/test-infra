@@ -1,6 +1,10 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { emptyTimeSeriesResponse } from "../utils";
-import { extractBackendSqlStyle, toApiArch, toQueryArch } from "./helpers/common";
+import {
+  extractBackendSqlStyle,
+  toApiArch,
+  toQueryArch,
+} from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
 import { CompilerQueryType } from "./type";
@@ -15,7 +19,7 @@ export async function getCompilerBenchmarkData(
   // query from clickhouse
   const start = Date.now();
 
-  const arch_list = toQueryArch(inputparams.device, inputparams.arch)
+  const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   inputparams["arch"] = arch_list;
 
   let rows = await queryClickhouseSaved(table, inputparams);
@@ -45,10 +49,15 @@ export async function getCompilerBenchmarkData(
   // currently we only support single device and single arch
   const metadata = {
     dtype: rows[0].dtype,
-    arch:  toApiArch(rows[0].device, rows[0].arch),
+    arch: toApiArch(rows[0].device, rows[0].arch),
     mode: rows[0].mode,
-    device: rows[0].device
-  }
+    device: rows[0].device,
+  };
+
+  rows = [...rows].sort(
+    (a, b) =>
+      Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
+  );
 
   switch (type) {
     case CompilerQueryType.PRECOMPUTE:
