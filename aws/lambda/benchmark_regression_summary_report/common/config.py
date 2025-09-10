@@ -79,6 +79,9 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             "issue": "7081",
         },
     ),
+    report=ReportConfig(
+        report_level = "regression",
+    )
 )
 
 BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -223,6 +224,26 @@ class Policy:
         return GitHubNotificationConfig.from_dict(self.notification_config)
 
 
+@dataclass
+class ReportConfig:
+    """
+    decide what to include in the report
+    report_level: lowest level of regression to store in db
+    """
+    report_level: Literal["no_regression","insufficient_data","suspicious","regression"] = "regression"
+
+    def get_report_orders(self) -> dict[str, int]:
+        return {
+            "no_regression": 0,
+            "insufficient_data": 1,
+            "suspicious": 2,
+            "regression": 3,
+        }
+
+    def get_order(self) -> int:
+        return self.get_report_orders().get(self.report_level, 0)
+
+
 # -------- Top-level benchmark regression config --------
 @dataclass
 class BenchmarkConfig:
@@ -236,13 +257,12 @@ class BenchmarkConfig:
         - name:  the name of the benchmark
         - id: the id of the benchmark, this must be unique for each benchmark, and cannot be changed once set
     """
-
     name: str
     id: str
     source: BenchmarkApiSource
     policy: Policy
     hud_info: Optional[dict[str, Any]] = None
-
+    report: ReportConfig = field(default_factory=ReportConfig)
 
 @dataclass
 class BenchmarkRegressionConfigBook:
@@ -253,3 +273,10 @@ class BenchmarkRegressionConfigBook:
         if not config:
             raise KeyError(f"Config {key} not found")
         return config
+
+def to_dict(x):  # handle dataclass or dict/object
+    if dataclasses.is_dataclass(x):
+        return dataclasses.asdict(x)
+    if isinstance(x, dict):
+        return x
+    return vars(x) if hasattr(x, "__dict__") else {"value": str(x)}
