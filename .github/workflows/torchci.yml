@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euox pipefail
           # Installing might change some files but I don't think we care about them
-          git stash push -k -u -m pre-format
+          git stash push pre-format
 
           yarn format
 
