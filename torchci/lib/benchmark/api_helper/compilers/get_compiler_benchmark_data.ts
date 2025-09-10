@@ -1,6 +1,10 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { emptyTimeSeriesResponse } from "../utils";
-import { extractBackendSqlStyle, toQueryArch } from "./helpers/common";
+import {
+  extractBackendSqlStyle,
+  toApiArch,
+  toQueryArch,
+} from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
 import { CompilerQueryType } from "./type";
@@ -13,7 +17,7 @@ export async function getCompilerBenchmarkData(
   inputparams: any,
   type: CompilerQueryType = CompilerQueryType.PRECOMPUTE
 ) {
-  const rows = await get_compiler_data_from_clickhouse(inputparams);
+  const rows = await getCompilerDataFromClickhouse(inputparams);
 
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
@@ -29,9 +33,7 @@ export async function getCompilerBenchmarkData(
   }
 }
 
-async function get_compiler_data_from_clickhouse(
-  inputparams: any
-): Promise<any[]> {
+async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
   const start = Date.now();
   const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   inputparams["arch"] = arch_list;
@@ -93,8 +95,26 @@ async function get_compiler_data_from_clickhouse(
             row.mode,
             row.device
           );
-    row["backend"] = backend;
+    (row["backend"] = backend), (row["compiler"] = backend);
+    row["arch"] = toApiArch(row.device, row.arch);
   });
 
+  if (inputparams.compilers && inputparams.compilers.length > 0) {
+    rows = rows.filter((row) => {
+      return inputparams.compilers.includes(row.backend);
+    });
+  }
+
+  if (inputparams.models && inputparams.models.length > 0) {
+    rows = rows.filter((row) => {
+      return inputparams.models.includes(row.model);
+    });
+  }
+
+  if (inputparams.metrics && inputparams.metrics.length > 0) {
+    rows = rows.filter((row) => {
+      return inputparams.metrics.includes(row.metric);
+    });
+  }
   return rows;
 }

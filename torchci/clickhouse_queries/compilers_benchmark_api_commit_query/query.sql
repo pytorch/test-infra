@@ -12,6 +12,10 @@ WHERE
         has({branches: Array(String)}, replaceOne(head_branch, 'refs/heads/', ''))
         OR empty({branches: Array(String)})
     )
+    AND (
+        has({suites: Array(String) }, suite)
+        OR empty({suites: Array(String) })
+    )
     AND benchmark_dtype = {dtype: String}
     AND benchmark_mode  = {mode: String}
     AND device          = {device: String}

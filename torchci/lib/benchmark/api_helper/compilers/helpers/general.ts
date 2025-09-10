@@ -1,5 +1,4 @@
 import { to_time_series_data, toTimeSeriesResponse } from "../../utils";
-import { toApiArch } from "./common";
 
 const COMPILER_GENERAL_TS_GROUP_KEY = [
   "dtype",
@@ -28,13 +27,6 @@ export function toGeneralCompilerData(
     rawData[rawData.length - 1].granularity_bucket
   ).getTime();
 
-  rawData = rawData.map((data) => {
-    return {
-      ...data,
-      compiler: data.backend,
-      arch: toApiArch(data.device, data.arch),
-    };
-  });
   let res: any[] = [];
   switch (type) {
     case "time_series":
