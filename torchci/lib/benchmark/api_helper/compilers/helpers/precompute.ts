@@ -10,13 +10,19 @@ import {
   toTimeSeriesResponse,
   toWorkflowIdMap,
 } from "../../utils";
-import { to_table_compiler_data } from "./common";
+import { to_table_compiler_data, toApiArch } from "./common";
 
 export function toPrecomputeCompilerData(
   rawData: any[],
-  inputparams: any,
   type: string = "time_series"
 ) {
+  const metadata = {
+    dtype: rawData[0].dtype,
+    arch: toApiArch(rawData[0].device, rawData[0].arch),
+    mode: rawData[0].mode,
+    device: rawData[0].device,
+  };
+
   // get CompilerPerformanceData
   const data = convertToCompilerPerformanceData(rawData);
   const commit_map = toWorkflowIdMap(data);
@@ -35,11 +41,7 @@ export function toPrecomputeCompilerData(
   );
 
   // post process data to get start_ts and end_ts, and add commit metadata
-  const { start_ts, end_ts } = postFetchProcess(
-    all_data,
-    commit_map,
-    inputparams
-  );
+  const { start_ts, end_ts } = postFetchProcess(all_data, commit_map, metadata);
   let res: any[] = [];
   switch (type) {
     case "time_series":

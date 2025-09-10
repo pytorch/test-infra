@@ -1,33 +1,81 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { emptyTimeSeriesResponse } from "../utils";
-import {
-  extractBackendSqlStyle,
-  toApiArch,
-  toQueryArch,
-} from "./helpers/common";
+import { extractBackendSqlStyle, toQueryArch } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
 import { CompilerQueryType } from "./type";
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
+const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
+  "compilers_benchmark_api_commit_query";
 
 export async function getCompilerBenchmarkData(
   inputparams: any,
   type: CompilerQueryType = CompilerQueryType.PRECOMPUTE
 ) {
-  let table = COMPILER_BENCHMARK_TABLE_NAME;
-  // query from clickhouse
-  const start = Date.now();
+  const rows = await get_compiler_data_from_clickhouse(inputparams);
 
+  if (rows.length === 0) {
+    return emptyTimeSeriesResponse();
+  }
+
+  switch (type) {
+    case CompilerQueryType.PRECOMPUTE:
+      return toPrecomputeCompilerData(rows, "time_series");
+    case CompilerQueryType.GENERAL:
+      return toGeneralCompilerData(rows, "time_series");
+    default:
+      throw new Error(`Invalid compiler query type, got ${type}`);
+  }
+}
+
+async function get_compiler_data_from_clickhouse(inputparams: any): Promise<any[]> {
+  const start = Date.now();
   const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   inputparams["arch"] = arch_list;
 
-  let rows = await queryClickhouseSaved(table, inputparams);
+  // use the startTime and endTime to fetch commits from clickhouse if commits field is not provided
+  if (!inputparams.commits || inputparams.commits.length == 0) {
+    if (!inputparams.startTime || !inputparams.stopTime) {
+      console.log("no commits or start/end time provided in request");
+      return [];
+    }
+    // get commits from clickhouse
+    const commit_results = await queryClickhouseSaved(
+      COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+      inputparams
+    );
+    // get unique commits
+    const unique_commits = [...new Set(commit_results.map((c) => c.commit))];
+    if (unique_commits.length === 0) {
+      console.log("no commits found in clickhouse using", inputparams);
+      return [];
+    }
+
+    console.log(
+      "no commits provided in request, found unqiue commits",
+      unique_commits
+    );
+
+    if (commit_results.length > 0) {
+      inputparams["commits"] = unique_commits;
+    } else {
+      console.log(`no commits found in clickhouse using ${inputparams}`);
+      return [];
+    }
+  } else {
+    console.log("commits provided in request", inputparams.commits);
+  }
+
+  let rows = await queryClickhouseSaved(
+    COMPILER_BENCHMARK_TABLE_NAME,
+    inputparams
+  );
   const end = Date.now();
   console.log("time to get compiler timeseris data", end - start);
 
   if (rows.length === 0) {
-    return emptyTimeSeriesResponse();
+    return [];
   }
 
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
@@ -46,25 +94,5 @@ export async function getCompilerBenchmarkData(
     row["backend"] = backend;
   });
 
-  // currently we only support single device and single arch
-  const metadata = {
-    dtype: rows[0].dtype,
-    arch: toApiArch(rows[0].device, rows[0].arch),
-    mode: rows[0].mode,
-    device: rows[0].device,
-  };
-
-  rows = [...rows].sort(
-    (a, b) =>
-      Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
-  );
-
-  switch (type) {
-    case CompilerQueryType.PRECOMPUTE:
-      return toPrecomputeCompilerData(rows, metadata, "time_series");
-    case CompilerQueryType.GENERAL:
-      return toGeneralCompilerData(rows, "time_series");
-    default:
-      throw new Error(`Invalid compiler query type, got ${type}`);
-  }
+  return rows;
 }
