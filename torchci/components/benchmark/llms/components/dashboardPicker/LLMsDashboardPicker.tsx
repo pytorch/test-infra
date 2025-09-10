@@ -1,6 +1,7 @@
 import { Divider } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BranchAndCommitPicker } from "components/benchmark/BranchAndCommitPicker";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { DropdownGroupItem } from "lib/benchmark/llms/types/dashboardPickerTypes";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { Dispatch } from "react";
@@ -31,6 +32,22 @@ export const LLMsDashboardPicker = ({
   const handleChange = (key: string, newVal: any) => {
     dispatch({ type: "UPDATE_FIELD", field: key, value: newVal });
   };
+
+  // For comparison mode, only show time range picker and limited filters
+  if (props.mode === LLMsBenchmarkMode.RepoComparison) {
+    return (
+      <div>
+        <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
+          <LLMsTimeRangePicker props={props} dispatch={dispatch} />
+          <LLMsDropdownGroup
+            onChange={handleChange}
+            props={props}
+            optionListMap={options}
+          />
+        </Stack>
+      </div>
+    );
+  }
 
   return (
     <div>

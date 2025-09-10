@@ -6,34 +6,29 @@ import {
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import { queryClickhouseSaved } from "lib/clickhouse";
-import {
-  BenchmarkTimeSeriesResponse,
-  CommitRow,
-  groupByBenchmarkData,
-  toCommitRowMap,
-} from "../utils";
-
-const BENCNMARK_TABLE_NAME = "compilers_benchmark_performance";
-const BENCNMARK_COMMIT_NAME = "compilers_benchmark_performance_branches";
+import { CompilerPerformanceData } from "lib/types";
+import { BenchmarkTimeSeriesResponse, groupByBenchmarkData } from "../utils";
+//["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
+const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 
 // TODO(elainewy): improve the fetch performance
-export async function getCompilerBenchmarkData(inputparams: any) {
-  const start = Date.now();
-  const rows = await queryClickhouseSaved(BENCNMARK_TABLE_NAME, inputparams);
-  const end = Date.now();
-  console.log("time to get data", end - start);
+export async function getCompilerBenchmarkData(
+  inputparams: any,
+  query_table: string = ""
+) {
+  let table = COMPILER_BENCHMARK_TABLE_NAME;
+  if (query_table.length > 0) {
+    table = query_table;
+  }
 
-  const startc = Date.now();
-  const commits = await queryClickhouseSaved(
-    BENCNMARK_COMMIT_NAME,
-    inputparams
-  );
-  const endc = Date.now();
-  console.log("time to get commit data", endc - startc);
-  const commitMap = toCommitRowMap(commits);
+  const start = Date.now();
+  let rows = await queryClickhouseSaved(table, inputparams);
+  const end = Date.now();
+  console.log("time to get compiler timeseris data", end - start);
 
   if (rows.length === 0) {
     const response: BenchmarkTimeSeriesResponse = {
+      total_rows: 0,
       time_series: [],
       time_range: {
         start: "",
@@ -43,11 +38,26 @@ export async function getCompilerBenchmarkData(inputparams: any) {
     return response;
   }
 
+  // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
+  // TODO(elainewy): we should add this as a column in the database for less runtime logics.
+  rows.map((row) => {
+    const backend =
+      row.backend && row.backend !== ""
+        ? row.backend
+        : extractBackendSqlStyle(
+            row.output,
+            row.suite,
+            inputparams.dtype,
+            inputparams.mode,
+            inputparams.device
+          );
+    row["backend"] = backend;
+  });
+
   // TODO(elainewy): add logics to handle the case to return raw data
   const benchmark_time_series_response = toPrecomputeCompiler(
     rows,
     inputparams,
-    commitMap,
     "time_series"
   );
   return benchmark_time_series_response;
@@ -56,18 +66,16 @@ export async function getCompilerBenchmarkData(inputparams: any) {
 function toPrecomputeCompiler(
   rawData: any[],
   inputparams: any,
-  commitMap: Record<string, CommitRow>,
   type: string = "time_series"
 ) {
   const data = convertToCompilerPerformanceData(rawData);
+  const commit_map = toWorkflowIdMap(data);
   const models = getPassingModels(data);
-
   const passrate = computePassrate(data, models);
   const geomean = computeGeomean(data, models);
   const peakMemory = computeMemoryCompressionRatio(data, models);
 
   const all_data = [passrate, geomean, peakMemory].flat();
-
   const earliest_timestamp = Math.min(
     ...all_data.map((row) => new Date(row.granularity_bucket).getTime())
   );
@@ -81,9 +89,8 @@ function toPrecomputeCompiler(
     row["arch"] = inputparams["arch"];
     row["device"] = inputparams["device"];
     row["mode"] = inputparams["mode"];
-    // always keep this:
-    row["commit"] = commitMap[row["workflow_id"]]?.head_sha;
-    row["branch"] = commitMap[row["workflow_id"]]?.head_branch;
+    row["commit"] = commit_map.get(row.workflow_id)?.commit;
+    row["branch"] = commit_map.get(row.workflow_id)?.branch;
   });
 
   let res: any[] = [];
@@ -163,11 +170,44 @@ function toPrecomputeCompiler(
   }
 
   const response: BenchmarkTimeSeriesResponse = {
-    time_series: res,
+    total_rows: res.length,
+    total_raw_rows: rawData.length,
     time_range: {
       start: new Date(earliest_timestamp).toISOString(),
       end: new Date(latest_timestamp).toISOString(),
     },
+    time_series: res,
   };
   return response;
+}
+
+export function extractBackendSqlStyle(
+  output: string,
+  suite: string,
+  dtype: string,
+  mode: string,
+  device: string
+): string | null {
+  const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const tail = `_${esc(suite)}_${esc(dtype)}_${esc(mode)}_${esc(device)}_`;
+
+  const temp = output.replace(new RegExp(`${tail}.*$`), "");
+
+  const m = temp.match(/.*[\/\\]([^\/\\]+)$/);
+  return m ? m[1] : null;
+}
+
+export function toWorkflowIdMap(data: CompilerPerformanceData[]) {
+  const commit_map = new Map<string, any>();
+  data.forEach((row) => {
+    const commit = row?.commit;
+    const branch = row?.branch;
+    const workflow_id = `${row.workflow_id}`;
+    commit_map.set(workflow_id, {
+      commit,
+      branch,
+      workflow_id,
+    });
+  });
+  return commit_map;
 }

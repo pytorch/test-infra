@@ -720,11 +720,16 @@ export default function Page() {
               title={"Last docs push"}
               queryName={"last_successful_jobs"}
               metricName={"last_success_seconds_ago"}
-              valueRenderer={(value) => durationDisplay(value)}
+              getValue={(data) => data?.[0]?.last_success_seconds_ago || ">60d"}
+              valueRenderer={(value) =>
+                value === ">60d" ? value : durationDisplay(value)
+              }
               queryParams={{
                 jobNames: docsJobNames,
               }}
-              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
+              badThreshold={(value) =>
+                value === ">60d" || value > 3 * 24 * 60 * 60
+              } // 3 day
             />
           </Stack>
         </Grid>
