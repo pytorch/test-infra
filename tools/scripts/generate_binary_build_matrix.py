@@ -23,12 +23,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "test": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "13.0"],
-    "test": ["12.6", "12.8", "12.9"],
+    "test": ["12.6", "12.8", "13.0"],
     "release": ["12.6", "12.8", "12.9"],
 }
 
@@ -51,7 +51,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "12.8",
 }
 
-CUDA_AARCH64_ARCHES = ["12.9-aarch64", "13.0-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64", "13.0-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -77,7 +77,7 @@ XPU = "xpu"
 
 
 CURRENT_NIGHTLY_VERSION = "2.9.0"
-CURRENT_CANDIDATE_VERSION = "2.8.0"
+CURRENT_CANDIDATE_VERSION = "2.9.0"
 CURRENT_STABLE_VERSION = "2.8.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
