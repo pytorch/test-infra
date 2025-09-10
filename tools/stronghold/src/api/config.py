@@ -54,14 +54,8 @@ def default_config() -> Config:
     return Config()
 
 
-def load_config_with_status(
-    repo_root: pathlib.Path, *, config_dir: pathlib.Path | str | None = None
-) -> tuple[Config, str]:
-    """Loads configuration from `.bc-linter.yml`.
-
-    By default, configuration is loaded from the repository root.  A custom
-    configuration directory may be provided via ``config_dir`` either as an
-    absolute path or a path relative to ``repo_root``.
+def load_config_with_status(config_dir: pathlib.Path) -> tuple[Config, str]:
+    """Loads configuration from `.bc-linter.yml` in the given directory.
 
     Returns (config, status) where status is one of:
     - 'parsed'            -> config file existed and parsed successfully
@@ -69,14 +63,7 @@ def load_config_with_status(
     - 'default_error'     -> file existed but YAML missing/invalid or parser unavailable
     """
 
-    cfg_base = repo_root
-    if config_dir is not None:
-        cfg_dir_path = pathlib.Path(config_dir)
-        if not cfg_dir_path.is_absolute():
-            cfg_dir_path = repo_root / cfg_dir_path
-        cfg_base = cfg_dir_path
-
-    cfg_path = cfg_base / ".bc-linter.yml"
+    cfg_path = config_dir / ".bc-linter.yml"
     if not cfg_path.exists():
         return (default_config(), "default_missing")
 
@@ -173,16 +160,11 @@ def load_config_with_status(
     return (cfg, "parsed")
 
 
-def load_config(
-    repo_root: pathlib.Path, *, config_dir: pathlib.Path | str | None = None
-) -> Config:
-    """Loads configuration from `.bc-linter.yml`.
-
-    By default the configuration file is read from the repository root; a
-    custom directory may be supplied via ``config_dir``. If the file does not
-    exist or cannot be parsed, defaults are returned.
+def load_config(config_dir: pathlib.Path) -> Config:
+    """Loads configuration from `.bc-linter.yml` in the given directory.
+    If the file does not exist or cannot be parsed, returns defaults.
     """
-    cfg, _ = load_config_with_status(repo_root, config_dir=config_dir)
+    cfg, _ = load_config_with_status(config_dir)
     return cfg
 
 

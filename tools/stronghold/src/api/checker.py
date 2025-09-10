@@ -52,9 +52,13 @@ def run() -> None:
     print("::endgroup::")
 
     # Load config and optionally print when detected
-    cfg, cfg_status = api.config.load_config_with_status(
-        repo.dir, config_dir=args.config_dir
-    )
+    # By default, configuration is loaded from the repository root.  A custom
+    # configuration directory may be provided via ``config_dir`` either as an
+    # absolute path or a path relative to ``repo_root``.
+    cfg_path = pathlib.Path(args.config_dir) if args.config_dir else repo.dir
+    if not cfg_path.is_absolute():
+        cfg_path = repo.dir / cfg_path
+    cfg, cfg_status = api.config.load_config_with_status(cfg_path)
     if cfg_status == "parsed":
         # Explicitly log successful config discovery and parsing
         print("BC-linter: Using .bc-linter.yml (parsed successfully)")
