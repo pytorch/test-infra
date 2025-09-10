@@ -61,8 +61,14 @@ export function toPrecomputeCompilerData(
   const executionTime = computeExecutionTime(data, models);
   const peakMemoryUsage = computePeakMemoryUsage(data, models);
 
-
-  let all_data = [passrate, geomean, peakMemory, compilationTime, executionTime, peakMemoryUsage].flat();
+  let all_data = [
+    passrate,
+    geomean,
+    peakMemory,
+    compilationTime,
+    executionTime,
+    peakMemoryUsage,
+  ].flat();
 
   all_data = [...all_data].sort(
     (a, b) =>
