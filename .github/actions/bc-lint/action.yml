@@ -71,7 +71,7 @@ runs:
             --base-commit=${{ inputs.base_sha }} \
             --head-commit=${{ steps.merge_changes.outputs.new_head_sha }} \
             ${{ inputs.suppression == 'true' && '--suppressed' || '' }} \
-            ${{ inputs.config_dir != '' && '--config-dir=' + inputs.config_dir || '' }}
+            ${{ inputs.config_dir != '' && format('--config-dir={0}', inputs.config_dir) || '' }}
 
     - name: Display documentation link if failed
       if: ${{ failure() && inputs.docs_link }}
