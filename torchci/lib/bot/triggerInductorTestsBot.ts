@@ -39,6 +39,12 @@ export default function triggerInductorTestsBot(app: Probot): void {
         }
 
         try {
+          await ctx.octokit.issues.createComment({
+            owner: ctx.payload.repository.owner.login,
+            repo: ctx.payload.repository.name,
+            issue_number: ctx.payload.issue.number,
+            body: `Attempting to launch workflow with pytorch commit: ${pytorchCommit} and triton commit: ${tritonCommit}`,
+          });
           await ctx.octokit.actions.createWorkflowDispatch({
             owner: workflow_owner,
             repo: workflow_repo,
