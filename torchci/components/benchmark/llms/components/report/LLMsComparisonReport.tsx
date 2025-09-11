@@ -7,12 +7,12 @@ import {
 import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import {
-  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
+  useBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
 import _ from "lodash";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { computeSpeedup } from "../../../../../lib/benchmark/llms/utils/aoUtils";
 import LLMsComparisonGraphPanel from "../graphPanel/LLMsComparisonGraphPanel";
 import LLMsSummaryPanel from "../LLMsSummaryPanel";
@@ -35,82 +35,89 @@ export default function LLMsComparisonReport({
     commit: props.rCommit,
   };
 
-  const [lDatas, setLDatas] = useState<any[]>([]);
-  const [rDatas, setRDatas] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
+  const repoQueryParams = useMemo(
+    () =>
+      props.repos.map((repo) =>
+        getLLMsBenchmarkPropsQueryParameter({
+          ...props,
+          repoName: repo,
+          repos: [],
+        })
+      ),
+    [
+      props.repos,
+      props.benchmarkName,
+      props.modelName,
+      props.backendName,
+      props.dtypeName,
+      props.deviceName,
+      props.startTime,
+      props.stopTime,
+      props.granularity,
+      props.qps,
+      props.archName,
+      props.modeName,
+      props.repoName,
+    ]
+  );
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const repoQueryParams = props.repos.map((repo) =>
-      getLLMsBenchmarkPropsQueryParameter({
-        ...props,
-        repoName: repo,
-        repos: [],
-      })
-    );
-
-    const fetchFor = (branchAndCommit: BranchAndCommit) => {
-      const repoParams = repoQueryParams.map((qp) => ({
+  const lRepoParams = useMemo(
+    () =>
+      repoQueryParams.map((qp) => ({
         ...qp,
-        branches: branchAndCommit.branch ? [branchAndCommit.branch] : [],
-        commits: branchAndCommit.commit ? [branchAndCommit.commit] : [],
-      }));
-      return fetchBenchmarkDataForRepos(
-        LLM_BENCHMARK_DATA_QUERY,
-        repoParams
-      ).then((res) => res.map((r) => r.data));
-    };
+        branches: lBranchAndCommit.branch ? [lBranchAndCommit.branch] : [],
+        commits: lBranchAndCommit.commit ? [lBranchAndCommit.commit] : [],
+      })),
+    [repoQueryParams, lBranchAndCommit.branch, lBranchAndCommit.commit]
+  );
+  const rRepoParams = useMemo(
+    () =>
+      repoQueryParams.map((qp) => ({
+        ...qp,
+        branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
+        commits: rBranchAndCommit.commit ? [rBranchAndCommit.commit] : [],
+      })),
+    [repoQueryParams, rBranchAndCommit.branch, rBranchAndCommit.commit]
+  );
 
-    Promise.all([fetchFor(lBranchAndCommit), fetchFor(rBranchAndCommit)]).then(
-      ([lRes, rRes]) => {
-        if (!cancelled) {
-          let filteredL = lRes as any[];
-          let filteredR = rRes as any[];
-          if (props.modelName === DEFAULT_MODEL_NAME) {
-            const modelLists = [...filteredL, ...filteredR].map((d: any[]) =>
-              _.uniq(
-                d
-                  .map((rec: any) => rec.model)
-                  .filter((m: any) => m !== undefined && m !== null)
-              )
-            );
-            const sharedModels = _.intersection(...modelLists);
-            const filterToShared = (arrs: any[]) =>
-              arrs.map((arr: any[]) =>
-                arr.filter((rec: any) => sharedModels.includes(rec.model))
-              );
-            filteredL = filterToShared(filteredL);
-            filteredR = filterToShared(filteredR);
-          }
-          setLDatas(filteredL);
-          setRDatas(filteredR);
-          setLoading(false);
-        }
-      }
+  const { data: lRes } = useBenchmarkDataForRepos(
+    LLM_BENCHMARK_DATA_QUERY,
+    lRepoParams
+  );
+  const { data: rRes } = useBenchmarkDataForRepos(
+    LLM_BENCHMARK_DATA_QUERY,
+    rRepoParams
+  );
+  const lError = lRes?.find(
+    (r: any): r is { error: any } => "error" in r
+  )?.error;
+  const rError = rRes?.find(
+    (r: any): r is { error: any } => "error" in r
+  )?.error;
+  let lDatas = lRes?.map((r: any) => r.data) || [];
+  let rDatas = rRes?.map((r: any) => r.data) || [];
+  if (lRes && rRes && props.modelName === DEFAULT_MODEL_NAME) {
+    const modelLists = [...lDatas, ...rDatas].map((d: any[]) =>
+      _.uniq(
+        d
+          .map((rec: any) => rec.model)
+          .filter((m: any) => m !== undefined && m !== null)
+      )
     );
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    props.repos,
-    props.lBranch,
-    props.lCommit,
-    props.rBranch,
-    props.rCommit,
-    props.benchmarkName,
-    props.modelName,
-    props.backendName,
-    props.dtypeName,
-    props.deviceName,
-    props.startTime,
-    props.stopTime,
-    props.granularity,
-  ]);
+    const sharedModels = _.intersection(...modelLists);
+    const filterToShared = (arrs: any[]) =>
+      arrs.map((arr: any[]) =>
+        arr.filter((rec: any) => sharedModels.includes(rec.model))
+      );
+    lDatas = filterToShared(lDatas);
+    rDatas = filterToShared(rDatas);
+  }
 
   if (
-    loading ||
+    lError ||
+    rError ||
+    !lRes ||
+    !rRes ||
     lDatas.length !== props.repos.length ||
     rDatas.length !== props.repos.length ||
     lDatas.some((d: any) => !d || d.length === 0) ||
@@ -119,7 +126,9 @@ export default function LLMsComparisonReport({
     return (
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading comparison records for {props.modelName}...
+          {lError || rError
+            ? `Failed to load comparison records for ${props.modelName}`
+            : `Loading comparison records for ${props.modelName}...`}
         </Typography>
       </Stack>
     );

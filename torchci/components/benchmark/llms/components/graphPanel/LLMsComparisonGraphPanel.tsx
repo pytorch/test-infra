@@ -12,11 +12,11 @@ import {
 } from "lib/benchmark/llms/common";
 import { computeSpeedup } from "lib/benchmark/llms/utils/aoUtils";
 import {
-  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
+  useBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { BranchAndCommit } from "lib/types";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 import LLMsGraphPanelBase from "./LLMsGraphPanelBase";
 
 export default function LLMsComparisonGraphPanel({
@@ -48,85 +48,99 @@ export default function LLMsComparisonGraphPanel({
   repos: string[];
   qps: string;
 }) {
-  const [datasets, setDatasets] = useState<any[]>([]);
-  const [loading, setLoading] = useState<boolean>(false);
-
   const startTimeParam = queryParams["startTime"];
   const stopTimeParam = queryParams["stopTime"];
 
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    const repoQueryParams = repos.map((r) =>
-      getLLMsBenchmarkPropsQueryParameter({
-        repoName: r,
-        benchmarkName,
-        modelName,
-        backendName,
-        dtypeName,
-        deviceName,
-        qps,
-        startTime: dayjs(startTimeParam),
-        stopTime: dayjs(stopTimeParam),
-        timeRange: 0,
-        granularity: granularity,
-        lCommit: "",
-        rCommit: "",
-        lBranch: rBranchAndCommit.branch,
-        rBranch: rBranchAndCommit.branch,
-        repos: [],
-      } as any)
-    );
-
-    const repoParamsWithBranch = repoQueryParams.map((qp) => ({
-      ...qp,
-      branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
-      commits: [],
-    }));
-    Promise.all([
-      fetchBenchmarkDataForRepos(
-        LLM_BENCHMARK_DATA_QUERY,
-        repoParamsWithBranch
+  const repoQueryParams = useMemo(
+    () =>
+      repos.map((r) =>
+        getLLMsBenchmarkPropsQueryParameter({
+          repoName: r,
+          benchmarkName,
+          modelName,
+          backendName,
+          dtypeName,
+          deviceName,
+          qps,
+          startTime: dayjs(startTimeParam),
+          stopTime: dayjs(stopTimeParam),
+          timeRange: 0,
+          granularity: granularity,
+          lCommit: "",
+          rCommit: "",
+          lBranch: rBranchAndCommit.branch,
+          rBranch: rBranchAndCommit.branch,
+          repos: [],
+        } as any)
       ),
-      fetchBenchmarkDataForRepos(LLM_BENCHMARK_BRANCHES_QUERY, repoQueryParams),
-    ]).then(([dataRes, commitRes]) => {
-      if (!cancelled) {
-        setDatasets(dataRes.map((r) => r.data) as any[]);
-        commitRes.forEach((res) =>
-          res.data?.forEach((r: any) => {
-            COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
-            WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
-          })
-        );
-        setLoading(false);
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    repos,
-    benchmarkName,
-    modelName,
-    backendName,
-    dtypeName,
-    deviceName,
-    granularity,
-    rBranchAndCommit.branch,
-    startTimeParam,
-    stopTimeParam,
-    qps,
-  ]);
+    [
+      repos,
+      benchmarkName,
+      modelName,
+      backendName,
+      dtypeName,
+      deviceName,
+      qps,
+      startTimeParam,
+      stopTimeParam,
+      granularity,
+      rBranchAndCommit.branch,
+    ]
+  );
+
+  const repoParamsWithBranch = useMemo(
+    () =>
+      repoQueryParams.map((qp) => ({
+        ...qp,
+        branches: rBranchAndCommit.branch ? [rBranchAndCommit.branch] : [],
+        commits: [],
+      })),
+    [repoQueryParams, rBranchAndCommit.branch]
+  );
+
+  const { data: datasetResults } = useBenchmarkDataForRepos(
+    LLM_BENCHMARK_DATA_QUERY,
+    repoParamsWithBranch
+  );
+  const { data: commitResults } = useBenchmarkDataForRepos(
+    LLM_BENCHMARK_BRANCHES_QUERY,
+    repoQueryParams
+  );
+
+  const datasets = datasetResults?.map((r: any) => r.data);
+  const dataError = datasetResults?.find(
+    (r: any): r is { error: any } => "error" in r
+  )?.error;
+  const commitData = commitResults?.map((r: any) => r.data);
+  const commitError = commitResults?.find(
+    (r: any): r is { error: any } => "error" in r
+  )?.error;
+
+  useEffect(() => {
+    if (!commitData) {
+      return;
+    }
+    commitData.forEach((res: any) =>
+      res?.forEach((r: any) => {
+        COMMIT_TO_WORKFLOW_ID[r.head_sha] = r.id;
+        WORKFLOW_ID_TO_COMMIT[r.id] = r.head_sha;
+      })
+    );
+  }, [commitData]);
 
   if (
-    loading ||
+    dataError ||
+    commitError ||
+    !datasets ||
     datasets.length !== repos.length ||
     datasets.some((d) => !d || d.length === 0)
   ) {
     return (
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
         <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading chart for {modelName}...
+          {dataError || commitError
+            ? `Failed to load chart for ${modelName}...`
+            : `Loading chart for ${modelName}...`}
         </Typography>
       </Stack>
     );

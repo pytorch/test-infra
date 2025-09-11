@@ -32,8 +32,8 @@ import { DropdownGroupItemType } from "lib/benchmark/llms/types/dashboardPickerT
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
-  fetchBenchmarkDataForRepos,
   getLLMsBenchmarkPropsQueryParameter,
+  useBenchmarkDataForRepos,
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
@@ -118,15 +118,45 @@ const MainPageForComparison = ({
   dispatch: React.Dispatch<any>;
 }) => {
   const [baseUrl, setBaseUrl] = useState<string>("");
-  const [allRepoData, setAllRepoData] = useState<any[]>([]);
-  const [allRepoErrors, setAllRepoErrors] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [qpsOptions, setQpsOptions] = useState<string[]>([]);
   const [modelQpsMap, setModelQpsMap] = useState<Record<string, string[]>>({});
   const queryParams = useMemo(
     () => getLLMsBenchmarkPropsQueryParameter(props),
     [props]
   );
+
+  const repoQueryParams = useMemo(
+    () =>
+      props.repos.map((repo) => {
+        const repoSpecificProps = { ...props, repoName: repo, repos: [] };
+        return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
+      }),
+    [
+      props.repos,
+      props.benchmarkName,
+      props.modelName,
+      props.backendName,
+      props.modeName,
+      props.dtypeName,
+      props.deviceName,
+      props.archName,
+      props.startTime,
+      props.stopTime,
+      props.granularity,
+      props.lCommit,
+      props.rCommit,
+      props.lBranch,
+      props.rBranch,
+    ]
+  );
+
+  const { data: configResults } = useBenchmarkDataForRepos(
+    LLM_BENCHMARK_CONFIG_QUERY,
+    repoQueryParams
+  );
+  const allRepoData = configResults?.map((r: any) => r.data) || [];
+  const allRepoErrors = configResults?.map((r: any) => r.error) || [];
+  const isLoading = !configResults;
 
   useEffect(() => {
     const newProps = resetProps(
@@ -143,115 +173,84 @@ const MainPageForComparison = ({
     );
   }, [router.query]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const repoQueryParams = props.repos.map((repo) => {
-      const repoSpecificProps = { ...props, repoName: repo, repos: [] };
-      return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
-    });
-    setIsLoading(true);
-    fetchBenchmarkDataForRepos(
-      LLM_BENCHMARK_CONFIG_QUERY,
-      repoQueryParams
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
-      setAllRepoData(results.map((r) => r.data));
-      setAllRepoErrors(results.map((r) => r.error));
-      setIsLoading(false);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    props.repos,
-    props.benchmarkName,
-    props.modelName,
-    props.backendName,
-    props.modeName,
-    props.dtypeName,
-    props.deviceName,
-    props.archName,
-    props.startTime,
-    props.stopTime,
-    props.granularity,
-    props.lCommit,
-    props.rCommit,
-    props.lBranch,
-    props.rBranch,
-  ]);
+  // Data fetching handled by useBenchmarkDataForRepos
+
+  const modelQpsQueryParams = useMemo(
+    () =>
+      props.repos.map((repo) => {
+        const repoSpecificProps = {
+          ...props,
+          repoName: repo,
+          repos: [],
+          modelName: DEFAULT_MODEL_NAME,
+          qps: DEFAULT_QPS_NAME,
+        };
+        return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
+      }),
+    [
+      props.repos,
+      props.backendName,
+      props.modeName,
+      props.dtypeName,
+      props.deviceName,
+      props.archName,
+      props.startTime,
+      props.stopTime,
+      props.benchmarkName,
+      props.granularity,
+      props.rBranch,
+      props.rCommit,
+    ]
+  );
+
+  const modelQpsParamsWithBranch = useMemo(
+    () =>
+      modelQpsQueryParams.map((qp) => ({
+        ...qp,
+        branches: props.rBranch ? [props.rBranch] : [],
+        commits: props.rCommit ? [props.rCommit] : [],
+      })),
+    [modelQpsQueryParams, props.rBranch, props.rCommit]
+  );
+
+  const { data: modelQpsResults } = useBenchmarkDataForRepos(
+    LLM_BENCHMARK_DATA_QUERY,
+    modelQpsParamsWithBranch
+  );
 
   useEffect(() => {
-    let cancelled = false;
-    const repoQueryParams = props.repos.map((repo) => {
-      const repoSpecificProps = {
-        ...props,
-        repoName: repo,
-        repos: [],
-        modelName: DEFAULT_MODEL_NAME,
-        qps: DEFAULT_QPS_NAME,
-      };
-      return getLLMsBenchmarkPropsQueryParameter(repoSpecificProps);
-    });
-    const repoParamsWithBranch = repoQueryParams.map((qp) => ({
-      ...qp,
-      branches: props.rBranch ? [props.rBranch] : [],
-      commits: props.rCommit ? [props.rCommit] : [],
-    }));
-    fetchBenchmarkDataForRepos(
-      LLM_BENCHMARK_DATA_QUERY,
-      repoParamsWithBranch
-    ).then((results) => {
-      if (cancelled) {
-        return;
-      }
-      const map: Record<string, string[]> = {};
-      results.forEach((r) => {
-        const data = (r.data || []) as any[];
-        const grouped = _.groupBy(data, (rec) => rec.model);
-        Object.entries(grouped).forEach(([model, recs]) => {
-          const qpsValues = _.uniq(
-            recs
-              .map((rec: any) => rec.extra?.request_rate)
-              .filter(
-                (v): v is string | number =>
-                  v !== undefined &&
-                  v !== null &&
-                  v !== "" &&
-                  (v === "inf" || !isNaN(Number(v)))
-              )
-              .map((v) => (v === "inf" ? "inf" : String(Number(v))))
-          );
-          map[model] = _.uniq([...(map[model] || []), ...qpsValues]);
-        });
+    if (!modelQpsResults) {
+      return;
+    }
+    const map: Record<string, string[]> = {};
+    modelQpsResults.forEach((r: any) => {
+      const data = (r.data || []) as any[];
+      const grouped = _.groupBy(data, (rec) => rec.model);
+      Object.entries(grouped).forEach(([model, recs]) => {
+        const qpsValues = _.uniq(
+          recs
+            .map((rec: any) => rec.extra?.request_rate)
+            .filter(
+              (v): v is string | number =>
+                v !== undefined &&
+                v !== null &&
+                v !== "" &&
+                (v === "inf" || !isNaN(Number(v)))
+            )
+            .map((v) => (v === "inf" ? "inf" : String(Number(v))))
+        );
+        map[model] = _.uniq([...(map[model] || []), ...qpsValues]);
       });
-      Object.keys(map).forEach((m) =>
-        map[m].sort(
-          (a, b) =>
-            (a === "inf" ? Infinity : Number(a)) -
-            (b === "inf" ? Infinity : Number(b))
-        )
-      );
-      setModelQpsMap(map);
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    props.repos,
-    props.backendName,
-    props.modeName,
-    props.dtypeName,
-    props.deviceName,
-    props.archName,
-    props.startTime,
-    props.stopTime,
-    props.benchmarkName,
-    props.granularity,
-    props.rBranch,
-    props.rCommit,
-  ]);
+    Object.keys(map).forEach((m) =>
+      map[m].sort(
+        (a, b) =>
+          (a === "inf" ? Infinity : Number(a)) -
+          (b === "inf" ? Infinity : Number(b))
+      )
+    );
+    setModelQpsMap(map);
+  }, [modelQpsResults]);
 
   useEffect(() => {
     if (props.modelName === DEFAULT_MODEL_NAME) {
