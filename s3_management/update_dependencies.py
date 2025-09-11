@@ -127,11 +127,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "12.9.1.4",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cublas": [
         {
