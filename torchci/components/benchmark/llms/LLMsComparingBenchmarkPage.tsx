@@ -233,7 +233,6 @@ const MainPageForComparison = ({
             (b === "inf" ? Infinity : Number(b))
         )
       );
-      console.log("QPS Map: ", map);
       setModelQpsMap(map);
     });
     return () => {
