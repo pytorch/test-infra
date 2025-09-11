@@ -29,7 +29,7 @@ const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
 const GROUP_OTHER_VIABLE_STRICT_BLOCKING = "Other viable/strict blocking";
 const GROUP_XPU = "XPU";
-const GROUP_VLLM= "vLLM";
+const GROUP_VLLM = "vLLM";
 const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
