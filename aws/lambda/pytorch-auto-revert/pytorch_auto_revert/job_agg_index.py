@@ -31,6 +31,22 @@ class SignalStatus(Enum):
 class JobMeta:
     """
     Group-level aggregation over one or more JobRow records.
+
+    Fields:
+    - started_at: Earliest non-None `started_at` timestamp among grouped rows.
+      Used to order events within a SignalCommit (older → newer by start time).
+    - is_pending: True if any grouped row is pending (not completed or with empty
+      conclusion due to keep-going). If True and no failures/success-all, overall
+      status resolves to PENDING.
+    - is_cancelled: True if any grouped row is cancelled. Cancelled groups are
+      treated as "missing" (no event), i.e., `status` returns None.
+    - has_failures: True if any grouped row is a failure (KG-adjusted conclusion).
+      If True, overall status resolves to FAILURE.
+    - all_completed_success: True if all grouped rows completed successfully. If
+      True (and there are no failures), overall status resolves to SUCCESS.
+    - has_non_test_failures: True if any failure is not classified as a test
+      failure. Used by the extractor to keep non-test job signals while omitting
+      job signals accounted for by per-test signals.
     """
 
     started_at: Optional[datetime] = None
@@ -152,21 +168,15 @@ class JobAggIndex(Generic[KeyT]):
         times = [r.started_at for r in jrows if r.started_at is not None]
         started_at = min(times) if times else None
 
-        is_pending = any(r.is_pending for r in jrows)
-        is_cancelled = any(r.is_cancelled for r in jrows)
-        has_failures = any(r.is_failure for r in jrows)
-        all_completed_success = all(r.is_success for r in jrows)
-        has_non_test_failures = any(
-            (r.is_failure and not r.is_test_failure) for r in jrows
-        )
-
         meta = JobMeta(
             started_at=started_at,
-            is_pending=is_pending,
-            is_cancelled=is_cancelled,
-            has_failures=has_failures,
-            all_completed_success=all_completed_success,
-            has_non_test_failures=has_non_test_failures,
+            is_pending=(any(r.is_pending for r in jrows)),
+            is_cancelled=(any(r.is_cancelled for r in jrows)),
+            has_failures=(any(r.is_failure for r in jrows)),
+            all_completed_success=(all(r.is_success for r in jrows)),
+            has_non_test_failures=(
+                any((r.is_failure and not r.is_test_failure) for r in jrows)
+            ),
         )
         self._meta_cache[key] = meta
         return meta
@@ -175,28 +185,28 @@ class JobAggIndex(Generic[KeyT]):
         self, key_fn: Callable[[JobRow], K2], value_fn: Callable[[JobRow], K3]
     ) -> DefaultDict[K2, List[K3]]:
         """
-        Convenience wrapper around enumerate() to directly extract distinct mapped values.
+        Convenience: build an alternate grouping and collect distinct mapped
+        values from the original rows (not from the group keys), preserving
+        first appearance order within each bucket.
 
-        Each K2 bucket collects unique K3 values in the order of their **first appearance**
-        in the original input. A given K3 appears at most once per bucket.
-
-        Example: job ids grouped by (sha, workflow, base):
+        Example (job ids grouped by (sha, workflow, base)):
             groups = idx.enumerate_keys(
                 key_fn=lambda r: (r.head_sha, r.workflow_name, base_name_fn(r.name)),
                 value_fn=lambda r: r.job_id,
             )
             job_ids: list[JobId] = groups[(sha, wf_name, base_name)]
-
         """
-        full = self.enumerate(key_fn)
         out: DefaultDict[K2, List[K3]] = defaultdict(list)
-        for k2, rows in full.items():
-            seen: set[K3] = set()
-            for r in rows:
-                v3 = value_fn(r)
-                if v3 not in seen:
-                    out[k2].append(v3)
-                    seen.add(v3)
+        seen_per_bucket: Dict[K2, set[K3]] = {}
+
+        for _, row in self._ordered:  # respects original global order
+            k2 = key_fn(row)
+            v3 = value_fn(row)
+            bucket_seen = seen_per_bucket.setdefault(k2, set())
+            if v3 not in bucket_seen:
+                out[k2].append(v3)
+                bucket_seen.add(v3)
+
         return out
 
     # ---- Alternate grouping (generic enumeration) ----
@@ -229,3 +239,22 @@ class JobAggIndex(Generic[KeyT]):
         return out
 
     # (Aggregation helpers removed; logic is inlined in stats())
+
+    # ---- Utilities ----
+
+    def unique_values(self, value_fn: Callable[[JobRow], K2]) -> List[K2]:
+        """
+        Return a list of unique values derived from rows in their original
+        global appearance order.
+
+        Example:
+            commit_shas = idx.unique_values(lambda r: r.head_sha)
+        """
+        seen: set[K2] = set()
+        out: List[K2] = []
+        for _, row in self._ordered:
+            v = value_fn(row)
+            if v not in seen:
+                seen.add(v)
+                out.append(v)
+        return out

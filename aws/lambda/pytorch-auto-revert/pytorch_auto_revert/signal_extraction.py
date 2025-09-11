@@ -118,7 +118,6 @@ class SignalExtractor:
           - Else → no event (missing)
         """
 
-        commits_shas = {j.head_sha for j in jobs}
         jobs_by_id = {j.job_id: j for j in jobs}
 
         index_by_commit_job_base_wf_run_attempt: JobAggIndex[
@@ -132,6 +131,11 @@ class SignalExtractor:
                 j.wf_run_id,
                 j.run_attempt,
             ),
+        )
+
+        # Preserve newest → older commit order from the datasource
+        commit_shas = index_by_commit_job_base_wf_run_attempt.unique_values(
+            lambda j: j.head_sha
         )
 
         run_ids_attempts = index_by_commit_job_base_wf_run_attempt.enumerate_keys(
@@ -178,12 +182,12 @@ class SignalExtractor:
             )
 
             # y-axis: commits (newest → older)
-            for commit_sha in commits_shas:
+            for commit_sha in commit_shas:
                 events: List[SignalEvent] = []
 
                 # x-axis: events for the signal
                 for wf_run_id, run_attempt in run_ids_attempts.get(
-                    (commit_sha, wf_name, job_base_name)
+                    (commit_sha, wf_name, job_base_name), []
                 ):
                     meta = index_by_commit_job_base_wf_run_attempt.get_stats(
                         (commit_sha, wf_name, job_base_name, wf_run_id, run_attempt),
@@ -247,9 +251,6 @@ class SignalExtractor:
         # Build Signals keyed by normalized job base name per workflow.
         # Aggregate across shards within (wf_run_id, run_attempt) using JobAggIndex.
 
-        # Preserve commit order as first-seen in the job rows (datasource orders newest→older).
-        commits_shas: Set[Sha] = {j.head_sha for j in jobs}
-
         index = JobAggIndex.from_rows(
             jobs,
             key_fn=lambda j: (
@@ -260,6 +261,9 @@ class SignalExtractor:
                 j.run_attempt,
             ),
         )
+
+        # Preserve commit order as first-seen in the job rows (datasource orders newest→older).
+        commit_shas = index.unique_values(lambda j: j.head_sha)
 
         # Map (sha, workflow, base) -> [attempt_keys]
         groups_index = index.enumerate(
@@ -274,9 +278,10 @@ class SignalExtractor:
         signals: List[Signal] = []
         for wf_name, base_name in wf_base_keys:
             commit_objs: List[SignalCommit] = []
-            has_relevant_failures = False
+            # Track failure types across all attempts/commits for this base
+            has_relevant_failures = False  # at least one non-test failure observed
 
-            for sha in commits_shas:
+            for sha in commit_shas:
                 attempt_keys: List[
                     Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]
                 ] = groups_index.get((sha, wf_name, base_name), [])
@@ -291,8 +296,8 @@ class SignalExtractor:
                     if meta.status is None:
                         continue
                     if meta.status == AggStatus.FAILURE:
-                        # check if not test failure (which is handled in test signals)
-                        if not (meta.has_failures and meta.has_non_test_failures):
+                        # mark presence of non-test failures (relevant for job track)
+                        if meta.has_non_test_failures:
                             has_relevant_failures = True
 
                         ev_status = SignalStatus.FAILURE
@@ -322,7 +327,8 @@ class SignalExtractor:
                 # important to always include the commit, even if no events
                 commit_objs.append(SignalCommit(head_sha=sha, events=events))
 
-            if not has_relevant_failures:
+            # Emit job signal when failures were present and failures were NOT exclusively test-caused
+            if has_relevant_failures:
                 signals.append(
                     Signal(key=base_name, workflow_name=wf_name, commits=commit_objs)
                 )

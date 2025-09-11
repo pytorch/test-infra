@@ -38,6 +38,16 @@ class SignalExtractionDatasource:
             workflow_filter = "AND wf.workflow_name IN {workflows:Array(String)}"
             params["workflows"] = workflow_list
 
+        # NOTE(keep-going semantics):
+        # Some jobs run with GitHub Actions' keep-going behavior, where the raw
+        # `conclusion` can be an empty string even when a failure has been
+        # detected by our classification pipeline. To avoid losing failure
+        # information in Phase A, we derive `conclusion_kg` that maps such
+        # keep-going cases to 'failure' based on torchci_classification_temp.
+        #
+        # Do not "optimize" this away by selecting `wf.conclusion` directly —
+        # the extractor and downstream logic rely on the KG-adjusted value so
+        # that pending jobs can also be recognized as failures-in-progress.
         query = f"""
         WITH push_dedup AS (
             SELECT head_commit.id AS sha, max(head_commit.timestamp) AS ts
@@ -54,9 +64,12 @@ class SignalExtractionDatasource:
             wf.run_attempt,
             wf.name,
             wf.status,
-            if(wf.conclusion = '' AND
-                tupleElement(wf.torchci_classification_temp,'line') != '', 'failure', wf.conclusion)
-                AS conclusion_kg,
+            -- Keep-going adjustment; see note above
+            if(
+                wf.conclusion = '' AND tupleElement(wf.torchci_classification_temp,'line') != '',
+                'failure',
+                wf.conclusion
+            ) AS conclusion_kg,
             wf.started_at,
             wf.created_at,
             tupleElement(wf.torchci_classification_kg,'rule') AS rule
@@ -78,7 +91,7 @@ class SignalExtractionDatasource:
             run_attempt,
             name,
             status,
-            conclusion,
+            conclusion,  # Note: this is `conclusion_kg` from the query above
             started_at,
             created_at,
             rule,
@@ -108,7 +121,7 @@ class SignalExtractionDatasource:
         rows: List[TestRow] = []
         TEST_FETCH_CHUNK = 300
         for start in range(0, len(job_ids), TEST_FETCH_CHUNK):
-            chunk = job_ids[start : start + TEST_FETCH_CHUNK]
+            chunk = job_ids[start: start + TEST_FETCH_CHUNK]
             res = CHCliFactory().client.query(
                 """
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
