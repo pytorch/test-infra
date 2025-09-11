@@ -14,12 +14,16 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
   // 3. For each runner queued for longer than the minimum delay, try to scale it up
 
   try {
-    const repo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
+    const authRepo = getRepo(
+      Config.Instance.authGHOrg || Config.Instance.scaleConfigOrg,
+      Config.Instance.authGHRepo || Config.Instance.scaleConfigRepo,
+    );
+    const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
     const validRunnerTypes = await getRunnerTypes(
       // For scaleUpChron, we don't have a situation where the auth repo is different from the config repo
       // so we can just pass the same repo for both parameters
-      repo,
-      repo,
+      scaleConfigRepo,
+      authRepo,
       metrics,
       Config.Instance.scaleConfigRepoPath,
     );

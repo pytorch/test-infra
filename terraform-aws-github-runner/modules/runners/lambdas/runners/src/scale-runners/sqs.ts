@@ -5,7 +5,7 @@ import { SQSRecord } from 'aws-lambda';
 import { expBackOff } from './utils';
 import { Metrics } from './metrics';
 
-function getQueueUrl(evt: SQSRecord, sqs: SQS) {
+function getQueueUrl(evt: SQSRecord) {
   const splitARN = evt.eventSourceARN.split(':');
   // arn:aws:sqs:region:account-id:queue-name
   const region = splitARN[3];
@@ -44,7 +44,7 @@ export async function sqsChangeMessageVisibilityBatch(
 ) {
   const sqs: SQS = new SQS();
 
-  const queueUrl = getQueueUrl(events[0], sqs);
+  const queueUrl = getQueueUrl(events[0]);
   const parameters = {
     Entries: events.map((evt) => {
       return {
@@ -72,7 +72,7 @@ export async function sqsChangeMessageVisibilityBatch(
 export async function sqsDeleteMessageBatch(metrics: Metrics, events: Array<SQSRecord>) {
   const sqs: SQS = new SQS();
 
-  const queueUrl = getQueueUrl(events[0], sqs);
+  const queueUrl = getQueueUrl(events[0]);
   const parameters = {
     Entries: events.map((evt) => {
       return {

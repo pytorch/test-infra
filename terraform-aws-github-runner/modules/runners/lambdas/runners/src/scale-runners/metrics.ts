@@ -43,6 +43,7 @@ export class Metrics {
 
   /* istanbul ignore next */
   protected getMetricType(metric: string): StandardUnit {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     if (Metrics.baseMetricTypes.has(metric)) return Metrics.baseMetricTypes.get(metric)!;
     if (metric.endsWith('.wallclock')) return 'Milliseconds';
     if (metric.endsWith('.runningWallclock')) return 'Seconds';
