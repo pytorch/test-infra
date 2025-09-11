@@ -19,6 +19,10 @@ inputs:
     description: 'Link to the docs to display in case of failure'
     required: false
     default: ''
+  config_dir:
+    description: 'Directory to load .bc-linter.yml from (defaults to repository root)'
+    required: false
+    default: ''
 runs:
   using: 'composite'
   steps:
@@ -66,7 +70,8 @@ runs:
         ../_test-infra/tools/stronghold/bin/check-api-compatibility \
             --base-commit=${{ inputs.base_sha }} \
             --head-commit=${{ steps.merge_changes.outputs.new_head_sha }} \
-            ${{ inputs.suppression == 'true' && '--suppressed' || '' }}
+            ${{ inputs.suppression == 'true' && '--suppressed' || '' }} \
+            ${{ inputs.config_dir != '' && format('--config-dir={0}', inputs.config_dir) || '' }}
 
     - name: Display documentation link if failed
       if: ${{ failure() && inputs.docs_link }}

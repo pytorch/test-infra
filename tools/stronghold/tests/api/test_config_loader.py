@@ -149,3 +149,23 @@ def test_warn_on_unknown_top_level_keys(tmp_path: pathlib.Path, capsys) -> None:
     assert status == "parsed"
     out = capsys.readouterr().out
     assert "::warning::BC-linter: Unknown keys in .bc-linter.yml: ['typpo']" in out
+
+
+def test_load_config_from_custom_directory(tmp_path: pathlib.Path) -> None:
+    config_dir = tmp_path / "subdir"
+    config_dir.mkdir()
+    yml = textwrap.dedent(
+        """
+        version: 1
+        include: ["src/**/*.py"]
+        """
+    )
+    (config_dir / ".bc-linter.yml").write_text(yml)
+
+    cfg_rel, status_rel = load_config_with_status(config_dir)
+    assert status_rel == "parsed"
+    assert cfg_rel.include == ["src/**/*.py"]
+
+    cfg_abs, status_abs = load_config_with_status(config_dir)
+    assert status_abs == "parsed"
+    assert cfg_abs.include == ["src/**/*.py"]
