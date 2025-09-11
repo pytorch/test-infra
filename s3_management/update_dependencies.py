@@ -31,11 +31,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "12.9.86",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cuda-nvrtc": [
         {
@@ -54,11 +49,6 @@ PACKAGES_PER_PROJECT = {
             "version": "12.8.90",
             "project": "torch",
             "target": "cu128",
-        },
-        {
-            "version": "12.9.79",
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cuda-runtime": [
@@ -79,11 +69,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "12.9.79",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cuda-cupti": [
         {
@@ -102,11 +87,6 @@ PACKAGES_PER_PROJECT = {
             "version": "9.10.2.21",
             "project": "torch",
             "target": "cu128",
-        },
-        {
-            "version": "latest",
-            "project": "torch",
-            "target": "",
         },
     ],
     "nvidia-cudnn-cu13": [
@@ -146,11 +126,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "11.4.1.4",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cufft": [
         {
@@ -169,11 +144,6 @@ PACKAGES_PER_PROJECT = {
             "version": "10.3.9.90",
             "project": "torch",
             "target": "cu128",
-        },
-        {
-            "version": "10.3.10.19",
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-curand": [
@@ -194,11 +164,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "11.7.5.82",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-cusolver": [
         {
@@ -217,11 +182,6 @@ PACKAGES_PER_PROJECT = {
             "version": "12.5.8.93",
             "project": "torch",
             "target": "cu128",
-        },
-        {
-            "version": "12.5.10.65",
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cusparse": [
@@ -299,11 +259,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "12.9.79",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-nvtx": [
         {
@@ -323,11 +278,6 @@ PACKAGES_PER_PROJECT = {
             "project": "torch",
             "target": "cu128",
         },
-        {
-            "version": "12.9.86",
-            "project": "torch",
-            "target": "cu129",
-        },
     ],
     "nvidia-nvjitlink": [
         {
@@ -346,11 +296,6 @@ PACKAGES_PER_PROJECT = {
             "version": "1.13.1.3",
             "project": "torch",
             "target": "cu128",
-        },
-        {
-            "version": "1.14.1.1",
-            "project": "torch",
-            "target": "cu129",
         },
     ],
     "nvidia-cufile": [
@@ -538,7 +483,7 @@ def main() -> None:
     from argparse import ArgumentParser
 
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
-    # Get unique paths from the packages list - now handling list of configs
+    # Get unique paths from the packages list
     project_paths = list(
         set(
             config["project"]
