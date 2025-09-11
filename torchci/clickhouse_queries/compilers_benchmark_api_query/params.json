@@ -8,7 +8,8 @@
     "dtype": "String",
     "granularity": "String",
     "mode": "String",
-    "suites": "Array(String)"
+    "suites": "Array(String)",
+    "models": "Array(String)"
   },
   "tests": []
 }

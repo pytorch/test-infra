@@ -57,6 +57,9 @@ export const HELP_LINK =
 
 export const DTYPES = ["amp", "float16", "bfloat16", "quant", "notset"];
 
+export const DTYPES_V2 = ["amp", "float16", "bfloat16", "notset"];
+export const MODES_V2= ["training", "inference", "notset"];
+
 export const DEFAULT_DEVICE_NAME = "cuda (h100)";
 export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (a100)": "cuda",
@@ -75,8 +78,7 @@ export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
   "cpu (x86_64)": "x86_64",
   "cpu (x86_zen)": "x86_zen",
   "cpu (aarch64)": "aarch64",
-  // TODO (huydhn): Figure out a way to get the GPU name for ROCm
-  "rocm (mi300x)": "",
+  "rocm (mi300x)": "mi300x",
   mps: "",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {

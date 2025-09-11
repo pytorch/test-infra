@@ -15,6 +15,7 @@ import {
   toWorkflowIdMap,
 } from "../../utils";
 import { toApiArch } from "./common";
+import { all } from "axios";
 
 const COMPILER_PRECOMPUTE_TS_GROUP_KEY = [
   "dtype",
@@ -39,7 +40,7 @@ const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["compiler"];
 
 export function toPrecomputeCompilerData(
   rawData: any[],
-  type: string = "time_series"
+  formats:string[]=["time_series"]
 ) {
   const metadata = {
     dtype: rawData[0].dtype,
@@ -67,7 +68,7 @@ export function toPrecomputeCompilerData(
     peakMemory,
     compilationTime,
     executionTime,
-    peakMemoryUsage,
+     peakMemoryUsage,
   ].flat();
 
   all_data = [...all_data].sort(
@@ -77,25 +78,12 @@ export function toPrecomputeCompilerData(
 
   // post process data to get start_ts and end_ts, and add commit metadata
   const { start_ts, end_ts } = postFetchProcess(all_data, commit_map, metadata);
-  let res: any[] = [];
-  switch (type) {
-    case "time_series":
-      res = to_time_series_data(
-        all_data,
-        COMPILER_PRECOMPUTE_TS_GROUP_KEY,
-        COMPILER_PRECOMPUTE_TS_SUB_GROUP_KEY
-      );
-      break;
-    case "table":
-      res = groupByBenchmarkData(
-        all_data,
-        COMPILER_PRECOMPUTE_TABLE_GROUP_KEY,
-        COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY
-      );
-      break;
-    default:
-      throw new Error("Invalid type");
-  }
+
+ let res: any ={}
+ formats.forEach((format) => {
+   const f = getFormat(all_data,format)
+   res[format] = f
+ });
   return toTimeSeriesResponse(res, rawData.length, start_ts, end_ts);
 }
 
@@ -121,3 +109,25 @@ function postFetchProcess(
     end_ts,
   };
 }
+
+
+function getFormat(data: any,format:string) {
+    switch (format) {
+    case "time_series":
+      return to_time_series_data(
+        data,
+        COMPILER_PRECOMPUTE_TS_GROUP_KEY,
+        COMPILER_PRECOMPUTE_TS_SUB_GROUP_KEY
+      );
+      break;
+    case "table":
+      return groupByBenchmarkData(
+        data,
+        COMPILER_PRECOMPUTE_TABLE_GROUP_KEY,
+        COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY
+      );
+      break;
+    default:
+      throw new Error("Invalid type");
+  }
+  }

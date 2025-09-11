@@ -20,8 +20,8 @@ const UtilizationReportPage = () => {
   const router = useRouter();
   useEffect(() => {
     const {
-      start_time = dayjs.utc().format("YYYY-MM-DD"),
-      end_time = dayjs.utc().format("YYYY-MM-DD"),
+      start_time = dayjs.utc(),
+      end_time = dayjs.utc(),
     } = router.query;
     const newprops: any = {
       start_time,
@@ -71,8 +71,8 @@ const InnerUtilizationContent = ({
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) => {
           const newprops: any = {
             ...timeRange,
-            start_time: start.format("YYYY-MM-DD"),
-            end_time: end.format("YYYY-MM-DD"),
+            start_time: start,
+            end_time: end,
           };
           dispatch({
             type: "UPDATE_FIELDS",
