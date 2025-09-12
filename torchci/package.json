@@ -69,7 +69,8 @@
     "typed-rest-client": "^1.8.9",
     "urllib": "2.44.0",
     "uuid": "^8.3.2",
-    "zod": "^3.25.64"
+    "zod": "^3.25.64",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@types/argparse": "^2.0.10",

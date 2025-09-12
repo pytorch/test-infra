@@ -30,7 +30,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "components/uiModules/UMDenseRenderers.tsx"  ],
   "exclude": [
     "node_modules"
   ]
