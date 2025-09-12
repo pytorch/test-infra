@@ -1,4 +1,3 @@
-import dataclasses
 import datetime as dt
 import json
 import logging
@@ -6,12 +5,8 @@ import uuid
 from typing import Any, Dict
 
 import clickhouse_connect
-from common.config_model import BenchmarkConfig, Frequency
-from common.regression_utils import (
-    BenchmarkRegressionReport,
-    get_regression_status,
-    PerGroupResult,
-)
+from common.config_model import BenchmarkConfig, ReportConfig, to_dict
+from common.regression_utils import BenchmarkRegressionReport, get_regression_status
 from jinja2 import Template
 
 
@@ -71,9 +66,6 @@ Use items below in [HUD]({{ url }}) to see regression.
 """
 
 
-logger = logging.getLogger()
-
-
 class ReportManager:
     """
     handles db insertion and notification processing
@@ -91,10 +83,10 @@ class ReportManager:
     ):
         self.is_dry_run = is_dry_run
 
-        self.report = regression_report
+        self.raw_report = regression_report
+
         self.config_id = config.id
         self.config = config
-
         self.type = type
         self.repo = repo
         self.db_table_name = db_table_name
@@ -102,16 +94,17 @@ class ReportManager:
         self.id = str(uuid.uuid4())
 
         # extract latest meta data from report
-        self.baseline = self.report["baseline_meta_data"]
-        self.target = self.report["new_meta_data"]
+        self.baseline = self.raw_report["baseline_meta_data"]
+        self.target = self.raw_report["new_meta_data"]
         self.target_latest_commit = self.target["end"]["commit"]
         self.target_latest_ts_str = self.target["end"]["timestamp"]
-        self.status = get_regression_status(self.report["summary"])
+        self.status = get_regression_status(self.raw_report["summary"])
 
         self.report_data = self._to_report_data(
             config_id=config.id,
-            regression_report=self.report,
-            frequency=self.config.policy.frequency,
+            regression_report=self.raw_report,
+            config=self.config,
+            status=self.status,
         )
 
     def run(
@@ -146,7 +139,7 @@ class ReportManager:
             )
             return
         logger.info("[%s] prepareing gitub comment content", self.config_id)
-        content = self._to_markdoown()
+        content = self._to_markdown()
         if self.is_dry_run:
             logger.info(
                 "[%s]dry run, skip sending comment to github, report(%s)",
@@ -161,31 +154,24 @@ class ReportManager:
         github_notification.create_github_comment(content, github_token)
         logger.info("[%s] done. comment is sent to github", self.config_id)
 
-    def _to_markdoown(self):
-        self.regression_items = self._collect_regression_items()
-        url = ""
-        if self.config.hud_info:
-            url = self.config.hud_info.get("url", "")
-
-        md = Template(REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True).render(
+    def _to_markdown(self) -> str:
+        regression_items = [
+            r for r in self.raw_report["results"] if r.get("label") == "regression"
+        ]
+        url = (self.config.hud_info or {}).get("url", "")
+        return Template(
+            REPORT_MD_TEMPLATE, trim_blocks=True, lstrip_blocks=True
+        ).render(
             id=self.id,
             url=url,
             status=self.status,
             report_id=self.config_id,
-            summary=self.report["summary"],
+            summary=self.raw_report["summary"],
             baseline=self.baseline,
             target=self.target,
             frequency=self.config.policy.frequency.get_text(),
-            regression_items=self.regression_items,
+            regression_items=regression_items,
         )
-        return md
-
-    def _collect_regression_items(self) -> list[PerGroupResult]:
-        items = []
-        for item in self.report["results"]:
-            if item["label"] == "regression":
-                items.append(item)
-        return items
 
     def insert_to_db(
         self,
@@ -205,7 +191,7 @@ class ReportManager:
 
         try:
             report_json = json.dumps(
-                self.report, ensure_ascii=False, separators=(",", ":"), default=str
+                self.report_data, ensure_ascii=False, separators=(",", ":"), default=str
             )
         except Exception:
             logger.exception(
@@ -214,12 +200,12 @@ class ReportManager:
             )
             raise
 
-        regression_summary = self.report["summary"]
+        regression_summary = self.raw_report["summary"]
         params = {
             "id": str(self.id),
             "report_id": self.config_id,
             "type": self.type,
-            "status": get_regression_status(self.report["summary"]),
+            "status": get_regression_status(self.raw_report["summary"]),
             "last_record_commit": self.target_latest_commit,
             "last_record_ts": last_record_ts,
             "regression_count": regression_summary["regression_count"],
@@ -238,9 +224,10 @@ class ReportManager:
                 self.config_id,
                 self.id,
             )
-            logger.info("[dry run] printing db params data")
             if self.is_dry_run:
-                print(json.dumps(params, indent=2, default=str))
+                logger.info("[dry run] printing db params data")
+                print({k: v for k, v in params.items() if k != "report_json"})
+                print(json.dumps(self.report_data, indent=2, default=str))
             logger.info("[dry run] Done! Finish printing db params data")
             return False
         logger.info(
@@ -382,28 +369,32 @@ class ReportManager:
     def _to_report_data(
         self,
         config_id: str,
+        config: BenchmarkConfig,
         regression_report: BenchmarkRegressionReport,
-        frequency: Frequency,
+        status: str,
     ) -> dict[str, Any]:
         if not self.target_latest_commit:
             raise ValueError(
                 f"missing commit from new is required, latest is {self.target}"
             )
-        lastest_ts_str = self.target_latest_ts_str
-        if not lastest_ts_str:
-            raise ValueError(f"timestamp from new is required, latest is {self.target}")
 
-        def to_dict(x):  # handle dataclass or dict/object
-            if dataclasses.is_dataclass(x):
-                return dataclasses.asdict(x)
-            if isinstance(x, dict):
-                return x
-            return vars(x) if hasattr(x, "__dict__") else {"value": str(x)}
-
-        report = to_dict(regression_report)
+        filtered = self._filter_report(regression_report, config.report_config)
+        logger.info("policy: %s", to_dict(self.config.policy))
         return {
-            "status": self.status,
+            "status": status,
             "report_id": config_id,
-            "report": report,
-            "frequency": frequency.get_text(),
+            "policy": to_dict(config.policy),
+            "report": to_dict(filtered),
         }
+
+    def _filter_report(
+        self, report: BenchmarkRegressionReport, report_config: ReportConfig
+    ) -> dict[str, Any]:
+        new_report = {k: v for k, v in report.items() if k != "results"}
+        level_order = report_config.get_severity_map()
+        threshold = report_config.get_order()
+
+        new_report["results"] = [
+            r for r in report["results"] if level_order[r["label"]] >= threshold
+        ]
+        return new_report

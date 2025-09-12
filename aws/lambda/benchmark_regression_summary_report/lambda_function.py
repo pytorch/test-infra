@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import argparse
 import datetime as dt
-import json
 import logging
 import os
 import threading
@@ -155,8 +154,9 @@ class BenchmarkSummaryProcessor:
             config=config, target_ts=target, baseline_ts=baseline
         )
         regression_report = generator.generate()
-        if self.is_dry_run:
-            print(json.dumps(regression_report, indent=2, default=str))
+        # debugging only
+        # if self.is_dry_run:
+        #    print(json.dumps(regression_report, indent=2, default=str))
         reportManager = ReportManager(
             config=config,
             regression_report=regression_report,
