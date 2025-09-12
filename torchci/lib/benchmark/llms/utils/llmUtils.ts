@@ -374,7 +374,7 @@ const toRowData = (
         ? extraInfo["random_input_len"]
         : extraInfo["input_len"];
       row["output_len"] = extraInfo["random_output_len"]
-        ? extraInfo["random_input_len"]
+        ? extraInfo["random_output_len"]
         : extraInfo["output_len"];
     }
 
