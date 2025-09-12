@@ -142,7 +142,7 @@ class SignalExtractor:
             lambda j: j.head_sha
         )
 
-        run_ids_attempts = index_by_commit_job_base_wf_run_attempt.enumerate_keys(
+        run_ids_attempts = index_by_commit_job_base_wf_run_attempt.group_map_values_by(
             key_fn=lambda j: (j.head_sha, j.workflow_name, j.base_name),
             value_fn=lambda j: (j.wf_run_id, j.run_attempt),
         )
@@ -270,7 +270,7 @@ class SignalExtractor:
         commit_shas = index.unique_values(lambda j: j.head_sha)
 
         # Map (sha, workflow, base) -> [attempt_keys]
-        groups_index = index.enumerate(
+        groups_index = index.group_keys_by(
             key_fn=lambda j: (j.head_sha, j.workflow_name, j.base_name)
         )
 

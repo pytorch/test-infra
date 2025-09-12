@@ -78,8 +78,8 @@ class JobMeta:
 # -------------------------------------------------------------------
 
 KeyT = TypeVar("KeyT", bound=Hashable)
-K2 = TypeVar("K2", bound=Hashable)  # for enumerate() alternate grouping
-K3 = TypeVar("K3", bound=Hashable)  # for enumerate_keys()
+K2 = TypeVar("K2", bound=Hashable)  # for group_keys_by() alternate grouping
+K3 = TypeVar("K3", bound=Hashable)  # for group_map_values_by()
 
 
 class JobAggIndex(Generic[KeyT]):
@@ -181,7 +181,7 @@ class JobAggIndex(Generic[KeyT]):
         self._meta_cache[key] = meta
         return meta
 
-    def enumerate_keys(
+    def group_map_values_by(
         self, key_fn: Callable[[JobRow], K2], value_fn: Callable[[JobRow], K3]
     ) -> DefaultDict[K2, List[K3]]:
         """
@@ -190,7 +190,7 @@ class JobAggIndex(Generic[KeyT]):
         first appearance order within each bucket.
 
         Example (job ids grouped by (sha, workflow, base)):
-            groups = idx.enumerate_keys(
+            groups = idx.group_map_values_by(
                 key_fn=lambda r: (r.head_sha, r.workflow_name, base_name_fn(r.name)),
                 value_fn=lambda r: r.job_id,
             )
@@ -211,17 +211,19 @@ class JobAggIndex(Generic[KeyT]):
 
     # ---- Alternate grouping (generic enumeration) ----
 
-    def enumerate(self, key_fn: Callable[[JobRow], K2]) -> DefaultDict[K2, List[KeyT]]:
+    def group_keys_by(
+        self, key_fn: Callable[[JobRow], K2]
+    ) -> DefaultDict[K2, List[KeyT]]:
         """
         Build an alternate grouping (K2 -> [KeyT]) on demand.
 
         Each K2 bucket collects unique KeyT values in the order of their
-        **first appearance** in the original input. A given KeyT appears at most
+        first appearance in the original input. A given KeyT appears at most
         once per bucket.
 
         Example: attempts grouped by (sha, workflow, base):
 
-            groups = idx.enumerate(
+            groups = idx.group_keys_by(
                 lambda r: (r.head_sha, r.workflow_name, base_name_fn(r.name))
             )
             attempt_keys: list[AttemptKey] = groups[(sha, wf_name, base_name)]
