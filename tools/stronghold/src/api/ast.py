@@ -211,6 +211,9 @@ class _ContextualNodeVisitor(ast.NodeVisitor):
             returns=node.returns,
             type_comment=node.type_comment,
         )
+        # Preserve source location info (lineno/col_offset)
+        fnode = ast.copy_location(fnode, node)
+        ast.fix_missing_locations(fnode)
         self._functions[name] = fnode
 
 
