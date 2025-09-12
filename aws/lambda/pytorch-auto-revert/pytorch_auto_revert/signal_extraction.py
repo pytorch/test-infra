@@ -38,9 +38,11 @@ class SignalExtractor:
         self,
         workflows: Iterable[str],
         lookback_hours: int = 24,
+        repo_full_name: str = "pytorch/pytorch",
     ) -> None:
         self.workflows = list(workflows)
         self.lookback_hours = lookback_hours
+        self.repo_full_name = repo_full_name
         # Datasource for DB access
         self._datasource = SignalExtractionDatasource()
 
@@ -62,7 +64,9 @@ class SignalExtractor:
     def extract(self) -> List[Signal]:
         """Extract Signals for configured workflows within the lookback window."""
         jobs = self._datasource.fetch_jobs_for_workflows(
-            workflows=self.workflows, lookback_hours=self.lookback_hours
+            repo_full_name=self.repo_full_name,
+            workflows=self.workflows,
+            lookback_hours=self.lookback_hours,
         )
 
         # Select jobs to participate in test-track details fetch

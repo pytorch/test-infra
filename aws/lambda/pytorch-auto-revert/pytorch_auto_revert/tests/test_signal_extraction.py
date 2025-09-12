@@ -30,7 +30,7 @@ class FakeDatasource(SignalExtractionDatasource):
         self._tests = tests
 
     def fetch_jobs_for_workflows(
-        self, *, workflows: Iterable[str], lookback_hours: int
+        self, *, workflows: Iterable[str], lookback_hours: int, repo_full_name: str
     ) -> List[JobRow]:
         return list(self._jobs)
 

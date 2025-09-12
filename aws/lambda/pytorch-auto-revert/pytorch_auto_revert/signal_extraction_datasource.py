@@ -22,7 +22,7 @@ class SignalExtractionDatasource:
     """
 
     def fetch_jobs_for_workflows(
-        self, *, workflows: Iterable[str], lookback_hours: int
+        self, *, repo_full_name: str, workflows: Iterable[str], lookback_hours: int
     ) -> List[JobRow]:
         """
         Fetch recent workflow job rows for the given workflows within the lookback window.
@@ -32,7 +32,10 @@ class SignalExtractionDatasource:
         lookback_time = datetime.now() - timedelta(hours=lookback_hours)
 
         workflow_filter = ""
-        params: Dict[str, Any] = {"lookback_time": lookback_time}
+        params: Dict[str, Any] = {
+            "lookback_time": lookback_time,
+            "repo": repo_full_name,
+        }
         workflow_list = list(workflows)
         if workflow_list:
             workflow_filter = "AND wf.workflow_name IN {workflows:Array(String)}"
@@ -42,8 +45,8 @@ class SignalExtractionDatasource:
         # Some jobs run with GitHub Actions' keep-going behavior, where the raw
         # `conclusion` can be an empty string even when a failure has been
         # detected by our classification pipeline. To avoid losing failure
-        # information in Phase A, we derive `conclusion_kg` that maps such
-        # keep-going cases to 'failure' based on torchci_classification_temp.
+        # information in Phase A, we must use the KG-adjusted alias
+        # `wf.conclusion_kg`, which maps such keep-going cases to 'failure'.
         #
         # Do not "optimize" this away by selecting `wf.conclusion` directly —
         # the extractor and downstream logic rely on the KG-adjusted value so
@@ -64,18 +67,14 @@ class SignalExtractionDatasource:
             wf.run_attempt,
             wf.name,
             wf.status,
-            -- Keep-going adjustment; see note above
-            if(
-                wf.conclusion = '' AND tupleElement(wf.torchci_classification_temp,'line') != '',
-                'failure',
-                wf.conclusion
-            ) AS conclusion_kg,
+            -- Keep-going adjustment via schema alias; see note above
+            wf.conclusion_kg AS conclusion_kg,
             wf.started_at,
             wf.created_at,
             tupleElement(wf.torchci_classification_kg,'rule') AS rule
         FROM default.workflow_job AS wf FINAL
         INNER JOIN push_dedup p ON wf.head_sha = p.sha
-        WHERE wf.dynamoKey LIKE 'pytorch/pytorch/%'
+        WHERE wf.repository_full_name = {{repo:String}}
           AND wf.created_at >= {{lookback_time:DateTime}}
           {workflow_filter}
         ORDER BY p.ts DESC, wf.started_at ASC, wf.head_sha, wf.run_id, wf.run_attempt, wf.name
