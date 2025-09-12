@@ -23,7 +23,6 @@ export async function getCompilerBenchmarkData(
   formats: string[] = ["time_series"]
 ) {
   const rows = await getCompilerDataFromClickhouse(inputparams);
-  console.log("getCompilerBenchmarkData",formats)
 
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
