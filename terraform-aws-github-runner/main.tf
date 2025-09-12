@@ -95,6 +95,8 @@ module "webhook" {
 module "runners" {
   source = "./modules/runners"
 
+  auth_gh_app          = var.auth_gh_app
+  auth_gh_org          = var.auth_gh_org
   aws_region           = var.aws_region
   aws_region_instances = var.aws_region_instances
   vpc_ids              = var.vpc_ids

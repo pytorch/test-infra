@@ -263,6 +263,13 @@ export function backwardCompatibleGetRepoForgetRunnerTypes(ec2runner: RunnerInfo
   return getRepo(ec2runner.repo as string);
 }
 
+export function backwardCompatibleGetAuthRepoForGetRunnerTypes(ec2runner: RunnerInfo): Repo {
+  if (Config.Instance.authGHOrg) {
+    return getRepo(Config.Instance.authGHOrg, Config.Instance.authGHRepo);
+  }
+  return ec2runner.repo ? getRepo(ec2runner.repo as string) : { owner: ec2runner.org as string, repo: '' };
+}
+
 export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDownMetrics): Promise<boolean> {
   if (ec2runner.runnerType === undefined) {
     return false;
@@ -270,7 +277,7 @@ export async function isEphemeralRunner(ec2runner: RunnerInfo, metrics: ScaleDow
 
   const runnerTypes = await getRunnerTypes(
     backwardCompatibleGetRepoForgetRunnerTypes(ec2runner),
-    ec2runner.repo ? getRepo(ec2runner.repo as string) : { owner: ec2runner.org as string, repo: '' },
+    backwardCompatibleGetAuthRepoForGetRunnerTypes(ec2runner),
     metrics,
   );
   return runnerTypes.get(ec2runner.runnerType)?.is_ephemeral ?? false;

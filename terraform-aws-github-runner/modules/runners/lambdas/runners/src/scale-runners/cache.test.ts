@@ -47,6 +47,7 @@ beforeEach(() => {
   jest.restoreAllMocks();
   nock.disableNetConnect();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (mocked(createClient) as any).mockImplementation(produceMockedRedis);
 
   jest.spyOn(Config, 'Instance', 'get').mockImplementation(() => config as unknown as Config);

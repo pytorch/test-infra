@@ -1,5 +1,5 @@
 import { Metrics, ScaleUpMetrics } from './metrics';
-import { Repo, getRepoKey, sleep } from './utils';
+import { Repo, getRepo, getRepoKey, sleep } from './utils';
 import { RunnerType, RunnerInputParameters, createRunner, tryReuseRunner, NoRunnersAvailable } from './runners';
 import {
   createRegistrationTokenOrg,
@@ -64,11 +64,12 @@ export async function scaleUp(
     console.error(`Error getting GitHub rate limit: ${e}`);
   }
 
-  const scaleConfigRepo = {
-    owner: Config.Instance.scaleConfigOrg || repo.owner,
-    repo: Config.Instance.scaleConfigRepo || repo.repo,
-  };
-  const runnerTypes = await getRunnerTypes(scaleConfigRepo, repo, metrics);
+  const authRepo = getRepo(Config.Instance.authGHOrg || repo.owner, Config.Instance.authGHRepo || repo.repo);
+  const scaleConfigRepo = getRepo(
+    Config.Instance.scaleConfigOrg || repo.owner,
+    Config.Instance.scaleConfigRepo || repo.repo,
+  );
+  const runnerTypes = await getRunnerTypes(scaleConfigRepo, authRepo, metrics);
   /* istanbul ignore next */
   const runnerLabels = payload?.runnerLabels ?? Array.from(runnerTypes.keys());
 
@@ -211,6 +212,21 @@ async function createRunnerConfigArgument(
 }
 
 async function shouldSkipForRepo(repo: Repo, metrics: Metrics): Promise<boolean> {
+  if (Config.Instance.authGHOrg && Config.Instance.authGHOrg !== repo.owner) {
+    console.warn(
+      `Skipping scaleUp for repo '${repo.owner}/${repo.repo}' as it is not part " +
+      "of the installed org '${Config.Instance.authGHOrg}'`,
+    );
+    return true;
+  }
+  if (Config.Instance.authGHRepo && Config.Instance.authGHRepo !== repo.repo) {
+    console.warn(
+      `Skipping scaleUp for repo '${repo.owner}/${repo.repo}' as it is not part " +
+      "of the installed repo '${Config.Instance.authGHRepo}'`,
+    );
+    return true;
+  }
+
   if (Config.Instance.mustHaveIssuesLabels) {
     for (let i = 0; i < Config.Instance.mustHaveIssuesLabels.length; i++) {
       const label = Config.Instance.mustHaveIssuesLabels[i];

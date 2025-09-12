@@ -30,6 +30,8 @@ resource "aws_lambda_function" "scale_up_chron" {
   # changes should reflect the changes in scale-up.tf
   environment {
     variables = {
+      AUTH_GH_APP                          = var.auth_gh_app
+      AUTH_GH_ORG                          = var.auth_gh_org
       CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
       DATETIME_DEPLOY                      = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS          = var.enable_organization_runners
@@ -53,16 +55,16 @@ resource "aws_lambda_function" "scale_up_chron" {
       MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)
       REDIS_ENDPOINT                       = var.redis_endpoint
       REDIS_LOGIN                          = var.redis_login
+      RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RETRY_SCALE_UP_RECORD_DELAY_S        = "60"
       RETRY_SCALE_UP_RECORD_JITTER_PCT     = "0.5"
-      RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
       SCALE_CONFIG_ORG                     = var.scale_config_org
       SCALE_CONFIG_REPO                    = var.scale_config_repo
       SCALE_CONFIG_REPO_PATH               = var.scale_config_repo_path
-      SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
       SCALE_UP_CHRON_HUD_QUERY_URL         = var.retry_scale_up_chron_hud_query_url
       SCALE_UP_MAX_QUEUE_TIME_MINUTES      = 30
+      SECRETSMANAGER_SECRETS_ID            = var.secretsmanager_secrets_id
 
       AWS_REGIONS_TO_VPC_IDS = join(
         ",",
