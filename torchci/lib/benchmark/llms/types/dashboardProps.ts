@@ -29,6 +29,7 @@ export interface LLMsBenchmarkProps {
   dtypeName: string;
   deviceName: string;
   archName: string;
+  qps: string;
   // time picker props
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;

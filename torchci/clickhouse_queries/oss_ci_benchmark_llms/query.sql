@@ -133,6 +133,13 @@ WITH benchmarks AS (
             NOT has({excludedMetrics: Array(String) }, o.metric.'name')
             OR empty({excludedMetrics: Array(String) })
         )
+        AND (
+            JSONExtractString(
+                tupleElement(o.benchmark, 'extra_info')['args'],
+                'request_rate'
+            ) = {requestRate: String}
+            OR {requestRate: String} = ''
+        )
         AND notEmpty(o.metric.'name')
 )
 

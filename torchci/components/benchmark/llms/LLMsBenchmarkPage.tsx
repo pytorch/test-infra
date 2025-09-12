@@ -21,6 +21,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  DEFAULT_QPS_NAME,
   HELION_BENCHMARK_NAME,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
@@ -52,6 +53,7 @@ export default function LLMsBenchmarkPage() {
     dtypeName: DEFAULT_DTYPE_NAME,
     deviceName: DEFAULT_DEVICE_NAME,
     archName: DEFAULT_ARCH_NAME,
+    qps: DEFAULT_QPS_NAME,
     startTime: defaultStartTime,
     stopTime: defaultStopTime,
     timeRange: LAST_N_DAYS,

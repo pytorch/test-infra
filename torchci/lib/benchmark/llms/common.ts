@@ -110,6 +110,7 @@ export const DEFAULT_ARCH_NAME = "All Platforms";
 export const DEFAULT_DTYPE_NAME = "All DType";
 export const DEFAULT_MODE_NAME = "All Modes";
 export const DEFAULT_BACKEND_NAME = "All Backends";
+export const DEFAULT_QPS_NAME = "All QPS";
 
 // Only used by ExecuTorch for now
 export const ARCH_NAMES: { [k: string]: string[] } = {
@@ -147,3 +148,5 @@ export interface BranchAndCommitPerfData extends BranchAndCommit {
 export const LLM_BENCHMARK_CONFIG_QUERY = "oss_ci_benchmark_names";
 // For fetching actual benchmark performance data
 export const LLM_BENCHMARK_DATA_QUERY = "oss_ci_benchmark_llms";
+// For fetching available branches
+export const LLM_BENCHMARK_BRANCHES_QUERY = "oss_ci_benchmark_branches";
