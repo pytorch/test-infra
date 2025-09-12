@@ -151,7 +151,6 @@ export function combineLeftAndRight(
     if (jobFailureKeySet.has(key)) {
       continue;
     }
-
     const row = toRowData(dataGroupedByModel, key, repoName, benchmarkName);
     if ("metadata" in row) {
       data.push(row);
@@ -368,7 +367,7 @@ const toRowData = (
         ? extraInfo["random_input_len"]
         : extraInfo["input_len"];
       row["output_len"] = extraInfo["random_output_len"]
-        ? extraInfo["random_input_len"]
+        ? extraInfo["random_output_len"]
         : extraInfo["output_len"];
     }
 
