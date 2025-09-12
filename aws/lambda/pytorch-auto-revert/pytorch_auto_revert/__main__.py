@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert import autorevert_checker
+from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
 
 
@@ -146,6 +147,15 @@ def get_opts() -> argparse.Namespace:
         default="hud.html",
         help="Output HTML file path (default: hud.html)",
     )
+    hud_parser.add_argument(
+        "--ignore-newer-than",
+        dest="ignore_newer_than",
+        default=None,
+        help=(
+            "Commit SHA (short or long) — drop all commits that are newer than "
+            "this SHA from signal detection and HUD rendering"
+        ),
+    )
 
     return parser.parse_args()
 
@@ -201,44 +211,14 @@ def main(*args, **kwargs) -> None:
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "hud":
-        # Local signal extraction + detection + HTML rendering
-        from .hud_renderer import build_grid_model, render_html
-        from .signal_extraction import SignalExtractor
-
-        logging.info(
-            "[hud] Start: workflows=%s hours=%s repo=%s",
-            ",".join(opts.workflows),
-            opts.hours,
-            opts.repo_full_name,
-        )
-
-        extractor = SignalExtractor(
-            workflows=opts.workflows,
-            lookback_hours=opts.hours,
+        # Delegate to testers.hud module
+        run_hud(
+            opts.workflows,
+            hours=opts.hours,
             repo_full_name=opts.repo_full_name,
+            out=opts.out,
+            ignore_newer_than=getattr(opts, "ignore_newer_than", None),
         )
-        logging.info("[hud] Extracting signals ...")
-        signals = extractor.extract()
-        logging.info("[hud] Extracted %d signals", len(signals))
-
-        logging.info("[hud] Building grid model ...")
-        model = build_grid_model(signals)
-        logging.info(
-            "[hud] Model: %d commits, %d columns",
-            len(model.commits),
-            len(model.columns),
-        )
-
-        logging.info("[hud] Rendering HTML ...")
-        html = render_html(
-            model,
-            title=f"Signal HUD: {', '.join(opts.workflows)} ({opts.hours}h)",
-            repo_full_name=opts.repo_full_name,
-        )
-        with open(opts.out, "w", encoding="utf-8") as f:
-            f.write(html)
-        logging.info("[hud] HUD written to %s", opts.out)
-        logging.info("HUD written to %s", opts.out)
 
 
 if __name__ == "__main__":
