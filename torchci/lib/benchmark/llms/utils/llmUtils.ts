@@ -151,6 +151,7 @@ export function combineLeftAndRight(
     if (jobFailureKeySet.has(key)) {
       continue;
     }
+
     const row = toRowData(dataGroupedByModel, key, repoName, benchmarkName);
     if ("metadata" in row) {
       data.push(row);
