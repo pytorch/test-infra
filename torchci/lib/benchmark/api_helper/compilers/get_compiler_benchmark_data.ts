@@ -1,4 +1,3 @@
-
 import { queryClickhouseSaved } from "lib/clickhouse";
 import { emptyTimeSeriesResponse } from "../utils";
 import {
@@ -21,9 +20,10 @@ const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
 export async function getCompilerBenchmarkData(
   inputparams: any,
   type: CompilerQueryType = CompilerQueryType.PRECOMPUTE,
-  format: string[] = ["time_series"]
+  formats: string[] = ["time_series"]
 ) {
   const rows = await getCompilerDataFromClickhouse(inputparams);
+  console.log("getCompilerBenchmarkData",formats)
 
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
@@ -31,9 +31,9 @@ export async function getCompilerBenchmarkData(
 
   switch (type) {
     case CompilerQueryType.PRECOMPUTE:
-      return toPrecomputeCompilerData(rows, format);
+      return toPrecomputeCompilerData(rows, formats);
     case CompilerQueryType.GENERAL:
-      return toGeneralCompilerData(rows, format);
+      return toGeneralCompilerData(rows, formats);
     default:
       throw new Error(`Invalid compiler query type, got ${type}`);
   }

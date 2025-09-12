@@ -44,6 +44,7 @@ export default async function handler(
   // get time series data
   try {
     const { name, response_formats, query_params } = params;
+    
     const formats =
       response_formats && response_formats.length > 0
         ? response_formats
