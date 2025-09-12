@@ -70,8 +70,10 @@ class SignalExtractor:
         )
 
         # Select jobs to participate in test-track details fetch
-        test_track_job_ids = self._select_test_track_job_ids(jobs)
-        test_rows = self._datasource.fetch_tests_for_job_ids(test_track_job_ids)
+        test_track_job_ids, failed_job_ids = self._select_test_track_job_ids(jobs)
+        test_rows = self._datasource.fetch_tests_for_job_ids(
+            test_track_job_ids, failed_job_ids=failed_job_ids
+        )
 
         test_signals = self._build_test_signals(jobs, test_rows)
         job_signals = self._build_non_test_signals(jobs)
@@ -80,7 +82,9 @@ class SignalExtractor:
     # -----------------------------
     # Phase B — Tests (test_run_s3 only)
     # -----------------------------
-    def _select_test_track_job_ids(self, jobs: List[JobRow]) -> List[JobId]:
+    def _select_test_track_job_ids(
+        self, jobs: List[JobRow]
+    ) -> Tuple[List[JobId], List[JobId]]:
         """
         Select job_ids for the test-track batch fetch.
 
@@ -95,13 +99,16 @@ class SignalExtractor:
         }
 
         if not bases_to_track:
-            return []
+            return [], []
 
+        # All job ids across commits whose base is in the tracked set
         job_ids = {
             j.job_id for j in jobs if (j.workflow_name, j.base_name) in bases_to_track
         }
+        # Job ids that exhibited test-failure classifications
+        failed_job_ids = {j.job_id for j in jobs if j.rule and j.is_test_failure}
 
-        return list(job_ids)
+        return list(job_ids), list(failed_job_ids)
 
     # -----------------------------
     # Build Signals

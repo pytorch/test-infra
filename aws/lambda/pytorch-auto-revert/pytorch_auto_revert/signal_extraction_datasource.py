@@ -124,16 +124,33 @@ class SignalExtractionDatasource:
         log.info("[extract] Jobs fetched: %d rows in %.2fs", len(rows), dt)
         return rows
 
-    def fetch_tests_for_job_ids(self, job_ids: List[JobId]) -> List[TestRow]:
-        """Batch fetch test verdict rows from default.test_run_s3 for given job ids."""
+    def fetch_tests_for_job_ids(
+        self,
+        job_ids: List[JobId],
+        *,
+        failed_job_ids: List[JobId],
+    ) -> List[TestRow]:
+        """Batch fetch test verdict rows from default.test_run_s3 for given job ids.
+
+        If failed_job_ids is provided, first compute the set of failed test identifiers
+        (file+classname+name) from those jobs, and only fetch tests for job_ids that
+        match that set. This reduces the result size significantly.
+        """
         log = logging.getLogger(__name__)
         if not job_ids:
             return []
+        if not failed_job_ids:
+            # No failed jobs -> no failed test ids to project; nothing to return
+            return []
 
         total = len(job_ids)
-        log.info("[extract] Fetching tests for %d job_ids in batches", total)
+        log.info(
+            "[extract] Fetching tests for %d job_ids (%d failed jobs) in batches",
+            total,
+            len(failed_job_ids),
+        )
         rows: List[TestRow] = []
-        TEST_FETCH_CHUNK = 300
+        TEST_FETCH_CHUNK = 1024   # Number of job_ids to fetch per query
         t0 = time.perf_counter()
         for start in range(0, total, TEST_FETCH_CHUNK):
             chunk = job_ids[start: start + TEST_FETCH_CHUNK]
@@ -145,17 +162,29 @@ class SignalExtractionDatasource:
                 batch_total,
                 len(chunk),
             )
-            res = CHCliFactory().client.query(
-                """
+            # One query with a CTE that enumerates failed test ids from failed_job_ids,
+            # then filters the main selection by those ids for the current chunk.
+            query = """
+                WITH failed_test_names AS (
+                    SELECT DISTINCT concat(file, '|', classname, '|', name) AS test_id
+                    FROM default.test_run_s3
+                    WHERE job_id IN {failed_job_ids:Array(Int64)}
+                      AND (failure_count > 0 OR error_count > 0)
+                )
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
                        max(failure_count > 0) AS failing,
                        max(error_count  > 0) AS errored
                 FROM default.test_run_s3
                 WHERE job_id IN {job_ids:Array(Int64)}
+                  AND concat(file, '|', classname, '|', name) IN failed_test_names
                 GROUP BY job_id, workflow_id, workflow_run_attempt, file, classname, name
-                """,
-                parameters={"job_ids": [int(j) for j in chunk]},
-            )
+            """
+            params = {
+                "job_ids": [int(j) for j in chunk],
+                "failed_job_ids": [int(j) for j in failed_job_ids],
+            }
+
+            res = CHCliFactory().client.query(query, parameters=params)
             for r in res.result_rows:
                 rows.append(
                     TestRow(
