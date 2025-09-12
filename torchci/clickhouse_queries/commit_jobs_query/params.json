@@ -2,13 +2,15 @@
   "params": {
     "repo": "String",
     "sha": "String",
-    "workflowId": "Int64"
+    "workflowId": "Int64",
+    "runAttempt": "Int64"
   },
   "tests": [
     {
       "repo": "pytorch/pytorch",
       "sha": "85df746892d9b0e87e7a5dfa78ef81a84aec6de0",
-      "workflow_id": 0
+      "workflow_id": 0,
+      "run_attempt": 0
     }
   ]
 }
