@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, Iterable, List
 
@@ -80,6 +82,14 @@ class SignalExtractionDatasource:
         ORDER BY p.ts DESC, wf.started_at ASC, wf.head_sha, wf.run_id, wf.run_attempt, wf.name
         """
 
+        log = logging.getLogger(__name__)
+        log.info(
+            "[extract] Fetching jobs: repo=%s workflows=%s lookback=%sh",
+            repo_full_name,
+            ",".join(workflow_list) if workflow_list else "<all>",
+            lookback_hours,
+        )
+        t0 = time.perf_counter()
         res = CHCliFactory().client.query(query, parameters=params)
         rows: List[JobRow] = []
         for (
@@ -110,17 +120,31 @@ class SignalExtractionDatasource:
                     rule=str(rule or ""),
                 )
             )
+        dt = time.perf_counter() - t0
+        log.info("[extract] Jobs fetched: %d rows in %.2fs", len(rows), dt)
         return rows
 
     def fetch_tests_for_job_ids(self, job_ids: List[JobId]) -> List[TestRow]:
         """Batch fetch test verdict rows from default.test_run_s3 for given job ids."""
+        log = logging.getLogger(__name__)
         if not job_ids:
             return []
 
+        total = len(job_ids)
+        log.info("[extract] Fetching tests for %d job_ids in batches", total)
         rows: List[TestRow] = []
         TEST_FETCH_CHUNK = 300
-        for start in range(0, len(job_ids), TEST_FETCH_CHUNK):
+        t0 = time.perf_counter()
+        for start in range(0, total, TEST_FETCH_CHUNK):
             chunk = job_ids[start: start + TEST_FETCH_CHUNK]
+            batch_idx = start // TEST_FETCH_CHUNK + 1
+            batch_total = (total + TEST_FETCH_CHUNK - 1) // TEST_FETCH_CHUNK
+            log.info(
+                "[extract] Test batch %d/%d (size=%d)",
+                batch_idx,
+                batch_total,
+                len(chunk),
+            )
             res = CHCliFactory().client.query(
                 """
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
@@ -145,4 +169,11 @@ class SignalExtractionDatasource:
                         errored=int(r[7] or 0),
                     )
                 )
+        dt = time.perf_counter() - t0
+        log.info(
+            "[extract] Tests fetched: %d rows for %d job_ids in %.2fs",
+            len(rows),
+            total,
+            dt,
+        )
         return rows

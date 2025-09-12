@@ -124,6 +124,29 @@ def get_opts() -> argparse.Namespace:
         help="If no `--commit` specified, look back days for bulk query (default: 7)",
     )
 
+    # hud subcommand: generate local HTML report for signals/detections
+    hud_parser = subparsers.add_parser(
+        "hud", help="Generate local HUD-like HTML with extracted signals"
+    )
+    hud_parser.add_argument(
+        "workflows",
+        nargs="+",
+        help="Workflow name(s) to analyze - e.g. trunk pull inductor",
+    )
+    hud_parser.add_argument(
+        "--hours", type=int, default=24, help="Lookback window in hours (default: 24)"
+    )
+    hud_parser.add_argument(
+        "--repo-full-name",
+        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        help="Full repo name to filter by (owner/repo).",
+    )
+    hud_parser.add_argument(
+        "--out",
+        default="hud.html",
+        help="Output HTML file path (default: hud.html)",
+    )
+
     return parser.parse_args()
 
 
@@ -177,6 +200,45 @@ def main(*args, **kwargs) -> None:
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
+    elif opts.subcommand == "hud":
+        # Local signal extraction + detection + HTML rendering
+        from .hud_renderer import build_grid_model, render_html
+        from .signal_extraction import SignalExtractor
+
+        logging.info(
+            "[hud] Start: workflows=%s hours=%s repo=%s",
+            ",".join(opts.workflows),
+            opts.hours,
+            opts.repo_full_name,
+        )
+
+        extractor = SignalExtractor(
+            workflows=opts.workflows,
+            lookback_hours=opts.hours,
+            repo_full_name=opts.repo_full_name,
+        )
+        logging.info("[hud] Extracting signals ...")
+        signals = extractor.extract()
+        logging.info("[hud] Extracted %d signals", len(signals))
+
+        logging.info("[hud] Building grid model ...")
+        model = build_grid_model(signals)
+        logging.info(
+            "[hud] Model: %d commits, %d columns",
+            len(model.commits),
+            len(model.columns),
+        )
+
+        logging.info("[hud] Rendering HTML ...")
+        html = render_html(
+            model,
+            title=f"Signal HUD: {', '.join(opts.workflows)} ({opts.hours}h)",
+            repo_full_name=opts.repo_full_name,
+        )
+        with open(opts.out, "w", encoding="utf-8") as f:
+            f.write(html)
+        logging.info("[hud] HUD written to %s", opts.out)
+        logging.info("HUD written to %s", opts.out)
 
 
 if __name__ == "__main__":
