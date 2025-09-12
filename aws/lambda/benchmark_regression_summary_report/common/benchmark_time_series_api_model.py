@@ -58,7 +58,7 @@ class BenchmarkTimeSeriesApiResponse:
             tr = TimeRange(**payload["data"]["time_range"])
             ts = [
                 BenchmarkTimeSeriesItem(**item)
-                for item in payload["data"]["time_series"]
+                for item in payload["data"]["data"]["time_series"]
             ]
         except Exception as e:
             raise RuntimeError(f"Malformed API payload: {e}")
