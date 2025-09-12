@@ -35,13 +35,10 @@ export default async function handler(
   }
 }
 
-async function getBenmarkCommits(
-  request_name: string,
-  query_params: any,
-) {
+async function getBenmarkCommits(request_name: string, query_params: any) {
   switch (request_name) {
     case "compiler":
-      return await getCompilerCommits(query_params)
+      return await getCompilerCommits(query_params);
     default:
       throw new Error(`Unsupported request_name: ${request_name}`);
   }

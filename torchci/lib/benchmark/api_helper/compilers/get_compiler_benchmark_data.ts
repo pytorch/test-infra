@@ -7,7 +7,11 @@ import {
 } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
-import { CompilerQueryType, defaultGetTimeSeriesInputs, defaultListCommitsInputs } from "./type";
+import {
+  CompilerQueryType,
+  defaultGetTimeSeriesInputs,
+  defaultListCommitsInputs,
+} from "./type";
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
@@ -40,17 +44,17 @@ export async function getCompilerCommits(inputparams: any): Promise<any[]> {
   }
   const queryParams = {
     ...defaultListCommitsInputs, // base defaults
-    ...inputparams,              // override with caller's values
-};
+    ...inputparams, // override with caller's values
+  };
 
-  if (queryParams.arch && queryParams.device){
+  if (queryParams.arch && queryParams.device) {
     const arch_list = toQueryArch(inputparams.device, inputparams.arch);
     queryParams["arch"] = arch_list;
   }
 
   const commit_results = await queryClickhouseSaved(
-      COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-      queryParams
+    COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+    queryParams
   );
   return commit_results;
 }
@@ -60,14 +64,13 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
 
   const queryParams = {
     ...defaultGetTimeSeriesInputs, // base defaults
-    ...inputparams,              // override with caller's values
+    ...inputparams, // override with caller's values
   };
 
-  if (queryParams.arch && queryParams.device){
+  if (queryParams.arch && queryParams.device) {
     const arch_list = toQueryArch(queryParams.device, queryParams.arch);
     queryParams["arch"] = arch_list;
   }
-
 
   // use the startTime and endTime to fetch commits from clickhouse if commits field is not provided
   if (!queryParams.commits || queryParams.commits.length == 0) {
@@ -76,12 +79,11 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
       return [];
     }
 
-    console.log("fetch commits");
     // get commits from clickhouse
     const commit_results = await queryClickhouseSaved(
       COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
       queryParams
-  );
+    );
     // get unique commits
     const unique_commits = [...new Set(commit_results.map((c) => c.commit))];
     if (unique_commits.length === 0) {
@@ -91,7 +93,7 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
 
     console.log(
       `no commits provided in request, searched unqiue commits based on
-      start/end time unique_commits: ${unique_commits.length}`,
+      start/end time unique_commits: ${unique_commits.length}`
     );
 
     if (commit_results.length > 0) {
@@ -103,8 +105,6 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
   } else {
     console.log("commits provided in request", queryParams.commits);
   }
-
-  console.log("query params", queryParams)
 
   let rows = await queryClickhouseSaved(
     COMPILER_BENCHMARK_TABLE_NAME,

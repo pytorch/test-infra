@@ -58,7 +58,7 @@ export const HELP_LINK =
 export const DTYPES = ["amp", "float16", "bfloat16", "quant", "notset"];
 
 export const DTYPES_V2 = ["amp", "float16", "bfloat16", "notset"];
-export const MODES_V2= ["training", "inference", "notset"];
+export const MODES_V2 = ["training", "inference", "notset"];
 
 export const DEFAULT_DEVICE_NAME = "cuda (h100)";
 export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {

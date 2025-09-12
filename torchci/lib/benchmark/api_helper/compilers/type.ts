@@ -1,4 +1,3 @@
-import { table } from "console";
 import useSWR, { SWRResponse } from "swr";
 
 export enum CompilerQueryType {
@@ -28,7 +27,6 @@ export function getExtremeTs(
   return Number.isFinite(extreme) ? extreme : null;
 }
 
-
 export interface CompilerPrecomputeRequest {
   name: "compiler_precompute";
   query_params: Record<string, any>;
@@ -43,7 +41,11 @@ export interface ApiResponse<T = any> {
 
 // --- Fetcher ---
 
-export async function postBenchmarkTimeSeriesFetcher<T>(name:string, formats:string[], queryParams: Record<string, unknown>): Promise<T> {
+export async function postBenchmarkTimeSeriesFetcher<T>(
+  name: string,
+  formats: string[],
+  queryParams: Record<string, unknown>
+): Promise<T> {
   const body = {
     name: name,
     query_params: queryParams,
@@ -57,17 +59,19 @@ export async function postBenchmarkTimeSeriesFetcher<T>(name:string, formats:str
   });
 
   if (!res.ok) {
-    const payload = res.json()
+    const payload = res.json();
     throw new Error(`Failed to fetch data" ${res.status} ,${payload}`);
   }
   return res.json();
 }
 
-export async function listBenchmarkCommits<T>(name:string, queryParams: Record<string, unknown>): Promise<T> {
+export async function listBenchmarkCommits<T>(
+  name: string,
+  queryParams: Record<string, any>
+): Promise<T> {
   const body = {
     name: name,
     query_params: queryParams,
-
   };
   const url = "/api/benchmark/list_commits";
   const res = await fetch(url, {
@@ -77,11 +81,32 @@ export async function listBenchmarkCommits<T>(name:string, queryParams: Record<s
   });
   return res.json();
 }
-export interface CompilerBundleResult{
-  commits: any;
+export interface CompilerBundleResult {
   timeSeries: any;
+  table: any;
 }
 
+export function useBenchmarkCommitsData(
+  name: string,
+  queryParams: Record<string, any> | null
+): SWRResponse<any, Error> {
+  const shouldFetch = !!queryParams;
+
+  return useSWR<CompilerBundleResult, Error>(
+    shouldFetch ? [name, queryParams] : null,
+    async ([n, qp]) => {
+      return listBenchmarkCommits<CompilerBundleResult>(
+        n as string,
+        qp as Record<string, any>
+      );
+    },
+    {
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+      dedupingInterval: 10_000,
+    }
+  );
+}
 
 // --- Hook wrapper ---
 export function useCompilerData(
@@ -94,8 +119,8 @@ export function useCompilerData(
     async ([n, qp]) => {
       return postBenchmarkTimeSeriesFetcher<CompilerBundleResult>(
         n as string,
-        ["time_series","table"],
-        qp as Record<string, any>,
+        ["time_series", "table"],
+        qp as Record<string, any>
       );
     },
     {
@@ -106,20 +131,20 @@ export function useCompilerData(
   );
 }
 
-export const defaultGetTimeSeriesInputs: any  ={
-    models: [],
-    commits: [],
-    compilers: [],
-    branches: [],
-    device: "",
-    arch: "",
-    dtype: "",
-    mode: "",
-    granularity: "hour",
-    startTime: "",
-    stopTime: "",
-    suites: [],
-}
+export const defaultGetTimeSeriesInputs: any = {
+  models: [],
+  commits: [],
+  compilers: [],
+  branches: [],
+  device: "",
+  arch: "",
+  dtype: "",
+  mode: "",
+  granularity: "hour",
+  startTime: "",
+  stopTime: "",
+  suites: [],
+};
 
 export const defaultListCommitsInputs: any = {
   branches: [],

@@ -9,7 +9,9 @@ import { UMDenseDatePicker } from "./UMDenseDatePicker";
 const presets = [
   { key: "today", label: "Today", days: 1 },
   { key: "last2", label: "Last 2 Days", days: 2 },
+  { key: "last3", label: "Last 3 Days", days: 3 },
   { key: "last7", label: "Last 7 Days", days: 7 },
+  { key: "last10", label: "Last 10 Days", days: 10 },
   { key: "last14", label: "Last 14 Days", days: 14 },
   { key: "last30", label: "Last 30 Days", days: 30 },
 ];

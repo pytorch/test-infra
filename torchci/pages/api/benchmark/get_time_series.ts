@@ -60,7 +60,7 @@ export default async function handler(
 async function getBenmarkTimeSeriesData(
   request_name: string,
   query_params: any,
-  formats: string[]= ["time_series"]
+  formats: string[] = ["time_series"]
 ) {
   switch (request_name) {
     case "compiler_precompute":

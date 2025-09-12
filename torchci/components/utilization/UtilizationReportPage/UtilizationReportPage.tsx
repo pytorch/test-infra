@@ -22,10 +22,7 @@ const UtilizationReportPage = () => {
 
   const router = useRouter();
   useEffect(() => {
-    const {
-      start_time,
-      end_time,
-    } = router.query;
+    const { start_time, end_time } = router.query;
 
     if (start_time && end_time) {
       const newprops: any = {

@@ -42,31 +42,31 @@ export function toGeneralCompilerData(
     rawData[rawData.length - 1].granularity_bucket
   ).getTime();
 
-  let formats_result:any = {}
+  let formats_result: any = {};
 
   formats.forEach((format) => {
-    const data = getformat(rawData,format);
+    const data = getformat(rawData, format);
     formats_result[format] = data;
   });
   return toTimeSeriesResponse(formats_result, rawData.length, start_ts, end_ts);
 }
 
-function getformat(data: any,format:string) {
-    switch (format) {
-      case "time_series":
-        return to_time_series_data(
-          data,
-          COMPILER_GENERAL_TS_GROUP_KEY,
-          COMPILER_GENERAL_TS_SUB_GROUP_KEY
-        );
-      case "table":
-        return groupByBenchmarkData(
-          data,
-          COMPILER_GENERAL_TABLE_GROUP_KEY,
-          COMPILER_GENERAL_TABLE_SUB_GROUP_KEY
-        );
-        break;
-      default:
-        throw new Error("Invalid type");
-      }
+function getformat(data: any, format: string) {
+  switch (format) {
+    case "time_series":
+      return to_time_series_data(
+        data,
+        COMPILER_GENERAL_TS_GROUP_KEY,
+        COMPILER_GENERAL_TS_SUB_GROUP_KEY
+      );
+    case "table":
+      return groupByBenchmarkData(
+        data,
+        COMPILER_GENERAL_TABLE_GROUP_KEY,
+        COMPILER_GENERAL_TABLE_SUB_GROUP_KEY
+      );
+      break;
+    default:
+      throw new Error("Invalid type");
   }
+}
