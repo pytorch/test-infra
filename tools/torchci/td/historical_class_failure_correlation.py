@@ -22,7 +22,7 @@ FROM
 where
     t.file is not null
     and t.time_inserted > CURRENT_TIMESTAMP() - interval 90 day
-    # Slightly larger time span just in case
+    # Slightly more relaxed time window just in case
     and j.started_at > now() - interval 100 day
 """
 
