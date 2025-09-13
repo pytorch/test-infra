@@ -153,7 +153,7 @@ class SignalExtractionDatasource:
         TEST_FETCH_CHUNK = 1024  # Number of job_ids to fetch per query
         t0 = time.perf_counter()
         for start in range(0, total, TEST_FETCH_CHUNK):
-            chunk = job_ids[start: start + TEST_FETCH_CHUNK]
+            chunk = job_ids[start : start + TEST_FETCH_CHUNK]
             batch_idx = start // TEST_FETCH_CHUNK + 1
             batch_total = (total + TEST_FETCH_CHUNK - 1) // TEST_FETCH_CHUNK
             log.info(
