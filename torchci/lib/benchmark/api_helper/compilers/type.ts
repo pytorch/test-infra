@@ -27,6 +27,7 @@ export function getExtremeTs(
   return Number.isFinite(extreme) ? extreme : null;
 }
 
+// --- Fetcher ---
 export interface CompilerPrecomputeRequest {
   name: "compiler_precompute";
   query_params: Record<string, any>;
