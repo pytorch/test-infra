@@ -6,7 +6,7 @@ export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
 
 
-export type CommitMeta = {
+export type BenchmarkCommitMeta = {
   commit: string;
   date: string;
   branch: string;
@@ -24,8 +24,8 @@ export interface BenchmarkDashboardState {
   committedLbranch: string
   committedRbranch: string
 
-  lcommit: CommitMeta | null;
-  rcommit: CommitMeta | null;
+  lcommit: BenchmarkCommitMeta | null;
+  rcommit: BenchmarkCommitMeta | null;
 
 
   setStagedTime: (t: TimeRange) => void;
@@ -37,14 +37,14 @@ export interface BenchmarkDashboardState {
   commitMainOptions: () => void;
   revertMainOptions: () => void;
 
-  setLCommit: (c: CommitMeta | null) => void;
-  setRCommit: (c: CommitMeta | null) => void;
+  setLCommit: (commit: BenchmarkCommitMeta | null) => void;
+  setRCommit: (commit: BenchmarkCommitMeta | null) => void;
 
   reset: (initial: {
     time: TimeRange;
     filters: Record<string, string>;
-    lcommit?: CommitMeta | null;
-    rcommit?: CommitMeta | null;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
     lbranch?: string;
     rbranch?: string;
   }) => void;
@@ -53,19 +53,24 @@ export interface BenchmarkDashboardState {
 export function createDashboardStore(initial: {
   time: TimeRange;
   filters: Record<string, string>;
-  lcommit?: CommitMeta;
-  rcommit?: CommitMeta;
+  lcommit?: BenchmarkCommitMeta;
+  rcommit?: BenchmarkCommitMeta;
 }) {
   return create<BenchmarkDashboardState>((set, get) => ({
+
+    // staged options are the ones that are currently being edited
     stagedTime: initial.time,
     stagedFilters: initial.filters,
-    committedTime: initial.time,
-    committedFilters: initial.filters,
     stagedLbranch: initial.lcommit?.branch ?? '',
     stagedRbranch: initial.rcommit?.branch ?? '',
+
+    // committed options are the ones that are currently being applied
+    committedTime: initial.time,
+    committedFilters: initial.filters,
     committedLbranch: initial.lcommit?.branch ?? '',
     committedRbranch: initial.rcommit?.branch ?? '',
 
+    // current commits that are being picked
     lcommit: initial.lcommit ?? null,
     rcommit: initial.rcommit ?? null,
 
@@ -96,8 +101,8 @@ export function createDashboardStore(initial: {
         stagedRbranch: get().committedRbranch,
       }),
 
-    setLCommit: (c) => set({ lcommit: c }),
-    setRCommit: (c) => set({ rcommit: c }),
+    setLCommit: (commit) => set({ lcommit: commit }),
+    setRCommit: (commit) => set({ rcommit: commit }),
 
 
     reset: (next) =>

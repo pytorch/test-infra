@@ -95,3 +95,6 @@ export const DISPLAY_KEYS_TO_HIGHLIGHT: { [k: string]: string } = {
   None: DEFAULT_HIGHLIGHT_KEY,
   Max_autotune: "max_autotune",
 };
+
+export const COMPILERS_DTYPES_V2 = ["amp", "float16", "bfloat16", "none"];
+export const COMPILERS_MODES_V2 = ["training", "inference", "none"];
