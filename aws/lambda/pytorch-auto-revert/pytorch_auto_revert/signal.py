@@ -42,6 +42,23 @@ class RestartCommits:
     commit_shas: Set[str]
 
 
+class IneligibleReason(Enum):
+    """Reasons why a signal is not eligible for an autorevert pattern right now."""
+
+    FLAKY = "flaky"
+    FIXED = "fixed"
+    NO_SUCCESSES = "no_successes"
+    NO_PARTITION = "no_partition"  # insufficient commit history to form partitions
+    INFRA_NOT_CONFIRMED = "infra_not_confirmed"  # infra check not confirmed
+    PENDING_GAP = "pending_gap"  # unknown/pending commits present
+
+
+@dataclass
+class Ineligible:
+    reason: IneligibleReason
+    message: str = ""
+
+
 class SignalEvent:
     """A single observation contributing to a Signal on a given commit.
 
@@ -305,22 +322,37 @@ class Signal:
 
     def process_valid_autorevert_pattern(
         self,
-    ) -> Optional[Union[AutorevertPattern, RestartCommits]]:
+    ) -> Union[AutorevertPattern, RestartCommits, Ineligible]:
         """
         Detect valid autorevert pattern in the Signal.
 
         Validates all invariants before checking for the pattern.
 
-        Returns:
-            AutorevertPattern if a valid pattern is detected, None if no pattern is detected,
-            or RestartCommit if the pattern is not confirmed but a restart is needed.
+        Returns one of:
+            - AutorevertPattern: a confirmed pattern ready for action
+            - RestartCommits: a suggested set of commits to restart to reduce uncertainty
+            - Ineligible: reason + optional message when no pattern is actionable yet
         """
-        if self.detect_flaky() or self.detect_fixed() or not self.has_successes():
-            return None
+        if self.detect_flaky():
+            return Ineligible(
+                IneligibleReason.FLAKY,
+                "signal is flaky (mixed outcomes on same commit)",
+            )
+        if self.detect_fixed():
+            return Ineligible(
+                IneligibleReason.FIXED, "signal appears recovered at head"
+            )
+        if not self.has_successes():
+            return Ineligible(
+                IneligibleReason.NO_SUCCESSES, "no successful commits present in window"
+            )
 
         partition = self.partition_by_autorevert_pattern()
         if partition is None:
-            return None
+            return Ineligible(
+                IneligibleReason.NO_PARTITION,
+                "insufficient history to form failed/unknown/successful partitions",
+            )
 
         restart_commits = set()
 
@@ -349,11 +381,18 @@ class Signal:
             return RestartCommits(commit_shas=restart_commits)
 
         if infra_check_result != InfraCheckResult.CONFIRMED:
-            return None
+            return Ineligible(
+                IneligibleReason.INFRA_NOT_CONFIRMED,
+                f"infra check result: {infra_check_result.value}",
+            )
 
         if partition.unknown:
             # there are still pending/missing commits in the unknown partition
-            return None
+            unknown_shas = ", ".join(c.head_sha for c in partition.unknown)
+            return Ineligible(
+                IneligibleReason.PENDING_GAP,
+                f"pending/missing commits present: {unknown_shas}",
+            )
 
         # all invariants validated, confirmed not infra, pattern exists
         # failed is newest -> older; the last element is the suspected commit

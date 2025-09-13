@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert import autorevert_checker
+from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
 
 
@@ -124,6 +125,38 @@ def get_opts() -> argparse.Namespace:
         help="If no `--commit` specified, look back days for bulk query (default: 7)",
     )
 
+    # hud subcommand: generate local HTML report for signals/detections
+    hud_parser = subparsers.add_parser(
+        "hud", help="Generate local HUD-like HTML with extracted signals"
+    )
+    hud_parser.add_argument(
+        "workflows",
+        nargs="+",
+        help="Workflow name(s) to analyze - e.g. trunk pull inductor",
+    )
+    hud_parser.add_argument(
+        "--hours", type=int, default=24, help="Lookback window in hours (default: 24)"
+    )
+    hud_parser.add_argument(
+        "--repo-full-name",
+        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        help="Full repo name to filter by (owner/repo).",
+    )
+    hud_parser.add_argument(
+        "--out",
+        default="hud.html",
+        help="Output HTML file path (default: hud.html)",
+    )
+    hud_parser.add_argument(
+        "--ignore-newer-than",
+        dest="ignore_newer_than",
+        default=None,
+        help=(
+            "Commit SHA (short or long) — drop all commits that are newer than "
+            "this SHA from signal detection and HUD rendering"
+        ),
+    )
+
     return parser.parse_args()
 
 
@@ -177,6 +210,15 @@ def main(*args, **kwargs) -> None:
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
+    elif opts.subcommand == "hud":
+        # Delegate to testers.hud module
+        run_hud(
+            opts.workflows,
+            hours=opts.hours,
+            repo_full_name=opts.repo_full_name,
+            out=opts.out,
+            ignore_newer_than=getattr(opts, "ignore_newer_than", None),
+        )
 
 
 if __name__ == "__main__":
