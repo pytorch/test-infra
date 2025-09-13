@@ -242,9 +242,10 @@ def render_html(
         label = f"{col.workflow_name}:{col.key}"
         note = model.column_notes.get((col.workflow_name, col.key))
         title_attr = (note + "\n" if note else "") + label
+        safe_title = title_attr.replace('"', "'")
         html_parts.append(
             f"<th><div class=\"col-wrap\"><div class=\"col-label\" "
-            f"title=\"{title_attr.replace('\"', '\'')}\">{label}</div></div></th>"
+            f"title=\"{safe_title}\">{label}</div></div></th>"
         )
     html_parts.append("</tr>")
     # Row 2: outcomes
