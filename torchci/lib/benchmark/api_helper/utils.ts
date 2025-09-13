@@ -45,6 +45,7 @@ type Params = Record<string, any>;
 export function readApiGetParams(req: NextApiRequest): Params {
   // 1) If POST with parsed JSON body
   if (req.method === "POST" && req.body && typeof req.body === "object") {
+    console.log("POST with parsed JSON body");
     return req.body as Params;
   }
 
