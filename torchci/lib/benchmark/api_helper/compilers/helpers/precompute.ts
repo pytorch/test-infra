@@ -125,6 +125,9 @@ function getFormat(data: any, format: string) {
         COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY
       );
       break;
+    case "raw":
+      return data;
+      break;
     default:
       throw new Error("Invalid type");
   }

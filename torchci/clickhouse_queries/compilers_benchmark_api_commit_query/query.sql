@@ -6,11 +6,14 @@ SELECT DISTINCT
 FROM benchmark.oss_ci_benchmark_torchinductor
 PREWHERE
     timestamp >= toUnixTimestamp({startTime: DateTime64(3)})
-    AND timestamp <  toUnixTimestamp({stopTime:  DateTime64(3)})
+    AND timestamp < toUnixTimestamp({stopTime:  DateTime64(3)})
 WHERE
     -- optional branches
     (
-        has({branches: Array(String)}, replaceOne(head_branch, 'refs/heads/', ''))
+        has(
+            {branches: Array(String)},
+            replaceOne(head_branch, 'refs/heads/', '')
+        )
         OR empty({branches: Array(String)})
     )
     -- optional suites
