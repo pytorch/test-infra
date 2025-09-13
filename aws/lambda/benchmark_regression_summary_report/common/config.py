@@ -19,13 +19,14 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     name="Compiler Benchmark Regression",
     id="compiler_regression",
     source=BenchmarkApiSource(
-        api_query_url=" http://localhost:3000/api/benchmark/get_time_series",
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
         type="benchmark_time_series_api",
         # currently we only detect the regression for h100 with dtype bfloat16, and mode inference
         # we can extend this to other devices, dtypes and mode in the future
         api_endpoint_params_template="""
                 {
                   "name": "compiler_precompute",
+                  "response_formats":["time_series"],
                   "query_params": {
                     "commits": [],
                     "compilers": [],
@@ -38,7 +39,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                     "stopTime": "{{ stopTime }}",
                     "suites": ["torchbench", "huggingface", "timm_models"],
                     "workflowId": 0,
-                    "branches": ["main"]
+                    "branches": ["main"],
                   }
                 }
                 """,
