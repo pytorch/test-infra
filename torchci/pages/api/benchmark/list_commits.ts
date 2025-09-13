@@ -29,21 +29,28 @@ export default async function handler(
 
   // get time series data
   try {
-    const { name, query_params, response_formats } = params;
+    const { name, query_params, response_formats, data_type } = params;
     const data = await getBenmarkCommits(name, query_params);
-    console.log("[API]list commits, response:", data);
     if (!data) {
+      console.error("No data found for", name);
       return res.status(404).json({ data: {} });
     }
 
-    const formats = response_formats ? response_formats : ["raw"];
+    const unique_branches = [...new Set(data.map((c) => c.branch))];
+    const formats: string[] =
+      response_formats && response_formats.length != 0
+        ? response_formats
+        : ["raw"];
     // format data based on requested response formats
-    let result = {};
+    let result: any = {};
     formats.forEach((format) => {
       const f = getFormat(data, format);
       result[format] = f;
     });
     return res.status(200).json({
+      metadata: {
+        branches: unique_branches,
+      },
       data: result,
     });
   } catch (err: any) {
@@ -66,7 +73,7 @@ function getFormat(data: any, format: string = "raw") {
   switch (format) {
     case "branch":
       const branchgroup = groupByBenchmarkData(data, ["branch"], []);
-      branchgroup.forEach((branch) => {
+      branchgroup.forEach((branch: any) => {
         branch["rows"] = branch.rows?.__ALL__?.data ?? [];
       });
       return branchgroup;
