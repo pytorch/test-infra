@@ -68,6 +68,8 @@ function getformat(data: any, format: string) {
         COMPILER_GENERAL_TABLE_SUB_GROUP_KEY
       );
       break;
+    case "raw":
+      return data;
     default:
       throw new Error("Invalid type");
   }

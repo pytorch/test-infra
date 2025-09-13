@@ -110,7 +110,7 @@ export function useBenchmarkCommitsData(
 }
 
 // --- Hook wrapper ---
-export function useCompilerData(
+export function useBenchmarkCompilerData(
   name: string,
   queryParams: Record<string, any> | null
 ): SWRResponse<CompilerBundleResult, Error> {
@@ -156,5 +156,4 @@ export const defaultListCommitsInputs: any = {
   startTime: "",
   stopTime: "",
   suites: [],
-  workflowIds: [],
 };
