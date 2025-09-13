@@ -19,6 +19,8 @@ from
 where
     t.metric_name = 'td_test_failure_stats_v2'
     and t.timestamp > CURRENT_TIMESTAMP() - interval 90 day
+    # Slightly more relaxed time window just in case
+    and w.created_at > now() - interval 100 day
 """
 
 
