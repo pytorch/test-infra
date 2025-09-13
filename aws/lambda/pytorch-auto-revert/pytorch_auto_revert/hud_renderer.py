@@ -75,6 +75,7 @@ def build_grid_model(signals: List[Signal]) -> GridModel:
                 f" suspect {res.suspected_commit[:7]}"
                 f" vs baseline {res.older_successful_commit[:7]}"
             )
+            column_outcomes[(s.workflow_name, s.key)] = "revert"
         elif isinstance(res, RestartCommits):
             for sha in res.commit_shas:
                 cell_highlights.setdefault((s.workflow_name, s.key, sha), set()).add(
@@ -89,9 +90,6 @@ def build_grid_model(signals: List[Signal]) -> GridModel:
                 msg += f" — {res.message}"
             note = msg
             column_outcomes[(s.workflow_name, s.key)] = "ineligible"
-        else:
-            # AutorevertPattern case above
-            column_outcomes[(s.workflow_name, s.key)] = "revert"
         if note:
             column_notes[(s.workflow_name, s.key)] = note
 
@@ -175,7 +173,7 @@ def render_html(
     td.cell { text-align: center; font-size: 14px; }
     .ev { margin: 0 2px; display: inline-block; }
     /* simple row highlights */
-    .hl-suspected { background: #fff2cc; }
+    .hl-suspected { background: #ffd0d0; }
     .hl-baseline { background: #e6f7ff; }
     .hl-newer-fail { background: #fdecea; }
     .hl-restart { outline: 2px dashed #888; }
@@ -192,7 +190,7 @@ def render_html(
     .outcome.open .details { display: block; }
     .outcome .close { float: right; cursor: pointer; color: #666; }
     /* apply highlights to individual cells */
-    td.cell.hl-suspected { background: #fff2cc; }
+    td.cell.hl-suspected { background: #ffd0d0; }
     td.cell.hl-baseline { background: #e6f7ff; }
     td.cell.hl-newer-fail { background: #fdecea; }
     td.cell.hl-restart { outline: 2px dashed #888; outline-offset: -2px; }
@@ -244,8 +242,8 @@ def render_html(
         title_attr = (note + "\n" if note else "") + label
         safe_title = title_attr.replace('"', "'")
         html_parts.append(
-            f"<th><div class=\"col-wrap\"><div class=\"col-label\" "
-            f"title=\"{safe_title}\">{label}</div></div></th>"
+            f'<th><div class="col-wrap"><div class="col-label" '
+            f'title="{safe_title}">{label}</div></div></th>'
         )
     html_parts.append("</tr>")
     # Row 2: outcomes
