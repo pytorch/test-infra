@@ -213,6 +213,38 @@ def test_extract_class_method(tmp_path: pathlib.Path) -> None:
     }
 
 
+def test_extract_async_function(tmp_path: pathlib.Path) -> None:
+    async def func(a: int, *, b: int = 0) -> None:
+        pass  # pragma: no cover
+
+    funcs = api.ast.extract(source.make_file(tmp_path, func)).functions
+    assert funcs == {
+        "func": api.Parameters(
+            parameters=[
+                api.Parameter(
+                    name="a",
+                    positional=True,
+                    keyword=True,
+                    required=True,
+                    line=1,
+                    type_annotation=api.types.TypeName("int"),
+                ),
+                api.Parameter(
+                    name="b",
+                    positional=False,
+                    keyword=True,
+                    required=False,
+                    line=1,
+                    type_annotation=api.types.TypeName("int"),
+                ),
+            ],
+            variadic_args=False,
+            variadic_kwargs=False,
+            line=1,
+        )
+    }
+
+
 def test_extract_dataclass(tmp_path: pathlib.Path) -> None:
     @dataclasses.dataclass
     class Class:

@@ -7,6 +7,7 @@ from common.config_model import (
     Policy,
     RangeConfig,
     RegressionPolicy,
+    ReportConfig,
 )
 
 
@@ -38,7 +39,6 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                     "startTime": "{{ startTime }}",
                     "stopTime": "{{ stopTime }}",
                     "suites": ["torchbench", "huggingface", "timm_models"],
-                    "workflowId": 0,
                     "branches": ["main"]
                   }
                 }
@@ -85,6 +85,9 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             "repo": "pytorch/test-infra",
             "issue": "7081",
         },
+    ),
+    report_config=ReportConfig(
+        report_level="no_regression",
     ),
 )
 
