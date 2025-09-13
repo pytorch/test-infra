@@ -15,19 +15,22 @@ import { UtilReportPageSyncParamsToUrl } from "./UtilReportPageSyncParamsToUrl";
 dayjs.extend(utc);
 
 const UtilizationReportPage = () => {
-  const [timeRange, dispatch] = useReducer(UMPropReducer, {});
+  const [timeRange, dispatch] = useReducer(UMPropReducer, {
+    start_time: dayjs.utc(),
+    end_time: dayjs.utc(),
+  });
 
   const router = useRouter();
   useEffect(() => {
-    const {
-      start_time = dayjs.utc().format("YYYY-MM-DD"),
-      end_time = dayjs.utc().format("YYYY-MM-DD"),
-    } = router.query;
-    const newprops: any = {
-      start_time,
-      end_time,
-    };
-    dispatch({ type: "UPDATE_FIELDS", payload: newprops });
+    const { start_time, end_time } = router.query;
+
+    if (start_time && end_time) {
+      const newprops: any = {
+        start_time: dayjs.utc(start_time as string) || dayjs.utc(),
+        end_time: dayjs.utc(end_time as string) || dayjs.utc(),
+      };
+      dispatch({ type: "UPDATE_FIELDS", payload: newprops });
+    }
   }, [router.query]);
 
   return (
@@ -71,8 +74,8 @@ const InnerUtilizationContent = ({
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) => {
           const newprops: any = {
             ...timeRange,
-            start_time: start.format("YYYY-MM-DD"),
-            end_time: end.format("YYYY-MM-DD"),
+            start_time: start,
+            end_time: end,
           };
           dispatch({
             type: "UPDATE_FIELDS",
@@ -83,8 +86,8 @@ const InnerUtilizationContent = ({
         end={timeRange.end_time}
       />
       <ReportMetricsTable
-        startTime={timeRange.start_time}
-        endTime={timeRange.end_time}
+        startTime={timeRange.start_time.format("YYYY-MM-DD")}
+        endTime={timeRange.end_time.format("YYYY-MM-DD")}
       />
     </div>
   );

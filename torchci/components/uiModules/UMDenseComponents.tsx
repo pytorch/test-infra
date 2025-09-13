@@ -10,3 +10,4 @@ export const UMDenseButton = styled(Button)(({ theme }) => ({
   borderRadius: 0,
   textTransform: "none", // optional: avoids uppercase
 }));
+
