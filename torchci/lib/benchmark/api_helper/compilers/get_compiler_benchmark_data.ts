@@ -117,6 +117,8 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     return [];
   }
 
+  console.log("rows from clickhouse", rows[0]);
+
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
   // TODO(elainewy): we should add this as a column in the database for less runtime logics.
   rows.map((row) => {
@@ -133,6 +135,7 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     (row["backend"] = backend), (row["compiler"] = backend);
     row["arch"] = toApiArch(row.device, row.arch);
   });
+
 
   if (inputparams.compilers && inputparams.compilers.length > 0) {
     rows = rows.filter((row) => {

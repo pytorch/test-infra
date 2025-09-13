@@ -37,3 +37,6 @@ WHERE
     AND benchmark_dtype = {dtype: String}
     AND benchmark_mode = {mode: String}
     AND device = {device: String}
+    AND multiSearchAnyCaseInsensitive(arch, {arch: Array(String)})
+ORDER BY timestamp
+SETTINGS session_timezone = 'UTC';
