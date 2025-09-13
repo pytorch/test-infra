@@ -13,6 +13,7 @@ const COMPILER_GENERAL_TS_GROUP_KEY = [
   "metric",
   "mode",
   "model",
+  "branch",
 ];
 const COMPILER_GENERAL_TS_SUB_GROUP_KEY = ["workflow_id"];
 
@@ -22,6 +23,7 @@ const COMPILER_GENERAL_TABLE_GROUP_KEY = [
   "device",
   "mode",
   "workflow_id",
+  "branch",
   "compiler",
   "model",
 ];
@@ -66,8 +68,6 @@ function getformat(data: any, format: string) {
         COMPILER_GENERAL_TABLE_SUB_GROUP_KEY
       );
       break;
-    case "raw":
-      return data;
     default:
       throw new Error("Invalid type");
   }

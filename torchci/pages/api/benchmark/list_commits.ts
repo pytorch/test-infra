@@ -1,6 +1,9 @@
+import { getCompilerCommits } from "lib/benchmark/api_helper/compilers/get_compiler_benchmark_data";
+import {
+  groupByBenchmarkData,
+  readApiGetParams,
+} from "lib/benchmark/api_helper/utils";
 import { NextApiRequest, NextApiResponse } from "next";
-import { groupByBenchmarkData, readApiGetParams } from "../../../lib/benchmark/api_helper/utils";
-import { getCompilerCommits } from "../../../lib/benchmark/api_helper/compilers/get_compiler_benchmark_data";
 
 export default async function handler(
   req: NextApiRequest,
@@ -26,22 +29,22 @@ export default async function handler(
 
   // get time series data
   try {
-    const { name, query_params,response_formats } = params;
-    const data = await getBenmarkCommits(name, query_params)
-
+    const { name, query_params, response_formats } = params;
+    const data = await getBenmarkCommits(name, query_params);
+    console.log("[API]list commits, response:", data);
     if (!data) {
-      return res.status(404).json({ data:{}});
+      return res.status(404).json({ data: {} });
     }
 
-    const formats = response_formats ? response_formats : ["raw"]
+    const formats = response_formats ? response_formats : ["raw"];
     // format data based on requested response formats
-    let result = {}
+    let result = {};
     formats.forEach((format) => {
-      const f = getFormat(data,format)
-      result[format] = f
-    })
+      const f = getFormat(data, format);
+      result[format] = f;
+    });
     return res.status(200).json({
-      data: result
+      data: result,
     });
   } catch (err: any) {
     console.error("API error:", err.message);
@@ -59,13 +62,17 @@ async function getBenmarkCommits(request_name: string, query_params: any) {
   }
 }
 
-function getFormat(data: any,format: string = "raw") {
-    switch (format) {
-      case "branch":
-        return groupByBenchmarkData(data, ["branch"], []);
-      case "raw":
-        return data;
-      default:
-        throw new Error(`Unsupported format: ${format}`);
-    }
+function getFormat(data: any, format: string = "raw") {
+  switch (format) {
+    case "branch":
+      const branchgroup = groupByBenchmarkData(data, ["branch"], []);
+      branchgroup.forEach((branch) => {
+        branch["rows"] = branch.rows?.__ALL__?.data ?? [];
+      });
+      return branchgroup;
+    case "raw":
+      return data;
+    default:
+      throw new Error(`Unsupported format: ${format}`);
+  }
 }

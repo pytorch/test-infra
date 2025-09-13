@@ -24,6 +24,7 @@ const COMPILER_PRECOMPUTE_TS_GROUP_KEY = [
   "compiler",
   "metric",
   "mode",
+  "branch",
 ];
 const COMPILER_PRECOMPUTE_TS_SUB_GROUP_KEY = ["workflow_id"];
 
@@ -34,6 +35,7 @@ const COMPILER_PRECOMPUTE_TABLE_GROUP_KEY = [
   "mode",
   "metric",
   "workflow_id",
+  "branch",
 ];
 const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["compiler"];
 
