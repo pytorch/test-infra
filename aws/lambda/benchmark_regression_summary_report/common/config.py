@@ -73,6 +73,12 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 threshold=0.95,
                 baseline_aggregation="max",
             ),
+            "compilation_latency": RegressionPolicy(
+                name="compilation_latency",
+                condition="less_equal",
+                threshold=1.05,
+                baseline_aggregation="min",
+            ),
         },
         notification_config={
             "type": "github",

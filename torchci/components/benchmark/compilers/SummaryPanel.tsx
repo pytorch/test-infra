@@ -470,7 +470,6 @@ export function SummaryPanel({
                       if (l === r) {
                         return "";
                       }
-
                       // Decreasing more than x%
                       if (r - l > RELATIVE_THRESHOLD * r) {
                         return styles.ok;
