@@ -136,7 +136,6 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     row["arch"] = toApiArch(row.device, row.arch);
   });
 
-
   if (inputparams.compilers && inputparams.compilers.length > 0) {
     rows = rows.filter((row) => {
       return inputparams.compilers.includes(row.backend);
