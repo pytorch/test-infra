@@ -1,5 +1,15 @@
-import { Button } from "@mui/material";
+import {
+  Button,
+  FormControl,
+  InputLabel,
+  MenuItem,
+  Select,
+  Typography,
+  type SelectChangeEvent,
+} from "@mui/material";
+import { Box, Stack } from "@mui/system";
 import styled from "@mui/system/styled";
+import React from "react";
 
 export const UMDenseButton = styled(Button)(({ theme }) => ({
   padding: "2px 2px",
@@ -11,16 +21,13 @@ export const UMDenseButton = styled(Button)(({ theme }) => ({
   textTransform: "none", // optional: avoids uppercase
 }));
 
-import {
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
-  Typography,
-  type SelectChangeEvent,
-} from "@mui/material";
-import { Box, Stack } from "@mui/system";
-import React from "react";
+export const UMDenseButtonLight = styled(Button)(({ theme }) => ({
+  padding: "2px 4px",
+  minHeight: "25px",
+  fontSize: "0.75rem",
+  borderRadius: 4,
+  textTransform: "none", // optional: avoids uppercase
+}));
 
 // Reusable dense menu style (affects the dropdown list items)
 export const DENSE_MENU_STYLE = {
@@ -29,28 +36,31 @@ export const DENSE_MENU_STYLE = {
     paddingTop: 0,
     paddingBottom: 0,
   },
+
   // make each item short & tight
   "& .MuiMenuItem-root": {
     minHeight: 18, // default ~48
     paddingTop: 1, // 2px
-    paddingBottom: 0,
-    paddingLeft: 8,
-    paddingRight: 8,
+    paddingBottom: 1,
+    paddingLeft: 2,
+    paddingRight: 2,
+    m: 0.2,
   },
   // smaller text + tight line height
   "& .MuiTypography-root": {
-    fontSize: 12,
-    lineHeight: 1.2,
+    fontSize: "0.95rem",
+    lineHeight: 1.0,
   },
 };
 
 // Optional: compact display for the Select trigger itself
 const DENSE_SELECT_SX = {
   "& .MuiSelect-select": {
-    minHeight: 24,
-    paddingTop: 0.25,
-    paddingBottom: 0.25,
-    fontSize: "0.75rem",
+    minHeight: 20,
+    paddingTop: 0.5,
+    paddingBottom: 0.5,
+    fontSize: "0.9rem",
+    m: 0.5,
   },
 };
 
@@ -97,7 +107,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
       >
         {dtypes.map((v) => (
           <MenuItem key={v} value={v}>
-            {v}
+            <Typography variant="body2">{v}</Typography>
           </MenuItem>
         ))}
       </Select>
@@ -136,7 +146,7 @@ export function UMDenseModePicker({
         >
           {Object.keys(MODES).map((mode) => (
             <MenuItem key={mode} value={mode}>
-              {mode}
+              <Typography variant="body2">{mode}</Typography>
             </MenuItem>
           ))}
         </Select>
@@ -152,14 +162,6 @@ export type UMDenseCommitDropdownCommitData = {
   branch: string;
 };
 
-type UMDenseCommitDropdownProps = {
-  label: string;
-  disable: boolean;
-  branchName: string; // show branch name only
-  commitList: UMDenseCommitDropdownCommitData[];
-  selectedCommit: UMDenseCommitDropdownCommitData | null;
-  setCommit: (commit: UMDenseCommitDropdownCommitData | null) => void;
-};
 export const UMDenseCommitDropdown: React.FC<{
   label: string;
   disable: boolean;
@@ -167,14 +169,7 @@ export const UMDenseCommitDropdown: React.FC<{
   commitList: UMDenseCommitDropdownCommitData[];
   selectedCommit: UMDenseCommitDropdownCommitData | null;
   setCommit: (c: UMDenseCommitDropdownCommitData | null) => void;
-}> = ({
-  label,
-  disable,
-  branchName,
-  commitList,
-  selectedCommit,
-  setCommit,
-}) => {
+}> = ({ label, disable, commitList, selectedCommit, setCommit }) => {
   // Clamp the value so we never feed an out-of-range value to Select
   const selectedValue =
     selectedCommit?.workflow_id &&

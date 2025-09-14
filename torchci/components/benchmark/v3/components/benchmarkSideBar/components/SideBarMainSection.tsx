@@ -1,6 +1,5 @@
 // components/Sidebar.tsx
 "use client";
-import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -9,6 +8,7 @@ import {
   getSideBarMetricsComponent,
 } from "components/benchmark/v3/configs/configRegistration";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
+import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
@@ -118,7 +118,7 @@ export function SideBarMainSection() {
   // indicates no branches found based on the time range and options
   const noData = branches && branches.length === 0;
 
-  const disablApply = !dirty || noData || isCommitsLoading;
+  const disableApply = !dirty || noData || isCommitsLoading;
 
   return (
     <Stack spacing={2} sx={styles.root}>
@@ -146,27 +146,31 @@ export function SideBarMainSection() {
           branchOptions={branches}
         />
       )}
-      {!disablApply && (
-        <Typography variant="body2" color="text.secondary">
-          Click apply to submit your changes
-        </Typography>
-      )}
+      <Typography
+        variant="body2"
+        color="text.secondary"
+        sx={{ visibility: !disableApply ? "visible" : "hidden" }}
+        aria-hidden={!disableApply}
+      >
+        Click apply to submit your changes
+      </Typography>
+
       {/* Apply / Revert */}
       <Stack direction="row" spacing={1}>
-        <Button
+        <UMDenseButtonLight
           variant="outlined"
           disabled={!dirty}
           onClick={revertMainOptions}
         >
           Revert
-        </Button>
-        <Button
+        </UMDenseButtonLight>
+        <UMDenseButtonLight
           variant="contained"
-          disabled={disablApply}
+          disabled={disableApply}
           onClick={commitMainOptions}
         >
           Apply
-        </Button>
+        </UMDenseButtonLight>
       </Stack>
     </Stack>
   );

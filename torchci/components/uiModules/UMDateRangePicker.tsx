@@ -3,7 +3,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import dayjs, { Dayjs } from "dayjs";
 import * as React from "react";
-import { UMDenseButton } from "./UMDenseComponents";
+import { UMDenseButton, UMDenseButtonLight } from "./UMDenseComponents";
 import { UMDenseDatePicker } from "./UMDenseDatePicker";
 
 const presets = [
@@ -111,7 +111,7 @@ export function UMDateButtonPicker({
         }}
       >
         <Box sx={{ margin: "0 2px 0 0", fontSize: "0.8rem" }}>Time Range:</Box>
-        <UMDenseButton
+        <UMDenseButtonLight
           ref={anchorRef}
           variant="outlined"
           onClick={() => setOpen(true)}
@@ -124,7 +124,7 @@ export function UMDateButtonPicker({
           }}
         >
           {start.format("YYYY-MM-DD")} - {end.format("YYYY-MM-DD")}
-        </UMDenseButton>
+        </UMDenseButtonLight>
       </Box>
       <Popover
         open={open}

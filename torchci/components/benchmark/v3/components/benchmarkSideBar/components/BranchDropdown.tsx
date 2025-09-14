@@ -11,6 +11,26 @@ type BranchDropdownsProps = {
   branchOptions?: string[];
 };
 
+const styles = {
+  missingBranch: {
+    width: 1,
+    wordBreak: "break-word",
+    whiteSpace: "normal",
+    padding: 0.2,
+    // ↓ shrink the text inside the Alert
+    "& .MuiAlert-message": {
+      fontSize: "0.7rem", // ~13px
+      lineHeight: 1.4,
+    },
+
+    // (optional) shrink the icon to match the smaller text
+    "& .MuiAlert-icon": {
+      padding: 0.8, // tighten spacing
+      "& svg": { fontSize: 20 },
+    },
+  },
+};
+
 /**
  *
  * BranchDropdown UI component
@@ -50,14 +70,7 @@ export function BranchDropdowns({
   return (
     <SectionShell>
       {empty ? (
-        <Alert
-          severity="warning"
-          sx={{
-            width: 1,
-            wordBreak: "break-word", // prevent widening from long text
-            whiteSpace: "normal",
-          }}
-        >
+        <Alert severity="warning" sx={styles.missingBranch}>
           No branch is found, please select other features.
         </Alert>
       ) : type === "comparison" ? (
