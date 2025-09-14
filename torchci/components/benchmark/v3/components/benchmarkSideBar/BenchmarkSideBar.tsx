@@ -6,13 +6,17 @@ import { CommitWorflowSelectSection } from "./components/CommitWorkfowSelectSect
 import { SideBarMainSection } from "./components/SideBarMainSection";
 
 const SIDEBAR_WIDTH = 300; // expanded width
-const RAIL_WIDTH = 44; // collapsed rail width
-const WIDTH_MS = 180; // match your theme if you like
-const FADE_MS = 140;
+const RAIL_WIDTH = 44; // collapsed width
+const WIDTH_MS = 300;
+const FADE_MS = 200;
 
 const styles = {
   container: (open: boolean) => (theme: any) => ({
-    width: open ? SIDEBAR_WIDTH : RAIL_WIDTH,
+    width: open ? {
+      "sm": "250px",
+      "md": "300px",
+      "lg": "350px",
+    } : RAIL_WIDTH,
     transition: theme.transitions.create("width", {
       duration: WIDTH_MS,
     }),
@@ -35,7 +39,7 @@ const styles = {
   headerRow: {
     display: "flex",
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 2,
   },
 
   title: { whiteSpace: "nowrap" },
@@ -55,6 +59,10 @@ const styles = {
   },
 };
 
+/**
+ * Benchmark sidebar (left rail)
+ * can be collapsed to a rail with a toggle button
+ */
 export default function BenchmarkSideBar() {
   const [open, setOpen] = useState(true);
 
@@ -93,6 +101,25 @@ export default function BenchmarkSideBar() {
     }
   };
 
+  const SidebarTitleAndToggle = () => (
+    <Box sx={styles.headerRow}>
+      {open && (
+        <Typography variant="h6" sx={styles.title}>
+          Search
+        </Typography>
+      )}
+      <Box sx={styles.toggleBox}>
+        <IconButton
+          size="small"
+          onClick={toggle}
+          aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
+        >
+          {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
+        </IconButton>
+      </Box>
+    </Box>
+  );
+
   return (
     <Box
       component="aside"
@@ -101,23 +128,7 @@ export default function BenchmarkSideBar() {
     >
       <Box sx={styles.inner}>
         {/* Top bar (always visible) */}
-        <Box sx={styles.headerRow}>
-          {open && (
-            <Typography variant="h6" sx={styles.title}>
-              Search
-            </Typography>
-          )}
-          <Box sx={styles.toggleBox}>
-            <IconButton
-              size="small"
-              onClick={toggle}
-              aria-label={open ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              {open ? <ChevronLeftIcon /> : <ChevronRightIcon />}
-            </IconButton>
-          </Box>
-        </Box>
-
+        <SidebarTitleAndToggle />
         {/* Content: visible immediately on first open; deferred on toggled open; faded on close */}
         {contentMounted ? (
           <Box sx={styles.content(contentVisible)}>
