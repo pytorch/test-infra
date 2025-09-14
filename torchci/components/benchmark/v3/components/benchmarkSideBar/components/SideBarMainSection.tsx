@@ -5,7 +5,7 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import {
-  getGetQueryParamsConverter,
+  getGetBenchmarkQueryParamsConverter,
   getSideBarMetricsComponent,
 } from "components/benchmark/v3/configs/configRegistration";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
@@ -16,7 +16,19 @@ import { useEffect, useRef } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { BranchDropdowns } from "./BranchDropdown";
 
-export function Sidebar() {
+const styles = {
+  root: {
+    marginBottom: 2,
+  },
+};
+/**
+ * section of benchmark side bar that affect the data fetching and rendering,
+ * including time range, metric filters, and branch selection
+ *
+ * @returns
+ *
+ */
+export function SideBarMainSection() {
   const useStore = useDashboardStore();
   const benchmarkId = useStore((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook[benchmarkId];
@@ -47,7 +59,7 @@ export function Sidebar() {
     !!stagedTime?.end &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
-  const converter = getGetQueryParamsConverter(config);
+  const converter = getGetBenchmarkQueryParamsConverter(config);
   const params = converter(stagedTime, [], [], stagedFilters);
   const queryParams: any | null = ready ? params : null;
 
@@ -88,9 +100,10 @@ export function Sidebar() {
   // indicates no branches found based on the time range and options
   const noData = branches && branches.length === 0;
 
+  const disablApply = !dirty || noData || isCommitsLoading;
+
   return (
-    <Stack spacing={2}>
-      <Typography variant="h6">Search</Typography>
+    <Stack spacing={2} sx={styles.root}>
       <UMDateButtonPicker
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) =>
           setStagedTime({ start, end })
@@ -115,7 +128,11 @@ export function Sidebar() {
           branchOptions={branches}
         />
       )}
-      <Divider />
+      {!disablApply && (
+        <Typography variant="body2" color="text.secondary">
+          Click apply to submit your changes
+        </Typography>
+      )}
       {/* Apply / Revert */}
       <Stack direction="row" spacing={1}>
         <Button
@@ -127,7 +144,7 @@ export function Sidebar() {
         </Button>
         <Button
           variant="contained"
-          disabled={!dirty || noData}
+          disabled={disablApply}
           onClick={commitMainOptions}
         >
           Apply

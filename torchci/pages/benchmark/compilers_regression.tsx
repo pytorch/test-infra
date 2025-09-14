@@ -1,5 +1,12 @@
-import CompilerBenchmarkPrecomputePage from "components/benchmark/v3/teamBasedComponents/compilers/CustomizedComponents/CompilerPrecomputePage";
+import BenchmarkRegressionPage from "components/benchmark/v3/BenchmarkRegressionPage";
+import { BenchmarkUIConfigBook } from "components/benchmark/v3/configs/configBook";
 
 export default function Page() {
-  return <CompilerBenchmarkPrecomputePage />;
+  const config = BenchmarkUIConfigBook["compiler_precompute"];
+  return (
+    <BenchmarkRegressionPage
+      benchmarkId={config.benchmarkId}
+      initial={config.initial}
+    />
+  );
 }

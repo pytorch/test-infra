@@ -1,6 +1,6 @@
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
-import { getGetQueryParamsConverter } from "components/benchmark/v3/configs/configRegistration";
+import { getGetBenchmarkQueryParamsConverter } from "components/benchmark/v3/configs/configRegistration";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
@@ -8,7 +8,12 @@ import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_st
 import { useEffect, useState } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 
-export function CommitChoiceSection() {
+/**
+ *
+ * @returns
+ *
+ */
+export function CommitWorflowSelectSection() {
   const useStore = useDashboardStore();
 
   const benchmarkId = useStore((s) => s.benchmarkId);
@@ -48,10 +53,12 @@ export function CommitChoiceSection() {
     ),
   ];
 
-  const converter = getGetQueryParamsConverter(config);
+  // Convert to query params
+  const converter = getGetBenchmarkQueryParamsConverter(config);
   const params = converter(committedTime, branches, [], committedFilters);
   const queryParams: any | null = ready ? params : null;
 
+  // Fetch data
   const { data, isLoading, error } = useBenchmarkCommitsData(
     benchmarkId,
     queryParams
@@ -147,9 +154,6 @@ export function CommitChoiceSection() {
         commitList={rightList}
         setCommit={setRCommit}
       />
-      <div>
-        <pre>{JSON.stringify({ lcommit, rcommit }, null, 2)}</pre>;
-      </div>
     </Stack>
   );
 }

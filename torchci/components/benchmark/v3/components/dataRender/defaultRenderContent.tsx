@@ -2,7 +2,7 @@ import { BenchmarkUIConfigBook } from "components/benchmark/v3/configs/configBoo
 import LoadingPage from "components/common/LoadingPage";
 import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
-import { getGetQueryParamsConverter } from "../../configs/configRegistration";
+import { getGetBenchmarkQueryParamsConverter } from "../../configs/configRegistration";
 
 export function DefaultRenderContent() {
   const useStore = useDashboardStore();
@@ -29,11 +29,12 @@ export function DefaultRenderContent() {
     !!committedRBranch &&
     requiredFilters.every((k) => !!committedFilters[k]);
 
-  const converter = getGetQueryParamsConverter(config);
-
+  // convert to the query params
+  const converter = getGetBenchmarkQueryParamsConverter(config);
   const params = converter(committedTime, branches, [], committedFilters);
   const queryParams: any | null = ready ? params : null;
 
+  // fetch the bechmark data
   const { data, isLoading, error } = useBenchmarkData(benchmarkId, queryParams);
   if (isLoading) {
     return <LoadingPage />;

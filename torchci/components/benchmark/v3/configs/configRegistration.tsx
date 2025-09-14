@@ -1,11 +1,13 @@
-import dayjs from "dayjs";
-import { TimeRange } from "lib/benchmark/store/benchmark_regression_store";
 import React from "react";
+import DefaultSidebarMetricsDropdowns from "../components/benchmarkSideBar/components/defaultSideBarMetricsDropdowns";
 import { DefaultRenderContent } from "../components/dataRender/defaultRenderContent";
-import DefaultSidebarMetricsDropdowns from "../components/dataRender/defaultSideBarMetricsDropdowns";
+import { CompilerSearchBarDropdowns } from "../teamBasedComponents/compilers/CompilerSearchBarDropdowns";
 import { compilerDataRenderConverter } from "../teamBasedComponents/compilers/config";
-import { CompilerSearchBarDropdowns } from "../teamBasedComponents/compilers/CustomizedComponents/CompilerSearchBarDropdowns";
-import { BenchmarkUIConfig, DataParamConverter } from "./type";
+import {
+  BenchmarkUIConfig,
+  DataParamConverter,
+  getDefaultDataConverter,
+} from "./type";
 
 export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
   CompilerSearchBarDropdowns,
@@ -15,7 +17,7 @@ export const CONVERTER_REGISTRY: Record<string, DataParamConverter> = {
   compilerDataRenderConverter,
 };
 
-export function resolveConverter(
+export function resolveBenchmarkQueryParamConverter(
   name: string | undefined | null
 ): DataParamConverter | undefined {
   if (typeof name !== "string") return undefined;
@@ -61,29 +63,19 @@ export const getDataRenderComponent = (
   return Missing;
 };
 
-export const getDefaultDataConverter: DataParamConverter = (
-  timeRange: TimeRange,
-  branches: string[],
-  commits: string[],
-  filters: Record<string, any>
-): any => {
-  return {
-    ...filters,
-    branches: branches,
-    commits: commits,
-    startTime: dayjs.utc(timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
-    stopTime: dayjs.utc(timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
-  };
-};
-
-export const getGetQueryParamsConverter = (
+/**
+ * get the benchmark query params converter
+ * @param config
+ * @returns
+ */
+export const getGetBenchmarkQueryParamsConverter = (
   config: BenchmarkUIConfig
 ): DataParamConverter => {
   const dr = config.dataRender;
   if (!dr || dr.type !== "converter") {
     return getDefaultDataConverter;
   }
-  const converter = resolveConverter(dr.object_id);
+  const converter = resolveBenchmarkQueryParamConverter(dr.object_id);
   if (!converter) {
     throw new Error(`Customized Converter is not found: ${dr.object_id}`);
   }

@@ -24,7 +24,7 @@ export const compilerDataRenderConverter: DataParamConverter = (
     compilers: [],
     arch: DISPLAY_NAMES_TO_ARCH_NAMES[filters.deviceName],
     device: DISPLAY_NAMES_TO_DEVICE_NAMES[filters.deviceName],
-    dtype: filters.dtype,
+    dtype: filters.dtype === "none" ? "" : filters.dtype,
     granularity: "hour",
     mode: filters.mode,
     startTime: dayjs.utc(timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
@@ -44,6 +44,9 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
     end: dayjs.utc().endOf("day"),
   },
   filters: {
+    repo: "pytorch/pytorch",
+    benchmarkName: "compiler",
+    backend: "",
     mode: DEFAULT_MODE,
     dtype: MODES[DEFAULT_MODE],
     deviceName: DEFAULT_DEVICE_NAME,
