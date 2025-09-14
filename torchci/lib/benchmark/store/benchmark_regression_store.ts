@@ -1,10 +1,9 @@
 // benchmark_regression_store.ts
 import type { Dayjs } from "dayjs";
-import { create } from 'zustand';
+import { create } from "zustand";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
-
 
 export type BenchmarkCommitMeta = {
   commit: string;
@@ -17,16 +16,18 @@ export type BenchmarkCommitMeta = {
 export interface BenchmarkDashboardState {
   stagedTime: TimeRange;
   stagedFilters: Record<string, string>;
-  stagedLbranch: string
-  stagedRbranch: string
+  stagedLbranch: string;
+  stagedRbranch: string;
   committedTime: TimeRange;
   committedFilters: Record<string, string>;
-  committedLbranch: string
-  committedRbranch: string
+  committedLbranch: string;
+  committedRbranch: string;
+
+  // may key to track of the benchamrk
+  benchamrkId: string;
 
   lcommit: BenchmarkCommitMeta | null;
   rcommit: BenchmarkCommitMeta | null;
-
 
   setStagedTime: (t: TimeRange) => void;
   setStagedLBranch: (c: string) => void;
@@ -42,6 +43,7 @@ export interface BenchmarkDashboardState {
 
   reset: (initial: {
     time: TimeRange;
+    benchmarkId: string;
     filters: Record<string, string>;
     lcommit?: BenchmarkCommitMeta | null;
     rcommit?: BenchmarkCommitMeta | null;
@@ -51,24 +53,28 @@ export interface BenchmarkDashboardState {
 }
 
 export function createDashboardStore(initial: {
+  benchmarkId: string;
   time: TimeRange;
   filters: Record<string, string>;
-  lcommit?: BenchmarkCommitMeta;
-  rcommit?: BenchmarkCommitMeta;
+  lbranch: string;
+  rbranch: string;
+  lcommit?: BenchmarkCommitMeta | null;
+  rcommit?: BenchmarkCommitMeta | null;
 }) {
   return create<BenchmarkDashboardState>((set, get) => ({
+    benchamrkId: initial.benchmarkId,
 
     // staged options are the ones that are currently being edited
     stagedTime: initial.time,
     stagedFilters: initial.filters,
-    stagedLbranch: initial.lcommit?.branch ?? '',
-    stagedRbranch: initial.rcommit?.branch ?? '',
+    stagedLbranch: initial.lbranch ?? "",
+    stagedRbranch: initial.rbranch ?? "",
 
     // committed options are the ones that are currently being applied
     committedTime: initial.time,
     committedFilters: initial.filters,
-    committedLbranch: initial.lcommit?.branch ?? '',
-    committedRbranch: initial.rcommit?.branch ?? '',
+    committedLbranch: initial.lbranch ?? "",
+    committedRbranch: initial.rbranch ?? "",
 
     // current commits that are being picked
     lcommit: initial.lcommit ?? null,
@@ -104,20 +110,18 @@ export function createDashboardStore(initial: {
     setLCommit: (commit) => set({ lcommit: commit }),
     setRCommit: (commit) => set({ rcommit: commit }),
 
-
     reset: (next) =>
       set({
         stagedTime: next.time,
         committedTime: next.time,
         stagedFilters: next.filters,
         committedFilters: next.filters,
-        stagedLbranch: next.lcommit?.branch ?? 'main',
-        stagedRbranch: next.rcommit?.branch ?? 'main',
-        committedLbranch: next.lcommit?.branch ?? 'main',
-        committedRbranch: next.rcommit?.branch ?? 'main',
+        stagedLbranch: next.lbranch ?? "",
+        stagedRbranch: next.rbranch ?? "",
+        committedLbranch: next.lbranch ?? "",
+        committedRbranch: next.rbranch ?? "",
         lcommit: next.lcommit ?? null,
         rcommit: next.rcommit ?? null,
-
       }),
   }));
 }

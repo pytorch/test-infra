@@ -1,9 +1,41 @@
+import {
+  DISPLAY_NAMES_TO_ARCH_NAMES,
+  DISPLAY_NAMES_TO_DEVICE_NAMES,
+} from "components/benchmark/compilers/common";
+import dayjs from "dayjs";
+import { TimeRange } from "lib/benchmark/store/benchmark_regression_store";
 import useSWR, { SWRResponse } from "swr";
 
 export enum CompilerQueryType {
   PRECOMPUTE = "precompute",
   GENERAL = "general",
 }
+
+export const defaultGetTimeSeriesInputs: any = {
+  models: [],
+  commits: [],
+  compilers: [],
+  branches: [],
+  device: "",
+  arch: "",
+  dtype: "",
+  mode: "",
+  granularity: "hour",
+  startTime: "",
+  stopTime: "",
+  suites: [],
+};
+
+export const defaultListCommitsInputs: any = {
+  branches: [],
+  device: "",
+  arch: [],
+  dtype: "",
+  mode: "",
+  startTime: "",
+  stopTime: "",
+  suites: [],
+};
 
 export function getExtremeTs(
   rawData: Array<{ granularity_bucket: string | number | Date }>,
@@ -68,11 +100,13 @@ export async function postBenchmarkTimeSeriesFetcher<T>(
 
 export async function listBenchmarkCommits<T>(
   name: string,
-  queryParams: Record<string, any>
+  queryParams: Record<string, any>,
+  response_formats: string[] = ["branch"]
 ): Promise<T> {
   const body = {
     name: name,
     query_params: queryParams,
+    response_formats: response_formats,
   };
   const url = "/api/benchmark/list_commits";
   const res = await fetch(url, {
@@ -87,36 +121,14 @@ export interface CompilerBundleResult {
   table: any;
 }
 
-export function useBenchmarkCommitsData(
-  name: string,
-  queryParams: Record<string, any> | null
-): SWRResponse<any, Error> {
-  const shouldFetch = !!queryParams;
-
-  return useSWR<CompilerBundleResult, Error>(
-    shouldFetch ? [name, queryParams] : null,
-    async ([n, qp]) => {
-      return listBenchmarkCommits<CompilerBundleResult>(
-        n as string,
-        qp as Record<string, any>
-      );
-    },
-    {
-      revalidateOnFocus: false,
-      keepPreviousData: true,
-      dedupingInterval: 10_000,
-    }
-  );
-}
-
 // --- Hook wrapper ---
-export function useBenchmarkCompilerData(
-  name: string,
+export function useBenchmarkData(
+  benchamrk_name: string,
   queryParams: Record<string, any> | null
 ): SWRResponse<CompilerBundleResult, Error> {
   const shouldFetch = !!queryParams;
   return useSWR<CompilerBundleResult, Error>(
-    shouldFetch ? [name, queryParams] : null,
+    shouldFetch ? [benchamrk_name, queryParams] : null,
     async ([n, qp]) => {
       return postBenchmarkTimeSeriesFetcher<CompilerBundleResult>(
         n as string,
@@ -132,28 +144,57 @@ export function useBenchmarkCompilerData(
   );
 }
 
-export const defaultGetTimeSeriesInputs: any = {
-  models: [],
-  commits: [],
-  compilers: [],
-  branches: [],
-  device: "",
-  arch: "",
-  dtype: "",
-  mode: "",
-  granularity: "hour",
-  startTime: "",
-  stopTime: "",
-  suites: [],
-};
+export const REQUIRED_COMPLIER_LIST_COMMITS_KEYS = [
+  "mode",
+  "dtype",
+  "deviceName",
+] as const;
 
-export const defaultListCommitsInputs: any = {
-  branches: [],
-  device: "",
-  arch: [],
-  dtype: "",
-  mode: "",
-  startTime: "",
-  stopTime: "",
-  suites: [],
-};
+export function useBenchmarkCommitsData(
+  benchmarkId: string,
+  ready: boolean,
+  time: TimeRange,
+  filters: any | null,
+  branches: string[] | null,
+  formats: string[] = ["branch"]
+): any {
+  if (!branches) {
+    branches = [];
+  }
+
+  const baseParams: any | null = ready
+    ? {
+        benchmarkId,
+        startTime: dayjs.utc(time.start).format("YYYY-MM-DDTHH:mm:ss"),
+        stopTime: dayjs.utc(time.end).format("YYYY-MM-DDTHH:mm:ss"),
+        arch: DISPLAY_NAMES_TO_ARCH_NAMES[filters.deviceName],
+        device: DISPLAY_NAMES_TO_DEVICE_NAMES[filters.deviceName],
+        dtype: filters.dtype,
+        mode: filters.mode,
+        branch: branches,
+      }
+    : null;
+
+  console.log("baseParams", baseParams);
+
+  const shouldFetch = !!baseParams;
+  const keys = shouldFetch
+    ? ([benchmarkId, baseParams, formats] as const)
+    : null;
+
+  return useSWR<any, Error>(
+    keys,
+    async ([n, qp, f]) => {
+      return listBenchmarkCommits<any>(
+        n as string,
+        qp as Record<string, any>,
+        f as string[]
+      );
+    },
+    {
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+      dedupingInterval: 10_000,
+    }
+  );
+}

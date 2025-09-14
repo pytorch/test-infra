@@ -1,4 +1,4 @@
-import { Button } from "@mui/material";
+import { Button, TextField } from "@mui/material";
 import styled from "@mui/system/styled";
 
 export const UMDenseButton = styled(Button)(({ theme }) => ({
@@ -11,8 +11,6 @@ export const UMDenseButton = styled(Button)(({ theme }) => ({
   textTransform: "none", // optional: avoids uppercase
 }));
 
-
-import React from "react";
 import {
   FormControl,
   InputLabel,
@@ -21,7 +19,8 @@ import {
   Typography,
   type SelectChangeEvent,
 } from "@mui/material";
-import { Box } from "@mui/system";
+import { Box, Stack } from "@mui/system";
+import React from "react";
 
 // Reusable dense menu style (affects the dropdown list items)
 export const DENSE_MENU_STYLE = {
@@ -29,12 +28,11 @@ export const DENSE_MENU_STYLE = {
   "& .MuiList-root": {
     paddingTop: 0,
     paddingBottom: 0,
-
   },
   // make each item short & tight
   "& .MuiMenuItem-root": {
-    minHeight: 18,     // default ~48
-    paddingTop: 1,     // 2px
+    minHeight: 18, // default ~48
+    paddingTop: 1, // 2px
     paddingBottom: 0,
     paddingLeft: 8,
     paddingRight: 8,
@@ -63,7 +61,6 @@ type Props = {
   label: string;
 };
 
-
 export const DEFAULT_MODE = "inference";
 // The value is the default dtype for that mode
 export const MODES: { [k: string]: string } = {
@@ -89,11 +86,11 @@ export const UMDenseDropdown: React.FC<Props> = ({
       <InputLabel id={labelId}>{label}</InputLabel>
       <Select
         id={selectId}
-        labelId={labelId}            // make sure these match
+        labelId={labelId} // make sure these match
         value={dtype}
         label={label}
         onChange={handleChange}
-        sx={DENSE_SELECT_SX}         // dense trigger
+        sx={DENSE_SELECT_SX} // dense trigger
         MenuProps={{
           PaperProps: { sx: DENSE_MENU_STYLE },
         }}
@@ -107,7 +104,6 @@ export const UMDenseDropdown: React.FC<Props> = ({
     </FormControl>
   );
 };
-
 
 export function UMDenseModePicker({
   mode,
@@ -133,7 +129,7 @@ export function UMDenseModePicker({
           labelId="mode-picker-select-label"
           onChange={handleChange}
           id="mode-picker-select"
-          sx={DENSE_SELECT_SX}         // dense trigger
+          sx={DENSE_SELECT_SX} // dense trigger
           MenuProps={{
             PaperProps: { sx: DENSE_MENU_STYLE }, // dense list
           }}
@@ -149,7 +145,7 @@ export function UMDenseModePicker({
   );
 }
 
-export type CommitMeta = {
+export type UMDenseCommitDropdownCommitData = {
   commit: string;
   workflow_id: string;
   date: string;
@@ -159,53 +155,71 @@ export type CommitMeta = {
 type UMDenseCommitDropdownProps = {
   label: string;
   disable: boolean;
-  commitList: CommitMeta[];
-  selectedCommit: CommitMeta | null;
-  setCommit: (commit: CommitMeta | null) => void;
+  branchName: string; // show branch name only
+  commitList: UMDenseCommitDropdownCommitData[];
+  selectedCommit: UMDenseCommitDropdownCommitData | null;
+  setCommit: (commit: UMDenseCommitDropdownCommitData | null) => void;
 };
 
 export const UMDenseCommitDropdown: React.FC<UMDenseCommitDropdownProps> = ({
   label,
   disable,
+  branchName,
   commitList,
   selectedCommit,
   setCommit,
 }) => {
   function handleChange(e: SelectChangeEvent<string>) {
-    const val = e.target.value;
+    const val = e.target.value as string;
     setCommit(commitList.find((c) => c.commit === val) ?? null);
   }
 
   return (
-    <FormControl
-      size="small"
-      fullWidth
-      disabled={disable}
-    >
-      <InputLabel id={`lbl-${label.toLowerCase()}`}>{label}</InputLabel>
-      <Select
+    <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
+      {/* Left: branch name (read-only) */}
+      <TextField
+        label="Branch"
         size="small"
-        labelId={`lbl-${label.toLowerCase()}`}
-        label={label}
-        value={selectedCommit?.commit ?? ""}
-        onChange={handleChange}
-        MenuProps={{
-          PaperProps: {
-            sx: DENSE_MENU_STYLE,
+        value={branchName ?? ""}
+        disabled={true}
+        sx={{
+          flex: 1,
+          "& .MuiInputBase-input": {
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
           },
         }}
+      />
+
+      {/* Right: commit dropdown */}
+      <FormControl
+        size="small"
+        fullWidth
+        disabled={disable || commitList.length === 0}
+        sx={{ flex: 1 }}
       >
-        {commitList.map((c) => (
-          <MenuItem key={c.commit} value={c.commit}>
-            <Box display="flex" flexDirection="column">
-              <Typography variant="body2">{c.commit.slice(0, 7)}</Typography>
-              <Typography variant="caption" color="text.secondary">
-                {c.workflow_id} • {c.date}
-              </Typography>
-            </Box>
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+        <InputLabel id={`lbl-${label.toLowerCase()}`}>{label}</InputLabel>
+        <Select
+          size="small"
+          labelId={`lbl-${label.toLowerCase()}`}
+          label={label}
+          value={selectedCommit?.commit ?? ""}
+          onChange={handleChange}
+          MenuProps={{ PaperProps: { sx: DENSE_MENU_STYLE } }}
+        >
+          {commitList.map((c) => (
+            <MenuItem key={c.commit} value={c.commit}>
+              <Box display="flex" flexDirection="column">
+                <Typography variant="body2">{c.commit.slice(0, 7)}</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {c.workflow_id} • {c.date}
+                </Typography>
+              </Box>
+            </MenuItem>
+          ))}
+        </Select>
+      </FormControl>
+    </Stack>
   );
 };

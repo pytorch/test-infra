@@ -1,8 +1,8 @@
 import { createContext, useContext, useMemo } from "react";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type {
+  BenchmarkCommitMeta,
   BenchmarkDashboardState,
-  CommitMeta,
   TimeRange,
 } from "./benchmark_regression_store";
 import { createDashboardStore } from "./benchmark_regression_store";
@@ -11,16 +11,19 @@ import { createDashboardStore } from "./benchmark_regression_store";
 type DashboardStoreHook = UseBoundStore<StoreApi<BenchmarkDashboardState>>;
 const DashboardContext = createContext<DashboardStoreHook | null>(null);
 
-export function DashboardStoreProvider({
+export function BenchmarkDashboardStoreProvider({
   children,
   initial,
 }: {
   children: React.ReactNode;
   initial: {
+    benchmarkId: string;
     time: TimeRange;
     filters: Record<string, string>;
-    lcommit?: CommitMeta;
-    rcommit?: CommitMeta;
+    lbranch: string;
+    rbranch: string;
+    lcommit?: BenchmarkCommitMeta;
+    rcommit?: BenchmarkCommitMeta;
   };
 }) {
   const store = useMemo(
