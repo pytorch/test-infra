@@ -1,4 +1,4 @@
-import { Button, TextField } from "@mui/material";
+import { Button } from "@mui/material";
 import styled from "@mui/system/styled";
 
 export const UMDenseButton = styled(Button)(({ theme }) => ({
@@ -160,8 +160,14 @@ type UMDenseCommitDropdownProps = {
   selectedCommit: UMDenseCommitDropdownCommitData | null;
   setCommit: (commit: UMDenseCommitDropdownCommitData | null) => void;
 };
-
-export const UMDenseCommitDropdown: React.FC<UMDenseCommitDropdownProps> = ({
+export const UMDenseCommitDropdown: React.FC<{
+  label: string;
+  disable: boolean;
+  branchName: string;
+  commitList: UMDenseCommitDropdownCommitData[];
+  selectedCommit: UMDenseCommitDropdownCommitData | null;
+  setCommit: (c: UMDenseCommitDropdownCommitData | null) => void;
+}> = ({
   label,
   disable,
   branchName,
@@ -169,47 +175,37 @@ export const UMDenseCommitDropdown: React.FC<UMDenseCommitDropdownProps> = ({
   selectedCommit,
   setCommit,
 }) => {
+  // Clamp the value so we never feed an out-of-range value to Select
+  const selectedValue =
+    selectedCommit?.workflow_id &&
+    commitList.some((c) => c.workflow_id === selectedCommit.workflow_id)
+      ? selectedCommit.workflow_id
+      : "";
+
   function handleChange(e: SelectChangeEvent<string>) {
-    const val = e.target.value as string;
-    setCommit(commitList.find((c) => c.commit === val) ?? null);
+    const wf = e.target.value as string;
+    setCommit(commitList.find((c) => c.workflow_id === wf) ?? null);
   }
 
   return (
     <Stack direction="row" spacing={1} sx={{ width: "100%" }}>
-      {/* Left: branch name (read-only) */}
-      <TextField
-        label="Branch"
-        size="small"
-        value={branchName ?? ""}
-        disabled={true}
-        sx={{
-          flex: 1,
-          "& .MuiInputBase-input": {
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-          },
-        }}
-      />
-
-      {/* Right: commit dropdown */}
+      {/* branchName field ... (unchanged) */}
       <FormControl
         size="small"
         fullWidth
         disabled={disable || commitList.length === 0}
-        sx={{ flex: 1 }}
       >
         <InputLabel id={`lbl-${label.toLowerCase()}`}>{label}</InputLabel>
         <Select
           size="small"
           labelId={`lbl-${label.toLowerCase()}`}
           label={label}
-          value={selectedCommit?.commit ?? ""}
+          value={selectedValue}
           onChange={handleChange}
           MenuProps={{ PaperProps: { sx: DENSE_MENU_STYLE } }}
         >
           {commitList.map((c) => (
-            <MenuItem key={c.commit} value={c.commit}>
+            <MenuItem key={c.workflow_id} value={c.workflow_id}>
               <Box display="flex" flexDirection="column">
                 <Typography variant="body2">{c.commit.slice(0, 7)}</Typography>
                 <Typography variant="caption" color="text.secondary">

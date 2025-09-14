@@ -1,5 +1,5 @@
-import BenchmarkRegressionPage from "../../BenchmarkRegressionPage";
-import { BenchmarkUIConfigBook } from "../../configs/configBook";
+import BenchmarkRegressionPage from "../../../BenchmarkRegressionPage";
+import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 
 export default function CompilerBenchmarkPrecomputePage() {
   const config = BenchmarkUIConfigBook["compiler_precompute"];

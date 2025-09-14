@@ -24,7 +24,7 @@ export interface BenchmarkDashboardState {
   committedRbranch: string;
 
   // may key to track of the benchamrk
-  benchamrkId: string;
+  benchmarkId: string;
 
   lcommit: BenchmarkCommitMeta | null;
   rcommit: BenchmarkCommitMeta | null;
@@ -62,7 +62,7 @@ export function createDashboardStore(initial: {
   rcommit?: BenchmarkCommitMeta | null;
 }) {
   return create<BenchmarkDashboardState>((set, get) => ({
-    benchamrkId: initial.benchmarkId,
+    benchmarkId: initial.benchmarkId,
 
     // staged options are the ones that are currently being edited
     stagedTime: initial.time,

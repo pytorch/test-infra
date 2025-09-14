@@ -11,7 +11,7 @@ export function DefaultRenderContent() {
   const committedLBranch = useStore((s) => s.committedLbranch);
   const committedRBranch = useStore((s) => s.committedRbranch);
 
-  const benchmarkId = useStore((s) => s.benchamrkId);
+  const benchmarkId = useStore((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook[benchmarkId];
 
   const requiredFilters = config?.required_filter_fields ?? [];

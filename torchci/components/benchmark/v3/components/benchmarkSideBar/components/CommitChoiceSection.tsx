@@ -1,5 +1,6 @@
-import { Button, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
+import { getGetQueryParamsConverter } from "components/benchmark/v3/configs/configRegistration";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
@@ -10,7 +11,7 @@ import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 export function CommitChoiceSection() {
   const useStore = useDashboardStore();
 
-  const benchmarkId = useStore((s) => s.benchamrkId);
+  const benchmarkId = useStore((s) => s.benchmarkId);
 
   const committedTime = useStore((s) => s.committedTime);
   const committedFilters = useStore((s) => s.committedFilters);
@@ -46,13 +47,14 @@ export function CommitChoiceSection() {
       [committedLBranch, committedRBranch].filter((b) => b.length > 0)
     ),
   ];
+
+  const converter = getGetQueryParamsConverter(config);
+  const params = converter(committedTime, branches, [], committedFilters);
+  const queryParams: any | null = ready ? params : null;
+
   const { data, isLoading, error } = useBenchmarkCommitsData(
     benchmarkId,
-    ready,
-    committedTime,
-    committedFilters,
-    branches,
-    ["branch"]
+    queryParams
   );
 
   useEffect(() => {
@@ -66,45 +68,57 @@ export function CommitChoiceSection() {
     }
   }, [ready, setLCommit, setRCommit]);
 
-  // Helper
-  const inList = (list: BenchmarkCommitMeta[], workflow_id?: string | null) =>
-    !!workflow_id && list.some((c) => c.workflow_id === workflow_id);
-
-  // Sync lists & auto-picks when data / selection changes
   useEffect(() => {
-    if (!data) return;
-    if (isLoading) return;
-    const branches = data?.data?.branch ?? [];
-    const branchMap = convertToBranchMap(branches);
+    if (isLoading || !data) return;
+
+    const groups = data?.data?.branch ?? [];
+    const branchMap = convertToBranchMap(groups);
+
     const L: BenchmarkCommitMeta[] = branchMap[committedLBranch] ?? [];
     const R: BenchmarkCommitMeta[] = branchMap[committedRBranch] ?? [];
 
-    if (!L || !R) return;
+    // update list
     setLeftList(L);
     setRightList(R);
 
-    const nextAutoL = inList(L, lcommit?.workflow_id)
-      ? lcommit!.workflow_id
-      : L[0]?.workflow_id ?? null;
-    const nextAutoR = inList(R, rcommit?.workflow_id)
-      ? rcommit!.workflow_id
-      : R[R.length - 1]?.workflow_id ?? null;
+    // update auto
+    if (L.length === 0) {
+      setAutoLeftSha(null);
+      if (lcommit) setLCommit(null);
+    }
+    if (R.length === 0) {
+      setAutoRightSha(null);
+      if (rcommit) setRCommit(null);
+    }
+    if (L.length === 0 || R.length === 0) return;
+
+    // check if user has selected a commit that is not in the list
+    const lSelected = lcommit?.workflow_id ?? null;
+    const rSelected = rcommit?.workflow_id ?? null;
+    const lHas = !!lSelected && L.some((c) => c.workflow_id === lSelected);
+    const rHas = !!rSelected && R.some((c) => c.workflow_id === rSelected);
+
+    // rule left pick first workflow, right pick last workflow id
+    const nextAutoL = lHas ? lSelected : L[0]?.workflow_id ?? null;
+    const nextAutoR = rHas ? rSelected : R[R.length - 1]?.workflow_id ?? null;
 
     setAutoLeftSha(nextAutoL);
     setAutoRightSha(nextAutoR);
-
-    if (!inList(L, lcommit?.workflow_id)) {
+    if (!lHas) {
       setLCommit(
         nextAutoL ? L.find((c) => c.workflow_id === nextAutoL) ?? null : null
       );
     }
-    if (!inList(R, rcommit?.workflow_id)) {
+    if (!rHas) {
       setRCommit(
         nextAutoR ? R.find((c) => c.workflow_id === nextAutoR) ?? null : null
       );
     }
   }, [
+    isLoading,
     data,
+    committedLBranch,
+    committedRBranch,
     lcommit?.workflow_id,
     rcommit?.workflow_id,
     setLCommit,
@@ -113,15 +127,6 @@ export function CommitChoiceSection() {
 
   if (error) return <div>Error: {error.message}</div>;
   if (isLoading || !data) return null;
-
-  const leftChangedByUser =
-    !!lcommit?.workflow_id &&
-    autoLeftSha != null &&
-    lcommit.workflow_id !== autoLeftSha;
-  const rightChangedByUser =
-    !!rcommit?.workflow_id &&
-    autoRightSha != null &&
-    rcommit.workflow_id !== autoRightSha;
 
   return (
     <Stack spacing={1.5}>
@@ -142,25 +147,9 @@ export function CommitChoiceSection() {
         commitList={rightList}
         setCommit={setRCommit}
       />
-
-      {(leftChangedByUser || rightChangedByUser) && (
-        <Button
-          size="small"
-          variant="text"
-          onClick={() => {
-            if (autoLeftSha)
-              setLCommit(
-                leftList.find((c) => c.commit === autoLeftSha) ?? null
-              );
-            if (autoRightSha)
-              setRCommit(
-                rightList.find((c) => c.commit === autoRightSha) ?? null
-              );
-          }}
-        >
-          Reset to auto
-        </Button>
-      )}
+      <div>
+        <pre>{JSON.stringify({ lcommit, rcommit }, null, 2)}</pre>;
+      </div>
     </Stack>
   );
 }

@@ -20,8 +20,8 @@ const UtilizationReportPage = () => {
   const router = useRouter();
   useEffect(() => {
     const {
-      start_time = dayjs.utc().format("YYYY-MM-DD"),
-      end_time = dayjs.utc().format("YYYY-MM-DD"),
+      start_time,
+      end_time
     } = router.query;
     const newprops: any = {
       start_time,
@@ -79,8 +79,8 @@ const InnerUtilizationContent = ({
             payload: newprops,
           });
         }}
-        start={timeRange.start_time}
-        end={timeRange.end_time}
+        start={dayjs.utc(timeRange.start_time)}
+        end={dayjs.utc(timeRange.end_time)}
       />
       <ReportMetricsTable
         startTime={timeRange.start_time}

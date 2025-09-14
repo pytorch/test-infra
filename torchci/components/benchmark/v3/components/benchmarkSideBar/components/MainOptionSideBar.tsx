@@ -4,7 +4,10 @@ import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { getSideBarMetricsComponent } from "components/benchmark/v3/configs/configRegistration";
+import {
+  getGetQueryParamsConverter,
+  getSideBarMetricsComponent,
+} from "components/benchmark/v3/configs/configRegistration";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
@@ -15,7 +18,7 @@ import { BranchDropdowns } from "./BranchDropdown";
 
 export function Sidebar() {
   const useStore = useDashboardStore();
-  const benchmarkId = useStore((s) => s.benchamrkId);
+  const benchmarkId = useStore((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook[benchmarkId];
   const required_filter_fields = config.required_filter_fields ?? [];
 
@@ -44,17 +47,15 @@ export function Sidebar() {
     !!stagedTime?.end &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
+  const converter = getGetQueryParamsConverter(config);
+  const params = converter(stagedTime, [], [], stagedFilters);
+  const queryParams: any | null = ready ? params : null;
+
   const {
     data: commitsData,
     isLoading: isCommitsLoading,
     error: commitsError,
-  } = useBenchmarkCommitsData(
-    benchmarkId,
-    ready,
-    stagedTime,
-    stagedFilters,
-    [] // fetches all commits during the given time range and filters
-  );
+  } = useBenchmarkCommitsData(benchmarkId, queryParams);
 
   const branches = commitsData?.metadata?.branches ?? [];
 
@@ -96,6 +97,7 @@ export function Sidebar() {
         }
         start={stagedTime.start}
         end={stagedTime.end}
+        gap={0}
       />
       <Divider />
       {/* Dropdown filters */}

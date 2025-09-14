@@ -1,9 +1,3 @@
-import {
-  DISPLAY_NAMES_TO_ARCH_NAMES,
-  DISPLAY_NAMES_TO_DEVICE_NAMES,
-} from "components/benchmark/compilers/common";
-import dayjs from "dayjs";
-import { TimeRange } from "lib/benchmark/store/benchmark_regression_store";
 import useSWR, { SWRResponse } from "swr";
 
 export enum CompilerQueryType {
@@ -152,32 +146,15 @@ export const REQUIRED_COMPLIER_LIST_COMMITS_KEYS = [
 
 export function useBenchmarkCommitsData(
   benchmarkId: string,
-  ready: boolean,
-  time: TimeRange,
-  filters: any | null,
-  branches: string[] | null,
+  baseParams: any | null,
   formats: string[] = ["branch"]
 ): any {
-  if (!branches) {
-    branches = [];
+  const shouldFetch = !!baseParams;
+
+  if (!baseParams.branches) {
+    baseParams.branches = [];
   }
 
-  const baseParams: any | null = ready
-    ? {
-        benchmarkId,
-        startTime: dayjs.utc(time.start).format("YYYY-MM-DDTHH:mm:ss"),
-        stopTime: dayjs.utc(time.end).format("YYYY-MM-DDTHH:mm:ss"),
-        arch: DISPLAY_NAMES_TO_ARCH_NAMES[filters.deviceName],
-        device: DISPLAY_NAMES_TO_DEVICE_NAMES[filters.deviceName],
-        dtype: filters.dtype,
-        mode: filters.mode,
-        branch: branches,
-      }
-    : null;
-
-  console.log("baseParams", baseParams);
-
-  const shouldFetch = !!baseParams;
   const keys = shouldFetch
     ? ([benchmarkId, baseParams, formats] as const)
     : null;
