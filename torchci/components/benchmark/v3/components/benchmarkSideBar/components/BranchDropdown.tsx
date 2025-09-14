@@ -67,17 +67,12 @@ export function BranchDropdowns({
             setDType={setLBranch}
             dtypes={branchOptions}
             label="Left Branch"
-            // ensure the control doesn't force width changes
-            sx={{ width: 1, minWidth: 0 }}
-            fullWidth
           />
           <UMDenseDropdown
             dtype={rBranch}
             setDType={setRBranch}
             dtypes={branchOptions}
             label="Right Branch"
-            sx={{ width: 1, minWidth: 0 }}
-            fullWidth
           />
         </>
       ) : (
