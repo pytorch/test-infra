@@ -1,6 +1,6 @@
 // benchmark_regression_store.ts
 import type { Dayjs } from "dayjs";
-import { create } from "zustand";
+import { createWithEqualityFn } from "zustand/traditional";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
@@ -61,35 +61,33 @@ export function createDashboardStore(initial: {
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
 }) {
-  return create<BenchmarkDashboardState>((set, get) => ({
-    benchmarkId: initial.benchmarkId,
+  return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
+    benchmarkId: initial.benchmarkId, // <-- fixed name
 
-    // staged options are the ones that are currently being edited
+    // staged
     stagedTime: initial.time,
     stagedFilters: initial.filters,
     stagedLbranch: initial.lbranch ?? "",
     stagedRbranch: initial.rbranch ?? "",
 
-    // committed options are the ones that are currently being applied
+    // committed
     committedTime: initial.time,
     committedFilters: initial.filters,
     committedLbranch: initial.lbranch ?? "",
     committedRbranch: initial.rbranch ?? "",
 
-    // current commits that are being picked
+    // current commits
     lcommit: initial.lcommit ?? null,
     rcommit: initial.rcommit ?? null,
 
+    // actions...
     setStagedLBranch: (c) => set({ stagedLbranch: c }),
     setStagedRBranch: (c) => set({ stagedRbranch: c }),
-
     setStagedTime: (t) => set({ stagedTime: t }),
     setStagedFilter: (k, v) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, [k]: v } })),
     setStagedFilters: (filters) =>
-      set((state) => ({
-        stagedFilters: { ...state.stagedFilters, ...filters },
-      })),
+      set((s) => ({ stagedFilters: { ...s.stagedFilters, ...filters } })),
 
     commitMainOptions: () =>
       set({
@@ -122,6 +120,7 @@ export function createDashboardStore(initial: {
         committedRbranch: next.rbranch ?? "",
         lcommit: next.lcommit ?? null,
         rcommit: next.rcommit ?? null,
+        // (optional) benchmarkId: next.benchmarkId,
       }),
   }));
 }

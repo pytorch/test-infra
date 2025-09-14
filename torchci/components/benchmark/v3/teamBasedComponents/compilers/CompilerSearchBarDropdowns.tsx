@@ -6,12 +6,13 @@ import {
   UMDenseDropdown,
   UMDenseModePicker,
 } from "components/uiModules/UMDenseComponents";
-import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 
 export function CompilerSearchBarDropdowns() {
-  const useStore = useDashboardStore();
-  const stagedFilters = useStore((s) => s.stagedFilters);
-  const setStagedFilter = useStore((s) => s.setStagedFilter);
+  const { stagedFilters, setStagedFilter } = useDashboardSelector((s) => ({
+    stagedFilters: s.stagedFilters,
+    setStagedFilter: s.setStagedFilter,
+  }));
   return (
     <>
       <UMDenseModePicker

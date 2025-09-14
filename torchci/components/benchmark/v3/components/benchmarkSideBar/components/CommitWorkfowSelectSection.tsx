@@ -3,7 +3,7 @@ import { Stack } from "@mui/system";
 import { getGetBenchmarkQueryParamsConverter } from "components/benchmark/v3/configs/configRegistration";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
-import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useState } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
@@ -14,20 +14,27 @@ import { BenchmarkUIConfigBook } from "../../../configs/configBook";
  *
  */
 export function CommitWorflowSelectSection() {
-  const useStore = useDashboardStore();
-
-  const benchmarkId = useStore((s) => s.benchmarkId);
-
-  const committedTime = useStore((s) => s.committedTime);
-  const committedFilters = useStore((s) => s.committedFilters);
-  const lcommit = useStore((s) => s.lcommit);
-  const rcommit = useStore((s) => s.rcommit);
-
-  const committedLBranch = useStore((s) => s.committedLbranch);
-  const committedRBranch = useStore((s) => s.committedRbranch);
-
-  const setLCommit = useStore((s) => s.setLCommit);
-  const setRCommit = useStore((s) => s.setRCommit);
+  const {
+    benchmarkId,
+    committedTime,
+    committedFilters,
+    lcommit,
+    rcommit,
+    committedLBranch,
+    committedRBranch,
+    setLCommit,
+    setRCommit,
+  } = useDashboardSelector((s) => ({
+    benchmarkId: s.benchmarkId,
+    committedTime: s.committedTime,
+    committedFilters: s.committedFilters,
+    lcommit: s.lcommit,
+    rcommit: s.rcommit,
+    committedLBranch: s.committedLbranch,
+    committedRBranch: s.committedRbranch,
+    setLCommit: s.setLCommit,
+    setRCommit: s.setRCommit,
+  }));
 
   const [leftList, setLeftList] = useState<BenchmarkCommitMeta[]>([]);
   const [rightList, setRightList] = useState<BenchmarkCommitMeta[]>([]);
@@ -68,8 +75,6 @@ export function CommitWorflowSelectSection() {
     if (!ready) {
       setLeftList([]);
       setRightList([]);
-      setAutoLeftSha(null);
-      setAutoRightSha(null);
       setLCommit(null);
       setRCommit(null);
     }
@@ -90,7 +95,6 @@ export function CommitWorflowSelectSection() {
 
     // update auto
     if (L.length === 0) {
-      setAutoLeftSha(null);
       if (lcommit) setLCommit(null);
     }
     if (R.length === 0) {
@@ -109,8 +113,6 @@ export function CommitWorflowSelectSection() {
     const nextAutoL = lHas ? lSelected : L[0]?.workflow_id ?? null;
     const nextAutoR = rHas ? rSelected : R[R.length - 1]?.workflow_id ?? null;
 
-    setAutoLeftSha(nextAutoL);
-    setAutoRightSha(nextAutoR);
     if (!lHas) {
       setLCommit(
         nextAutoL ? L.find((c) => c.workflow_id === nextAutoL) ?? null : null

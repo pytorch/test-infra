@@ -1,19 +1,25 @@
 import { BenchmarkUIConfigBook } from "components/benchmark/v3/configs/configBook";
 import LoadingPage from "components/common/LoadingPage";
 import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
-import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { getGetBenchmarkQueryParamsConverter } from "../../configs/configRegistration";
 
 export function DefaultRenderContent() {
-  const useStore = useDashboardStore();
-  const committedTime = useStore((s) => s.committedTime);
-  const committedFilters = useStore((s) => s.committedFilters);
-  const committedLBranch = useStore((s) => s.committedLbranch);
-  const committedRBranch = useStore((s) => s.committedRbranch);
+  const {
+    benchmarkId,
+    committedTime,
+    committedFilters,
+    committedLbranch: committedLBranch,
+    committedRbranch: committedRBranch,
+  } = useDashboardSelector((s) => ({
+    benchmarkId: s.benchmarkId,
+    committedTime: s.committedTime,
+    committedFilters: s.committedFilters,
+    committedLbranch: s.committedLbranch,
+    committedRbranch: s.committedRbranch,
+  }));
 
-  const benchmarkId = useStore((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook[benchmarkId];
-
   const requiredFilters = config?.required_filter_fields ?? [];
 
   const branches = [

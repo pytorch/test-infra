@@ -1,5 +1,5 @@
 import React from "react";
-import DefaultSidebarMetricsDropdowns from "../components/benchmarkSideBar/components/defaultSideBarMetricsDropdowns";
+import DefaultSidebarMetricsDropdowns from "../components/benchmarkSideBar/components/DefaultSideBarMetricsDropdowns";
 import { DefaultRenderContent } from "../components/dataRender/defaultRenderContent";
 import { CompilerSearchBarDropdowns } from "../teamBasedComponents/compilers/CompilerSearchBarDropdowns";
 import { compilerDataRenderConverter } from "../teamBasedComponents/compilers/config";

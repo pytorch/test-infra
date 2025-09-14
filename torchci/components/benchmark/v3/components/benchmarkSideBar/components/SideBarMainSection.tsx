@@ -11,7 +11,7 @@ import {
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
-import { useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useEffect, useRef } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { BranchDropdowns } from "./BranchDropdown";
@@ -29,27 +29,45 @@ const styles = {
  *
  */
 export function SideBarMainSection() {
-  const useStore = useDashboardStore();
-  const benchmarkId = useStore((s) => s.benchmarkId);
+  // 1) Read benchmarkId (low-churn) to fetch config
+  const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook[benchmarkId];
-  const required_filter_fields = config.required_filter_fields ?? [];
+  const required_filter_fields = config?.required_filter_fields ?? [];
 
-  const stagedTime = useStore((s) => s.stagedTime);
-  const stagedFilters = useStore((s) => s.stagedFilters);
-  const stagedLbranch = useStore((s) => s.stagedLbranch);
-  const stagedRbranch = useStore((s) => s.stagedRbranch);
+  // 2) One selector (with shallow inside useDashboardSelector) for the rest
+  const {
+    stagedTime,
+    stagedFilters,
+    stagedLbranch,
+    stagedRbranch,
+    setStagedTime,
+    setStagedLBranch,
+    setStagedRBranch,
 
-  const setStagedTime = useStore((s) => s.setStagedTime);
-  const setStagedLBranch = useStore((s) => s.setStagedLBranch);
-  const setStagedRBranch = useStore((s) => s.setStagedRBranch);
+    committedTime,
+    committedFilters,
+    committedLbranch,
+    committedRbranch,
 
-  const committedTime = useStore((s) => s.committedTime);
-  const committedFilters = useStore((s) => s.committedFilters);
-  const committedL = useStore((s) => s.committedLbranch);
-  const committedR = useStore((s) => s.committedRbranch);
+    commitMainOptions,
+    revertMainOptions,
+  } = useDashboardSelector((s) => ({
+    stagedTime: s.stagedTime,
+    stagedFilters: s.stagedFilters,
+    stagedLbranch: s.stagedLbranch,
+    stagedRbranch: s.stagedRbranch,
+    setStagedTime: s.setStagedTime,
+    setStagedLBranch: s.setStagedLBranch,
+    setStagedRBranch: s.setStagedRBranch,
 
-  const commitMainOptions = useStore((s) => s.commitMainOptions);
-  const revertMainOptions = useStore((s) => s.revertMainOptions);
+    committedTime: s.committedTime,
+    committedFilters: s.committedFilters,
+    committedLbranch: s.committedLbranch,
+    committedRbranch: s.committedRbranch,
+
+    commitMainOptions: s.commitMainOptions,
+    revertMainOptions: s.revertMainOptions,
+  }));
 
   // trick to record the sig of the branches from previous rendering
   const branchSigRef = useRef<string>("");
@@ -93,8 +111,8 @@ export function SideBarMainSection() {
   const dirty =
     stagedTime.start.valueOf() !== committedTime.start.valueOf() ||
     stagedTime.end.valueOf() !== committedTime.end.valueOf() ||
-    stagedLbranch !== committedL ||
-    stagedRbranch !== committedR ||
+    stagedLbranch !== committedLbranch ||
+    stagedRbranch !== committedRbranch ||
     JSON.stringify(stagedFilters) !== JSON.stringify(committedFilters);
 
   // indicates no branches found based on the time range and options

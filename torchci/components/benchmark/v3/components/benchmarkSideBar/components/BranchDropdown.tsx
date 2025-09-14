@@ -84,8 +84,6 @@ export function BranchDropdowns({
           }}
           dtypes={branchOptions}
           label="Branch"
-          sx={{ width: 1, minWidth: 0 }}
-          fullWidth
         />
       )}
     </SectionShell>
