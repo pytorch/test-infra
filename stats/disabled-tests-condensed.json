@@ -588,6 +588,13 @@
       "rocm"
     ]
   ],
+  "test_automatic_dynamo_graph_breaks_device_xpu (__main__.TestPackage)": [
+    "162938",
+    "https://github.com/pytorch/pytorch/issues/162938",
+    [
+      "xpu"
+    ]
+  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
