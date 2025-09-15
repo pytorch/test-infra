@@ -92,6 +92,7 @@ jobs:
           { dir-name: 'pytorch-auto-revert', zip-name: 'pytorch-auto-revert' },
           { dir-name: 'keep-going-call-log-classifier', zip-name: 'keep-going-call-log-classifier' },
           { dir-name: 'buildkite-webhook-handler', zip-name: 'buildkite-webhook-handler' },
+          { dir-name: 'benchmark_regression_summary_report', zip-name: 'benchmark-regression-summary-report' },
         ]
     name: Upload Release for ${{ matrix.dir-name }} lambda
     runs-on: ubuntu-latest
