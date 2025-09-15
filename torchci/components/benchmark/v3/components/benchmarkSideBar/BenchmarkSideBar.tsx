@@ -12,11 +12,13 @@ const FADE_MS = 200;
 
 const styles = {
   container: (open: boolean) => (theme: any) => ({
-    width: open ? {
-      "sm": "250px",
-      "md": "300px",
-      "lg": "350px",
-    } : RAIL_WIDTH,
+    width: open
+      ? {
+          sm: "250px",
+          md: "300px",
+          lg: "350px",
+        }
+      : RAIL_WIDTH,
     transition: theme.transitions.create("width", {
       duration: WIDTH_MS,
     }),
