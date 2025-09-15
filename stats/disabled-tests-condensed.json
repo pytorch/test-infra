@@ -2215,6 +2215,13 @@
       "rocm"
     ]
   ],
+  "test_lazy_backward_backend_inductor_device_xpu (__main__.TestPackage)": [
+    "162939",
+    "https://github.com/pytorch/pytorch/issues/162939",
+    [
+      "xpu"
+    ]
+  ],
   "test_ldl_factor_cuda_float32 (__main__.TestLinalgCUDA)": [
     "157046",
     "https://github.com/pytorch/pytorch/issues/157046",
