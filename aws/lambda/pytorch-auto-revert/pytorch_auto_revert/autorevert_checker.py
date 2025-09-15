@@ -155,6 +155,7 @@ class AutorevertPatternChecker:
                 -- it is just a optimization as this column is indexed
                 AND wf.created_at >= {lookback_time:DateTime}
                 AND wf.dynamoKey LIKE 'pytorch/pytorch/%'
+                AND (wf.name NOT LIKE '%mem_leak_check%' AND wf.name NOT LIKE '%rerun_disabled_tests%')
             ORDER BY
                 wf.workflow_name, push_dedup.timestamp DESC, wf.head_sha, wf.name
         """
