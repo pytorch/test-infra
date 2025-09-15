@@ -105,6 +105,10 @@ class SignalExtractionDatasource:
             created_at,
             rule,
         ) in res.result_rows:
+            # Guard against placeholder started_at by using the later of
+            # started_at and created_at as the effective start.
+            # Both columns are non-NULL in ClickHouse.
+            effective_started = max(started_at, created_at)
             rows.append(
                 JobRow(
                     head_sha=Sha(head_sha),
@@ -115,7 +119,7 @@ class SignalExtractionDatasource:
                     name=JobName(str(name or "")),
                     status=str(status or ""),
                     conclusion=str(conclusion or ""),
-                    started_at=started_at,
+                    started_at=effective_started,
                     created_at=created_at,
                     rule=str(rule or ""),
                 )

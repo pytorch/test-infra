@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
-from typing import NewType, Optional, Set
+from typing import NewType, Set
 
 
 # Default classification rules that indicate test failures.
@@ -35,8 +35,8 @@ class JobRow:
     name: JobName
     status: str
     conclusion: str
-    started_at: Optional[datetime]
-    created_at: Optional[datetime]
+    started_at: datetime
+    created_at: datetime
     rule: str
 
     @cached_property

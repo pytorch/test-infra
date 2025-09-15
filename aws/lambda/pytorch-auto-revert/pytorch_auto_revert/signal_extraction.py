@@ -31,6 +31,7 @@ from .signal_extraction_types import (
 class TestOutcome:
     failing: bool
     errored: bool
+    started_at: datetime
 
 
 class SignalExtractor:
@@ -174,9 +175,13 @@ class SignalExtractor:
                 tr.test_id,
             )
             prev = tests_by_group_attempt.get(key)
+            started_at = min(
+                (prev.started_at if prev else job.started_at), job.started_at
+            )
             outcome = TestOutcome(
                 failing=(prev.failing if prev else False) or bool(tr.failing),
                 errored=(prev.errored if prev else False) or bool(tr.errored),
+                started_at=started_at,
             )
             tests_by_group_attempt[key] = outcome
             if outcome.failing or outcome.errored:
@@ -226,7 +231,6 @@ class SignalExtractor:
                             wf_run_id=wf_run_id,
                             run_attempt=run_attempt,
                         ),
-                        "started_at": meta.started_at or datetime.min,
                         "ended_at": None,
                     }
 
@@ -236,12 +240,17 @@ class SignalExtractor:
                                 status=SignalStatus.FAILURE
                                 if (verdict.failing or verdict.errored)
                                 else SignalStatus.SUCCESS,
+                                started_at=verdict.started_at,
                                 **event_common,
                             )
                         )
                     elif meta.is_pending:
                         events.append(
-                            SignalEvent(status=SignalStatus.PENDING, **event_common)
+                            SignalEvent(
+                                status=SignalStatus.PENDING,
+                                started_at=meta.started_at,
+                                **event_common,
+                            )
                         )
                     # else: missing (no event)
 
@@ -330,7 +339,7 @@ class SignalExtractor:
                                 run_attempt=run_attempt,
                             ),
                             status=ev_status,
-                            started_at=meta.started_at or datetime.min,
+                            started_at=meta.started_at,
                             ended_at=None,
                         )
                     )
