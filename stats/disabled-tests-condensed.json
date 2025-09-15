@@ -2223,6 +2223,13 @@
       "macos"
     ]
   ],
+  "test_libtorch_free_so_xpu (__main__.AOTInductorTestABICompatibleGpu)": [
+    "162937",
+    "https://github.com/pytorch/pytorch/issues/162937",
+    [
+      "xpu"
+    ]
+  ],
   "test_like_channels_last_cpu (__main__.CpuTritonTests)": [
     "139149",
     "https://github.com/pytorch/pytorch/issues/139149",
