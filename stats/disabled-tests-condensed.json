@@ -1121,13 +1121,6 @@
       "slow"
     ]
   ],
-  "test_cudnn_convolution_relu_cuda_float16 (__main__.TestConvolutionNNDeviceTypeCUDA)": [
-    "162816",
-    "https://github.com/pytorch/pytorch/issues/162816",
-    [
-      "rocm"
-    ]
-  ],
   "test_cupy_as_tensor (__main__.CupyAsTensorTest)": [
     "158466",
     "https://github.com/pytorch/pytorch/issues/158466",
