@@ -26,11 +26,11 @@ type Subgroup<T> = {
  */
 type GroupedItem<T> = {
   /** Metadata fields for this group (e.g., dtype, arch, compiler). */
-  group_Info: GroupInfo;
+  group_info: GroupInfo;
 
   /**
    * Rows keyed by a unique identifier string,
-   * derived from a distinct combination of subgroup `group_Info` fields.
+   * derived from a distinct combination of subgroup `group_info` fields.
    * Each entry corresponds to one subgroup that contains data points.
    */
   rows: Record<string, Subgroup<T>>;
@@ -124,7 +124,7 @@ export function groupByBenchmarkData<T>(
   for (const [mainKey, subMap] of groups.entries()) {
     const rowsObj = Object.fromEntries(subMap.entries());
     result.push({
-      group_Info: mainInfo.get(mainKey)!,
+      group_info: mainInfo.get(mainKey)!,
       rows: rowsObj,
     });
   }
@@ -249,7 +249,7 @@ export function to_time_series_data(
   let diffs: any[] = [];
 
   const result = tsd.map((group) => {
-    const group_info = group.group_Info;
+    const group_info = group.group_info;
     const sub_group_data = group.rows;
     // extract the first data point for each sub group
     // since we only have one datapoint for each unique workflow id with the same group info
