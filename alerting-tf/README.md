@@ -18,6 +18,7 @@ This folder provisions a minimal pipeline:
   
 Additional resources
 - DynamoDB table: `{prefix}-alerting-status` (stores raw SQS message bodies)
+ - GitHub App secret id: `${name_prefix}-alerting-app-secrets` (pre-created)
 
 ## Build the Lambdas
 - From alerting-tf:
@@ -91,6 +92,7 @@ We expose a small HTTPS endpoint (API Gateway HTTP API) that authenticates the c
 Outputs
 - Webhook URL: `terraform output -raw external_alerts_webhook_url`
 - SNS topic ARN: `terraform output -raw sns_topic_arn`
+ - GitHub App Secret Id: `terraform output -raw github_app_secret_id`
 
 Configure a webhook client (e.g., Grafana)
 - URL: `<webhook_url>` (already includes the path)
@@ -137,3 +139,11 @@ Usage:
 
 You can continue using the same `make aws-apply-*` targets after initializing the
 backend for each environment.
+
+## GitHub Integration (v1 minimal)
+- Variable `github_repo` (default `pytorch/test-infra`) sets the repo for issue creation.
+- The collector Lambda reads the pre-created secret `${name_prefix}-alerting-app-secrets` from AWS Secrets Manager
+  containing JSON keys: `github_app_client_id`, `github_app_id`, `github_app_client_secret`, `github_app_key_base64`.
+- Matching rule: If an alert's title OR body contains "GitHub" (case-insensitive), the Lambda creates an issue in
+  `github_repo` with the alert title/body.
+- The DynamoDB item records `Emitted_To_Github` (boolean) and, when created, `github_issue_number`.

@@ -17,11 +17,15 @@ resource "aws_lambda_function" "collector" {
   handler       = "index.handler"
   filename      = data.archive_file.collector_zip.output_path
   source_code_hash = data.archive_file.collector_zip.output_base64sha256
+  timeout       = 30
+  memory_size   = 256
 
   environment {
     variables = {
       NODE_OPTIONS      = "--enable-source-maps"
       STATUS_TABLE_NAME = aws_dynamodb_table.alerting_status.name
+      GITHUB_REPO       = var.github_repo
+      GITHUB_APP_SECRET_ID = "${local.name_prefix}-alerting-app-secrets"
     }
   }
 

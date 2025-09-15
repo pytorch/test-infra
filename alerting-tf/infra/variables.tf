@@ -24,3 +24,9 @@ variable "webhook_grafana_token" {
   sensitive    = true
   type         = string
 }
+
+variable "github_repo" {
+  description = "GitHub repo to create issues in (format: org/repo)"
+  type        = string
+  default     = "pytorch/alerting-infra"
+}

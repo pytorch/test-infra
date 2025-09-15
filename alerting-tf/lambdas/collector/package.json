@@ -10,13 +10,15 @@
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
+    "@types/jsonwebtoken": "^9.0.6",
     "esbuild": "^0.21.5",
     "prettier": "^3.3.3",
     "typescript": "^5.4.5"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.620.0",
-    "@aws-sdk/lib-dynamodb": "^3.620.0"
+    "@aws-sdk/client-secrets-manager": "^3.620.0",
+    "@aws-sdk/lib-dynamodb": "^3.620.0",
+    "jsonwebtoken": "^9.0.2"
   }
 }
-

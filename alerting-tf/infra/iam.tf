@@ -62,3 +62,24 @@ resource "aws_iam_role_policy_attachment" "collector_attach_dynamodb_write" {
   role       = aws_iam_role.collector_lambda_role.name
   policy_arn = aws_iam_policy.collector_dynamodb_write.arn
 }
+
+resource "aws_iam_policy" "collector_secretsmanager_read" {
+  name   = "${local.name_prefix}-collector-secretsmanager-read"
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = [
+          "secretsmanager:GetSecretValue"
+        ],
+        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}-alerting-app-secrets*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "collector_attach_secretsmanager_read" {
+  role       = aws_iam_role.collector_lambda_role.name
+  policy_arn = aws_iam_policy.collector_secretsmanager_read.arn
+}

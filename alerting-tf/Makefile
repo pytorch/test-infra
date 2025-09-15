@@ -16,8 +16,8 @@ SECRETS_ARG := $(if $(wildcard $(SECRETS_FILE)),-var-file=$(notdir $(SECRETS_FIL
 # Regions parsed from per-env tfvars (simple extractor)
 DEV_TFVARS := infra/dev.tfvars
 PROD_TFVARS := infra/prod.tfvars
-DEV_REGION := $(shell sed -n 's/^aws_region\s*=\s*"\(.*\)".*/\1/p' $(DEV_TFVARS))
-PROD_REGION := $(shell sed -n 's/^aws_region\s*=\s*"\(.*\)".*/\1/p' $(PROD_TFVARS))
+DEV_REGION := $(shell sed -n 's/^aws_region[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' $(DEV_TFVARS))
+PROD_REGION := $(shell sed -n 's/^aws_region[[:space:]]*=[[:space:]]*"\(.*\)".*/\1/p' $(PROD_TFVARS))
 
 .PHONY: build clean \
         aws-init-dev aws-init-prod \
@@ -46,7 +46,12 @@ aws-apply-prod: aws-init-prod build
 	cd infra && terraform apply -auto-approve -var-file=prod.tfvars $(SECRETS_ARG)
 
 ls-apply: build
-	cd infra && tflocal init -backend=false && tflocal apply -auto-approve $(SECRETS_ARG)
+	cd infra \
+		&& rm -rf .terraform terraform.tfstate terraform.tfstate.backup \
+		&& ( [ -f versions.remote.tf ] && mv versions.remote.tf versions.remote.tf.bak || true ) \
+		&& tflocal init -backend=false -reconfigure \
+		&& tflocal apply -auto-approve $(SECRETS_ARG) \
+		&& ( [ -f versions.remote.tf.bak ] && mv versions.remote.tf.bak versions.remote.tf || true )
 
 # Explicit backend init targets (idempotent).  These should run whenever 
 # you want to change the backend config.
@@ -67,11 +72,15 @@ aws-destroy-prod: aws-init-prod
 	cd infra && terraform destroy -auto-approve -var-file=prod.tfvars $(SECRETS_ARG)
 
 ls-destroy:
-	cd infra && tflocal destroy -auto-approve $(SECRETS_ARG)
+	cd infra \
+		&& rm -rf .terraform terraform.tfstate terraform.tfstate.backup \
+		&& ( [ -f versions.remote.tf ] && mv versions.remote.tf versions.remote.tf.bak || true ) \
+		&& tflocal destroy -auto-approve $(SECRETS_ARG) \
+		&& ( [ -f versions.remote.tf.bak ] && mv versions.remote.tf.bak versions.remote.tf || true )
 
 # Publish
 aws-publish-dev: aws-init-dev
-	cd infra && TOPIC=$$(terraform output -raw sns_topic_arn); aws sns publish --region $(DEV_REGION) --topic-arn $$TOPIC --message '{"hello":"dev"}'
+	cd infra && TOPIC=$$(terraform output -raw sns_topic_arn); aws sns publish --region $(DEV_REGION) --topic-arn $$TOPIC --message '{"hello":"dev for github"}'
 
 aws-publish-prod: aws-init-prod
 	cd infra && TOPIC=$$(terraform output -raw sns_topic_arn); aws sns publish --region $(PROD_REGION) --topic-arn $$TOPIC --message '{"hello":"prod"}'
@@ -93,4 +102,7 @@ aws-logs-prod: aws-init-prod
 	cd infra && LAMBDA=$$(terraform output -raw collector_name); aws logs tail --region $(PROD_REGION) /aws/lambda/$$LAMBDA --follow
 
 ls-logs:
-	cd infra && awslocal logs tail /aws/lambda/$$(tflocal output -raw collector_name) --follow
+	cd infra \
+		&& ( [ -f versions.remote.tf ] && mv versions.remote.tf versions.remote.tf.bak || true ) \
+		&& awslocal logs tail /aws/lambda/$$(tflocal output -raw collector_name) --follow \
+		&& ( [ -f versions.remote.tf.bak ] && mv versions.remote.tf.bak versions.remote.tf || true )

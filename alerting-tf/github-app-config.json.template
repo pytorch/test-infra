@@ -1,0 +1,5 @@
+{
+  "github_app_id": "1920175",
+  "github_app_key_base64": "BASE64_ENCODED_PEM_KEY_HERE",
+  "target_repo": "pytorch/alerting-infra"
+}
