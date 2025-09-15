@@ -184,15 +184,6 @@
       "macos"
     ]
   ],
-  "test_add_loggers_linear_mod_quant_quant (__main__.TestFXNumericSuiteNShadows)": [
-    "142172",
-    "https://github.com/pytorch/pytorch/issues/142172",
-    [
-      "dynamo",
-      "mac",
-      "macos"
-    ]
-  ],
   "test_add_sub_alpha_out (__main__.ReproTests)": [
     "156597",
     "https://github.com/pytorch/pytorch/issues/156597",
@@ -1598,6 +1589,15 @@
       "slow"
     ]
   ],
+  "test_fallback_to_eager_if_recompiling_too_many_times_warn_only_once (__main__.CudaGraphTreeTests)": [
+    "156954",
+    "https://github.com/pytorch/pytorch/issues/156954",
+    [
+      "linux",
+      "rocm",
+      "slow"
+    ]
+  ],
   "test_flex_attention_stride_ordering_mode_paged_attention_permute_order3_shape1_cuda (__main__.TestFlexAttentionCUDA)": [
     "161503",
     "https://github.com/pytorch/pytorch/issues/161503",
@@ -2938,11 +2938,13 @@
       "rocm"
     ]
   ],
-  "test_op_has_batch_rule_vdot_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
-    "157450",
-    "https://github.com/pytorch/pytorch/issues/157450",
+  "test_op_has_batch_rule_tensordot_cuda_float32 (__main__.TestVmapOperatorsOpInfoCUDA)": [
+    "142769",
+    "https://github.com/pytorch/pytorch/issues/142769",
     [
-      "rocm"
+      "linux",
+      "rocm",
+      "slow"
     ]
   ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
@@ -3116,6 +3118,14 @@
   "test_qconfig_multi_mapping_ordering (__main__.TestFXNumericSuiteNShadows)": [
     "162930",
     "https://github.com/pytorch/pytorch/issues/162930",
+    [
+      "mac",
+      "macos"
+    ]
+  ],
+  "test_qconfig_multi_mapping_repr (__main__.TestFXNumericSuiteNShadows)": [
+    "162958",
+    "https://github.com/pytorch/pytorch/issues/162958",
     [
       "mac",
       "macos"
