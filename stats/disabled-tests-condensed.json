@@ -3454,6 +3454,13 @@
       "rocm"
     ]
   ],
+  "test_ring_flex_attention (__main__.RingFlexAttentionTest)": [
+    "162976",
+    "https://github.com/pytorch/pytorch/issues/162976",
+    [
+      "rocm"
+    ]
+  ],
   "test_ring_flex_attention_document_mask (__main__.RingFlexAttentionTest)": [
     "162843",
     "https://github.com/pytorch/pytorch/issues/162843",
