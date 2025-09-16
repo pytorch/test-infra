@@ -22,7 +22,10 @@ type ConfirmPayload = {
 
 type Props = {
   timeseries: BenchmarkTimeSeriesInput[];
-  renderOptions?: any;
+  renderOptions?: {
+    height?: string | number;
+    lineMapping?: Record<string, any>;
+  };
   defaultSelectMode?: boolean;
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onConfirm?: (sel: ConfirmPayload) => void;
@@ -47,6 +50,36 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
     () => timeseries.map((s) => toEchartTimeSeriesData(s)),
     [timeseries]
   );
+
+  const tooltipFormatter: NonNullable<
+    echarts.TooltipComponentOption["formatter"]
+  > = ((raw: unknown) => {
+    const p = Array.isArray(raw) ? raw[0] : (raw as any);
+    const meta = p?.data?.meta as RawTimeSeriesPoint | undefined;
+    if (!meta) return "";
+
+    const t = dayjs
+      .utc(meta.granularity_bucket)
+      .format("YYYY-MM-DD HH:mm [UTC]");
+    const pct = meta.value.toFixed(3);
+    const commitShort = meta.commit.slice(0, 7);
+
+    let value = pct;
+    const rule = renderOptions?.lineMapping?.[meta.metric];
+    if (rule) {
+      value = renderByRule(
+        rule?.type ?? "default",
+        rule?.scale ? rule?.scale : 1,
+        pct
+      );
+    }
+    return [
+      `<div style="font-weight:600;margin-bottom:4px;">${t}</div>`,
+      `<div style="font-size:12px;">${p?.data?.legend_name}</div>`,
+      `<b>${meta.metric}</b>: <b>${value}</b><br/>`,
+      `commit <code>${commitShort}</code> · workflow ${meta.workflow_id} · branch ${meta.branch}`,
+    ].join("");
+  }) as any;
 
   function resetSelection() {
     setSelectedSeriesIdx(null);
@@ -86,30 +119,6 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
     }
   }
 
-  const globalExtents = useMemo(() => {
-    let minX = Infinity,
-      maxX = -Infinity;
-    let minY = Infinity,
-      maxY = -Infinity;
-    for (const d of seriesDatas) {
-      for (const p of d) {
-        const x = p.value[0] as number;
-        const y = p.value[1] as number;
-        if (x < minX) minX = x;
-        if (x > maxX) maxX = x;
-        if (y < minY) minY = y;
-        if (y > maxY) maxY = y;
-      }
-    }
-    const padY = Math.max((maxY - minY) * 0.05, 1e-6); // 给点余量，避免顶边
-    return {
-      minX,
-      maxX,
-      minY: minY - padY,
-      maxY: maxY + padY,
-    };
-  }, [seriesDatas]);
-
   // Build line series first (indices 0..N-1 map to logical timeseries)
   const lineSeries: echarts.SeriesOption[] = useMemo(() => {
     return seriesDatas.map((data, idx) => {
@@ -135,7 +144,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       }
 
       return {
-        name: data[idx]?.legend_name ?? `Series ${idx + 1}`,
+        name: timeseries[idx]?.legend_name ?? `Series ${idx + 1}`,
         type: "line",
         showSymbol: true,
         symbolSize: 4,
@@ -174,24 +183,32 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
     ];
   }, [seriesDatas, selectedSeriesIdx, leftIdx, rightIdx]);
 
+  const legendSelected = useMemo(() => {
+    if (selectedSeriesIdx == null) return undefined; // 不锁定时不干预 legend
+    const m: Record<string, boolean> = {};
+    timeseries.forEach((s, i) => {
+      const name = s.legend_name ?? `Series ${i + 1}`;
+      m[name] = i === selectedSeriesIdx; // 只选中被锁定的那条
+    });
+    return m;
+  }, [selectedSeriesIdx, timeseries]);
+
+  // 合成 option
   const option: echarts.EChartsOption = useMemo(() => {
     return {
       ...echartRenderingOptions,
-      xAxis: {
-        ...(echartRenderingOptions as any).xAxis,
-        min: globalExtents.minX,
-        max: globalExtents.maxX,
+      legend: {
+        ...echartRenderingOptions.legend,
+        ...(legendSelected ? { selected: legendSelected } : {}),
       },
-      yAxis: {
-        ...(echartRenderingOptions as any).yAxis,
-        min: globalExtents.minY,
-        max: globalExtents.maxY,
-        // 可选：避免自动吸0
-        scale: true,
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove|click",
+        formatter: tooltipFormatter,
       },
       series: [...lineSeries, ...overlaySeries],
     };
-  }, [lineSeries, overlaySeries]);
+  }, [lineSeries, overlaySeries, legendSelected]);
 
   const onEvents = {
     click: (p: any) => {
@@ -262,3 +279,12 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   );
 };
 export default BenchmarkTimeSeriesChart;
+
+function renderByRule(rule: string, scale: number, data: any) {
+  switch (rule) {
+    case "percent":
+      return `${(data * scale).toFixed(2)}%`;
+    default:
+      return data;
+  }
+}

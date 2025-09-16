@@ -4,16 +4,6 @@ import LoadingPage from "components/common/LoadingPage";
 import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useState } from "react";
-import { BenchmarkChartSectionConfig } from "../components/benchmarkTimeSeries/helper";
-
-const sectionCfg: BenchmarkChartSectionConfig = {
-  groupByFields: ["suite"],
-  charts: {
-    type: "line",
-    groupByFields: ["metric"],
-    lineKey: ["compiler"],
-  },
-};
 
 /**
  * The default fanout component fetches pre-processed data for chart,
@@ -76,8 +66,13 @@ export function DefaultFanoutRenderContent() {
   if (!dataRender?.renders) {
     return <div>no data render</div>;
   }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+
   const fanoutUIConfigs = dataRender.renders;
-  const multidata = resp?.data.data;
+  const multidata = resp?.data?.data;
 
   return (
     <div>

@@ -17,9 +17,9 @@ const styles = {
     margin: 1,
   },
   paper: {
-    p: 2, // padding
-    elevation: 2, // Paper 阴影
-    borderRadius: 2, // 圆角
+    p: 2,
+    elevation: 2,
+    borderRadius: 2,
   },
 };
 

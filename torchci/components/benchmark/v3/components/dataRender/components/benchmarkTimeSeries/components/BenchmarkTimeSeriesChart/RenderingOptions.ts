@@ -1,24 +1,5 @@
 import dayjs from "dayjs";
-import { RawTimeSeriesPoint } from "./type";
 const MAX_LEGEND_NAME = 20;
-const tooltipFormatter: NonNullable<
-  echarts.TooltipComponentOption["formatter"]
-> = ((raw: unknown) => {
-  const p = Array.isArray(raw) ? raw[0] : (raw as any);
-  const meta = p?.data?.meta as RawTimeSeriesPoint | undefined;
-  if (!meta) return "";
-
-  const t = dayjs.utc(meta.granularity_bucket).format("YYYY-MM-DD HH:mm [UTC]");
-  const pct = meta.value.toFixed(3);
-  const commitShort = meta.commit.slice(0, 7);
-
-  return [
-    `<div style="font-weight:600;margin-bottom:4px;">${t}</div>`,
-    `<div style="font-size:12px;">${p?.data?.legend_name}</div>`,
-    `<b>${meta.metric}</b>: <b>${pct}</b><br/>`,
-    `commit <code>${commitShort}</code> · workflow ${meta.workflow_id} · branch ${meta.branch}`,
-  ].join("");
-}) as any;
 
 export const echartRenderingOptions: echarts.EChartsOption = {
   animation: false,
@@ -45,8 +26,8 @@ export const echartRenderingOptions: echarts.EChartsOption = {
     ],
   },
   grid: {
-    left: 60,
-    right: 160, // reserve extra space on the right
+    left: 10,
+    right: 180, // reserve extra space on the right
     top: 40,
     bottom: 20,
     containLabel: true,
@@ -66,9 +47,54 @@ export const echartRenderingOptions: echarts.EChartsOption = {
       formatter: (v: number) => `${v.toFixed(2)}`,
     },
   },
-  tooltip: {
-    trigger: "item",
-    triggerOn: "mousemove|click",
-    formatter: tooltipFormatter,
-  },
 };
+
+/**
+ * use stable scale to pick
+  const globalExtents = useMemo(() => {
+    let minX = Infinity,
+      maxX = -Infinity;
+    let minY = Infinity,
+      maxY = -Infinity;
+    for (const d of seriesDatas) {
+      for (const p of d) {
+        const x = p.value[0] as number;
+        const y = p.value[1] as number;
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+      }
+    }
+    const padY = Math.max((maxY - minY) * 0.05, 1e-6);
+    return {
+      minX,
+      maxX,
+      minY: minY - padY,
+      maxY: maxY + padY,
+    };
+  }, [seriesDatas]);
+
+    const option: echarts.EChartsOption = useMemo(() => {
+    return {
+      ...echartRenderingOptions,
+      tooltip: {
+        trigger: "item",
+        triggerOn: "mousemove|click",
+        formatter: tooltipFormatter,
+      },
+      xAxis: {
+        ...(echartRenderingOptions as any).xAxis,
+        min: globalExtents.minX === globalExtents.maxX ? 0 : globalExtents.minX,
+        max: globalExtents.maxX,
+      },
+      yAxis: {
+        ...(echartRenderingOptions as any).yAxis,
+        min: globalExtents.minY === globalExtents.maxY ? 0 : globalExtents.minY,
+        max: globalExtents.maxY,
+        scale: true,
+      },
+      series: [...lineSeries, ...overlaySeries],
+    };
+  }, [lineSeries, overlaySeries]);
+*/

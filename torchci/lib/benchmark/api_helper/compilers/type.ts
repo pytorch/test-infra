@@ -110,9 +110,16 @@ export async function listBenchmarkCommits<T>(
   });
   return res.json();
 }
+
 export interface CompilerBundleResult {
-  timeSeries: any;
-  table: any;
+  data: {
+    data: {
+      table: any;
+      time_series: any;
+    };
+    time_range: any;
+    total_raw_rows: number;
+  };
 }
 
 // --- Hook wrapper ---

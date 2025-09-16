@@ -89,7 +89,13 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             type: "line",
             groupByFields: ["metric"],
             lineKey: ["compiler"],
-            chart: {},
+            chart: {
+              renderOptions: {
+                lineMapping: {
+                  passrate: { type: "percent", scale: 100 },
+                },
+              },
+            },
           },
         },
       },
