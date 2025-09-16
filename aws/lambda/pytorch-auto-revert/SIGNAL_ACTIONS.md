@@ -5,7 +5,7 @@ This document specifies the Actions layer that consumes extracted Signals with t
 ## Overview
 
 - Inputs (provided by integration code):
-  - Run parameters: `repo_full_name`, `workflows`, `lookback_hours`, `dry_run` (legacy), `dry_run_restart`, `dry_run_revert`.
+  - Run parameters: `repo_full_name`, `workflows`, `lookback_hours`, `dry_run_restart`, `dry_run_revert`.
   - A list of pairs: `List[Tuple[Signal, SignalProcOutcome]]`, where `SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]`.
 - Decisions: per-signal outcome mapped to a concrete action:
   - `AutorevertPattern` → record a global revert intent for the suspected commit
@@ -22,7 +22,6 @@ Immutable run-scoped metadata shared by all actions in the same run:
 - `repo_full_name`: e.g., `pytorch/pytorch`
 - `workflows`: list of workflow display names
 - `lookback_hours`: window used for extraction
-- `dry_run`: bool (legacy flag for backwards compatibility)
 - `dry_run_restart`: bool (controls whether restarts are executed)
 - `dry_run_revert`: bool (controls whether reverts are executed - currently always record-only)
 
@@ -111,7 +110,7 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 
 ## Interfaces
 
-- `RunContext`: `ts`, `repo_full_name`, `workflows`, `lookback_hours`, `dry_run`, `dry_run_restart`, `dry_run_revert`
+- `RunContext`: `ts`, `repo_full_name`, `workflows`, `lookback_hours`, `dry_run_restart`, `dry_run_revert`
 - `SignalMetadata`: `{ workflow_name: str, key: str }`
 - `SignalProcOutcome`: alias to `Union[AutorevertPattern, RestartCommits, Ineligible]`
 - `ActionGroup` (coalesced):
@@ -144,7 +143,8 @@ Compact, HUD-like snapshot for `autorevert_state.state`:
     "workflows": ["trunk", "pull"],
     "lookback_hours": 24,
     "ts": "2025-08-21T12:34:56Z",
-    "dry_run": false
+    "dry_run_restart": false,
+    "dry_run_revert": false
   }
 }
 ```

@@ -73,7 +73,6 @@ def autorevert_v2(
         repo_full_name=repo_full_name,
         workflows=workflows,
         lookback_hours=hours,
-        dry_run=dry_run,
         dry_run_restart=dry_run_restart,
         dry_run_revert=dry_run_revert,
     )
