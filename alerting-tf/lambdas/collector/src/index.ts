@@ -3,6 +3,8 @@ import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 import jwt from "jsonwebtoken";
+import { AlertProcessor } from "./processor";
+import { generateFingerprint } from "./fingerprint";
 
 const tableName = process.env.STATUS_TABLE_NAME;
 const githubRepo = process.env.GITHUB_REPO || ""; // format: org/repo
@@ -10,6 +12,7 @@ const githubAppSecretId = process.env.GITHUB_APP_SECRET_ID || "";
 
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const secrets = new SecretsManagerClient({});
+const processor = new AlertProcessor();
 
 type GithubAppSecret = {
   github_app_client_id?: string;
@@ -126,70 +129,83 @@ async function createGithubIssue(title: string, body: string): Promise<number> {
   return data.number;
 }
 
-function extractTitleAndBody(payload: any): { title: string; body: string } {
-  const title =
-    (typeof payload?.title === "string" && payload.title) ||
-    (typeof payload?.ruleName === "string" && payload.ruleName) ||
-    (typeof payload?.AlarmName === "string" && payload.AlarmName) ||
-    "Alert";
-  const body =
-    (typeof payload?.body === "string" && payload.body) ||
-    JSON.stringify(payload, null, 2);
-  return { title, body };
-}
-
 export const handler: SQSHandler = async (event) => {
   const batchItemFailures: { itemIdentifier: string }[] = [];
 
   for (const record of event.Records) {
     try {
-      try {
-        const parsedBody = JSON.parse(record.body);
-        console.log("\n\nMy SQS message body:\n", JSON.stringify(parsedBody, null, 2));
-      } catch {
-        console.log("\n\nMy SQS message body (not JSON):", record.body);
-      }
-      if (record.messageAttributes && Object.keys(record.messageAttributes).length > 0) {
-        console.log(
-          "\n\nMy SQS message attributes:\n",
-          JSON.stringify(record.messageAttributes, null, 2)
-        );
+      // Process the record through the normalization pipeline
+      const result = await processor.processRecord(record);
+
+      if (!result.success) {
+        console.error("Alert processing failed", {
+          messageId: record.messageId,
+          error: result.error,
+        });
+        batchItemFailures.push({ itemIdentifier: record.messageId });
+        continue;
       }
 
-      // Decide if we should emit to GitHub based on title contents
+      const { fingerprint, action, metadata } = result;
+      if (!fingerprint) {
+        console.error("No fingerprint generated", { messageId: record.messageId });
+        batchItemFailures.push({ itemIdentifier: record.messageId });
+        continue;
+      }
+
+      // Create GitHub issue for all alerts (removing old /github/i filter)
       let emittedToGithub = false;
       let issueNumber: number | undefined;
+
       try {
-        const parsed = (() => { try { return JSON.parse(record.body); } catch { return record.body; } })();
-        const payload = typeof parsed === "string" ? { body: parsed } : parsed;
-        const { title, body } = extractTitleAndBody(payload);
-        // Match when either title or body contains "GitHub" (case-insensitive)
-        if (/github/i.test(title) || /github/i.test(body)) {
-          try {
-            issueNumber = await createGithubIssue(title, body);
-            emittedToGithub = true;
-            console.log(`✅ Created GitHub issue #${issueNumber}`);
-          } catch (err) {
-            emittedToGithub = false;
-            console.error("Failed to create GitHub issue", {
-              error: err instanceof Error ? err.message : String(err),
-            });
-            // Don't fail the whole batch for GitHub issues
-          }
+        // Build issue title and body from normalized alert
+        const alertEvent = result.metadata?.alertEvent;
+        if (alertEvent) {
+          const issueTitle = `[${alertEvent.priority}] ${alertEvent.title}`;
+          const issueBody = [
+            `**Alert Details**`,
+            `- **Team**: ${alertEvent.team}`,
+            `- **Priority**: ${alertEvent.priority}`,
+            `- **Source**: ${alertEvent.source}`,
+            `- **State**: ${alertEvent.state}`,
+            `- **Occurred At**: ${alertEvent.occurred_at}`,
+            alertEvent.description ? `- **Description**: ${alertEvent.description}` : "",
+            alertEvent.links?.runbook_url ? `- **Runbook**: ${alertEvent.links.runbook_url}` : "",
+            alertEvent.links?.dashboard_url ? `- **Dashboard**: ${alertEvent.links.dashboard_url}` : "",
+            "",
+            `**Fingerprint**: \`${fingerprint}\``,
+            "",
+            "---",
+            "```json",
+            JSON.stringify(alertEvent.raw_provider, null, 2),
+            "```"
+          ].filter(Boolean).join("\n");
+
+          issueNumber = await createGithubIssue(issueTitle, issueBody);
+          emittedToGithub = true;
+          console.log(`✅ Created GitHub issue #${issueNumber} for fingerprint ${fingerprint}`);
         }
       } catch (err) {
-        console.error("Error while processing GitHub emission logic", err);
+        emittedToGithub = false;
+        console.error("Failed to create GitHub issue", {
+          fingerprint,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        // Don't fail the whole batch for GitHub issues
       }
 
-      // Emit raw message to DynamoDB table if configured
+      // Store to DynamoDB using new schema (placeholder - will be replaced in Phase 4)
       if (tableName) {
         try {
           await ddbClient.send(
             new PutCommand({
               TableName: tableName,
               Item: {
-                pk: record.messageId,
+                pk: record.messageId, // Temporary - will change to fingerprint in Phase 4
+                fingerprint,
                 body: record.body,
+                action,
+                metadata,
                 attributes: record.messageAttributes && Object.keys(record.messageAttributes).length > 0
                   ? record.messageAttributes
                   : undefined,
@@ -200,12 +216,13 @@ export const handler: SQSHandler = async (event) => {
               },
             }),
           );
-          console.log(`✅ Stored message ${record.messageId} to DynamoDB`);
+          console.log(`✅ Stored normalized alert ${fingerprint} to DynamoDB`);
         } catch (err) {
-          console.error("Failed to write raw message to DynamoDB", {
+          console.error("Failed to write normalized alert to DynamoDB", {
             error: err instanceof Error ? err.message : String(err),
             table: tableName,
             messageId: record.messageId,
+            fingerprint,
           });
           // DynamoDB failure should fail the record
           batchItemFailures.push({ itemIdentifier: record.messageId });
