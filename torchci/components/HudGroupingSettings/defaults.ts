@@ -4,6 +4,7 @@ const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
 export const GROUP_UNSTABLE = "Unstable";
 const GROUP_PERIODIC = "Periodic";
+const GROUP_INDUCTOR_PERIODIC = "Inductor Periodic";
 const GROUP_SLOW = "Slow";
 const GROUP_LINT = "Lint";
 const GROUP_INDUCTOR = "Inductor";
@@ -24,23 +25,40 @@ const GROUP_MAC = "Mac";
 const GROUP_PARALLEL = "Parallel";
 const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
+const GROUP_OTHER_VIABLE_STRICT_BLOCKING = "Other viable/strict blocking";
+const GROUP_XPU = "XPU";
+const GROUP_VLLM = "vLLM";
 export const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
-const groups = [
+export const groups = [
   {
-    regex: /mem_leak_check/,
+    regex: /vllm/,
+    name: GROUP_VLLM,
+  },
+  {
+    // Weird regex because some names are too long and getting cut off
+    // TODO: figure out a better way to name the job or filter them
+    regex: /, mem_leak/,
     name: GROUP_MEMORY_LEAK_CHECK,
     persistent: true,
   },
   {
-    regex: /rerun_disabled_tests/,
+    regex: /, rerun_/,
     name: GROUP_RERUN_DISABLED_TESTS,
     persistent: true,
   },
   {
     regex: /unstable/,
     name: GROUP_UNSTABLE,
+  },
+  {
+    regex: /^xpu/,
+    name: GROUP_XPU,
+  },
+  {
+    regex: /inductor-periodic/,
+    name: GROUP_INDUCTOR_PERIODIC,
   },
   {
     regex: /periodic/,
@@ -129,6 +147,12 @@ const groups = [
     regex: /libtorch/,
     name: GROUP_LIBTORCH,
   },
+  {
+    // This is a catch-all for jobs that are viable but strict blocking
+    // Excluding linux-binary-* jobs because they are already grouped further up
+    regex: /(pull)|(trunk)/,
+    name: GROUP_OTHER_VIABLE_STRICT_BLOCKING,
+  },
 ];
 
 // Jobs on HUD home page will be sorted according to this list, with anything left off at the end
@@ -140,7 +164,10 @@ const HUD_GROUP_SORTING = [
   GROUP_IOS,
   GROUP_MAC,
   GROUP_ROCM,
+  GROUP_XPU,
   GROUP_XLA,
+  GROUP_OTHER_VIABLE_STRICT_BLOCKING, // placed after the last group that tends to have viable/strict blocking jobs
+  GROUP_VLLM,
   GROUP_PARALLEL,
   GROUP_LIBTORCH,
   GROUP_ANDROID,
@@ -153,11 +180,13 @@ const HUD_GROUP_SORTING = [
   GROUP_SLOW,
   GROUP_DOCS,
   GROUP_INDUCTOR,
+  GROUP_INDUCTOR_PERIODIC,
   GROUP_ANNOTATIONS_AND_LABELING,
-  GROUP_OTHER,
   GROUP_BINARY_WINDOWS,
   GROUP_MEMORY_LEAK_CHECK,
   GROUP_RERUN_DISABLED_TESTS,
+  // These two groups should always be at the end
+  GROUP_OTHER,
   GROUP_UNSTABLE,
 ];
 
