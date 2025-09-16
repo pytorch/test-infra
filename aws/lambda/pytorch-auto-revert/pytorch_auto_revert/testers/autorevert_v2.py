@@ -37,6 +37,7 @@ def autorevert_v2(
         repo_full_name,
         dry_run,
     )
+    logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
     extractor = SignalExtractor(
         workflows=workflows, lookback_hours=hours, repo_full_name=repo_full_name
@@ -47,7 +48,11 @@ def autorevert_v2(
     # Process signals to outcomes
     pairs: List[Tuple[Signal, SignalProcOutcome]] = []
     for s in signals:
-        pairs.append((s, s.process_valid_autorevert_pattern()))
+        outcome = s.process_valid_autorevert_pattern()
+        pairs.append((s, outcome))
+        logging.info(
+            "[v2][signal] wf=%s key=%s outcome=%s", s.workflow_name, s.key, str(outcome)
+        )
 
     # Build run context
     run_ctx = RunContext(
@@ -69,10 +74,7 @@ def autorevert_v2(
     if not do_restart:
         groups = [g for g in groups if g.type != "restart"]
 
-    executed_count = 0
-    for g in groups:
-        if proc.execute(g, run_ctx):
-            executed_count += 1
+    executed_count = sum(1 for g in groups if proc.execute(g, run_ctx))
     logging.info("[v2] Executed action groups: %d", executed_count)
 
     # Persist full run state via separate logger

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Iterable, List, Tuple, Union
@@ -176,6 +177,7 @@ class SignalActionProcessor:
         Routes to the concrete executor. Returns True iff an action row was
         inserted (i.e., passed dedup/caps and, for restarts, dispatch attempted).
         """
+        logging.info("[v2][action] preparing to execute %s", group)
         if group.type == "revert":
             return self.execute_revert(
                 commit_sha=group.commit_sha, sources=group.sources, ctx=ctx
@@ -197,6 +199,7 @@ class SignalActionProcessor:
         if self._logger.prior_revert_exists(
             repo=ctx.repo_full_name, commit_sha=commit_sha
         ):
+            logging.info("[v2][action] revert: skipping existing")
             return False
         self._logger.insert_event(
             repo=ctx.repo_full_name,
@@ -207,6 +210,9 @@ class SignalActionProcessor:
             source_signal_keys=[s.key for s in sources],
             dry_run=ctx.dry_run,
             notes="",
+        )
+        logging.info(
+            "[v2][action] revert: logged%s", " (dry_run)" if ctx.dry_run else ""
         )
         return True
 
@@ -223,8 +229,13 @@ class SignalActionProcessor:
             repo=ctx.repo_full_name, workflow=workflow_target, commit_sha=commit_sha
         )
         if len(recent) >= 2:
+            logging.info("[v2][action] restart: skipping cap (recent=%d)", len(recent))
             return False
         if recent and (ctx.ts - recent[0]) < timedelta(minutes=15):
+            delta = (ctx.ts - recent[0]).total_seconds()
+            logging.info(
+                "[v2][action] restart: skipping pacing (delta_sec=%d)", int(delta)
+            )
             return False
 
         notes = ""
@@ -242,4 +253,10 @@ class SignalActionProcessor:
             dry_run=ctx.dry_run,
             notes=notes,
         )
+        if not ctx.dry_run and notes == "":
+            logging.info("[v2][action] restart: dispatched")
+        elif notes:
+            logging.info("[v2][action] restart: dispatch_failed: %s", notes)
+        else:
+            logging.info("[v2][action] restart: logged (dry_run)")
         return True
