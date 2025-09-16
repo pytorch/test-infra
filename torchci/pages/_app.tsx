@@ -73,7 +73,7 @@ function AppContent({
         <AnnouncementBanner />
         <SevReport />
         <GitHubIncidentBanner />
-        <div style={{ margin: "20px" }}>
+        <div style={{ margin: "2px" }}>
           <Component {...pageProps} />
           <Analytics />
         </div>

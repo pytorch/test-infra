@@ -3,35 +3,39 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import dayjs, { Dayjs } from "dayjs";
 import * as React from "react";
-import { UMDenseButton } from "./UMDenseComponents";
+import { UMDenseButton, UMDenseButtonLight } from "./UMDenseComponents";
 import { UMDenseDatePicker } from "./UMDenseDatePicker";
 
 const presets = [
   { key: "today", label: "Today", days: 1 },
   { key: "last2", label: "Last 2 Days", days: 2 },
+  { key: "last3", label: "Last 3 Days", days: 3 },
   { key: "last7", label: "Last 7 Days", days: 7 },
+  { key: "last10", label: "Last 10 Days", days: 10 },
   { key: "last14", label: "Last 14 Days", days: 14 },
   { key: "last30", label: "Last 30 Days", days: 30 },
 ];
 
 interface PresetDateRangeSelectorProps {
   setTimeRange?: (startDate: Dayjs, endDate: Dayjs) => void;
-  start?: string;
-  end?: string;
+  start?: dayjs.Dayjs;
+  end?: dayjs.Dayjs;
+  gap?: number;
 }
 
 export function UMDateRangePicker({
-  start = dayjs().utc().startOf("day").subtract(6, "day").format("YYYY-MM-DD"),
-  end = dayjs().utc().startOf("day").format("YYYY-MM-DD"),
+  start = dayjs().utc().startOf("day").subtract(6, "day"),
+  end = dayjs().utc().endOf("day"),
+  gap = 1,
   setTimeRange = () => {},
 }: PresetDateRangeSelectorProps) {
-  const [startDate, setStartDate] = React.useState<Dayjs>(dayjs(start).utc());
-  const [endDate, setEndDate] = React.useState<Dayjs>(dayjs(end).utc());
+  const [startDate, setStartDate] = React.useState<Dayjs>(dayjs.utc(start));
+  const [endDate, setEndDate] = React.useState<Dayjs>(dayjs.utc(end));
   const [activePreset, setActivePreset] = React.useState<string | null>("");
 
   const setRange = (days: number, key: string) => {
-    const now = dayjs().utc();
-    const start = now.startOf("day").subtract(days - 1, "day");
+    const now = dayjs().utc().startOf("hour");
+    const start = now.startOf("day").subtract(days - gap, "day");
     setStartDate(start);
     setEndDate(now);
     setActivePreset(key);
@@ -40,17 +44,19 @@ export function UMDateRangePicker({
 
   const handleManualStart = (newValue: any) => {
     if (newValue) {
-      setStartDate(newValue);
+      const newStart = dayjs.utc(newValue).startOf("day");
+      setStartDate(newStart);
       setActivePreset(null);
-      setTimeRange(newValue, dayjs().utc());
+      setTimeRange(newValue, endDate);
     }
   };
 
   const handleManualEnd = (newValue: any) => {
     if (newValue) {
-      setEndDate(newValue);
+      let newEnd = dayjs.utc(newValue).endOf("day");
+      setEndDate(newEnd);
       setActivePreset(null);
-      setTimeRange(startDate, newValue);
+      setTimeRange(startDate, newEnd);
     }
   };
 
@@ -88,8 +94,8 @@ export function UMDateRangePicker({
 }
 
 export function UMDateButtonPicker({
-  start = dayjs().utc().startOf("day").subtract(6, "day").format("YYYY-MM-DD"),
-  end = dayjs().utc().startOf("day").format("YYYY-MM-DD"),
+  start = dayjs().utc().startOf("day").subtract(6, "day"),
+  end = dayjs().utc().endOf("day"),
   setTimeRange = () => {},
 }: PresetDateRangeSelectorProps) {
   const [open, setOpen] = React.useState(false);
@@ -105,7 +111,7 @@ export function UMDateButtonPicker({
         }}
       >
         <Box sx={{ margin: "0 2px 0 0", fontSize: "0.8rem" }}>Time Range:</Box>
-        <UMDenseButton
+        <UMDenseButtonLight
           ref={anchorRef}
           variant="outlined"
           onClick={() => setOpen(true)}
@@ -117,8 +123,8 @@ export function UMDateButtonPicker({
             justifyContent: "space-between",
           }}
         >
-          {start} - {end}
-        </UMDenseButton>
+          {start.format("YYYY-MM-DD")} - {end.format("YYYY-MM-DD")}
+        </UMDenseButtonLight>
       </Box>
       <Popover
         open={open}
