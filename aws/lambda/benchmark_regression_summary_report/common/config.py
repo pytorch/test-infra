@@ -27,6 +27,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         api_endpoint_params_template="""
                 {
                   "name": "compiler_precompute",
+                  "response_formats":["time_series"],
                   "query_params": {
                     "commits": [],
                     "compilers": [],
@@ -50,7 +51,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
         range=RangeConfig(
-            baseline=DayRangeWindow(value=7),
+            baseline=DayRangeWindow(value=5),
             comparison=DayRangeWindow(value=2),
         ),
         metrics={
@@ -71,6 +72,12 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 condition="greater_equal",
                 threshold=0.95,
                 baseline_aggregation="max",
+            ),
+            "compilation_latency": RegressionPolicy(
+                name="compilation_latency",
+                condition="less_equal",
+                threshold=1.05,
+                baseline_aggregation="min",
             ),
         },
         notification_config={

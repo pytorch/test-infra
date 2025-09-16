@@ -7,7 +7,11 @@ import {
 } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
-import { CompilerQueryType } from "./type";
+import {
+  CompilerQueryType,
+  defaultGetTimeSeriesInputs,
+  defaultListCommitsInputs,
+} from "./type";
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
@@ -16,7 +20,7 @@ const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
 export async function getCompilerBenchmarkData(
   inputparams: any,
   type: CompilerQueryType = CompilerQueryType.PRECOMPUTE,
-  format: string = "time_series"
+  formats: string[] = ["time_series"]
 ) {
   const rows = await getCompilerDataFromClickhouse(inputparams);
 
@@ -26,55 +30,85 @@ export async function getCompilerBenchmarkData(
 
   switch (type) {
     case CompilerQueryType.PRECOMPUTE:
-      return toPrecomputeCompilerData(rows, format);
+      return toPrecomputeCompilerData(rows, formats);
     case CompilerQueryType.GENERAL:
-      return toGeneralCompilerData(rows, format);
+      return toGeneralCompilerData(rows, formats);
     default:
       throw new Error(`Invalid compiler query type, got ${type}`);
   }
 }
 
+export async function getCompilerCommits(inputparams: any): Promise<any[]> {
+  if (!inputparams.startTime || !inputparams.stopTime) {
+    throw new Error("no start/end time provided in request");
+  }
+  const queryParams = {
+    ...defaultListCommitsInputs, // base defaults
+    ...inputparams, // override with caller's values
+  };
+
+  if (queryParams.arch && queryParams.device) {
+    const arch_list = toQueryArch(inputparams.device, inputparams.arch);
+    queryParams["arch"] = arch_list;
+  }
+
+  const commit_results = await queryClickhouseSaved(
+    COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+    queryParams
+  );
+  return commit_results;
+}
+
 async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
   const start = Date.now();
-  const arch_list = toQueryArch(inputparams.device, inputparams.arch);
-  inputparams["arch"] = arch_list;
+
+  const queryParams = {
+    ...defaultGetTimeSeriesInputs, // base defaults
+    ...inputparams, // override with caller's values
+  };
+
+  if (queryParams.arch && queryParams.device) {
+    const arch_list = toQueryArch(queryParams.device, queryParams.arch);
+    queryParams["arch"] = arch_list;
+  }
 
   // use the startTime and endTime to fetch commits from clickhouse if commits field is not provided
-  if (!inputparams.commits || inputparams.commits.length == 0) {
-    if (!inputparams.startTime || !inputparams.stopTime) {
+  if (!queryParams.commits || queryParams.commits.length == 0) {
+    if (!queryParams.startTime || !queryParams.stopTime) {
       console.log("no commits or start/end time provided in request");
       return [];
     }
+
     // get commits from clickhouse
     const commit_results = await queryClickhouseSaved(
       COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-      inputparams
+      queryParams
     );
     // get unique commits
     const unique_commits = [...new Set(commit_results.map((c) => c.commit))];
     if (unique_commits.length === 0) {
-      console.log("no commits found in clickhouse using", inputparams);
+      console.log("no commits found in clickhouse using", queryParams);
       return [];
     }
 
     console.log(
-      "no commits provided in request, found unqiue commits",
-      unique_commits
+      `no commits provided in request, searched unqiue commits based on
+      start/end time unique_commits: ${unique_commits.length}`
     );
 
     if (commit_results.length > 0) {
-      inputparams["commits"] = unique_commits;
+      queryParams["commits"] = unique_commits;
     } else {
-      console.log(`no commits found in clickhouse using ${inputparams}`);
+      console.log(`no commits found in clickhouse using ${queryParams}`);
       return [];
     }
   } else {
-    console.log("commits provided in request", inputparams.commits);
+    console.log("commits provided in request", queryParams.commits);
   }
 
   let rows = await queryClickhouseSaved(
     COMPILER_BENCHMARK_TABLE_NAME,
-    inputparams
+    queryParams
   );
   const end = Date.now();
   console.log("time to get compiler timeseris data", end - start);
@@ -82,6 +116,8 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
   if (rows.length === 0) {
     return [];
   }
+
+  console.log("rows from clickhouse", rows[0]);
 
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
   // TODO(elainewy): we should add this as a column in the database for less runtime logics.

@@ -1,5 +1,4 @@
 // Utility to extract params from either GET or POST
-
 import { NextApiRequest } from "next";
 
 /**
@@ -46,6 +45,7 @@ type Params = Record<string, any>;
 export function readApiGetParams(req: NextApiRequest): Params {
   // 1) If POST with parsed JSON body
   if (req.method === "POST" && req.body && typeof req.body === "object") {
+    console.log("POST with parsed JSON body");
     return req.body as Params;
   }
 
@@ -136,8 +136,7 @@ export function getNestedField(obj: any, path: string): any {
 }
 
 export type BenchmarkTimeSeriesResponse = {
-  total_rows: number;
-  time_series: any[];
+  data: any;
   time_range: { start: string; end: string };
   total_raw_rows?: number;
 };
@@ -195,19 +194,18 @@ export function toJobIdMap(data: any[]) {
 }
 
 export function toTimeSeriesResponse(
-  res: any[],
+  res: any,
   rawDataLength: number,
   start_ts: number,
   end_ts: number
 ) {
   const response: BenchmarkTimeSeriesResponse = {
-    total_rows: res.length,
     total_raw_rows: rawDataLength,
     time_range: {
       start: new Date(start_ts).toISOString(),
       end: new Date(end_ts).toISOString(),
     },
-    time_series: res,
+    data: res,
   };
   return response;
 }
@@ -216,6 +214,7 @@ export function emptyTimeSeriesResponse() {
   return {
     total_rows: 0,
     time_series: [],
+    table: [],
     time_range: {
       start: new Date().toISOString(),
       end: new Date().toISOString(),

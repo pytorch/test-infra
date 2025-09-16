@@ -1,14 +1,3 @@
-import { groupByBenchmarkData } from "../../utils";
-
-export function to_table_compiler_data(data: any[]) {
-  const res = groupByBenchmarkData(
-    data,
-    ["dtype", "arch", "device", "mode", "workflow_id", "granularity_bucket"],
-    ["metric", "compiler"]
-  );
-  return res;
-}
-
 export function extractBackendSqlStyle(
   output: string,
   suite: string,
