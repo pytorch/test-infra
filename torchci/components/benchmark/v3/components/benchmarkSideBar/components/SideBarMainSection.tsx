@@ -3,10 +3,7 @@
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import {
-  getGetBenchmarkQueryParamsConverter,
-  getSideBarMetricsComponent,
-} from "components/benchmark/v3/configs/configRegistration";
+import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
@@ -31,7 +28,9 @@ const styles = {
 export function SideBarMainSection() {
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
-  const config = BenchmarkUIConfigBook[benchmarkId];
+  const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
+  const dataBinding =
+    BenchmarkUIConfigBook.instance.getDataBinding(benchmarkId);
   const required_filter_fields = config?.required_filter_fields ?? [];
 
   // 2) One selector (with shallow inside useDashboardSelector) for the rest
@@ -77,8 +76,16 @@ export function SideBarMainSection() {
     !!stagedTime?.end &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
-  const converter = getGetBenchmarkQueryParamsConverter(config);
-  const params = converter(stagedTime, [], [], stagedFilters);
+  const params = BenchmarkUIConfigBook.instance
+    .getDataBinding(benchmarkId)
+    ?.toQueryParams({
+      timeRange: stagedTime,
+      filters: stagedFilters,
+    } as QueryParameterConverterInputs);
+  if (!params) {
+    throw new Error(`Failed to convert to query params for ${benchmarkId}`);
+  }
+
   const queryParams: any | null = ready ? params : null;
 
   const {
@@ -106,7 +113,7 @@ export function SideBarMainSection() {
     }
   }, [branches]);
 
-  const DropdownComp = getSideBarMetricsComponent(config);
+  const DropdownComp = dataBinding?.getFilterOptionComponent();
 
   const dirty =
     stagedTime.start.valueOf() !== committedTime.start.valueOf() ||

@@ -2,8 +2,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { BenchmarkDashboardStoreProvider } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkSideBar from "./components/benchmarkSideBar/BenchmarkSideBar";
-import { BenchmarkUIConfigBook } from "./configs/configBook";
-import { getDataRenderComponent } from "./configs/configRegistration";
+import { getConfig } from "./configs/configBook";
 dayjs.extend(utc);
 
 export default function BenchmarkRegressionPage({
@@ -13,10 +12,10 @@ export default function BenchmarkRegressionPage({
   benchmarkId: string;
   initial: any;
 }) {
-  const config = BenchmarkUIConfigBook[benchmarkId];
+  const config = getConfig(benchmarkId);
 
   // get dynamic componenet if any registered, otherwise use default
-  const Comp = getDataRenderComponent(config);
+  const Comp = config.getDataRenderComponent();
 
   return (
     <BenchmarkDashboardStoreProvider key={benchmarkId} initial={initial}>

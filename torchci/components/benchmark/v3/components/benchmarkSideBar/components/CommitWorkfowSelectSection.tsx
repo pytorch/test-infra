@@ -1,6 +1,6 @@
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
-import { getGetBenchmarkQueryParamsConverter } from "components/benchmark/v3/configs/configRegistration";
+import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
@@ -41,7 +41,9 @@ export function CommitWorflowSelectSection() {
   const [autoLeftSha, setAutoLeftSha] = useState<string | null>(null);
   const [autoRightSha, setAutoRightSha] = useState<string | null>(null);
 
-  const config = BenchmarkUIConfigBook[benchmarkId];
+  const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
+  const dataBinding =
+    BenchmarkUIConfigBook.instance.getDataBinding(benchmarkId);
   const required_filter_fields = config?.required_filter_fields ?? [];
 
   const ready =
@@ -61,8 +63,15 @@ export function CommitWorflowSelectSection() {
   ];
 
   // Convert to query params
-  const converter = getGetBenchmarkQueryParamsConverter(config);
-  const params = converter(committedTime, branches, [], committedFilters);
+  const params = dataBinding.toQueryParams({
+    branches,
+    timeRange: committedTime,
+    filters: committedFilters,
+  } as QueryParameterConverterInputs);
+  if (!params) {
+    throw new Error(`Failed to convert to query params for ${benchmarkId}`);
+  }
+
   const queryParams: any | null = ready ? params : null;
 
   // Fetch data
