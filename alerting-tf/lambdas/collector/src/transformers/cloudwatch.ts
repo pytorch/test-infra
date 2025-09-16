@@ -194,10 +194,27 @@ export class CloudWatchTransformer extends BaseTransformer {
     const alarmName = alarmData.AlarmName;
 
     if (region && alarmName) {
+      // Convert region name to region code (e.g., "US East - N. Virginia" -> "us-east-1")
+      const regionCode = this.normalizeRegion(region);
       const encodedAlarmName = encodeURIComponent(alarmName);
-      return `https://${region}.console.aws.amazon.com/cloudwatch/home?region=${region}#alarmsV2:alarm/${encodedAlarmName}`;
+      return `https://${regionCode}.console.aws.amazon.com/cloudwatch/home?region=${regionCode}#alarmsV2:alarm/${encodedAlarmName}`;
     }
 
     return undefined;
+  }
+
+  private normalizeRegion(region: string): string {
+    // Map CloudWatch region names to AWS region codes
+    const regionMap: Record<string, string> = {
+      "US East - N. Virginia": "us-east-1",
+      "US East - Ohio": "us-east-2",
+      "US West - Oregon": "us-west-2",
+      "US West - N. California": "us-west-1",
+      "Europe - Ireland": "eu-west-1",
+      "Asia Pacific - Tokyo": "ap-northeast-1",
+      // Add more mappings as needed
+    };
+
+    return regionMap[region] || region.toLowerCase().replace(/\s+/g, "-");
   }
 }

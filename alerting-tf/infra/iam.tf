@@ -50,9 +50,11 @@ resource "aws_iam_policy" "collector_dynamodb_write" {
       {
         Effect   = "Allow",
         Action   = [
-          "dynamodb:PutItem"
+          "dynamodb:PutItem",
+          "dynamodb:GetItem",
+          "dynamodb:UpdateItem"
         ],
-        Resource = aws_dynamodb_table.alerting_status.arn
+        Resource = aws_dynamodb_table.alerts_state.arn
       }
     ]
   })

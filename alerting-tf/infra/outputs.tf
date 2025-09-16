@@ -15,8 +15,8 @@ output "collector_name" {
 
 
 output "status_table_name" {
-  value       = aws_dynamodb_table.alerting_status.name
-  description = "DynamoDB status table name"
+  value       = aws_dynamodb_table.alerts_state.name
+  description = "DynamoDB alerts state table name"
 }
 
 output "github_app_secret_id" {

@@ -59,11 +59,12 @@ export class GrafanaTransformer extends BaseTransformer {
   }
 
   private extractTitle(rawPayload: any, alert: any, labels: any): string {
+    // Prioritize raw alertname over formatted titles for consistent fingerprinting
     const candidates = [
-      rawPayload.title,
       labels.alertname,
       alert.labels?.alertname,
       rawPayload.groupLabels?.alertname,
+      rawPayload.title,
       "Unknown Grafana Alert",
     ];
 
