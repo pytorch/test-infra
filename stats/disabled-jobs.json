@@ -7,6 +7,14 @@
     "",
     ""
   ],
+  "RecordDebugHandles.ScopedCallbacks (__main__.test_jit)": [
+    "pytorch-bot",
+    "164534",
+    "https://github.com/pytorch/pytorch/issues/164534",
+    "RecordDebugHandles.ScopedCallbacks (__main__.test_jit)",
+    "",
+    ""
+  ],
   "distributed/_composable/fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing": [
     "jithunnair-amd",
     "120945",
@@ -15,6 +23,14 @@
     "_composable",
     "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
   ],
+  "rocm / linux-jammy-rocm-py3_10-gfx1100 / test (default)": [
+    "jithunnair-amd",
+    "165040",
+    "https://github.com/pytorch/pytorch/issues/165040",
+    "rocm",
+    "linux-jammy-rocm-py3_10-gfx1100",
+    "test (default)"
+  ],
   "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
     "pytorch-bot",
     "152869",
@@ -22,5 +38,101 @@
     "testAssertNotRegex (__main__.CPythonTest_Assertions)",
     "",
     ""
+  ],
+  "test_head_specific_gate_batch:2_head:4_seq_len:256_headdim:16_dtype:float16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "pytorch-bot",
+    "167984",
+    "https://github.com/pytorch/pytorch/issues/167984",
+    "test_head_specific_gate_batch:2_head:4_seq_len:256_headdim:16_dtype:float16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)",
+    "",
+    ""
+  ],
+  "test_head_specific_gate_batch:2_head:4_seq_len:256_headdim:16_dtype:float32_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "pytorch-bot",
+    "167985",
+    "https://github.com/pytorch/pytorch/issues/167985",
+    "test_head_specific_gate_batch:2_head:4_seq_len:256_headdim:16_dtype:float32_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)",
+    "",
+    ""
+  ],
+  "test_head_specific_gate_batch:2_head:4_seq_len:37_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "pytorch-bot",
+    "167942",
+    "https://github.com/pytorch/pytorch/issues/167942",
+    "test_head_specific_gate_batch:2_head:4_seq_len:37_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)",
+    "",
+    ""
+  ],
+  "test_layernorm_fp8_quant_benchmark_float8_e4m3fn_shape_4,2048,4096_keepdim_False (__main__.TestFP8Types)": [
+    "pytorch-bot",
+    "167497",
+    "https://github.com/pytorch/pytorch/issues/167497",
+    "test_layernorm_fp8_quant_benchmark_float8_e4m3fn_shape_4,2048,4096_keepdim_False (__main__.TestFP8Types)",
+    "",
+    ""
+  ],
+  "test_layernorm_fp8_quant_benchmark_float8_e4m3fn_shape_4,2048,4096_keepdim_True (__main__.TestFP8Types)": [
+    "pytorch-bot",
+    "166487",
+    "https://github.com/pytorch/pytorch/issues/166487",
+    "test_layernorm_fp8_quant_benchmark_float8_e4m3fn_shape_4,2048,4096_keepdim_True (__main__.TestFP8Types)",
+    "",
+    ""
+  ],
+  "test_layernorm_fp8_quant_benchmark_float8_e5m2_shape_4,2048,4096_keepdim_False (__main__.TestFP8Types)": [
+    "pytorch-bot",
+    "167464",
+    "https://github.com/pytorch/pytorch/issues/167464",
+    "test_layernorm_fp8_quant_benchmark_float8_e5m2_shape_4,2048,4096_keepdim_False (__main__.TestFP8Types)",
+    "",
+    ""
+  ],
+  "test_layernorm_fp8_quant_benchmark_float8_e5m2_shape_4,2048,4096_keepdim_True (__main__.TestFP8Types)": [
+    "pytorch-bot",
+    "166488",
+    "https://github.com/pytorch/pytorch/issues/166488",
+    "test_layernorm_fp8_quant_benchmark_float8_e5m2_shape_4,2048,4096_keepdim_True (__main__.TestFP8Types)",
+    "",
+    ""
+  ],
+  "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)": [
+    "pytorch-bot",
+    "167297",
+    "https://github.com/pytorch/pytorch/issues/167297",
+    "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape1 (__main__.TestCKBackend)",
+    "",
+    ""
+  ],
+  "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)": [
+    "pytorch-bot",
+    "167272",
+    "https://github.com/pytorch/pytorch/issues/167272",
+    "test_max_autotune_addmm_max_autotune_gemm_backends_ATen,Triton,CK_x_shape2 (__main__.TestCKBackend)",
+    "",
+    ""
+  ],
+  "test_symmetric_bias_batch:2_head:4_seq_len:256_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "pytorch-bot",
+    "167986",
+    "https://github.com/pytorch/pytorch/issues/167986",
+    "test_symmetric_bias_batch:2_head:4_seq_len:256_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)",
+    "",
+    ""
+  ],
+  "test_symmetric_bias_batch:2_head:4_seq_len:37_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)": [
+    "pytorch-bot",
+    "167987",
+    "https://github.com/pytorch/pytorch/issues/167987",
+    "test_symmetric_bias_batch:2_head:4_seq_len:37_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)",
+    "",
+    ""
+  ],
+  "trunk-rocm-mi300 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "167849",
+    "https://github.com/pytorch/pytorch/issues/167849",
+    "trunk-rocm-mi300",
+    "linux-jammy-rocm-py3.10",
+    "test"
   ]
 }
