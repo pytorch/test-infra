@@ -211,7 +211,8 @@ class FileReportGenerator:
         for row in result:
             row["short_job_name"] = f"{row.get('workflow_name')} / {self._parse_job_name(row.get('job_name', ''))}"
             row["runner_type"] = self._get_runner_label_from_job_info(row)
-            row["cost"] = self.get_runner_cost(row.get("runner_type", 0)) * self.get_frequency(row.get("workflow_name"))
+            row["cost"] = self.get_runner_cost(row.get("runner_type", 0))
+            row["frequency"] = self.get_frequency(row.get("workflow_name", 0))
 
         return result
 
@@ -405,7 +406,8 @@ class FileReportGenerator:
                 "job_labels": job_data.get("job_labels", []),
                 "runner_type": job_data.get("runner_type", ""),
                 "cost_per_hour": job_data.get("cost", 0.0),
-                "workflow_name": job_data.get("workflow_name", "")
+                "workflow_name": job_data.get("workflow_name", ""),
+                "frequency": job_data.get("frequency", 0),
             }
             workflow_runs.add((job_data.get("workflow_id"), job_data.get("run_attempt", 1)))
 
@@ -448,6 +450,7 @@ class FileReportGenerator:
                     "failures": 0,
                     "skipped": 0,
                     "successes": 0,
+                    "frequency": test["job_info"].get("frequency", 0),
                     # "job_info": [],
                     # "job_ids": set(),
                     # "duplicate_tests": [],  # Track tests with multiple entries
