@@ -72,7 +72,7 @@ export function DefaultFanoutRenderContent() {
   }
 
   const fanoutUIConfigs = dataRender.renders;
-  const multidata = resp?.data?.data;
+  const multidata = resp.data.data;
 
   return (
     <div>

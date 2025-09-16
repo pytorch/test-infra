@@ -113,10 +113,7 @@ export async function listBenchmarkCommits<T>(
 
 export interface CompilerBundleResult {
   data: {
-    data: {
-      table: any;
-      time_series: any;
-    };
+    data: any;
     time_range: any;
     total_raw_rows: number;
   };
