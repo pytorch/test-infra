@@ -34,19 +34,60 @@ export abstract class BaseTransformer {
     return title.trim();
   }
 
-  // Parse timestamp to ISO8601 format
-  protected parseTimestamp(input: string | Date): string {
-    if (!input) return new Date().toISOString();
+  // Parse timestamp to ISO8601 format with strict validation
+  // TODO: Consider if it actually makes sense to default to current time if input was invalid
+  protected parseTimestamp(input: string | Date, required: boolean = false): string {
+    if (!input) {
+      if (required) {
+        throw new Error("Timestamp is required but not provided");
+      }
+      return new Date().toISOString();
+    }
 
     if (typeof input === "string") {
+      // Security: Validate timestamp format to prevent injection
+      if (input.length > 50) {
+        throw new Error("Timestamp string too long");
+      }
+
       const parsed = new Date(input);
+
+      // Validate that the parsed date is reasonable.  Using wide bounds
+      // since this is meant to be a data sanity check, not a strict business policy.
       if (isNaN(parsed.getTime())) {
+        if (required) {
+          throw new Error(`Invalid timestamp format: ${input}`);
+        }
+        console.warn(`Invalid timestamp format, using current time: ${input}`);
         return new Date().toISOString();
       }
+
+      // Security: Ensure timestamp is within reasonable bounds (not too far in past/future)
+      const now = new Date();
+      const tenYearsAgo = new Date(now.getFullYear() - 10, now.getMonth(), now.getDate());
+      const oneYearFromNow = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+
+      if (parsed < tenYearsAgo || parsed > oneYearFromNow) {
+        let msg = `Timestamp outside reasonable bounds: ${input}`;
+        if (required) {
+          throw new Error(msg);
+        }
+        msg += ", using current time";
+        console.warn(msg);
+        return new Date().toISOString();
+      }
+
       return parsed.toISOString();
     }
 
-    return input.toISOString();
+    if (input instanceof Date) {
+      if (isNaN(input.getTime())) {
+        throw new Error("Invalid Date object provided");
+      }
+      return input.toISOString();
+    }
+
+    throw new Error(`Invalid timestamp type: ${typeof input}`);
   }
 
   // Extract team from string - fail fast for missing values
@@ -62,5 +103,54 @@ export abstract class BaseTransformer {
     if (typeof value === "string") return value;
     if (value !== null && value !== undefined) return String(value);
     return fallback;
+  }
+
+  // Security: input sanitization
+  protected sanitizeString(value: any, maxLength: number = 255): string {
+    if (!value) {
+      return "";
+    }
+
+    let sanitized = String(value);
+
+    // Remove potentially dangerous characters and control characters
+    sanitized = sanitized
+      .replace(/[<>\"'&\x00-\x1F\x7F]/g, '') // Remove HTML entities and control chars
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/data:/gi, '') // Remove data: protocol
+      .replace(/vbscript:/gi, '') // Remove vbscript: protocol
+      .replace(/on\w+=/gi, '') // Remove event handlers like onclick=
+      .substring(0, maxLength)
+      .trim();
+
+    return sanitized;
+  }
+
+  // Security: Validate and sanitize URLs
+  protected validateUrl(url: string): string | undefined {
+    if (!url || typeof url !== "string") {
+      return undefined;
+    }
+
+    try {
+      const parsed = new URL(url);
+
+      // Only allow http and https protocols
+      if (!['http:', 'https:'].includes(parsed.protocol)) {
+        console.warn(`Invalid URL protocol: ${parsed.protocol}`);
+        return undefined;
+      }
+
+      // Additional security: limit URL length
+      if (url.length > 2048) {
+        console.warn("URL too long, truncating");
+        return url.substring(0, 2048);
+      }
+
+      return url;
+    } catch (error) {
+      console.warn(`Invalid URL format: ${url}`);
+      return undefined;
+    }
   }
 }

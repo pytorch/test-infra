@@ -23,29 +23,72 @@ type GithubAppSecret = {
   github_app_key_base64: string; // base64-encoded PEM
 };
 
-let cachedSecret: GithubAppSecret | null = null;
+let cachedSecret: { secret: GithubAppSecret; expiresAt: number } | null = null;
 let cachedInstallationToken: { token: string; expiresAt: number } | null = null;
+
+// Simple rate limiter for GitHub API calls
+class SimpleRateLimiter {
+  private lastCallTime: number = 0;
+  private readonly minInterval: number;
+
+  constructor(requestsPerSecond: number = 10) {
+    this.minInterval = 1000 / requestsPerSecond; // milliseconds between requests
+  }
+
+  async waitIfNeeded(): Promise<void> {
+    const now = Date.now();
+    const timeSinceLastCall = now - this.lastCallTime;
+
+    if (timeSinceLastCall < this.minInterval) {
+      const waitTime = this.minInterval - timeSinceLastCall;
+      await new Promise(resolve => setTimeout(resolve, waitTime));
+    }
+
+    this.lastCallTime = Date.now();
+  }
+}
+
+const githubRateLimiter = new SimpleRateLimiter(10); // 10 requests per second
 
 function nowEpochSeconds(): number {
   return Math.floor(Date.now() / 1000);
 }
 
 async function loadGithubSecret(): Promise<GithubAppSecret> {
-  if (cachedSecret) return cachedSecret;
+  // Check if we have a valid cached secret
+  const now = nowEpochSeconds();
+  if (cachedSecret && cachedSecret.expiresAt > now) {
+    return cachedSecret.secret;
+  }
+
   if (!githubAppSecretId) {
     throw new Error("GITHUB_APP_SECRET_ID not set");
   }
-  const res = await secrets.send(
-    new GetSecretValueCommand({ SecretId: githubAppSecretId })
-  );
-  const secretString = res.SecretString;
-  if (!secretString) throw new Error("SecretString empty for GitHub App secret");
-  const parsed = JSON.parse(secretString) as GithubAppSecret;
-  if (!parsed.github_app_id || !parsed.github_app_key_base64) {
-    throw new Error("GitHub App secret missing required fields (github_app_id, github_app_key_base64)");
+
+  try {
+    const res = await secrets.send(
+      new GetSecretValueCommand({ SecretId: githubAppSecretId })
+    );
+    const secretString = res.SecretString;
+    if (!secretString) throw new Error("SecretString empty for GitHub App secret");
+
+    const parsed = JSON.parse(secretString) as GithubAppSecret;
+    if (!parsed.github_app_id || !parsed.github_app_key_base64) {
+      throw new Error("GitHub App secret missing required fields (github_app_id, github_app_key_base64)");
+    }
+
+    // Cache secret with 1 hour TTL for security
+    cachedSecret = {
+      secret: parsed,
+      expiresAt: now + 3600, // 1 hour
+    };
+
+    return parsed;
+  } catch (error) {
+    // Clear cached secret on error to force refresh next time
+    cachedSecret = null;
+    throw error;
   }
-  cachedSecret = parsed;
-  return parsed;
 }
 
 function buildAppJwt(appId: string, pemKeyBase64: string): string {
@@ -77,6 +120,9 @@ async function getInstallationToken(): Promise<string> {
     "User-Agent": "pytorch-alerting"
   } as const;
 
+  // Rate limiting: Wait if needed before making API call
+  await githubRateLimiter.waitIfNeeded();
+
   // Discover installation id for the repo
   const instResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/installation`, {
     method: "GET",
@@ -86,10 +132,14 @@ async function getInstallationToken(): Promise<string> {
     throw new Error(`GitHub App is not installed on ${githubRepo}`);
   }
   if (!instResp.ok) {
-    const body = await instResp.text();
-    throw new Error(`Failed to get installation: ${instResp.status} ${body}`);
+    // Security: Don't log full response body which might contain sensitive data
+    const errorInfo = `${instResp.status} ${instResp.statusText}`;
+    throw new Error(`Failed to get installation: ${errorInfo}`);
   }
   const instData = await instResp.json() as { id: number };
+
+  // Rate limiting: Wait if needed before making API call
+  await githubRateLimiter.waitIfNeeded();
 
   // Mint installation token
   const tokenResp = await fetch(`https://api.github.com/app/installations/${instData.id}/access_tokens`, {
@@ -97,8 +147,9 @@ async function getInstallationToken(): Promise<string> {
     headers: ghHeaders,
   });
   if (!tokenResp.ok) {
-    const body = await tokenResp.text();
-    throw new Error(`Failed to create installation token: ${tokenResp.status} ${body}`);
+    // Security: Don't log full response body which might contain sensitive data
+    const errorInfo = `${tokenResp.status} ${tokenResp.statusText}`;
+    throw new Error(`Failed to create installation token: ${errorInfo}`);
   }
   const tokenData = await tokenResp.json() as { token: string; expires_at: string };
   cachedInstallationToken = {
@@ -109,6 +160,9 @@ async function getInstallationToken(): Promise<string> {
 }
 
 async function ensureGithubLabel(owner: string, repo: string, token: string, labelName: string, color: string = "0969da"): Promise<void> {
+  // Rate limiting: Wait if needed before making API call
+  await githubRateLimiter.waitIfNeeded();
+
   // Check if label exists
   const checkResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/labels/${encodeURIComponent(labelName)}`, {
     method: "GET",
@@ -121,6 +175,9 @@ async function ensureGithubLabel(owner: string, repo: string, token: string, lab
   });
 
   if (checkResp.status === 404) {
+    // Rate limiting: Wait if needed before making API call
+    await githubRateLimiter.waitIfNeeded();
+
     // Label doesn't exist, create it
     const createResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/labels`, {
       method: "POST",
@@ -139,15 +196,17 @@ async function ensureGithubLabel(owner: string, repo: string, token: string, lab
     });
 
     if (!createResp.ok) {
-      const errorText = await createResp.text();
-      console.warn(`Failed to create label ${labelName}: ${createResp.status} ${errorText}`);
+      // Security: Don't log full response body which might contain sensitive data
+      const errorInfo = `${createResp.status} ${createResp.statusText}`;
+      console.warn(`Failed to create label ${labelName}: ${errorInfo}`);
       // Don't throw - label creation failure shouldn't fail the whole process
     } else {
       console.log(`✅ Created GitHub label: ${labelName}`);
     }
   } else if (!checkResp.ok) {
-    const errorText = await checkResp.text();
-    console.warn(`Failed to check label ${labelName}: ${checkResp.status} ${errorText}`);
+    // Security: Don't log full response body which might contain sensitive data
+    const errorInfo = `${checkResp.status} ${checkResp.statusText}`;
+    console.warn(`Failed to check label ${labelName}: ${errorInfo}`);
   }
 }
 
@@ -189,6 +248,9 @@ async function createGithubIssue(title: string, body: string, labels: string[]):
     await ensureGithubLabel(owner, repo, token, label, color);
   }
 
+  // Rate limiting: Wait if needed before making API call
+  await githubRateLimiter.waitIfNeeded();
+
   const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
     method: "POST",
     headers: {
@@ -201,8 +263,9 @@ async function createGithubIssue(title: string, body: string, labels: string[]):
     body: JSON.stringify({ title, body, labels }),
   });
   if (!resp.ok) {
-    const t = await resp.text();
-    throw new Error(`Failed to create issue: ${resp.status} ${t}`);
+    // Security: Don't log full response body which might contain sensitive data
+    const errorInfo = `${resp.status} ${resp.statusText}`;
+    throw new Error(`Failed to create issue: ${errorInfo}`);
   }
   const data = await resp.json() as { number: number };
   return data.number;
@@ -258,6 +321,7 @@ export const handler: SQSHandler = async (event) => {
             `- **State**: ${alertEvent.state}`,
             `- **Occurred At**: ${alertEvent.occurred_at}`,
             alertEvent.description ? `- **Description**: ${alertEvent.description}` : "",
+            alertEvent.reason ? `- **Reason**: ${alertEvent.reason}` : "",
             alertEvent.links?.runbook_url ? `- **Runbook**: ${alertEvent.links.runbook_url}` : "",
             alertEvent.links?.dashboard_url ? `- **Dashboard**: ${alertEvent.links.dashboard_url}` : "",
             "",

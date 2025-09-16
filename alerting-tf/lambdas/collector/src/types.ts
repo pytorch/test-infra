@@ -40,7 +40,8 @@ export interface AlertEvent {
   source: "grafana" | "cloudwatch";
   state: "FIRING" | "RESOLVED";
   title: string; // normalized title (rule or alarm name)
-  description?: string; // optional summary text // TODO: Rename to "summary"
+  description?: string; // optional summary text from alert description
+  reason?: string; // provider-specific reason/message (NewStateReason for CloudWatch, message for Grafana)
   priority: "P0" | "P1" | "P2" | "P3"; // single canonical concept; no severity field
   occurred_at: string; // provider state change time (ISO8601)
   team: string; // owning team slug (single team in v1)

@@ -38,18 +38,18 @@ export class CloudWatchTransformer extends BaseTransformer {
     const state = this.extractState(alarmData);
     const occurredAt = this.parseTimestamp(alarmData.StateChangeTime);
 
-    // Parse AlarmDescription for metadata
-    const descriptionData = this.parseAlarmDescription(alarmData.AlarmDescription || "");
+    // Parse AlarmDescription for metadata and description content
+    const descriptionParsed = this.parseAlarmDescription(alarmData.AlarmDescription || "");
 
-    if (!descriptionData.PRIORITY) {
+    if (!descriptionParsed.metadata.PRIORITY) {
       throw new Error("Missing required PRIORITY field in AlarmDescription");
     }
-    if (!descriptionData.TEAM) {
+    if (!descriptionParsed.metadata.TEAM) {
       throw new Error("Missing required TEAM field in AlarmDescription");
     }
 
-    const priority = this.extractPriority(descriptionData.PRIORITY);
-    const team = this.extractTeam(descriptionData.TEAM);
+    const priority = this.extractPriority(descriptionParsed.metadata.PRIORITY);
+    const team = this.extractTeam(descriptionParsed.metadata.TEAM);
 
     // Build resource information
     const resource: AlertResource = {
@@ -66,9 +66,9 @@ export class CloudWatchTransformer extends BaseTransformer {
       alarm_arn: this.safeString(alarmData.AlarmArn),
     };
 
-    // Build links
+    // Build links with URL validation
     const links: AlertLinks = {
-      runbook_url: descriptionData.RUNBOOK || undefined,
+      runbook_url: this.validateUrl(descriptionParsed.metadata.RUNBOOK || ""),
       source_url: this.buildConsoleUrl(alarmData),
     };
 
@@ -78,7 +78,8 @@ export class CloudWatchTransformer extends BaseTransformer {
       source: "cloudwatch",
       state,
       title,
-      description: alarmData.NewStateReason || undefined,
+      description: descriptionParsed.description || undefined,
+      reason: this.sanitizeString(alarmData.NewStateReason || "", 1000),
       priority,
       occurred_at: occurredAt,
       team,
@@ -105,34 +106,79 @@ export class CloudWatchTransformer extends BaseTransformer {
     throw new Error(`Invalid NewStateValue: '${newState}'. Expected 'ALARM' or 'OK'`);
   }
 
-  private parseAlarmDescription(description: string): Record<string, string> {
-    const result: Record<string, string> = {};
+  private parseAlarmDescription(description: string): { metadata: Record<string, string>; description: string } {
+    const metadata: Record<string, string> = {};
+    const descriptionLines: string[] = [];
 
     if (!description || typeof description !== "string") {
-      return result;
+      return { metadata, description: "" };
+    }
+
+    // Security: Limit description length to prevent DoS attacks
+    if (description.length > 4096) {
+      throw new Error("AlarmDescription too long (max 4096 characters)");
     }
 
     // Parse newline-separated format: "Body\nTEAM=team\nPRIORITY=P1\nRUNBOOK=https://..."
     // Also support legacy pipe-separated format for backward compatibility
     const lines = description.includes('\n')
-      ? description.split('\n').map(line => line.trim())
-      : description.split('|').map(pair => pair.trim());
+      ? description.split('\n').map(line => line.trim()).slice(0, 20) // Limit number of lines
+      : description.split('|').map(pair => pair.trim()).slice(0, 10);
+
+    // Whitelist of allowed keys to prevent injection
+    const ALLOWED_KEYS = ['TEAM', 'PRIORITY', 'RUNBOOK', 'SUMMARY'];
 
     for (const line of lines) {
-      // Skip empty lines or lines without equals sign
-      if (!line || !line.includes('=')) {
+      // Skip empty lines
+      if (!line) {
         continue;
       }
 
-      const [key, ...valueParts] = line.split('=');
-      if (key && valueParts.length > 0) {
-        const value = valueParts.join('=').trim();
-        // Case-insensitive key matching - store in uppercase
-        result[key.trim().toUpperCase()] = value;
+      // Check if this is a metadata line (X=Y format)
+      if (line.includes('=')) {
+        const [key, ...valueParts] = line.split('=');
+        if (key && valueParts.length > 0) {
+          const sanitizedKey = key.trim().toUpperCase();
+
+          // Security: Only allow whitelisted keys
+          if (ALLOWED_KEYS.includes(sanitizedKey)) {
+            const rawValue = valueParts.join('=').trim();
+            // Security: Sanitize and limit value length
+            const sanitizedValue = this.sanitizeString(rawValue, 255);
+            metadata[sanitizedKey] = sanitizedValue;
+          } else {
+            // Non-whitelisted X=Y lines are treated as description content
+            console.warn(`Non-whitelisted key in AlarmDescription treated as description: ${sanitizedKey}`);
+            descriptionLines.push(this.sanitizeString(line, 500));
+          }
+        }
+      } else {
+        // Non-X=Y lines are description content
+        descriptionLines.push(this.sanitizeString(line, 500));
       }
     }
 
-    return result;
+    return {
+      metadata,
+      description: descriptionLines.join(' ').trim() || ""
+    };
+  }
+
+  // Security: Sanitize string input to prevent injection attacks
+  private sanitizeString(value: string, maxLength: number = 255): string {
+    if (!value || typeof value !== "string") {
+      return "";
+    }
+
+    // Remove potentially dangerous characters and control characters
+    const sanitized = value
+      .replace(/[<>\"'&\x00-\x1F\x7F]/g, '') // Remove HTML entities and control chars
+      .replace(/javascript:/gi, '') // Remove javascript: protocol
+      .replace(/data:/gi, '') // Remove data: protocol
+      .substring(0, maxLength)
+      .trim();
+
+    return sanitized;
   }
 
   private extractResourceType(alarmData: any): AlertResource["type"] {

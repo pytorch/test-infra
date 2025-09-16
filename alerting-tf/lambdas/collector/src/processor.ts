@@ -99,16 +99,75 @@ export class AlertProcessor {
 
   // Determine what action to take based on alert state and history
   async determineAction(alertEvent: AlertEvent, fingerprint: string): Promise<AlertAction> {
-    // TODO: Implement proper action determination logic
-    // For now, simple logic based on state
+    // Import AlertStateManager here to avoid circular dependencies
+    const { AlertStateManager } = await import("./database");
+    const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
+    const { DynamoDBDocumentClient } = await import("@aws-sdk/lib-dynamodb");
 
-    if (alertEvent.state === "FIRING") {
-      return "CREATE"; // Create new issue or comment on existing
-    } else if (alertEvent.state === "RESOLVED") {
-      return "CLOSE"; // Close existing issue
+    const tableName = process.env.STATUS_TABLE_NAME;
+    if (!tableName) {
+      console.warn("STATUS_TABLE_NAME not set, using simple action determination");
+      return alertEvent.state === "FIRING" ? "CREATE" : "SKIP_STALE";
     }
 
-    return "CREATE"; // Default fallback
+    try {
+      const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+      const stateManager = new AlertStateManager(ddbClient, tableName);
+
+      // Check for existing alert state
+      const existingState = await stateManager.loadState(fingerprint);
+
+      // If no existing state, handle new alert
+      if (!existingState) {
+        return alertEvent.state === "FIRING" ? "CREATE" : "SKIP_STALE";
+      }
+
+      // Check if manually closed - never auto-act on manually closed alerts
+      if (existingState.manually_closed) {
+        console.log(`Alert ${fingerprint} was manually closed, skipping auto-action`);
+        return "SKIP_MANUAL_CLOSE";
+      }
+
+      // Check for out-of-order processing
+      const existingTime = new Date(existingState.last_provider_state_at);
+      const incomingTime = new Date(alertEvent.occurred_at);
+
+      if (incomingTime < existingTime) {
+        console.log(`Out-of-order alert detected for ${fingerprint}, skipping`);
+        return "SKIP_STALE";
+      }
+
+      // Determine action based on current and desired states
+      if (alertEvent.state === "FIRING") {
+        if (existingState.status === "CLOSED") {
+          // Alert is firing again after being closed - create new issue
+          return "CREATE";
+        } else if (existingState.status === "OPEN") {
+          // Alert is still firing - add comment
+          return "COMMENT";
+        }
+      } else if (alertEvent.state === "RESOLVED") {
+        if (existingState.status === "OPEN") {
+          // Alert resolved - close the issue
+          return "CLOSE";
+        } else if (existingState.status === "CLOSED") {
+          // Alert already closed - skip
+          return "SKIP_STALE";
+        }
+      }
+
+      // Default fallback
+      return "SKIP_STALE";
+
+    } catch (error) {
+      console.error("Failed to determine action using DynamoDB state", {
+        fingerprint,
+        error: error instanceof Error ? error.message : String(error),
+      });
+
+      // Fallback to simple logic if DynamoDB fails
+      return alertEvent.state === "FIRING" ? "CREATE" : "SKIP_STALE";
+    }
   }
 
   // Parse SQS record body, handling both string and object formats

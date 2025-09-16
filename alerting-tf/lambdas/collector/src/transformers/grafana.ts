@@ -56,11 +56,11 @@ export class GrafanaTransformer extends BaseTransformer {
       rule_id: this.safeString(alert.fingerprint || rawPayload.rule_id),
     };
 
-    // Build links
+    // Build links with URL validation
     const links: AlertLinks = {
-      runbook_url: annotations.runbook_url || labels.runbook_url || undefined,
-      dashboard_url: alert.dashboardURL || alert.panelURL || undefined,
-      source_url: alert.generatorURL || rawPayload.generatorURL || undefined,
+      runbook_url: this.validateUrl(annotations.runbook_url || labels.runbook_url || ""),
+      dashboard_url: this.validateUrl(alert.dashboardURL || alert.panelURL || ""),
+      source_url: this.validateUrl(alert.generatorURL || rawPayload.generatorURL || ""),
     };
 
     return {
@@ -69,7 +69,8 @@ export class GrafanaTransformer extends BaseTransformer {
       source: "grafana",
       state,
       title,
-      description: annotations.description || annotations.summary || undefined,
+      description: this.sanitizeString(annotations.description || annotations.summary || "", 1500),
+      reason: this.sanitizeString(rawPayload.message || "", 2000),
       priority,
       occurred_at: occurredAt,
       team,
