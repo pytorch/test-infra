@@ -39,6 +39,17 @@ Immutable run-scoped metadata shared by all actions in the same run:
     - If `dry_run_restart=True`: skip if ANY restart (dry-run or not) exists for the pair
     - If `dry_run_restart=False`: apply caps (max 2) and pacing (15 min) based on non-dry-run restarts only
   - No extra GitHub-side "already restarted" guard; rely on ClickHouse logs for dedup/caps
+  - Logging occurs after restart attempt (with "dispatch_failed" note if failed)
+
+- `run_start` and `run_finish` (concurrency control):
+  - Scope: per `(repo, workflows)` combination
+  - Purpose: prevent concurrent runs on the same workflows
+  - `run_start`: logged at the beginning of a run
+  - `run_finish`: logged at the end of a run (in finally block)
+  - Concurrency check before starting:
+    - Allow run if last action is `run_finish`
+    - Allow run if last `run_start` was >10 minutes ago (stale run)
+    - Otherwise, skip the run
 
 - `none`:
   - Not logged in `autorevert_events_v2` (only actions taken are logged)
@@ -58,11 +69,12 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 - Columns:
   - `ts` DateTime — run timestamp
   - `repo` LowCardinality(String)
-  - `action` Enum8('none' = 0, 'restart' = 1, 'revert' = 2)
-  - `commit_sha` FixedString(40)
+  - `action` Enum8('none' = 0, 'restart' = 1, 'revert' = 2, 'run_start' = 3, 'run_finish' = 4)
+  - `commit_sha` FixedString(40) — empty string for run_start/run_finish actions
   - `workflows` Array(String) — workflows involved in this action
     - restart: a single-element array with the target workflow
     - revert: one or more workflows whose signals contributed
+    - run_start/run_finish: workflows being monitored in this run
   - `source_signal_keys` Array(String) — signal keys that contributed to this action
   - `dry_run` UInt8 DEFAULT 0
   - `notes` String DEFAULT '' — optional free-form metadata
@@ -91,7 +103,11 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 ## Processing Flow
 
 1. Create `RunContext` and capture `ts` at start (integration).
-2. Provide the Actions layer with: `(run params, List[Tuple[Signal, SignalProcOutcome]])`.
+2. Check for concurrent runs via `autorevert_events_v2`:
+   - Query for most recent `run_start`/`run_finish` for same `(repo, workflows)`
+   - Skip if last action is `run_start` within 10 minutes
+   - Otherwise, log `run_start` and proceed
+3. Provide the Actions layer with: `(run params, List[Tuple[Signal, SignalProcOutcome]])`.
 3. Transform and group the list into coalesced action groups (reusable method):
    - Revert groups: `(action=revert, commit_sha, sources: List[SignalMetadata(workflow, key)])`
    - Restart groups: `(action=restart, commit_sha, workflow_target, sources: List[SignalMetadata(workflow, key)])`
@@ -107,6 +123,7 @@ Two tables, sharing the same `ts` per CLI/lambda run.
    - Revert: record only (currently no execution)
 6. Insert one `autorevert_events_v2` row per executed group with aggregated `workflows` and `source_signal_keys` (use respective `dry_run_restart`/`dry_run_revert` flags).
 7. Separately (integration), build the full run state and call the run‑state logger to write a single `autorevert_state` row with the same `ts`.
+8. In a finally block, log `run_finish` to mark the end of the run (even if errors occurred).
 
 ## Interfaces
 
@@ -122,6 +139,9 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 - `ActionLogger` (ClickHouse):
   - `prior_revert_exists(repo: str, commit_sha: str, check_dry_run: bool = False) -> bool`
   - `recent_restarts(repo: str, workflow: str, commit_sha: str, limit: int = 2, check_dry_run: bool = False) -> list[datetime]`
+  - `check_concurrent_run(repo: str, workflows: list[str]) -> tuple[bool, str]`
+  - `log_run_start(repo: str, ts: datetime, workflows: list[str], dry_run: bool)`
+  - `log_run_finish(repo: str, ts: datetime, workflows: list[str], dry_run: bool, notes: str = "")`
   - `insert_event(repo, ts, action, commit_sha, workflows, source_signal_keys, dry_run, notes)`
 - `RunStateLogger` (separate module):
   - Input: `RunContext` and `List[Tuple[Signal, SignalProcOutcome]]`

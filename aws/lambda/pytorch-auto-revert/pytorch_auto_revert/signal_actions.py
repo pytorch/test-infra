@@ -49,7 +49,9 @@ class ActionLogger:
         # Intentionally avoid storing the client; call CHCliFactory().client inline per request.
         pass
 
-    def prior_revert_exists(self, *, repo: str, commit_sha: str, check_dry_run: bool = False) -> bool:
+    def prior_revert_exists(
+        self, *, repo: str, commit_sha: str, check_dry_run: bool = False
+    ) -> bool:
         """Return True if a revert was already logged for commit_sha.
 
         Args:
@@ -75,7 +77,13 @@ class ActionLogger:
         return len(res.result_rows) > 0
 
     def recent_restarts(
-        self, *, repo: str, workflow: str, commit_sha: str, limit: int = 2, check_dry_run: bool = False
+        self,
+        *,
+        repo: str,
+        workflow: str,
+        commit_sha: str,
+        limit: int = 2,
+        check_dry_run: bool = False,
     ):
         """Return most recent restart timestamps for (workflow, commit).
 
@@ -106,6 +114,78 @@ class ActionLogger:
             q, {"repo": repo, "wf": workflow, "sha": commit_sha, "lim": limit}
         )
         return [r[0] for r in res.result_rows]
+
+    def log_run_start(
+        self, *, repo: str, ts: datetime, workflows: List[str], dry_run: bool
+    ) -> None:
+        """Log the start of a run."""
+        self.insert_event(
+            repo=repo,
+            ts=ts,
+            action="run_start",
+            commit_sha="",  # No commit for run actions
+            workflows=workflows,
+            source_signal_keys=[],
+            dry_run=dry_run,
+            notes="",
+        )
+
+    def log_run_finish(
+        self,
+        *,
+        repo: str,
+        ts: datetime,
+        workflows: List[str],
+        dry_run: bool,
+        notes: str = "",
+    ) -> None:
+        """Log the finish of a run."""
+        self.insert_event(
+            repo=repo,
+            ts=ts,
+            action="run_finish",
+            commit_sha="",  # No commit for run actions
+            workflows=workflows,
+            source_signal_keys=[],
+            dry_run=dry_run,
+            notes=notes,
+        )
+
+    def check_concurrent_run(
+        self, *, repo: str, workflows: List[str]
+    ) -> tuple[bool, str]:
+        """Check if a concurrent run is in progress.
+
+        Returns:
+            (can_run, reason) - can_run is True if safe to start a new run
+        """
+        # Get the most recent run action (start or finish)
+        q = (
+            "SELECT action, ts FROM misc.autorevert_events_v2 "
+            "WHERE repo = {repo:String} AND action IN ('run_start', 'run_finish') "
+            "AND workflows = {workflows:Array(String)} "
+            "ORDER BY ts DESC LIMIT 1"
+        )
+        res = CHCliFactory().client.query(
+            q, {"repo": repo, "workflows": sorted(workflows)}
+        )
+
+        if not res.result_rows:
+            # No previous runs, safe to start
+            return True, "No previous runs found"
+
+        last_action, last_ts = res.result_rows[0]
+
+        if last_action == "run_finish":
+            # Last run finished, safe to start
+            return True, "Last run finished"
+
+        # Last action was run_start, check if it's stale
+        time_since_start = datetime.now() - last_ts
+        if time_since_start > timedelta(minutes=10):
+            return True, f"Last run started {time_since_start} ago (stale)"
+
+        return False, f"Run in progress started {time_since_start} ago"
 
     def insert_event(
         self,
@@ -269,8 +349,10 @@ class SignalActionProcessor:
         # Check for existing restarts based on mode
         check_dry_run = ctx.dry_run_restart  # In dry-run mode, check ALL entries
         recent = self._logger.recent_restarts(
-            repo=ctx.repo_full_name, workflow=workflow_target, commit_sha=commit_sha,
-            check_dry_run=check_dry_run
+            repo=ctx.repo_full_name,
+            workflow=workflow_target,
+            commit_sha=commit_sha,
+            check_dry_run=check_dry_run,
         )
 
         if ctx.dry_run_restart:
