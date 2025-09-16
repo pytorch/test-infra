@@ -170,7 +170,7 @@ retry sudo dnf install kernel-modules-extra -y
 echo Installing Development Tools
 sudo modprobe backlight
 
-retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-570.133.07.run'
+retry sudo curl -fsL -o /tmp/nvidia_driver 'https://s3.amazonaws.com/ossci-linux/nvidia_driver/NVIDIA-Linux-x86_64-580.82.07.run'
 retry sudo /bin/bash /tmp/nvidia_driver -s --no-drm
 sudo rm -fv /tmp/nvidia_driver
 
