@@ -49,7 +49,7 @@ class JobMeta:
       job signals accounted for by per-test signals.
     """
 
-    started_at: Optional[datetime] = None
+    started_at: datetime = datetime.min
     is_pending: bool = False
     is_cancelled: bool = False
     has_failures: bool = False
@@ -164,9 +164,7 @@ class JobAggIndex(Generic[KeyT]):
         jrows = self._groups[key]
 
         # Inline aggregations (only used here)
-        started_at: Optional[datetime]
-        times = [r.started_at for r in jrows if r.started_at is not None]
-        started_at = min(times) if times else None
+        started_at = min(r.started_at for r in jrows)
 
         meta = JobMeta(
             started_at=started_at,

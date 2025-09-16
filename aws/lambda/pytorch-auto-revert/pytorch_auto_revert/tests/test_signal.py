@@ -23,7 +23,12 @@ class TestSignal(unittest.TestCase):
         self.t0 = datetime(2025, 8, 19, 12, 0, 0)
 
     def _ev(self, name: str, status: SignalStatus, minute: int) -> SignalEvent:
-        return SignalEvent(name=name, status=status, started_at=ts(self.t0, minute))
+        return SignalEvent(
+            name=name,
+            status=status,
+            started_at=ts(self.t0, minute),
+            wf_run_id=1,
+        )
 
     def test_detect_recovered_first_non_pending_success(self):
         # Newest commit has success (even with pending present) -> recovered

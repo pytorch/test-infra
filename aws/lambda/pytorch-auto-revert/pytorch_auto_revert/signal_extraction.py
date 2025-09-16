@@ -9,7 +9,7 @@ Transforms raw workflow/job/test data into Signal objects used by signal.py.
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .job_agg_index import JobAggIndex, JobMeta, SignalStatus as AggStatus
 from .signal import Signal, SignalCommit, SignalEvent, SignalStatus
@@ -31,6 +31,7 @@ from .signal_extraction_types import (
 class TestOutcome:
     failing: bool
     errored: bool
+    started_at: datetime
 
 
 class SignalExtractor:
@@ -77,7 +78,34 @@ class SignalExtractor:
 
         test_signals = self._build_test_signals(jobs, test_rows)
         job_signals = self._build_non_test_signals(jobs)
-        return test_signals + job_signals
+        # Deduplicate events within commits across all signals as a final step
+        # GitHub-specific behavior like "rerun failed" can reuse job instances for reruns.
+        # When that happens, the jobs have identical timestamps by DIFFERENT job ids.
+        # But since they are still the same job logically, we want to deduplicate them
+        # for the purposes of signal events.
+        return self._dedup_signal_events(test_signals + job_signals)
+
+    # -----------------------------
+    # Deduplication (GitHub-specific)
+    # -----------------------------
+    def _dedup_signal_events(self, signals: List[Signal]) -> List[Signal]:
+        deduped: List[Signal] = []
+        for s in signals:
+            new_commits: List[SignalCommit] = []
+            for c in s.commits:
+                filtered: List[SignalEvent] = []
+                prev_key: Optional[Tuple[datetime, int]] = None
+                for e in c.events:  # already sorted by (started_at, wf_run_id)
+                    key = (e.started_at, e.wf_run_id)
+                    if key == prev_key:
+                        continue
+                    filtered.append(e)
+                    prev_key = key
+                new_commits.append(SignalCommit(head_sha=c.head_sha, events=filtered))
+            deduped.append(
+                Signal(key=s.key, workflow_name=s.workflow_name, commits=new_commits)
+            )
+        return deduped
 
     # -----------------------------
     # Phase B — Tests (test_run_s3 only)
@@ -174,9 +202,13 @@ class SignalExtractor:
                 tr.test_id,
             )
             prev = tests_by_group_attempt.get(key)
+            started_at = min(
+                (prev.started_at if prev else job.started_at), job.started_at
+            )
             outcome = TestOutcome(
                 failing=(prev.failing if prev else False) or bool(tr.failing),
                 errored=(prev.errored if prev else False) or bool(tr.errored),
+                started_at=started_at,
             )
             tests_by_group_attempt[key] = outcome
             if outcome.failing or outcome.errored:
@@ -226,8 +258,8 @@ class SignalExtractor:
                             wf_run_id=wf_run_id,
                             run_attempt=run_attempt,
                         ),
-                        "started_at": meta.started_at or datetime.min,
                         "ended_at": None,
+                        "wf_run_id": int(wf_run_id),
                     }
 
                     if verdict:
@@ -236,12 +268,17 @@ class SignalExtractor:
                                 status=SignalStatus.FAILURE
                                 if (verdict.failing or verdict.errored)
                                 else SignalStatus.SUCCESS,
+                                started_at=verdict.started_at,
                                 **event_common,
                             )
                         )
                     elif meta.is_pending:
                         events.append(
-                            SignalEvent(status=SignalStatus.PENDING, **event_common)
+                            SignalEvent(
+                                status=SignalStatus.PENDING,
+                                started_at=meta.started_at,
+                                **event_common,
+                            )
                         )
                     # else: missing (no event)
 
@@ -330,8 +367,9 @@ class SignalExtractor:
                                 run_attempt=run_attempt,
                             ),
                             status=ev_status,
-                            started_at=meta.started_at or datetime.min,
+                            started_at=meta.started_at,
                             ended_at=None,
+                            wf_run_id=int(wf_run_id),
                         )
                     )
 
