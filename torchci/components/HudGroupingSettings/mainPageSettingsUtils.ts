@@ -1,3 +1,4 @@
+import _ from "lodash";
 import { getDefaultGroupSettings } from "./defaults";
 
 export type Group = {
@@ -9,7 +10,19 @@ export type Group = {
 };
 
 export function saveTreeData(treeData: Group[]) {
-  // Convert RegExp objects to a format that can be serialized
+  if (
+    _.isEqual(
+      treeData.sort((a, b) => a.name.localeCompare(b.name)),
+      getDefaultGroupSettings().sort((a, b) => a.name.localeCompare(b.name))
+    )
+  ) {
+    // If the current settings are the same as the default, remove from
+    // localStorage
+    localStorage.removeItem("hud_group_settings");
+    return;
+  }
+
+  // Convert RegExp objects to a format that can be seralized
   const serializable = treeData.map((group) => ({
     ...group,
     regex: group.regex.source, // Store only the regex pattern as a string
