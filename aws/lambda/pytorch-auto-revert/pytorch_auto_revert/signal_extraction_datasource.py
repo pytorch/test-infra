@@ -78,6 +78,7 @@ class SignalExtractionDatasource:
         INNER JOIN push_dedup p ON wf.head_sha = p.sha
         WHERE wf.repository_full_name = {{repo:String}}
           AND wf.created_at >= {{lookback_time:DateTime}}
+          AND (wf.name NOT LIKE '%mem_leak_check%' AND wf.name NOT LIKE '%rerun_disabled_tests%')
           {workflow_filter}
         ORDER BY p.ts DESC, wf.started_at ASC, wf.head_sha, wf.run_id, wf.run_attempt, wf.name
         """
