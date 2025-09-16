@@ -32,17 +32,14 @@ export default function BenchmarkChartSection({
   chartSectionConfig: BenchmarkChartSectionConfig;
   onChange?: (payload: any) => void;
 }) {
-  if (!data || data.length == 0) {
-    return <></>;
-  }
-
-  const filtered = useMemo(
-    () =>
-      data.filter((s) =>
-        passesFilter(s.group_info || {}, chartSectionConfig.filterByFieldValues)
-      ),
-    [data, chartSectionConfig.filterByFieldValues]
-  );
+  const filtered = useMemo(() => {
+    if (!data) {
+      return [];
+    }
+    return data.filter((s) =>
+      passesFilter(s.group_info || {}, chartSectionConfig.filterByFieldValues)
+    );
+  }, [data, chartSectionConfig.filterByFieldValues]);
 
   const groupMap = useMemo(() => {
     const m = new Map<
@@ -60,6 +57,10 @@ export default function BenchmarkChartSection({
     }
     return m;
   }, [filtered, chartSectionConfig.groupByFields]);
+
+  if (!data || data.length == 0) {
+    return <></>;
+  }
 
   return (
     <Box sx={styles.container}>
