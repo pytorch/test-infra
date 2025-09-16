@@ -165,9 +165,7 @@ export default function LLMsSummaryPanel({
   ];
 
   // Add source repository column for multi-repo comparisons
-  const shouldShowRepoColumn =
-    mode === LLMsBenchmarkMode.RepoComparison ||
-    data.some((row) => row.sourceRepo || row.repo_name);
+  const shouldShowRepoColumn = mode === LLMsBenchmarkMode.RepoComparison;
   if (shouldShowRepoColumn) {
     columns.push({
       field: "sourceRepo",
