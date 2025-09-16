@@ -36,6 +36,7 @@ async function createGitHubIssueForAlert(
       alertEvent.reason ? `- **Reason**: ${alertEvent.reason}` : "",
       alertEvent.links?.runbook_url ? `- **Runbook**: ${alertEvent.links.runbook_url}` : "",
       alertEvent.links?.dashboard_url ? `- **Dashboard**: ${alertEvent.links.dashboard_url}` : "",
+      alertEvent.links?.source_url ? `- **View Alert**: ${alertEvent.links.source_url}` : "",
       "",
       `**Fingerprint**: \`${fingerprint}\``,
       "",

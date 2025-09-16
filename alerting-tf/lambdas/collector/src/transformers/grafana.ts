@@ -85,12 +85,14 @@ export class GrafanaTransformer extends BaseTransformer {
   }
 
   private extractTitle(rawPayload: any, alert: any, labels: any): string {
-    // Prioritize raw alertname over formatted titles for consistent fingerprinting
+    // Prioritize rulename (actual alert title) over alertname for better descriptive titles
     const candidates = [
-      labels.alertname,
+      labels.rulename,          // The actual descriptive alert title
+      alert.labels?.rulename,   // Same from alert object
+      labels.alertname,         // Fallback to generic alert type
       alert.labels?.alertname,
       rawPayload.groupLabels?.alertname,
-      rawPayload.title,
+      rawPayload.title,         // Last resort: formatted title
     ];
 
     for (const candidate of candidates) {
@@ -99,7 +101,7 @@ export class GrafanaTransformer extends BaseTransformer {
       }
     }
 
-    throw new Error(`Missing required field "alertname" in Grafana alert labels. This indicates corrupted data from Grafana. ${debugContext}`);
+    throw new Error(`Missing required field "rulename" or "alertname" in Grafana alert labels. This indicates corrupted data from Grafana. ${debugContext}`);
   }
 
   private extractState(rawPayload: any, alert: any): "FIRING" | "RESOLVED" {
@@ -169,12 +171,13 @@ export class GrafanaTransformer extends BaseTransformer {
       context.push(`messageId=${envelope.event_id}`);
     }
 
-    // Extract alert name from various locations
-    const alertName = rawPayload?.alerts?.[0]?.labels?.alertname ||
-                     rawPayload?.groupLabels?.alertname ||
-                     rawPayload?.commonLabels?.alertname ||
-                     "unknown";
-    context.push(`alertname="${alertName}"`);
+    // Extract alert title from various locations, prioritizing rulename
+    const alertTitle = rawPayload?.alerts?.[0]?.labels?.rulename ||
+                      rawPayload?.alerts?.[0]?.labels?.alertname ||
+                      rawPayload?.groupLabels?.alertname ||
+                      rawPayload?.commonLabels?.alertname ||
+                      "unknown";
+    context.push(`alertTitle="${alertTitle}"`);
 
     // Include orgId if available
     if (rawPayload?.orgId) {
