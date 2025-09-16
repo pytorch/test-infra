@@ -1,0 +1,9 @@
+{
+  "Type": "Notification",
+  "MessageId": "12345678-1234-1234-1234-123456789014",
+  "TopicArn": "arn:aws:sns:us-east-1:123456789012:alerts",
+  "Subject": "ALARM: CPU-Utilization-High in US East - N. Virginia",
+  "Message": "{\"AlarmName\":\"CPU-Utilization-High\",\"AlarmDescription\":\"TEAM=platform-team\",\"AWSAccountId\":\"123456789012\",\"NewStateValue\":\"ALARM\",\"NewStateReason\":\"Threshold Crossed: 3 out of the last 3 datapoints [85.0, 87.5, 90.2] were greater than the threshold (80.0).\",\"StateChangeTime\":\"2025-09-03T21:00:01.000Z\",\"Region\":\"US East - N. Virginia\",\"AlarmArn\":\"arn:aws:cloudwatch:us-east-1:123456789012:alarm:CPU-Utilization-High\",\"OldStateValue\":\"OK\",\"Trigger\":{\"MetricName\":\"CPUUtilization\",\"Namespace\":\"AWS/EC2\",\"StatisticType\":\"Statistic\",\"Statistic\":\"AVERAGE\",\"Unit\":\"Percent\",\"Dimensions\":[{\"name\":\"InstanceId\",\"value\":\"i-1234567890abcdef0\"}],\"Period\":300,\"EvaluationPeriods\":3,\"ComparisonOperator\":\"GreaterThanThreshold\",\"Threshold\":80.0}}",
+  "Timestamp": "2025-09-03T21:00:01.123Z",
+  "SignatureVersion": "1"
+}

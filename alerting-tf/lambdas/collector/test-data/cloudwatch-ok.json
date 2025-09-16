@@ -1,0 +1,9 @@
+{
+  "Type": "Notification",
+  "MessageId": "12345678-1234-1234-1234-123456789013",
+  "TopicArn": "arn:aws:sns:us-east-1:123456789012:alerts",
+  "Subject": "OK: Runners-ASG-InsufficientInstances in US East - N. Virginia",
+  "Message": "{\"AlarmName\":\"Runners-ASG-InsufficientInstances\",\"AlarmDescription\":\"TEAM=dev-infra | PRIORITY=P1 | RUNBOOK=https://runbooks.example.org/asg-scaling\",\"AWSAccountId\":\"123456789012\",\"NewStateValue\":\"OK\",\"NewStateReason\":\"Threshold Crossed: 1 out of the last 1 datapoints [3.0 (05/01/23 19:15:00)] was greater than the threshold (2.0).\",\"StateChangeTime\":\"2025-09-03T19:15:01.000Z\",\"Region\":\"US East - N. Virginia\",\"AlarmArn\":\"arn:aws:cloudwatch:us-east-1:123456789012:alarm:Runners-ASG-InsufficientInstances\",\"OldStateValue\":\"ALARM\",\"Trigger\":{\"MetricName\":\"GroupDesiredCapacity\",\"Namespace\":\"AWS/AutoScaling\",\"StatisticType\":\"Statistic\",\"Statistic\":\"AVERAGE\",\"Unit\":null,\"Dimensions\":[{\"name\":\"AutoScalingGroupName\",\"value\":\"gh-ci-canary\"}],\"Period\":300,\"EvaluationPeriods\":1,\"ComparisonOperator\":\"LessThanThreshold\",\"Threshold\":2.0,\"TreatMissingData\":\"\",\"EvaluateLowSampleCountPercentile\":\"\"}}",
+  "Timestamp": "2025-09-03T19:15:01.123Z",
+  "SignatureVersion": "1"
+}

@@ -1,0 +1,32 @@
+{
+  "receiver": "sns",
+  "status": "firing",
+  "orgId": 1,
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "Database Connection Failure",
+        "priority": "P0",
+        "resource_type": "service",
+        "resource_id": "postgres-primary"
+      },
+      "annotations": {
+        "description": "Database connection pool exhausted"
+      },
+      "startsAt": "2025-09-03T20:30:01.000Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "fingerprint": "xyz789abc123"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "Database Connection Failure"
+  },
+  "commonLabels": {
+    "priority": "P0"
+  },
+  "externalURL": "https://grafana.example.com",
+  "version": "1",
+  "title": "[FIRING:1] Database Connection Failure",
+  "state": "alerting"
+}

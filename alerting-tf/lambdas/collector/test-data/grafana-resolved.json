@@ -1,0 +1,41 @@
+{
+  "receiver": "sns",
+  "status": "resolved",
+  "orgId": 1,
+  "alerts": [
+    {
+      "status": "resolved",
+      "labels": {
+        "alertname": "Runners Scale Up Failure",
+        "team": "dev-infra",
+        "priority": "P1",
+        "resource_type": "runner",
+        "resource_id": "gh-ci-canary"
+      },
+      "annotations": {
+        "description": "GitHub runners failed to scale up in response to queue depth",
+        "runbook_url": "https://runbooks.example.org/runners-scaling",
+        "summary": "Runner scaling failure detected"
+      },
+      "startsAt": "2025-09-03T19:10:01.000Z",
+      "endsAt": "2025-09-03T19:25:01.000Z",
+      "generatorURL": "https://grafana.example.com/graph/d/abc123/runners?orgId=1&tab=alert",
+      "fingerprint": "abc123def456"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "Runners Scale Up Failure"
+  },
+  "commonLabels": {
+    "team": "dev-infra",
+    "priority": "P1"
+  },
+  "commonAnnotations": {},
+  "externalURL": "https://grafana.example.com",
+  "version": "1",
+  "groupKey": "{}:{alertname=\"Runners Scale Up Failure\"}",
+  "truncatedAlerts": 0,
+  "title": "[RESOLVED:1] Runners Scale Up Failure",
+  "state": "ok",
+  "message": "**Resolved**\n\nValue: [no value]\nLabels:\n - alertname = Runners Scale Up Failure\n - team = dev-infra\n - priority = P1"
+}
