@@ -5,6 +5,7 @@ import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-sec
 import jwt from "jsonwebtoken";
 import { AlertProcessor } from "./processor";
 import { generateFingerprint } from "./fingerprint";
+import { AlertStateManager } from "./database";
 
 const tableName = process.env.STATUS_TABLE_NAME;
 const githubRepo = process.env.GITHUB_REPO || ""; // format: org/repo
@@ -13,6 +14,7 @@ const githubAppSecretId = process.env.GITHUB_APP_SECRET_ID || "";
 const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 const secrets = new SecretsManagerClient({});
 const processor = new AlertProcessor();
+const stateManager = tableName ? new AlertStateManager(ddbClient, tableName) : null;
 
 type GithubAppSecret = {
   github_app_client_id?: string;
@@ -194,31 +196,18 @@ export const handler: SQSHandler = async (event) => {
         // Don't fail the whole batch for GitHub issues
       }
 
-      // Store to DynamoDB using new schema (placeholder - will be replaced in Phase 4)
-      if (tableName) {
+      // Store to DynamoDB using new AlertStateManager
+      if (stateManager && result.metadata?.alertEvent) {
         try {
-          await ddbClient.send(
-            new PutCommand({
-              TableName: tableName,
-              Item: {
-                pk: record.messageId, // Temporary - will change to fingerprint in Phase 4
-                fingerprint,
-                body: record.body,
-                action,
-                metadata,
-                attributes: record.messageAttributes && Object.keys(record.messageAttributes).length > 0
-                  ? record.messageAttributes
-                  : undefined,
-                eventSourceArn: record.eventSourceARN,
-                receivedAt: new Date().toISOString(),
-                Emitted_To_Github: emittedToGithub,
-                github_issue_number: typeof issueNumber === "number" ? issueNumber : undefined,
-              },
-            }),
+          await stateManager.saveState(
+            fingerprint,
+            result.metadata.alertEvent,
+            action,
+            issueNumber
           );
-          console.log(`✅ Stored normalized alert ${fingerprint} to DynamoDB`);
+          console.log(`✅ Stored alert state ${fingerprint} to DynamoDB`);
         } catch (err) {
-          console.error("Failed to write normalized alert to DynamoDB", {
+          console.error("Failed to save alert state to DynamoDB", {
             error: err instanceof Error ? err.message : String(err),
             table: tableName,
             messageId: record.messageId,
@@ -228,7 +217,7 @@ export const handler: SQSHandler = async (event) => {
           batchItemFailures.push({ itemIdentifier: record.messageId });
         }
       } else {
-        console.warn("STATUS_TABLE_NAME not set; skipping DynamoDB write");
+        console.warn("STATUS_TABLE_NAME not set or no alert event; skipping DynamoDB write");
       }
 
     } catch (err) {
