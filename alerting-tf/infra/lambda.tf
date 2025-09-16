@@ -22,10 +22,11 @@ resource "aws_lambda_function" "collector" {
 
   environment {
     variables = {
-      NODE_OPTIONS      = "--enable-source-maps"
-      STATUS_TABLE_NAME = aws_dynamodb_table.alerts_state.name
-      GITHUB_REPO       = var.github_repo
+      NODE_OPTIONS         = "--enable-source-maps"
+      STATUS_TABLE_NAME    = aws_dynamodb_table.alerts_state.name
+      GITHUB_REPO          = var.github_repo
       GITHUB_APP_SECRET_ID = "${local.name_prefix}-alerting-app-secrets"
+      ENABLE_GITHUB_ISSUES = tostring(var.enable_github_issues)
     }
   }
 

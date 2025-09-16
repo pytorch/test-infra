@@ -30,3 +30,9 @@ variable "github_repo" {
   type        = string
   default     = "pytorch/alerting-infra"
 }
+
+variable "enable_github_issues" {
+  description = "Enable GitHub issue creation (set to false for testing)"
+  type        = bool
+  default     = false
+}
