@@ -1,3 +1,5 @@
+import { getDefaultGroupSettings } from "./defaults";
+
 export type Group = {
   name: string;
   regex: RegExp;
@@ -22,7 +24,7 @@ export function getStoredTreeData(): Group[] {
     // Try to load saved tree data from localStorage
     const stored = localStorage.getItem("hud_group_settings");
 
-    if (!stored) return [];
+    if (!stored) return getDefaultGroupSettings();
 
     const parsed = JSON.parse(stored);
 
