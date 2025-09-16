@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
-from typing import NewType, Optional, Set
+from typing import List, NewType, Optional, Set
 
 
 # Default classification rules that indicate test failures.
@@ -22,6 +22,18 @@ WorkflowName = NewType("WorkflowName", str)
 JobName = NewType("JobName", str)
 JobBaseName = NewType("JobBaseName", str)
 TestId = NewType("TestId", str)
+
+
+# Shared run-scoped context used across integration, actions, and logging
+
+
+@dataclass(frozen=True)
+class RunContext:
+    ts: datetime
+    repo_full_name: str
+    workflows: List[str]
+    lookback_hours: int
+    dry_run: bool = False
 
 
 # Represents a job row from the jobs table in ClickHouse
