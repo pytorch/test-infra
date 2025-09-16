@@ -6,7 +6,8 @@
     {
       "status": "resolved",
       "labels": {
-        "alertname": "Runners Scale Up Failure",
+        "alertname": "DatasourceNoData",
+        "rulename": "Runners Scale Up Failure",
         "team": "dev-infra",
         "priority": "P1",
         "resource_type": "runner",

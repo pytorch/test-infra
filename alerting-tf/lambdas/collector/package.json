@@ -5,6 +5,10 @@
   "scripts": {
     "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/index.js --sourcemap",
     "build:test": "esbuild src/*.ts src/transformers/*.ts --platform=node --target=node20 --format=cjs --outdir=dist --sourcemap",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:ui": "vitest --ui",
     "lint": "tsc --noEmit",
     "format": "prettier -w .",
     "format:check": "prettier -c ."
@@ -12,9 +16,13 @@
   "devDependencies": {
     "@types/aws-lambda": "^8.10.137",
     "@types/jsonwebtoken": "^9.0.6",
+    "aws-sdk-client-mock": "^4.0.0",
     "esbuild": "^0.21.5",
     "prettier": "^3.3.3",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^1.6.0",
+    "@vitest/coverage-v8": "^1.6.0",
+    "@vitest/ui": "^1.6.0"
   },
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.620.0",
