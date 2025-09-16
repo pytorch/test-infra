@@ -4,6 +4,7 @@ import {
   ButtonGroup,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import {
@@ -39,6 +40,16 @@ function renderTimeCell(
   const value = parseFloat(params.value);
 
   return durationDisplay(value);
+}
+
+function renderHeader(title: string, tooltip: string) {
+  return (
+    <Tooltip title={tooltip}>
+      <Typography fontWeight={"bold"} variant="body2">
+        {title}
+      </Typography>
+    </Tooltip>
+  );
 }
 
 function Diffs({
@@ -98,22 +109,30 @@ function Diffs({
           {params.value}
         </span>
       ),
+      renderHeader: () =>
+        renderHeader("File", "Double click to filter by this file"),
     },
     {
       field: "job_name",
       headerName: "Job",
       flex: 4,
+      renderHeader: () =>
+        renderHeader("Job", "Double click to filter by this job"),
       renderCell: (params: any) => (
         <span
           style={{ cursor: "pointer" }}
           onDoubleClick={() => setJobFilter(params.value)}
-          title="Double-click to filter by this job"
         >
           {params.value}
         </span>
       ),
     },
-    { field: "count", headerName: "Count", flex: 1 },
+    {
+      field: "count",
+      headerName: "Count",
+      flex: 1,
+      renderHeader: () => renderHeader("Count", "Number of tests"),
+    },
     {
       field: "count_diff",
       headerName: "Δ Count",
@@ -135,6 +154,7 @@ function Diffs({
       headerName: "Duration",
       flex: 1,
       renderCell: renderTimeCell,
+      renderHeader: () => renderHeader("Duration", "Duration of the test(s)"),
     },
     {
       field: "time_diff",
@@ -158,6 +178,11 @@ function Diffs({
       headerName: "Cost ($)",
       flex: 1,
       renderCell: roundedCostCell,
+      renderHeader: () =>
+        renderHeader(
+          "Cost ($)",
+          "Estimated cost of the test(s) for one commit"
+        ),
     },
     {
       field: "cost_diff",
@@ -207,6 +232,13 @@ function Diffs({
         return "change";
       },
     },
+    {
+      field: "frequency",
+      headerName: "Frequency",
+      flex: 1,
+      renderHeader: () =>
+        renderHeader("Frequency", "Estimated frequency of test runs for this file (# commits it is run on) in the last week"),
+    },
     // { field: "successes", headerName: "Successes", flex: 1 },
     // {
     //   field: "successes_diff",
@@ -225,7 +257,7 @@ function Diffs({
       backgroundColor: "rgba(213, 213, 213, 0.25)",
     },
     "& .highlight": {
-      backgroundColor: "#ffe085ff",
+      backgroundColor: "var(--warning-button-bg)",
     },
   };
   return (
@@ -241,9 +273,8 @@ function Diffs({
       </Typography>
 
       <Typography variant="body1">
-        Pricing is approximate and weighted by workflow frequency to represent
-        the cost over an entire week. Some pricing data may be missing (ex mac,
-        rocm), in those cases the cost will be 0.
+        Pricing is approximate and per commit. Some pricing data may be missing
+        (ex mac, rocm), in those cases the cost will be 0.
       </Typography>
       <Box height={"600px"}>
         <DataGrid
@@ -327,21 +358,50 @@ function Overview({
           {params.value}
         </span>
       ),
+      renderHeader: () =>
+        renderHeader(
+          groupByOptions[groupBy].headerName,
+          groupByOptions[groupBy].onDoubleClickHelpText
+        ),
     },
-    { field: "count", headerName: "Count", flex: 1 },
+    {
+      field: "count",
+      headerName: "Count",
+      flex: 1,
+      renderHeader: () => renderHeader("Count", "Number of tests"),
+    },
     {
       field: "time",
       headerName: "Duration",
       flex: 1,
       renderCell: renderTimeCell,
+      renderHeader: () =>
+        renderHeader("Duration", "Duration of the test(s) for one commit if run sequentially"),
     },
     {
       field: "cost",
       headerName: "Cost ($)",
       flex: 1,
       renderCell: roundedCostCell,
+      renderHeader: () =>
+        renderHeader(
+          "Cost ($)",
+          "Estimated cost of the test(s) for one commit"
+        ),
     },
-    { field: "skipped", headerName: "Skipped", flex: 1 },
+    {
+      field: "skipped",
+      headerName: "Skipped",
+      flex: 1,
+      renderHeader: () => renderHeader("Skipped", "Number of skipped tests"),
+    },
+    // {
+    //   field: "frequency",
+    //   headerName: "Frequency",
+    //   flex: 1,
+    //   renderHeader: () =>
+    //     renderHeader("Frequency", "Frequency of test runs for this file"),
+    // },
   ];
 
   const groupByTarget = _.reduce(
@@ -367,9 +427,10 @@ function Overview({
           acc.time += row.time || 0;
           acc.cost += row.cost || 0;
           acc.skipped += row.skipped || 0;
+          acc.frequency += row.frequency || 0;
           return acc;
         },
-        { count: 0, time: 0, cost: 0, skipped: 0 }
+        { count: 0, time: 0, cost: 0, skipped: 0, frequency: 0 }
       );
     });
     // the reduce across shas for average
@@ -380,6 +441,7 @@ function Overview({
         acc.time += summed.time;
         acc.cost += summed.cost;
         acc.skipped += summed.skipped;
+        acc.frequency += summed.frequency;
         return acc;
       },
       {
@@ -391,6 +453,7 @@ function Overview({
         time: 0,
         cost: 0,
         skipped: 0,
+        frequency: 0,
       }
     );
   });
@@ -403,9 +466,8 @@ function Overview({
         summed within a commit, then averaged.
       </Typography>
       <Typography variant="body1">
-        Pricing is approximate and weighted by workflow frequency to represent
-        the cost over an entire week. Some pricing data may be missing (ex mac,
-        rocm), in those cases the cost will be 0.
+        Pricing is approximate and per commit. Some pricing data may be missing
+        (ex mac, rocm), in those cases the cost will be 0.
       </Typography>
       <Box mb={2}>
         <ButtonGroup variant="outlined" size="small">
@@ -700,6 +762,26 @@ export default function Page() {
   return (
     <Stack spacing={4}>
       <Typography variant="h5">Test Reports</Typography>
+      <Stack spacing={2}>
+        <Typography variant="body1">
+          This report provides insights into the test files executed over recent
+          commits. It includes statistics on test counts, durations, costs, and
+          skips, along with visualizations to help identify trends and
+          anomalies. Use the filters below to narrow down the data by specific
+          files, jobs, or labels.
+        </Typography>
+        <Typography variant="body1">
+          This should include most python unittests that are commonly run on
+          PRs. A non exhaustive list of what is not included is benchmarking,
+          periodic tests, inductor graph break model regression runs, and
+          overhead for running tests.
+        </Typography>
+        <Typography variant="body1">
+          `module: unknown` is the catch all for tests which do not have a clear
+          owner label. If a label is incorrect, you can change this in test file
+          in `pytorch/pytorch`.
+        </Typography>
+      </Stack>
       <Box
         component="form"
         noValidate
