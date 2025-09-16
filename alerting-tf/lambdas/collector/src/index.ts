@@ -108,10 +108,87 @@ async function getInstallationToken(): Promise<string> {
   return cachedInstallationToken.token;
 }
 
-async function createGithubIssue(title: string, body: string): Promise<number> {
+async function ensureGithubLabel(owner: string, repo: string, token: string, labelName: string, color: string = "0969da"): Promise<void> {
+  // Check if label exists
+  const checkResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/labels/${encodeURIComponent(labelName)}`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "pytorch-alerting",
+    },
+  });
+
+  if (checkResp.status === 404) {
+    // Label doesn't exist, create it
+    const createResp = await fetch(`https://api.github.com/repos/${owner}/${repo}/labels`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "pytorch-alerting",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: labelName,
+        color: color,
+        description: `Alert label for ${labelName}`,
+      }),
+    });
+
+    if (!createResp.ok) {
+      const errorText = await createResp.text();
+      console.warn(`Failed to create label ${labelName}: ${createResp.status} ${errorText}`);
+      // Don't throw - label creation failure shouldn't fail the whole process
+    } else {
+      console.log(`✅ Created GitHub label: ${labelName}`);
+    }
+  } else if (!checkResp.ok) {
+    const errorText = await checkResp.text();
+    console.warn(`Failed to check label ${labelName}: ${checkResp.status} ${errorText}`);
+  }
+}
+
+async function createGithubIssue(title: string, body: string, labels: string[]): Promise<number> {
   if (!githubRepo) throw new Error("GITHUB_REPO not set");
   const [owner, repo] = githubRepo.split("/");
   const token = await getInstallationToken();
+
+  // Ensure all labels exist before creating the issue
+  const labelColors: Record<string, string> = {
+    "area:alerting": "0969da",
+    "P0": "d73a49", // Red for P0
+    "P1": "e99695", // Light red for P1
+    "P2": "fbca04", // Yellow for P2
+    "P3": "28a745", // Green for P3
+  };
+
+  for (const label of labels) {
+    let color = labelColors[label];
+
+    // Handle priority labels
+    if (label.startsWith("Pri: ")) {
+      const priority = label.split(" ")[1];
+      color = labelColors[priority] || "0969da";
+    }
+    // Handle team labels
+    else if (label.startsWith("Team: ")) {
+      color = "1f883d"; // Green for teams
+    }
+    // Handle source labels
+    else if (label.startsWith("Source: ")) {
+      color = "8250df"; // Purple for sources
+    }
+    // Default color if not specified
+    else if (!color) {
+      color = "0969da";
+    }
+
+    await ensureGithubLabel(owner, repo, token, label, color);
+  }
+
   const resp = await fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
     method: "POST",
     headers: {
@@ -121,7 +198,7 @@ async function createGithubIssue(title: string, body: string): Promise<number> {
       "User-Agent": "pytorch-alerting",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ title, body }),
+    body: JSON.stringify({ title, body, labels }),
   });
   if (!resp.ok) {
     const t = await resp.text();
@@ -136,6 +213,13 @@ export const handler: SQSHandler = async (event) => {
 
   for (const record of event.Records) {
     try {
+      // Log incoming record for debugging
+      console.log("\n\n");
+      console.log("Processing raw record")
+      console.log(record);
+      console.log("\n\n");
+      // continue; // DISABLED: Enable main processing pipeline
+
       // Process the record through the normalization pipeline
       const result = await processor.processRecord(record);
 
@@ -155,10 +239,12 @@ export const handler: SQSHandler = async (event) => {
         continue;
       }
 
-      // Create GitHub issue for all alerts (removing old /github/i filter)
+      // Create GitHub issue for all alerts
       let emittedToGithub = false;
       let issueNumber: number | undefined;
 
+      // TEMPORARILY DISABLED: GitHub issue creation
+      if (false) {
       try {
         // Build issue title and body from normalized alert
         const alertEvent = result.metadata?.alertEvent;
@@ -183,7 +269,15 @@ export const handler: SQSHandler = async (event) => {
             "```"
           ].filter(Boolean).join("\n");
 
-          issueNumber = await createGithubIssue(issueTitle, issueBody);
+          // Create labels based on priority, team, source, and default area label
+          const labels = [
+            "area:alerting", // Default label for all alerts
+            `Pri: ${alertEvent.priority}`,
+            `Team: ${alertEvent.team}`,
+            `Source: ${alertEvent.source}`
+          ];
+
+          issueNumber = await createGithubIssue(issueTitle, issueBody, labels);
           emittedToGithub = true;
           console.log(`✅ Created GitHub issue #${issueNumber} for fingerprint ${fingerprint}`);
         }
@@ -195,6 +289,7 @@ export const handler: SQSHandler = async (event) => {
         });
         // Don't fail the whole batch for GitHub issues
       }
+      } // End TEMPORARILY DISABLED GitHub issue creation
 
       // Store to DynamoDB using new AlertStateManager
       if (stateManager && result.metadata?.alertEvent) {

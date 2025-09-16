@@ -5,28 +5,32 @@ export abstract class BaseTransformer {
   // Transform raw provider payload to canonical AlertEvent
   abstract transform(rawPayload: any, envelope: Envelope): AlertEvent;
 
-  // Extract priority from string, with fallback to P3
+  // Extract priority from string - fail fast for invalid values
   protected extractPriority(input: string): "P0" | "P1" | "P2" | "P3" {
-    if (!input) return "P3";
+    if (!input) {
+      throw new Error("Missing required priority field");
+    }
 
     const normalized = input.toUpperCase().trim();
 
-    if (normalized.includes("P0")) return "P0";
-    if (normalized.includes("P1")) return "P1";
-    if (normalized.includes("P2")) return "P2";
-    if (normalized.includes("P3")) return "P3";
+    // Strict matching - only allow exact priority values
+    if (normalized === "P0") return "P0";
+    if (normalized === "P1") return "P1";
+    if (normalized === "P2") return "P2";
+    if (normalized === "P3") return "P3";
 
-    // Fallback for severity-based values
-    if (normalized.includes("CRITICAL") || normalized.includes("HIGH")) return "P1";
-    if (normalized.includes("MEDIUM") || normalized.includes("WARNING")) return "P2";
-    if (normalized.includes("LOW") || normalized.includes("INFO")) return "P3";
+    // Support common priority number formats
+    if (normalized === "0") return "P0";
+    if (normalized === "1") return "P1";
+    if (normalized === "2") return "P2";
+    if (normalized === "3") return "P3";
 
-    return "P3"; // Default fallback
+    throw new Error(`Invalid priority value: '${input}'. Expected P0, P1, P2, P3, or 0-3`);
   }
 
   // Normalize title by trimming whitespace
   protected normalizeTitle(title: string): string {
-    if (!title) return "Unknown Alert";
+    if (!title) throw new Error("Missing alert title");
     return title.trim();
   }
 
@@ -45,9 +49,11 @@ export abstract class BaseTransformer {
     return input.toISOString();
   }
 
-  // Extract team from string, with fallback
+  // Extract team from string - fail fast for missing values
   protected extractTeam(input: string): string {
-    if (!input) return "unknown";
+    if (!input || !input.trim()) {
+      throw new Error("Missing required team field");
+    }
     return input.trim().toLowerCase();
   }
 

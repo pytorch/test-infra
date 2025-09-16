@@ -30,28 +30,39 @@ export class CloudWatchTransformer extends BaseTransformer {
       throw new Error("Invalid CloudWatch alarm data: not an object");
     }
 
-    // Extract core fields
-    const title = this.normalizeTitle(alarmData.AlarmName || "Unknown CloudWatch Alarm");
+    // Extract core fields - fail fast for missing required fields
+    if (!alarmData.AlarmName) {
+      throw new Error("Missing required AlarmName field");
+    }
+    const title = this.normalizeTitle(alarmData.AlarmName);
     const state = this.extractState(alarmData);
     const occurredAt = this.parseTimestamp(alarmData.StateChangeTime);
 
     // Parse AlarmDescription for metadata
     const descriptionData = this.parseAlarmDescription(alarmData.AlarmDescription || "");
-    const priority = this.extractPriority(descriptionData.PRIORITY || "");
-    const team = this.extractTeam(descriptionData.TEAM || "");
+
+    if (!descriptionData.PRIORITY) {
+      throw new Error("Missing required PRIORITY field in AlarmDescription");
+    }
+    if (!descriptionData.TEAM) {
+      throw new Error("Missing required TEAM field in AlarmDescription");
+    }
+
+    const priority = this.extractPriority(descriptionData.PRIORITY);
+    const team = this.extractTeam(descriptionData.TEAM);
 
     // Build resource information
     const resource: AlertResource = {
       type: this.extractResourceType(alarmData),
       id: this.extractResourceId(alarmData),
-      region: alarmData.Region || undefined,
+      region: this.extractRegionFromArn(alarmData.AlarmArn) || this.normalizeRegion(alarmData.Region || ""),
       extra: this.extractResourceExtra(alarmData),
     };
 
     // Build identity information
     const identity: AlertIdentity = {
       aws_account: this.safeString(alarmData.AWSAccountId),
-      region: this.safeString(alarmData.Region),
+      region: this.extractRegionFromArn(alarmData.AlarmArn) || this.normalizeRegion(alarmData.Region || ""),
       alarm_arn: this.safeString(alarmData.AlarmArn),
     };
 
@@ -81,14 +92,17 @@ export class CloudWatchTransformer extends BaseTransformer {
   private extractState(alarmData: any): "FIRING" | "RESOLVED" {
     const newState = alarmData.NewStateValue;
 
+    if (!newState) {
+      throw new Error("Missing required NewStateValue field");
+    }
+
     if (typeof newState === "string") {
       const normalized = newState.toUpperCase();
       if (normalized === "ALARM") return "FIRING";
       if (normalized === "OK") return "RESOLVED";
     }
 
-    // Default to FIRING if unclear
-    return "FIRING";
+    throw new Error(`Invalid NewStateValue: '${newState}'. Expected 'ALARM' or 'OK'`);
   }
 
   private parseAlarmDescription(description: string): Record<string, string> {
@@ -98,13 +112,22 @@ export class CloudWatchTransformer extends BaseTransformer {
       return result;
     }
 
-    // Parse key-value pairs like "TEAM=dev-infra | PRIORITY=P1 | RUNBOOK=https://..."
-    const pairs = description.split("|").map(pair => pair.trim());
+    // Parse newline-separated format: "Body\nTEAM=team\nPRIORITY=P1\nRUNBOOK=https://..."
+    // Also support legacy pipe-separated format for backward compatibility
+    const lines = description.includes('\n')
+      ? description.split('\n').map(line => line.trim())
+      : description.split('|').map(pair => pair.trim());
 
-    for (const pair of pairs) {
-      const [key, ...valueParts] = pair.split("=");
+    for (const line of lines) {
+      // Skip empty lines or lines without equals sign
+      if (!line || !line.includes('=')) {
+        continue;
+      }
+
+      const [key, ...valueParts] = line.split('=');
       if (key && valueParts.length > 0) {
-        const value = valueParts.join("=").trim();
+        const value = valueParts.join('=').trim();
+        // Case-insensitive key matching - store in uppercase
         result[key.trim().toUpperCase()] = value;
       }
     }
@@ -190,14 +213,32 @@ export class CloudWatchTransformer extends BaseTransformer {
   }
 
   private buildConsoleUrl(alarmData: any): string | undefined {
-    const region = alarmData.Region;
     const alarmName = alarmData.AlarmName;
 
-    if (region && alarmName) {
-      // Convert region name to region code (e.g., "US East - N. Virginia" -> "us-east-1")
-      const regionCode = this.normalizeRegion(region);
+    if (!alarmName) {
+      return undefined;
+    }
+
+    // Extract region from ARN first, fallback to display name
+    const regionCode = this.extractRegionFromArn(alarmData.AlarmArn) || this.normalizeRegion(alarmData.Region || "");
+
+    if (regionCode) {
       const encodedAlarmName = encodeURIComponent(alarmName);
       return `https://${regionCode}.console.aws.amazon.com/cloudwatch/home?region=${regionCode}#alarmsV2:alarm/${encodedAlarmName}`;
+    }
+
+    return undefined;
+  }
+
+  private extractRegionFromArn(arn: string | undefined): string | undefined {
+    if (!arn || typeof arn !== "string") {
+      return undefined;
+    }
+
+    // ARN format: arn:aws:cloudwatch:us-east-1:account:alarm/alarm-name
+    const arnParts = arn.split(":");
+    if (arnParts.length >= 4 && arnParts[3]) {
+      return arnParts[3]; // Extract region code directly
     }
 
     return undefined;

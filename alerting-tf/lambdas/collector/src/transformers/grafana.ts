@@ -16,10 +16,32 @@ export class GrafanaTransformer extends BaseTransformer {
     // Extract core fields
     const title = this.extractTitle(rawPayload, alert, labels);
     const state = this.extractState(rawPayload, alert);
-    const priority = this.extractPriority(labels.priority || rawPayload.priority || "");
-    const team = this.extractTeam(labels.team || rawPayload.team || "");
+
+    // Priority and team are required and expected in annotations based on reference data
+    const priorityValue = annotations.Priority ||
+      annotations.priority ||
+      labels.priority ||
+      rawPayload.priority;
+
+    const teamValue = annotations.Team ||
+      annotations.TEAM ||
+      annotations.team ||
+      labels.team ||
+      rawPayload.team;
+
+    if (!priorityValue) {
+      throw new Error("Missing required priority field in Grafana alert annotations");
+    }
+    if (!teamValue) {
+      throw new Error("Missing required team field in Grafana alert annotations");
+    }
+
+    const priority = this.extractPriority(priorityValue);
+    const team = this.extractTeam(teamValue);
     const occurredAt = this.extractOccurredAt(alert, rawPayload);
 
+    // TODO: We should drop this resource type from the design since our alerts will not be sending
+    //       resources to us
     // Build resource information
     const resource: AlertResource = {
       type: this.extractResourceType(labels),
@@ -30,20 +52,20 @@ export class GrafanaTransformer extends BaseTransformer {
 
     // Build identity information
     const identity: AlertIdentity = {
-      org_id: this.safeString(rawPayload.orgId || rawPayload.org_id),
+      org_id: this.safeString(rawPayload.orgId),
       rule_id: this.safeString(alert.fingerprint || rawPayload.rule_id),
     };
 
     // Build links
     const links: AlertLinks = {
       runbook_url: annotations.runbook_url || labels.runbook_url || undefined,
-      dashboard_url: rawPayload.externalURL || undefined,
+      dashboard_url: alert.dashboardURL || alert.panelURL || undefined,
       source_url: alert.generatorURL || rawPayload.generatorURL || undefined,
     };
 
     return {
       schema_version: 1,
-      provider_version: "grafana:unknown",
+      provider_version: "grafana:1.0", // TODO: Add real versioning
       source: "grafana",
       state,
       title,
@@ -65,7 +87,6 @@ export class GrafanaTransformer extends BaseTransformer {
       alert.labels?.alertname,
       rawPayload.groupLabels?.alertname,
       rawPayload.title,
-      "Unknown Grafana Alert",
     ];
 
     for (const candidate of candidates) {
@@ -74,7 +95,7 @@ export class GrafanaTransformer extends BaseTransformer {
       }
     }
 
-    return "Unknown Grafana Alert";
+    throw new Error("Missing alert title");
   }
 
   private extractState(rawPayload: any, alert: any): "FIRING" | "RESOLVED" {
@@ -86,8 +107,7 @@ export class GrafanaTransformer extends BaseTransformer {
       if (normalized === "resolved" || normalized === "ok") return "RESOLVED";
     }
 
-    // Default to FIRING if unclear
-    return "FIRING";
+    throw new Error("Unable to determine alert state. Received status: `" + String(status) + "`");
   }
 
   private extractOccurredAt(alert: any, rawPayload: any): string {

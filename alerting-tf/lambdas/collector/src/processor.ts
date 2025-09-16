@@ -117,6 +117,9 @@ export class AlertProcessor {
       return JSON.parse(sqsRecord.body);
     } catch (error) {
       // If parsing fails, return the raw body
+      // TODO: If SQS record body isn't parsed, then we
+      //       can't detect source properly and should just
+      //       fail the record instead, let it go to the poison queue.
       console.warn("Failed to parse SQS record body as JSON, using raw string", {
         messageId: sqsRecord.messageId,
         error: error instanceof Error ? error.message : String(error),
@@ -151,10 +154,10 @@ export class AlertProcessor {
     return "unknown";
   }
 
-  // Detect source from raw payload structure
+  // Detect source from raw payload structure - improved detection logic
   private detectSourceFromPayload(rawPayload: any): string {
     if (!rawPayload || typeof rawPayload !== "object") {
-      return "grafana"; // Default
+      throw new Error("Invalid payload: not an object");
     }
 
     // Check for Grafana-specific fields
@@ -164,7 +167,14 @@ export class AlertProcessor {
 
     // Check for CloudWatch SNS message structure
     if (rawPayload.Type === "Notification" && rawPayload.Message) {
-      return "cloudwatch";
+      try {
+        const message = JSON.parse(rawPayload.Message);
+        if (message.AlarmName && message.NewStateValue) {
+          return "cloudwatch";
+        }
+      } catch {
+        // If Message parsing fails, continue with other checks
+      }
     }
 
     // Check for direct CloudWatch alarm structure
@@ -172,6 +182,7 @@ export class AlertProcessor {
       return "cloudwatch";
     }
 
-    return "grafana"; // Default fallback
+    // If we can't determine the source, fail fast
+    throw new Error("Unable to determine alert source from payload structure");
   }
 }
