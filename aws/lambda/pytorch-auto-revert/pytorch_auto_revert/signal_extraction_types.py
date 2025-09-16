@@ -33,7 +33,9 @@ class RunContext:
     repo_full_name: str
     workflows: List[str]
     lookback_hours: int
-    dry_run: bool = False
+    dry_run: bool = False  # Legacy flag for backwards compatibility
+    dry_run_restart: bool = False
+    dry_run_revert: bool = False
 
 
 # Represents a job row from the jobs table in ClickHouse

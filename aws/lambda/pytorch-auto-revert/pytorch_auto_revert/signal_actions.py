@@ -49,26 +49,59 @@ class ActionLogger:
         # Intentionally avoid storing the client; call CHCliFactory().client inline per request.
         pass
 
-    def prior_revert_exists(self, *, repo: str, commit_sha: str) -> bool:
-        """Return True if a non-dry-run revert was already logged for commit_sha."""
-        q = (
-            "SELECT 1 FROM misc.autorevert_events_v2 "
-            "WHERE repo = {repo:String} AND action = 'revert' "
-            "AND commit_sha = {sha:String} AND dry_run = 0 LIMIT 1"
-        )
+    def prior_revert_exists(self, *, repo: str, commit_sha: str, check_dry_run: bool = False) -> bool:
+        """Return True if a revert was already logged for commit_sha.
+
+        Args:
+            repo: Repository name
+            commit_sha: Commit SHA to check
+            check_dry_run: If True, check for ANY revert (dry-run or not). If False, only check non-dry-run.
+        """
+        if check_dry_run:
+            # Check for ANY revert entry
+            q = (
+                "SELECT 1 FROM misc.autorevert_events_v2 "
+                "WHERE repo = {repo:String} AND action = 'revert' "
+                "AND commit_sha = {sha:String} LIMIT 1"
+            )
+        else:
+            # Check only for non-dry-run entries
+            q = (
+                "SELECT 1 FROM misc.autorevert_events_v2 "
+                "WHERE repo = {repo:String} AND action = 'revert' "
+                "AND commit_sha = {sha:String} AND dry_run = 0 LIMIT 1"
+            )
         res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
         return len(res.result_rows) > 0
 
     def recent_restarts(
-        self, *, repo: str, workflow: str, commit_sha: str, limit: int = 2
+        self, *, repo: str, workflow: str, commit_sha: str, limit: int = 2, check_dry_run: bool = False
     ):
-        """Return most recent non-dry-run restart timestamps for (workflow, commit)."""
-        q = (
-            "SELECT ts FROM misc.autorevert_events_v2 "
-            "WHERE repo = {repo:String} AND action = 'restart' AND dry_run = 0 "
-            "AND commit_sha = {sha:String} AND has(workflows, {wf:String}) "
-            "ORDER BY ts DESC LIMIT {lim:UInt16}"
-        )
+        """Return most recent restart timestamps for (workflow, commit).
+
+        Args:
+            repo: Repository name
+            workflow: Workflow name
+            commit_sha: Commit SHA to check
+            limit: Maximum number of results
+            check_dry_run: If True, return ANY restarts. If False, only non-dry-run restarts.
+        """
+        if check_dry_run:
+            # Get ANY restart entries
+            q = (
+                "SELECT ts FROM misc.autorevert_events_v2 "
+                "WHERE repo = {repo:String} AND action = 'restart' "
+                "AND commit_sha = {sha:String} AND has(workflows, {wf:String}) "
+                "ORDER BY ts DESC LIMIT {lim:UInt16}"
+            )
+        else:
+            # Get only non-dry-run entries
+            q = (
+                "SELECT ts FROM misc.autorevert_events_v2 "
+                "WHERE repo = {repo:String} AND action = 'restart' AND dry_run = 0 "
+                "AND commit_sha = {sha:String} AND has(workflows, {wf:String}) "
+                "ORDER BY ts DESC LIMIT {lim:UInt16}"
+            )
         res = CHCliFactory().client.query(
             q, {"repo": repo, "wf": workflow, "sha": commit_sha, "lim": limit}
         )
@@ -193,11 +226,20 @@ class SignalActionProcessor:
     def execute_revert(
         self, *, commit_sha: str, sources: List[SignalMetadata], ctx: RunContext
     ) -> bool:
-        """Record a revert intent if not previously logged for the commit."""
+        """Record a revert intent if not previously logged for the commit.
+
+        Dedup logic:
+        - Dry-run mode: check if ANY revert exists (dry-run or not)
+        - Non-dry-run mode: check only for non-dry-run reverts
+        """
+        # Check for existing revert based on mode
+        check_dry_run = ctx.dry_run_revert  # In dry-run mode, check ALL entries
         if self._logger.prior_revert_exists(
-            repo=ctx.repo_full_name, commit_sha=commit_sha
+            repo=ctx.repo_full_name, commit_sha=commit_sha, check_dry_run=check_dry_run
         ):
             return False
+
+        # Note: Reverts are currently record-only, no actual execution
         self._logger.insert_event(
             repo=ctx.repo_full_name,
             ts=ctx.ts,
@@ -205,7 +247,7 @@ class SignalActionProcessor:
             commit_sha=commit_sha,
             workflows=sorted({s.workflow_name for s in sources}),
             source_signal_keys=[s.key for s in sources],
-            dry_run=ctx.dry_run,
+            dry_run=ctx.dry_run_revert,
             notes="",
         )
         return True
@@ -218,20 +260,36 @@ class SignalActionProcessor:
         sources: List[SignalMetadata],
         ctx: RunContext,
     ) -> bool:
-        """Dispatch a workflow restart if under cap and outside pacing window; always logs the event."""
+        """Dispatch a workflow restart if under cap and outside pacing window.
+
+        Dedup logic:
+        - Dry-run mode: check if ANY restart exists (dry-run or not) - if yes, skip
+        - Non-dry-run mode: check only non-dry-run restarts for caps/pacing
+        """
+        # Check for existing restarts based on mode
+        check_dry_run = ctx.dry_run_restart  # In dry-run mode, check ALL entries
         recent = self._logger.recent_restarts(
-            repo=ctx.repo_full_name, workflow=workflow_target, commit_sha=commit_sha
+            repo=ctx.repo_full_name, workflow=workflow_target, commit_sha=commit_sha,
+            check_dry_run=check_dry_run
         )
-        if len(recent) >= 2:
-            return False
-        if recent and (ctx.ts - recent[0]) < timedelta(minutes=15):
-            return False
+
+        if ctx.dry_run_restart:
+            # In dry-run mode: skip if ANY restart was already logged
+            if recent:
+                return False
+        else:
+            # In non-dry-run mode: apply caps and pacing only on non-dry-run restarts
+            if len(recent) >= 2:
+                return False
+            if recent and (ctx.ts - recent[0]) < timedelta(minutes=15):
+                return False
 
         notes = ""
-        if not ctx.dry_run:
+        if not ctx.dry_run_restart:
             ok = self._restart.restart_workflow(workflow_target, commit_sha)
             if not ok:
                 notes = "dispatch_failed"
+
         self._logger.insert_event(
             repo=ctx.repo_full_name,
             ts=ctx.ts,
@@ -239,7 +297,7 @@ class SignalActionProcessor:
             commit_sha=commit_sha,
             workflows=[workflow_target],
             source_signal_keys=[s.key for s in sources],
-            dry_run=ctx.dry_run,
+            dry_run=ctx.dry_run_restart,
             notes=notes,
         )
         return True

@@ -5,13 +5,13 @@ This document specifies the Actions layer that consumes extracted Signals with t
 ## Overview
 
 - Inputs (provided by integration code):
-  - Run parameters: `repo_full_name`, `workflows`, `lookback_hours`, `dry_run`.
+  - Run parameters: `repo_full_name`, `workflows`, `lookback_hours`, `dry_run` (legacy), `dry_run_restart`, `dry_run_revert`.
   - A list of pairs: `List[Tuple[Signal, SignalProcOutcome]]`, where `SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]`.
 - Decisions: per-signal outcome mapped to a concrete action:
   - `AutorevertPattern` → record a global revert intent for the suspected commit
   - `RestartCommits` → restart workflow(s) for specific `(workflow, commit)` pairs
   - `Ineligible` → no action
-- Side effects: workflow restarts (non-dry-run only); append-only logging of actions in ClickHouse.
+- Side effects: workflow restarts (when `dry_run_restart=False`); append-only logging of actions in ClickHouse.
 - Idempotence and dedup: enforced via ClickHouse lookups before acting and logging.
 
 ## Run Context
@@ -22,27 +22,32 @@ Immutable run-scoped metadata shared by all actions in the same run:
 - `repo_full_name`: e.g., `pytorch/pytorch`
 - `workflows`: list of workflow display names
 - `lookback_hours`: window used for extraction
-- `dry_run`: bool
+- `dry_run`: bool (legacy flag for backwards compatibility)
+- `dry_run_restart`: bool (controls whether restarts are executed)
+- `dry_run_revert`: bool (controls whether reverts are executed - currently always record-only)
 
 ## Action Semantics
 
 - `revert` (record-only):
   - Scope: global per `commit_sha` across all workflows and signals
-  - Dedup: if a non-dry-run `revert` exists for the same `repo` and `commit_sha`, do not log another
+  - Dedup logic:
+    - If `dry_run_revert=True`: skip if ANY revert (dry-run or not) exists for the same `repo` and `commit_sha`
+    - If `dry_run_revert=False`: skip only if a non-dry-run revert exists
 
 - `restart` (execute + log):
   - Scope: per `(workflow, commit_sha)` pair
-  - Caps: up to 2 non-dry-run restarts total for the pair
-  - Pacing: skip if the most recent non-dry-run restart was within 15 minutes before `ts`
-  - No extra GitHub-side “already restarted” guard; rely on ClickHouse logs for dedup/caps
+  - Dedup logic:
+    - If `dry_run_restart=True`: skip if ANY restart (dry-run or not) exists for the pair
+    - If `dry_run_restart=False`: apply caps (max 2) and pacing (15 min) based on non-dry-run restarts only
+  - No extra GitHub-side "already restarted" guard; rely on ClickHouse logs for dedup/caps
 
 - `none`:
   - Not logged in `autorevert_events_v2` (only actions taken are logged)
 
 - Multiple signals targeting same workflow/commit are coalesced in-memory, then deduped again via ClickHouse checks.
-- Dry-run behavior:
-  - Simulate restarts (no dispatch), log actions with `dry_run=1`
-  - Dry-run rows do not count toward caps/pacing or revert dedup criteria
+- Shadow mode (e.g., `dry_run_restart=False, dry_run_revert=True`):
+  - Execute restarts normally but log reverts as dry-run only
+  - Useful for testing the system's decision-making without performing actual reverts
 
 ## ClickHouse Logging
 
@@ -91,18 +96,22 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 3. Transform and group the list into coalesced action groups (reusable method):
    - Revert groups: `(action=revert, commit_sha, sources: List[SignalMetadata(workflow, key)])`
    - Restart groups: `(action=restart, commit_sha, workflow_target, sources: List[SignalMetadata(workflow, key)])`
-4. For each group, consult `autorevert_events_v2` (non-dry-run rows) to enforce dedup rules:
-   - Reverts: skip if any prior recorded `revert` exists for `commit_sha`
-   - Restarts: skip if ≥2 prior restarts exist for `(workflow_target, commit_sha)`; skip if the latest is within 15 minutes of `ts`
+4. For each group, consult `autorevert_events_v2` to enforce dedup rules:
+   - Reverts:
+     - If `dry_run_revert=True`: skip if ANY prior revert exists for `commit_sha`
+     - If `dry_run_revert=False`: skip only if a non-dry-run revert exists
+   - Restarts:
+     - If `dry_run_restart=True`: skip if ANY prior restart exists for `(workflow_target, commit_sha)`
+     - If `dry_run_restart=False`: skip if ≥2 non-dry-run restarts exist; skip if the latest non-dry-run restart is within 15 minutes of `ts`
 5. Execute eligible actions:
-   - Restart: if not `dry_run`, dispatch and capture success/failure in `notes`
-   - Revert: record only
-6. Insert one `autorevert_events_v2` row per executed group with aggregated `workflows` and `source_signal_keys` (dry-run rows use `dry_run=1`).
+   - Restart: if `dry_run_restart=False`, dispatch and capture success/failure in `notes`
+   - Revert: record only (currently no execution)
+6. Insert one `autorevert_events_v2` row per executed group with aggregated `workflows` and `source_signal_keys` (use respective `dry_run_restart`/`dry_run_revert` flags).
 7. Separately (integration), build the full run state and call the run‑state logger to write a single `autorevert_state` row with the same `ts`.
 
 ## Interfaces
 
-- `RunContext`: `ts`, `repo_full_name`, `workflows`, `lookback_hours`, `dry_run`
+- `RunContext`: `ts`, `repo_full_name`, `workflows`, `lookback_hours`, `dry_run`, `dry_run_restart`, `dry_run_revert`
 - `SignalMetadata`: `{ workflow_name: str, key: str }`
 - `SignalProcOutcome`: alias to `Union[AutorevertPattern, RestartCommits, Ineligible]`
 - `ActionGroup` (coalesced):
@@ -112,8 +121,8 @@ Two tables, sharing the same `ts` per CLI/lambda run.
   - `group_actions(pairs: list[tuple[Signal, SignalProcOutcome]]) -> list[ActionGroup]`
   - `execute(groups: list[ActionGroup], ctx: RunContext) -> list[ActionGroup]` (returns executed/logged groups)
 - `ActionLogger` (ClickHouse):
-  - `prior_revert_exists(commit_sha: str, ctx: RunContext) -> bool`
-  - `recent_restarts(workflow: str, commit_sha: str, ctx: RunContext) -> list[Row]`
+  - `prior_revert_exists(repo: str, commit_sha: str, check_dry_run: bool = False) -> bool`
+  - `recent_restarts(repo: str, workflow: str, commit_sha: str, limit: int = 2, check_dry_run: bool = False) -> list[datetime]`
   - `insert_event(repo, ts, action, commit_sha, workflows, source_signal_keys, dry_run, notes)`
 - `RunStateLogger` (separate module):
   - Input: `RunContext` and `List[Tuple[Signal, SignalProcOutcome]]`

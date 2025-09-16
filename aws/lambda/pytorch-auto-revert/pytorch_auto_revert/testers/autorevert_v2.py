@@ -15,6 +15,8 @@ def autorevert_v2(
     hours: int = 24,
     repo_full_name: str = "pytorch/pytorch",
     dry_run: bool = False,
+    dry_run_restart: bool = False,
+    dry_run_revert: bool = False,
     do_restart: bool = True,
     do_revert: bool = True,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]]]:
@@ -24,18 +26,34 @@ def autorevert_v2(
     - Computes per-signal outcomes, groups actions, enforces dedup/caps, and executes
     - Persists a single HUD-like state row for auditability
 
+    Args:
+        workflows: List of workflow names to monitor
+        hours: Lookback window in hours
+        repo_full_name: Repository name
+        dry_run: Legacy flag, sets both dry_run_restart and dry_run_revert if they're False
+        dry_run_restart: If True, don't actually restart workflows
+        dry_run_revert: If True, don't actually revert commits (currently always record-only)
+        do_restart: Enable restart actions
+        do_revert: Enable revert actions
+
     Returns:
         (signals, pairs) for diagnostics and potential external rendering
     """
     workflows = list(workflows)
     ts = datetime.now()
 
+    # Handle backwards compatibility: if dry_run is True and specific flags are False, use dry_run
+    if dry_run and not dry_run_restart and not dry_run_revert:
+        dry_run_restart = True
+        dry_run_revert = True
+
     logging.info(
-        "[v2] Start: workflows=%s hours=%s repo=%s dry_run=%s",
+        "[v2] Start: workflows=%s hours=%s repo=%s dry_run_restart=%s dry_run_revert=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
-        dry_run,
+        dry_run_restart,
+        dry_run_revert,
     )
 
     extractor = SignalExtractor(
@@ -56,6 +74,8 @@ def autorevert_v2(
         workflows=workflows,
         lookback_hours=hours,
         dry_run=dry_run,
+        dry_run_restart=dry_run_restart,
+        dry_run_revert=dry_run_revert,
     )
 
     # Group and execute actions
