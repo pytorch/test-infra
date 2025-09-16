@@ -1,0 +1,35 @@
+{
+  "receiver": "sns",
+  "status": "firing",
+  "orgId": 1,
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "Test Alert With No Priority Anywhere"
+      },
+      "annotations": {
+        "Team": "dev-infra",
+        "description": "This is a test alert"
+      },
+      "startsAt": "2025-09-16T17:19:40Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "https://pytorchci.grafana.net/alerting/grafana/test123/view?orgId=1",
+      "fingerprint": "test123"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "Test Alert With No Priority Anywhere"
+  },
+  "commonLabels": {
+    "alertname": "Test Alert With No Priority Anywhere"
+  },
+  "commonAnnotations": {
+    "Team": "dev-infra",
+    "description": "This is a test alert"
+  },
+  "externalURL": "https://pytorchci.grafana.net/",
+  "version": "1",
+  "title": "[FIRING:1] Test Alert With No Priority Anywhere",
+  "state": "alerting"
+}

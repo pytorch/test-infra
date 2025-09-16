@@ -3,6 +3,8 @@ import { AlertEvent, Envelope, AlertResource, AlertIdentity, AlertLinks } from "
 
 export class CloudWatchTransformer extends BaseTransformer {
   transform(rawPayload: any, envelope: Envelope): AlertEvent {
+    // Extract debugging context early for better error messages
+    const debugContext = this.extractDebugContext(rawPayload, envelope);
     // CloudWatch alerts come via SNS, so we need to parse the Message field
     let alarmData: any;
 
@@ -10,7 +12,7 @@ export class CloudWatchTransformer extends BaseTransformer {
       try {
         alarmData = JSON.parse(rawPayload);
       } catch (error) {
-        throw new Error(`Invalid CloudWatch payload: failed to parse JSON - ${error}`);
+        throw new Error(`Invalid CloudWatch payload: failed to parse JSON - ${error}. This indicates corrupted data from AWS. ${debugContext}`);
       }
     } else if (rawPayload.Message) {
       // SNS message format
@@ -19,7 +21,7 @@ export class CloudWatchTransformer extends BaseTransformer {
           ? JSON.parse(rawPayload.Message)
           : rawPayload.Message;
       } catch (error) {
-        throw new Error(`Invalid CloudWatch SNS Message: failed to parse - ${error}`);
+        throw new Error(`Invalid CloudWatch SNS Message: failed to parse - ${error}. This indicates corrupted data from AWS. ${debugContext}`);
       }
     } else {
       // Direct alarm data
@@ -27,25 +29,25 @@ export class CloudWatchTransformer extends BaseTransformer {
     }
 
     if (!alarmData || typeof alarmData !== "object") {
-      throw new Error("Invalid CloudWatch alarm data: not an object");
+      throw new Error(`Invalid CloudWatch alarm data: not an object. This indicates corrupted data from AWS. ${debugContext}`);
     }
 
     // Extract core fields - fail fast for missing required fields
     if (!alarmData.AlarmName) {
-      throw new Error("Missing required AlarmName field");
+      throw new Error(`Missing required field "AlarmName" in CloudWatch alarm data. This indicates corrupted data from AWS. ${debugContext}`);
     }
     const title = this.normalizeTitle(alarmData.AlarmName);
-    const state = this.extractState(alarmData);
+    const state = this.extractState(alarmData, debugContext);
     const occurredAt = this.parseTimestamp(alarmData.StateChangeTime);
 
     // Parse AlarmDescription for metadata and description content
     const descriptionParsed = this.parseAlarmDescription(alarmData.AlarmDescription || "");
 
     if (!descriptionParsed.metadata.PRIORITY) {
-      throw new Error("Missing required PRIORITY field in AlarmDescription");
+      throw new Error(`Missing required field "PRIORITY" in CloudWatch AlarmDescription. Please add this to make the alert work. ${debugContext}`);
     }
     if (!descriptionParsed.metadata.TEAM) {
-      throw new Error("Missing required TEAM field in AlarmDescription");
+      throw new Error(`Missing required field "TEAM" in CloudWatch AlarmDescription. Please add this to make the alert work. ${debugContext}`);
     }
 
     const priority = this.extractPriority(descriptionParsed.metadata.PRIORITY);
@@ -90,11 +92,11 @@ export class CloudWatchTransformer extends BaseTransformer {
     };
   }
 
-  private extractState(alarmData: any): "FIRING" | "RESOLVED" {
+  private extractState(alarmData: any, debugContext: string): "FIRING" | "RESOLVED" {
     const newState = alarmData.NewStateValue;
 
     if (!newState) {
-      throw new Error("Missing required NewStateValue field");
+      throw new Error(`Missing required field "NewStateValue" in CloudWatch alarm data. This indicates corrupted data from AWS. ${debugContext}`);
     }
 
     if (typeof newState === "string") {
@@ -103,7 +105,7 @@ export class CloudWatchTransformer extends BaseTransformer {
       if (normalized === "OK") return "RESOLVED";
     }
 
-    throw new Error(`Invalid NewStateValue: '${newState}'. Expected 'ALARM' or 'OK'`);
+    throw new Error(`Invalid NewStateValue: '${newState}'. Expected 'ALARM' or 'OK'. This may indicate corrupted data from AWS. ${debugContext}`);
   }
 
   private parseAlarmDescription(description: string): { metadata: Record<string, string>; description: string } {
@@ -116,7 +118,7 @@ export class CloudWatchTransformer extends BaseTransformer {
 
     // Security: Limit description length to prevent DoS attacks
     if (description.length > 4096) {
-      throw new Error("AlarmDescription too long (max 4096 characters)");
+      throw new Error(`AlarmDescription too long (max 4096 characters). This indicates potentially corrupted data from AWS. ${debugContext}`);
     }
 
     // Parse newline-separated format: "Body\nTEAM=team\nPRIORITY=P1\nRUNBOOK=https://..."
@@ -303,5 +305,54 @@ export class CloudWatchTransformer extends BaseTransformer {
     };
 
     return regionMap[region] || region.toLowerCase().replace(/\s+/g, "-");
+  }
+
+  // Extract debugging context for error messages
+  private extractDebugContext(rawPayload: any, envelope: Envelope): string {
+    const context: string[] = [];
+
+    // Always include source
+    context.push("source=cloudwatch");
+
+    // Include messageId for log tracing
+    if (envelope.event_id) {
+      context.push(`messageId=${envelope.event_id}`);
+    }
+
+    // Extract alarm data from various formats
+    let alarmData: any;
+    if (typeof rawPayload === "string") {
+      try { alarmData = JSON.parse(rawPayload); } catch { /* ignore */ }
+    } else if (rawPayload?.Message) {
+      try {
+        alarmData = typeof rawPayload.Message === "string" ? JSON.parse(rawPayload.Message) : rawPayload.Message;
+      } catch { /* ignore */ }
+    } else {
+      alarmData = rawPayload;
+    }
+
+    // Extract AlarmName
+    const alarmName = alarmData?.AlarmName || "unknown";
+    context.push(`AlarmName="${alarmName}"`);
+
+    // Include AWS Account ID if available
+    if (alarmData?.AWSAccountId) {
+      context.push(`AWSAccountId=${alarmData.AWSAccountId}`);
+    }
+
+    // Include team if available in AlarmDescription
+    if (alarmData?.AlarmDescription) {
+      const teamMatch = alarmData.AlarmDescription.match(/TEAM=([^\n|]+)/);
+      if (teamMatch?.[1]) {
+        context.push(`team="${teamMatch[1].trim()}"`);
+      }
+    }
+
+    // Include AlarmArn for direct debugging link
+    if (alarmData?.AlarmArn) {
+      context.push(`AlarmArn="${alarmData.AlarmArn}"`);
+    }
+
+    return `[${context.join(", ")}]`;
   }
 }

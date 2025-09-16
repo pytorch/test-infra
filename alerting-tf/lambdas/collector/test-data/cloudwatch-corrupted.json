@@ -1,0 +1,9 @@
+{
+  "Type": "Notification",
+  "MessageId": "12345678-1234-1234-1234-123456789012",
+  "TopicArn": "arn:aws:sns:us-east-1:123456789012:alerts",
+  "Subject": "ALARM: Test-Corrupted-Alarm in US East - N. Virginia",
+  "Message": "{\"AlarmName\":\"Test-Corrupted-Alarm\",\"AlarmDescription\":\"TEAM=dev-infra | PRIORITY=P1 | RUNBOOK=https://runbooks.example.org/test\",\"AWSAccountId\":\"123456789012\",\"StateChangeTime\":\"2025-09-03T19:10:01.000Z\",\"Region\":\"US East - N. Virginia\",\"AlarmArn\":\"arn:aws:cloudwatch:us-east-1:123456789012:alarm:Test-Corrupted-Alarm\",\"OldStateValue\":\"OK\"}",
+  "Timestamp": "2025-09-03T19:10:01.123Z",
+  "SignatureVersion": "1"
+}

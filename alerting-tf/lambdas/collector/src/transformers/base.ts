@@ -8,7 +8,7 @@ export abstract class BaseTransformer {
   // Extract priority from string - fail fast for invalid values
   protected extractPriority(input: string): "P0" | "P1" | "P2" | "P3" {
     if (!input) {
-      throw new Error("Missing required priority field");
+      throw new Error("Priority field is empty or missing");
     }
 
     const normalized = input.toUpperCase().trim();
@@ -25,12 +25,12 @@ export abstract class BaseTransformer {
     if (normalized === "2") return "P2";
     if (normalized === "3") return "P3";
 
-    throw new Error(`Invalid priority value: '${input}'. Expected P0, P1, P2, P3, or 0-3`);
+    throw new Error(`Invalid priority value: '${input}'. Expected P0, P1, P2, P3, or 0-3.`);
   }
 
   // Normalize title by trimming whitespace
   protected normalizeTitle(title: string): string {
-    if (!title) throw new Error("Missing alert title");
+    if (!title) throw new Error("Alert title is empty or missing. This indicates corrupted data from the provider.");
     return title.trim();
   }
 
@@ -39,7 +39,7 @@ export abstract class BaseTransformer {
   protected parseTimestamp(input: string | Date, required: boolean = false): string {
     if (!input) {
       if (required) {
-        throw new Error("Timestamp is required but not provided");
+        throw new Error("Required timestamp field is missing. This indicates corrupted data from the provider.");
       }
       return new Date().toISOString();
     }
@@ -47,7 +47,7 @@ export abstract class BaseTransformer {
     if (typeof input === "string") {
       // Security: Validate timestamp format to prevent injection
       if (input.length > 50) {
-        throw new Error("Timestamp string too long");
+        throw new Error(`Timestamp string too long (max 50 characters): '${input.substring(0, 50)}...'. This may indicate corrupted data.`);
       }
 
       const parsed = new Date(input);
@@ -56,7 +56,7 @@ export abstract class BaseTransformer {
       // since this is meant to be a data sanity check, not a strict business policy.
       if (isNaN(parsed.getTime())) {
         if (required) {
-          throw new Error(`Invalid timestamp format: ${input}`);
+          throw new Error(`Invalid timestamp format: '${input}'. Expected ISO8601 format. This may indicate corrupted data from the provider.`);
         }
         console.warn(`Invalid timestamp format, using current time: ${input}`);
         return new Date().toISOString();
@@ -70,7 +70,7 @@ export abstract class BaseTransformer {
       if (parsed < tenYearsAgo || parsed > oneYearFromNow) {
         let msg = `Timestamp outside reasonable bounds: ${input}`;
         if (required) {
-          throw new Error(msg);
+          throw new Error(`${msg}. Timestamp is too far away from the present. This may indicate corrupted data from the provider.`);
         }
         msg += ", using current time";
         console.warn(msg);
@@ -82,18 +82,18 @@ export abstract class BaseTransformer {
 
     if (input instanceof Date) {
       if (isNaN(input.getTime())) {
-        throw new Error("Invalid Date object provided");
+        throw new Error("Invalid Date object provided (contains NaN). This indicates corrupted data from the provider.");
       }
       return input.toISOString();
     }
 
-    throw new Error(`Invalid timestamp type: ${typeof input}`);
+    throw new Error(`Invalid timestamp type: '${typeof input}'. Expected string or Date object. This indicates corrupted data from the provider.`);
   }
 
   // Extract team from string - fail fast for missing values
   protected extractTeam(input: string): string {
     if (!input || !input.trim()) {
-      throw new Error("Missing required team field");
+      throw new Error("Team field is empty or missing");
     }
     return input.trim().toLowerCase();
   }

@@ -1,0 +1,42 @@
+{
+  "receiver": "sns",
+  "status": "firing",
+  "orgId": 1,
+  "alerts": [
+    {
+      "status": "firing",
+      "labels": {
+        "alertname": "TEST Alert that keeps toggling ~every 1 min",
+        "grafana_folder": "TEST - alerts just for testing"
+      },
+      "annotations": {
+        "description": "TEST_DESCRIPTION: This alert keeps toggling every minute. If it fires, time has progressed",
+        "runbook_url": "www.time.com",
+        "summary": "TEST_SUMMARY: This alert keeps toggling every minute."
+      },
+      "startsAt": "2025-09-16T17:19:40Z",
+      "endsAt": "0001-01-01T00:00:00Z",
+      "generatorURL": "https://pytorchci.grafana.net/alerting/grafana/fex6jh8jaew3kc/view?orgId=1",
+      "fingerprint": "3201e9e1f14b433c"
+    }
+  ],
+  "groupLabels": {
+    "alertname": "TEST Alert that keeps toggling ~every 1 min",
+    "grafana_folder": "TEST - alerts just for testing"
+  },
+  "commonLabels": {
+    "alertname": "TEST Alert that keeps toggling ~every 1 min",
+    "grafana_folder": "TEST - alerts just for testing"
+  },
+  "commonAnnotations": {
+    "description": "TEST_DESCRIPTION: This alert keeps toggling every minute. If it fires, time has progressed",
+    "runbook_url": "www.time.com",
+    "summary": "TEST_SUMMARY: This alert keeps toggling every minute."
+  },
+  "externalURL": "https://pytorchci.grafana.net/",
+  "version": "1",
+  "truncatedAlerts": 0,
+  "orgId": 1,
+  "title": "[FIRING:1] TEST Alert that keeps toggling ~every 1 min TEST - alerts just for testing ",
+  "state": "alerting"
+}

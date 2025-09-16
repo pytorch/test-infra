@@ -3,9 +3,12 @@ import { AlertEvent, Envelope, AlertResource, AlertIdentity, AlertLinks } from "
 
 export class GrafanaTransformer extends BaseTransformer {
   transform(rawPayload: any, envelope: Envelope): AlertEvent {
+    // Extract debugging context early for better error messages
+    const debugContext = this.extractDebugContext(rawPayload, envelope);
+
     // Validate basic structure
     if (!rawPayload || typeof rawPayload !== "object") {
-      throw new Error("Invalid Grafana payload: not an object");
+      throw new Error(`Invalid Grafana payload: not an object. This indicates corrupted data from Grafana. ${debugContext}`);
     }
 
     // Extract first alert from alerts array, or use top-level fields
@@ -30,10 +33,10 @@ export class GrafanaTransformer extends BaseTransformer {
       rawPayload.team;
 
     if (!priorityValue) {
-      throw new Error("Missing required priority field in Grafana alert annotations");
+      throw new Error(`Missing required field "Priority" in Grafana alert annotations. Please add this to make the alert work. ${debugContext}`);
     }
     if (!teamValue) {
-      throw new Error("Missing required team field in Grafana alert annotations");
+      throw new Error(`Missing required field "Team" in Grafana alert annotations. Please add this to make the alert work. ${debugContext}`);
     }
 
     const priority = this.extractPriority(priorityValue);
@@ -96,7 +99,7 @@ export class GrafanaTransformer extends BaseTransformer {
       }
     }
 
-    throw new Error("Missing alert title");
+    throw new Error(`Missing required field "alertname" in Grafana alert labels. This indicates corrupted data from Grafana. ${debugContext}`);
   }
 
   private extractState(rawPayload: any, alert: any): "FIRING" | "RESOLVED" {
@@ -108,7 +111,7 @@ export class GrafanaTransformer extends BaseTransformer {
       if (normalized === "resolved" || normalized === "ok") return "RESOLVED";
     }
 
-    throw new Error("Unable to determine alert state. Received status: `" + String(status) + "`");
+    throw new Error(`Unable to determine alert state. Received status: '${String(status)}'. Expected 'firing' or 'resolved'. This indicates corrupted data from Grafana. ${debugContext}`);
   }
 
   private extractOccurredAt(alert: any, rawPayload: any): string {
@@ -152,5 +155,50 @@ export class GrafanaTransformer extends BaseTransformer {
     }
 
     return Object.keys(extra).length > 0 ? extra : undefined;
+  }
+
+  // Extract debugging context for error messages
+  private extractDebugContext(rawPayload: any, envelope: Envelope): string {
+    const context: string[] = [];
+
+    // Always include source
+    context.push("source=grafana");
+
+    // Include messageId for log tracing
+    if (envelope.event_id) {
+      context.push(`messageId=${envelope.event_id}`);
+    }
+
+    // Extract alert name from various locations
+    const alertName = rawPayload?.alerts?.[0]?.labels?.alertname ||
+                     rawPayload?.groupLabels?.alertname ||
+                     rawPayload?.commonLabels?.alertname ||
+                     "unknown";
+    context.push(`alertname="${alertName}"`);
+
+    // Include orgId if available
+    if (rawPayload?.orgId) {
+      context.push(`orgId=${rawPayload.orgId}`);
+    }
+
+    // Include team if available
+    const team = rawPayload?.alerts?.[0]?.annotations?.Team ||
+                rawPayload?.alerts?.[0]?.annotations?.TEAM ||
+                rawPayload?.alerts?.[0]?.annotations?.team ||
+                rawPayload?.alerts?.[0]?.labels?.team ||
+                rawPayload?.commonAnnotations?.Team ||
+                rawPayload?.commonAnnotations?.TEAM ||
+                rawPayload?.commonLabels?.team;
+    if (team) {
+      context.push(`team="${team}"`);
+    }
+
+    // Include generator URL for direct debugging link
+    const generatorURL = rawPayload?.alerts?.[0]?.generatorURL || rawPayload?.generatorURL;
+    if (generatorURL) {
+      context.push(`generatorURL="${generatorURL}"`);
+    }
+
+    return `[${context.join(", ")}]`;
   }
 }
