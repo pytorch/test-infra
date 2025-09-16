@@ -8,7 +8,7 @@ CREATE TABLE misc.autorevert_state
     `lookback_hours` UInt16,
     `params` String DEFAULT ''
 )
-    ENGINE = SharedMergeTree
+    ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
         PARTITION BY toYYYYMM(ts)
-        ORDER BY (repo, ts)
+        ORDER BY (repo, ts, dry_run)
         SETTINGS index_granularity = 8192;
