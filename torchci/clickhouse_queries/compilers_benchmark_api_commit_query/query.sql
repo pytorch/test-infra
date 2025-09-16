@@ -41,5 +41,5 @@ WHERE
         multiSearchAnyCaseInsensitive(arch, {arch: Array(String)})
         OR empty({arch: Array(String)})
     )
-ORDER BY branch, timestamp, commit
+ORDER BY branch, timestamp
 SETTINGS session_timezone = 'UTC';
