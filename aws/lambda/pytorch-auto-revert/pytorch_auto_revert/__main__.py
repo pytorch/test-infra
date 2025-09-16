@@ -231,16 +231,6 @@ def main(*args, **kwargs) -> None:
                 do_restart=opts.do_restart or opts.dry_run,
                 do_revert=opts.do_revert or opts.dry_run,
             )
-    elif opts.subcommand == "autorevert-checker":
-        autorevert_checker(
-            opts.workflows,
-            do_restart=opts.do_restart,
-            do_revert=opts.do_revert,
-            hours=opts.hours,
-            verbose=opts.verbose,
-            dry_run=opts.dry_run,
-            ignore_common_errors=opts.ignore_common_errors,
-        )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "hud":
