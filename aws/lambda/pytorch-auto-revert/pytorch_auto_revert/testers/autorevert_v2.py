@@ -117,8 +117,8 @@ def autorevert_v2(
 
         return signals, pairs
 
-    except Exception as e:
-        logging.error("[v2] Run failed: %s", str(e))
+    except Exception:
+        logging.exception("[v2] Run failed")
         raise
     finally:
         # Always log run finish
