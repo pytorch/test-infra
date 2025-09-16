@@ -1,3 +1,4 @@
+import { Button } from "@mui/material";
 import CheckBoxSelector from "components/common/CheckBoxSelector";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
@@ -10,13 +11,15 @@ import {
   GroupHudTableHeader,
   passesGroupFilter,
 } from "components/hud/GroupHudTableHeaders";
+import { getGroupingData } from "components/HudGroupingSettings/hudGroupingSettings";
+import SettingsModal from "components/HudGroupingSettings/MainPageSettings";
 import HudGroupedCell from "components/job/GroupJobConclusion";
 import JobConclusion from "components/job/JobConclusion";
 import JobFilterInput from "components/job/JobFilterInput";
 import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
 import { fetcher } from "lib/GeneralUtils";
-import { isUnstableGroup } from "lib/JobClassifierUtil";
+import { isUnstableGroup, sortGroupNamesForHUD } from "lib/JobClassifierUtil";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -285,6 +288,7 @@ function FiltersAndSettings({}: {}) {
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+  const [groupingSettingsOpen, setGroupingSettingsOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns, setHideGreenColumns] =
     useHideGreenColumnsPreference();
@@ -339,6 +343,11 @@ function FiltersAndSettings({}: {}) {
         }}
         isOpen={settingsPanelOpen}
         onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
+      />
+      <Button onClick={() => setGroupingSettingsOpen(true)}>Groupings</Button>
+      <SettingsModal
+        visible={groupingSettingsOpen}
+        handleClose={() => setGroupingSettingsOpen(false)}
       />
     </div>
   );
@@ -557,13 +566,18 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [useGrouping] = useGroupingPreference(params.nameFilter);
 
-  const { shaGrid, groupNameMapping, jobsWithFailures, groupsWithFailures } =
-    getGroupingData(
-      data ?? [],
-      jobNames,
-      (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-      unstableIssuesData ?? []
-    );
+  const {
+    shaGrid,
+    groupNameMapping,
+    jobsWithFailures,
+    groupsWithFailures,
+    groupSettings,
+  } = getGroupingData(
+    data ?? [],
+    jobNames,
+    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+    unstableIssuesData ?? []
+  );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 

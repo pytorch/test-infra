@@ -1,6 +1,7 @@
 import { GroupedJobStatus, JobStatus } from "components/job/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
 import { IssueData, RowData } from "./types";
+import { Group } from "components/HudGroupingSettings/mainPageSettingsUtils";
 
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
@@ -157,48 +158,19 @@ export const groups = [
   },
 ];
 
-// Jobs on HUD home page will be sorted according to this list, with anything left off at the end
-// Reorder elements in this list to reorder the groups on the HUD
-const HUD_GROUP_SORTING = [
-  GROUP_LINT,
-  GROUP_LINUX,
-  GROUP_WINDOWS,
-  GROUP_IOS,
-  GROUP_MAC,
-  GROUP_ROCM,
-  GROUP_XPU,
-  GROUP_XLA,
-  GROUP_OTHER_VIABLE_STRICT_BLOCKING, // placed after the last group that tends to have viable/strict blocking jobs
-  GROUP_VLLM,
-  GROUP_PARALLEL,
-  GROUP_LIBTORCH,
-  GROUP_ANDROID,
-  GROUP_BINARY_LINUX,
-  GROUP_DOCKER,
-  GROUP_CALC_DOCKER_IMAGE,
-  GROUP_CI_DOCKER_IMAGE_BUILDS,
-  GROUP_CI_CIRCLECI_PYTORCH_IOS,
-  GROUP_PERIODIC,
-  GROUP_SLOW,
-  GROUP_DOCS,
-  GROUP_INDUCTOR,
-  GROUP_INDUCTOR_PERIODIC,
-  GROUP_ANNOTATIONS_AND_LABELING,
-  GROUP_BINARY_WINDOWS,
-  GROUP_MEMORY_LEAK_CHECK,
-  GROUP_RERUN_DISABLED_TESTS,
-  // These two groups should always be at the end
-  GROUP_OTHER,
-  GROUP_UNSTABLE,
-];
 
 // Accepts a list of group names and returns that list sorted according to
 // the order defined in HUD_GROUP_SORTING
-export function sortGroupNamesForHUD(groupNames: string[]): string[] {
+export function sortGroupNamesForHUD(
+  groupNames: string[],
+  groupSettings: Group[]
+): string[] {
   let result: string[] = [];
-  for (const group of HUD_GROUP_SORTING) {
-    if (groupNames.includes(group)) {
-      result.push(group);
+  for (const group of groupSettings.sort(
+    (a, b) => a.displayPriority - b.displayPriority
+  )) {
+    if (groupNames.includes(group.name)) {
+      result.push(group.name);
     }
   }
 

@@ -1,18 +1,17 @@
 import {
   closestCenter,
   DndContext,
-  KeyboardSensor,
   PointerSensor,
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { DragHandle } from "@mui/icons-material";
 import {
   Button,
   Dialog,
@@ -35,7 +34,6 @@ import {
   isDupName,
   saveTreeData,
 } from "./mainPageSettingsUtils";
-import { DragHandle } from "@mui/icons-material";
 
 function validRegex(value: string) {
   try {
@@ -63,7 +61,13 @@ function EditSectionDialog({
 
   return (
     <>
-      <Button onClick={() => {setOpen(true)}}>Edit</Button>
+      <Button
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Edit
+      </Button>
       <Dialog
         open={open}
         closeAfterTransition={false}
@@ -124,6 +128,54 @@ function EditSectionDialog({
   );
 }
 
+function ResetButton({ onConfirm }: { onConfirm: () => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button
+        onClick={() => {
+          setOpen(true);
+        }}
+      >
+        Reset
+      </Button>
+      <Dialog
+        open={open}
+        closeAfterTransition={false}
+        onClose={() => setOpen(false)}
+        aria-modal
+      >
+        <DialogContent>
+          <Stack spacing={2}>
+            <Typography>
+              Are you sure you want to reset to default group settings?
+            </Typography>
+            <Stack direction="row" spacing={2}>
+              <Button
+                onClick={() => {
+                  onConfirm();
+                  setOpen(false);
+                }}
+                color="error"
+              >
+                Yes
+              </Button>
+              <Button
+                onClick={() => {
+                  setOpen(false);
+                }}
+              >
+                No
+              </Button>
+            </Stack>
+          </Stack>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
 export default function SettingsModal({
   visible,
   handleClose,
@@ -140,9 +192,7 @@ export default function SettingsModal({
     return a.filterPriority - b.filterPriority;
   });
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-  );
+  const sensors = useSensors(useSensor(PointerSensor));
 
   function addSection() {
     setTreeData([
@@ -164,7 +214,25 @@ export default function SettingsModal({
   }
 
   function removeSection(name: string) {
-    setTreeData(treeData.filter((node) => node.name !== name));
+    const removedNode = treeData.find((node) => node.name === name);
+    const filterPriority = removedNode!.filterPriority;
+    const displayPriority = removedNode!.displayPriority;
+    const newTreeData = treeData
+      .filter((node) => node.name !== name)
+      .map((node) => {
+        return {
+          ...node,
+          filterPriority:
+            node.filterPriority > filterPriority
+              ? node.filterPriority - 1
+              : node.filterPriority,
+          displayPriority:
+            node.displayPriority > displayPriority
+              ? node.displayPriority - 1
+              : node.displayPriority,
+        };
+      });
+    setTreeData(newTreeData);
   }
 
   function setItem(name: string, newName: string, regex: string) {
@@ -274,7 +342,10 @@ export default function SettingsModal({
       open={visible}
       fullWidth={true}
       maxWidth="xl"
-      onClose={handleClose}
+      onClose={() => {
+        saveTreeData(treeData);
+        handleClose();
+      }}
       onClick={(e) => e.stopPropagation()}
     >
       <Stack
@@ -293,14 +364,12 @@ export default function SettingsModal({
           >
             Save
           </Button>
-          <Button
-            onClick={() => {
+          <ResetButton
+            onConfirm={() => {
               saveTreeData(getDefaultGroupSettings());
               setTreeData(getDefaultGroupSettings());
             }}
-          >
-            Reset
-          </Button>
+          />
           <Button
             onClick={() =>
               setOrderBy(orderBy == "display" ? "filter" : "display")
@@ -310,7 +379,7 @@ export default function SettingsModal({
           </Button>
         </Stack>
         <Button onClick={handleClose} color={"error"}>
-          Close
+          Close without Saving
         </Button>
       </Stack>
 
@@ -325,7 +394,7 @@ export default function SettingsModal({
             strategy={verticalListSortingStrategy}
           >
             {treeDataOrdered.map((id) => (
-              <Node key={id.name} data={id}/>
+              <Node key={id.name} data={id} />
             ))}
           </SortableContext>
         </DndContext>

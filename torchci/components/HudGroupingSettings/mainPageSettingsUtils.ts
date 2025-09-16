@@ -39,10 +39,10 @@ export function getStoredTreeData(): Group[] {
 
 export function getNonDupNewName(treeData: Group[]) {
   let i = 0;
-  while (isDupName(treeData, `New Group ${i}`)) {
+  while (isDupName(treeData, `NEW GROUP ${i}`)) {
     i++;
   }
-  return `New Group ${i}`;
+  return `NEW GROUP ${i}`;
 }
 
 export function isDupName(treeData: Group[], name: string): boolean {
