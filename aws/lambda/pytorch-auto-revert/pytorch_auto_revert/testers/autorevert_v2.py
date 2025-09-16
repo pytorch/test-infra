@@ -14,7 +14,6 @@ def autorevert_v2(
     *,
     hours: int = 24,
     repo_full_name: str = "pytorch/pytorch",
-    dry_run: bool = False,
     dry_run_restart: bool = False,
     dry_run_revert: bool = False,
     do_restart: bool = True,
@@ -30,7 +29,6 @@ def autorevert_v2(
         workflows: List of workflow names to monitor
         hours: Lookback window in hours
         repo_full_name: Repository name
-        dry_run: Legacy flag, sets both dry_run_restart and dry_run_revert if they're False
         dry_run_restart: If True, don't actually restart workflows
         dry_run_revert: If True, don't actually revert commits (currently always record-only)
         do_restart: Enable restart actions
@@ -41,11 +39,6 @@ def autorevert_v2(
     """
     workflows = list(workflows)
     ts = datetime.now()
-
-    # Handle backwards compatibility: if dry_run is True and specific flags are False, use dry_run
-    if dry_run and not dry_run_restart and not dry_run_revert:
-        dry_run_restart = True
-        dry_run_revert = True
 
     logging.info(
         "[v2] Start: workflows=%s hours=%s repo=%s dry_run_restart=%s dry_run_revert=%s",
@@ -66,9 +59,11 @@ def autorevert_v2(
         return [], []
 
     # Log run start
-    overall_dry_run = dry_run_restart or dry_run_revert
     logger.log_run_start(
-        repo=repo_full_name, ts=ts, workflows=workflows, dry_run=overall_dry_run
+        repo=repo_full_name,
+        ts=ts,
+        workflows=workflows,
+        dry_run=dry_run_restart or dry_run_revert,
     )
     logging.info("[v2] Logged run start")
 
@@ -126,7 +121,7 @@ def autorevert_v2(
             repo=repo_full_name,
             ts=datetime.now(),
             workflows=workflows,
-            dry_run=overall_dry_run,
+            dry_run=dry_run_restart or dry_run_revert,
             notes="",
         )
         logging.info("[v2] Logged run finish")

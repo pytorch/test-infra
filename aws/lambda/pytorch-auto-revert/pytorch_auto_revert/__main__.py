@@ -228,9 +228,8 @@ def main(*args, **kwargs) -> None:
                 opts.workflows,
                 hours=opts.hours,
                 repo_full_name=opts.repo_full_name,
-                dry_run=opts.dry_run,
-                do_restart=opts.do_restart,
-                do_revert=opts.do_revert,
+                do_restart=opts.do_restart or opts.dry_run,
+                do_revert=opts.do_revert or opts.dry_run,
             )
     elif opts.subcommand == "autorevert-checker":
         autorevert_checker(
