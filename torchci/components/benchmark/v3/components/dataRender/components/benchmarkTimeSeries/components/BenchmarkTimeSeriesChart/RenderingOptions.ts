@@ -29,7 +29,7 @@ export const echartRenderingOptions: echarts.EChartsOption = {
     left: 10,
     right: 180, // reserve extra space on the right
     top: 40,
-    bottom: 20,
+    bottom: 5,
     containLabel: true,
   },
   xAxis: {

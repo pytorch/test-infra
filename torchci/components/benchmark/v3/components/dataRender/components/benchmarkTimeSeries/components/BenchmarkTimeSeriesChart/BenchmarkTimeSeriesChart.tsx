@@ -30,6 +30,9 @@ type Props = {
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onConfirm?: (sel: ConfirmPayload) => void;
 };
+
+const DEFAULT_HEIGHT = 200;
+
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   timeseries,
   renderOptions,
@@ -250,7 +253,12 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   }
 
   return (
-    <Box sx={{ width: "100%", height: renderOptions?.height ?? 300 }}>
+    <Box
+      sx={{
+        width: "100%",
+        height: renderOptions?.height ?? `${DEFAULT_HEIGHT + 30}`,
+      }}
+    >
       {/* Selection controls */}
       <ChartSelectionControl
         selectMode={selectMode}
@@ -273,7 +281,10 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         notMerge={true}
         lazyUpdate
         onEvents={onEvents}
-        style={{ width: "100%", height: renderOptions?.height ?? "200px" }}
+        style={{
+          width: "100%",
+          height: renderOptions?.height ?? DEFAULT_HEIGHT,
+        }}
       />
     </Box>
   );
