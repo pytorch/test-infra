@@ -515,32 +515,91 @@ def update_reservation_error(reservation_id: str, error_message: str, error_fiel
 
 
 def find_reservation_by_prefix(reservation_id: str, user_id: str = None) -> dict:
-    """Find reservation by ID prefix with optional user validation"""
+    """Find reservation by ID prefix with optional user validation - optimized with Query operations"""
     try:
         reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
 
-        filter_expression = "begins_with(reservation_id, :prefix)"
-        expression_values = {":prefix": reservation_id}
+        # First try exact match (most efficient)
+        if len(reservation_id) == 36 and reservation_id.count('-') == 4:  # Full UUID format
+            try:
+                response = reservations_table.get_item(Key={"reservation_id": reservation_id})
+                if "Item" in response:
+                    item = response["Item"]
+                    # Check user_id if provided
+                    if user_id and item.get("user_id") != user_id:
+                        raise ValueError(f"Reservation {reservation_id} not found for user {user_id}")
+                    return item
+            except Exception:
+                pass  # Fall through to prefix search
 
+        # For prefix searches, use Query on UserIndex if user_id is provided (much more efficient)
         if user_id:
-            filter_expression += " AND user_id = :user_id"
-            expression_values[":user_id"] = user_id
+            matching_items = query_user_reservations_with_prefix(reservations_table, user_id, reservation_id)
+        else:
+            # Fallback to scan with pagination if no user_id (less efficient but comprehensive)
+            matching_items = scan_all_reservations_with_prefix(reservations_table, reservation_id)
 
-        scan_response = reservations_table.scan(
-            FilterExpression=filter_expression,
-            ExpressionAttributeValues=expression_values
-        )
-
-        items = scan_response.get("Items", [])
-        if len(items) == 0:
+        if len(matching_items) == 0:
             raise ValueError(f"Reservation {reservation_id} not found" + (f" for user {user_id}" if user_id else ""))
-        elif len(items) > 1:
-            raise ValueError(f"Ambiguous reservation ID {reservation_id} - found {len(items)} matches")
+        elif len(matching_items) > 1:
+            raise ValueError(f"Ambiguous reservation ID {reservation_id} - found {len(matching_items)} matches")
 
-        return items[0]
+        return matching_items[0]
     except Exception as e:
         logger.error(f"Error finding reservation {reservation_id}: {e}")
         raise
+
+
+def query_user_reservations_with_prefix(table, user_id: str, reservation_prefix: str) -> list:
+    """Query user reservations using UserIndex GSI and filter by prefix"""
+    from boto3.dynamodb.conditions import Key, Attr
+
+    matching_items = []
+    last_evaluated_key = None
+
+    while True:
+        query_kwargs = {
+            'IndexName': 'UserIndex',
+            'KeyConditionExpression': Key('user_id').eq(user_id),
+            'FilterExpression': Attr('reservation_id').begins_with(reservation_prefix)
+        }
+
+        if last_evaluated_key:
+            query_kwargs['ExclusiveStartKey'] = last_evaluated_key
+
+        response = table.query(**query_kwargs)
+        matching_items.extend(response.get('Items', []))
+
+        last_evaluated_key = response.get('LastEvaluatedKey')
+        if not last_evaluated_key:
+            break
+
+    return matching_items
+
+
+def scan_all_reservations_with_prefix(table, reservation_prefix: str) -> list:
+    """Scan all reservations with prefix - fallback when no user_id provided"""
+    from boto3.dynamodb.conditions import Attr
+
+    matching_items = []
+    last_evaluated_key = None
+
+    while True:
+        scan_kwargs = {
+            'FilterExpression': Attr('reservation_id').begins_with(reservation_prefix)
+        }
+
+        if last_evaluated_key:
+            scan_kwargs['ExclusiveStartKey'] = last_evaluated_key
+
+        response = table.scan(**scan_kwargs)
+        matching_items.extend(response.get('Items', []))
+
+        last_evaluated_key = response.get('LastEvaluatedKey')
+        if not last_evaluated_key:
+            break
+
+    return matching_items
 
 
 def handler(event, context):
@@ -3875,57 +3934,18 @@ def update_pod_status_and_events(k8s_client, pod_name: str, reservation_id: str)
             logger.info(
                 f"Latest events for {pod_name}: {[(e.reason, e.type, e.message[:50]) for e in sorted_events[:3]]}")
 
-            for event in sorted_events[:3]:  # Check last 3 events
-                event_type = event.type
-                reason = event.reason
-                message = event.message
-
-                if event_type == "Warning":
-                    if "FailedAttachVolume" in reason:
-                        event_message = f"❌ Volume attachment failed: {message[:60]}..."
+            # Look for Pulling events in last 2 messages, ignore container started/created
+            for event in sorted_events[:2]:
+                if event.reason == "Pulling":
+                    event_message = event.message
+                    break
+            
+            # If no pulling event, use latest non-container event
+            if not event_message:
+                for event in sorted_events[:3]:
+                    if event.reason not in ["Started", "Created"]:
+                        event_message = event.message
                         break
-                    elif "FailedScheduling" in reason:
-                        # Extract resource info from scheduling message
-                        if "nodes are available" in message:
-                            import re
-                            match = re.search(r'(\d+)/(\d+) nodes are available', message)
-                            if match:
-                                available, total = match.groups()
-                                event_message = f"⏳ Waiting for resources ({available}/{total} nodes available)"
-                                break
-                        event_message = f"⏳ Scheduling: {message[:60]}..."
-                        break
-                    elif "FailedMount" in reason and "kube-api-access" in message:
-                        # kube-api-access mount failures are commonly transient in EKS - don't fail immediately
-                        event_message = f"⏳ Setting up pod access (transient)..."
-                        break
-                    elif "Failed" in reason:
-                        event_message = f"❌ {reason}: {message[:50]}..."
-                        break
-                elif event_type == "Normal":
-                    if reason == "Scheduled":
-                        node_name = message.split(" to ")[-1] if " to " in message else "node"
-                        event_message = f"✅ Pod scheduled to {node_name[:20]}"
-                    elif reason == "Pulling":
-                        # Extract image name for better status
-                        if "image" in message:
-                            image_part = message.split('"')[1] if '"' in message else "image"
-                            # Simplify long image names
-                            if "ecr" in image_part:
-                                image_name = "GPU dev container"
-                            elif "alpine" in image_part:
-                                image_name = "alpine"
-                            else:
-                                image_name = image_part.split("/")[-1].split(":")[0]
-                            event_message = f"📥 Pulling {image_name} image..."
-                        else:
-                            event_message = "📥 Pulling container image..."
-                    elif reason == "Pulled":
-                        event_message = "✅ Container image pulled"
-                    elif reason == "Created":
-                        event_message = "🏗️ Container created"
-                    elif reason == "Started":
-                        event_message = "🚀 Container started"
 
         # Parse startup logs for container initialization progress
         startup_message = ""
@@ -4285,18 +4305,20 @@ def process_scheduled_queue_management():
                 reservation_id = reservation["reservation_id"]
                 requested_gpus = int(reservation.get("gpu_count", 1))
                 current_status = reservation.get("status", "pending")
+                gpu_type = reservation.get("gpu_type", "h100")
 
-                # Check if this reservation can be allocated now
-                if available_gpus >= requested_gpus:
+                # Check if this reservation can be allocated now - validate GPU type availability
+                type_available_gpus = check_gpu_availability(gpu_type)
+                if type_available_gpus >= requested_gpus:
                     logger.info(
-                        f"Allocating {requested_gpus} GPUs for reservation {reservation_id}"
+                        f"Allocating {requested_gpus} {gpu_type.upper()} GPUs for reservation {reservation_id} - {type_available_gpus} available"
                     )
 
                     # Update status to preparing
                     update_reservation_status(
                         reservation_id,
                         "preparing",
-                        "GPUs available - preparing environment",
+                        f"Found {type_available_gpus} available {gpu_type.upper()} GPUs - preparing environment",
                     )
 
                     # Try to create the actual resources
@@ -4308,7 +4330,6 @@ def process_scheduled_queue_management():
                         if (
                             allocation_success is not False
                         ):  # None or True means success
-                            available_gpus -= requested_gpus  # Reduce available count
                             allocated_count += 1
                             logger.info(
                                 f"Successfully allocated resources for reservation {reservation_id}"
@@ -4332,42 +4353,57 @@ def process_scheduled_queue_management():
                             f"Allocation error: {str(alloc_error)}",
                         )
                 else:
-                    # Update queue position and ETA for waiting reservations
+                    # Update queue position and ETA for waiting reservations  
                     queue_position = i + 1
+                    
+                    logger.info(
+                        f"Reservation {reservation_id} queued: needs {requested_gpus} {gpu_type.upper()} GPUs, only {type_available_gpus} available"
+                    )
 
-                    # Calculate estimated wait time using K8s tracker
-                    try:
-                        wait_estimate = gpu_tracker.estimate_wait_time(
-                            requested_gpus, active_reservations
-                        )
-                        estimated_wait_minutes = wait_estimate.get(
-                            "estimated_wait_minutes", 30
-                        )
-                    except Exception as e:
-                        logger.warning(f"Could not calculate wait time: {e}")
-                        estimated_wait_minutes = (
-                            queue_position * 15
-                        )
+                    # Calculate estimated wait time 
+                    if type_available_gpus == 0:
+                        # No GPUs of this type available - infinite wait or contact oncall
+                        estimated_wait_minutes = 999999  # Effectively infinite
+                        logger.warning(f"No {gpu_type.upper()} GPUs available for reservation {reservation_id} - contact oncall:pytorch_release_engineering")
+                    else:
+                        # Some GPUs available, use K8s tracker for normal estimation
+                        try:
+                            wait_estimate = gpu_tracker.estimate_wait_time(
+                                requested_gpus, active_reservations
+                            )
+                            estimated_wait_minutes = wait_estimate.get(
+                                "estimated_wait_minutes", 30
+                            )
+                        except Exception as e:
+                            logger.warning(f"Could not calculate wait time: {e}")
+                            estimated_wait_minutes = (
+                                queue_position * 15
+                            )
 
                     # Update reservation with current queue info
                     update_reservation_with_queue_info(
                         reservation_id,
                         str(queue_position),
                         str(estimated_wait_minutes),
-                        available_gpus,
+                        type_available_gpus,
                     )
 
                     # Update status with human-readable timestamps if needed
                     if current_status == "pending":
+                        if type_available_gpus == 0:
+                            status_message = f"In queue position #{queue_position} - No {gpu_type.upper()} GPUs available, contact oncall:pytorch_release_engineering"
+                        else:
+                            status_message = f"In queue position #{queue_position}"
+                        
                         update_reservation_status(
                             reservation_id,
-                            "queued",
-                            f"In queue position #{queue_position}",
+                            "queued", 
+                            status_message,
                         )
 
                     updated_count += 1
                     logger.info(
-                        f"Updated queue info for reservation {reservation_id}: pos={queue_position}, wait={estimated_wait_minutes}min"
+                        f"Updated queue info for reservation {reservation_id}: pos={queue_position}, wait={estimated_wait_minutes}min, {gpu_type.upper()} available={type_available_gpus}"
                     )
 
                 processed_count += 1
@@ -5055,6 +5091,46 @@ def cleanup_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
         raise
 
 
+def clear_warning_files_from_pod(pod_name: str, namespace: str = "gpu-dev") -> bool:
+    """Clear all warning files from a pod when reservation is extended"""
+    try:
+        from kubernetes import client
+        from kubernetes.stream import stream
+
+        # Set up Kubernetes client
+        k8s_client = setup_kubernetes_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Command to remove all warning files
+        clear_warning_commands = [
+            "/bin/bash",
+            "-c",
+            "rm -f /home/dev/WARN_EXPIRES_IN_*MIN.txt 2>/dev/null || true; echo 'Warning files cleared'"
+        ]
+
+        exec_resp = stream(
+            v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            namespace,
+            command=clear_warning_commands,
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+        )
+
+        if "Warning files cleared" in exec_resp:
+            logger.info(f"Successfully cleared warning files from pod {pod_name}")
+            return True
+        else:
+            logger.warning(f"Unexpected response clearing warning files from pod {pod_name}: {exec_resp}")
+            return False
+
+    except Exception as e:
+        logger.error(f"Error clearing warning files from pod {pod_name}: {str(e)}")
+        return False
+
+
 def process_extend_reservation_action(record: dict[str, Any]) -> bool:
     """Process reservation extension requests"""
     try:
@@ -5124,7 +5200,8 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
                 update_expression += ", duration_hours = :new_duration"
                 expression_values[":new_duration"] = Decimal(str(new_duration))
 
-            update_expression += " REMOVE extension_error"
+            # Clear warning state when extending reservation
+            update_expression += " REMOVE extension_error, warnings_sent, last_warning_time"
 
             reservations_table.update_item(
                 Key={"reservation_id": full_reservation_id},
@@ -5133,7 +5210,23 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
             )
 
             logger.info(f"Successfully extended reservation {full_reservation_id} by {extension_hours} hours")
-            
+
+            # Clear warning files from pod if reservation is active
+            if current_status == "active":
+                try:
+                    pod_name = reservation.get("pod_name")
+                    namespace = reservation.get("namespace", "gpu-dev")
+
+                    if pod_name:
+                        logger.info(f"Clearing warning files from pod {pod_name}")
+                        clear_warning_files_from_pod(pod_name, namespace)
+                        logger.info(f"Warning files cleared from pod {pod_name}")
+                    else:
+                        logger.warning(f"No pod name found for reservation {full_reservation_id}")
+
+                except Exception as clear_error:
+                    logger.warning(f"Could not clear warning files from pod: {clear_error}")
+
             # Add successful extension to status history
             try:
                 current_time = datetime.utcnow().isoformat()
@@ -5141,7 +5234,7 @@ def process_extend_reservation_action(record: dict[str, Any]) -> bool:
                 append_status_history(full_reservation_id, current_time, extension_message)
             except Exception as history_error:
                 logger.warning(f"Could not add extension to status history: {history_error}")
-            
+
             return True
 
         except Exception as update_error:

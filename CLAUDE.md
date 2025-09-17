@@ -90,21 +90,25 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **Expiry System**: Timestamp-based expiration tracking with historical records (TTL disabled)
 - **DynamoDB**: Reservations kept as historical records, not auto-deleted
 - **SSORole + instructions for that** - Implement SSO role authentication and provide setup instructions
+- **Rename G6 to L4** - Update G6 references to L4 (similar to T4 GPU type naming)
+- **Add network drive (EFS)** - Implement 20TB EFS shared storage mounted at /shared with user folders
 
 ### 📋 Remaining Tasks
 
-- **Rename G6 to L4** - Update G6 references to L4 (similar to T4 GPU type naming)
+- **FQDN for devservers** - Set up proper domain names for development server access
+- automated ssh connection (similar to dev connect)
+- **Custom Docker image scaffold** - Create Dockerfile with pre-installed packages (Jupyter, etc.)
+- **Add Docker CI image run** - allow user to specify gpu-dev ci-debug <testurl> that downloads that docker-image and goes for it
+- **Increase /dev/shm for NCCL** - Bump /dev/shm space from 64MB for NCCL requirements (https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/troubleshooting.html#docker)
+
 - **Make gpu-type case agnostic** - Allow case-insensitive GPU type parameters (e.g., h100, H100, HuNdred should all work)
 - **Error on non-existing GPU type** - Error out if people ask for a non-existing GPU type
 - **Error on too many GPUs** - Error out if people ask for more GPUs than available in node (8 for H100/B200, 4 for T4, etc.)
-- **Increase /dev/shm for NCCL** - Bump /dev/shm space from 64MB for NCCL requirements (https://docs.nvidia.com/deeplearning/nccl/user-guide/docs/troubleshooting.html#docker)
 - **Fix GPU SKU validation** - Add proper error handling for non-existing/unavailable GPU types (e.g., user requesting A100 when only T4 available should get immediate error, not pending pod that will never schedule)
 - **Set HuggingFace cache location** - Set HF_HOME or XDG_CACHE_HOME to /tmp or /workspace so HuggingFace doesn't fill up user home directories with model downloads
-- **Add network drive (EFS)** - Implement 20TB EFS shared storage mounted at /shared with user folders
 - **Add verbose CLI output** - More detailed status and progress information for debugging
 - **Interactive CLI for cancel/edit** - Make `gpu-dev cancel` and `gpu-dev edit` interactive when no reservation ID specified - show list with up/down arrow selection
 - **Default reservation edit/cancel** - Auto-select reservation if user only has one active
-- **Custom Docker image scaffold** - Create Dockerfile with pre-installed packages (Jupyter, etc.)
 - **Add a command gpu-dev availability** that shows how many gpus of each type are available to reserve at the moment, and if 0, what the estimated queue time is
 - **Production deployment** - Switch to p5.48xlarge instances when ready
 - **Investigate NFS** - Research NFS integration for shared storage across pods
@@ -115,10 +119,9 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **Validate if expiration works as expected** - Test and verify pod cleanup and reservation expiry process
 - **Simplify code + clean up** - Refactor and clean up codebase for maintainability
 - **Add Docker** - Install and configure Docker in development containers - maybe --docker at reserve, which will use dind if possible to the container (to investigate how feasible)
-- **Add Docker CI image run** - allow user to specify gpu-dev ci-debug <testurl> that downloads that docker-image and goes for it
 - **Add ghstack** - Install ghstack tool for GitHub stack management
 - **Improve debugging and observability** - Add better CLI feedback for pod status, container logs, and error details. Current debugging experience is poor - users need kubectl/aws cli knowledge to debug issues. CLI should show:
-  - Real-time pod startup logs during `gpu-dev reserve` 
+  - Real-time pod startup logs during `gpu-dev reserve`
   - Container error messages when pods fail
   - Image pull status and errors
   - Resource allocation details
@@ -126,7 +129,6 @@ Currently we're working on a developer servers with GPUs in AWS. This means we'l
 - **Add CloudWatch logs for pods** - Store pod logs in CloudWatch for better debugging and monitoring
 - **Add tests for everything** - Implement comprehensive test suite for all components
 - **Investigate multi node communication** - Research inter-node networking for multi-GPU setups
-- **FQDN for devservers** - Set up proper domain names for development server access
 - **Switch between H100/B200 GPU types** - Add `--gpu-type=b200` CLI option with separate queues per GPU type
 - **GPU queue status command** - Add status command to show queue length per GPU type (eg, `gpu-dev queue-status`)
 - **Jupyter notebook integration** - Add `--jupyter` flag to enable Jupyter notebook and TensorBoard access

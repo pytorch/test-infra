@@ -114,77 +114,8 @@ resource "kubernetes_role_binding" "gpu_dev_role_binding" {
   }
 }
 
-# NVIDIA Device Plugin to expose GPU resources to Kubernetes
-resource "kubernetes_daemonset" "nvidia_device_plugin" {
-  depends_on = [
-    aws_eks_cluster.gpu_dev_cluster,
-    aws_autoscaling_group.gpu_dev_nodes
-  ]
-
-  metadata {
-    name      = "nvidia-device-plugin-daemonset"
-    namespace = "kube-system"
-  }
-
-  spec {
-    selector {
-      match_labels = {
-        name = "nvidia-device-plugin-ds"
-      }
-    }
-
-    template {
-      metadata {
-        labels = {
-          name = "nvidia-device-plugin-ds"
-        }
-      }
-
-      spec {
-        priority_class_name = "system-node-critical"
-
-        toleration {
-          key      = "nvidia.com/gpu"
-          operator = "Exists"
-          effect   = "NoSchedule"
-        }
-
-        node_selector = {
-          "kubernetes.io/arch" = "amd64"
-        }
-
-        container {
-          image = "nvcr.io/nvidia/k8s-device-plugin:v0.14.5"
-          name  = "nvidia-device-plugin-ctr"
-
-          env {
-            name  = "FAIL_ON_INIT_ERROR"
-            value = "false"
-          }
-
-          security_context {
-            allow_privilege_escalation = false
-            capabilities {
-              drop = ["ALL"]
-            }
-          }
-
-          volume_mount {
-            name       = "device-plugin"
-            mount_path = "/var/lib/kubelet/device-plugins"
-          }
-        }
-
-        volume {
-          name = "device-plugin"
-          host_path {
-            path = "/var/lib/kubelet/device-plugins"
-          }
-        }
-      }
-    }
-  }
-}
+# NVIDIA Device Plugin is now managed by gpu-operator (see helm_release.nvidia_gpu_operator)
+# Removed the manual kubernetes_daemonset to avoid conflicts
 
 # AWS EFA Device Plugin to expose EFA resources to Kubernetes
 resource "kubernetes_service_account" "efa_device_plugin_sa" {
@@ -314,7 +245,7 @@ resource "helm_release" "nvidia_gpu_operator" {
   name       = "gpu-operator"
   repository = "https://helm.ngc.nvidia.com/nvidia"
   chart      = "gpu-operator"
-  version    = "v25.3.0"
+  version    = "v25.3.3"
   namespace  = "gpu-operator"
   create_namespace = true
 
@@ -322,16 +253,18 @@ resource "helm_release" "nvidia_gpu_operator" {
   wait = true
   timeout = 600
 
-  # Key configuration values
   set {
     name  = "operator.defaultRuntime"
     value = "containerd"
   }
 
+  # Disable driver installation - drivers pre-installed on host via user-data
   set {
     name  = "driver.enabled"
-    value = "true"
+    value = "false"
   }
+
+  # Driver installation disabled - using host-installed drivers
 
   set {
     name  = "toolkit.enabled"
@@ -363,6 +296,12 @@ resource "helm_release" "nvidia_gpu_operator" {
     value = "mixed"
   }
 
+  # Configure MIG to expose full GPUs by default (not partitioned)
+  set {
+    name  = "migManager.config.default"
+    value = "all-disabled"
+  }
+
   set {
     name  = "nodeStatusExporter.enabled"
     value = "true"
@@ -382,5 +321,54 @@ resource "helm_release" "nvidia_gpu_operator" {
   set {
     name  = "operator.tolerations[0].effect"
     value = "NoSchedule"
+  }
+
+  # Tolerations for CPU-only nodes
+  set {
+    name  = "operator.tolerations[1].key"
+    value = "node-role"
+  }
+
+  set {
+    name  = "operator.tolerations[1].operator"
+    value = "Equal"
+  }
+
+  set {
+    name  = "operator.tolerations[1].value"
+    value = "cpu-only"
+  }
+
+  set {
+    name  = "operator.tolerations[1].effect"
+    value = "NoSchedule"
+  }
+
+  # Prefer CPU management nodes for GPU operator control plane components
+  set {
+    name  = "operator.nodeSelector.NodeType"
+    value = "cpu"
+  }
+
+  # Runtime class configuration - toolkit uses default runtime, others use nvidia
+  set {
+    name  = "toolkit.runtimeClass"
+    value = ""
+  }
+
+  # Other components can use nvidia runtime once it's configured by container toolkit
+  set {
+    name  = "devicePlugin.runtimeClass"
+    value = "nvidia"
+  }
+
+  set {
+    name  = "dcgmExporter.runtimeClass"
+    value = "nvidia"
+  }
+
+  set {
+    name  = "gfd.runtimeClass"
+    value = "nvidia"
   }
 }

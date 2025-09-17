@@ -1661,6 +1661,111 @@ def _show_availability() -> None:
         rprint(f"[red]❌ Error: {str(e)}[/red]")
 
 
+def _show_availability_watch(interval: int) -> None:
+    """Watch mode for GPU availability with auto-refresh"""
+    import time
+    from datetime import datetime
+    from rich.console import Group
+    from rich.panel import Panel
+
+    try:
+        config = load_config()
+        # Authenticate once at the start
+        try:
+            user_info = authenticate_user(config)
+            reservation_mgr = ReservationManager(config)
+        except RuntimeError as e:
+            rprint(f"[red]❌ {str(e)}[/red]")
+            return
+
+        # Use Live display to avoid flickering
+        with Live(console=console, refresh_per_second=4) as live:
+            while True:
+                try:
+                    # Get current timestamp
+                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+                    # Get availability data
+                    availability_info = reservation_mgr.get_gpu_availability_by_type()
+
+                    if availability_info:
+                        table = Table(title="GPU Availability by Type")
+                        table.add_column("GPU Type", style="cyan")
+                        table.add_column("Available", style="green")
+                        table.add_column("Total", style="blue")
+                        table.add_column("Queue Length", style="yellow")
+                        table.add_column("Est. Wait Time", style="magenta")
+
+                        for gpu_type, info in availability_info.items():
+                            available = info.get("available", 0)
+                            total = info.get("total", 0)
+                            queue_length = info.get("queue_length", 0)
+                            est_wait = info.get("estimated_wait_minutes", 0)
+
+                            # Format wait time
+                            if available > 0:
+                                wait_display = "Available now"
+                            elif est_wait == 0:
+                                wait_display = "Unknown"
+                            elif est_wait < 60:
+                                wait_display = f"{int(est_wait)}min"
+                            else:
+                                hours = int(est_wait // 60)
+                                minutes = int(est_wait % 60)
+                                if minutes == 0:
+                                    wait_display = f"{hours}h"
+                                else:
+                                    wait_display = f"{hours}h {minutes}min"
+
+                            # Color code availability
+                            if available > 0:
+                                available_display = f"[green]{available}[/green]"
+                            else:
+                                available_display = f"[red]{available}[/red]"
+
+                            table.add_row(
+                                gpu_type.upper(),
+                                available_display,
+                                str(total),
+                                str(queue_length),
+                                wait_display,
+                            )
+
+                        # Create display with header, table, and footer
+                        header = f"[dim]🕒 Last updated: {current_time} (refreshing every {interval}s) • Press Ctrl+C to exit[/dim]"
+                        footer = f"[dim]💡 Use 'gpu-dev reserve --gpu-type <type>' to reserve GPUs of a specific type[/dim]"
+                        display_group = Group(header, "", table, "", footer)
+                        live.update(display_group)
+                    else:
+                        # Show error message
+                        error_msg = f"[red]❌ Could not get GPU availability information[/red]"
+                        retry_msg = f"[dim]🔄 Retrying in {interval} seconds...[/dim]"
+                        header = f"[dim]🕒 Last updated: {current_time} (refreshing every {interval}s) • Press Ctrl+C to exit[/dim]"
+                        display_group = Group(header, "", error_msg, retry_msg)
+                        live.update(display_group)
+
+                    # Wait for next refresh
+                    time.sleep(interval)
+
+                except KeyboardInterrupt:
+                    live.stop()
+                    rprint("\n[yellow]👋 Exiting watch mode...[/yellow]")
+                    break
+                except Exception as e:
+                    error_msg = f"[red]❌ Error during refresh: {str(e)}[/red]"
+                    retry_msg = f"[dim]🔄 Retrying in {interval} seconds...[/dim]"
+                    current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    header = f"[dim]🕒 Last updated: {current_time} (refreshing every {interval}s) • Press Ctrl+C to exit[/dim]"
+                    display_group = Group(header, "", error_msg, retry_msg)
+                    live.update(display_group)
+                    time.sleep(interval)
+
+    except KeyboardInterrupt:
+        rprint("\n[yellow]👋 Exiting watch mode...[/yellow]")
+    except Exception as e:
+        rprint(f"[red]❌ Error in watch mode: {str(e)}[/red]")
+
+
 @main.command()
 @click.pass_context
 def help(ctx: click.Context) -> None:
@@ -1677,8 +1782,18 @@ def help(ctx: click.Context) -> None:
 
 
 @main.command(name="avail")
+@click.option(
+    "--watch",
+    is_flag=True,
+    help="Watch mode - refresh availability every 5 seconds",
+)
+@click.option(
+    "--interval",
+    default=5,
+    help="Refresh interval in seconds for watch mode (default: 5)",
+)
 @click.pass_context
-def avail(ctx: click.Context) -> None:
+def avail(ctx: click.Context, watch: bool, interval: int) -> None:
     """Show GPU availability by type and queue estimates
 
     Displays real-time information about GPU availability for each GPU type.
@@ -1692,10 +1807,15 @@ def avail(ctx: click.Context) -> None:
     \b
     Examples:
         gpu-dev avail                           # Show availability for all GPU types
+        gpu-dev avail --watch                   # Watch mode with 5s refresh
+        gpu-dev avail --watch --interval 10     # Watch mode with 10s refresh
 
     This helps you choose the right GPU type and understand wait times before reserving.
     """
-    _show_availability()
+    if watch:
+        _show_availability_watch(interval)
+    else:
+        _show_availability()
 
 
 @main.command()

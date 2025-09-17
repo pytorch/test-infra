@@ -100,10 +100,10 @@ resource "aws_eks_cluster" "gpu_dev_cluster" {
   role_arn = aws_iam_role.eks_cluster_role.arn
 
   vpc_config {
-    subnet_ids = [
+    subnet_ids = concat([
       aws_subnet.gpu_dev_subnet.id,
       aws_subnet.gpu_dev_subnet_secondary.id
-    ]
+    ], length(aws_subnet.gpu_dev_subnet_tertiary) > 0 ? [aws_subnet.gpu_dev_subnet_tertiary[0].id] : [])
     security_group_ids = [aws_security_group.eks_control_plane_sg.id]
   }
 
@@ -143,17 +143,42 @@ resource "aws_eks_addon" "ebs_csi_driver" {
   }
 }
 
+locals {
+  # Flatten capacity reservations to create multiple ASGs when needed
+  gpu_capacity_reservations = flatten([
+    for gpu_type, gpu_config in local.current_config.supported_gpu_types : [
+      for cr_index, cr_config in try(local.capacity_reservations[terraform.workspace][gpu_type], [null]) : {
+        gpu_type = gpu_type
+        gpu_config = gpu_config
+        capacity_reservation_id = cr_config != null ? cr_config.id : null
+        asg_key = cr_config != null ? "${gpu_type}-cr${cr_index}" : gpu_type
+        # Use manual instance count from capacity reservation config, fallback to GPU config default
+        instance_count = cr_config != null ? cr_config.instance_count : gpu_config.instance_count
+      }
+    ]
+  ])
 
-# Auto Scaling Groups - one per GPU type
+  # Convert to map for for_each
+  gpu_asg_configs = {
+    for item in local.gpu_capacity_reservations : item.asg_key => item
+  }
+}
+
+# Auto Scaling Groups - one per GPU type + capacity reservation combination
 resource "aws_autoscaling_group" "gpu_dev_nodes" {
-  for_each = local.current_config.supported_gpu_types
+  for_each = local.gpu_asg_configs
 
   name                      = "${var.prefix}-gpu-nodes-${each.key}"
-  vpc_zone_identifier       = local.gpu_subnet_assignments[terraform.workspace][each.key] == "secondary" ? [aws_subnet.gpu_dev_subnet_secondary.id] : [aws_subnet.gpu_dev_subnet.id]
+  vpc_zone_identifier       = (
+    local.gpu_subnet_assignments[terraform.workspace][each.value.gpu_type] == "secondary" ? [aws_subnet.gpu_dev_subnet_secondary.id] :
+    local.gpu_subnet_assignments[terraform.workspace][each.value.gpu_type] == "tertiary" && length(aws_subnet.gpu_dev_subnet_tertiary) > 0 ? [aws_subnet.gpu_dev_subnet_tertiary[0].id] :
+    [aws_subnet.gpu_dev_subnet.id]
+  )
   target_group_arns         = []
   health_check_type         = "EC2"
   health_check_grace_period = 300
 
+  # Use dynamic instance count from capacity reservation
   min_size         = each.value.instance_count
   max_size         = each.value.instance_count
   desired_capacity = each.value.instance_count
@@ -162,8 +187,9 @@ resource "aws_autoscaling_group" "gpu_dev_nodes" {
   wait_for_capacity_timeout = "0"
 
   # Use mixed instances policy for multiple instance types (like H200)
+  # But NOT when using capacity reservations (AWS doesn't allow mixed instances with CR)
   dynamic "mixed_instances_policy" {
-    for_each = each.value.instance_types != null ? [1] : []
+    for_each = each.value.gpu_config.instance_types != null && each.value.capacity_reservation_id == null ? [1] : []
     content {
       launch_template {
         launch_template_specification {
@@ -173,7 +199,7 @@ resource "aws_autoscaling_group" "gpu_dev_nodes" {
 
         # Allow both p5e.48xlarge and p5en.48xlarge for H200
         dynamic "override" {
-          for_each = each.value.instance_types
+          for_each = each.value.gpu_config.instance_types
           content {
             instance_type = override.value
           }
@@ -182,9 +208,10 @@ resource "aws_autoscaling_group" "gpu_dev_nodes" {
     }
   }
 
-  # Use single launch template for single instance types
+  # Use single launch template for single instance types OR when using capacity reservations
+  # (capacity reservations don't support mixed instances policy)
   dynamic "launch_template" {
-    for_each = each.value.instance_types == null ? [1] : []
+    for_each = each.value.gpu_config.instance_types == null || each.value.capacity_reservation_id != null ? [1] : []
     content {
       id      = aws_launch_template.gpu_dev_launch_template[each.key].id
       version = "$Latest"
@@ -219,27 +246,35 @@ resource "aws_autoscaling_group" "gpu_dev_nodes" {
 
   tag {
     key                 = "GpuType"
-    value               = each.key
+    value               = each.value.gpu_type
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "CapacityReservation"
+    value               = each.value.capacity_reservation_id != null ? each.value.capacity_reservation_id : "none"
     propagate_at_launch = true
   }
 }
 
-# Launch templates - one per GPU type
+
+# Launch templates - one per GPU type + capacity reservation combination
 resource "aws_launch_template" "gpu_dev_launch_template" {
-  for_each = local.current_config.supported_gpu_types
+  for_each = local.gpu_asg_configs
 
   name_prefix = "${var.prefix}-gpu-${each.key}-"
   image_id    = data.aws_ami.eks_gpu_ami.id
   key_name    = var.key_pair_name
 
-  # Only set instance_type if not using mixed instances policy
-  instance_type = each.value.instance_types == null ? each.value.instance_type : null
+  # Set instance_type if not using mixed instances policy OR if using capacity reservations
+  # (capacity reservations require single instance type in launch template)
+  instance_type = each.value.gpu_config.instance_types == null || each.value.capacity_reservation_id != null ? each.value.gpu_config.instance_type : null
 
   iam_instance_profile {
     name = aws_iam_instance_profile.eks_node_instance_profile.name
   }
 
-  # Block device mapping for 4TB root volume
+  # Block device mapping for 4TB root volume (Amazon Linux 2023 uses /dev/xvda as root)
   block_device_mappings {
     device_name = "/dev/xvda"
     ebs {
@@ -253,9 +288,9 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   # Only use placement group if specified
   # NOTE: This is key for instances where we are using capacity blocks / reservations
   dynamic "placement" {
-    for_each = each.value.use_placement_group ? [1] : []
+    for_each = each.value.gpu_config.use_placement_group ? [1] : []
     content {
-      group_name = aws_placement_group.gpu_dev_pg[each.key].name
+      group_name = aws_placement_group.gpu_dev_pg[each.value.gpu_type].name
     }
   }
 
@@ -263,15 +298,15 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
   network_interfaces {
     associate_public_ip_address = true
     security_groups             = [aws_security_group.gpu_dev_sg.id]
-    subnet_id                   = each.value.use_placement_group ? null : (local.gpu_subnet_assignments[terraform.workspace][each.key] == "secondary" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
+    subnet_id                   = each.value.gpu_config.use_placement_group ? null : (local.gpu_subnet_assignments[terraform.workspace][each.value.gpu_type] == "secondary" ? aws_subnet.gpu_dev_subnet_secondary.id : aws_subnet.gpu_dev_subnet.id)
     # EFA is not supported on g4dn.2xlarge (t4-small), only on larger instances
-    interface_type              = each.key == "t4-small" ? "interface" : "efa"
+    interface_type              = each.value.gpu_type == "t4-small" ? "interface" : "efa"
     delete_on_termination       = true
   }
 
   # Conditionally add instance_market_options for capacity block instances (only when capacity reservation exists)
   dynamic "instance_market_options" {
-    for_each = lookup(local.capacity_reservations[terraform.workspace], each.key, null) != null ? [1] : []
+    for_each = each.value.capacity_reservation_id != null ? [1] : []
     content {
       market_type = "capacity-block"
     }
@@ -279,37 +314,39 @@ resource "aws_launch_template" "gpu_dev_launch_template" {
 
   # Add capacity reservation specification for instances that have reservations configured
   dynamic "capacity_reservation_specification" {
-    for_each = lookup(local.capacity_reservations[terraform.workspace], each.key, null) != null ? [1] : []
+    for_each = each.value.capacity_reservation_id != null ? [1] : []
     content {
       capacity_reservation_preference = "capacity-reservations-only"
       capacity_reservation_target {
-        capacity_reservation_id = local.capacity_reservations[terraform.workspace][each.key]
+        capacity_reservation_id = each.value.capacity_reservation_id
       }
     }
   }
 
-  user_data = base64encode(templatefile("${path.module}/templates/user-data-self-managed.sh", {
+  user_data = base64encode(templatefile("${path.module}/templates/al2023-user-data.sh", {
     cluster_name     = aws_eks_cluster.gpu_dev_cluster.name
     cluster_endpoint = aws_eks_cluster.gpu_dev_cluster.endpoint
     cluster_ca       = aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data
     cluster_cidr     = var.vpc_cidr
     region           = local.current_config.aws_region
-    gpu_type         = each.key
+    gpu_type         = each.value.gpu_type
   }))
 
   tag_specifications {
     resource_type = "instance"
     tags = {
-      Name        = "${var.prefix}-gpu-instance-${each.key}"
-      Environment = local.current_config.environment
-      GpuType     = each.key
+      Name               = "${var.prefix}-gpu-instance-${each.key}"
+      Environment        = local.current_config.environment
+      GpuType           = each.value.gpu_type
+      CapacityReservation = each.value.capacity_reservation_id != null ? each.value.capacity_reservation_id : "none"
     }
   }
 
   tags = {
-    Name        = "${var.prefix}-gpu-launch-template-${each.key}"
-    Environment = local.current_config.environment
-    GpuType     = each.key
+    Name               = "${var.prefix}-gpu-launch-template-${each.key}"
+    Environment        = local.current_config.environment
+    GpuType           = each.value.gpu_type
+    CapacityReservation = each.value.capacity_reservation_id != null ? each.value.capacity_reservation_id : "none"
   }
 }
 
@@ -324,6 +361,7 @@ resource "aws_iam_instance_profile" "eks_node_instance_profile" {
   }
 }
 
+
 # Using only Auto Scaling Groups for GPU nodes
 
 # Get the latest EKS-optimized AL2023 GPU AMI for the cluster version
@@ -333,11 +371,120 @@ data "aws_ami" "eks_gpu_ami" {
 
   filter {
     name   = "name"
-    values = ["amazon-eks-node-al2023-x86_64-nvidia-1.33-*"]
+    values = ["amazon-eks-node-al2023-x86_64-standard-1.33-*"]
   }
 
   filter {
     name   = "architecture"
     values = ["x86_64"]
+  }
+}
+
+# Deep Learning Base AMI for high-end GPU instances (H100, H200, B200) - has proper IPv6 networking
+data "aws_ami" "deep_learning_gpu_ami" {
+  most_recent = true
+  owners      = ["amazon"]
+
+  filter {
+    name   = "name"
+    values = ["Deep Learning Base OSS Nvidia Driver GPU AMI (Ubuntu 24.04) *"]
+  }
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
+# CPU Launch template and Auto Scaling Group (consistent with GPU nodes)
+resource "aws_launch_template" "cpu_launch_template" {
+  name_prefix = "${var.prefix}-cpu-"
+  image_id    = data.aws_ami.eks_gpu_ami.id
+  key_name    = var.key_pair_name
+  instance_type = "m5.large"
+
+  vpc_security_group_ids = [aws_security_group.gpu_dev_sg.id]
+
+  iam_instance_profile {
+    name = aws_iam_instance_profile.eks_node_instance_profile.name
+  }
+
+  user_data = base64encode(templatefile("${path.module}/templates/al2023-cpu-user-data.sh", {
+    cluster_name     = aws_eks_cluster.gpu_dev_cluster.name
+    cluster_endpoint = aws_eks_cluster.gpu_dev_cluster.endpoint
+    cluster_ca       = aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data
+    cluster_cidr     = var.vpc_cidr
+    region           = local.current_config.aws_region
+    gpu_type         = "cpu"
+  }))
+
+  tag_specifications {
+    resource_type = "instance"
+    tags = {
+      Name        = "${var.prefix}-cpu-mgmt-node"
+      Environment = local.current_config.environment
+      NodeType    = "cpu-management"
+    }
+  }
+
+  tags = {
+    Name        = "${var.prefix}-cpu-launch-template"
+    Environment = local.current_config.environment
+  }
+}
+
+resource "aws_autoscaling_group" "cpu_nodes" {
+  name                = "${var.prefix}-cpu-nodes"
+  vpc_zone_identifier = [aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id]
+  target_group_arns   = []
+  health_check_type   = "EC2"
+  health_check_grace_period = 300
+
+  min_size         = 1
+  max_size         = 4
+  desired_capacity = 2
+
+  launch_template {
+    id      = aws_launch_template.cpu_launch_template.id
+    version = "$Latest"
+  }
+
+  # Fast instance replacement
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 0
+    }
+  }
+
+  tag {
+    key                 = "Name"
+    value               = "${var.prefix}-cpu-mgmt-node"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "kubernetes.io/cluster/${aws_eks_cluster.gpu_dev_cluster.name}"
+    value               = "owned"
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "Environment"
+    value               = local.current_config.environment
+    propagate_at_launch = true
+  }
+
+  tag {
+    key                 = "NodeType"
+    value               = "cpu-management"
+    propagate_at_launch = true
   }
 }

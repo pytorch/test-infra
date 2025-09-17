@@ -67,6 +67,13 @@ locals {
       use_self_managed_nodes = true
       instance_type = "g4dn.12xlarge"
       supported_gpu_types = {
+        "h200" = {
+          instance_type       = "p5en.48xlarge"  # H200 available in us-west-1
+          instance_types      = ["p5en.48xlarge"]
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = false
+        }
         "h100" = {
           instance_type       = "p5.48xlarge"
           instance_types      = null
@@ -105,7 +112,7 @@ locals {
           use_placement_group = false
         }
         "h200" = {
-          instance_type       = "p5e.48xlarge"
+          instance_type       = "p5e.48xlarge"   # Match capacity reservation type
           instance_types      = ["p5e.48xlarge", "p5en.48xlarge"]
           instance_count      = 2
           gpus_per_instance   = 8
@@ -146,23 +153,41 @@ locals {
   # Current workspace configuration
   current_config = local.workspace_configs[terraform.workspace]
 
-  # Workspace-specific capacity reservations
+  # Workspace-specific capacity reservations (with manual instance counts)
   capacity_reservations = {
     default = {
-      # Test environment capacity reservations - 2x H100 in us-west-1c
-      h100 = "cr-09f598e08ec509a0f"
+      # Test environment capacity reservations
+      # h100 = [
+      #   { id = "cr-09f598e08ec509a0f", instance_count = 2 }  # Expired - commented out
+      # ]
+      # h200 = [
+      #   { id = "cr-0c0a6073304dd5d03", instance_count = 1 }  # Expired - commented out
+      # ]
     }
     prod = {
       # Production environment capacity reservations
-      h100 = "cr-003773252aa2ea59a"
-      b200 = "cr-0e2d0247fafbd380a"
+      a100 = [
+        { id = "cr-01cc0f00f28b095af", instance_count = 1 }   # A100 reservation (1 instance)
+      ]
+      h100 = [
+        # cr-003773252aa2ea59a expired and removed
+      ]
+      h200 = [
+        { id = "cr-0f6d0766f5d3339e6", instance_count = 2 }   # H200 reservation us-east-2c (p5e.48xlarge)
+      ]
+      b200 = [
+        # cr-0e2d0247fafbd380a expired and removed
+        { id = "cr-031d8bb5684158555", instance_count = 1 },  # B200 reservation (1 instance)
+        { id = "cr-08086480a68cd29ec", instance_count = 3 }   # Newest B200 reservation us-east-2b (3 nodes)
+      ]
     }
   }
 
   # Workspace-specific GPU type to subnet mappings
   gpu_subnet_assignments = {
     default = {
-      # Test environment - H100 in us-west-1c (secondary subnet)
+      # Test environment - H200 and H100 in us-west-1c (secondary subnet)
+      h200 = "secondary"
       h100 = "secondary"
       t4 = "primary"
       "t4-small" = "secondary"
@@ -170,7 +195,7 @@ locals {
     prod = {
       # Production environment subnet assignments
       b200 = "secondary"
-      h200 = "primary"
+      h200 = "tertiary"  # us-east-2c for H200 capacity reservation
       h100 = "primary"
       a100 = "primary"
       t4 = "primary"
@@ -220,12 +245,28 @@ resource "aws_subnet" "gpu_dev_subnet" {
 # Secondary subnet for EKS control plane (different AZ)
 resource "aws_subnet" "gpu_dev_subnet_secondary" {
   vpc_id                  = aws_vpc.gpu_dev_vpc.id
-  cidr_block              = "10.0.4.0/24"
+  cidr_block              = "10.0.16.0/20"
   availability_zone       = data.aws_availability_zones.available.names[1] # us-east-2b for control plane diversity
   map_public_ip_on_launch = true
 
   tags = {
     Name                                          = "${var.prefix}-gpu-dev-subnet-secondary"
+    Environment                                   = local.current_config.environment
+    "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
+    "kubernetes.io/role/elb"                      = "1"
+  }
+}
+
+# Tertiary subnet for H200 capacity reservation (us-east-2c) - only if 3rd AZ exists
+resource "aws_subnet" "gpu_dev_subnet_tertiary" {
+  count                   = length(data.aws_availability_zones.available.names) >= 3 ? 1 : 0
+  vpc_id                  = aws_vpc.gpu_dev_vpc.id
+  cidr_block              = "10.0.32.0/20"
+  availability_zone       = data.aws_availability_zones.available.names[2] # us-east-2c for H200 capacity reservation
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                          = "${var.prefix}-gpu-dev-subnet-tertiary"
     Environment                                   = local.current_config.environment
     "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
     "kubernetes.io/role/elb"                      = "1"
@@ -254,6 +295,12 @@ resource "aws_route_table_association" "gpu_dev_rta" {
 
 resource "aws_route_table_association" "gpu_dev_rta_secondary" {
   subnet_id      = aws_subnet.gpu_dev_subnet_secondary.id
+  route_table_id = aws_route_table.gpu_dev_rt.id
+}
+
+resource "aws_route_table_association" "gpu_dev_rta_tertiary" {
+  count          = length(aws_subnet.gpu_dev_subnet_tertiary)
+  subnet_id      = aws_subnet.gpu_dev_subnet_tertiary[0].id
   route_table_id = aws_route_table.gpu_dev_rt.id
 }
 

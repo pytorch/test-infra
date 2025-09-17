@@ -27,7 +27,7 @@ variable "vpc_cidr" {
 variable "subnet_cidr" {
   description = "CIDR block for subnet"
   type        = string
-  default     = "10.0.0.0/22"  # Expanded from /24 to /22 (1024 IPs instead of 256)
+  default     = "10.0.0.0/20"  # Expanded to /20 (4096 IPs for future-proofing)
 }
 
 variable "gpu_instance_count" {

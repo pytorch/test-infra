@@ -15,12 +15,28 @@ OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
 # Get container info
 CONTAINER_IMAGE="$GPU_DEV_CONTAINER_IMAGE"
 
-# Get CUDA toolkit info
+# Get CUDA toolkit info - show all available versions
 CUDA_INFO="CUDA toolkit unavailable"
 if command -v nvcc >/dev/null 2>&1; then
-    CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([0-9.]*\).*/\1/' 2>/dev/null)
-    if [ -n "$CUDA_VERSION" ]; then
-        CUDA_INFO="CUDA $CUDA_VERSION (nvcc available)"
+    DEFAULT_CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([0-9.]*\).*/\1/' 2>/dev/null)
+    
+    # Find all CUDA installations in /usr/local/
+    CUDA_VERSIONS=""
+    for cuda_dir in /usr/local/cuda-*; do
+        if [ -d "$cuda_dir" ] && [ ! -L "$cuda_dir" ]; then  # Real directory, not symlink
+            version=$(basename "$cuda_dir" | sed 's/cuda-//')
+            if [ -z "$CUDA_VERSIONS" ]; then
+                CUDA_VERSIONS="$version"
+            else
+                CUDA_VERSIONS="$CUDA_VERSIONS, $version"
+            fi
+        fi
+    done
+    
+    if [ -n "$DEFAULT_CUDA_VERSION" ] && [ -n "$CUDA_VERSIONS" ]; then
+        CUDA_INFO="CUDA $DEFAULT_CUDA_VERSION (default), also available: $CUDA_VERSIONS"
+    elif [ -n "$DEFAULT_CUDA_VERSION" ]; then
+        CUDA_INFO="CUDA $DEFAULT_CUDA_VERSION (nvcc available)"
     else
         CUDA_INFO="CUDA toolkit installed (nvcc available)"
     fi

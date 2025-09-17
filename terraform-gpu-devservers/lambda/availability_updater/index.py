@@ -83,30 +83,31 @@ def update_gpu_availability(gpu_type: str, k8s_client=None) -> None:
     try:
         logger.info(f"Starting availability update for GPU type: {gpu_type}")
 
-        # Get current ASG capacity
-        asg_name = f"pytorch-gpu-dev-gpu-nodes-{gpu_type}"
-        logger.info(f"Checking ASG: {asg_name}")
+        # Get current ASG capacity - handle multiple ASGs per GPU type (e.g., capacity reservations)
+        asg_name_prefix = f"pytorch-gpu-dev-gpu-nodes-{gpu_type}"
+        logger.info(f"Checking ASGs matching pattern: {asg_name_prefix}*")
 
-        asg_response = autoscaling.describe_auto_scaling_groups(
-            AutoScalingGroupNames=[asg_name]
-        )
+        # Get all ASGs and filter by name pattern
+        all_asgs_response = autoscaling.describe_auto_scaling_groups()
+        matching_asgs = [
+            asg for asg in all_asgs_response["AutoScalingGroups"]
+            if asg["AutoScalingGroupName"].startswith(asg_name_prefix)
+        ]
 
-        if not asg_response["AutoScalingGroups"]:
-            logger.warning(f"ASG not found: {asg_name}")
+        if not matching_asgs:
+            logger.warning(f"No ASGs found matching pattern: {asg_name_prefix}*")
             return
 
-        logger.info(f"Found ASG {asg_name}, processing capacity info")
+        asg_names = [asg["AutoScalingGroupName"] for asg in matching_asgs]
+        logger.info(f"Found {len(matching_asgs)} ASGs: {asg_names}")
 
-        asg = asg_response["AutoScalingGroups"][0]
-
-        # Calculate availability metrics
-        desired_capacity = asg["DesiredCapacity"]
-        running_instances = len(
-            [
-                instance
-                for instance in asg["Instances"]
+        # Calculate total availability metrics across all matching ASGs
+        desired_capacity = sum(asg["DesiredCapacity"] for asg in matching_asgs)
+        running_instances = sum(
+            len([
+                instance for instance in asg["Instances"]
                 if instance["LifecycleState"] == "InService"
-            ]
+            ]) for asg in matching_asgs
         )
 
         # Get GPU configuration for this type
