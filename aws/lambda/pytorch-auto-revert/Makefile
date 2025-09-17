@@ -23,7 +23,7 @@ run-local: venv/bin/python
 
 .PHONY: run-local-workflows
 run-local-workflows: venv/bin/python
-	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 8 --revert-action dry-run
+	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 8 --revert-action log
 
 deployment.zip:
 	mkdir -p deployment

@@ -6,7 +6,7 @@ from datetime import datetime
 from functools import cached_property
 from typing import List, NewType, Set
 
-from .utils import RestartRevertAction
+from .utils import RestartAction, RevertAction
 
 
 # Default classification rules that indicate test failures.
@@ -33,8 +33,8 @@ TestId = NewType("TestId", str)
 class RunContext:
     lookback_hours: int
     repo_full_name: str
-    restart_action: RestartRevertAction
-    revert_action: RestartRevertAction
+    restart_action: RestartAction
+    revert_action: RevertAction
     ts: datetime
     workflows: List[str]
 

@@ -12,7 +12,7 @@ from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
-from .utils import RestartRevertAction
+from .utils import RestartAction, RevertAction
 
 
 DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
@@ -97,17 +97,21 @@ def get_opts() -> argparse.Namespace:
     )
     workflow_parser.add_argument(
         "--restart-action",
-        type=RestartRevertAction,
-        default=RestartRevertAction.RUN,
-        choices=list(RestartRevertAction),
-        help="What actions to take for restart: Ignore (bypass), run in dry-run mode, or run normally.",
+        type=RestartAction,
+        default=RestartAction.RUN,
+        choices=list(RestartAction),
+        help=(
+            "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
+        ),
     )
     workflow_parser.add_argument(
         "--revert-action",
-        type=RestartRevertAction,
-        default=RestartRevertAction.RUN,
-        choices=list(RestartRevertAction),
-        help="What actions to take for revert: Ignore (bypass), run in dry-run mode, or run normally.",
+        type=RevertAction,
+        default=RevertAction.LOG,
+        choices=list(RevertAction),
+        help=(
+            "Revert mode: skip, log (no side effects), run-notify (side effect), or run-revert (side effect)."
+        ),
     )
 
     # workflow-restart-checker subcommand
@@ -198,10 +202,8 @@ def main(*args, **kwargs) -> None:
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             hours=int(os.environ.get("HOURS", 16)),
             repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
-            restart_action=RestartRevertAction.DRY_RUN
-            if opts.dry_run
-            else RestartRevertAction.RUN,
-            revert_action=RestartRevertAction.DRY_RUN,
+            restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
+            revert_action=RevertAction.LOG,
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
@@ -209,12 +211,8 @@ def main(*args, **kwargs) -> None:
             opts.workflows,
             hours=opts.hours,
             repo_full_name=opts.repo_full_name,
-            restart_action=RestartRevertAction.DRY_RUN
-            if opts.dry_run
-            else opts.restart_action,
-            revert_action=RestartRevertAction.DRY_RUN
-            if opts.dry_run
-            else opts.revert_action,
+            restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
+            revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)

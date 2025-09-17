@@ -6,7 +6,6 @@ from typing import Dict, Iterable, List, Tuple, Union
 from .clickhouse_client_helper import CHCliFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
-from .utils import RestartRevertAction
 
 
 SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
@@ -154,8 +153,9 @@ class RunStateLogger:
                 ctx.repo_full_name,
                 state_json,
                 1
-                if ctx.revert_action != RestartRevertAction.RUN
-                and ctx.restart_action != RestartRevertAction.RUN
+                if not (
+                    ctx.restart_action.side_effects or ctx.revert_action.side_effects
+                )
                 else 0,
                 ctx.workflows,
                 int(ctx.lookback_hours),

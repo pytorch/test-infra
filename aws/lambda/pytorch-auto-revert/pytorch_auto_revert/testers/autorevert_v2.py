@@ -7,7 +7,7 @@ from ..signal import Signal
 from ..signal_actions import SignalActionProcessor, SignalProcOutcome
 from ..signal_extraction import SignalExtractor
 from ..signal_extraction_types import RunContext
-from ..utils import RestartRevertAction
+from ..utils import RestartAction, RevertAction
 
 
 def autorevert_v2(
@@ -15,8 +15,8 @@ def autorevert_v2(
     *,
     hours: int = 24,
     repo_full_name: str = "pytorch/pytorch",
-    restart_action: RestartRevertAction = RestartRevertAction.RUN,
-    revert_action: RestartRevertAction = RestartRevertAction.RUN,
+    restart_action: RestartAction = RestartAction.RUN,
+    revert_action: RevertAction = RevertAction.LOG,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]]]:
     """Run the Signals-based autorevert flow end-to-end.
 
@@ -70,12 +70,6 @@ def autorevert_v2(
     proc = SignalActionProcessor()
     groups = proc.group_actions(pairs)
     logging.info("[v2] Candidate action groups: %d", len(groups))
-
-    # Support toggling specific kinds of actions via flags
-    if revert_action == RestartRevertAction.IGNORE:
-        groups = [g for g in groups if g.type != "revert"]
-    if restart_action == RestartRevertAction.IGNORE:
-        groups = [g for g in groups if g.type != "restart"]
 
     executed_count = sum(1 for g in groups if proc.execute(g, run_ctx))
     logging.info("[v2] Executed action groups: %d", executed_count)

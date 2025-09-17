@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from pytorch_auto_revert.signal_actions import SignalActionProcessor, SignalMetadata
 from pytorch_auto_revert.signal_extraction_types import RunContext
-from pytorch_auto_revert.utils import RestartRevertAction
+from pytorch_auto_revert.utils import RestartAction, RevertAction
 
 
 class FakeLogger:
@@ -16,7 +16,6 @@ class FakeLogger:
         *,
         repo: str,
         commit_sha: str,
-        accept_dry_run: bool,
     ) -> bool:
         return False
 
@@ -27,7 +26,6 @@ class FakeLogger:
         workflow: str,
         commit_sha: str,
         limit: int = 2,
-        accept_dry_run: bool,
     ):
         return list(self._recent)
 
@@ -76,9 +74,9 @@ class TestSignalActionsPacing(unittest.TestCase):
             repo_full_name="pytorch/pytorch",
             workflows=["trunk"],
             lookback_hours=24,
-            # ensures no GH calls are made
-            revert_action=RestartRevertAction.DRY_RUN,
-            restart_action=RestartRevertAction.RUN,
+            # ensures no GH calls are made for revert; restarts do run
+            revert_action=RevertAction.LOG,
+            restart_action=RestartAction.RUN,
         )
 
     def test_skip_cap_when_two_recent(self):
