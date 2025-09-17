@@ -75,7 +75,7 @@ def get_opts() -> argparse.Namespace:
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # autorevert-checker subcommand (new default; legacy behind a flag)
+    # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
         "autorevert-checker",
         help="Analyze workflows for autorevert using Signals (default), or legacy via flag",
