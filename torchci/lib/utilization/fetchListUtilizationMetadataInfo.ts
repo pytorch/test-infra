@@ -35,14 +35,14 @@ export default async function fetchListUtilizationMetadataInfo(
   return {
     workflow_id: params.workflow_id,
     workflow_name: meta_resp[0].workflow_name,
-    metadata_list: meta_resp ? meta_resp : ([] as UtilizationMetadataInfo[]),
+    metadata_list: meta_resp ? meta_resp : [],
   };
 }
 
 async function listUtilizationMetadataInfo(
   workflow_id: string,
   repo: string = UTILIZATION_DEFAULT_REPO
-) {
+): Promise<UtilizationMetadataInfo[]> {
   const response = await queryClickhouseSaved(
     LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME,
     {
@@ -50,7 +50,7 @@ async function listUtilizationMetadataInfo(
       repo: repo,
     }
   );
-  return response;
+  return response as UtilizationMetadataInfo[];
 }
 
 async function listUtilizationMetadataWithStats(

@@ -6,17 +6,17 @@ export async function fetchRecentWorkflows(
   prNumbers: Array<number> = [],
   numMinutes: string = "30"
 ): Promise<RecentWorkflowsData[]> {
-  return await queryClickhouseSaved("recent_pr_workflows_query", {
+  return (await queryClickhouseSaved("recent_pr_workflows_query", {
     numMinutes,
     prNumbers,
     repo,
-  });
+  })) as RecentWorkflowsData[];
 }
 
 export async function fetchFailedJobsFromCommits(
   shas: string[]
 ): Promise<RecentWorkflowsData[]> {
-  return await queryClickhouseSaved("commit_failed_jobs", {
+  return (await queryClickhouseSaved("commit_failed_jobs", {
     shas,
-  });
+  })) as RecentWorkflowsData[];
 }

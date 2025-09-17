@@ -12,7 +12,7 @@ export default async function fetchFlakyTests(
     name: testName,
     suite: testSuite,
     file: testFile,
-  });
+  }) as any;
 }
 
 export async function fetchFlakyTestsAcrossJobs(): Promise<FlakyTestData[]> {
@@ -77,7 +77,7 @@ export async function fetchFlakyTestsAcrossFileReruns(
       if (!workflowJobMap.has(curr.job_id)) {
         return accum;
       }
-      const job_info = workflowJobMap.get(curr.job_id);
+      const job_info = workflowJobMap.get(curr.job_id)!;
       if (val === undefined) {
         accum.set(key, {
           file: curr.file,
