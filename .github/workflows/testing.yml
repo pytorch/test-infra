@@ -16,10 +16,13 @@ jobs:
 
     steps:
       - name: Check who am i
-        run: whoami
+        run: whoami;
 
       - name: Run docker info
         run: docker info
 
       - name: Check contexts
         run: docker context ls
+
+      - name: Print docker config
+        run: cat ~/.docker/config.json
