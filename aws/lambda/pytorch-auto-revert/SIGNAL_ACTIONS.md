@@ -5,7 +5,7 @@ This document specifies the Actions layer that consumes extracted Signals with t
 ## Overview
 
 - Inputs (provided by integration code):
-  - Run parameters: `repo_full_name`, `workflows`, `lookback_hours`, `dry_run`.
+  - Run parameters: `repo_full_name`, `workflows`, `lookback_hours`, `restart_action`, `revert_action`.
   - A list of pairs: `List[Tuple[Signal, SignalProcOutcome]]`, where `SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]`.
 - Decisions: per-signal outcome mapped to a concrete action:
   - `AutorevertPattern` → record a global revert intent for the suspected commit
@@ -22,7 +22,7 @@ Immutable run-scoped metadata shared by all actions in the same run:
 - `repo_full_name`: e.g., `pytorch/pytorch`
 - `workflows`: list of workflow display names
 - `lookback_hours`: window used for extraction
-- `dry_run`: bool
+- `restart_action`, `revert_action`: independent enums controlling behavior
 
 ## Action Semantics
 
@@ -40,9 +40,7 @@ Immutable run-scoped metadata shared by all actions in the same run:
   - Not logged in `autorevert_events_v2` (only actions taken are logged)
 
 - Multiple signals targeting same workflow/commit are coalesced in-memory, then deduped again via ClickHouse checks.
-- Dry-run behavior:
-  - Simulate restarts (no dispatch), log actions with `dry_run=1`
-  - Dry-run rows do not count toward caps/pacing or revert dedup criteria
+- Event `dry_run` is per-action and derived from the mode’s side effects: `dry_run = 1` means “no side effects”.
 
 ## ClickHouse Logging
 
@@ -59,6 +57,7 @@ Two tables, sharing the same `ts` per CLI/lambda run.
   - `source_signal_keys` Array(String) — signal keys that contributed to this action
   - `failed` UInt8 DEFAULT 0 — marks a failed attempt (e.g., restart dispatch failed)
   - `notes` String DEFAULT '' — optional free-form metadata
+  - `dry_run` UInt8 — per-event; 1 means “no side effects” for this logged action
 
 ### `autorevert_state` (separate module)
 
@@ -67,6 +66,9 @@ Two tables, sharing the same `ts` per CLI/lambda run.
   - `ts` DateTime — run timestamp (matches `autorevert_events_v2.ts`)
   - `state` String — JSON-encoded model of the HUD grid and outcomes
   - `params` String DEFAULT '' — optional, free-form
+  - `dry_run` UInt8 — run-level convenience flag; 1 when the run performed no side effects
+
+State JSON `meta` contains: `repo`, `workflows`, `lookback_hours`, `ts`, `restart_action`, `revert_action`.
 
 ## Processing Flow
 
@@ -78,8 +80,8 @@ Two tables, sharing the same `ts` per CLI/lambda run.
 4. For each group, consult `autorevert_events_v2` (non-dry-run rows) to enforce dedup rules:
    - Reverts: skip if any prior recorded `revert` exists for `commit_sha`
    - Restarts: skip if ≥2 prior restarts exist for `(workflow_target, commit_sha)`; skip if the latest is within 15 minutes of `ts`
-5. Execute eligible actions:
-   - Restart: if not `dry_run`, dispatch and capture success/failure in `notes`
-   - Revert: record only
-6. Insert one `autorevert_events_v2` row per executed group with aggregated `workflows` and `source_signal_keys` (dry-run rows use `dry_run=1`).
+5. Execute eligible actions using the per-action mode:
+   - Restart: `run` → dispatch and log; `log` → log only; `skip` → no logging
+   - Revert: currently record intent only; `run-notify`/`run-revert` modes are allowed but still log intent (no GH revert yet)
+6. Insert one `autorevert_events_v2` row per executed group with aggregated `workflows` and `source_signal_keys`.
 7. Separately (integration), build the full run state and call the run‑state logger to write a single `autorevert_state` row with the same `ts`.
