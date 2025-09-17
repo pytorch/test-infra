@@ -16,7 +16,7 @@ jobs:
 
     steps:
       - name: Check who am i
-        run: whoami;
+        run: whoami; id
 
       - name: Run docker info
         run: docker info
