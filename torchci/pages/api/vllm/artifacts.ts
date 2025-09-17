@@ -9,6 +9,9 @@ const MAX_PAGINATION_LOOPS = 100;
 type ArtifactFile = {
   key: string;
   url: string;
+  date: string;
+  modelName: string;
+  fileName: string;
 };
 
 type ArtifactResponse = {
@@ -54,6 +57,7 @@ export default async function handler(
     const files = sortedKeys.map((key) => ({
       key,
       url: buildDownloadUrl(key),
+      ...extractFileMetadata(key),
     }));
 
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
@@ -163,4 +167,13 @@ function isDateWithinRange(
   }
 
   return true;
+}
+
+function extractFileMetadata(key: string) {
+  const segments = key.split("/").filter(Boolean);
+  const date = segments[0] ?? "";
+  const fileName = segments[segments.length - 1] ?? "";
+  const modelName = segments.length >= 2 ? segments[segments.length - 2] : "";
+
+  return { date, modelName, fileName };
 }

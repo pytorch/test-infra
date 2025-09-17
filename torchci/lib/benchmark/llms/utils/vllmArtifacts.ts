@@ -4,6 +4,9 @@ import useSWR from "swr";
 export type VllmArtifactFile = {
   key: string;
   url: string;
+  date: string;
+  modelName: string;
+  fileName: string;
 };
 
 export type VllmArtifactResponse = {

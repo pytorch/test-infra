@@ -54,25 +54,27 @@ export function VllmArtifactsTable() {
           <TableHead>
             <TableRow>
               <TableCell width="10%">Serial number</TableCell>
-              <TableCell width="55%">Name of the S3 file</TableCell>
-              <TableCell width="35%">Downloadable link</TableCell>
+              <TableCell width="20%">Date</TableCell>
+              <TableCell width="30%">Model name</TableCell>
+              <TableCell width="40%">Name of the file</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {files.map((file, index) => (
               <TableRow key={file.key} hover>
                 <TableCell>{index + 1}</TableCell>
+                <TableCell>{file.date || "—"}</TableCell>
                 <TableCell sx={{ wordBreak: "break-word" }}>
-                  {file.key}
+                  {file.modelName || "—"}
                 </TableCell>
-                <TableCell>
+                <TableCell sx={{ wordBreak: "break-word" }}>
                   <Link
                     href={file.url}
                     target="_blank"
                     rel="noopener noreferrer"
                     underline="hover"
                   >
-                    Download
+                    {file.fileName || file.key}
                   </Link>
                 </TableCell>
               </TableRow>
