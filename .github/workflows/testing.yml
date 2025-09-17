@@ -12,8 +12,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [linux.dgx.b200, linux.g5.4xlarge.nvidia.gpu]
+        os: [linux.dgx.b200, linux.aws.h100, linux.g5.4xlarge.nvidia.gpu]
 
     steps:
+      - name: Check who am i
+        run: whoami
+
       - name: Run docker info
         run: docker info
+
+      - name: Check contexts
+        run: docker context ls
