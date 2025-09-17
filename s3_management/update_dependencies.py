@@ -416,7 +416,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "lm-format-enforcer": [{"version": "latest", "project": "vllm"}],
     "interegular": [{"version": "latest", "project": "vllm"}],
     "llguidance": [{"version": "0.7.11", "project": "vllm"}],
-    "outlines-core": [{"version": "latest", "project": "vllm"}],
+    "outlines-core": [{"version": "0.2.10", "project": "vllm"}],
     "diskcache": [{"version": "latest", "project": "vllm"}],
     "lark": [{"version": "latest", "project": "vllm"}],
     "xgrammar": [{"version": "0.1.23", "project": "vllm"}],
@@ -463,8 +463,16 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "websockets": [{"version": "latest", "project": "vllm"}],
     "python-multipart": [{"version": "latest", "project": "vllm"}],
     "email-validator": [{"version": "latest", "project": "vllm"}],
-    "dnspython": [{"version": "latest", "project": "vllm"}],
+    "dnspython": [{"version": "2.7.0", "project": "vllm"}],
     "fastapi-cloud-cli": [{"version": "latest", "project": "vllm"}],
+    "mdurl": [{"version": "latest", "project": "vllm"}],
+    "rignore": [{"version": "latest", "project": "vllm"}],
+    "sentry-sdk": [{"version": "latest", "project": "vllm"}],
+    "cupy-cuda12x": [{"version": "latest", "project": "vllm"}],
+    "fastrlock": [{"version": "latest", "project": "vllm"}],
+    "soundfile": [{"version": "latest", "project": "vllm"}],
+    "cffi": [{"version": "latest", "project": "vllm"}],
+    "pycparser": [{"version": "latest", "project": "vllm"}],
 }
 
 
