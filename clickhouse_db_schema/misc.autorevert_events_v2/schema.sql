@@ -7,6 +7,7 @@ CREATE TABLE misc.autorevert_events_v2
     `workflows` Array(String),
     `source_signal_keys` Array(String),
     `dry_run` UInt8 DEFAULT 0,
+    `failed` UInt8 DEFAULT 0,
     `notes` String DEFAULT ''
 )
     ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')

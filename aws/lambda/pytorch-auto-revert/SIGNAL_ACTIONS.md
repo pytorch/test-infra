@@ -57,6 +57,7 @@ Two tables, sharing the same `ts` per CLI/lambda run.
     - restart: a single-element array with the target workflow
     - revert: one or more workflows whose signals contributed
   - `source_signal_keys` Array(String) — signal keys that contributed to this action
+  - `failed` UInt8 DEFAULT 0 — marks a failed attempt (e.g., restart dispatch failed)
   - `notes` String DEFAULT '' — optional free-form metadata
 
 ### `autorevert_state` (separate module)

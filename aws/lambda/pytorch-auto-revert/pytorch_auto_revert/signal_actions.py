@@ -85,6 +85,7 @@ class ActionLogger:
         workflows: List[str],
         source_signal_keys: List[str],
         dry_run: bool,
+        failed: bool,
         notes: str = "",
     ) -> None:
         """Insert a single grouped action row into misc.autorevert_events_v2."""
@@ -96,6 +97,7 @@ class ActionLogger:
             "workflows",
             "source_signal_keys",
             "dry_run",
+            "failed",
             "notes",
         ]
         data = [
@@ -107,6 +109,7 @@ class ActionLogger:
                 workflows,
                 source_signal_keys,
                 1 if dry_run else 0,
+                1 if failed else 0,
                 notes or "",
             ]
         ]
@@ -209,6 +212,7 @@ class SignalActionProcessor:
             workflows=sorted({s.workflow_name for s in sources}),
             source_signal_keys=[s.key for s in sources],
             dry_run=ctx.dry_run,
+            failed=False,
             notes="",
         )
         logging.info(
@@ -239,6 +243,7 @@ class SignalActionProcessor:
             return False
 
         notes = ""
+        ok = True
         if not ctx.dry_run:
             ok = self._restart.restart_workflow(workflow_target, commit_sha)
             if not ok:
@@ -251,6 +256,7 @@ class SignalActionProcessor:
             workflows=[workflow_target],
             source_signal_keys=[s.key for s in sources],
             dry_run=ctx.dry_run,
+            failed=not ok,
             notes=notes,
         )
         if not ctx.dry_run and notes == "":
