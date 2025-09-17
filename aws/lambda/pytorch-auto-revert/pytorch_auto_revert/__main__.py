@@ -12,6 +12,10 @@ from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
+from .utils import RestartAction, RevertAction
+
+
+DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
 
 
 def setup_logging(log_level: str) -> None:
@@ -71,7 +75,7 @@ def get_opts() -> argparse.Namespace:
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # autorevert-checker subcommand (new default; legacy behind a flag)
+    # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
         "autorevert-checker",
         help="Analyze workflows for autorevert using Signals (default), or legacy via flag",
@@ -79,6 +83,7 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "workflows",
         nargs="+",
+        default=DEFAULT_WORKFLOWS,
         help="Workflow name(s) to analyze - single name or comma/space separated"
         + ' list (e.g., "pull" or "pull,trunk,inductor")',
     )
@@ -91,25 +96,22 @@ def get_opts() -> argparse.Namespace:
         help="Full repo name to filter by (owner/repo).",
     )
     workflow_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Show detailed output including commit summaries",
+        "--restart-action",
+        type=RestartAction,
+        default=RestartAction.RUN,
+        choices=list(RestartAction),
+        help=(
+            "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
+        ),
     )
     workflow_parser.add_argument(
-        "--do-restart",
-        action="store_true",
-        help="Actually restart workflows for detected autorevert patterns",
-    )
-    workflow_parser.add_argument(
-        "--do-revert",
-        action="store_true",
-        help="When restarts complete and secondary pattern matches, log REVERT",
-    )
-    workflow_parser.add_argument(
-        "--ignore-common-errors",
-        action="store_true",
-        help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
+        "--revert-action",
+        type=RevertAction,
+        default=RevertAction.LOG,
+        choices=list(RevertAction),
+        help=(
+            "Revert mode: skip, log (no side effects), run-notify (side effect), or run-revert (side effect)."
+        ),
     )
 
     # workflow-restart-checker subcommand
@@ -200,9 +202,8 @@ def main(*args, **kwargs) -> None:
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             hours=int(os.environ.get("HOURS", 16)),
             repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
-            dry_run=opts.dry_run,
-            do_restart=True,
-            do_revert=True,
+            restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
+            revert_action=RevertAction.LOG,
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
@@ -210,9 +211,8 @@ def main(*args, **kwargs) -> None:
             opts.workflows,
             hours=opts.hours,
             repo_full_name=opts.repo_full_name,
-            dry_run=opts.dry_run,
-            do_restart=opts.do_restart,
-            do_revert=opts.do_revert,
+            restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
+            revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)

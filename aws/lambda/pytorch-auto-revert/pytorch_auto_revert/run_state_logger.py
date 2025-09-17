@@ -121,7 +121,8 @@ class RunStateLogger:
                 "workflows": ctx.workflows,
                 "lookback_hours": ctx.lookback_hours,
                 "ts": ctx.ts.isoformat(),
-                "dry_run": ctx.dry_run,
+                "restart_action": str(ctx.restart_action),
+                "revert_action": str(ctx.revert_action),
             },
         }
         return json.dumps(doc, separators=(",", ":"))
@@ -151,7 +152,11 @@ class RunStateLogger:
                 ctx.ts,
                 ctx.repo_full_name,
                 state_json,
-                1 if ctx.dry_run else 0,
+                1
+                if not (
+                    ctx.restart_action.side_effects or ctx.revert_action.side_effects
+                )
+                else 0,
                 ctx.workflows,
                 int(ctx.lookback_hours),
                 params or "",
