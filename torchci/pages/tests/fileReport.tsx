@@ -14,6 +14,7 @@ import {
   GridTreeNodeWithRender,
 } from "@mui/x-data-grid";
 import LoadingPage from "components/common/LoadingPage";
+import RegexButton from "components/common/RegexButton";
 import { durationDisplay } from "components/common/TimeUtils";
 import ReactECharts from "echarts-for-react";
 import _ from "lodash";
@@ -237,7 +238,10 @@ function Diffs({
       headerName: "Frequency",
       flex: 1,
       renderHeader: () =>
-        renderHeader("Frequency", "Estimated frequency of test runs for this file (# commits it is run on) in the last week"),
+        renderHeader(
+          "Frequency",
+          "Estimated frequency of test runs for this file (# commits it is run on) in the last week"
+        ),
     },
     // { field: "successes", headerName: "Successes", flex: 1 },
     // {
@@ -376,7 +380,10 @@ function Overview({
       flex: 1,
       renderCell: renderTimeCell,
       renderHeader: () =>
-        renderHeader("Duration", "Duration of the test(s) for one commit if run sequentially"),
+        renderHeader(
+          "Duration",
+          "Duration of the test(s) for one commit if run sequentially"
+        ),
     },
     {
       field: "cost",
@@ -703,6 +710,9 @@ export default function Page() {
   const [fileFilter, setFileFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
   const [labelFilter, setLabelFilter] = useState("");
+  const [fileRegex, setFileRegex] = useState(false);
+  const [jobRegex, setJobRegex] = useState(false);
+  const [labelRegex, setLabelRegex] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jobInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
@@ -741,21 +751,47 @@ export default function Page() {
   if (!router.isReady) {
     return <LoadingPage />;
   }
-  // Filter data by file and job name
+  // Helper to match with optional regex
+  function matchField(value: string, filter: string, useRegex: boolean) {
+    if (!filter) return true;
+    if (!value) return false;
+    if (useRegex) {
+      try {
+        return new RegExp(filter).test(value);
+      } catch {
+        return false;
+      }
+    }
+    return value === filter;
+  }
+
+  // Helper for label (array or string)
+  function matchLabel(
+    labels: string[] | string,
+    filter: string,
+    useRegex: boolean
+  ) {
+    if (!filter) return true;
+    if (!labels) return false;
+    if (Array.isArray(labels)) {
+      return labels.some((l) => matchField(l, filter, useRegex));
+    }
+    return matchField(labels, filter, useRegex);
+  }
+
+  // Filter data by file, job, and label with regex support
   data = data.filter((row) => {
-    const fileMatch = fileFilter === "" || row.file_name == fileFilter;
-    const jobMatch = jobFilter === "" || row.job_name == jobFilter;
-    const labelMatch =
-      !labelFilter || (row.labels && row.labels.includes(labelFilter));
+    const fileMatch = matchField(row.file_name, fileFilter, fileRegex);
+    const jobMatch = matchField(row.job_name, jobFilter, jobRegex);
+    const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
     return fileMatch && jobMatch && labelMatch;
   });
 
-  // Apply the same file/job filter to statusChangeData
+  // Apply the same file/job/label filter to statusChangeData
   statusChangeData = statusChangeData?.filter((row) => {
-    const labelMatch =
-      !labelFilter || (row.labels && row.labels.includes(labelFilter));
-    const fileMatch = fileFilter === "" || row.file_name == fileFilter;
-    const jobMatch = jobFilter === "" || row.job_name == jobFilter;
+    const fileMatch = matchField(row.file_name, fileFilter, fileRegex);
+    const jobMatch = matchField(row.job_name, jobFilter, jobRegex);
+    const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
     return fileMatch && jobMatch && labelMatch;
   });
 
@@ -807,31 +843,43 @@ export default function Page() {
       >
         {[
           {
-            text: "Filter by Label",
+            label: "Filter by Label",
             inputRef: labelInputRef,
-            defaultValue: labelFilter,
+            value: labelFilter,
+            setRegex: setLabelRegex,
+            regex: labelRegex,
           },
           {
-            text: "Filter by File",
+            label: "Filter by File",
             inputRef: fileInputRef,
-            defaultValue: fileFilter,
+            value: fileFilter,
+            setRegex: setFileRegex,
+            regex: fileRegex,
           },
           {
-            text: "Filter by Job",
+            label: "Filter by Job",
             inputRef: jobInputRef,
-            defaultValue: jobFilter,
+            value: jobFilter,
+            setRegex: setJobRegex,
+            regex: jobRegex,
           },
-        ].map(({ text, inputRef, defaultValue }) => (
+        ].map(({ label, inputRef, value, setRegex, regex }) => (
           <TextField
-            key={text}
-            label={text}
+            key={label}
+            label={label}
             size="small"
             inputRef={inputRef}
-            defaultValue={defaultValue}
-            slotProps={{ inputLabel: { shrink: true } }}
+            defaultValue={value}
+            slotProps={{
+              inputLabel: { shrink: true },
+              input: {
+                endAdornment: (
+                  <RegexButton isRegex={regex} setIsRegex={setRegex} />
+                ),
+              },
+            }}
           />
         ))}
-
         <Button type="submit" variant="outlined">
           Filter
         </Button>
@@ -844,6 +892,9 @@ export default function Page() {
             setFileFilter("");
             setJobFilter("");
             setLabelFilter("");
+            setFileRegex(false);
+            setJobRegex(false);
+            setLabelRegex(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
             if (jobInputRef.current) jobInputRef.current.value = "";
             if (labelInputRef.current) labelInputRef.current.value = "";
