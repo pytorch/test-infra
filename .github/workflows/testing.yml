@@ -1,0 +1,19 @@
+name: Docker Info
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  docker-info:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [linux.dgx.b200, linux.g5.4xlarge.nvidia.gpu]
+
+    steps:
+      - name: Run docker info
+        run: docker info
