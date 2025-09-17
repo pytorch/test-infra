@@ -401,7 +401,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "annotated-types": [{"version": "latest", "project": "vllm"}],
     "anyio": [{"version": "latest", "project": "vllm"}],
     "pydantic": [{"version": "latest", "project": "vllm"}],
-    "pydantic-core": [{"version": "latest", "project": "vllm"}],
+    "pydantic-core": [{"version": "2.33.2", "project": "vllm"}],
     "sniffio": [{"version": "latest", "project": "vllm"}],
     "starlette": [{"version": "latest", "project": "vllm"}],
     "typing-inspection": [{"version": "latest", "project": "vllm"}],
