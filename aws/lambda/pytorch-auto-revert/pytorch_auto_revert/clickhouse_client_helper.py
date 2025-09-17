@@ -1,5 +1,6 @@
 import logging
 import threading
+from datetime import datetime, timezone
 
 import clickhouse_connect
 
@@ -85,3 +86,17 @@ class CHCliFactory:
         except Exception as e:
             self._logger.warning(f"Connection test failed: {e}")
             return False
+
+
+# ---- Utilities ----
+def ensure_utc_datetime(dt: datetime) -> datetime:
+    """Coerce a datetime to timezone-aware UTC.
+
+    - If naive, assume it represents UTC and set tzinfo accordingly
+    - If aware, convert to UTC
+    """
+    if not isinstance(dt, datetime):
+        return dt  # type: ignore[return-value]
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)

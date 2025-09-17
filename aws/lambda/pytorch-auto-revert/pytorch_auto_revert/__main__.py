@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert import autorevert_checker
+from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
 
@@ -71,9 +72,10 @@ def get_opts() -> argparse.Namespace:
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # autorevert-checker subcommand
+    # autorevert-checker subcommand (new default; legacy behind a flag)
     workflow_parser = subparsers.add_parser(
-        "autorevert-checker", help="Analyze workflows looking for autorevert patterns"
+        "autorevert-checker",
+        help="Analyze workflows for autorevert using Signals (default), or legacy via flag",
     )
     workflow_parser.add_argument(
         "workflows",
@@ -83,6 +85,11 @@ def get_opts() -> argparse.Namespace:
     )
     workflow_parser.add_argument(
         "--hours", type=int, default=48, help="Lookback window in hours (default: 48)"
+    )
+    workflow_parser.add_argument(
+        "--repo-full-name",
+        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        help="Full repo name to filter by (owner/repo).",
     )
     workflow_parser.add_argument(
         "--verbose",
@@ -104,6 +111,11 @@ def get_opts() -> argparse.Namespace:
         "--ignore-common-errors",
         action="store_true",
         help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
+    )
+    workflow_parser.add_argument(
+        "--legacy-autorevert",
+        action="store_true",
+        help="Run the legacy autorevert behavior instead of the new Signals-based flow",
     )
 
     # workflow-restart-checker subcommand
@@ -189,15 +201,37 @@ def main(*args, **kwargs) -> None:
         )
 
     if opts.subcommand is None:
-        autorevert_checker(
+        # New default without subcommand: run v2 using env defaults
+        autorevert_v2(
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
+            hours=int(os.environ.get("HOURS", 16)),
+            repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+            dry_run=opts.dry_run,
             do_restart=True,
             do_revert=True,
-            hours=int(os.environ.get("HOURS", 16)),
-            verbose=True,
-            dry_run=opts.dry_run,
-            ignore_common_errors=True,
         )
+    elif opts.subcommand == "autorevert-checker":
+        if getattr(opts, "legacy_autorevert", False):
+            # Legacy behavior behind flag
+            autorevert_checker(
+                opts.workflows,
+                do_restart=opts.do_restart,
+                do_revert=opts.do_revert,
+                hours=opts.hours,
+                verbose=opts.verbose,
+                dry_run=opts.dry_run,
+                ignore_common_errors=opts.ignore_common_errors,
+            )
+        else:
+            # New default behavior under the same subcommand
+            autorevert_v2(
+                opts.workflows,
+                hours=opts.hours,
+                repo_full_name=opts.repo_full_name,
+                dry_run=opts.dry_run,
+                do_restart=opts.do_restart,
+                do_revert=opts.do_revert,
+            )
     elif opts.subcommand == "autorevert-checker":
         autorevert_checker(
             opts.workflows,
