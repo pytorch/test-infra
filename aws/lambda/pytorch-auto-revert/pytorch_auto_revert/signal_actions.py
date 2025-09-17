@@ -55,9 +55,7 @@ class ActionLogger:
         self, *, repo: str, commit_sha: str, accept_dry_run: bool
     ) -> bool:
         """Return True if a non-dry-run revert was already logged for commit_sha."""
-        accept_dry_run_term = (
-            "AND dry_run = 1" if not accept_dry_run else ""
-        )
+        accept_dry_run_term = "AND dry_run = 1" if not accept_dry_run else ""
         q = (
             "SELECT 1 FROM misc.autorevert_events_v2 "
             "WHERE repo = {repo:String} AND action = 'revert' "
@@ -82,9 +80,7 @@ class ActionLogger:
         accept_dry_run: bool,
     ):
         """Return most recent non-dry-run restart timestamps for (workflow, commit)."""
-        accept_dry_run_term = (
-            "AND dry_run = 1" if not accept_dry_run else ""
-        )
+        accept_dry_run_term = "AND dry_run = 1" if not accept_dry_run else ""
         q = (
             "SELECT ts FROM misc.autorevert_events_v2 "
             f"WHERE repo = {{repo:String}} AND action = 'restart' {accept_dry_run_term} "

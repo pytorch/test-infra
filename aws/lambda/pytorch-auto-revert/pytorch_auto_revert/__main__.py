@@ -198,7 +198,9 @@ def main(*args, **kwargs) -> None:
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             hours=int(os.environ.get("HOURS", 16)),
             repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
-            restart_action=RestartRevertAction.RUN,
+            restart_action=RestartRevertAction.DRY_RUN
+            if opts.dry_run
+            else RestartRevertAction.RUN,
             revert_action=RestartRevertAction.DRY_RUN,
         )
     elif opts.subcommand == "autorevert-checker":
@@ -207,7 +209,7 @@ def main(*args, **kwargs) -> None:
             opts.workflows,
             hours=opts.hours,
             repo_full_name=opts.repo_full_name,
-            restart_action=RestartRevertAction.RUN
+            restart_action=RestartRevertAction.DRY_RUN
             if opts.dry_run
             else opts.restart_action,
             revert_action=RestartRevertAction.DRY_RUN

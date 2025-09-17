@@ -153,7 +153,10 @@ class RunStateLogger:
                 ctx.ts,
                 ctx.repo_full_name,
                 state_json,
-                1 if ctx.revert_action != RestartRevertAction.RUN else 0,
+                1
+                if ctx.revert_action != RestartRevertAction.RUN
+                and ctx.restart_action != RestartRevertAction.RUN
+                else 0,
                 ctx.workflows,
                 int(ctx.lookback_hours),
                 params or "",
