@@ -65,6 +65,10 @@ resource "aws_iam_role_policy_attachment" "collector_attach_dynamodb_write" {
   policy_arn = aws_iam_policy.collector_dynamodb_write.arn
 }
 
+data "aws_secretsmanager_secret" "github_app_secret" {
+  name = "${local.name_prefix}-alerting-app-secrets"
+}
+
 resource "aws_iam_policy" "collector_secretsmanager_read" {
   name   = "${local.name_prefix}-collector-secretsmanager-read"
   policy = jsonencode({
@@ -75,7 +79,7 @@ resource "aws_iam_policy" "collector_secretsmanager_read" {
         Action = [
           "secretsmanager:GetSecretValue"
         ],
-        Resource = "arn:aws:secretsmanager:${var.aws_region}:${data.aws_caller_identity.current.account_id}:secret:${local.name_prefix}-alerting-app-secrets*"
+        Resource = data.aws_secretsmanager_secret.github_app_secret.arn
       }
     ]
   })

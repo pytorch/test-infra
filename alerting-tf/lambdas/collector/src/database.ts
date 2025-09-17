@@ -148,31 +148,117 @@ export class AlertStateManager {
     }
   }
 
-  // Update existing state when alert already exists
+  // Update existing state when alert already exists with retry logic for race conditions
   private async updateExistingState(
     fingerprint: string,
     alertEvent: AlertEvent,
     action: AlertAction,
     issueNumber?: number
   ): Promise<void> {
-    const updates: Partial<AlertState> = {
-      last_provider_state_at: alertEvent.occurred_at,
-      provider_version: alertEvent.provider_version,
-    };
+    const maxRetries = 3;
+    let retryCount = 0;
 
-    // Update status based on alert state
-    if (alertEvent.state === "FIRING") {
-      updates.status = "OPEN";
-    } else if (alertEvent.state === "RESOLVED") {
-      updates.status = "CLOSED";
+    while (retryCount < maxRetries) {
+      try {
+        // RACE CONDITION FIX: Load current state first for optimistic locking
+        const currentState = await this.loadState(fingerprint);
+        if (!currentState) {
+          // State was deleted between operations - this is rare but possible
+          console.warn(`Alert state ${fingerprint} no longer exists during update, skipping`);
+          return;
+        }
+
+        // Check for out-of-order updates
+        const currentTime = new Date(currentState.last_provider_state_at);
+        const incomingTime = new Date(alertEvent.occurred_at);
+
+        if (incomingTime < currentTime) {
+          console.log(`Out-of-order update detected for ${fingerprint}, skipping`);
+          return;
+        }
+
+        const updates: Partial<AlertState> = {
+          last_provider_state_at: alertEvent.occurred_at,
+          provider_version: alertEvent.provider_version,
+        };
+
+        // Update status based on alert state
+        if (alertEvent.state === "FIRING") {
+          updates.status = "OPEN";
+        } else if (alertEvent.state === "RESOLVED") {
+          updates.status = "CLOSED";
+        }
+
+        // Update issue number if provided
+        if (issueNumber !== undefined) {
+          updates.issue_number = issueNumber;
+        }
+
+        // Use conditional update to prevent race conditions
+        await this.updateStateConditional(fingerprint, updates, currentState.last_provider_state_at);
+        return; // Success, exit retry loop
+
+      } catch (error) {
+        retryCount++;
+
+        if ((error as any).name === "ConditionalCheckFailedException") {
+          if (retryCount < maxRetries) {
+            console.log(`Conditional update failed for ${fingerprint}, retrying (${retryCount}/${maxRetries})`);
+            // Exponential backoff: 100ms, 200ms, 400ms
+            await new Promise(resolve => setTimeout(resolve, 100 * Math.pow(2, retryCount - 1)));
+            continue;
+          } else {
+            console.error(`Failed to update ${fingerprint} after ${maxRetries} retries due to concurrent modifications`);
+            throw new Error(`Update failed after ${maxRetries} retries - concurrent modification detected`);
+          }
+        } else {
+          // Non-conditional error, don't retry
+          throw error;
+        }
+      }
+    }
+  }
+
+  // Conditional update with optimistic locking to prevent race conditions
+  private async updateStateConditional(
+    fingerprint: string,
+    updates: Partial<AlertState>,
+    expectedLastUpdate: string
+  ): Promise<void> {
+    const updateExpression: string[] = [];
+    const expressionAttributeNames: Record<string, string> = {};
+    const expressionAttributeValues: Record<string, any> = {};
+
+    // Build dynamic update expression
+    for (const [key, value] of Object.entries(updates)) {
+      if (value !== undefined) {
+        updateExpression.push(`#${key} = :${key}`);
+        expressionAttributeNames[`#${key}`] = key;
+        expressionAttributeValues[`:${key}`] = value;
+      }
     }
 
-    // Update issue number if provided
-    if (issueNumber !== undefined) {
-      updates.issue_number = issueNumber;
-    }
+    // Always update last_seen_at
+    updateExpression.push("#last_seen_at = :last_seen_at");
+    expressionAttributeNames["#last_seen_at"] = "last_seen_at";
+    expressionAttributeValues[":last_seen_at"] = new Date().toISOString();
 
-    await this.updateState(fingerprint, updates);
+    // Add condition for optimistic locking
+    expressionAttributeNames["#last_provider_state_at"] = "last_provider_state_at";
+    expressionAttributeValues[":expected_last_update"] = expectedLastUpdate;
+
+    await this.ddbClient.send(
+      new UpdateCommand({
+        TableName: this.tableName,
+        Key: { fingerprint },
+        UpdateExpression: "SET " + updateExpression.join(", "),
+        ConditionExpression: "#last_provider_state_at = :expected_last_update",
+        ExpressionAttributeNames: expressionAttributeNames,
+        ExpressionAttributeValues: expressionAttributeValues,
+      })
+    );
+
+    console.log("Alert state updated with optimistic locking", { fingerprint, updates });
   }
 
   // Calculate TTL (3 years from now in epoch seconds)

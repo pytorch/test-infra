@@ -17,7 +17,7 @@ resource "aws_lambda_function" "collector" {
   handler       = "index.handler"
   filename      = data.archive_file.collector_zip.output_path
   source_code_hash = data.archive_file.collector_zip.output_base64sha256
-  timeout       = 30
+  timeout       = 60
   memory_size   = 256
 
   environment {

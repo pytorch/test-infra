@@ -1,6 +1,7 @@
 import { SecretsManagerClient, GetSecretValueCommand } from "@aws-sdk/client-secrets-manager";
 import jwt from "jsonwebtoken";
 import { RateLimiter } from "../utils/rateLimiter";
+import { CircuitBreaker, GITHUB_CIRCUIT_BREAKER_CONFIG } from "../utils/circuitBreaker";
 
 export interface GithubAppSecret {
   github_app_client_id?: string;
@@ -23,6 +24,7 @@ export class GitHubClient {
   private cachedSecret: CachedSecret | null = null;
   private cachedInstallationToken: CachedToken | null = null;
   private readonly rateLimiter: RateLimiter;
+  private readonly circuitBreaker: CircuitBreaker;
   private readonly secrets: SecretsManagerClient;
   private readonly githubRepo: string;
   private readonly githubAppSecretId: string;
@@ -31,6 +33,7 @@ export class GitHubClient {
     this.githubRepo = githubRepo;
     this.githubAppSecretId = githubAppSecretId;
     this.rateLimiter = new RateLimiter(requestsPerSecond);
+    this.circuitBreaker = new CircuitBreaker(GITHUB_CIRCUIT_BREAKER_CONFIG);
     this.secrets = new SecretsManagerClient({});
   }
 
@@ -191,10 +194,27 @@ export class GitHubClient {
   }
 
   async createGithubIssue(title: string, body: string, labels: string[]): Promise<number> {
+    // CIRCUIT BREAKER: Protect against GitHub API failures
+    return await this.circuitBreaker.execute(
+      async () => this.createGithubIssueInternal(title, body, labels),
+      async () => {
+        // Fallback: Log the issue details for manual processing
+        // TODO: Mark the alert in the db as needing to be retried later
+        console.warn('GitHub API circuit breaker OPEN - logging issue for manual processing', {
+          title,
+          labels,
+          circuitStatus: this.circuitBreaker.getStatus()
+        });
+        // Return a fake issue number to indicate fallback mode
+        return -1;
+      }
+    );
+  }
+
+  private async createGithubIssueInternal(title: string, body: string, labels: string[]): Promise<number> {
     if (!this.githubRepo) throw new Error("GITHUB_REPO not set");
     const [owner, repo] = this.githubRepo.split("/");
     const token = await this.getInstallationToken();
-
 
     const resp = await this.rateLimiter.execute(async () =>
       fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {
