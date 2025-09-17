@@ -464,6 +464,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "python-multipart": [{"version": "latest", "project": "vllm"}],
     "email-validator": [{"version": "latest", "project": "vllm"}],
     "dnspython": [{"version": "latest", "project": "vllm"}],
+    "fastapi-cloud-cli": [{"version": "latest", "project": "vllm"}],
 }
 
 

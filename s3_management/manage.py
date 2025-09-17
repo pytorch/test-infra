@@ -294,6 +294,7 @@ PACKAGE_ALLOW_LIST = {
         "click",
         "msgpack",
         "fastapi_cli",
+        "fastapi_cloud_cli",
         "httptools",
         "markdown_it_py",
         "pygments",
