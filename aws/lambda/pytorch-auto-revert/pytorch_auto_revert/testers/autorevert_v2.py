@@ -7,6 +7,7 @@ from ..signal import Signal
 from ..signal_actions import SignalActionProcessor, SignalProcOutcome
 from ..signal_extraction import SignalExtractor
 from ..signal_extraction_types import RunContext
+from ..utils import RestartRevertAction
 
 
 def autorevert_v2(
@@ -14,9 +15,8 @@ def autorevert_v2(
     *,
     hours: int = 24,
     repo_full_name: str = "pytorch/pytorch",
-    dry_run: bool = False,
-    do_restart: bool = True,
-    do_revert: bool = True,
+    restart_action: RestartRevertAction = RestartRevertAction.RUN,
+    revert_action: RestartRevertAction = RestartRevertAction.RUN,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]]]:
     """Run the Signals-based autorevert flow end-to-end.
 
@@ -32,11 +32,12 @@ def autorevert_v2(
     ts = datetime.now(timezone.utc)
 
     logging.info(
-        "[v2] Start: workflows=%s hours=%s repo=%s dry_run=%s",
+        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s revert_action=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
-        dry_run,
+        restart_action,
+        revert_action,
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
@@ -57,11 +58,12 @@ def autorevert_v2(
 
     # Build run context
     run_ctx = RunContext(
-        ts=ts,
-        repo_full_name=repo_full_name,
-        workflows=workflows,
         lookback_hours=hours,
-        dry_run=dry_run,
+        repo_full_name=repo_full_name,
+        restart_action=restart_action,
+        revert_action=revert_action,
+        ts=ts,
+        workflows=workflows,
     )
 
     # Group and execute actions
@@ -70,9 +72,9 @@ def autorevert_v2(
     logging.info("[v2] Candidate action groups: %d", len(groups))
 
     # Support toggling specific kinds of actions via flags
-    if not do_revert:
+    if revert_action == RestartRevertAction.IGNORE:
         groups = [g for g in groups if g.type != "revert"]
-    if not do_restart:
+    if restart_action == RestartRevertAction.IGNORE:
         groups = [g for g in groups if g.type != "restart"]
 
     executed_count = sum(1 for g in groups if proc.execute(g, run_ctx))
