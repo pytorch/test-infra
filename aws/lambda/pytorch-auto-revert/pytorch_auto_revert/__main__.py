@@ -98,14 +98,14 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "--restart-action",
         type=RestartRevertAction,
-        default=RestartRevertAction.Run,
+        default=RestartRevertAction.RUN,
         choices=list(RestartRevertAction),
         help="What actions to take for restart: Ignore (bypass), run in dry-run mode, or run normally.",
     )
     workflow_parser.add_argument(
         "--revert-action",
         type=RestartRevertAction,
-        default=RestartRevertAction.Run,
+        default=RestartRevertAction.RUN,
         choices=list(RestartRevertAction),
         help="What actions to take for revert: Ignore (bypass), run in dry-run mode, or run normally.",
     )

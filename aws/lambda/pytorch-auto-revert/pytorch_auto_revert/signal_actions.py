@@ -87,7 +87,7 @@ class ActionLogger:
         )
         q = (
             "SELECT ts FROM misc.autorevert_events_v2 "
-            f"WHERE repo = {repo:String} AND action = 'restart' {accept_dry_run_term} "
+            f"WHERE repo = {{repo:String}} AND action = 'restart' {accept_dry_run_term} "
             "AND commit_sha = {sha:String} AND has(workflows, {wf:String}) "
             "ORDER BY ts DESC LIMIT {lim:UInt16}"
         )

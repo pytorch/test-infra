@@ -21,13 +21,9 @@ venv/bin/lintrunner: venv/bin/python
 run-local: venv/bin/python
 	venv/bin/python -m pytorch_auto_revert
 
-.PHONY: run-local-dry
-run-local-dry: venv/bin/python
-	venv/bin/python -m pytorch_auto_revert --dry-run
-
 .PHONY: run-local-workflows
 run-local-workflows: venv/bin/python
-	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 4380 --ignore-common-errors --verbose
+	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 8 --revert-action dry-run
 
 deployment.zip:
 	mkdir -p deployment

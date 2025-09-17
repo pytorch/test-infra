@@ -6,6 +6,7 @@ from typing import Dict, Iterable, List, Tuple, Union
 from .clickhouse_client_helper import CHCliFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
+from .utils import RestartRevertAction
 
 
 SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
@@ -121,7 +122,8 @@ class RunStateLogger:
                 "workflows": ctx.workflows,
                 "lookback_hours": ctx.lookback_hours,
                 "ts": ctx.ts.isoformat(),
-                "dry_run": ctx.dry_run,
+                "restart_action": str(ctx.restart_action),
+                "revert_action": str(ctx.revert_action),
             },
         }
         return json.dumps(doc, separators=(",", ":"))
@@ -151,7 +153,7 @@ class RunStateLogger:
                 ctx.ts,
                 ctx.repo_full_name,
                 state_json,
-                1 if ctx.dry_run else 0,
+                1 if ctx.revert_action != RestartRevertAction.RUN else 0,
                 ctx.workflows,
                 int(ctx.lookback_hours),
                 params or "",
