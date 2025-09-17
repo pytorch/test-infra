@@ -28,6 +28,7 @@ class FakeLogger:
         workflows: list[str],
         source_signal_keys: list[str],
         dry_run: bool,
+        failed: bool,
         notes: str = "",
     ) -> None:
         self.insert_calls.append(
@@ -39,6 +40,7 @@ class FakeLogger:
                 tuple(workflows),
                 tuple(source_signal_keys),
                 dry_run,
+                failed,
                 notes,
             )
         )
