@@ -9,7 +9,6 @@ from dotenv import load_dotenv
 
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
-from .testers.autorevert import autorevert_checker
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
@@ -112,11 +111,6 @@ def get_opts() -> argparse.Namespace:
         action="store_true",
         help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
     )
-    workflow_parser.add_argument(
-        "--legacy-autorevert",
-        action="store_true",
-        help="Run the legacy autorevert behavior instead of the new Signals-based flow",
-    )
 
     # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
@@ -211,36 +205,14 @@ def main(*args, **kwargs) -> None:
             do_revert=True,
         )
     elif opts.subcommand == "autorevert-checker":
-        if getattr(opts, "legacy_autorevert", False):
-            # Legacy behavior behind flag
-            autorevert_checker(
-                opts.workflows,
-                do_restart=opts.do_restart,
-                do_revert=opts.do_revert,
-                hours=opts.hours,
-                verbose=opts.verbose,
-                dry_run=opts.dry_run,
-                ignore_common_errors=opts.ignore_common_errors,
-            )
-        else:
-            # New default behavior under the same subcommand
-            autorevert_v2(
-                opts.workflows,
-                hours=opts.hours,
-                repo_full_name=opts.repo_full_name,
-                dry_run=opts.dry_run,
-                do_restart=opts.do_restart,
-                do_revert=opts.do_revert,
-            )
-    elif opts.subcommand == "autorevert-checker":
-        autorevert_checker(
+        # New default behavior under the same subcommand
+        autorevert_v2(
             opts.workflows,
+            hours=opts.hours,
+            repo_full_name=opts.repo_full_name,
+            dry_run=opts.dry_run,
             do_restart=opts.do_restart,
             do_revert=opts.do_revert,
-            hours=opts.hours,
-            verbose=opts.verbose,
-            dry_run=opts.dry_run,
-            ignore_common_errors=opts.ignore_common_errors,
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
