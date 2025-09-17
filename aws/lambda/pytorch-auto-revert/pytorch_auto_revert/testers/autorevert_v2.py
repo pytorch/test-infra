@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Iterable, List, Tuple
 
 from ..run_state_logger import RunStateLogger
@@ -28,7 +28,8 @@ def autorevert_v2(
         (signals, pairs) for diagnostics and potential external rendering
     """
     workflows = list(workflows)
-    ts = datetime.now()
+    # Use timezone-aware UTC to match ClickHouse DateTime semantics
+    ts = datetime.now(timezone.utc)
 
     logging.info(
         "[v2] Start: workflows=%s hours=%s repo=%s dry_run=%s",
