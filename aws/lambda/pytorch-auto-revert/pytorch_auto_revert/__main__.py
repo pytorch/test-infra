@@ -198,7 +198,6 @@ def main(*args, **kwargs) -> None:
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             hours=int(os.environ.get("HOURS", 16)),
             repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
-            dry_run=opts.dry_run,
             restart_action=RestartRevertAction.RUN,
             revert_action=RestartRevertAction.DRY_RUN,
         )
