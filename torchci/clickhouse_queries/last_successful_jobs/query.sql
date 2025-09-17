@@ -10,6 +10,7 @@ where
     and job.conclusion = 'success'
     and job.head_branch = 'main'
     and job.html_url like '%/pytorch/pytorch/%' -- proxy for workflow.repository.'full_name' = 'pytorch/pytorch'
+    and job.started_at > now() - interval 60 day
 group by
     job.head_sha
 having

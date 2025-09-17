@@ -1,5 +1,5 @@
 import HelpIcon from "@mui/icons-material/Help";
-import { Skeleton, Typography } from "@mui/material";
+import { Box, Skeleton, Typography } from "@mui/material";
 import IconButton from "@mui/material/IconButton";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { CSSProperties } from "react";
@@ -100,7 +100,8 @@ export function TablePanelWithData({
   }
 
   return (
-    <>
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
+      <Header />
       <DataGrid
         style={customStyle}
         {...dataGridProps}
@@ -112,8 +113,7 @@ export function TablePanelWithData({
           showFooter && pageSize === undefined && !disableAutoPageSize
         }
         pageSize={pageSize}
-        slots={{ toolbar: Header }}
       />
-    </>
+    </Box>
   );
 }

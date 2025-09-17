@@ -1,0 +1,14 @@
+{
+  "params": {
+    "branches": "Array(String)",
+    "commits": "Array(String)",
+    "compilers": "Array(String)",
+    "device": "String",
+    "arch": "Array(String)",
+    "dtype": "String",
+    "granularity": "String",
+    "mode": "String",
+    "suites": "Array(String)"
+  },
+  "tests": []
+}

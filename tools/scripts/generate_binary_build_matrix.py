@@ -23,12 +23,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "test": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
+    "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
     "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
 }
 CUDA_ARCHES_DICT = {
-    "nightly": ["12.6", "12.8", "12.9", "13.0"],
-    "test": ["12.6", "12.8", "12.9"],
+    "nightly": ["12.6", "12.8", "13.0"],
+    "test": ["12.6", "12.8", "13.0"],
     "release": ["12.6", "12.8", "12.9"],
 }
 
@@ -39,7 +39,6 @@ ROCM_ARCHES_DICT = {
 }
 
 CUDA_CUDNN_VERSIONS = {
-    "11.8": {"cuda": "11.8.0", "cudnn": "9"},
     "12.6": {"cuda": "12.6.3", "cudnn": "9"},
     "12.8": {"cuda": "12.8.0", "cudnn": "9"},
     "12.9": {"cuda": "12.9.1", "cudnn": "9"},
@@ -52,7 +51,7 @@ STABLE_CUDA_VERSIONS = {
     "release": "12.8",
 }
 
-CUDA_AARCH64_ARCHES = ["12.9-aarch64", "13.0-aarch64"]
+CUDA_AARCH64_ARCHES = ["12.6-aarch64", "12.8-aarch64", "13.0-aarch64"]
 
 PACKAGE_TYPES = ["wheel", "libtorch"]
 CXX11_ABI = "cxx11-abi"
@@ -77,8 +76,8 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.9.0"
-CURRENT_CANDIDATE_VERSION = "2.8.0"
+CURRENT_NIGHTLY_VERSION = "2.10.0"
+CURRENT_CANDIDATE_VERSION = "2.9.0"
 CURRENT_STABLE_VERSION = "2.8.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
@@ -446,9 +445,6 @@ def generate_wheels_matrix(
             upload_to_base_bucket = "no"
             if os in (LINUX, WINDOWS):
                 arches += CUDA_ARCHES
-                # todo: remove once windows cuda 13.0 binaries are available
-                if channel == NIGHTLY and os != LINUX:
-                    arches.remove("13.0")
             elif os == LINUX_AARCH64:
                 arches += CUDA_AARCH64_ARCHES
 
@@ -473,10 +469,6 @@ def generate_wheels_matrix(
 
             # TODO: Enable python 3.13t on cpu-s390x or Windows
             if (gpu_arch_type == "cpu-s390x") and python_version == "3.13t":
-                continue
-
-            # Python 3.14 and 3.14t not yet supported on Windows
-            if os == WINDOWS and python_version.startswith("3.14"):
                 continue
 
             desired_cuda = translate_desired_cuda(gpu_arch_type, gpu_arch_version)

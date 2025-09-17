@@ -470,7 +470,14 @@ export default function Page() {
     JSON.stringify({
       ...timeParams,
       // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-      workflowNames: ["lint", "pull", "trunk"],
+      workflowNames: [
+        "lint",
+        "pull",
+        "trunk",
+        "linux-binary-libtorch-release",
+        "linux-binary-manywheel",
+        "linux-aarch64",
+      ],
     })
   )}`;
 
@@ -713,11 +720,16 @@ export default function Page() {
               title={"Last docs push"}
               queryName={"last_successful_jobs"}
               metricName={"last_success_seconds_ago"}
-              valueRenderer={(value) => durationDisplay(value)}
+              getValue={(data) => data?.[0]?.last_success_seconds_ago || ">60d"}
+              valueRenderer={(value) =>
+                value === ">60d" ? value : durationDisplay(value)
+              }
               queryParams={{
                 jobNames: docsJobNames,
               }}
-              badThreshold={(value) => value > 3 * 24 * 60 * 60} // 3 day
+              badThreshold={(value) =>
+                value === ">60d" || value > 3 * 24 * 60 * 60
+              } // 3 day
             />
           </Stack>
         </Grid>

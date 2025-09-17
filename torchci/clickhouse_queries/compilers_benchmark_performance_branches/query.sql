@@ -7,7 +7,7 @@ SELECT DISTINCT
     toStartOfDay(fromUnixTimestamp(timestamp)) AS event_time
 FROM
     benchmark.oss_ci_benchmark_torchinductor
-WHERE
+PREWHERE
     timestamp >= toUnixTimestamp({startTime: DateTime64(3) })
     AND timestamp < toUnixTimestamp({stopTime: DateTime64(3) })
     -- TODO (huydhn): Clean up the output field and how it's used in the query

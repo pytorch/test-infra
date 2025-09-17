@@ -222,6 +222,7 @@ PACKAGE_ALLOW_LIST = {
         "xformers",
         "executorch",
         "setuptools",
+        "setuptools_scm",
         "wheel",
         # vllm
         "ninja",
@@ -307,6 +308,8 @@ PACKAGE_ALLOW_LIST = {
         "python-multipart",
         "email-validator",
         "dnspython",
+        "vllm",
+        "flashinfer-python",
     ]
 }
 

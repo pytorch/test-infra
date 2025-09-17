@@ -21,8 +21,10 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  HELION_BENCHMARK_NAME,
   REPO_TO_BENCHMARKS,
 } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import { getBenchmarkDropdownFeatures } from "lib/benchmark/llms/utils/dashboardPickerUtils";
 import {
@@ -31,7 +33,7 @@ import {
 } from "lib/benchmark/llms/utils/llmUtils";
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
-import LLMsReport from "./components/LLMsReport";
+import LLMsReport from "./components/report/LLMsReport";
 
 export default function LLMsBenchmarkPage() {
   const router = useRouter();
@@ -43,6 +45,7 @@ export default function LLMsBenchmarkPage() {
   const initialPropsState: LLMsBenchmarkProps = {
     repoName: DEFAULT_REPO_NAME,
     benchmarkName: "",
+    mode: LLMsBenchmarkMode.General,
     modelName: DEFAULT_MODEL_NAME,
     backendName: DEFAULT_BACKEND_NAME,
     modeName: DEFAULT_MODE_NAME,
@@ -57,6 +60,7 @@ export default function LLMsBenchmarkPage() {
     rCommit: "",
     lBranch: MAIN_BRANCH,
     rBranch: MAIN_BRANCH,
+    repos: [],
   };
 
   const [props, dispatch] = useReducer(propsReducer, initialPropsState);
@@ -192,6 +196,9 @@ const MainPage = ({
   const options = data;
   const dropdownMapList = getBenchmarkDropdownFeatures(options, props.repoName);
   const metricNames = getMetricNames(data);
+  // Default to latest for Helion Benchmark, otherwise default to oldest commit
+  const lcommitFallbackIdx =
+    props.benchmarkName === HELION_BENCHMARK_NAME ? 0 : -1;
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
@@ -203,6 +210,7 @@ const MainPage = ({
         props={props}
         dispatch={dispatch}
         queryParams={queryParams}
+        lcommitFallbackIdx={lcommitFallbackIdx}
       />
       <LLMsReport
         props={props}

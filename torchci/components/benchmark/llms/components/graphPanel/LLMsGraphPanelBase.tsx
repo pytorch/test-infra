@@ -6,7 +6,6 @@ import {
   IconButton,
   Link,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -16,14 +15,11 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { deepClone } from "@mui/x-data-grid/internals";
 import {
   COMMIT_TO_WORKFLOW_ID,
   WORKFLOW_ID_TO_COMMIT,
 } from "components/benchmark/BranchAndCommitPicker";
 import { TIME_FIELD_NAME } from "components/benchmark/common";
-import { arrayToCSV, downloadCSV, generateCSVFilename } from "lib/csvUtils";
-
 import {
   Granularity,
   seriesWithInterpolatedTimes,
@@ -37,73 +33,41 @@ import {
   METRIC_DISPLAY_HEADERS,
   METRIC_DISPLAY_SHORT_HEADERS,
 } from "lib/benchmark/llms/common";
-import {
-  computeSpeedup,
-  TORCHAO_SPEEDUP_METRIC_NAMES,
-} from "lib/benchmark/llms/utils/aoUtils";
-import {
-  computeGeomean,
-  useBenchmark,
-} from "lib/benchmark/llms/utils/llmUtils";
+import { TORCHAO_SPEEDUP_METRIC_NAMES } from "lib/benchmark/llms/utils/aoUtils";
+import { computeGeomean } from "lib/benchmark/llms/utils/llmUtils";
+import { arrayToCSV, downloadCSV, generateCSVFilename } from "lib/csvUtils";
 import { BranchAndCommit } from "lib/types";
 
 const GRAPH_ROW_HEIGHT = 245;
 
-export default function LLMsGraphPanel({
+export default function LLMsGraphPanelBase({
   queryParams,
   granularity,
   repoName,
   benchmarkName,
   modelName,
-  backendName,
-  dtypeName,
   deviceName,
   metricNames,
   lBranchAndCommit,
   rBranchAndCommit,
+  dataWithSpeedup,
+  isCompare,
 }: {
   queryParams: { [key: string]: any };
   granularity: Granularity;
   repoName: string;
   benchmarkName: string;
   modelName: string;
-  backendName: string;
-  dtypeName: string;
   deviceName: string;
   metricNames: string[];
   lBranchAndCommit: BranchAndCommit;
   rBranchAndCommit: BranchAndCommit;
+  dataWithSpeedup: any[];
+  isCompare: boolean;
 }) {
-  // Do not set the commit here to query all the records in the time range to
-  // draw a chart
-  const { data, error } = useBenchmark(queryParams, {
-    branch: rBranchAndCommit.branch,
-    commit: "",
-  });
-
-  if (data === undefined || data.length === 0) {
-    return (
-      <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-        <Typography fontSize={"1rem"} fontStyle={"italic"}>
-          Loading chart for {modelName}...
-        </Typography>
-      </Stack>
-    );
-  }
-
-  const dataWithSpeedup = computeSpeedup(
-    repoName,
-    computeSpeedup(repoName, data, false, true),
-    true,
-    false
-  );
-
-  // Clamp to the nearest granularity (e.g. nearest hour) so that the times will
-  // align with the data we get from the database
   const startTime = dayjs(queryParams["startTime"]).startOf(granularity);
   const stopTime = dayjs(queryParams["stopTime"]).startOf(granularity);
 
-  // Only show records between these twos
   const lWorkflowId = COMMIT_TO_WORKFLOW_ID[lBranchAndCommit.commit];
   const rWorkflowId = COMMIT_TO_WORKFLOW_ID[rBranchAndCommit.commit];
 
@@ -128,12 +92,10 @@ export default function LLMsGraphPanel({
             .filter((record: LLMsBenchmarkData) => {
               const id = record.workflow_id;
               return (
+                isCompare ||
                 (id >= lWorkflowId && id <= rWorkflowId) ||
                 (id <= lWorkflowId && id >= rWorkflowId) ||
                 (lWorkflowId === undefined && rWorkflowId === undefined) ||
-                // This is a hack to handle the mock workflow ID coming from running TorchAO benchmark locally
-                // In such caase, the workflow ID is actually the epoch timestamp and the value is completely
-                // different than the regular GitHub workflow ID
                 0.5 > rWorkflowId / lWorkflowId ||
                 rWorkflowId / lWorkflowId > 2
               );
@@ -158,6 +120,7 @@ export default function LLMsGraphPanel({
             .filter((record: LLMsBenchmarkData) => {
               const id = record.workflow_id;
               return (
+                isCompare ||
                 (id >= lWorkflowId && id <= rWorkflowId) ||
                 (id <= lWorkflowId && id >= rWorkflowId) ||
                 (lWorkflowId === undefined && rWorkflowId === undefined)
@@ -167,11 +130,11 @@ export default function LLMsGraphPanel({
               const model = record.model;
               const dtype = record.dtype;
               const device = record.device;
-              const metric = record.metric;
-
+              const srcRepo =
+                (record as any)?.extra?.["source_repo"] || repoName;
               if (
-                repoName === "vllm-project/vllm" ||
-                repoName === "sgl-project/sglang"
+                srcRepo === "vllm-project/vllm" ||
+                srcRepo === "sgl-project/sglang"
               ) {
                 const requestRate = record.extra!["request_rate"];
                 const tensorParallel = record.extra!["tensor_parallel_size"];
@@ -211,7 +174,6 @@ export default function LLMsGraphPanel({
               return record;
             });
     const graphItems = formGraphItem(chartData[metric]);
-    // group by timestamp to identify devices with the same timestamp
     graphSeries[metric] = seriesWithInterpolatedTimes(
       graphItems,
       startTime,
@@ -224,7 +186,6 @@ export default function LLMsGraphPanel({
     );
   });
 
-  // find the metric with the longest data array, it is used as baseline for rows and mapping in the table.
   const maxLengthMetric = metricNames.reduce(
     (longest, metric) =>
       chartData[metric].length > chartData[longest].length ? metric : longest,
@@ -356,7 +317,6 @@ const MetricTable = ({
       metricNames.forEach((metric) => {
         if (chartData[metric]?.length) {
           const label = METRIC_DISPLAY_SHORT_HEADERS[metric] ?? metric;
-          // Find the matching record for this metric based on workflow_id and other identifying properties
           const matchingRecord = chartData[metric].find(
             (record: any) =>
               record.workflow_id === entry.workflow_id &&
@@ -444,7 +404,6 @@ const MetricTable = ({
                   {metricNames
                     .filter((metric) => chartData[metric]?.length)
                     .map((metric) => {
-                      // Find the matching record for this metric based on workflow_id and other identifying properties
                       const matchingRecord = chartData[metric].find(
                         (record: any) =>
                           record.workflow_id === entry.workflow_id &&
@@ -471,19 +430,23 @@ const MetricTable = ({
   );
 };
 
-// creates chart items to visualize in the series graph, group by device name and display name
 function formGraphItem(data: any[]) {
   const res: any[] = [];
   data.forEach((item) => {
     const deviceId = item?.metadata_info?.device_id;
     const displayName = item.display;
+    const repo =
+      item?.repoTag ?? (item?.extra?.["source_repo"] as string | undefined);
+    const repoPrefix = repo?.includes("sglang")
+      ? "sglang / "
+      : repo?.includes("vllm")
+      ? "vllm / "
+      : "";
     const group_key =
       deviceId && deviceId !== ""
-        ? `${displayName} (${deviceId})`
-        : displayName;
-    const seriesData = deepClone(item);
-    seriesData.group_key = group_key;
-    res.push(seriesData);
+        ? `${repoPrefix}${displayName} (${deviceId})`
+        : `${repoPrefix}${displayName}`;
+    res.push({ ...item, group_key });
   });
   return res;
 }

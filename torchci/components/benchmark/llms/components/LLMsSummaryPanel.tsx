@@ -6,11 +6,13 @@ import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import {
   BranchAndCommitPerfData,
+  HELION_BENCHMARK_NAME,
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
   UNIT_FOR_METRIC,
 } from "lib/benchmark/llms/common";
+import { LLMsBenchmarkMode } from "lib/benchmark/llms/types/benchmarkMode";
 import { combineLeftAndRight } from "lib/benchmark/llms/utils/llmUtils";
 import { MdError } from "react-icons/md";
 import { VscError } from "react-icons/vsc";
@@ -51,6 +53,8 @@ export default function LLMsSummaryPanel({
   archName,
   lPerfData,
   rPerfData,
+  repos,
+  mode,
 }: {
   startTime: dayjs.Dayjs;
   stopTime: dayjs.Dayjs;
@@ -63,6 +67,8 @@ export default function LLMsSummaryPanel({
   archName: string;
   lPerfData: BranchAndCommitPerfData;
   rPerfData: BranchAndCommitPerfData;
+  repos: string[];
+  mode: LLMsBenchmarkMode;
 }) {
   // The left (base commit)
   const lBranch = lPerfData.branch;
@@ -124,8 +130,10 @@ export default function LLMsSummaryPanel({
             : "";
         const deviceName = `${metadata.device} (${metadata.arch})`;
 
+        const rowRepo =
+          params.row.sourceRepo || params.row.repo_name || repoName;
         const url = `/benchmark/llms?startTime=${startTime}&stopTime=${stopTime}&granularity=${granularity}&repoName=${encodeURIComponent(
-          repoName
+          rowRepo
         )}&benchmarkName=${encodeURIComponent(
           benchmarkName
         )}&modelName=${encodeURIComponent(
@@ -156,6 +164,21 @@ export default function LLMsSummaryPanel({
     },
   ];
 
+  // Add source repository column for multi-repo comparisons
+  const shouldShowRepoColumn =
+    mode === LLMsBenchmarkMode.RepoComparison ||
+    data.some((row) => row.sourceRepo || row.repo_name);
+  if (shouldShowRepoColumn) {
+    columns.push({
+      field: "sourceRepo",
+      headerName: "Repository",
+      flex: 1,
+      renderCell: (params: GridRenderCellParams<any>) => {
+        return params.value || (params.row.repo_name as string) || repoName;
+      },
+    });
+  }
+
   const hasMode = data.length > 0 && "mode" in data[0] ? true : false;
   if (hasMode && benchmarkName === "TorchCache Benchmark") {
     columns.push({
@@ -168,7 +191,11 @@ export default function LLMsSummaryPanel({
     });
   }
 
-  if (repoName === "vllm-project/vllm" || repoName === "sgl-project/sglang") {
+  // If data has vLLM/SGLang specific fields, show them regardless of repoName
+  const hasSpecificFields = data.some(
+    (row: any) => row.tensor_parallel_size !== undefined
+  );
+  if (hasSpecificFields) {
     columns.push({
       field: "tensor_parallel_size",
       headerName: "Tensor parallel",
@@ -315,11 +342,29 @@ export default function LLMsSummaryPanel({
               const l = v.l.actual;
               const r = v.r.actual;
 
-              if (!v.highlight) {
+              if (!v.highlight && benchmarkName !== HELION_BENCHMARK_NAME) {
                 return "";
               }
 
               if (lCommit === rCommit) {
+                if (benchmarkName === HELION_BENCHMARK_NAME) {
+                  // Highlight the fastest speedup
+                  if (metric.endsWith("_speedup")) {
+                    let maxKey: string | null = null;
+                    let maxValue: number = -Infinity;
+                    for (const key in params.row) {
+                      if (
+                        key.endsWith("_speedup") &&
+                        params.row[key].r.actual_geomean > maxValue
+                      ) {
+                        maxKey = key;
+                        maxValue = params.row[key].r.actual_geomean;
+                      }
+                    }
+                    return maxKey === metric ? styles.ok : "";
+                  }
+                }
+
                 return "";
               } else {
                 if (l === r) {
@@ -368,11 +413,34 @@ export default function LLMsSummaryPanel({
                 return "";
               }
 
-              const l = v.l.actual;
-              const r = v.r.actual;
+              let l = v.l.actual;
+              let r = v.r.actual;
 
               const unit =
                 metric in UNIT_FOR_METRIC ? UNIT_FOR_METRIC[metric] : "";
+              let lUnit = unit;
+              let rUnit = unit;
+
+              if (benchmarkName === HELION_BENCHMARK_NAME) {
+                if (metric.includes("accuracy")) {
+                  l = l === 1 ? "Pass" : "Fail";
+                  r = r === 1 ? "Pass" : "Fail";
+                } else if (metric.includes("speedup")) {
+                  l = v.l.actual_geomean;
+                  r = v.r.actual_geomean;
+
+                  const accuracy = metric.replace(/_speedup$/, "_accuracy");
+                  const accuracy_v = params.row[accuracy];
+                  if (accuracy_v.l.actual !== 1) {
+                    l = "FAILED ACCURACY";
+                    lUnit = "";
+                  }
+                  if (accuracy_v.r.actual !== 1) {
+                    r = "FAILED ACCURACY";
+                    rUnit = "";
+                  }
+                }
+              }
 
               // Compute the percentage
               const target = v.r.target;
@@ -403,9 +471,9 @@ export default function LLMsSummaryPanel({
               }
 
               if (lCommit === rCommit || !v.highlight) {
-                return `${r}${unit} ${rPercent} ${showTarget}`;
+                return `${r}${rUnit} ${rPercent} ${showTarget}`;
               } else {
-                return `${l}${unit} ${lPercent} → ${r}${unit} ${rPercent} ${showTarget}`;
+                return `${l}${lUnit} ${lPercent} → ${r}${rUnit} ${rPercent} ${showTarget}`;
               }
             },
           };

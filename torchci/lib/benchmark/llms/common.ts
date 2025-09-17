@@ -8,6 +8,7 @@ export const REPO_TO_BENCHMARKS: { [k: string]: string[] } = {
   "vllm-project/vllm": ["vLLM benchmark"],
   "sgl-project/sglang": ["SGLang benchmark"],
 };
+export const HELION_BENCHMARK_NAME = "Helion Benchmark";
 export const EXCLUDED_METRICS: string[] = [
   "load_status",
   "mean_itl_ms",
@@ -42,6 +43,12 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   p99_ttft_ms: "p99 TTFT (ms)",
   requests_per_second: "Requests/s",
   tokens_per_second: "Tokens/s",
+  triton_speedup: "Triton Speedup (Geomean)",
+  triton_accuracy: "Triton Accuracy",
+  torch_compile_speedup: "Torch Compile Speedup (Geomean)",
+  torch_compile_accuracy: "Torch Compile Accuracy",
+  helion_speedup: "Helion Speedup (Geomean)",
+  helion_accuracy: "Helion Accuracy",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
@@ -71,6 +78,12 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   "Warm compile time (s)": false,
   Speedup: true,
   "Speedup (%)": true,
+  triton_speedup: true,
+  triton_accuracy: true,
+  torch_compile_speedup: true,
+  torch_compile_accuracy: true,
+  helion_speedup: true,
+  helion_accuracy: true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
@@ -87,6 +100,9 @@ export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
 };
 export const UNIT_FOR_METRIC: { [k: string]: string } = {
   "Speedup (%)": "%",
+  triton_speedup: "x",
+  torch_compile_speedup: "x",
+  helion_speedup: "x",
 };
 
 export const DEFAULT_DEVICE_NAME = "All Devices";
@@ -112,6 +128,7 @@ export interface LLMsBenchmarkData {
   job_id: number;
   metric: string;
   actual: number;
+  actual_geomean: number;
   target: number;
   mode?: string;
   dtype: string;
@@ -125,3 +142,8 @@ export interface LLMsBenchmarkData {
 export interface BranchAndCommitPerfData extends BranchAndCommit {
   data: LLMsBenchmarkData[];
 }
+
+// For fetching available benchmark configuration options
+export const LLM_BENCHMARK_CONFIG_QUERY = "oss_ci_benchmark_names";
+// For fetching actual benchmark performance data
+export const LLM_BENCHMARK_DATA_QUERY = "oss_ci_benchmark_llms";
