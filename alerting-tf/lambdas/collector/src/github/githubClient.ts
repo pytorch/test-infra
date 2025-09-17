@@ -61,10 +61,10 @@ export class GitHubClient {
         throw new Error("GitHub App secret missing required fields (github_app_id, github_app_key_base64)");
       }
 
-      // Cache secret with 1 hour TTL for security
+      // Cache secret TTL to 5 minutes for security
       this.cachedSecret = {
         secret: parsed,
-        expiresAt: now + 3600, // 1 hour
+        expiresAt: now + 300, // 5 minutes
       };
 
       return parsed;
@@ -195,38 +195,6 @@ export class GitHubClient {
     const [owner, repo] = this.githubRepo.split("/");
     const token = await this.getInstallationToken();
 
-    // Ensure all labels exist before creating the issue
-    const labelColors: Record<string, string> = {
-      "area:alerting": "0969da",
-      "P0": "d73a49", // Red for P0
-      "P1": "e99695", // Light red for P1
-      "P2": "fbca04", // Yellow for P2
-      "P3": "28a745", // Green for P3
-    };
-
-    for (const label of labels) {
-      let color = labelColors[label];
-
-      // Handle priority labels
-      if (label.startsWith("Pri: ")) {
-        const priority = label.split(" ")[1];
-        color = labelColors[priority] || "0969da";
-      }
-      // Handle team labels
-      else if (label.startsWith("Team: ")) {
-        color = "1f883d"; // Green for teams
-      }
-      // Handle source labels
-      else if (label.startsWith("Source: ")) {
-        color = "8250df"; // Purple for sources
-      }
-      // Default color if not specified
-      else if (!color) {
-        color = "0969da";
-      }
-
-      await this.ensureGithubLabel(owner, repo, token, label, color);
-    }
 
     const resp = await this.rateLimiter.execute(async () =>
       fetch(`https://api.github.com/repos/${owner}/${repo}/issues`, {

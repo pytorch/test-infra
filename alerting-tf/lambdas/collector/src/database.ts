@@ -18,7 +18,23 @@ export class AlertStateManager {
         })
       );
 
-      return result.Item ? (result.Item as AlertState) : null;
+      if (!result.Item) {
+        return null;
+      }
+
+      // Basic validation of required fields
+      const item = result.Item;
+      if (typeof item.fingerprint !== 'string' ||
+          typeof item.status !== 'string' ||
+          typeof item.team !== 'string') {
+        console.error("Invalid AlertState structure in DynamoDB", {
+          fingerprint,
+          itemKeys: Object.keys(item),
+        });
+        throw new Error("Invalid AlertState data structure in database");
+      }
+
+      return item as AlertState;
     } catch (error) {
       console.error("Failed to load alert state", {
         fingerprint,

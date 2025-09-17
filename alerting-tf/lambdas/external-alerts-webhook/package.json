@@ -3,7 +3,7 @@
   "private": true,
   "type": "commonjs",
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --format=cjs --outfile=dist/index.js --sourcemap",
+    "build": "node esbuild.config.js",
     "lint": "tsc --noEmit",
     "format": "prettier -w .",
     "format:check": "prettier -c ."

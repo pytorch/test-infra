@@ -118,7 +118,7 @@ export class CloudWatchTransformer extends BaseTransformer {
 
     // Security: Limit description length to prevent DoS attacks
     if (description.length > 4096) {
-      throw new Error(`AlarmDescription too long (max 4096 characters). This indicates potentially corrupted data from AWS. ${debugContext}`);
+      throw new Error(`AlarmDescription too long (max 4096 characters, got ${description.length}).`);
     }
 
     // Parse newline-separated format: "Body\nTEAM=team\nPRIORITY=P1\nRUNBOOK=https://..."
@@ -166,22 +166,6 @@ export class CloudWatchTransformer extends BaseTransformer {
     };
   }
 
-  // Security: Sanitize string input to prevent injection attacks
-  private sanitizeString(value: string, maxLength: number = 255): string {
-    if (!value || typeof value !== "string") {
-      return "";
-    }
-
-    // Remove potentially dangerous characters and control characters
-    const sanitized = value
-      .replace(/[<>\"'&\x00-\x1F\x7F]/g, '') // Remove HTML entities and control chars
-      .replace(/javascript:/gi, '') // Remove javascript: protocol
-      .replace(/data:/gi, '') // Remove data: protocol
-      .substring(0, maxLength)
-      .trim();
-
-    return sanitized;
-  }
 
   private extractResourceType(alarmData: any): AlertResource["type"] {
     const trigger = alarmData.Trigger;

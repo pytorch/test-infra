@@ -243,6 +243,13 @@ describe('BaseTransformer', () => {
       expect(transformer['validateUrl']('http://example.com/path?query=1')).toBe('http://example.com/path?query=1');
     });
 
+    it('should accept URLs without protocols and prepend https', () => {
+      expect(transformer['validateUrl']('www.example.com')).toBe('https://www.example.com');
+      expect(transformer['validateUrl']('example.com')).toBe('https://example.com');
+      expect(transformer['validateUrl']('subdomain.example.com/path')).toBe('https://subdomain.example.com/path');
+      expect(transformer['validateUrl']('  example.com  ')).toBe('https://example.com'); // Should trim whitespace
+    });
+
     it('should reject invalid protocols', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
@@ -261,7 +268,7 @@ describe('BaseTransformer', () => {
       expect(transformer['validateUrl']('not-a-url')).toBeUndefined();
       expect(transformer['validateUrl']('http://')).toBeUndefined();
 
-      expect(consoleSpy).toHaveBeenCalledWith('Invalid URL format: not-a-url');
+      expect(consoleSpy).toHaveBeenCalledWith('Invalid hostname format: not-a-url');
 
       consoleSpy.mockRestore();
     });
@@ -272,14 +279,13 @@ describe('BaseTransformer', () => {
       expect(transformer['validateUrl'](undefined as any)).toBeUndefined();
     });
 
-    it('should truncate very long URLs', () => {
+    it('should reject very long URLs', () => {
       const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
       const longUrl = 'https://example.com/' + 'a'.repeat(2100);
 
       const result = transformer['validateUrl'](longUrl);
-      expect(result).toHaveLength(2048);
-      expect(result?.startsWith('https://example.com/')).toBe(true);
-      expect(consoleSpy).toHaveBeenCalledWith('URL too long, truncating');
+      expect(result).toBeUndefined();
+      expect(consoleSpy).toHaveBeenCalledWith('URL too long, rejecting');
 
       consoleSpy.mockRestore();
     });

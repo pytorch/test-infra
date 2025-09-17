@@ -1,5 +1,6 @@
 import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
 import { SNSClient, PublishCommand } from "@aws-sdk/client-sns";
+import { createHash, timingSafeEqual } from "crypto";
 
 const sns = new SNSClient({});
 const TOPIC_ARN = process.env.TOPIC_ARN!;
@@ -12,7 +13,9 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     );
 
     const token = headers["x-grafana-token"] || "";
-    if (!token || token !== SHARED_TOKEN) {
+
+    // Use timing-safe comparison to prevent timing attacks
+    if (!isValidToken(token, SHARED_TOKEN)) {
       return { statusCode: 401, body: "unauthorized" };
     }
 
@@ -34,6 +37,21 @@ export const handler: APIGatewayProxyHandlerV2 = async (event) => {
     return { statusCode: 500, body: "error" };
   }
 };
+
+function digest(input: string): Buffer {
+  return createHash("sha256").update(input, "utf8").digest();
+}
+
+// Timing-safe token comparison to prevent timing attacks
+function isValidToken(providedToken: string, expectedToken: string): boolean {
+  if (!providedToken) return false;
+
+  const providedDigest = digest(providedToken ?? "");
+  const expectedDigest = digest(expectedToken);
+
+  // Both are always 32 bytes, so timingSafeEqual never throws
+  return timingSafeEqual(providedDigest, expectedDigest);
+}
 
 export default handler;
 

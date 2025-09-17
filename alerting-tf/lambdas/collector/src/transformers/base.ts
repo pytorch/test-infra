@@ -132,8 +132,30 @@ export abstract class BaseTransformer {
       return undefined;
     }
 
+    // Security: Check length first to prevent DoS attacks with very long strings
+    if (url.length > 2048) {
+      console.warn("URL too long, rejecting");
+      return undefined;
+    }
+
+    let urlToValidate = url.trim();
+
     try {
-      const parsed = new URL(url);
+      // First, try to parse as-is to see if it's already a valid URL
+      let parsed: URL;
+      try {
+        parsed = new URL(urlToValidate);
+      } catch (firstParseError) {
+        // If parsing fails and URL doesn't contain any protocol, try prepending https
+        // This allows simple hostnames like "www.example.com" to be accepted
+        if (!urlToValidate.includes('://')) {
+          urlToValidate = `https://${urlToValidate}`;
+          parsed = new URL(urlToValidate);
+        } else {
+          // If it contains :// but still failed to parse, it's invalid
+          throw firstParseError;
+        }
+      }
 
       // Only allow http and https protocols
       if (!['http:', 'https:'].includes(parsed.protocol)) {
@@ -141,13 +163,20 @@ export abstract class BaseTransformer {
         return undefined;
       }
 
-      // Additional security: limit URL length
-      if (url.length > 2048) {
-        console.warn("URL too long, truncating");
-        return url.substring(0, 2048);
+      // Validate hostname structure for basic domain format
+      if (!parsed.hostname ||
+          parsed.hostname.length === 0 ||
+          !parsed.hostname.includes('.') ||
+          parsed.hostname.includes(' ') ||
+          parsed.hostname.includes('<') ||
+          parsed.hostname.includes('>') ||
+          parsed.hostname.includes('(') ||
+          parsed.hostname.includes(')')) {
+        console.warn(`Invalid hostname format: ${parsed.hostname}`);
+        return undefined;
       }
 
-      return url;
+      return urlToValidate;
     } catch (error) {
       console.warn(`Invalid URL format: ${url}`);
       return undefined;

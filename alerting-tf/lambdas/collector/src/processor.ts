@@ -2,8 +2,23 @@ import { SQSRecord } from "aws-lambda";
 import { AlertEvent, Envelope, ProcessingResult, AlertAction } from "./types";
 import { getTransformerForRecord, detectAlertSource } from "./transformers";
 import { generateFingerprint } from "./fingerprint";
+import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { AlertStateManager } from "./database";
+
+// Create long lived clients outside the handler for connection reuse
+const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
 
 export class AlertProcessor {
+  private stateManager: AlertStateManager | null = null;
+
+  constructor() {
+    // Initialize state manager if table name is available
+    const tableName = process.env.STATUS_TABLE_NAME;
+    if (tableName) {
+      this.stateManager = new AlertStateManager(ddbClient, tableName);
+    }
+  }
   // Process a single SQS record through the normalization pipeline
   async processRecord(sqsRecord: SQSRecord): Promise<ProcessingResult> {
     try {
@@ -99,23 +114,14 @@ export class AlertProcessor {
 
   // Determine what action to take based on alert state and history
   async determineAction(alertEvent: AlertEvent, fingerprint: string): Promise<AlertAction> {
-    // Import AlertStateManager here to avoid circular dependencies
-    const { AlertStateManager } = await import("./database");
-    const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient } = await import("@aws-sdk/lib-dynamodb");
-
-    const tableName = process.env.STATUS_TABLE_NAME;
-    if (!tableName) {
+    if (!this.stateManager) {
       console.warn("STATUS_TABLE_NAME not set, using simple action determination");
       return alertEvent.state === "FIRING" ? "CREATE" : "SKIP_STALE";
     }
 
     try {
-      const ddbClient = DynamoDBDocumentClient.from(new DynamoDBClient({}));
-      const stateManager = new AlertStateManager(ddbClient, tableName);
-
-      // Check for existing alert state
-      const existingState = await stateManager.loadState(fingerprint);
+      // Check for existing alert state using pre-initialized state manager
+      const existingState = await this.stateManager.loadState(fingerprint);
 
       // If no existing state, handle new alert
       if (!existingState) {
