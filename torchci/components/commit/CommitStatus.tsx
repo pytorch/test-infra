@@ -7,6 +7,7 @@ import {
 import { CommitData, IssueData, JobData } from "lib/types";
 import useScrollTo from "lib/useScrollTo";
 import _ from "lodash";
+import { WorkflowRunInfo } from "pages/api/[repoOwner]/[repoName]/commit/[sha]";
 import { useState } from "react";
 import { linkIt, UrlComponent, urlRegex } from "react-linkify-it";
 import { getConclusionSeverityForSorting } from "../../lib/JobClassifierUtil";
@@ -59,7 +60,7 @@ function WorkflowsContainer({
 }: {
   jobs: JobData[];
   unstableIssues: IssueData[];
-  workflowIdsByName: Record<string, number[]>;
+  workflowIdsByName: Record<string, [WorkflowRunInfo]>;
   repoFullName: string;
 }) {
   useScrollTo();
@@ -117,7 +118,7 @@ export default function CommitStatus({
   repoName: string;
   commit: CommitData;
   jobs: JobData[];
-  workflowIdsByName: Record<string, number[]>;
+  workflowIdsByName: Record<string, [WorkflowRunInfo]>;
   isCommitPage: boolean;
   unstableIssues: IssueData[];
 }) {
