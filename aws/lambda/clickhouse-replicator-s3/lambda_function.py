@@ -563,6 +563,15 @@ def cloudwatch_metrics_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def test_owner_labels_adapter(table, bucket, key):
+    schema = """
+    `file` String,
+    `owner_labels` Array(String),
+    `timestamp` DateTime
+    """
+    general_adapter(table, bucket, key, schema, ["gzip"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -585,6 +594,7 @@ SUPPORTED_PATHS = {
     "disabled_tests_historical": "misc.disabled_tests_historical",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
+    "test_owner_labels": "tests.test_owner_labels",
 }
 
 OBJECT_CONVERTER = {
@@ -608,6 +618,7 @@ OBJECT_CONVERTER = {
     "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
     "misc.disabled_tests_historical": disabled_tests_historical_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
+    "tests.test_owner_labels": test_owner_labels_adapter,
 }
 
 
