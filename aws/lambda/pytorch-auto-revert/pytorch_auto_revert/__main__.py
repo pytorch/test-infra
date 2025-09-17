@@ -23,7 +23,22 @@ def setup_logging(log_level: str) -> None:
     numeric_level = getattr(logging, log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError(f"Invalid log level: {log_level}")
-    logging.basicConfig(level=numeric_level)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    if not root_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(numeric_level)
+        formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+        )
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
+    else:
+        for handler in root_logger.handlers:
+            if handler.level == logging.NOTSET:
+                handler.setLevel(numeric_level)
 
 
 def get_opts() -> argparse.Namespace:
