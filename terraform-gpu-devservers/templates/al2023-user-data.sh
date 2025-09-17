@@ -18,6 +18,44 @@ systemctl stop nodeadm-run.service || true
 dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/amzn2023/x86_64/cuda-amzn2023.repo
 dnf install -y nvidia-driver nvidia-driver-cuda
 
+# Install fabric manager for multi-GPU systems (B200, H200, H100)
+# Fabric manager is required for proper CUDA initialization on these GPUs
+if [[ "${gpu_type}" == "b200" || "${gpu_type}" == "h200" || "${gpu_type}" == "h100" ]]; then
+    echo "Installing fabric manager for multi-GPU system: ${gpu_type}"
+
+    # Install InfiniBand tools - EFA hardware is already present and configured
+    echo "Installing InfiniBand diagnostic tools for fabric manager..."
+    dnf install -y infiniband-diags
+
+    # Install fabric manager and NVLink Subnet Manager
+    dnf install -y nvidia-fabricmanager nvlsm
+
+    # Fix PATH issue - create symlink for ibstat in /usr/bin where fabric manager expects it
+    ln -sf /usr/sbin/ibstat /usr/bin/ibstat || echo "ibstat symlink creation failed"
+
+    # Load required InfiniBand kernel module for fabric manager
+    modprobe ib_umad || echo "ib_umad module load failed"
+
+    # Always start fabric manager for B200/H200/H100 - required for CUDA initialization
+    echo "Starting fabric manager (required for CUDA error 802 fix with EFA)"
+    systemctl unmask nvidia-fabricmanager.service
+    systemctl enable nvidia-fabricmanager
+
+    # Create run directory if it doesn't exist
+    mkdir -p /run/nvidia-fabricmanager
+
+    # Start fabric manager - should work now with ibstat in PATH
+    systemctl start nvidia-fabricmanager || echo "Fabric manager start returned non-zero, checking status..."
+
+    # Show status for debugging
+    systemctl status nvidia-fabricmanager --no-pager || true
+
+    # Enable persistent mode as well
+    nvidia-smi -pm 1 || echo "Could not enable persistent mode"
+
+    echo "Fabric manager setup completed for ${gpu_type} with EFA support"
+fi
+
 # Load NVIDIA modules
 modprobe nvidia
 modprobe nvidia_uvm
