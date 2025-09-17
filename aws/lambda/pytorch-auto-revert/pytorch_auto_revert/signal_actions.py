@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Dict, Iterable, List, Tuple, Union
 
-from .clickhouse_client_helper import CHCliFactory
+from .clickhouse_client_helper import CHCliFactory, ensure_utc_datetime
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
 from .workflow_checker import WorkflowRestartChecker
@@ -73,7 +73,7 @@ class ActionLogger:
         res = CHCliFactory().client.query(
             q, {"repo": repo, "wf": workflow, "sha": commit_sha, "lim": limit}
         )
-        return [r[0] for r in res.result_rows]
+        return [ensure_utc_datetime(ts) for (ts,) in res.result_rows]
 
     def insert_event(
         self,
