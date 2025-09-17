@@ -62,7 +62,9 @@ export function VllmArtifactsTable() {
             {files.map((file, index) => (
               <TableRow key={file.key} hover>
                 <TableCell>{index + 1}</TableCell>
-                <TableCell sx={{ wordBreak: "break-word" }}>{file.fileName}</TableCell>
+                <TableCell sx={{ wordBreak: "break-word" }}>
+                  {file.key}
+                </TableCell>
                 <TableCell>
                   <Link
                     href={file.url}

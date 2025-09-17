@@ -1,5 +1,5 @@
-import type { NextApiRequest, NextApiResponse } from "next";
 import dayjs from "dayjs";
+import type { NextApiRequest, NextApiResponse } from "next";
 
 const S3_BASE_URL = "https://gha-artifacts.s3.us-east-1.amazonaws.com";
 const TARGET_PREFIX = "vllm-project/vllm/";
@@ -8,7 +8,6 @@ const MAX_PAGINATION_LOOPS = 100;
 
 type ArtifactFile = {
   key: string;
-  fileName: string;
   url: string;
 };
 
@@ -30,36 +29,30 @@ export default async function handler(
     const lookbackStart = now.subtract(LOOKBACK_MONTHS, "month").startOf("day");
 
     const monthPrefixes = buildMonthPrefixes(lookbackStart, now);
+    const monthKeyResults = await Promise.all(
+      monthPrefixes.map((monthPrefix) => listKeysForPrefix(monthPrefix))
+    );
+
     const keys = new Set<string>();
 
-    for (const monthPrefix of monthPrefixes) {
-      const monthKeys = await listKeysForPrefix(monthPrefix);
+    for (const monthKeys of monthKeyResults) {
       for (const key of monthKeys) {
-        if (!key.includes(`/${TARGET_PREFIX}`)) {
+        if (!isKeyInTargetPrefix(key)) {
           continue;
         }
-        if (key.endsWith("/")) {
-          continue;
-        }
+
         const [dateSegment] = key.split("/");
-        const parsedDate = dayjs(dateSegment);
-        if (!parsedDate.isValid()) {
+        if (!isDateWithinRange(dateSegment, lookbackStart, now)) {
           continue;
         }
-        if (parsedDate.isBefore(lookbackStart, "day")) {
-          continue;
-        }
-        if (parsedDate.isAfter(now, "day")) {
-          continue;
-        }
+
         keys.add(key);
       }
     }
 
-    const sortedKeys = Array.from(keys).sort((a, b) => (a > b ? -1 : 1));
+    const sortedKeys = Array.from(keys).sort((a, b) => b.localeCompare(a));
     const files = sortedKeys.map((key) => ({
       key,
-      fileName: getFileName(key),
       url: buildDownloadUrl(key),
     }));
 
@@ -106,7 +99,9 @@ async function listKeysForPrefix(prefix: string): Promise<string[]> {
 
     const response = await fetch(url.toString());
     if (!response.ok) {
-      throw new Error(`S3 listing request failed with status ${response.status}`);
+      throw new Error(
+        `S3 listing request failed with status ${response.status}`
+      );
     }
 
     const xml = await response.text();
@@ -121,16 +116,13 @@ async function listKeysForPrefix(prefix: string): Promise<string[]> {
       continue;
     }
 
-    const tokenMatch = xml.match(/<NextContinuationToken>([^<]+)<\/NextContinuationToken>/);
+    const tokenMatch = xml.match(
+      /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/
+    );
     continuationToken = tokenMatch ? tokenMatch[1] : undefined;
   } while (continuationToken);
 
   return keys;
-}
-
-function getFileName(key: string) {
-  const parts = key.split("/");
-  return parts[parts.length - 1];
 }
 
 function buildDownloadUrl(key: string) {
@@ -139,4 +131,36 @@ function buildDownloadUrl(key: string) {
     .map((segment) => encodeURIComponent(segment))
     .join("/");
   return `${S3_BASE_URL}/${encodedKey}`;
+}
+
+function isKeyInTargetPrefix(key: string) {
+  if (key.endsWith("/")) {
+    return false;
+  }
+  const [dateSegment, ...rest] = key.split("/");
+  if (!dateSegment) {
+    return false;
+  }
+  return rest.join("/").startsWith(TARGET_PREFIX);
+}
+
+function isDateWithinRange(
+  dateSegment: string,
+  earliest: dayjs.Dayjs,
+  latest: dayjs.Dayjs
+) {
+  const parsedDate = dayjs(dateSegment);
+  if (!parsedDate.isValid()) {
+    return false;
+  }
+
+  if (parsedDate.isBefore(earliest, "day")) {
+    return false;
+  }
+
+  if (parsedDate.isAfter(latest, "day")) {
+    return false;
+  }
+
+  return true;
 }

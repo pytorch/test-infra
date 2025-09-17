@@ -1,9 +1,8 @@
-import useSWR from "swr";
 import { fetcher } from "lib/GeneralUtils";
+import useSWR from "swr";
 
 export type VllmArtifactFile = {
   key: string;
-  fileName: string;
   url: string;
 };
 
@@ -14,4 +13,7 @@ export type VllmArtifactResponse = {
 export const useVllmArtifacts = () =>
   useSWR<VllmArtifactResponse>("/api/vllm/artifacts", fetcher, {
     refreshInterval: 60 * 60 * 1000,
+    dedupingInterval: 15 * 60 * 1000,
+    revalidateOnFocus: false,
+    revalidateOnReconnect: false,
   });
