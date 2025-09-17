@@ -265,9 +265,17 @@ class ReservationManager:
                 )
                 all_reservations = response.get("Items", [])
             else:
-                # Get all reservations (scan with higher limit for admin use)
-                response = self.reservations_table.scan(Limit=200)
-                all_reservations = response.get("Items", [])
+                # Get all reservations (scan with pagination for admin use)
+                all_reservations = []
+                response = self.reservations_table.scan()
+                all_reservations.extend(response.get("Items", []))
+
+                # Handle pagination
+                while "LastEvaluatedKey" in response:
+                    response = self.reservations_table.scan(
+                        ExclusiveStartKey=response["LastEvaluatedKey"]
+                    )
+                    all_reservations.extend(response.get("Items", []))
 
             # Filter by status if specified
             if statuses_to_include:
