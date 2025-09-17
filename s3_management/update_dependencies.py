@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import boto3  # type: ignore[import-untyped]
 
@@ -8,9 +8,6 @@ S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
 
-# TODO (huydhn): There are duplicated entries here that need to be cleaned up
-# because they are from different projects. I'm commenting them out in the
-# meantime
 PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "sympy": [{"version": "latest", "project": "torch"}],
     "mpmath": [{"version": "latest", "project": "torch"}],
@@ -333,7 +330,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "certifi": [{"version": "latest", "project": "torchtune"}],
     "charset-normalizer": [{"version": "latest", "project": "torchtune"}],
     "datasets": [{"version": "latest", "project": "torchtune"}],
-    # "dill": [{"version": "latest", "project": "torchtune"}],
+    "dill": [{"version": "latest", "project": "torchtune"}],
     "frozenlist": [{"version": "latest", "project": "torchtune"}],
     "huggingface-hub": [{"version": "latest", "project": "torchtune"}],
     "idna": [{"version": "latest", "project": "torchtune"}],
@@ -342,12 +339,12 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "multidict": [{"version": "latest", "project": "torchtune"}],
     "multiprocess": [{"version": "latest", "project": "torchtune"}],
     "omegaconf": [{"version": "latest", "project": "torchtune"}],
-    # "pandas": [{"version": "latest", "project": "torchtune"}],
+    "pandas": [{"version": "latest", "project": "torchtune"}],
     "pyarrow": [{"version": "latest", "project": "torchtune"}],
     "pyarrow-hotfix": [{"version": "latest", "project": "torchtune"}],
     "pycryptodomex": [{"version": "latest", "project": "torchtune"}],
     "python-dateutil": [{"version": "latest", "project": "torchtune"}],
-    # "pytz": [{"version": "latest", "project": "torchtune"}],
+    "pytz": [{"version": "latest", "project": "torchtune"}],
     "pyyaml": [{"version": "latest", "project": "torchtune"}],
     "regex": [{"version": "latest", "project": "torchtune"}],
     "requests": [{"version": "latest", "project": "torchtune"}],
@@ -356,7 +353,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "six": [{"version": "latest", "project": "torchtune"}],
     "tiktoken": [{"version": "latest", "project": "torchtune"}],
     "tqdm": [{"version": "latest", "project": "torchtune"}],
-    # "tzdata": [{"version": "latest", "project": "torchtune"}],
+    "tzdata": [{"version": "latest", "project": "torchtune"}],
     "urllib3": [{"version": "latest", "project": "torchtune"}],
     "xxhash": [{"version": "latest", "project": "torchtune"}],
     "yarl": [{"version": "latest", "project": "torchtune"}],
@@ -580,11 +577,11 @@ def main() -> None:
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     # Get unique paths from the packages list
     project_paths = list(
-        {
+        set(
             config["project"]
             for pkg_configs in PACKAGES_PER_PROJECT.values()
             for config in pkg_configs
-        }
+        )
     )
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
