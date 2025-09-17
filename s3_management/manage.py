@@ -7,11 +7,9 @@ import dataclasses
 import functools
 import time
 from collections import defaultdict
-from contextlib import suppress
-from datetime import datetime
 from os import makedirs, path
-from re import match, search, sub
-from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar, Union
+from re import match, sub
+from typing import Dict, Iterable, List, Optional, Set, TypeVar
 
 import boto3  # type: ignore[import]
 import botocore  # type: ignore[import]
@@ -225,6 +223,90 @@ PACKAGE_ALLOW_LIST = {
         "executorch",
         "setuptools",
         "wheel",
+        # vllm
+        "ninja",
+        "cuda-python",
+        "cuda-bindings",
+        "cuda-pathfinder",
+        "pynvml",
+        "nvidia-ml-py",
+        "einops",
+        "packaging",
+        "nvidia-cudnn-frontend",
+        "cachetools",
+        "blake3",
+        "py-cpuinfo",
+        "transformers",
+        "hf-xet",
+        "tokenizers",
+        "protobuf",
+        "fastapi",
+        "annotated-types",
+        "anyio",
+        "pydantic",
+        "pydantic-core",
+        "sniffio",
+        "starlette",
+        "typing-inspection",
+        "openai",
+        "distro",
+        "h11",
+        "httpcore",
+        "httpx",
+        "jiter",
+        "prometheus-client",
+        "prometheus-fastapi-instrumentator",
+        "lm-format-enforcer",
+        "interegular",
+        "llguidance",
+        "outlines-core",
+        "diskcache",
+        "lark",
+        "xgrammar",
+        "partial-json-parser",
+        "pyzmq",
+        "msgspec",
+        "gguf",
+        "mistral-common",
+        "rpds-py",
+        "pycountry",
+        "referencing",
+        "pydantic-extra-types",
+        "jsonschema-specifications",
+        "jsonschema",
+        "opencv-python-headless",
+        "compressed-tensors",
+        "frozendict",
+        "depyf",
+        "astor",
+        "cloudpickle",
+        "watchfiles",
+        "python-json-logger",
+        "scipy",
+        "pybase64",
+        "cbor2",
+        "setproctitle",
+        "openai-harmony",
+        "numba",
+        "llvmlite",
+        "ray",
+        "click",
+        "msgpack",
+        "fastapi-cli",
+        "httptools",
+        "markdown-it-py",
+        "pygments",
+        "python-dotenv",
+        "rich",
+        "rich-toolkit",
+        "shellingham",
+        "typer",
+        "uvicorn",
+        "uvloop",
+        "websockets",
+        "python-multipart",
+        "email-validator",
+        "dnspython",
     ]
 }
 
@@ -408,7 +490,7 @@ class S3Index:
                 attributes += ' data-requires-python="&gt;=3.10"'
 
             out.append(
-                f'    <a href="/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B","+")}</a><br/>'
+                f'    <a href="/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B", "+")}</a><br/>'
             )
         # Adding html footer
         out.append("  </body>")
@@ -428,7 +510,7 @@ class S3Index:
         out.append("  <body>")
         for pkg_name in sorted(self.get_package_names(subdir)):
             out.append(
-                f'    <a href="{pkg_name.lower().replace("_","-")}/">{pkg_name.replace("_","-")}</a><br/>'
+                f'    <a href="{pkg_name.lower().replace("_", "-")}/">{pkg_name.replace("_", "-")}</a><br/>'
             )
         # Adding html footer
         out.append("  </body>")
@@ -677,7 +759,7 @@ def main() -> None:
         )
         etime = time.time()
         print(
-            f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime-stime:.2f} seconds"
+            f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime - stime:.2f} seconds"
         )
         if args.compute_sha256:
             idx.compute_sha256()
