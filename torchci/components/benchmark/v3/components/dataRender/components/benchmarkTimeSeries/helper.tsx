@@ -5,6 +5,21 @@ export type BenchmarkChartSectionConfig = {
   chartGroup: ChartGroupConfig;
 };
 
+export type BenchmarkComparisonTableSectionConfig = {
+  titleMapping?: Record<string, string>;
+  groupByFields: string[];
+  filterByFieldValues?: Record<string, Array<string>>;
+  tableConfig: ComparisonTableConfig;
+};
+
+export type ComparisonTableConfig = {
+  titleMapping?: Record<string, string>;
+  nameKey: string;
+  renderOptions?: {
+    columnPolicy: any;
+  };
+};
+
 export type ChartGroupConfig = {
   type: "line";
   titleMapping?: Record<string, string>;

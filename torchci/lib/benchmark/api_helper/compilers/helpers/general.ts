@@ -26,6 +26,7 @@ const COMPILER_GENERAL_TABLE_GROUP_KEY = [
   "branch",
   "compiler",
   "model",
+  "suite",
 ];
 const COMPILER_GENERAL_TABLE_SUB_GROUP_KEY = ["metric"];
 

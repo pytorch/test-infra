@@ -99,6 +99,15 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
           },
         },
       },
+      {
+        type: "FanoutBenchmarkTimeSeriesComparisonTableSection",
+        config: {
+          groupByFields: ["metric"],
+          tableConfig: {
+            nameKey: "compiler",
+          },
+        },
+      },
     ],
   },
 };

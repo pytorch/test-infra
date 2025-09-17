@@ -33,11 +33,13 @@ const COMPILER_PRECOMPUTE_TABLE_GROUP_KEY = [
   "arch",
   "device",
   "mode",
-  "metric",
   "workflow_id",
+  "commit",
   "branch",
+  "metric",
+  "compiler",
 ];
-const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["compiler"];
+const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["suite"];
 
 export function toPrecomputeCompilerData(
   rawData: any[],

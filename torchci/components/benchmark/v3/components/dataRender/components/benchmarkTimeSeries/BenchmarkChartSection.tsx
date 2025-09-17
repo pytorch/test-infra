@@ -1,13 +1,13 @@
 import { Paper, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import { useMemo } from "react";
+import BenchmarkTimeSeriesChartGroup from "./components/BenchmarkTimeSeriesChartGroup";
 import {
   BenchmarkChartSectionConfig,
   BenchmarkTimeSeriesInput,
   makeGroupKeyAndLabel,
   passesFilter,
-} from "../helper";
-import BenchmarkTimeSeriesChartGroup from "./BenchmarkTimeSeriesChartGroup";
+} from "./helper";
 
 const styles = {
   container: {
@@ -52,7 +52,9 @@ export default function BenchmarkChartSection({
         gi,
         chartSectionConfig.groupByFields
       );
-      if (!m.has(key)) m.set(key, { key, labels, items: [] });
+      if (!m.has(key)) {
+        m.set(key, { key, labels, items: [] });
+      }
       m.get(key)!.items.push(s);
     }
     return m;
@@ -63,34 +65,37 @@ export default function BenchmarkChartSection({
   }
 
   return (
-    <Box sx={styles.container}>
-      {Array.from(groupMap.entries()).map(([key, data]) => {
-        if (!data) return null;
-        const op = chartSectionConfig.chartGroup?.renderOptions;
-        const title = data.labels.join(" ");
+    <Box sx={{ m: 1 }}>
+      <Typography variant="h2"> Time Series Chart Section </Typography>
+      <Box sx={styles.container}>
+        {Array.from(groupMap.entries()).map(([key, data]) => {
+          if (!data) return null;
+          const op = chartSectionConfig.chartGroup?.renderOptions;
+          const title = data.labels.join(" ");
 
-        let renderOptions = chartSectionConfig.chartGroup?.renderOptions;
-        if (op && op.pass_section_title) {
-          renderOptions = {
-            ...renderOptions,
-            titleSuffix: `/${title}`,
-          };
-        }
-        return (
-          <Box key={key} sx={styles.groupBox}>
-            <Paper sx={styles.paper}>
-              <Typography variant="h4">{title.toUpperCase()}</Typography>
-              <BenchmarkTimeSeriesChartGroup
-                data={data.items}
-                chartGroup={chartSectionConfig.chartGroup}
-                onConfirm={(payload: any) => {
-                  onChange?.(payload);
-                }}
-              />
-            </Paper>
-          </Box>
-        );
-      })}
+          let renderOptions = chartSectionConfig.chartGroup?.renderOptions;
+          if (op && op.pass_section_title) {
+            renderOptions = {
+              ...renderOptions,
+              titleSuffix: `/${title}`,
+            };
+          }
+          return (
+            <Box key={key} sx={styles.groupBox}>
+              <Paper sx={styles.paper}>
+                <Typography variant="h4">{title.toUpperCase()}</Typography>
+                <BenchmarkTimeSeriesChartGroup
+                  data={data.items}
+                  chartGroup={chartSectionConfig.chartGroup}
+                  onConfirm={(payload: any) => {
+                    onChange?.(payload);
+                  }}
+                />
+              </Paper>
+            </Box>
+          );
+        })}
+      </Box>
     </Box>
   );
 }
