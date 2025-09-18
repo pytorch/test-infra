@@ -89,7 +89,6 @@ export function ComparisonTableValueCell({
   comparisonTargetField?: string;
   config?: ComparisonTableConfig;
 }) {
-  // If your value is directly rows[col], drop `.data?.[0]`
   const L = valOf(
     lWorkflowId
       ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
