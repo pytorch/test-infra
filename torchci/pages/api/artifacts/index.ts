@@ -4,7 +4,6 @@ import type { NextApiRequest, NextApiResponse } from "next";
 const S3_BASE_URL = "https://gha-artifacts.s3.us-east-1.amazonaws.com";
 const DEFAULT_TARGET_PREFIX = "vllm-project/vllm/";
 const DEFAULT_LOOKBACK_MONTHS = 6;
-const MAX_PAGINATION_LOOPS = 100;
 
 type ArtifactFile = {
   key: string;
@@ -54,7 +53,7 @@ async function collectArtifacts(targetPrefix: string, lookbackMonths: number) {
   const now = dayjs();
   const earliestDate = now.subtract(lookbackMonths, "month").startOf("day");
 
-  const keys = new Set<string>();
+  const files: ArtifactFile[] = [];
   let cursor = earliestDate.startOf("month");
 
   while (cursor.isBefore(now, "month") || cursor.isSame(now, "month")) {
@@ -66,85 +65,58 @@ async function collectArtifacts(targetPrefix: string, lookbackMonths: number) {
         continue;
       }
 
-      const [dateSegment, ...rest] = key.split("/");
-      if (!dateSegment) {
+      if (!key.includes(`/${targetPrefix}`)) {
         continue;
       }
 
-      const pathAfterDate = rest.join("/");
-      if (!pathAfterDate.startsWith(targetPrefix)) {
+      const metadata = extractFileMetadata(key);
+      if (!metadata) {
         continue;
       }
 
-      const keyDate = dayjs(dateSegment);
-      if (!keyDate.isValid()) {
+      const fileDate = dayjs(metadata.date);
+      if (!fileDate.isValid()) {
         continue;
       }
 
       if (
-        keyDate.isBefore(earliestDate, "day") ||
-        keyDate.isAfter(now, "day")
+        fileDate.isBefore(earliestDate, "day") ||
+        fileDate.isAfter(now, "day")
       ) {
         continue;
       }
 
-      keys.add(key);
+      files.push({
+        key,
+        url: buildDownloadUrl(key),
+        ...metadata,
+      });
     }
 
     cursor = cursor.add(1, "month");
   }
 
-  return Array.from(keys)
-    .sort((a, b) => b.localeCompare(a))
-    .map((key) => ({
-      key,
-      url: buildDownloadUrl(key),
-      ...extractFileMetadata(key, targetPrefix),
-    }));
+  return files.sort((a, b) => b.key.localeCompare(a.key));
 }
 
 async function listS3Keys(prefix: string) {
-  let continuationToken: string | undefined;
+  const url = new URL(S3_BASE_URL);
+  url.searchParams.set("list-type", "2");
+  url.searchParams.set("prefix", prefix);
+  url.searchParams.set("encoding-type", "url");
+
+  const response = await fetch(url.toString());
+  if (!response.ok) {
+    throw new Error(`S3 listing request failed with status ${response.status}`);
+  }
+
+  const xml = await response.text();
   const keys: string[] = [];
-  let loopCount = 0;
 
-  do {
-    if (loopCount++ > MAX_PAGINATION_LOOPS) {
-      throw new Error("Reached pagination loop limit while listing S3 keys");
-    }
-
-    const url = new URL(S3_BASE_URL);
-    url.searchParams.set("list-type", "2");
-    url.searchParams.set("prefix", prefix);
-    url.searchParams.set("encoding-type", "url");
-    if (continuationToken) {
-      url.searchParams.set("continuation-token", continuationToken);
-    }
-
-    const response = await fetch(url.toString());
-    if (!response.ok) {
-      throw new Error(
-        `S3 listing request failed with status ${response.status}`
-      );
-    }
-
-    const xml = await response.text();
-    for (const match of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) {
-      const [, encodedKey] = match;
-      keys.push(decodeURIComponent(encodedKey));
-    }
-
-    const isTruncated = /<IsTruncated>true<\/IsTruncated>/.test(xml);
-    if (!isTruncated) {
-      continuationToken = undefined;
-      continue;
-    }
-
-    const tokenMatch = xml.match(
-      /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/
-    );
-    continuationToken = tokenMatch ? tokenMatch[1] : undefined;
-  } while (continuationToken);
+  for (const match of xml.matchAll(/<Key>([^<]+)<\/Key>/g)) {
+    const [, encodedKey] = match;
+    keys.push(decodeURIComponent(encodedKey));
+  }
 
   return keys;
 }
@@ -172,23 +144,22 @@ function buildDownloadUrl(key: string) {
     .join("/")}`;
 }
 
-function extractFileMetadata(key: string, targetPrefix: string) {
+function extractFileMetadata(key: string) {
   const segments = key.split("/").filter(Boolean);
-  const date = segments[0] ?? "";
-  const fileName = segments[segments.length - 1] ?? "";
-  const prefixSegments = targetPrefix.split("/").filter(Boolean);
-  const afterDateSegments = segments.slice(1);
-  const afterPrefixSegments = afterDateSegments.slice(prefixSegments.length);
+  if (segments.length < 7) {
+    return null;
+  }
 
-  const commitHash =
-    afterPrefixSegments.length >= 1 ? afterPrefixSegments[0] ?? "" : "";
-  const workflowId =
-    afterPrefixSegments.length >= 3 ? afterPrefixSegments[1] ?? "" : "";
-  const trailingSegments = afterPrefixSegments.slice(2);
-  const modelName =
-    trailingSegments.length >= 2
-      ? trailingSegments[trailingSegments.length - 2] ?? ""
-      : "";
+  const fileName = segments.pop() ?? "";
+  const modelName = segments.pop() ?? "";
+  segments.pop();
+  const workflowId = segments.pop() ?? "";
+  const commitHash = segments.pop() ?? "";
+  const date = segments.shift() ?? "";
+
+  if (!date) {
+    return null;
+  }
 
   return { date, modelName, fileName, commitHash, workflowId };
 }

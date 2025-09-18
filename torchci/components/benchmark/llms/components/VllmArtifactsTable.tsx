@@ -1,5 +1,5 @@
 import { Alert, Grid, Link } from "@mui/material";
-import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import type { GridColDef } from "@mui/x-data-grid";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import type { ArtifactFile } from "lib/benchmark/llms/utils/artifacts";
 import { useArtifacts } from "lib/benchmark/llms/utils/artifacts";
@@ -10,21 +10,12 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "date",
     headerName: "Date",
-    minWidth: 130,
-    flex: 0.8,
-    sortable: false,
-    filterable: false,
-    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) =>
-      params.row.date || "—",
+    renderCell: (params) => params.row.date || "—",
   },
   {
     field: "modelName",
     headerName: "Model name",
-    minWidth: 160,
-    flex: 1.2,
-    sortable: false,
-    filterable: false,
-    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+    renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.modelName || "—"}
       </span>
@@ -33,11 +24,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "commitHash",
     headerName: "Commit Hash",
-    minWidth: 220,
-    flex: 1.3,
-    sortable: false,
-    filterable: false,
-    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+    renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.commitHash || "—"}
       </span>
@@ -46,11 +33,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "workflowId",
     headerName: "Github workflow id",
-    minWidth: 220,
-    flex: 1.3,
-    sortable: false,
-    filterable: false,
-    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+    renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.workflowId || "—"}
       </span>
@@ -59,11 +42,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "fileName",
     headerName: "Name of the file",
-    minWidth: 240,
-    flex: 1.6,
-    sortable: false,
-    filterable: false,
-    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+    renderCell: (params) => (
       <Link
         href={params.row.url}
         target="_blank"
