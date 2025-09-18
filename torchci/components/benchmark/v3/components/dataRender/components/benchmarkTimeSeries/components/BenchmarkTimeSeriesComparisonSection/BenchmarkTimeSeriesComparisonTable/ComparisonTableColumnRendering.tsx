@@ -6,6 +6,11 @@ import {
   GridRenderCellParams,
   GridRowModel,
 } from "@mui/x-data-grid";
+import {
+  BenchmarkComparisonPolicyConfig,
+  evaluateComparison,
+} from "components/benchmark/v3/configs/helpers/RegressionPolicy";
+import { ComparisonTableConfig } from "../../../helper";
 import { asNumber, valOf } from "./ComparisonTableHelpers";
 
 /**
@@ -18,7 +23,8 @@ import { asNumber, valOf } from "./ComparisonTableHelpers";
 export function getComparisionTableConlumnRendering(
   columnsFields: string[],
   lWorkflowId: string | null,
-  rWorkflowId: string | null
+  rWorkflowId: string | null,
+  config: ComparisonTableConfig
 ): GridColDef[] {
   const nameCol: GridColDef = {
     field: "name",
@@ -40,6 +46,7 @@ export function getComparisionTableConlumnRendering(
         row={params.row}
         lWorkflowId={lWorkflowId}
         rWorkflowId={rWorkflowId}
+        config={config}
       />
     ),
   }));
@@ -73,11 +80,14 @@ export function ComparisonTableValueCell({
   row,
   lWorkflowId,
   rWorkflowId,
+  config,
 }: {
   field: string;
   row: GridRowModel;
   lWorkflowId: string | null;
   rWorkflowId: string | null;
+  comparisonTargetField?: string;
+  config?: ComparisonTableConfig;
 }) {
   // If your value is directly rows[col], drop `.data?.[0]`
   const L = valOf(
@@ -94,18 +104,45 @@ export function ComparisonTableValueCell({
   );
 
   const fmt = (v: any) =>
-    v == null ? "—" : typeof v === "number" ? Number(v).toFixed(2) : String(v);
+    v == null
+      ? "—"
+      : typeof v === "number"
+      ? Number(v).toFixed(2)
+      : String(v.toFixed(2));
+
   const ln = asNumber(L);
   const rn = asNumber(R);
-  const d = ln != null && rn != null ? rn - ln : null;
-  const dStr = d == null ? "—" : `${d >= 0 ? "+" : ""}${Number(d.toFixed(3))}`;
 
-  const bg =
-    d == null || d === 0
-      ? undefined
-      : d > 0
-      ? IMPROVEMENT_COLOR
-      : VIOLATE_RULE_COLOR;
+  // get comparison policy for the field
+  const targetPolicyField = config?.comparisonPolicyTargetField;
+  let comparisonPolicy: BenchmarkComparisonPolicyConfig | undefined = undefined;
+  if (targetPolicyField && config?.comparisonPolicy) {
+    const fieldValue = row[targetPolicyField];
+    comparisonPolicy = fieldValue
+      ? config?.comparisonPolicy[fieldValue]
+      : undefined;
+  }
+
+  // evaluate comparison
+  const result = evaluateComparison(
+    comparisonPolicy?.target,
+    ln,
+    rn,
+    comparisonPolicy
+  );
+
+  let bgColor = "";
+  switch (result.verdict) {
+    case "good":
+      bgColor = IMPROVEMENT_COLOR;
+      break;
+    case "regression":
+      bgColor = VIOLATE_RULE_COLOR;
+      break;
+    case "neutral":
+    default:
+      break;
+  }
 
   const text =
     L == null && R == null
@@ -114,13 +151,15 @@ export function ComparisonTableValueCell({
       ? `N/A→${fmt(R)}`
       : R == null
       ? `${fmt(L)}→N/A`
-      : L === R
+      : fmt(L) === fmt(R)
       ? `${fmt(L)}`
-      : `${fmt(L)}→${fmt(R)} (${dStr})`;
+      : `${fmt(L)}→${fmt(R)} (${result.delta?.toFixed(2) ?? "N/A"})`;
 
   return (
-    <Box sx={{ bgcolor: bg, borderRadius: 1, px: 0.5, py: 0.25 }}>
-      <Typography variant="body2">{text}</Typography>
+    <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
+      <Tooltip title={JSON.stringify(result, null, 2)} arrow>
+        <Typography variant="body2">{text}</Typography>
+      </Tooltip>
     </Box>
   );
 }

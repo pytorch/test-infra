@@ -1,3 +1,5 @@
+import { BenchmarkComparisonPolicyConfig } from "components/benchmark/v3/configs/helpers/RegressionPolicy";
+
 export type BenchmarkChartSectionConfig = {
   titleMapping?: Record<string, string>;
   groupByFields: string[];
@@ -15,8 +17,11 @@ export type BenchmarkComparisonTableSectionConfig = {
 export type ComparisonTableConfig = {
   titleMapping?: Record<string, string>;
   nameKey: string;
-  renderOptions?: {
-    columnPolicy: any;
+  renderOptions?: {};
+  // indicates the field to use for comparison policy map
+  comparisonPolicyTargetField?: string;
+  comparisonPolicy?: {
+    [key: string]: BenchmarkComparisonPolicyConfig;
   };
 };
 

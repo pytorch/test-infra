@@ -27,6 +27,7 @@ export function ComparisonTable({
     return getComparisonTableRowDefinition(config, data);
   }, [data, config.nameKey]);
 
+  console.log("Table Config", config);
   // union of all column ids
   const allColumns = useMemo(() => {
     const s = new Set<string>();
@@ -45,7 +46,12 @@ export function ComparisonTable({
   // Form the columns
   const columns: GridColDef[] = useMemo(
     () =>
-      getComparisionTableConlumnRendering(allColumns, lWorkflowId, rWorkflowId),
+      getComparisionTableConlumnRendering(
+        allColumns,
+        lWorkflowId,
+        rWorkflowId,
+        config
+      ),
     [allColumns, lWorkflowId, rWorkflowId, title]
   );
 

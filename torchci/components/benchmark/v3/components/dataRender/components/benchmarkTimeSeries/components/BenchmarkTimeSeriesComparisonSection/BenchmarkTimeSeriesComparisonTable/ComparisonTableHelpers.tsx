@@ -45,6 +45,7 @@ export function getComparisonTableRowDefinition(
     const name = config.nameKey ? gi?.[config.nameKey] : label;
     if (!m.has(key)) {
       m.set(key, {
+        ...gi,
         id: key,
         label,
         metric,
