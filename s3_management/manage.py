@@ -7,11 +7,9 @@ import dataclasses
 import functools
 import time
 from collections import defaultdict
-from contextlib import suppress
-from datetime import datetime
 from os import makedirs, path
-from re import match, search, sub
-from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar, Union
+from re import match, sub
+from typing import Dict, Iterable, List, Optional, Set, TypeVar
 
 import boto3  # type: ignore[import]
 import botocore  # type: ignore[import]
