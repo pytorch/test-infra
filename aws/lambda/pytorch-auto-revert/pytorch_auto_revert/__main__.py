@@ -9,8 +9,13 @@ from dotenv import load_dotenv
 
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
-from .testers.autorevert import autorevert_checker
+from .testers.autorevert_v2 import autorevert_v2
+from .testers.hud import run_hud
 from .testers.restart_checker import workflow_restart_checker
+from .utils import RestartAction, RevertAction
+
+
+DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
 
 
 def setup_logging(log_level: str) -> None:
@@ -72,11 +77,13 @@ def get_opts() -> argparse.Namespace:
 
     # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
-        "autorevert-checker", help="Analyze workflows looking for autorevert patterns"
+        "autorevert-checker",
+        help="Analyze workflows for autorevert using Signals (default), or legacy via flag",
     )
     workflow_parser.add_argument(
         "workflows",
         nargs="+",
+        default=DEFAULT_WORKFLOWS,
         help="Workflow name(s) to analyze - single name or comma/space separated"
         + ' list (e.g., "pull" or "pull,trunk,inductor")',
     )
@@ -84,25 +91,27 @@ def get_opts() -> argparse.Namespace:
         "--hours", type=int, default=48, help="Lookback window in hours (default: 48)"
     )
     workflow_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Show detailed output including commit summaries",
+        "--repo-full-name",
+        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        help="Full repo name to filter by (owner/repo).",
     )
     workflow_parser.add_argument(
-        "--do-restart",
-        action="store_true",
-        help="Actually restart workflows for detected autorevert patterns",
+        "--restart-action",
+        type=RestartAction,
+        default=RestartAction.RUN,
+        choices=list(RestartAction),
+        help=(
+            "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
+        ),
     )
     workflow_parser.add_argument(
-        "--do-revert",
-        action="store_true",
-        help="When restarts complete and secondary pattern matches, log REVERT",
-    )
-    workflow_parser.add_argument(
-        "--ignore-common-errors",
-        action="store_true",
-        help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
+        "--revert-action",
+        type=RevertAction,
+        default=RevertAction.LOG,
+        choices=list(RevertAction),
+        help=(
+            "Revert mode: skip, log (no side effects), run-notify (side effect), or run-revert (side effect)."
+        ),
     )
 
     # workflow-restart-checker subcommand
@@ -122,6 +131,38 @@ def get_opts() -> argparse.Namespace:
         type=int,
         default=7,
         help="If no `--commit` specified, look back days for bulk query (default: 7)",
+    )
+
+    # hud subcommand: generate local HTML report for signals/detections
+    hud_parser = subparsers.add_parser(
+        "hud", help="Generate local HUD-like HTML with extracted signals"
+    )
+    hud_parser.add_argument(
+        "workflows",
+        nargs="+",
+        help="Workflow name(s) to analyze - e.g. trunk pull inductor",
+    )
+    hud_parser.add_argument(
+        "--hours", type=int, default=24, help="Lookback window in hours (default: 24)"
+    )
+    hud_parser.add_argument(
+        "--repo-full-name",
+        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        help="Full repo name to filter by (owner/repo).",
+    )
+    hud_parser.add_argument(
+        "--out",
+        default="hud.html",
+        help="Output HTML file path (default: hud.html)",
+    )
+    hud_parser.add_argument(
+        "--ignore-newer-than",
+        dest="ignore_newer_than",
+        default=None,
+        help=(
+            "Commit SHA (short or long) — drop all commits that are newer than "
+            "this SHA from signal detection and HUD rendering"
+        ),
     )
 
     return parser.parse_args()
@@ -156,27 +197,34 @@ def main(*args, **kwargs) -> None:
         )
 
     if opts.subcommand is None:
-        autorevert_checker(
+        # New default without subcommand: run v2 using env defaults
+        autorevert_v2(
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
-            do_restart=True,
-            do_revert=True,
             hours=int(os.environ.get("HOURS", 16)),
-            verbose=True,
-            dry_run=opts.dry_run,
-            ignore_common_errors=True,
+            repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+            restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
+            revert_action=RevertAction.LOG,
         )
     elif opts.subcommand == "autorevert-checker":
-        autorevert_checker(
+        # New default behavior under the same subcommand
+        autorevert_v2(
             opts.workflows,
-            do_restart=opts.do_restart,
-            do_revert=opts.do_revert,
             hours=opts.hours,
-            verbose=opts.verbose,
-            dry_run=opts.dry_run,
-            ignore_common_errors=opts.ignore_common_errors,
+            repo_full_name=opts.repo_full_name,
+            restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
+            revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
         )
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
+    elif opts.subcommand == "hud":
+        # Delegate to testers.hud module
+        run_hud(
+            opts.workflows,
+            hours=opts.hours,
+            repo_full_name=opts.repo_full_name,
+            out=opts.out,
+            ignore_newer_than=getattr(opts, "ignore_newer_than", None),
+        )
 
 
 if __name__ == "__main__":

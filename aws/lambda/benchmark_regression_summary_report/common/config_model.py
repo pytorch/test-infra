@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import dataclasses
 import json
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -223,6 +224,56 @@ class Policy:
         return GitHubNotificationConfig.from_dict(self.notification_config)
 
 
+ReportSeverity = Literal[
+    "none",
+    "no_regression",
+    "insufficient_data",
+    "suspicious",
+    "regression",
+    "unknown",
+]
+
+
+# Mapping from severity label → numeric level.
+# Higher numbers mean more severe, used to compare and filter results before DB upload.
+#
+# Effects on DB upload:
+# - "unknown": (-1) fallback for invalid input → excluded from DB
+# - "none": (0) no report generated → results field is empty, nothing uploaded
+# - "no_regression": (1) clean report → all results with severity >= 1 are uploaded
+# - "insufficient_data": (2) weak signal → uploaded, also includes suspicious/regression
+# - "suspicious": (3) medium signal → uploaded, also includes regression
+# - "regression": (4) strongest severity → always uploaded
+#
+# This allows filtering: e.g., if threshold = 2, DB upload includes
+# "insufficient_data", "suspicious", and "regression" but not "none" or "no_regression".
+SEVERITY_ORDER: dict[ReportSeverity, int] = {
+    "unknown": -1,  # fallback (bad/invalid input)
+    "none": 0,  # no report generated, leads to no details uploaded to db in field results
+    "no_regression": 1,  # no regression, leads to includes all the data with same/higher severity
+    "insufficient_data": 2,  # weak signal
+    "suspicious": 3,  # medium signal
+    "regression": 4,  # strongest severity
+}
+
+
+@dataclass
+class ReportConfig:
+    """
+    decide what to include in db summary report
+    report_level: lowest level of regression to store in db
+    """
+
+    report_level: ReportSeverity = "regression"
+
+    def get_severity_map(self) -> dict[ReportSeverity, int]:
+        # shadow copy is safe since this is a flat dict.
+        return SEVERITY_ORDER.copy()
+
+    def get_order(self) -> int:
+        return self.get_severity_map().get(self.report_level, -1)
+
+
 # -------- Top-level benchmark regression config --------
 @dataclass
 class BenchmarkConfig:
@@ -242,6 +293,7 @@ class BenchmarkConfig:
     source: BenchmarkApiSource
     policy: Policy
     hud_info: Optional[dict[str, Any]] = None
+    report_config: ReportConfig = field(default_factory=ReportConfig)
 
 
 @dataclass
@@ -253,3 +305,13 @@ class BenchmarkRegressionConfigBook:
         if not config:
             raise KeyError(f"Config {key} not found")
         return config
+
+
+def to_dict(x: Any) -> Any:
+    if dataclasses.is_dataclass(x):
+        return {f.name: to_dict(getattr(x, f.name)) for f in dataclasses.fields(x)}
+    if isinstance(x, dict):
+        return {k: to_dict(v) for k, v in x.items()}
+    if isinstance(x, (list, tuple, set)):
+        return [to_dict(v) for v in x]
+    return x  # primitive or already JSON-serializable

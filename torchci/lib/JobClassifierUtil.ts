@@ -29,10 +29,15 @@ const GROUP_DOCS = "Docs";
 const GROUP_LIBTORCH = "Libtorch";
 const GROUP_OTHER_VIABLE_STRICT_BLOCKING = "Other viable/strict blocking";
 const GROUP_XPU = "XPU";
+const GROUP_VLLM = "vLLM";
 const GROUP_OTHER = "other";
 
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
+  {
+    regex: /vllm/,
+    name: GROUP_VLLM,
+  },
   {
     // Weird regex because some names are too long and getting cut off
     // TODO: figure out a better way to name the job or filter them
@@ -164,6 +169,7 @@ const HUD_GROUP_SORTING = [
   GROUP_XPU,
   GROUP_XLA,
   GROUP_OTHER_VIABLE_STRICT_BLOCKING, // placed after the last group that tends to have viable/strict blocking jobs
+  GROUP_VLLM,
   GROUP_PARALLEL,
   GROUP_LIBTORCH,
   GROUP_ANDROID,

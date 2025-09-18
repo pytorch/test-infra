@@ -3,6 +3,8 @@ from datetime import datetime, timedelta
 
 from pytorch_auto_revert.signal import (
     AutorevertPattern,
+    Ineligible,
+    IneligibleReason,
     InfraCheckResult,
     PartitionedCommits,
     Signal,
@@ -21,7 +23,12 @@ class TestSignal(unittest.TestCase):
         self.t0 = datetime(2025, 8, 19, 12, 0, 0)
 
     def _ev(self, name: str, status: SignalStatus, minute: int) -> SignalEvent:
-        return SignalEvent(name=name, status=status, started_at=ts(self.t0, minute))
+        return SignalEvent(
+            name=name,
+            status=status,
+            started_at=ts(self.t0, minute),
+            wf_run_id=1,
+        )
 
     def test_detect_recovered_first_non_pending_success(self):
         # Newest commit has success (even with pending present) -> recovered
@@ -195,7 +202,7 @@ class TestSignal(unittest.TestCase):
         self.assertEqual(res.suspected_commit, "sha_mid")
         self.assertEqual(res.older_successful_commit, "sha_old")
 
-    def test_detect_autorevert_pattern_none_when_missing_failure(self):
+    def test_detect_autorevert_pattern_ineligible_when_fixed(self):
         c_newer = SignalCommit(
             head_sha="sha_newer",
             events=[self._ev("job", SignalStatus.SUCCESS, 5)],
@@ -211,7 +218,9 @@ class TestSignal(unittest.TestCase):
         s = Signal(
             key="job", workflow_name="wf", commits=[c_newer, c_suspected, c_base]
         )
-        self.assertIsNone(s.process_valid_autorevert_pattern())
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.FIXED)
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ import {
   DEFAULT_DTYPE_NAME,
   DEFAULT_MODE_NAME,
   DEFAULT_MODEL_NAME,
+  DEFAULT_QPS_NAME,
   EXCLUDED_METRICS,
   LLM_BENCHMARK_CONFIG_QUERY,
   LLM_BENCHMARK_DATA_QUERY,
@@ -99,6 +100,7 @@ export function getLLMsBenchmarkPropsQueryParameter(props: LLMsBenchmarkProps) {
     startTime: dayjs(props.startTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     stopTime: dayjs(props.stopTime).utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
     repos: props.repos,
+    requestRate: props.qps === DEFAULT_QPS_NAME ? "" : props.qps,
   };
   return queryParams;
 }
@@ -113,20 +115,24 @@ export const useBenchmarkPropsData = (queryParams: any) => {
   });
 };
 
-export function fetchBenchmarkDataForRepos(
+export function useBenchmarkDataForRepos(
   queryName: string,
   queryParamsList: any[]
-): Promise<{ data?: any; error?: any }[]> {
-  return Promise.all(
-    queryParamsList.map((queryParam) => {
-      const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
-        JSON.stringify(queryParam)
-      )}`;
-      return fetcher(url)
-        .then((data: any) => ({ data }))
-        .catch((error: any) => ({ error }));
-    })
-  );
+) {
+  const fetchAll = async () =>
+    Promise.all(
+      queryParamsList.map((queryParam) => {
+        const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
+          JSON.stringify(queryParam)
+        )}`;
+        return fetcher(url)
+          .then((data: any) => ({ data }))
+          .catch((error: any) => ({ error }));
+      })
+    );
+  return useSWR([queryName, queryParamsList], fetchAll, {
+    refreshInterval: 60 * 60 * 1000, // refresh every hour
+  });
 }
 
 export function combineLeftAndRight(
@@ -368,7 +374,7 @@ const toRowData = (
         ? extraInfo["random_input_len"]
         : extraInfo["input_len"];
       row["output_len"] = extraInfo["random_output_len"]
-        ? extraInfo["random_input_len"]
+        ? extraInfo["random_output_len"]
         : extraInfo["output_len"];
     }
 

@@ -7,6 +7,7 @@ from common.config_model import (
     Policy,
     RangeConfig,
     RegressionPolicy,
+    ReportConfig,
 )
 
 
@@ -26,6 +27,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         api_endpoint_params_template="""
                 {
                   "name": "compiler_precompute",
+                  "response_formats":["time_series"],
                   "query_params": {
                     "commits": [],
                     "compilers": [],
@@ -37,7 +39,6 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                     "startTime": "{{ startTime }}",
                     "stopTime": "{{ stopTime }}",
                     "suites": ["torchbench", "huggingface", "timm_models"],
-                    "workflowId": 0,
                     "branches": ["main"]
                   }
                 }
@@ -50,7 +51,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
         range=RangeConfig(
-            baseline=DayRangeWindow(value=7),
+            baseline=DayRangeWindow(value=5),
             comparison=DayRangeWindow(value=2),
         ),
         metrics={
@@ -72,12 +73,21 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 threshold=0.95,
                 baseline_aggregation="max",
             ),
+            "compilation_latency": RegressionPolicy(
+                name="compilation_latency",
+                condition="less_equal",
+                threshold=1.05,
+                baseline_aggregation="min",
+            ),
         },
         notification_config={
             "type": "github",
             "repo": "pytorch/test-infra",
             "issue": "7081",
         },
+    ),
+    report_config=ReportConfig(
+        report_level="no_regression",
     ),
 )
 

@@ -54,15 +54,16 @@ def default_config() -> Config:
     return Config()
 
 
-def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
-    """Loads configuration from `.bc-linter.yml` in the given repository root.
+def load_config_with_status(config_dir: pathlib.Path) -> tuple[Config, str]:
+    """Loads configuration from `.bc-linter.yml` in the given directory.
 
     Returns (config, status) where status is one of:
     - 'parsed'            -> config file existed and parsed successfully
     - 'default_missing'   -> no config file found
     - 'default_error'     -> file existed but YAML missing/invalid or parser unavailable
     """
-    cfg_path = repo_root / ".bc-linter.yml"
+
+    cfg_path = config_dir / ".bc-linter.yml"
     if not cfg_path.exists():
         return (default_config(), "default_missing")
 
@@ -159,12 +160,11 @@ def load_config_with_status(repo_root: pathlib.Path) -> tuple[Config, str]:
     return (cfg, "parsed")
 
 
-def load_config(repo_root: pathlib.Path) -> Config:
-    """Loads configuration from `.bc-linter.yml` in the given repository root.
-
+def load_config(config_dir: pathlib.Path) -> Config:
+    """Loads configuration from `.bc-linter.yml` in the given directory.
     If the file does not exist or cannot be parsed, returns defaults.
     """
-    cfg, _ = load_config_with_status(repo_root)
+    cfg, _ = load_config_with_status(config_dir)
     return cfg
 
 

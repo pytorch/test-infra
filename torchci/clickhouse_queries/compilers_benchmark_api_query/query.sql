@@ -30,6 +30,10 @@ WHERE
         has({suites: Array(String) }, suite)
         OR empty({suites: Array(String) })
     )
+    AND (
+        has({models: Array(String)}, model_name)
+        OR empty({models: Array(String) })
+    )
     AND benchmark_dtype = {dtype: String}
     AND benchmark_mode = {mode: String}
     AND device = {device: String}

@@ -13,7 +13,8 @@
     "backends": "Array(String)",
     "repo": "String",
     "startTime": "DateTime64(3)",
-    "stopTime": "DateTime64(3)"
+    "stopTime": "DateTime64(3)",
+    "requestRate": "String"
   },
   "tests": [
     {
@@ -30,7 +31,8 @@
       "backends": [],
       "repo": "pytorch/pytorch",
       "startTime": "2025-01-28T22:46:18.214",
-      "stopTime": "2025-02-04T22:46:18.214"
+      "stopTime": "2025-02-04T22:46:18.214",
+      "requestRate": ""
     }
   ]
 }

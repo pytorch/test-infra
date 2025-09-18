@@ -43,6 +43,7 @@ ignore = [
     "B904", "B905",
     "C408", # C408 ignored because we like the dict keyword argument syntax
     "E402",
+    "E203", # Black-compatible slicing whitespace
     "E501", # E501 is not flexible enough, we're using B950 instead
     "E721",
     "E731", # Assign lambda expression

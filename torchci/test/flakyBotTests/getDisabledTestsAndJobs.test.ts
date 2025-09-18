@@ -64,6 +64,29 @@ describe("Get disable/unstable job/test jsons", () => {
     handleScope(scope);
   });
 
+  test("Throw error if result from graphql is inconsistent", async () => {
+    // Number of tests != node list => throw error
+    const scope = nock("https://api.github.com")
+      .post("/graphql", (body) => {
+        return body.query.includes("search");
+      })
+      .reply(200, {
+        data: {
+          search: {
+            issueCount: 15,
+            pageInfo: { hasNextPage: false, endCursor: "" },
+            nodes: [],
+          },
+        },
+      });
+
+    await expect(
+      getDisabledTestsAndJobs.getDisabledTestsAndJobs(octokit)
+    ).rejects.toThrow();
+
+    handleScope(scope);
+  });
+
   test("One test", async () => {
     const issue = genSingleIssueFor(flakyTestA, {});
     const scope = [
