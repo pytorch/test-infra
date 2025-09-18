@@ -8,7 +8,7 @@ import functools
 import time
 from collections import defaultdict
 from os import makedirs, path
-from re import match, sub, compile
+from re import compile, match, sub
 from typing import Dict, Iterable, List, Optional, Set, TypeVar
 
 import boto3  # type: ignore[import]
