@@ -7,6 +7,8 @@ export type ArtifactFile = {
   date: string;
   modelName: string;
   fileName: string;
+  commitHash: string;
+  workflowId: string;
 };
 
 export type ArtifactResponse = {

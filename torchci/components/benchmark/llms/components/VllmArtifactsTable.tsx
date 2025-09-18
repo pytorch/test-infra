@@ -1,96 +1,120 @@
-import {
-  Alert,
-  Box,
-  CircularProgress,
-  Link,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
+import { Alert, Grid, Link } from "@mui/material";
+import type { GridColDef, GridRenderCellParams } from "@mui/x-data-grid";
+import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import type { ArtifactFile } from "lib/benchmark/llms/utils/artifacts";
 import { useArtifacts } from "lib/benchmark/llms/utils/artifacts";
 
+type ArtifactRow = ArtifactFile;
+
+const columns: GridColDef<ArtifactRow>[] = [
+  {
+    field: "date",
+    headerName: "Date",
+    minWidth: 130,
+    flex: 0.8,
+    sortable: false,
+    filterable: false,
+    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) =>
+      params.row.date || "—",
+  },
+  {
+    field: "modelName",
+    headerName: "Model name",
+    minWidth: 160,
+    flex: 1.2,
+    sortable: false,
+    filterable: false,
+    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+      <span style={{ overflowWrap: "anywhere" }}>
+        {params.row.modelName || "—"}
+      </span>
+    ),
+  },
+  {
+    field: "commitHash",
+    headerName: "Commit Hash",
+    minWidth: 220,
+    flex: 1.3,
+    sortable: false,
+    filterable: false,
+    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+      <span style={{ overflowWrap: "anywhere" }}>
+        {params.row.commitHash || "—"}
+      </span>
+    ),
+  },
+  {
+    field: "workflowId",
+    headerName: "Github workflow id",
+    minWidth: 220,
+    flex: 1.3,
+    sortable: false,
+    filterable: false,
+    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+      <span style={{ overflowWrap: "anywhere" }}>
+        {params.row.workflowId || "—"}
+      </span>
+    ),
+  },
+  {
+    field: "fileName",
+    headerName: "Name of the file",
+    minWidth: 240,
+    flex: 1.6,
+    sortable: false,
+    filterable: false,
+    renderCell: (params: GridRenderCellParams<ArtifactRow, string>) => (
+      <Link
+        href={params.row.url}
+        target="_blank"
+        rel="noopener noreferrer"
+        underline="hover"
+        sx={{ overflowWrap: "anywhere" }}
+      >
+        {params.row.fileName || params.row.key}
+      </Link>
+    ),
+  },
+];
+
 export function VllmArtifactsTable() {
-  const { data, error, isLoading } = useArtifacts({
+  const { data, error } = useArtifacts({
     prefix: "vllm-project/vllm/",
   });
 
   if (error) {
     return (
-      <Alert severity="error" sx={{ mt: 2 }}>
-        Unable to load recent vLLM trace artifacts.
-      </Alert>
+      <Grid container spacing={10} sx={{ mt: 4 }}>
+        <Grid size={{ xs: 12, lg: 11.8 }}>
+          <Alert severity="error">
+            Unable to load recent vLLM trace artifacts.
+          </Alert>
+        </Grid>
+      </Grid>
     );
   }
 
-  if (isLoading) {
-    return (
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, mt: 2 }}>
-        <CircularProgress size={20} />
-        <Typography variant="body2">Loading vLLM trace artifacts…</Typography>
-      </Box>
-    );
-  }
-
-  const files = data?.files ?? [];
-
-  if (files.length === 0) {
-    return (
-      <Typography variant="body2" sx={{ mt: 2 }}>
-        No vLLM trace artifacts were found in the last six months.
-      </Typography>
-    );
-  }
+  const tableData = data ? data.files : undefined;
 
   return (
-    <Box sx={{ mt: 4 }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        Recent vLLM trace artifacts
-      </Typography>
-      <TableContainer
-        component={Paper}
-        sx={{ maxHeight: 440, margin: "10px 0", tableLayout: "auto" }}
-      >
-        <Table size="small" stickyHeader aria-label="vLLM artifacts">
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ width: "10%", py: 0.5 }}>
-                Serial number
-              </TableCell>
-              <TableCell sx={{ width: "20%", py: 0.5 }}>Date</TableCell>
-              <TableCell sx={{ width: "30%", py: 0.5 }}>Model name</TableCell>
-              <TableCell sx={{ width: "40%", py: 0.5 }}>
-                Name of the file
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {files.map((file, index) => (
-              <TableRow key={file.key} hover>
-                <TableCell sx={{ py: 0.5 }}>{index + 1}</TableCell>
-                <TableCell sx={{ py: 0.5 }}>{file.date || "—"}</TableCell>
-                <TableCell sx={{ py: 0.5, wordBreak: "break-word" }}>
-                  {file.modelName || "—"}
-                </TableCell>
-                <TableCell sx={{ py: 0.5, wordBreak: "break-word" }}>
-                  <Link
-                    href={file.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    underline="hover"
-                  >
-                    {file.fileName || file.key}
-                  </Link>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Box>
+    <Grid container spacing={10} sx={{ mt: 4 }}>
+      <Grid size={{ xs: 12, lg: 11.8 }}>
+        <TablePanelWithData
+          title={"vLLM Profiling Traces"}
+          data={tableData}
+          columns={columns}
+          dataGridProps={{
+            getRowId: (row: ArtifactRow) => row.key,
+            disableColumnMenu: true,
+            disableRowSelectionOnClick: true,
+          }}
+          showFooter={true}
+          disableAutoPageSize={true}
+          customStyle={{
+            maxHeight: 600,
+          }}
+        />
+      </Grid>
+    </Grid>
   );
 }

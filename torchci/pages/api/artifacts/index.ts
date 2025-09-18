@@ -12,6 +12,8 @@ type ArtifactFile = {
   date: string;
   modelName: string;
   fileName: string;
+  commitHash: string;
+  workflowId: string;
 };
 
 type ArtifactResponse = {
@@ -48,7 +50,7 @@ export default async function handler(
   }
 }
 
-async function collectArtifacts(prefix: string, lookbackMonths: number) {
+async function collectArtifacts(targetPrefix: string, lookbackMonths: number) {
   const now = dayjs();
   const earliestDate = now.subtract(lookbackMonths, "month").startOf("day");
 
@@ -70,7 +72,7 @@ async function collectArtifacts(prefix: string, lookbackMonths: number) {
       }
 
       const pathAfterDate = rest.join("/");
-      if (!pathAfterDate.startsWith(prefix)) {
+      if (!pathAfterDate.startsWith(targetPrefix)) {
         continue;
       }
 
@@ -97,7 +99,7 @@ async function collectArtifacts(prefix: string, lookbackMonths: number) {
     .map((key) => ({
       key,
       url: buildDownloadUrl(key),
-      ...extractFileMetadata(key),
+      ...extractFileMetadata(key, targetPrefix),
     }));
 }
 
@@ -170,11 +172,23 @@ function buildDownloadUrl(key: string) {
     .join("/")}`;
 }
 
-function extractFileMetadata(key: string) {
+function extractFileMetadata(key: string, targetPrefix: string) {
   const segments = key.split("/").filter(Boolean);
   const date = segments[0] ?? "";
   const fileName = segments[segments.length - 1] ?? "";
-  const modelName = segments.length >= 2 ? segments[segments.length - 2] : "";
+  const prefixSegments = targetPrefix.split("/").filter(Boolean);
+  const afterDateSegments = segments.slice(1);
+  const afterPrefixSegments = afterDateSegments.slice(prefixSegments.length);
 
-  return { date, modelName, fileName };
+  const commitHash =
+    afterPrefixSegments.length >= 1 ? afterPrefixSegments[0] ?? "" : "";
+  const workflowId =
+    afterPrefixSegments.length >= 3 ? afterPrefixSegments[1] ?? "" : "";
+  const trailingSegments = afterPrefixSegments.slice(2);
+  const modelName =
+    trailingSegments.length >= 2
+      ? trailingSegments[trailingSegments.length - 2] ?? ""
+      : "";
+
+  return { date, modelName, fileName, commitHash, workflowId };
 }
