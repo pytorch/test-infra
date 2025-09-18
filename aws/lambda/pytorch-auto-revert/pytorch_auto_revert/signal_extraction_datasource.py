@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 from .clickhouse_client_helper import CHCliFactory
 from .signal_extraction_types import (
@@ -210,4 +210,30 @@ class SignalExtractionDatasource:
             total,
             dt,
         )
+        return rows
+
+    def fetch_autorevert_state_rows(
+        self, *, ts: str, repo_full_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch run state rows from misc.autorevert_state for a given timestamp."""
+
+        query = (
+            "SELECT repo, workflows, state FROM misc.autorevert_state "
+            "WHERE ts = parseDateTimeBestEffort({ts:String})"
+        )
+        params: Dict[str, Any] = {"ts": ts}
+        if repo_full_name:
+            query += " AND repo = {repo:String}"
+            params["repo"] = repo_full_name
+
+        res = CHCliFactory().client.query(query, parameters=params)
+        rows: List[Dict[str, Any]] = []
+        for repo, workflows, state_json in res.result_rows:
+            rows.append(
+                {
+                    "repo": repo,
+                    "workflows": workflows,
+                    "state": state_json,
+                }
+            )
         return rows

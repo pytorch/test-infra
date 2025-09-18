@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 from ..run_state_logger import RunStateLogger
 from ..signal import Signal
@@ -8,6 +8,7 @@ from ..signal_actions import SignalActionProcessor, SignalProcOutcome
 from ..signal_extraction import SignalExtractor
 from ..signal_extraction_types import RunContext
 from ..utils import RestartAction, RevertAction
+from .hud import write_hud_html
 
 
 def autorevert_v2(
@@ -17,7 +18,8 @@ def autorevert_v2(
     repo_full_name: str = "pytorch/pytorch",
     restart_action: RestartAction = RestartAction.RUN,
     revert_action: RevertAction = RevertAction.LOG,
-) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]]]:
+    out_hud: Optional[str] = None,
+) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
     """Run the Signals-based autorevert flow end-to-end.
 
     - Extracts signals for the specified workflows and window
@@ -25,7 +27,7 @@ def autorevert_v2(
     - Persists a single HUD-like state row for auditability
 
     Returns:
-        (signals, pairs) for diagnostics and potential external rendering
+        (signals, pairs, state_json) for diagnostics and potential external rendering
     """
     workflows = list(workflows)
     # Use timezone-aware UTC to match ClickHouse DateTime semantics
@@ -75,7 +77,9 @@ def autorevert_v2(
     logging.info("[v2] Executed action groups: %d", executed_count)
 
     # Persist full run state via separate logger
-    RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
+    state_json = RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
+    if out_hud:
+        write_hud_html(state_json, out_hud)
     logging.info("[v2] State logged")
 
-    return signals, pairs
+    return signals, pairs, state_json
