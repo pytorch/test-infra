@@ -10,11 +10,13 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "date",
     headerName: "Date",
+    flex: 0.8,
     renderCell: (params) => params.row.date || "—",
   },
   {
     field: "modelName",
     headerName: "Model name",
+    flex: 1.1,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.modelName || "—"}
@@ -24,6 +26,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "commitHash",
     headerName: "Commit Hash",
+    flex: 1.2,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.commitHash || "—"}
@@ -33,6 +36,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "workflowId",
     headerName: "Github workflow id",
+    flex: 1.2,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.workflowId || "—"}
@@ -42,6 +46,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   {
     field: "fileName",
     headerName: "Name of the file",
+    flex: 1.6,
     renderCell: (params) => (
       <Link
         href={params.row.url}
