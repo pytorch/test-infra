@@ -215,12 +215,12 @@ const MainPage = ({
         queryParams={queryParams}
         lcommitFallbackIdx={lcommitFallbackIdx}
       />
-      {props.repoName === "vllm-project/vllm" && <VllmArtifactsTable />}
       <LLMsReport
         props={props}
         metricNames={metricNames}
         benchmarkPropsQueryParams={queryParams}
       />
+      {props.repoName === "vllm-project/vllm" && <VllmArtifactsTable />}
     </div>
   );
 };

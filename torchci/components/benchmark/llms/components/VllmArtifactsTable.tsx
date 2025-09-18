@@ -47,29 +47,36 @@ export function VllmArtifactsTable() {
   }
 
   return (
-    <Box sx={{ mt: 2 }}>
+    <Box sx={{ mt: 4 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
         Recent vLLM trace artifacts
       </Typography>
-      <TableContainer component={Paper} sx={{ maxHeight: 400 }}>
+      <TableContainer
+        component={Paper}
+        sx={{ maxHeight: 440, margin: "10px 0", tableLayout: "auto" }}
+      >
         <Table size="small" stickyHeader aria-label="vLLM artifacts">
           <TableHead>
             <TableRow>
-              <TableCell width="10%">Serial number</TableCell>
-              <TableCell width="20%">Date</TableCell>
-              <TableCell width="30%">Model name</TableCell>
-              <TableCell width="40%">Name of the file</TableCell>
+              <TableCell sx={{ width: "10%", py: 0.5 }}>
+                Serial number
+              </TableCell>
+              <TableCell sx={{ width: "20%", py: 0.5 }}>Date</TableCell>
+              <TableCell sx={{ width: "30%", py: 0.5 }}>Model name</TableCell>
+              <TableCell sx={{ width: "40%", py: 0.5 }}>
+                Name of the file
+              </TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {files.map((file, index) => (
               <TableRow key={file.key} hover>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>{file.date || "—"}</TableCell>
-                <TableCell sx={{ wordBreak: "break-word" }}>
+                <TableCell sx={{ py: 0.5 }}>{index + 1}</TableCell>
+                <TableCell sx={{ py: 0.5 }}>{file.date || "—"}</TableCell>
+                <TableCell sx={{ py: 0.5, wordBreak: "break-word" }}>
                   {file.modelName || "—"}
                 </TableCell>
-                <TableCell sx={{ wordBreak: "break-word" }}>
+                <TableCell sx={{ py: 0.5, wordBreak: "break-word" }}>
                   <Link
                     href={file.url}
                     target="_blank"
