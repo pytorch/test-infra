@@ -1,6 +1,7 @@
 import styled from "@emotion/styled";
 import { Box, Chip, Paper, Slider, Stack, Typography } from "@mui/material";
 import { useCallback, useMemo, useState } from "react";
+import { shortSha } from "../../helper";
 
 export type WorkflowMetaInfo = {
   workflow_id: string;
@@ -18,9 +19,6 @@ const BenchmarkSlider = styled(Slider)(({ theme }) => ({
     display: "block", // makes JSX work too
   },
 }));
-
-const shortSha = (id?: string) =>
-  id ? (id.length > 10 ? id.slice(0, 7) : id) : "—";
 
 const fmtTs = (ts?: string) => {
   if (!ts) return "—";

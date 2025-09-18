@@ -85,7 +85,6 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
       <Divider />
       <StickyBar
         offset={barOffset}
-        height={50}
         zIndex={900}
         align="left"
         contentMode="full"

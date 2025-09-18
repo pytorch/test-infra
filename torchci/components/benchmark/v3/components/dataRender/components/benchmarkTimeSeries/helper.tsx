@@ -131,3 +131,6 @@ export function toSortedWorkflowIdMap(data: any[]) {
       : na - nb;
   });
 }
+
+export const shortSha = (id?: string) =>
+  id ? (id.length > 10 ? id.slice(0, 7) : id) : "—";
