@@ -45,7 +45,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   },
   {
     field: "fileName",
-    headerName: "Name of the file",
+    headerName: "Profiler trace",
     flex: 1.6,
     renderCell: (params) => (
       <Link

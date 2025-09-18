@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import type { NextApiRequest, NextApiResponse } from "next";
 
-const S3_BASE_URL = "https://gha-artifacts.s3.us-east-1.amazonaws.com";
+const S3_BASE_URL = process.env.GITHUB_ARTIFACTS_S3_URL ?? "";
 const DEFAULT_TARGET_PREFIX = "vllm-project/vllm/";
 const DEFAULT_LOOKBACK_MONTHS = 6;
 
