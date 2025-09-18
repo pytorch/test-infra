@@ -635,7 +635,7 @@ class S3Index:
         for obj in BUCKET.objects.filter(Prefix=prefix):
             is_acceptable = any(
                 [path.dirname(obj.key) == prefix]
-                + [match(f"{prefix}/{compile(pattern)}", path.dirname(obj.key))]
+                + [match(compile(f"{prefix}/{pattern}"), path.dirname(obj.key))]
             ) and obj.key.endswith(ACCEPTED_FILE_EXTENSIONS)
             if not is_acceptable:
                 continue
