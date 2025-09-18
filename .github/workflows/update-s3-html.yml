@@ -17,6 +17,7 @@ jobs:
     strategy:
       matrix:
         prefix: ["whl", "whl/test", "whl/nightly", "libtorch", "libtorch/nightly"]
+        subdir-pattern: ["cu[0-9]+", "rocm[0-9]+\.[0-9]+", "cpu", "xpu"]
       fail-fast: False
     container:
       image: continuumio/miniconda3:23.10.0-1
