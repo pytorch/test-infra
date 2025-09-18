@@ -98,9 +98,9 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
         />
       </StickyBar>
       <Grid container sx={{ m: 1 }}>
-        {Array.from(groupMap.entries()).map(([key, data]) => {
-          if (!data) return null;
-          const title = data.labels.join(" ");
+        {Array.from(groupMap.entries()).map(([key, tableData]) => {
+          if (!tableData) return null;
+          const title = tableData.labels.join(" ");
           return (
             <Grid key={key} sx={{ p: 0.2 }} size={{ xs: 12, md: 12, lg: 6 }}>
               <Paper sx={styles.paper}>
@@ -109,7 +109,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
                   {lWorkflowId} - {rWorkflowId}
                 </Typography>
                 <ComparisonTable
-                  data={data.items}
+                  data={tableData.items}
                   config={tableSectionConfig.tableConfig}
                   lWorkflowId={lWorkflowId}
                   rWorkflowId={rWorkflowId}
