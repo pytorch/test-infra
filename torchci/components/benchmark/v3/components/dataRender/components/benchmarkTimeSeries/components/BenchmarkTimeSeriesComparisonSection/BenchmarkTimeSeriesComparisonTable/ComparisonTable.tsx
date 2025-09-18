@@ -57,7 +57,7 @@ export function ComparisonTable({
 
   return (
     <>
-      <Typography variant="h4">{title.toUpperCase()}</Typography>
+      <Typography variant="h6">{title.toUpperCase()}</Typography>
       <Typography variant="body2">
         {lWorkflowId} - {rWorkflowId}
       </Typography>

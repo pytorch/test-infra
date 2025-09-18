@@ -81,7 +81,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
 
   return (
     <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
-      <Typography variant="h2"> Time Series Comparison Section </Typography>
+      <Typography variant="h4"> Time Series Comparison Section </Typography>
       <Divider />
       <StickyBar
         offset={barOffset}

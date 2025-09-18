@@ -33,11 +33,18 @@ export const StickyBar: React.FC<StickyBarProps> = ({
     return () => onUnmount?.(height);
   }, [height, onMount, onUnmount]);
 
-  // IntersectionObserver: sticky only after scroll
   useEffect(() => {
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsSticky(!entry.isIntersecting);
-    });
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // < 0.99
+        setIsSticky(entry.intersectionRatio < 0.99);
+      },
+      {
+        threshold: Array.from({ length: 101 }, (_, i) => i / 100),
+        // 0,0.01,0.02,...,1，
+      }
+    );
+
     if (ref.current) observer.observe(ref.current);
     return () => observer.disconnect();
   }, []);

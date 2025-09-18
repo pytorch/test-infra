@@ -66,7 +66,7 @@ export default function BenchmarkChartSection({
 
   return (
     <Box sx={{ m: 1 }}>
-      <Typography variant="h2"> Time Series Chart Section </Typography>
+      <Typography variant="h5"> Time Series Chart Section </Typography>
       <Box sx={styles.container}>
         {Array.from(groupMap.entries()).map(([key, data]) => {
           if (!data) return null;
@@ -83,7 +83,7 @@ export default function BenchmarkChartSection({
           return (
             <Box key={key} sx={styles.groupBox}>
               <Paper sx={styles.paper}>
-                <Typography variant="h4">{title.toUpperCase()}</Typography>
+                <Typography variant="h6">{title.toUpperCase()}</Typography>
                 <BenchmarkTimeSeriesChartGroup
                   data={data.items}
                   chartGroup={chartSectionConfig.chartGroup}
