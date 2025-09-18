@@ -34,6 +34,11 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   const [barOffset, setBarOffset] = useState(0);
   const handleMount = (h: number) => setBarOffset((prev) => prev + h);
   const handleUnmount = (h: number) => setBarOffset((prev) => prev - h);
+  // Controlled slider range (indices)
+  const [range, setRange] = useState<[number, number]>(() => {
+    const n = items.length;
+    return n >= 2 ? [0, n - 1] : [0, 0];
+  });
 
   // Filter data based on the table config
   const filtered = useMemo(() => {
@@ -80,15 +85,9 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     tableSectionConfig.filterByFieldValues,
   ]);
 
-    if (!data || data.length == 0) {
+  if (!data || data.length == 0) {
     return <></>;
   }
-
-  // Controlled slider range (indices)
-  const [range, setRange] = useState<[number, number]>(() => {
-    const n = items.length;
-    return n >= 2 ? [0, n - 1] : [0, 0];
-  });
 
   // Derive L/R workflow IDs from the range
   const sortedIds = useMemo(
