@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
-from .testers.hud import render_hud_html_from_clickhouse
+from .testers.hud import render_hud_html_from_clickhouse, write_hud_html
 from .testers.restart_checker import workflow_restart_checker
 from .utils import RestartAction, RevertAction
 
@@ -205,18 +205,18 @@ def main(*args, **kwargs) -> None:
             repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
             restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
             revert_action=RevertAction.LOG,
-            out_hud=None,
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
-        autorevert_v2(
+        _signals, _pairs, state_json = autorevert_v2(
             opts.workflows,
             hours=opts.hours,
             repo_full_name=opts.repo_full_name,
             restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
             revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
-            out_hud=opts.hud_html,
         )
+        if opts.hud_html:
+            write_hud_html(state_json, opts.hud_html)
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "hud":

@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Tuple
 
 from ..run_state_logger import RunStateLogger
 from ..signal import Signal
@@ -8,7 +8,6 @@ from ..signal_actions import SignalActionProcessor, SignalProcOutcome
 from ..signal_extraction import SignalExtractor
 from ..signal_extraction_types import RunContext
 from ..utils import RestartAction, RevertAction
-from .hud import write_hud_html
 
 
 def autorevert_v2(
@@ -18,7 +17,6 @@ def autorevert_v2(
     repo_full_name: str = "pytorch/pytorch",
     restart_action: RestartAction = RestartAction.RUN,
     revert_action: RevertAction = RevertAction.LOG,
-    out_hud: Optional[str] = None,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
     """Run the Signals-based autorevert flow end-to-end.
 
@@ -78,8 +76,6 @@ def autorevert_v2(
 
     # Persist full run state via separate logger
     state_json = RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
-    if out_hud:
-        write_hud_html(state_json, out_hud)
     logging.info("[v2] State logged")
 
     return signals, pairs, state_json
