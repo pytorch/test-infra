@@ -60,14 +60,10 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     return m;
   }, [filtered, tableSectionConfig.groupByFields]);
 
-  if (!data || data.length == 0) {
-    return <></>;
-  }
-
   // Build a list of workflows for the slider (you can add labels/timestamps here)
   const items: any[] = useMemo(() => {
     const idMap = new Map<string, any>();
-    for (const d of data) {
+    for (const d of filtered) {
       const id = String(d.group_info.workflow_id);
       const commit = String(d.group_info.commit);
       idMap.set(id, {
@@ -83,6 +79,10 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     tableSectionConfig.groupByFields,
     tableSectionConfig.filterByFieldValues,
   ]);
+
+    if (!data || data.length == 0) {
+    return <></>;
+  }
 
   // Controlled slider range (indices)
   const [range, setRange] = useState<[number, number]>(() => {
