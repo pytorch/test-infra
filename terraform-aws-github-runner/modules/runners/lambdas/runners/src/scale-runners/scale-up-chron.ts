@@ -20,8 +20,6 @@ export async function scaleUpChron(metrics: ScaleUpChronMetrics): Promise<void> 
     );
     const scaleConfigRepo = getRepo(Config.Instance.scaleConfigOrg, Config.Instance.scaleConfigRepo);
     const validRunnerTypes = await getRunnerTypes(
-      // For scaleUpChron, we don't have a situation where the auth repo is different from the config repo
-      // so we can just pass the same repo for both parameters
       scaleConfigRepo,
       authRepo,
       metrics,

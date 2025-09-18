@@ -9,14 +9,14 @@ variable "aws_region_instances" {
   type        = list(string)
 }
 
-variable "auth_gh_app" {
-  description = "GitHub App authentication token."
+variable "auth_gh_repo" {
+  description = "GitHub repository to authenticate for the runners."
   type        = string
   default     = ""
 }
 
 variable "auth_gh_org" {
-  description = "GitHub organization for the runners."
+  description = "GitHub organization to authenticate for the runners."
   type        = string
   default     = ""
 }

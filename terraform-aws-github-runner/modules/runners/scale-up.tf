@@ -42,7 +42,7 @@ resource "aws_lambda_function" "scale_up" {
     # changes should reflect the changes in scale-up-chron.tf
     variables = {
       AUTH_GH_ORG                          = var.auth_gh_org
-      AUTH_GH_APP                          = var.auth_gh_app
+      AUTH_GH_REPO                         = var.auth_gh_repo
       CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
       DATETIME_DEPLOY                      = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS          = var.enable_organization_runners

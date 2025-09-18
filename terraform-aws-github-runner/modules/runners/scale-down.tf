@@ -38,8 +38,8 @@ resource "aws_lambda_function" "scale_down" {
 
   environment {
     variables = {
-      AUTH_GH_APP                     = var.auth_gh_app
       AUTH_GH_ORG                     = var.auth_gh_org
+      AUTH_GH_REPO                    = var.auth_gh_repo
       AWS_REGION_INSTANCES            = join(",", var.aws_region_instances)
       DATETIME_DEPLOY                 = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS     = var.enable_organization_runners
