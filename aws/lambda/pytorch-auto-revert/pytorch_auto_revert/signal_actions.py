@@ -8,6 +8,7 @@ from typing import Dict, Iterable, List, Tuple, Union
 from .clickhouse_client_helper import CHCliFactory, ensure_utc_datetime
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
+from .utils import RestartAction, RevertAction
 from .workflow_checker import WorkflowRestartChecker
 
 
@@ -199,10 +200,20 @@ class SignalActionProcessor:
         self, *, commit_sha: str, sources: List[SignalMetadata], ctx: RunContext
     ) -> bool:
         """Record a revert intent if not previously logged for the commit."""
+        if ctx.revert_action == RevertAction.SKIP:
+            logging.debug(
+                "[v2][action] revert for sha %s: skipping (ignored)", commit_sha[:8]
+            )
+            return False
+
+        dry_run = not ctx.revert_action.side_effects
+
         if self._logger.prior_revert_exists(
             repo=ctx.repo_full_name, commit_sha=commit_sha
         ):
-            logging.info("[v2][action] revert: skipping existing")
+            logging.info(
+                "[v2][action] revert for sha %s: skipping existing", commit_sha[:8]
+            )
             return False
         self._logger.insert_event(
             repo=ctx.repo_full_name,
@@ -211,12 +222,14 @@ class SignalActionProcessor:
             commit_sha=commit_sha,
             workflows=sorted({s.workflow_name for s in sources}),
             source_signal_keys=[s.key for s in sources],
-            dry_run=ctx.dry_run,
+            dry_run=dry_run,
             failed=False,
             notes="",
         )
         logging.info(
-            "[v2][action] revert: logged%s", " (dry_run)" if ctx.dry_run else ""
+            "[v2][action] revert for sha %s: logged%s",
+            commit_sha[:8],
+            " (dry_run)" if dry_run else "",
         )
         return True
 
@@ -229,22 +242,36 @@ class SignalActionProcessor:
         ctx: RunContext,
     ) -> bool:
         """Dispatch a workflow restart if under cap and outside pacing window; always logs the event."""
+        if ctx.restart_action == RestartAction.SKIP:
+            logging.info(
+                "[v2][action] restart for sha %s: skipping (ignored)", commit_sha[:8]
+            )
+            return False
+
+        dry_run = not ctx.restart_action.side_effects
+
         recent = self._logger.recent_restarts(
             repo=ctx.repo_full_name, workflow=workflow_target, commit_sha=commit_sha
         )
         if len(recent) >= 2:
-            logging.info("[v2][action] restart: skipping cap (recent=%d)", len(recent))
+            logging.info(
+                "[v2][action] restart for sha %s: skipping cap (recent=%d)",
+                commit_sha[:8],
+                len(recent),
+            )
             return False
         if recent and (ctx.ts - recent[0]) < timedelta(minutes=15):
             delta = (ctx.ts - recent[0]).total_seconds()
             logging.info(
-                "[v2][action] restart: skipping pacing (delta_sec=%d)", int(delta)
+                "[v2][action] restart for sha %s: skipping pacing (delta_sec=%d)",
+                commit_sha[:8],
+                int(delta),
             )
             return False
 
         notes = ""
         ok = True
-        if not ctx.dry_run:
+        if not dry_run:
             ok = self._restart.restart_workflow(workflow_target, commit_sha)
             if not ok:
                 notes = "dispatch_failed"
@@ -255,14 +282,20 @@ class SignalActionProcessor:
             commit_sha=commit_sha,
             workflows=[workflow_target],
             source_signal_keys=[s.key for s in sources],
-            dry_run=ctx.dry_run,
+            dry_run=dry_run,
             failed=not ok,
             notes=notes,
         )
-        if not ctx.dry_run and notes == "":
-            logging.info("[v2][action] restart: dispatched")
-        elif notes:
-            logging.info("[v2][action] restart: dispatch_failed: %s", notes)
+        if not dry_run and ok:
+            logging.info("[v2][action] restart for sha %s: dispatched", commit_sha[:8])
+        elif not ok:
+            logging.info(
+                "[v2][action] restart for sha %s: dispatch_failed: %s",
+                commit_sha[:8],
+                notes,
+            )
         else:
-            logging.info("[v2][action] restart: logged (dry_run)")
+            logging.info(
+                "[v2][action] restart for sha %s: logged (dry_run)", commit_sha[:8]
+            )
         return True
