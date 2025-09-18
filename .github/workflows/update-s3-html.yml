@@ -43,4 +43,4 @@ jobs:
 
             # Install requirements
             pip install -r s3_management/requirements.txt
-            python s3_management/manage.py ${{ matrix.prefix }}
+            python s3_management/manage.py --subdir-pattern '${{ matrix.subdir-pattern }}' ${{ matrix.prefix }}
