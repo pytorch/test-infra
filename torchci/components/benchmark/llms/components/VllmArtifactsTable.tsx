@@ -12,10 +12,12 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { useVllmArtifacts } from "lib/benchmark/llms/utils/vllmArtifacts";
+import { useArtifacts } from "lib/benchmark/llms/utils/artifacts";
 
 export function VllmArtifactsTable() {
-  const { data, error, isLoading } = useVllmArtifacts();
+  const { data, error, isLoading } = useArtifacts({
+    prefix: "vllm-project/vllm/",
+  });
 
   if (error) {
     return (

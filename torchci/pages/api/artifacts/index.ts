@@ -2,8 +2,8 @@ import dayjs from "dayjs";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const S3_BASE_URL = "https://gha-artifacts.s3.us-east-1.amazonaws.com";
-const TARGET_PREFIX = "vllm-project/vllm/";
-const LOOKBACK_MONTHS = 6;
+const DEFAULT_TARGET_PREFIX = "vllm-project/vllm/";
+const DEFAULT_LOOKBACK_MONTHS = 6;
 const MAX_PAGINATION_LOOPS = 100;
 
 type ArtifactFile = {
@@ -28,8 +28,9 @@ export default async function handler(
   }
 
   try {
+    const { targetPrefix, lookbackMonths } = resolveRequestOptions(req);
     const now = dayjs();
-    const lookbackStart = now.subtract(LOOKBACK_MONTHS, "month").startOf("day");
+    const lookbackStart = now.subtract(lookbackMonths, "month").startOf("day");
 
     const monthPrefixes = buildMonthPrefixes(lookbackStart, now);
     const monthKeyResults = await Promise.all(
@@ -40,7 +41,7 @@ export default async function handler(
 
     for (const monthKeys of monthKeyResults) {
       for (const key of monthKeys) {
-        if (!isKeyInTargetPrefix(key)) {
+        if (!isKeyInTargetPrefix(key, targetPrefix)) {
           continue;
         }
 
@@ -63,11 +64,44 @@ export default async function handler(
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
     return res.status(200).json({ files });
   } catch (error) {
-    console.error("Failed to fetch vLLM artifact listing", error);
-    return res
-      .status(500)
-      .json({ error: "Failed to fetch vLLM artifact listing" });
+    console.error("Failed to fetch artifact listing", error);
+    return res.status(500).json({ error: "Failed to fetch artifact listing" });
   }
+}
+
+function resolveRequestOptions(req: NextApiRequest) {
+  const targetPrefix = normalizeTargetPrefix(
+    getSingleQueryParam(req.query.prefix) ?? DEFAULT_TARGET_PREFIX
+  );
+
+  const lookbackMonths = clampLookbackMonths(
+    getSingleQueryParam(req.query.lookbackMonths)
+  );
+
+  return { targetPrefix, lookbackMonths };
+}
+
+function getSingleQueryParam(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return value;
+}
+
+function normalizeTargetPrefix(prefix: string) {
+  const trimmed = prefix.trim();
+  if (!trimmed) {
+    return DEFAULT_TARGET_PREFIX;
+  }
+  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
+}
+
+function clampLookbackMonths(raw: string | undefined) {
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  if (Number.isNaN(parsed) || parsed <= 0) {
+    return DEFAULT_LOOKBACK_MONTHS;
+  }
+  return Math.min(parsed, 24);
 }
 
 function buildMonthPrefixes(startDate: dayjs.Dayjs, endDate: dayjs.Dayjs) {
@@ -137,7 +171,7 @@ function buildDownloadUrl(key: string) {
   return `${S3_BASE_URL}/${encodedKey}`;
 }
 
-function isKeyInTargetPrefix(key: string) {
+function isKeyInTargetPrefix(key: string, targetPrefix: string) {
   if (key.endsWith("/")) {
     return false;
   }
@@ -145,7 +179,7 @@ function isKeyInTargetPrefix(key: string) {
   if (!dateSegment) {
     return false;
   }
-  return rest.join("/").startsWith(TARGET_PREFIX);
+  return rest.join("/").startsWith(targetPrefix);
 }
 
 function isDateWithinRange(
