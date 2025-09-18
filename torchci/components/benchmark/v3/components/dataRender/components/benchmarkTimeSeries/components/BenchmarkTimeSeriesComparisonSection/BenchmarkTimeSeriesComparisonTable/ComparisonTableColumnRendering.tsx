@@ -157,26 +157,21 @@ export function ComparisonTableValueCell({
 
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
-      <Tooltip title={renderComparisonResult(result)} >
+      <Tooltip title={renderComparisonResult(result)}>
         <Typography variant="body2">{text}</Typography>
       </Tooltip>
     </Box>
   );
 }
 
-
-function renderComparisonResult(
-  result: ComparisonResult,
-){
-  return (<Box sx={{ p: 1 }}>
+function renderComparisonResult(result: ComparisonResult) {
+  return (
+    <Box sx={{ p: 1 }}>
       {Object.entries(result).map(([key, value]) => (
-        <Typography
-          key={key}
-          variant="body2"
-          sx={{ whiteSpace: "pre-line" }}
-        >
+        <Typography key={key} variant="body2" sx={{ whiteSpace: "pre-line" }}>
           <strong>{key}</strong>: {String(value)}
         </Typography>
       ))}
-    </Box>)
+    </Box>
+  );
 }

@@ -125,20 +125,29 @@ export function evaluateComparison(
         direction: "up",
       };
       const dir = rp.direction ?? "up";
+
+      const calculatedGood = rp.goodRatio
+        ? oldValue * rp.goodRatio
+        : oldValue * DEFAULT_GOOD_RATIO;
+      const calculatedBad = oldValue * rp.badRatio;
       // Compare with oldValue * ratio
       if (dir === "up") {
         if (rp.goodRatio != null && newValue > oldValue * rp.goodRatio) {
           return {
             ...base,
             verdict: "good",
-            reason: `new > old * goodRatio (${rp.goodRatio})`,
+            reason: `new > old * goodRatio (${
+              rp.goodRatio
+            })[${calculatedGood.toFixed(2)}]`,
           };
         }
         if (newValue < oldValue * rp.badRatio) {
           return {
             ...base,
             verdict: "regression",
-            reason: `new ≤ old * badRatio (${rp.badRatio})`,
+            reason: `new < old * badRatio (${
+              rp.badRatio
+            })[${calculatedBad.toFixed(2)}]`,
           };
         }
         return {
@@ -151,14 +160,18 @@ export function evaluateComparison(
           return {
             ...base,
             verdict: "good",
-            reason: `new ≤ old * goodRatio (${rp.goodRatio})`,
+            reason: `new < old * goodRatio (${
+              rp.goodRatio
+            })[${calculatedGood.toFixed(2)}}]`,
           };
         }
         if (newValue > oldValue * rp.badRatio) {
           return {
             ...base,
             verdict: "regression",
-            reason: `new ≥ old * badRatio (${rp.badRatio})`,
+            reason: `new > old * badRatio (${
+              rp.badRatio
+            })[${calculatedBad.toFixed(2)}]`,
           };
         }
         return {
