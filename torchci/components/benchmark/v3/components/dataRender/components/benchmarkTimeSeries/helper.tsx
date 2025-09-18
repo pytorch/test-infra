@@ -16,7 +16,7 @@ export type BenchmarkComparisonTableSectionConfig = {
 
 export type ComparisonTableConfig = {
   titleMapping?: Record<string, string>;
-  nameKey: string;
+  nameKeys?: string[]; // the field name used to render the name of the row, if not set, use all groupinfo labels
   renderOptions?: {};
   // indicates the field to use for comparison policy map
   comparisonPolicyTargetField?: string;

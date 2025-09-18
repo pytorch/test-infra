@@ -50,7 +50,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     [filtered, tableSectionConfig.groupByFields]
   );
 
-  const workflowMetadataInfos: any[] = useMemo(
+  const workflowInfos: any[] = useMemo(
     () => toSortedWorkflowIdMap(filtered),
     [
       filtered,
@@ -60,13 +60,11 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   );
 
   const [lWorkflowId, setLlWorkflowId] = useState(
-    workflowMetadataInfos.length > 0
-      ? workflowMetadataInfos[0].workflow_id
-      : null
+    workflowInfos.length > 0 ? workflowInfos[0].workflow_id : null
   );
   const [rWorkflowId, setRWorkflowId] = useState(
-    workflowMetadataInfos.length > 0
-      ? workflowMetadataInfos[workflowMetadataInfos.length - 1].workflow_id
+    workflowInfos.length > 0
+      ? workflowInfos[workflowInfos.length - 1].workflow_id
       : null
   );
 
@@ -92,7 +90,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
         onUnmount={handleUnmount}
       >
         <BenchmarkTimeSeriesComparisonTableSlider
-          workflows={workflowMetadataInfos}
+          workflows={workflowInfos}
           onChange={onSliderChange}
         />
       </StickyBar>

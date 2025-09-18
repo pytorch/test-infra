@@ -5,7 +5,7 @@ type GridRowModel = {
   label: string;
   name: string;
   metric: string;
-  byWorkflow: Record<string, RowColumns>;
+  byWorkflow: Record<string, RowCellObj[]>;
   sampleInfo: any;
 };
 
@@ -20,41 +20,43 @@ function getGroupKeyAndLabel(gi: any) {
   return { key, label, metric: String(gi?.metric ?? "") };
 }
 
-/** Input types (your shape) */
 export type RowCellObj = {
   value: number | string | null | undefined;
   [k: string]: any;
 };
-export type RowColumns = Record<string, RowCellObj>;
-export type SnapshotRow = { group_info: any; rows: RowColumns };
+export type SnapshotRow = {
+  group_info: any;
+  sub_keys: string[];
+  group_keys: string[];
+  rows: RowCellObj[];
+};
 
 /** Helpers */
 export const asNumber = (v: unknown) => (typeof v === "number" ? v : undefined);
 export const valOf = (cell?: RowCellObj) => (cell ? cell.value : undefined);
 
-export function getComparisonTableRowDefinition(
-  config: ComparisonTableConfig,
-  data: any
-) {
+export function ToComparisonTableRow(config: ComparisonTableConfig, data: any) {
   const m = new Map<string, GridRowModel>();
-  for (const item of data ?? []) {
-    const gi = item.group_info ?? {};
+  for (const rowData of data ?? []) {
+    const gi = rowData.group_info ?? {};
     const wf = String(gi?.workflow_id ?? "");
-    const { key, label, metric } = getGroupKeyAndLabel(gi);
+    const { key, label } = getGroupKeyAndLabel(gi);
 
-    const name = config.nameKey ? gi?.[config.nameKey] : label;
+    const name = config?.nameKeys
+      ? config.nameKeys.map((k) => gi[k]).join(" · ")
+      : label;
+    const rowDataMap = rowData.data ?? {};
     if (!m.has(key)) {
       m.set(key, {
         ...gi,
         id: key,
         label,
-        metric,
         byWorkflow: {},
         sampleInfo: gi,
         name,
       });
     }
-    m.get(key)!.byWorkflow[wf] = item.rows ?? {};
+    m.get(key)!.byWorkflow[wf] = rowDataMap;
   }
   return Array.from(m.values());
 }

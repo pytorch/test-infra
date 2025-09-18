@@ -3,10 +3,7 @@ import { DataGrid, GridColDef, GridRowModel } from "@mui/x-data-grid";
 import { useMemo } from "react";
 import { ComparisonTableConfig } from "../../../helper";
 import { getComparisionTableConlumnRendering } from "./ComparisonTableColumnRendering";
-import {
-  getComparisonTableRowDefinition,
-  SnapshotRow,
-} from "./ComparisonTableHelpers";
+import { SnapshotRow, ToComparisonTableRow } from "./ComparisonTableHelpers";
 
 export function ComparisonTable({
   data,
@@ -25,10 +22,10 @@ export function ComparisonTable({
 }) {
   // group raw data into rows, each row contains all values across workflowIds
   const rows: GridRowModel[] = useMemo(() => {
-    return getComparisonTableRowDefinition(config, data);
-  }, [data, config.nameKey]);
+    return ToComparisonTableRow(config, data);
+  }, [data]);
 
-  // union of all column ids
+  // iterate the column map in row data, and get all column names
   const allColumns = useMemo(() => {
     const s = new Set<string>();
     rows.forEach((r) =>

@@ -150,7 +150,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             ],
           },
           tableConfig: {
-            nameKey: "compiler",
+            nameKeys: ["compiler"],
             comparisonPolicyTargetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,
