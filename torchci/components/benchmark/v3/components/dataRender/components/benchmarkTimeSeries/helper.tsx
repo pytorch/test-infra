@@ -84,3 +84,50 @@ export function makeGroupKeyAndLabel(
   const labels = fields.map((f) => `${toStr(gi?.[f])}`);
   return { key: parts.join("|"), labels };
 }
+
+export function toGroupKeyMap(data: any[], fields: string[]) {
+  const m = new Map<string, { key: string; labels: string[]; items: any }>();
+  for (const s of data) {
+    const gi = s.group_info || {};
+    const { key, labels } = makeGroupKeyAndLabel(gi, fields);
+    if (!m.has(key)) m.set(key, { key, labels, items: [] });
+    m.get(key)!.items.push(s);
+  }
+  return m;
+}
+
+/**
+ *
+ * @param data data list, the gruop_info in data object must have workflow_id, commit and branch
+ * @returns
+ */
+export function toSortedWorkflowIdMap(data: any[]) {
+  const workflowIdMap = new Map<string, any>();
+  for (const d of data) {
+    if (!d.group_info) {
+      throw new Error(
+        "[toSortedWorkflowIdMap]group_info is missing when try to form the workflowIdMap "
+      );
+    }
+    if (!d.group_info.workflow_id) {
+      throw new Error(
+        "[toSortedWorkflowIdMap]workflow_id is missing when try to form the workflowIdMap "
+      );
+    }
+    const id = String(d.group_info.workflow_id);
+    workflowIdMap.set(id, {
+      workflow_id: id,
+      label: id,
+      commit: d.group_info.commit,
+      branch: d.group_info.branch,
+    });
+  }
+  // Sort by numeric if all ids are numbers, else lexicographically
+  return Array.from(workflowIdMap.values()).sort((a, b) => {
+    const na = /^\d+$/.test(a.workflow_id) ? Number(a.workflow_id) : NaN;
+    const nb = /^\d+$/.test(b.workflow_id) ? Number(b.workflow_id) : NaN;
+    return Number.isNaN(na) || Number.isNaN(nb)
+      ? a.workflow_id.localeCompare(b.workflow_id)
+      : na - nb;
+  });
+}

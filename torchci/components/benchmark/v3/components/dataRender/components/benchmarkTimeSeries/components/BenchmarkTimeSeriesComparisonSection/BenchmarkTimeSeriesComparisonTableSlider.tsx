@@ -1,11 +1,11 @@
 import styled from "@emotion/styled";
 import { Box, Chip, Paper, Slider, Stack, Typography } from "@mui/material";
-import * as React from "react";
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 
-export type WorkflowItem = {
+export type WorkflowMetaInfo = {
   workflow_id: string;
   commit: string;
+  branch: string;
   [k: string]: any;
 };
 
@@ -36,25 +36,49 @@ function sortIds(ids: string[]) {
 }
 
 export function BenchmarkTimeSeriesComparisonTableSlider({
-  items,
-  range,
+  workflows,
   onChange,
 }: {
-  items: WorkflowItem[];
-  range: [number, number]; // controlled index range
-  onChange: (next: [number, number]) => void;
-  labelForMark?: (w: WorkflowItem) => string;
+  workflows: WorkflowMetaInfo[];
+  onChange: (next: [string, string]) => void;
 }) {
   // sort & map
   const { ids, byId } = useMemo(() => {
-    const byId: Record<string, WorkflowItem> = {};
-    items.forEach((it) => (byId[it.workflow_id] = it));
-    const ids = sortIds(items.map((it) => it.workflow_id));
+    const byId: Record<string, WorkflowMetaInfo> = {};
+    workflows.forEach((it) => (byId[it.workflow_id] = it));
+    const ids = sortIds(workflows.map((it) => it.workflow_id));
     return { ids, byId };
-  }, [items]);
+  }, [workflows]);
 
-  const lWorkflowId = ids[range[0]] ?? null;
-  const rWorkflowId = ids[range[1]] ?? null;
+  // Controlled slider range (indices)
+  const [range, setRange] = useState<[number, number]>(() => {
+    const n = workflows.length;
+    return n >= 2 ? [0, n - 1] : [0, 0];
+  });
+
+  const [lWorkflowId, rWorkflowId] = useMemo(() => {
+    const [a, b] = range;
+    return [ids[a], ids[b]];
+  }, [range, ids]);
+
+  // update range when workflows change
+  useMemo(() => {
+    const n = workflows.length;
+    if (n >= 2) {
+      setRange([0, n - 1]);
+    } else {
+      setRange([0, 0]);
+    }
+  }, [workflows]);
+
+  function rangeLabelFormat(workflowId: string | number | null) {
+    if (!workflowId) return "-";
+    const id = shortSha(workflowId as string);
+    const commit = byId[workflowId].commit
+      ? shortSha(byId[workflowId].commit)
+      : "";
+    return `${id} (commit: ${commit})`;
+  }
 
   // render slider tick labels when slider is hovered
   function valueLabelFormat(idx: number) {
@@ -69,21 +93,15 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
       </Box>
     );
   }
-
-  function rangeLabelFormat(workflowId: string | number | null) {
-    if (!workflowId) return "-";
-    const id = shortSha(workflowId as string);
-    const commit = byId[workflowId].commit
-      ? shortSha(byId[workflowId].commit)
-      : "";
-    return `${id} (commit: ${commit})`;
-  }
-
-  const handleChange = React.useCallback(
+  
+  const handleChange = useCallback(
     (_event: Event, value: number | number[], _activeThumb: number) => {
       if (Array.isArray(value) && value.length === 2) {
         const [a, b] = value[0] <= value[1] ? value : [value[1], value[0]];
-        onChange([a, b]);
+        setRange([a, b]);
+        const l = ids[a];
+        const r = ids[b];
+        onChange([l, r]);
       }
     },
     [onChange]
@@ -109,11 +127,8 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
             disableSwap
           />
         </Box>
-        <Chip label={`R: ${rangeLabelFormat(rWorkflowId)}`} />
+        <Chip label={`R:  ${rangeLabelFormat(rWorkflowId)}`} />
       </Stack>
-      <Typography variant="caption" color="text.secondary">
-        {ids.length} Items
-      </Typography>
     </Paper>
   );
 }

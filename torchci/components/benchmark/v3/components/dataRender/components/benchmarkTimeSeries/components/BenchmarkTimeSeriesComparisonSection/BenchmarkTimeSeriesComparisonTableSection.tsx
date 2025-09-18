@@ -4,8 +4,9 @@ import { StickyBar } from "components/benchmark/v3/components/common/StickyBar";
 import { useMemo, useState } from "react";
 import {
   BenchmarkComparisonTableSectionConfig,
-  makeGroupKeyAndLabel,
   passesFilter,
+  toGroupKeyMap,
+  toSortedWorkflowIdMap,
 } from "../../helper";
 import { ComparisonTable } from "./BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 import { BenchmarkTimeSeriesComparisonTableSlider } from "./BenchmarkTimeSeriesComparisonTableSlider";
@@ -34,78 +35,49 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   const [barOffset, setBarOffset] = useState(0);
   const handleMount = (h: number) => setBarOffset((prev) => prev + h);
   const handleUnmount = (h: number) => setBarOffset((prev) => prev - h);
-  // Controlled slider range (indices)
-  const [range, setRange] = useState<[number, number]>(() => {
-    const n = items.length;
-    return n >= 2 ? [0, n - 1] : [0, 0];
-  });
 
   // Filter data based on the table config
   const filtered = useMemo(() => {
-    if (!data) {
-      return [];
-    }
+    if (!data) return [];
     return data.filter((s) =>
       passesFilter(s.group_info || {}, tableSectionConfig.filterByFieldValues)
     );
   }, [data, tableSectionConfig.filterByFieldValues]);
 
   // Group data based on the table config
-  const groupMap = useMemo(() => {
-    const m = new Map<string, { key: string; labels: string[]; items: any }>();
-    for (const s of filtered) {
-      const gi = s.group_info || {};
-      const { key, labels } = makeGroupKeyAndLabel(
-        gi,
-        tableSectionConfig.groupByFields
-      );
-      if (!m.has(key)) m.set(key, { key, labels, items: [] });
-      m.get(key)!.items.push(s);
-    }
-    return m;
-  }, [filtered, tableSectionConfig.groupByFields]);
-
-  // Build a list of workflows for the slider (you can add labels/timestamps here)
-  const items: any[] = useMemo(() => {
-    const idMap = new Map<string, any>();
-    for (const d of filtered) {
-      const id = String(d.group_info.workflow_id);
-      const commit = String(d.group_info.commit);
-      idMap.set(id, {
-        workflow_id: id,
-        label: id,
-        commit: commit, // keep previous commit if any
-        branch: d.group_info.branch,
-      });
-    }
-    return Array.from(idMap.values());
-  }, [
-    filtered,
-    tableSectionConfig.groupByFields,
-    tableSectionConfig.filterByFieldValues,
-  ]);
-
-  if (!data || data.length == 0) {
-    return <></>;
-  }
-
-  // Derive L/R workflow IDs from the range
-  const sortedIds = useMemo(
-    () =>
-      items
-        .map((i) => i.workflow_id)
-        .sort((a, b) => {
-          const na = /^\d+$/.test(a) ? Number(a) : NaN;
-          const nb = /^\d+$/.test(b) ? Number(b) : NaN;
-          return Number.isNaN(na) || Number.isNaN(nb)
-            ? a.localeCompare(b)
-            : na - nb;
-        }),
-    [items]
+  const groupMap = useMemo(
+    () => toGroupKeyMap(filtered, tableSectionConfig.groupByFields),
+    [filtered, tableSectionConfig.groupByFields]
   );
 
-  const lWorkflowId = sortedIds[range[0]] ?? null;
-  const rWorkflowId = sortedIds[range[1]] ?? null;
+  const workflowMetadataInfos: any[] = useMemo(
+    () => toSortedWorkflowIdMap(filtered),
+    [
+      filtered,
+      tableSectionConfig.groupByFields,
+      tableSectionConfig.filterByFieldValues,
+    ]
+  );
+
+  const [lWorkflowId, setLlWorkflowId] = useState(
+    workflowMetadataInfos.length > 0
+      ? workflowMetadataInfos[0].workflow_id
+      : null
+  );
+  const [rWorkflowId, setRWorkflowId] = useState(
+    workflowMetadataInfos.length > 0
+      ? workflowMetadataInfos[workflowMetadataInfos.length - 1].workflow_id
+      : null
+  );
+
+  const onSliderChange = (next: [string, string]) => {
+    setLlWorkflowId(next[0]);
+    setRWorkflowId(next[1]);
+  };
+
+  if (!filtered || filtered.length == 0) {
+    return <></>;
+  }
 
   return (
     <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
@@ -121,9 +93,8 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
         onUnmount={handleUnmount}
       >
         <BenchmarkTimeSeriesComparisonTableSlider
-          items={items}
-          range={range}
-          onChange={setRange}
+          workflows={workflowMetadataInfos}
+          onChange={onSliderChange}
         />
       </StickyBar>
       <Grid container sx={{ m: 1 }}>
