@@ -28,38 +28,17 @@ export default async function handler(
   }
 
   try {
-    const { targetPrefix, lookbackMonths } = resolveRequestOptions(req);
-    const now = dayjs();
-    const lookbackStart = now.subtract(lookbackMonths, "month").startOf("day");
+    const prefixParam = Array.isArray(req.query.prefix)
+      ? req.query.prefix[0]
+      : req.query.prefix;
+    const lookbackParam = Array.isArray(req.query.lookbackMonths)
+      ? req.query.lookbackMonths[0]
+      : req.query.lookbackMonths;
 
-    const monthPrefixes = buildMonthPrefixes(lookbackStart, now);
-    const monthKeyResults = await Promise.all(
-      monthPrefixes.map((monthPrefix) => listKeysForPrefix(monthPrefix))
-    );
+    const targetPrefix = parsePrefix(prefixParam);
+    const lookbackMonths = parseLookbackMonths(lookbackParam);
 
-    const keys = new Set<string>();
-
-    for (const monthKeys of monthKeyResults) {
-      for (const key of monthKeys) {
-        if (!isKeyInTargetPrefix(key, targetPrefix)) {
-          continue;
-        }
-
-        const [dateSegment] = key.split("/");
-        if (!isDateWithinRange(dateSegment, lookbackStart, now)) {
-          continue;
-        }
-
-        keys.add(key);
-      }
-    }
-
-    const sortedKeys = Array.from(keys).sort((a, b) => b.localeCompare(a));
-    const files = sortedKeys.map((key) => ({
-      key,
-      url: buildDownloadUrl(key),
-      ...extractFileMetadata(key),
-    }));
+    const files = await collectArtifacts(targetPrefix, lookbackMonths);
 
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
     return res.status(200).json({ files });
@@ -69,56 +48,61 @@ export default async function handler(
   }
 }
 
-function resolveRequestOptions(req: NextApiRequest) {
-  const targetPrefix = normalizeTargetPrefix(
-    getSingleQueryParam(req.query.prefix) ?? DEFAULT_TARGET_PREFIX
-  );
+async function collectArtifacts(prefix: string, lookbackMonths: number) {
+  const now = dayjs();
+  const earliestDate = now.subtract(lookbackMonths, "month").startOf("day");
 
-  const lookbackMonths = clampLookbackMonths(
-    getSingleQueryParam(req.query.lookbackMonths)
-  );
+  const keys = new Set<string>();
+  let cursor = earliestDate.startOf("month");
 
-  return { targetPrefix, lookbackMonths };
-}
+  while (cursor.isBefore(now, "month") || cursor.isSame(now, "month")) {
+    const monthPrefix = cursor.format("YYYY-MM");
+    const monthKeys = await listS3Keys(monthPrefix);
 
-function getSingleQueryParam(value: string | string[] | undefined) {
-  if (Array.isArray(value)) {
-    return value[0];
-  }
-  return value;
-}
+    for (const key of monthKeys) {
+      if (key.endsWith("/")) {
+        continue;
+      }
 
-function normalizeTargetPrefix(prefix: string) {
-  const trimmed = prefix.trim();
-  if (!trimmed) {
-    return DEFAULT_TARGET_PREFIX;
-  }
-  return trimmed.endsWith("/") ? trimmed : `${trimmed}/`;
-}
+      const [dateSegment, ...rest] = key.split("/");
+      if (!dateSegment) {
+        continue;
+      }
 
-function clampLookbackMonths(raw: string | undefined) {
-  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
-  if (Number.isNaN(parsed) || parsed <= 0) {
-    return DEFAULT_LOOKBACK_MONTHS;
-  }
-  return Math.min(parsed, 24);
-}
+      const pathAfterDate = rest.join("/");
+      if (!pathAfterDate.startsWith(prefix)) {
+        continue;
+      }
 
-function buildMonthPrefixes(startDate: dayjs.Dayjs, endDate: dayjs.Dayjs) {
-  const prefixes: string[] = [];
-  let cursor = startDate.startOf("month");
-  const final = endDate.endOf("month");
+      const keyDate = dayjs(dateSegment);
+      if (!keyDate.isValid()) {
+        continue;
+      }
 
-  while (cursor.isBefore(final) || cursor.isSame(final, "month")) {
-    prefixes.push(cursor.format("YYYY-MM"));
+      if (
+        keyDate.isBefore(earliestDate, "day") ||
+        keyDate.isAfter(now, "day")
+      ) {
+        continue;
+      }
+
+      keys.add(key);
+    }
+
     cursor = cursor.add(1, "month");
   }
 
-  return prefixes;
+  return Array.from(keys)
+    .sort((a, b) => b.localeCompare(a))
+    .map((key) => ({
+      key,
+      url: buildDownloadUrl(key),
+      ...extractFileMetadata(key),
+    }));
 }
 
-async function listKeysForPrefix(prefix: string): Promise<string[]> {
-  let continuationToken: string | undefined = undefined;
+async function listS3Keys(prefix: string) {
+  let continuationToken: string | undefined;
   const keys: string[] = [];
   let loopCount = 0;
 
@@ -163,44 +147,27 @@ async function listKeysForPrefix(prefix: string): Promise<string[]> {
   return keys;
 }
 
+function parsePrefix(raw: string | undefined) {
+  const value = raw?.trim();
+  if (!value) {
+    return DEFAULT_TARGET_PREFIX;
+  }
+  return value.endsWith("/") ? value : `${value}/`;
+}
+
+function parseLookbackMonths(raw: string | undefined) {
+  const parsed = Number.parseInt(raw ?? "", 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return DEFAULT_LOOKBACK_MONTHS;
+  }
+  return Math.min(parsed, 24);
+}
+
 function buildDownloadUrl(key: string) {
-  const encodedKey = key
+  return `${S3_BASE_URL}/${key
     .split("/")
     .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return `${S3_BASE_URL}/${encodedKey}`;
-}
-
-function isKeyInTargetPrefix(key: string, targetPrefix: string) {
-  if (key.endsWith("/")) {
-    return false;
-  }
-  const [dateSegment, ...rest] = key.split("/");
-  if (!dateSegment) {
-    return false;
-  }
-  return rest.join("/").startsWith(targetPrefix);
-}
-
-function isDateWithinRange(
-  dateSegment: string,
-  earliest: dayjs.Dayjs,
-  latest: dayjs.Dayjs
-) {
-  const parsedDate = dayjs(dateSegment);
-  if (!parsedDate.isValid()) {
-    return false;
-  }
-
-  if (parsedDate.isBefore(earliest, "day")) {
-    return false;
-  }
-
-  if (parsedDate.isAfter(latest, "day")) {
-    return false;
-  }
-
-  return true;
+    .join("/")}`;
 }
 
 function extractFileMetadata(key: string) {
