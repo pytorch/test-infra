@@ -32,7 +32,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   onChange?: (payload: any) => void;
 }) {
   // Sticky bar offset
-  const [barOffset, setBarOffset] = useState(0);
+  const [barOffset, setBarOffset] = useState(-20);
   const handleMount = (h: number) => setBarOffset((prev) => prev + h);
   const handleUnmount = (h: number) => setBarOffset((prev) => prev - h);
 
@@ -104,15 +104,12 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
           return (
             <Grid key={key} sx={{ p: 0.2 }} size={{ xs: 12, md: 12, lg: 6 }}>
               <Paper sx={styles.paper}>
-                <Typography variant="h4">{title.toUpperCase()}</Typography>
-                <Typography variant="body2">
-                  {lWorkflowId} - {rWorkflowId}
-                </Typography>
                 <ComparisonTable
                   data={tableData.items}
                   config={tableSectionConfig.tableConfig}
                   lWorkflowId={lWorkflowId}
                   rWorkflowId={rWorkflowId}
+                  title={title}
                 />
               </Paper>
             </Grid>

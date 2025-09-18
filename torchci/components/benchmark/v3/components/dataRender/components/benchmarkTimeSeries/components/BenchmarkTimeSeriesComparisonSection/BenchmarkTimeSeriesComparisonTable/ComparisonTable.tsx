@@ -1,3 +1,4 @@
+import { Typography } from "@mui/material";
 import { DataGrid, GridColDef, GridRowModel } from "@mui/x-data-grid";
 import { useMemo } from "react";
 import { ComparisonTableConfig } from "../../../helper";
@@ -27,7 +28,6 @@ export function ComparisonTable({
     return getComparisonTableRowDefinition(config, data);
   }, [data, config.nameKey]);
 
-  console.log("Table Config", config);
   // union of all column ids
   const allColumns = useMemo(() => {
     const s = new Set<string>();
@@ -56,29 +56,35 @@ export function ComparisonTable({
   );
 
   return (
-    <DataGrid
-      density="compact"
-      disableRowSelectionOnClick
-      rows={rows}
-      columns={columns}
-      getRowId={(r) => r.id}
-      sx={{
-        "& .MuiDataGrid-cell": {
-          py: 0, // less vertical padding
-          fontSize: "0.75rem",
-        },
-        "& .MuiDataGrid-columnHeaders": {
-          minHeight: 32,
-          maxHeight: 32,
-          lineHeight: "32px",
-          fontSize: "0.75rem",
-        },
-        "& .MuiDataGrid-row": {
-          minHeight: 32,
-          maxHeight: 32,
-        },
-      }}
-      hideFooter
-    />
+    <>
+      <Typography variant="h4">{title.toUpperCase()}</Typography>
+      <Typography variant="body2">
+        {lWorkflowId} - {rWorkflowId}
+      </Typography>
+      <DataGrid
+        density="compact"
+        disableRowSelectionOnClick
+        rows={rows}
+        columns={columns}
+        getRowId={(r) => r.id}
+        sx={{
+          "& .MuiDataGrid-cell": {
+            py: 0, // less vertical padding
+            fontSize: "0.75rem",
+          },
+          "& .MuiDataGrid-columnHeaders": {
+            minHeight: 32,
+            maxHeight: 32,
+            lineHeight: "32px",
+            fontSize: "0.75rem",
+          },
+          "& .MuiDataGrid-row": {
+            minHeight: 32,
+            maxHeight: 32,
+          },
+        }}
+        hideFooter
+      />
+    </>
   );
 }

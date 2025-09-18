@@ -28,13 +28,6 @@ const fmtTs = (ts?: string) => {
   return isNaN(d.getTime()) ? ts : d.toLocaleString();
 };
 
-function sortIds(ids: string[]) {
-  const allNum = ids.every((id) => /^\d+$/.test(id));
-  return allNum
-    ? [...ids].sort((a, b) => Number(a) - Number(b))
-    : [...ids].sort();
-}
-
 export function BenchmarkTimeSeriesComparisonTableSlider({
   workflows,
   onChange,
@@ -46,7 +39,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
   const { ids, byId } = useMemo(() => {
     const byId: Record<string, WorkflowMetaInfo> = {};
     workflows.forEach((it) => (byId[it.workflow_id] = it));
-    const ids = sortIds(workflows.map((it) => it.workflow_id));
+    const ids = workflows.map((it) => it.workflow_id);
     return { ids, byId };
   }, [workflows]);
 
@@ -55,11 +48,6 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
     const n = workflows.length;
     return n >= 2 ? [0, n - 1] : [0, 0];
   });
-
-  const [lWorkflowId, rWorkflowId] = useMemo(() => {
-    const [a, b] = range;
-    return [ids[a], ids[b]];
-  }, [range, ids]);
 
   // update range when workflows change
   useMemo(() => {
@@ -71,13 +59,11 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
     }
   }, [workflows]);
 
-  function rangeLabelFormat(workflowId: string | number | null) {
-    if (!workflowId) return "-";
-    const id = shortSha(workflowId as string);
-    const commit = byId[workflowId].commit
-      ? shortSha(byId[workflowId].commit)
-      : "";
-    return `${id} (commit: ${commit})`;
+  function rangeLabelFormat(wfi: any) {
+    const wf = byId[ids[wfi as number]];
+    if (!wf) return "-";
+    const commit = wf.commit ? shortSha(wf.commit) : "";
+    return `${wf.workflow_id} (commit: ${commit})`;
   }
 
   // render slider tick labels when slider is hovered
@@ -93,7 +79,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
       </Box>
     );
   }
-  
+
   const handleChange = useCallback(
     (_event: Event, value: number | number[], _activeThumb: number) => {
       if (Array.isArray(value) && value.length === 2) {
@@ -101,6 +87,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
         setRange([a, b]);
         const l = ids[a];
         const r = ids[b];
+        console.log("onChange", l, r);
         onChange([l, r]);
       }
     },
@@ -114,7 +101,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
         Select L / R Data
       </Typography>
       <Stack direction="row" alignItems="center" spacing={2}>
-        <Chip label={`L: ${rangeLabelFormat(lWorkflowId)}`} />
+        <Chip label={`L: ${rangeLabelFormat(range[0])}`} />
         <Box sx={{ flex: 1, px: 2 }}>
           <BenchmarkSlider
             value={range}
@@ -127,7 +114,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
             disableSwap
           />
         </Box>
-        <Chip label={`R:  ${rangeLabelFormat(rWorkflowId)}`} />
+        <Chip label={`R:  ${rangeLabelFormat(range[1])}`} />
       </Stack>
     </Paper>
   );
