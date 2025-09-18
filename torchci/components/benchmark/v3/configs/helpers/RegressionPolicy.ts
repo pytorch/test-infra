@@ -80,7 +80,6 @@ export type ComparisonResult = {
   target: string;
   oldValue: number | null;
   newValue: number | null;
-  ratio: number | null;
   delta: number | null;
   verdict: ComparisonVerdict;
   reason?: string;
@@ -103,7 +102,6 @@ export function evaluateComparison(
   const type: ComparisonPolicyType = policy.type ?? "ratio";
   const base: ComparisonResult = {
     target: target ?? "general",
-    ratio: null,
     oldValue: oldValue ?? null,
     newValue: newValue ?? null,
     delta: oldValue != null && newValue != null ? newValue - oldValue : null,
