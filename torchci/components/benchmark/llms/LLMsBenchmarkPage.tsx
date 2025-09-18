@@ -220,7 +220,9 @@ const MainPage = ({
         metricNames={metricNames}
         benchmarkPropsQueryParams={queryParams}
       />
-      {props.repoName === "vllm-project/vllm" && <VllmArtifactsTable />}
+      {props.repoName === "vllm-project/vllm" && (
+        <VllmArtifactsTable selectedModelName={props.modelName} />
+      )}
     </div>
   );
 };

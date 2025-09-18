@@ -61,10 +61,22 @@ const columns: GridColDef<ArtifactRow>[] = [
   },
 ];
 
-export function VllmArtifactsTable() {
+type VllmArtifactsTableProps = {
+  selectedModelName: string;
+};
+
+export function VllmArtifactsTable({
+  selectedModelName,
+}: VllmArtifactsTableProps) {
   const { data, error } = useArtifacts({
     prefix: "vllm-project/vllm/",
   });
+
+  // TODO: Currently, we only support vLLM traces for opt-125m.
+  // In the future, we should refactor this to support any model.
+  if (selectedModelName !== "facebook/opt-125m") {
+    return null;
+  }
 
   if (error) {
     return (
@@ -76,6 +88,10 @@ export function VllmArtifactsTable() {
         </Grid>
       </Grid>
     );
+  }
+
+  if (data && data.files.length === 0) {
+    return null;
   }
 
   const tableData = data ? data.files : undefined;
