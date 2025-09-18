@@ -18,9 +18,6 @@ jobs:
       - name: Check who am i
         run: whoami; id
 
-      - name: Run docker login
-        run: docker login
-
       - name: Run docker info
         run: docker info
 
