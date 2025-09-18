@@ -137,6 +137,7 @@ const MainPage = ({
       }${router.asPath.replace(/\?.+/, "")}`
     );
   }, [router.query]);
+
   const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
   const { data, error, isLoading } = useBenchmarkPropsData(queryParams);
 
