@@ -7,7 +7,7 @@ export const processMessageLine = (
   setParsedResponses: React.Dispatch<React.SetStateAction<ParsedContent[]>>,
   isStreaming: boolean = false,
   json?: any,
-  onSessionIdReceived?: (sessionId: string) => void
+  onSessionIdReceived?: (_sessionId: string) => void
 ): void => {
   try {
     // If json is not provided, parse the line

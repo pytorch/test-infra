@@ -29,7 +29,7 @@ export default async function handler(
 
   // get time series data
   try {
-    const { name, query_params, response_formats, data_type } = params;
+    const { name, query_params, response_formats } = params;
     const data = await getBenmarkCommits(name, query_params);
     if (!data) {
       console.error("No data found for", name);

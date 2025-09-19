@@ -19,9 +19,6 @@ const s3 = new S3Client({
 const TORCHAGENT_SESSION_BUCKET_NAME =
   process.env.TORCHAGENT_SESSION_BUCKET_NAME || "torchci-session-history";
 
-// Auth token for cookie bypass
-const AUTH_TOKEN = process.env.GRAFANA_MCP_AUTH_TOKEN || "";
-
 interface HistorySession {
   sessionId: string;
   timestamp: string;
