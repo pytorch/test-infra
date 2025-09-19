@@ -21,6 +21,7 @@ import boto3
 
 from shared import K8sGPUTracker, setup_kubernetes_client
 from shared.snapshot_utils import create_pod_shutdown_snapshot, get_latest_snapshot
+from buildkit_job import create_buildkit_job, wait_for_buildkit_job
 
 from kubernetes import client
 from kubernetes.stream import stream
@@ -40,6 +41,7 @@ PRIMARY_AVAILABILITY_ZONE = os.environ["PRIMARY_AVAILABILITY_ZONE"]
 GPU_DEV_CONTAINER_IMAGE = os.environ.get("GPU_DEV_CONTAINER_IMAGE", "pytorch/pytorch:2.8.0-cuda12.9-cudnn9-devel")
 EFS_SECURITY_GROUP_ID = os.environ.get("EFS_SECURITY_GROUP_ID")
 EFS_SUBNET_IDS = os.environ.get("EFS_SUBNET_IDS", "").split(",") if os.environ.get("EFS_SUBNET_IDS") else []
+ECR_REPOSITORY_URL = os.environ.get("ECR_REPOSITORY_URL")
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
@@ -1235,6 +1237,12 @@ def process_reservation_request(record: dict[str, Any]) -> bool:
                 if reservation_request.get("github_user"):
                     initial_record["github_user"] = reservation_request["github_user"]
 
+                # Add Docker options if provided
+                if reservation_request.get("dockerfile_s3_key"):
+                    initial_record["dockerfile_base64_data"] = reservation_request["dockerfile_s3_key"]
+                if reservation_request.get("dockerimage"):
+                    initial_record["dockerimage"] = reservation_request["dockerimage"]
+
                 # Store initial record
                 reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
                 reservations_table.put_item(Item=initial_record)
@@ -1649,6 +1657,75 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         github_user = request.get(
             "github_user", user_id
         )
+
+        # Extract Docker options if provided
+        dockerfile_base64_data = request.get("dockerfile_s3_key")
+        dockerimage = request.get("dockerimage")
+
+        # Set up K8s client early for both Docker builds and pod creation
+        k8s_client = get_k8s_client()
+
+        # Handle Dockerfile build if provided
+        if dockerfile_base64_data:
+            logger.info(f"Custom Dockerfile provided for reservation {reservation_id}: {len(dockerfile_base64_data)} bytes base64")
+
+            # Update status: Building custom Docker image
+            if is_multinode:
+                update_multinode_pod_status(reservation_id, "building custom Docker image", node_index, total_nodes)
+            update_reservation_status(
+                reservation_id,
+                "preparing",
+                detailed_status=f"Building custom Docker image from Dockerfile"
+            )
+
+            try:
+                # Create BuildKit job to build the image
+                image_tag = reservation_id[:8]  # Use short reservation ID as tag
+                buildkit_job_name = create_buildkit_job(
+                    k8s_client,
+                    reservation_id,
+                    dockerfile_base64_data,
+                    image_tag,
+                    ECR_REPOSITORY_URL
+                )
+
+                # Wait for build to complete
+                logger.info(f"Waiting for Docker build to complete: {buildkit_job_name}")
+                build_result = wait_for_buildkit_job(k8s_client, buildkit_job_name, timeout_seconds=900)  # 15 minutes
+
+                if build_result["success"]:
+                    logger.info(f"Docker build successful for {reservation_id}")
+                    # Use the built image
+                    dockerimage = f"{ECR_REPOSITORY_URL}:{image_tag}"
+                    logger.info(f"Will use built image: {dockerimage}")
+                else:
+                    build_logs = build_result.get('logs', 'No logs available')
+                    logger.error(f"Docker build failed for {reservation_id}: {build_result['message']}")
+                    logger.error(f"Build logs for {reservation_id}:\n{build_logs}")
+                    # Update reservation to failed
+                    update_reservation_status(
+                        reservation_id,
+                        "failed",
+                        detailed_status="Docker image build failed",
+                        failure_reason=f"Docker image build failed: {build_result['message']}\nLogs: {build_logs}"
+                    )
+                    return  # Don't raise exception, we've already marked as failed
+
+            except Exception as build_error:
+                logger.error(f"Exception during Docker build process for {reservation_id}: {str(build_error)}")
+                logger.error(f"Exception type: {type(build_error).__name__}")
+                import traceback
+                logger.error(f"Full traceback: {traceback.format_exc()}")
+                update_reservation_status(
+                    reservation_id,
+                    "failed",
+                    detailed_status="Docker build process failed",
+                    failure_reason=f"Docker image build error: {str(build_error)}"
+                )
+                raise
+        elif dockerimage:
+            logger.info(f"Custom Docker image specified: {dockerimage}")
+
         github_public_key = get_github_public_key(github_user, validate=True)
         if not github_public_key:
             raise ValueError(
@@ -1816,9 +1893,6 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             f"Creating pod {pod_name} with {gpu_count}x {gpu_type.upper()} GPUs {disk_status}{shared_status}",
         )
 
-        # Set up K8s client for resource management
-        k8s_client = get_k8s_client()
-
         # Create Kubernetes pod and services
         jupyter_enabled = request.get("jupyter_enabled", False)
         node_port, jupyter_port = create_kubernetes_resources(
@@ -1834,6 +1908,8 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
             recreate_env=recreate_env,
             efs_filesystem_id=efs_filesystem_id,
             is_multinode=is_multinode,
+            dockerfile_base64_data=dockerfile_base64_data,
+            dockerimage=dockerimage,
         )
 
         # Update status: Pod created, waiting for container to start
@@ -2147,6 +2223,8 @@ def create_kubernetes_resources(
     recreate_env: bool = False,
     efs_filesystem_id: str = None,
     is_multinode: bool = False,
+    dockerfile_base64_data: str = None,
+    dockerimage: str = None,
 ) -> tuple[int, int]:
     """Create Kubernetes pod and NodePort services using Python client"""
     try:
@@ -2240,6 +2318,8 @@ def create_kubernetes_resources(
                         recreate_env=recreate_env,
                         efs_filesystem_id=efs_filesystem_id,
                         is_multinode=is_multinode,
+                        dockerfile_base64_data=dockerfile_base64_data,
+                        dockerimage=dockerimage,
                     )
                     logger.info(f"Created new pod {pod_name} with Jupyter")
                     update_reservation_status(
@@ -2309,6 +2389,8 @@ def create_kubernetes_resources(
                         recreate_env=recreate_env,
                         efs_filesystem_id=efs_filesystem_id,
                         is_multinode=is_multinode,
+                        dockerfile_base64_data=dockerfile_base64_data,
+                        dockerimage=dockerimage,
                     )
                     logger.info(f"Created new pod {pod_name} without Jupyter")
                     update_reservation_status(
@@ -2499,10 +2581,25 @@ def create_pod(
     recreate_env: bool = False,
     efs_filesystem_id: str = None,
     is_multinode: bool = False,
+    dockerfile_base64_data: str = None,
+    dockerimage: str = None,
 ):
     """Create Kubernetes pod with GPU resources and SSH setup"""
     try:
         v1 = client.CoreV1Api(k8s_client)
+
+        # Determine container image to use
+        container_image = GPU_DEV_CONTAINER_IMAGE  # Default
+
+        if dockerimage:
+            logger.info(f"Using custom Docker image: {dockerimage}")
+            container_image = dockerimage
+        elif dockerfile_base64_data:
+            # This should not happen - Dockerfile should have been built already
+            logger.warning(f"Dockerfile base64 data provided but no built image: {len(dockerfile_base64_data)} bytes")
+            logger.warning("Using default image - Dockerfile should have been built earlier")
+
+        logger.info(f"Pod {pod_name} will use container image: {container_image}")
 
         # Handle persistent disk setup if provided
         ebs_volume_spec = None
@@ -2529,6 +2626,7 @@ def create_pod(
                 client.V1Container(
                     name="ssh-setup",
                     image="alpine:latest",
+                    image_pull_policy="Always",  # Fail fast if image doesn't exist
                     command=["/bin/sh"],
                     args=[
                         "-c",
@@ -2589,7 +2687,8 @@ def create_pod(
             containers=[
                 client.V1Container(
                     name="gpu-dev",
-                    image=GPU_DEV_CONTAINER_IMAGE,
+                    image=container_image,
+                    image_pull_policy="Always",  # Always pull to check if image exists, fail fast if not
                     command=["/bin/bash"],
                     args=[
                         "-c",
@@ -2771,11 +2870,35 @@ EOFREADME
 
                         echo "[STARTUP] Setting up dev user..."
                         # Create dev user with zsh as default shell (same UID as init container)
-                        id dev &>/dev/null || useradd -u 1000 -m -s /usr/bin/zsh dev
-                        # NO password for dev user - passwordless sudo only
-                        usermod -aG sudo dev
-                        # Allow passwordless sudo for dev user
-                        echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+                        # Fallback to bash if zsh is not available
+                        if [ -x "/usr/bin/zsh" ]; then
+                            DEFAULT_SHELL="/usr/bin/zsh"
+                            echo "[STARTUP] Using zsh as default shell"
+                        elif [ -x "/bin/bash" ]; then
+                            DEFAULT_SHELL="/bin/bash"
+                            echo "[STARTUP] Zsh not available, using bash as default shell"
+                        else
+                            DEFAULT_SHELL="/bin/sh"
+                            echo "[STARTUP] Neither zsh nor bash available, using sh as default shell"
+                        fi
+
+                        id dev &>/dev/null || useradd -u 1000 -m -s "$DEFAULT_SHELL" dev
+
+                        # Set up sudo access if sudo is available
+                        if command -v usermod >/dev/null 2>&1 && getent group sudo >/dev/null 2>&1; then
+                            usermod -aG sudo dev
+                            echo "[STARTUP] Added dev user to sudo group"
+                        else
+                            echo "[STARTUP] Sudo not available - dev user will not have sudo access"
+                        fi
+
+                        # Allow passwordless sudo for dev user if sudoers.d exists
+                        if [ -d "/etc/sudoers.d" ]; then
+                            echo 'dev ALL=(ALL) NOPASSWD:ALL' > /etc/sudoers.d/dev
+                            echo "[STARTUP] Configured passwordless sudo for dev user"
+                        else
+                            echo "[STARTUP] /etc/sudoers.d not available - dev user will need password for sudo"
+                        fi
 
                         # Clean up any old warning files from previous sessions
                         echo "[STARTUP] Cleaning up old warning files..."
@@ -2791,8 +2914,61 @@ EOFREADME
                         mkdir -p /run/sshd
                         mkdir -p /var/run/sshd
 
+                        # Check if SSH server is available in common locations
+                        SSHD_PATH=""
+                        for path in /usr/sbin/sshd /sbin/sshd /usr/bin/sshd /bin/sshd; do
+                            if [ -x "$path" ]; then
+                                SSHD_PATH="$path"
+                                echo "[STARTUP] Found SSH server at: $SSHD_PATH"
+                                break
+                            fi
+                        done
+
+                        # If not found, try to install it automatically
+                        if [ -z "$SSHD_PATH" ]; then
+                            echo "[STARTUP] SSH server not found, attempting automatic installation..."
+
+                            # Try different package managers
+                            if command -v apt-get >/dev/null 2>&1; then
+                                echo "[STARTUP] Installing SSH server with apt-get..."
+                                apt-get update && apt-get install -y openssh-server
+                            elif command -v yum >/dev/null 2>&1; then
+                                echo "[STARTUP] Installing SSH server with yum..."
+                                yum install -y openssh-server
+                            elif command -v apk >/dev/null 2>&1; then
+                                echo "[STARTUP] Installing SSH server with apk..."
+                                apk add --no-cache openssh-server
+                            elif command -v dnf >/dev/null 2>&1; then
+                                echo "[STARTUP] Installing SSH server with dnf..."
+                                dnf install -y openssh-server
+                            else
+                                echo "[STARTUP] ❌ ERROR: No known package manager found!"
+                                echo "[STARTUP] Custom Docker images must install SSH server."
+                                echo "[STARTUP] For Ubuntu/Debian: RUN apt-get update && apt-get install -y openssh-server"
+                                echo "[STARTUP] For CentOS/Rocky: RUN yum install -y openssh-server"
+                                echo "[STARTUP] For Alpine: RUN apk add --no-cache openssh-server"
+                                echo "[STARTUP] Container will exit - SSH access is required for gpu-dev servers"
+                                exit 1
+                            fi
+
+                            # Re-check for SSH server after installation
+                            for path in /usr/sbin/sshd /sbin/sshd /usr/bin/sshd /bin/sshd; do
+                                if [ -x "$path" ]; then
+                                    SSHD_PATH="$path"
+                                    echo "[STARTUP] SSH server successfully installed at: $SSHD_PATH"
+                                    break
+                                fi
+                            done
+
+                            if [ -z "$SSHD_PATH" ]; then
+                                echo "[STARTUP] ❌ ERROR: SSH server installation failed!"
+                                exit 1
+                            fi
+                        fi
+
                         # Configure SSH daemon - NO password authentication
-                        cat > /etc/ssh/sshd_config << 'EOF'
+                        if [ -d "/etc/ssh" ]; then
+                            cat > /etc/ssh/sshd_config << 'EOF'
 Port 22
 PermitRootLogin no
 PasswordAuthentication no
@@ -2808,9 +2984,22 @@ PrintLastLog yes
 AcceptEnv LANG LC_*
 Subsystem sftp /usr/lib/openssh/sftp-server
 EOF
+                            echo "[STARTUP] SSH daemon configured"
+                        else
+                            echo "[STARTUP] ❌ ERROR: /etc/ssh directory not found!"
+                            echo "[STARTUP] SSH server installation may be incomplete."
+                            exit 1
+                        fi
 
                         # Generate host keys if they don't exist
-                        ssh-keygen -A
+                        if command -v ssh-keygen >/dev/null 2>&1; then
+                            ssh-keygen -A
+                            echo "[STARTUP] SSH host keys generated"
+                        else
+                            echo "[STARTUP] ❌ ERROR: ssh-keygen not found!"
+                            echo "[STARTUP] SSH server installation is incomplete."
+                            exit 1
+                        fi
 
                         echo "[STARTUP] Setting up dev user home directory..."
                         # Ensure all shell config files have correct ownership
@@ -2898,10 +3087,24 @@ EOF
                         su - dev -c "mkdir -p ~/.jupyter"
 
                         # Generate Jupyter config and token (always, regardless of JUPYTER_ENABLED)
-                        JUPYTER_TOKEN=$(openssl rand -hex 32)
+                        # Check if openssl is available for token generation
+                        if command -v openssl >/dev/null 2>&1; then
+                            JUPYTER_TOKEN=$(openssl rand -hex 32)
+                            echo "[STARTUP] Generated Jupyter token using openssl"
+                        else
+                            # Fallback: use /dev/urandom if available, otherwise disable Jupyter
+                            if [ -r "/dev/urandom" ]; then
+                                JUPYTER_TOKEN=$(head -c 32 /dev/urandom | xxd -p -c 32)
+                                echo "[STARTUP] Generated Jupyter token using /dev/urandom (openssl not available)"
+                            else
+                                JUPYTER_TOKEN=""
+                                echo "[STARTUP] Neither openssl nor /dev/urandom available - Jupyter functionality disabled"
+                            fi
+                        fi
 
-                        # Create Jupyter config file
-                        cat > /home/dev/.jupyter/jupyter_lab_config.py << EOF
+                        # Create Jupyter config file only if we have a token
+                        if [ -n "$JUPYTER_TOKEN" ]; then
+                            cat > /home/dev/.jupyter/jupyter_lab_config.py << EOF
 c.ServerApp.ip = '0.0.0.0'
 c.ServerApp.port = 8888
 c.ServerApp.token = '$JUPYTER_TOKEN'
@@ -2912,12 +3115,16 @@ c.ServerApp.allow_remote_access = True
 c.ServerApp.notebook_dir = '/workspace'
 c.ServerApp.root_dir = '/workspace'
 EOF
-                        chown 1000:1000 /home/dev/.jupyter/jupyter_lab_config.py
+                            chown 1000:1000 /home/dev/.jupyter/jupyter_lab_config.py
+                            echo "[STARTUP] Jupyter Lab configured with security token"
 
-                        # Store Jupyter token in a file for later retrieval
-                        echo "$JUPYTER_TOKEN" > /tmp/jupyter_token
-                        chown 1000:1000 /tmp/jupyter_token
-                        chmod 600 /tmp/jupyter_token
+                            # Store Jupyter token in a file for later retrieval
+                            echo "$JUPYTER_TOKEN" > /tmp/jupyter_token
+                            chown 1000:1000 /tmp/jupyter_token
+                            chmod 600 /tmp/jupyter_token
+                        else
+                            echo "[STARTUP] Jupyter Lab configuration skipped - no token available"
+                        fi
 
                         # Only start Jupyter if enabled at creation time
                         if [ "$JUPYTER_ENABLED" = "true" ]; then
@@ -2952,11 +3159,18 @@ EOF
 
                         echo "[STARTUP] Starting SSH daemon..."
                         # Test SSH config first
-                        /usr/sbin/sshd -t
+                        if $SSHD_PATH -t; then
+                            echo "[STARTUP] SSH configuration is valid"
+                        else
+                            echo "[STARTUP] ❌ ERROR: SSH configuration is invalid"
+                            echo "[STARTUP] Check the logs above for details"
+                            exit 1
+                        fi
 
                         # Start SSH daemon in foreground
-                        echo "[STARTUP] SSH daemon starting on port 22"
-                        exec /usr/sbin/sshd -D -e
+                        echo "[STARTUP] SSH daemon starting on port 22 using $SSHD_PATH"
+                        echo "[STARTUP] Container ready for SSH connections"
+                        exec $SSHD_PATH -D -e
                         """,
                     ],
                     ports=[

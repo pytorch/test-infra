@@ -131,6 +131,15 @@ resource "aws_iam_role_policy" "reservation_processor_policy" {
           "ec2:DescribeSecurityGroups"
         ]
         Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:DescribeRepositories",
+          "ecr:CreateRepository",
+          "ecr:GetAuthorizationToken"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -160,6 +169,8 @@ resource "aws_lambda_function" "reservation_processor" {
       GPU_DEV_CONTAINER_IMAGE            = local.full_image_uri
       EFS_SECURITY_GROUP_ID              = aws_security_group.efs_sg.id
       EFS_SUBNET_IDS                     = join(",", [aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id])
+      ECR_REPOSITORY_URL                 = aws_ecr_repository.gpu_dev_custom_images.repository_url
+      ECR_PULL_THROUGH_CACHE_DOCKERHUB   = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${local.current_config.aws_region}.amazonaws.com/dockerhub"
     }
   }
 
@@ -192,6 +203,7 @@ resource "null_resource" "reservation_processor_build" {
   triggers = {
     # Rebuild when source files change
     code_hash           = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
+    buildkit_hash       = filebase64sha256("${path.module}/lambda/reservation_processor/buildkit_job.py")
     requirements_hash   = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
     shared_code_hash    = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
     shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
@@ -211,6 +223,7 @@ resource "null_resource" "reservation_processor_build" {
 
       # Copy source code and shared modules
       cp index.py package/
+      cp buildkit_job.py package/
       cp -r ../shared package/
 
       # Remove shared module's __pycache__ if it exists

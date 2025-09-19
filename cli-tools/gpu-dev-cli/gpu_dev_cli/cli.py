@@ -411,6 +411,16 @@ def main(ctx: click.Context) -> None:
     is_flag=True,
     help="Enable verbose debug output",
 )
+@click.option(
+    "--dockerfile",
+    type=click.Path(exists=True, readable=True),
+    help="Path to custom Dockerfile to use instead of default container image (max 512KB)",
+)
+@click.option(
+    "--dockerimage",
+    type=str,
+    help="Custom Docker image to use instead of default container image (e.g., pytorch/pytorch:2.0.1-cuda11.7-cudnn8-devel)",
+)
 @click.pass_context
 def reserve(
     ctx: click.Context,
@@ -424,6 +434,8 @@ def reserve(
     interactive: Optional[bool],
     distributed: bool,
     verbose: bool,
+    dockerfile: Optional[str],
+    dockerimage: Optional[str],
 ) -> None:
     """Reserve GPU development server(s)
 
@@ -625,6 +637,72 @@ def reserve(
             rprint("[red]❌ Minimum reservation time is 5 minutes (0.0833 hours)[/red]")
             return
 
+        # Validate Docker options
+        if dockerfile and dockerimage:
+            rprint("[red]❌ Cannot specify both --dockerfile and --dockerimage[/red]")
+            return
+
+        # Process Dockerfile if provided
+        dockerfile_s3_key = None
+        if dockerfile:
+            try:
+                import os
+                import tarfile
+                import tempfile
+                import uuid
+
+                # Check file size (512KB limit for individual Dockerfile)
+                file_size = os.path.getsize(dockerfile)
+                if file_size > 512 * 1024:
+                    rprint(f"[red]❌ Dockerfile too large: {file_size} bytes (max 512KB)[/red]")
+                    return
+
+                # Create build context (Dockerfile + any files in same directory)
+                dockerfile_dir = os.path.dirname(os.path.abspath(dockerfile))
+                dockerfile_name = os.path.basename(dockerfile)
+
+                rprint(f"[cyan]📦 Creating build context from {dockerfile_dir}[/cyan]")
+
+                # Create a temporary tar.gz with the build context
+                with tempfile.NamedTemporaryFile(suffix='.tar.gz', delete=False) as temp_tar:
+                    with tarfile.open(temp_tar.name, 'w:gz') as tar:
+                        # Add all files from the Dockerfile directory
+                        for root, dirs, files in os.walk(dockerfile_dir):
+                            for file in files:
+                                file_path = os.path.join(root, file)
+                                # Calculate relative path from dockerfile_dir
+                                arcname = os.path.relpath(file_path, dockerfile_dir)
+                                tar.add(file_path, arcname=arcname)
+
+                        # Ensure Dockerfile is at root with standard name if needed
+                        if dockerfile_name.lower() != 'dockerfile':
+                            dockerfile_path = os.path.join(dockerfile_dir, dockerfile_name)
+                            tar.add(dockerfile_path, arcname='Dockerfile')
+
+                    # Check compressed size limit (SQS has 1 MiB limit, base64 adds ~33% overhead)
+                    compressed_size = os.path.getsize(temp_tar.name)
+                    max_tar_size = 700 * 1024  # ~700KB to allow for base64 overhead and other message fields
+                    if compressed_size > max_tar_size:
+                        os.unlink(temp_tar.name)
+                        rprint(f"[red]❌ Build context too large: {compressed_size} bytes (max ~700KB compressed)[/red]")
+                        return
+
+                    # Base64 encode the tar.gz for SQS message
+                    import base64
+                    with open(temp_tar.name, 'rb') as f:
+                        build_context_data = base64.b64encode(f.read()).decode('utf-8')
+
+                    dockerfile_s3_key = build_context_data  # Pass base64 data instead of S3 key
+
+                    # Cleanup temp file
+                    os.unlink(temp_tar.name)
+
+                    rprint(f"[green]✅ Build context prepared: {compressed_size} bytes compressed[/green]")
+
+            except Exception as e:
+                rprint(f"[red]❌ Error processing Dockerfile: {str(e)}[/red]")
+                return
+
         # Use a single spinner context for the entire process
         with Live(
             Spinner("dots", text="📡 Starting reservation process..."), console=console
@@ -743,6 +821,8 @@ def reserve(
                     github_user=user_info["github_user"],
                     jupyter_enabled=jupyter,
                     recreate_env=recreate_env,
+                    dockerfile_s3_key=dockerfile_s3_key,
+                    dockerimage=dockerimage,
                 )
             else:
                 # Single node reservation
@@ -755,6 +835,8 @@ def reserve(
                     github_user=user_info["github_user"],
                     jupyter_enabled=jupyter,
                     recreate_env=recreate_env,
+                    dockerfile_s3_key=dockerfile_s3_key,
+                    dockerimage=dockerimage,
                 )
                 reservation_ids = [reservation_id] if reservation_id else None
 

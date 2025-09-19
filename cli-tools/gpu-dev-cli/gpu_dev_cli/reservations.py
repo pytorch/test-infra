@@ -110,6 +110,8 @@ class ReservationManager:
         github_user: Optional[str] = None,
         jupyter_enabled: bool = False,
         recreate_env: bool = False,
+        dockerfile_s3_key: Optional[str] = None,
+        dockerimage: Optional[str] = None,
     ) -> Optional[str]:
         """Create a new GPU reservation"""
         try:
@@ -158,6 +160,12 @@ class ReservationManager:
             if github_user:
                 message["github_user"] = github_user
 
+            # Add Docker options if provided
+            if dockerfile_s3_key:
+                message["dockerfile_s3_key"] = dockerfile_s3_key
+            if dockerimage:
+                message["dockerimage"] = dockerimage
+
             queue_url = self.config.get_queue_url()
             self.config.sqs_client.send_message(
                 QueueUrl=queue_url, MessageBody=json.dumps(message)
@@ -179,6 +187,8 @@ class ReservationManager:
         github_user: Optional[str] = None,
         jupyter_enabled: bool = False,
         recreate_env: bool = False,
+        dockerfile_s3_key: Optional[str] = None,
+        dockerimage: Optional[str] = None,
     ) -> Optional[List[str]]:
         """Create multiple GPU reservations for multinode setup"""
         try:
@@ -231,9 +241,15 @@ class ReservationManager:
                     "recreate_env": recreate_env,
                     "is_multinode": True,
                 }
-                
+
                 if github_user:
                     message["github_user"] = github_user
+
+                # Add Docker options if provided
+                if dockerfile_s3_key:
+                    message["dockerfile_s3_key"] = dockerfile_s3_key
+                if dockerimage:
+                    message["dockerimage"] = dockerimage
                 
                 # Send to SQS queue
                 queue_url = self.config.get_queue_url()

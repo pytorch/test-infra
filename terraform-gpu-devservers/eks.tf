@@ -408,9 +408,20 @@ resource "aws_launch_template" "cpu_launch_template" {
   name_prefix = "${var.prefix}-cpu-"
   image_id    = data.aws_ami.eks_gpu_ami.id
   key_name    = var.key_pair_name
-  instance_type = "m5.large"
+  instance_type = "c5.4xlarge"
 
   vpc_security_group_ids = [aws_security_group.gpu_dev_sg.id]
+
+  # Block device mapping for 4TB root volume (Amazon Linux 2023 uses /dev/xvda as root)
+  block_device_mappings {
+    device_name = "/dev/xvda"
+    ebs {
+      volume_size           = 4096 # 4TB
+      volume_type           = "gp3"
+      delete_on_termination = true
+      encrypted             = true
+    }
+  }
 
   iam_instance_profile {
     name = aws_iam_instance_profile.eks_node_instance_profile.name
