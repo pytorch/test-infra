@@ -308,6 +308,7 @@ export default function SettingsModal({
         filterPriority: 0,
         displayPriority: 0,
         persistent: false,
+        hide: false,
       },
       ...treeData.map((node) => {
         return {
@@ -363,6 +364,7 @@ export default function SettingsModal({
     const style = {
       transform: CSS.Transform.toString(transform),
       transition,
+      opacity: data.hide ? 0.4 : 1,
     };
 
     return (
@@ -382,6 +384,25 @@ export default function SettingsModal({
               <Typography>{data.regex.source}</Typography>
             </Stack>
             <Stack direction="row" alignItems={"center"}>
+              <Button
+                color={data.hide ? "inherit" : "primary"}
+                onClick={() => {
+                  setTreeData(
+                    treeData.map((node) => {
+                      if (node.name === data.name) {
+                        return {
+                          ...node,
+                          hide: !node.hide,
+                        };
+                      }
+                      return node;
+                    })
+                  );
+                }}
+              >
+                Visible
+              </Button>
+
               <EditSectionDialog
                 treeData={treeData}
                 name={data.name}

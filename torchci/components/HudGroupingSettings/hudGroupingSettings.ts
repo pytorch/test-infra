@@ -19,6 +19,7 @@ function getGroupSettings(repositoryFullName: string, branchName: string) {
     filterPriority: groups.length,
     displayPriority: groups.length,
     persistent: false,
+    hide: false,
   });
   return groups;
 }
@@ -62,6 +63,13 @@ export function getGroupingData(
     const jobsInGroup = groupNameMapping.get(groupName) ?? [];
     jobsInGroup.push(name);
     groupNameMapping.set(groupName, jobsInGroup);
+  }
+
+  // Remove hidden groups
+  for (const group of groupSettings) {
+    if (group.hide && groupNameMapping.has(group.name)) {
+      groupNameMapping.delete(group.name);
+    }
   }
 
   // Calculate which groups have failures

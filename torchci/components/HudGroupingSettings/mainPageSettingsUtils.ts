@@ -7,6 +7,7 @@ export type Group = {
   filterPriority: number;
   displayPriority: number;
   persistent: boolean;
+  hide: boolean;
 };
 
 export function serializeTreeData(treeData: Group[]): string {

@@ -198,6 +198,7 @@ export function getDefaultGroupSettings(): Group[] {
       filterPriority: i,
       displayPriority: HUD_GROUP_SORTING.indexOf(g.name),
       persistent: g.persistent ?? false,
+      hide: false,
     };
   });
 }
