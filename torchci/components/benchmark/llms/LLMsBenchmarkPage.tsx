@@ -35,6 +35,7 @@ import {
 import { LLMsDashboardPicker } from "./components/dashboardPicker/LLMsDashboardPicker";
 import { LLMsTimeRangePicker } from "./components/dashboardPicker/LLMsTimeRangePicker";
 import LLMsReport from "./components/report/LLMsReport";
+import { VllmArtifactsTable } from "./components/VllmArtifactsTable";
 
 export default function LLMsBenchmarkPage() {
   const router = useRouter();
@@ -219,6 +220,9 @@ const MainPage = ({
         metricNames={metricNames}
         benchmarkPropsQueryParams={queryParams}
       />
+      {props.repoName === "vllm-project/vllm" && (
+        <VllmArtifactsTable selectedModelName={props.modelName} />
+      )}
     </div>
   );
 };
