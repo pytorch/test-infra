@@ -16,6 +16,7 @@ export type UIRenderConfig = {
 
 export type DataRenderOption = {
   type: string;
+  api?: any;
   id?: string; // id of the component to render, this is used when type is 'component'
   renders?: UIRenderConfig[]; // this is used when type is predefined type such as 'default-fanout'
 };

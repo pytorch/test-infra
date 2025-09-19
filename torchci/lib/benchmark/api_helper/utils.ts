@@ -258,7 +258,6 @@ export function to_time_series_data(
         if (item.data.length > 1) {
           const key = makeGroupKey(group_info);
           const sub_key = makeGroupKey(item.group_info);
-
           diffs.push({
             key: `${key}___${sub_key}`,
             data: item.data,
@@ -271,7 +270,6 @@ export function to_time_series_data(
           new Date(a.granularity_bucket).getTime() -
           new Date(b.granularity_bucket).getTime()
       );
-
     if (diffs.length > 0) {
       console.log(
         `we detected multiple datapoints for the same group keys ${diffs.length}`
@@ -280,7 +278,24 @@ export function to_time_series_data(
     return {
       group_info,
       num_of_dp: ts_list.length,
+      group_keys: Object.keys(group_info),
+      sub_keys,
       data: ts_list,
+    };
+  });
+  return result;
+}
+
+export function to_table(data: any[], keys: string[], sub_keys: string[]) {
+  const tsd = groupByBenchmarkData(data, keys, sub_keys);
+  const result = tsd.map((group) => {
+    const group_info = group.group_info;
+    return {
+      group_info,
+      group_keys: Object.keys(group_info),
+      sub_keys: sub_keys,
+      num_of_dp: Object.values(group.rows).length,
+      data: group.rows,
     };
   });
   return result;

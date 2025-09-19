@@ -1,4 +1,7 @@
-import FanoutBenchmarkTimeSeriesChartSection from "../../components/dataRender/fanout/FanoutBenchmarkTimeSeriesChartSection";
+import {
+  FanoutBenchmarkTimeSeriesChartSection,
+  FanoutBenchmarkTimeSeriesComparisonTableSection,
+} from "../../components/dataRender/fanout/FanoutComponents";
 
 /** ---------------- Types ---------------- */
 export type FanoutComponentProps = {
@@ -46,8 +49,11 @@ export class FanoutRegistry {
         Component: FanoutBenchmarkTimeSeriesChartSection,
         data_path: "time_series",
       },
+      FanoutBenchmarkTimeSeriesComparisonTableSection: {
+        Component: FanoutBenchmarkTimeSeriesComparisonTableSection,
+        data_path: "table",
+      },
     };
-
     this.map = Object.freeze({ ...registry });
     this.fallback = Object.freeze({ Component: ErrorFanoutComponent });
     Object.freeze(this); // freeze the instance so it can't be mutated
