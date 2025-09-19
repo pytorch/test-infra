@@ -296,6 +296,10 @@ export default function SettingsModal({
 
   const sensors = useSensors(useSensor(PointerSensor));
 
+  React.useEffect(() => {
+    setTreeData(getStoredTreeDataCustom());
+  }, [repositoryFullName, branchName]);
+
   function addSection() {
     setTreeData([
       {
