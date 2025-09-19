@@ -127,8 +127,8 @@ export default async function handler(
 
     const failures = await updateDrciComments(
       octokit,
-      repo,
       validatedOrg,
+      repo,
       prNumber ? [parseInt(prNumber as string)] : []
     );
     return res.status(200).json(failures);
@@ -141,8 +141,8 @@ export default async function handler(
 
 export async function updateDrciComments(
   octokit: Octokit,
-  repo: string = "pytorch",
   owner: string = "pytorch",
+  repo: string = "pytorch",
   prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
   // Fetch in two separate queries because combining into one query took much
@@ -166,7 +166,7 @@ export async function updateDrciComments(
     octokit
   );
   const head = get_head_branch(repo);
-  await addMergeBaseCommits(octokit, repo, head, workflowsByPR, owner);
+  await addMergeBaseCommits(octokit, owner, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
@@ -381,10 +381,10 @@ function get_head_branch(_repo: string) {
 
 async function addMergeBaseCommits(
   octokit: Octokit,
+  owner: string,
   repo: string,
   head: string,
-  workflowsByPR: Map<number, PRandJobs>,
-  owner: string
+  workflowsByPR: Map<number, PRandJobs>
 ) {
   const s3client = getS3Client();
 
