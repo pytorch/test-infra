@@ -80,7 +80,9 @@ function validateOrg(org: string | undefined): string {
     return normalizedOrg;
   }
 
-  throw new Error(`Invalid org: ${org}. Only 'pytorch' and 'meta-pytorch' are allowed.`);
+  throw new Error(
+    `Invalid org: ${org}. Only 'pytorch' and 'meta-pytorch' are allowed.`
+  );
 }
 
 export default async function handler(
