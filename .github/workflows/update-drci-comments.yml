@@ -13,18 +13,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        repo: [
-          ao,
-          audio,
-          data,
-          executorch,
-          pytorch,
-          rl,
-          text,
-          torchchat,
-          torchtune,
-          tutorials,
-          vision,
+        include: [
+          { repo: ao, org: pytorch },
+          { repo: audio, org: pytorch },
+          { repo: data, org: pytorch },
+          { repo: executorch, org: pytorch },
+          { repo: pytorch, org: pytorch },
+          { repo: rl, org: pytorch },
+          { repo: text, org: pytorch },
+          { repo: torchchat, org: pytorch },
+          { repo: torchtune, org: pytorch },
+          { repo: tutorials, org: pytorch },
+          { repo: vision, org: pytorch },
         ]
     steps:
       - name: Checkout
@@ -35,5 +35,5 @@ jobs:
           curl --request POST \
             --url 'https://www.torch-ci.com/api/drci/drci' \
             --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
-            --data 'repo=${{ matrix.repo }}' \
+            --data 'repo=${{ matrix.repo }}&org=${{ matrix.org }}' \
             --silent --output /dev/null --show-error --fail
