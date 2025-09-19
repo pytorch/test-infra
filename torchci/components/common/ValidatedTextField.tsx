@@ -28,6 +28,7 @@ export function ValidatedTextField({
       onChange={onChangeWrapper}
       error={!valid}
       helperText={!valid ? errorMessage : ""}
+      name={name}
     />
   );
 }

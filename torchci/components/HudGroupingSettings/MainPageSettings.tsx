@@ -11,7 +11,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { DragHandle } from "@mui/icons-material";
+import { Check, CopyAll, DragHandle } from "@mui/icons-material";
 import {
   Button,
   Dialog,
@@ -32,7 +32,9 @@ import {
   getStoredTreeData,
   Group,
   isDupName,
+  parseTreeData,
   saveTreeData,
+  serializeTreeData,
 } from "./mainPageSettingsUtils";
 
 function validRegex(value: string) {
@@ -42,6 +44,136 @@ function validRegex(value: string) {
   } catch (e) {
     return false;
   }
+}
+
+// MARK: Default Components
+
+function FormStack({
+  children,
+  onSubmit,
+}: {
+  children: React.ReactNode;
+  onSubmit: (e: React.FormEvent<HTMLFormElement>) => void;
+}) {
+  return (
+    <Stack
+      spacing={2}
+      component="form"
+      noValidate
+      autoComplete="off"
+      sx={{
+        "& .MuiTextField-root": {
+          marginRight: 1,
+          width: "25ch",
+        },
+        "& .MuiButton-root": {
+          marginTop: 1,
+          marginBottom: 1,
+          marginLeft: 2,
+        },
+      }}
+      onSubmit={onSubmit}
+    >
+      {children}
+    </Stack>
+  );
+}
+
+function DefaultOpenDialogButton({
+  text,
+  setOpen,
+}: {
+  text: string;
+  setOpen: (open: boolean) => void;
+}) {
+  return (
+    <Button
+      onClick={() => {
+        setOpen(true);
+      }}
+    >
+      {text}
+    </Button>
+  );
+}
+
+function DefaultDialog({
+  open,
+  setOpen,
+  children,
+}: {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Dialog
+      open={open}
+      closeAfterTransition={false}
+      onClose={() => setOpen(false)}
+      aria-modal
+    >
+      <DialogContent>{children}</DialogContent>
+    </Dialog>
+  );
+}
+
+// MARK: Specific Dialogs
+
+function ImportExportDialog({
+  treeData,
+  setTreeData,
+}: {
+  treeData: Group[];
+  setTreeData: (data: Group[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [justClicked, setJustClicked] = useState(false);
+
+  return (
+    <>
+      <DefaultOpenDialogButton text="Import/Export" setOpen={setOpen} />
+      <DefaultDialog open={open} setOpen={setOpen}>
+        <Stack spacing={2}>
+          {/* Copy current */}
+          <Button
+            onClick={() => {
+              navigator.clipboard.writeText(serializeTreeData(treeData));
+              // Set icon to check for 1.5 seconds
+              setJustClicked(true);
+              setTimeout(() => setJustClicked(false), 1500);
+            }}
+          >
+            {justClicked ? <Check /> : <CopyAll />}
+            Click to copy current settings
+          </Button>
+          <FormStack
+            onSubmit={(e) => {
+              e.preventDefault();
+              const data = new FormData(e.currentTarget);
+              const value = data.get("Import");
+              const revived = parseTreeData(value as string);
+              if (revived === undefined) {
+                return;
+              }
+              setTreeData(revived);
+              setOpen(false);
+            }}
+          >
+            <ValidatedTextField
+              name="Import"
+              isValid={(v) => parseTreeData(v) !== undefined}
+              initialValue=""
+              errorMessage="Invalid import"
+            />
+            <DialogActions>
+              <Button type="submit">Save and Close</Button>
+            </DialogActions>
+          </FormStack>
+        </Stack>
+      </DefaultDialog>
+    </>
+  );
 }
 
 function EditSectionDialog({
@@ -61,69 +193,40 @@ function EditSectionDialog({
 
   return (
     <>
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        Edit
-      </Button>
-      <Dialog
-        open={open}
-        closeAfterTransition={false}
-        onClose={() => setOpen(false)}
-        aria-modal
-      >
-        <DialogContent>
-          <Stack
-            spacing={2}
-            component="form"
-            noValidate
-            autoComplete="off"
-            sx={{
-              "& .MuiTextField-root": {
-                marginRight: 1,
-                width: "25ch",
-              },
-              "& .MuiButton-root": {
-                marginTop: 1,
-                marginBottom: 1,
-                marginLeft: 2,
-              },
-            }}
-            onSubmit={(e) => {
-              e.preventDefault();
-              // @ts-ignore
-              const regex = e.target[2].value;
-              // @ts-ignore
-              const newName = e.target[0].value;
-              if (!validRegex(regex) || !isGoodName(newName)) {
-                return;
-              }
-              setGroup(name, newName, regex);
-              setOpen(false);
-            }}
-          >
-            <ValidatedTextField
-              name="Section name"
-              isValid={isGoodName}
-              initialValue={name}
-              errorMessage="Cannot have duplicate names"
-            />
-            <ValidatedTextField
-              name="Filter"
-              isValid={validRegex}
-              initialValue={
-                treeData.find((node) => node.name === name)?.regex.source ?? ""
-              }
-              errorMessage="Invalid regex"
-            />
-            <DialogActions>
-              <Button type="submit">Save and Close</Button>
-            </DialogActions>
-          </Stack>
-        </DialogContent>
-      </Dialog>
+      <DefaultOpenDialogButton text="Edit" setOpen={setOpen} />
+      <DefaultDialog open={open} setOpen={setOpen}>
+        <FormStack
+          onSubmit={(e) => {
+            e.preventDefault();
+            const formData = new FormData(e.currentTarget);
+            const regex = formData.get("Filter") as string;
+            const newName = formData.get("Section name") as string;
+            if (!validRegex(regex) || !isGoodName(newName)) {
+              return;
+            }
+            setGroup(name, newName, regex);
+            setOpen(false);
+          }}
+        >
+          <ValidatedTextField
+            name="Section name"
+            isValid={isGoodName}
+            initialValue={name}
+            errorMessage="Cannot have duplicate names"
+          />
+          <ValidatedTextField
+            name="Filter"
+            isValid={validRegex}
+            initialValue={
+              treeData.find((node) => node.name === name)?.regex.source ?? ""
+            }
+            errorMessage="Invalid regex"
+          />
+          <DialogActions>
+            <Button type="submit">Save and Close</Button>
+          </DialogActions>
+        </FormStack>
+      </DefaultDialog>
     </>
   );
 }
@@ -133,57 +236,56 @@ function ResetButton({ onConfirm }: { onConfirm: () => void }) {
 
   return (
     <>
-      <Button
-        onClick={() => {
-          setOpen(true);
-        }}
-      >
-        Reset
-      </Button>
-      <Dialog
-        open={open}
-        closeAfterTransition={false}
-        onClose={() => setOpen(false)}
-        aria-modal
-      >
-        <DialogContent>
-          <Stack spacing={2}>
-            <Typography>
-              Are you sure you want to reset to default group settings?
-            </Typography>
-            <Stack direction="row" spacing={2}>
-              <Button
-                onClick={() => {
-                  onConfirm();
-                  setOpen(false);
-                }}
-                color="error"
-              >
-                Yes
-              </Button>
-              <Button
-                onClick={() => {
-                  setOpen(false);
-                }}
-              >
-                No
-              </Button>
-            </Stack>
+      <DefaultOpenDialogButton text="Reset" setOpen={setOpen} />
+      <DefaultDialog open={open} setOpen={setOpen}>
+        <Stack spacing={2}>
+          <Typography>
+            Are you sure you want to reset to default group settings?
+          </Typography>
+          <Stack direction="row" spacing={2}>
+            <Button
+              onClick={() => {
+                onConfirm();
+                setOpen(false);
+              }}
+              color="error"
+            >
+              Yes
+            </Button>
+            <Button
+              onClick={() => {
+                setOpen(false);
+              }}
+            >
+              No
+            </Button>
           </Stack>
-        </DialogContent>
-      </Dialog>
+        </Stack>
+      </DefaultDialog>
     </>
   );
 }
 
+// MARK: Main Component
+
 export default function SettingsModal({
+  repositoryFullName,
+  branchName,
   visible,
   handleClose,
 }: {
+  repositoryFullName: string;
+  branchName: string;
   visible: boolean;
   handleClose: () => void;
 }) {
-  const [treeData, setTreeData] = useState(getStoredTreeData());
+  const getStoredTreeDataCustom = () => {
+    return getStoredTreeData(repositoryFullName, branchName);
+  };
+  const saveTreeDataCustom = (treeData: Group[]) => {
+    saveTreeData(repositoryFullName, branchName, treeData);
+  };
+  const [treeData, setTreeData] = useState(getStoredTreeDataCustom());
   const [orderBy, setOrderBy] = useState<"display" | "filter">("display");
   const treeDataOrdered = treeData.sort((a, b) => {
     if (orderBy === "display") {
@@ -343,7 +445,7 @@ export default function SettingsModal({
       fullWidth={true}
       maxWidth="xl"
       onClose={() => {
-        saveTreeData(treeData);
+        saveTreeDataCustom(treeData);
         handleClose();
       }}
       onClick={(e) => e.stopPropagation()}
@@ -358,7 +460,7 @@ export default function SettingsModal({
           <Button onClick={addSection}>Add</Button>
           <Button
             onClick={() => {
-              saveTreeData(treeData);
+              saveTreeDataCustom(treeData);
               handleClose();
             }}
           >
@@ -366,7 +468,7 @@ export default function SettingsModal({
           </Button>
           <ResetButton
             onConfirm={() => {
-              saveTreeData(getDefaultGroupSettings());
+              saveTreeDataCustom(getDefaultGroupSettings());
               setTreeData(getDefaultGroupSettings());
             }}
           />
@@ -377,9 +479,10 @@ export default function SettingsModal({
           >
             Ordering by {orderBy} precedence
           </Button>
+          <ImportExportDialog treeData={treeData} setTreeData={setTreeData} />
         </Stack>
         <Button onClick={handleClose} color={"error"}>
-          Close without Saving
+          Close Without Saving
         </Button>
       </Stack>
 

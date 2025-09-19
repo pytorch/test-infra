@@ -346,6 +346,8 @@ function FiltersAndSettings({}: {}) {
       />
       <Button onClick={() => setGroupingSettingsOpen(true)}>Groupings</Button>
       <SettingsModal
+        repositoryFullName={`${params.repoOwner}/${params.repoName}`}
+        branchName={params.branch}
         visible={groupingSettingsOpen}
         handleClose={() => setGroupingSettingsOpen(false)}
       />
@@ -573,6 +575,8 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     groupsWithFailures,
     groupSettings,
   } = getGroupingData(
+    `${params.repoOwner}/${params.repoName}`,
+    params.branch,
     data ?? [],
     jobNames,
     (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),

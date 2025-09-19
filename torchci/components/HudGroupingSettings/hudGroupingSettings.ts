@@ -9,8 +9,10 @@ import {
 } from "./defaults";
 import { getStoredTreeData } from "./mainPageSettingsUtils";
 
-function getGroupSettings() {
-  const groups = getStoredTreeData() ?? getDefaultGroupSettings();
+function getGroupSettings(repositoryFullName: string, branchName: string) {
+  const groups =
+    getStoredTreeData(repositoryFullName, branchName) ??
+    getDefaultGroupSettings();
   groups.push({
     name: GROUP_OTHER,
     regex: /.*/,
@@ -22,13 +24,15 @@ function getGroupSettings() {
 }
 
 export function getGroupingData(
+  repositoryFullName: string,
+  branchName: string,
   shaGrid: RowData[],
   jobNames: Set<string>,
   showUnstableGroup: boolean,
   unstableIssues?: IssueData[]
 ) {
   // Construct Job Groupping Mapping
-  const groupSettings = getGroupSettings();
+  const groupSettings = getGroupSettings(repositoryFullName, branchName);
 
   const groupNameMapping = new Map<string, Array<string>>(); // group -> [job names]
 
