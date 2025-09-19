@@ -3,6 +3,8 @@ import { getBoolean, shuffleArrayInPlace } from './utils';
 export class Config {
   private static _instance: Config | undefined;
 
+  readonly authGHOrg: string | undefined;
+  readonly authGHRepo: string | undefined;
   readonly awsRegion: string;
   readonly awsRegionInstances: string[];
   readonly awsRegionsToVpcIds: Map<string, Array<string>>;
@@ -39,8 +41,8 @@ export class Config {
   readonly scaleConfigOrg: string;
   readonly scaleConfigRepo: string;
   readonly scaleConfigRepoPath: string;
-  readonly scaleUpMaxQueueTimeMinutes: number;
   readonly scaleUpChronRecordQueueUrl: string | undefined;
+  readonly scaleUpMaxQueueTimeMinutes: number;
   readonly secretsManagerSecretsId: string | undefined;
   readonly sSMParamCleanupAgeDays: number;
   readonly sSMParamMaxCleanupAllowance: number;
@@ -50,6 +52,10 @@ export class Config {
   readonly vpcIdToSubnetIds: Map<string, Array<string>>;
 
   protected constructor() {
+    /* istanbul ignore next */
+    this.authGHOrg = process.env.AUTH_GH_ORG;
+    /* istanbul ignore next */
+    this.authGHRepo = process.env.AUTH_GH_REPO;
     this.awsRegion = process.env.AWS_REGION || 'us-east-1';
     /* istanbul ignore next */
     this.awsRegionInstances = process.env.AWS_REGION_INSTANCES?.split(',').filter((w) => w.length > 0) || [];

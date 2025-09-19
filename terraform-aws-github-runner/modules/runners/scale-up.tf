@@ -41,6 +41,8 @@ resource "aws_lambda_function" "scale_up" {
   environment {
     # changes should reflect the changes in scale-up-chron.tf
     variables = {
+      AUTH_GH_ORG                          = var.auth_gh_org
+      AUTH_GH_REPO                         = var.auth_gh_repo
       CANT_HAVE_ISSUES_LABELS              = join(",", var.cant_have_issues_labels)
       DATETIME_DEPLOY                      = local.datetime_deploy
       ENABLE_ORGANIZATION_RUNNERS          = var.enable_organization_runners
@@ -65,9 +67,9 @@ resource "aws_lambda_function" "scale_up" {
       MUST_HAVE_ISSUES_LABELS              = join(",", var.must_have_issues_labels)
       REDIS_ENDPOINT                       = var.redis_endpoint
       REDIS_LOGIN                          = var.redis_login
+      RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RETRY_SCALE_UP_RECORD_DELAY_S        = "60"
       RETRY_SCALE_UP_RECORD_JITTER_PCT     = "0.5"
-      RETRY_SCALE_UP_CHRON_RECORD_QUEUE_URL      = var.sqs_build_queue_retry.url
       RUNNER_EXTRA_LABELS                  = var.runner_extra_labels
       SCALE_CONFIG_ORG                     = var.scale_config_org
       SCALE_CONFIG_REPO                    = var.scale_config_repo

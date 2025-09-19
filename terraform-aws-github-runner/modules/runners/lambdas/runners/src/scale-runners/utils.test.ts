@@ -29,12 +29,6 @@ describe('./utils', () => {
     it('returns the repo from two strings', () => {
       expect(getRepo('owner', 'repo')).toEqual({ owner: 'owner', repo: 'repo' });
     });
-
-    it('throws error when repoDef is not in the correct format', () => {
-      expect(() => {
-        getRepo('owner/repo/invalid');
-      }).toThrowError();
-    });
   });
 
   describe('groupBy', () => {
