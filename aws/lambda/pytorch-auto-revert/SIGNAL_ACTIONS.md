@@ -82,6 +82,6 @@ State JSON `meta` contains: `repo`, `workflows`, `lookback_hours`, `ts`, `restar
    - Restarts: skip if ≥2 prior restarts exist for `(workflow_target, commit_sha)`; skip if the latest is within 15 minutes of `ts`
 5. Execute eligible actions using the per-action mode:
    - Restart: `run` → dispatch and log; `log` → log only; `skip` → no logging
-   - Revert: currently record intent only; `run-notify`/`run-revert` modes are allowed but still log intent (no GH revert yet)
+   - Revert: currently record intent only; `run-log` writes the same non-dry-run log row used in prod (for dedup) but does not revert; `run-notify`/`run-revert` remain “log intent” placeholders until side effects are implemented
 6. Insert one `autorevert_events_v2` row per executed group with aggregated `workflows` and `source_signal_keys`.
 7. Separately (integration), build the full run state and call the run‑state logger to write a single `autorevert_state` row with the same `ts`.

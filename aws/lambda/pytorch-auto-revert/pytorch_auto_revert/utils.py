@@ -27,12 +27,14 @@ class RevertAction(Enum):
 
     - SKIP: no logging, no side effects
     - LOG: read prod state, log revert intent only (no side effects)
+    - RUN_LOG: read prod state, log revert intent with production dry-run flag (side effects limited to logging)
     - RUN_NOTIFY: read prod state, send notification (side effect) but no revert
     - RUN_REVERT: read prod state, perform revert (side effect)
     """
 
     SKIP = "skip"
     LOG = "log"
+    RUN_LOG = "run-log"
     RUN_NOTIFY = "run-notify"
     RUN_REVERT = "run-revert"
 
@@ -41,5 +43,9 @@ class RevertAction(Enum):
 
     @property
     def side_effects(self) -> bool:
-        """True if this mode performs external side effects (e.g. notify/revert)."""
-        return self in (RevertAction.RUN_NOTIFY, RevertAction.RUN_REVERT)
+        """True if this mode performs external side effects or non-dry-run logging."""
+        return self in (
+            RevertAction.RUN_LOG,
+            RevertAction.RUN_NOTIFY,
+            RevertAction.RUN_REVERT,
+        )
