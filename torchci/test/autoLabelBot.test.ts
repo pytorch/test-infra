@@ -4,6 +4,7 @@ import { Probot } from "probot";
 import myProbotApp from "../lib/bot/autoLabelBot";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
+import { mockAddLabels } from "./utils";
 
 nock.disableNetConnect();
 
@@ -884,6 +885,51 @@ describe("auto-label-bot", () => {
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+  });
+
+  test("PR author to label, author NOT in list", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["user"]["login"] = "some-random-user";
+    const scope = nock("https://api.github.com")
+      // mock no changed files
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, [], {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("PR author to label, author in list", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["user"]["login"] = "pytorchupdatebot";
+    const scope = [
+      nock("https://api.github.com")
+        // mock no changed files
+        .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+        .reply(200, [], {
+          Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+          "X-GitHub-Media-Type": "github.v3; format=json",
+        }),
+      mockAddLabels(["ci-no-td"], "zhouzhuojie/gha-ci-playground", 31),
+    ];
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
   });
 });
 

@@ -34,6 +34,8 @@ const IssueTitleRegexToLabel: [RegExp, string][] = [
   ...IssueAndPRRegexToLabel,
 ];
 
+const PRAuthorToLabel: [string, string][] = [["pytorchupdatebot", "ci-no-td"]];
+
 const filenameRegexToReleaseCategory: [RegExp, string][] = [
   // dataloader_frontend
   [/torch\/utils\/data/gi, "release notes: dataloader"],
@@ -550,6 +552,22 @@ function myBot(app: Probot): void {
       await addNewLabels(labels, labelsToAdd, context);
     }
   );
+
+  app.on("pull_request.opened", async (context) => {
+    // Add labels based on PR author, but only when the PR is opened so they can
+    // edit the labels later if they want
+    const author = context.payload.pull_request.user.login;
+    const existingLabels: string[] = context.payload.pull_request.labels.map(
+      (e) => e["name"]
+    );
+    const labelsToAdd = [];
+    for (const [a, label] of PRAuthorToLabel) {
+      if (author === a) {
+        labelsToAdd.push(label);
+      }
+    }
+    await addNewLabels(existingLabels, labelsToAdd, context);
+  });
 }
 
 export default myBot;
