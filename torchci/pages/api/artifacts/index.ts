@@ -3,7 +3,7 @@ import dayjs from "dayjs";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const S3_BASE_URL = "https://gha-artifacts.s3.us-east-1.amazonaws.com";
-const DEFAULT_TARGET_PREFIX = "vllm-project/vllm/";
+const DEFAULT_TARGET_REPO = "vllm-project/vllm/";
 
 type ArtifactFile = {
   key: string;
@@ -31,14 +31,14 @@ export default async function handler(
   }
 
   try {
-    const prefixParam = req.query.prefix as string | undefined;
+    const repositoryParam = req.query.repository as string | undefined;
     const lookbackParam = req.query.lookbackDays as string | undefined;
     const modelNameParam = req.query.modelName as string | undefined;
     const deviceTypeParam = req.query.deviceType as string | undefined;
     const deviceNameParam = req.query.deviceName as string | undefined;
 
     // Build the full S3 prefix path based on provided parameters
-    let targetPrefix = parsePrefix(prefixParam);
+    let targetPrefix = parsePrefix(repositoryParam);
 
     // Append model name if provided
     if (modelNameParam && modelNameParam.trim()) {
@@ -126,7 +126,7 @@ async function listS3Keys(prefix: string) {
 function parsePrefix(raw: string | undefined) {
   const value = raw?.trim();
   if (!value) {
-    return DEFAULT_TARGET_PREFIX;
+    return DEFAULT_TARGET_REPO;
   }
   return value.endsWith("/") ? value : `${value}/`;
 }

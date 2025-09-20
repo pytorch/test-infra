@@ -26,7 +26,7 @@ const columns: GridColDef<ArtifactRow>[] = [
     flex: 1.1,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
-        {params.row.modelName || "—"}
+        {params.row.modelName.replace(/_/, "/") || "—"}
       </span>
     ),
   },
@@ -88,11 +88,13 @@ const columns: GridColDef<ArtifactRow>[] = [
   },
 ];
 
-type VllmArtifactsTableProps = {
+type ProfilingArtifactsTableProps = {
   props: LLMsBenchmarkProps;
 };
 
-export function VllmArtifactsTable({ props }: VllmArtifactsTableProps) {
+export function ProfilingArtifactsTable({
+  props,
+}: ProfilingArtifactsTableProps) {
   // Parse deviceName which is in format "deviceType (architecture)"
   // e.g., "cuda (NVIDIA B200)" -> deviceType: "cuda", deviceName: "NVIDIA B200"
   const deviceName =
@@ -130,7 +132,7 @@ export function VllmArtifactsTable({ props }: VllmArtifactsTableProps) {
       : undefined;
 
   const { data, error } = useArtifacts({
-    prefix: "vllm-project/vllm/",
+    repository: props.repoName,
     modelName: processedModelName,
     deviceType: device !== "" ? device : undefined,
     deviceName: arch !== "" ? arch : undefined,
@@ -159,7 +161,7 @@ export function VllmArtifactsTable({ props }: VllmArtifactsTableProps) {
     <Grid container spacing={10} sx={{ mt: 4 }}>
       <Grid size={{ xs: 12, lg: 11.8 }}>
         <TablePanelWithData
-          title={"vLLM Profiling Traces"}
+          title={"Profiling Traces"}
           data={tableData}
           columns={columns}
           dataGridProps={{

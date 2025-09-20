@@ -19,7 +19,7 @@ export type ArtifactResponse = {
 };
 
 export type UseArtifactsOptions = {
-  prefix?: string;
+  repository?: string;
   lookbackDays?: number;
   modelName?: string;
   deviceType?: string;
@@ -34,8 +34,8 @@ export const useArtifacts = (options: UseArtifactsOptions = {}) => {
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
   const params = new URLSearchParams();
 
-  if (options.prefix) {
-    params.set("prefix", options.prefix);
+  if (options.repository) {
+    params.set("repository", options.repository);
   }
 
   if (options.modelName) {
