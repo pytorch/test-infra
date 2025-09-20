@@ -35,7 +35,7 @@ interface ChatHistorySidebarProps {
   isMobile: boolean;
   headerHeight: number;
   onStartNewChat: () => void;
-  onLoadChatSession: (sessionId: string) => void;
+  onLoadChatSession: (_sessionId: string) => void;
   onToggleSidebar: () => void;
 }
 

@@ -79,7 +79,7 @@ function Report({
     JSON.stringify(queryParamsWithL)
   )}`;
 
-  let { data: lData, error: _lError } = useSWR(lUrl, fetcher, {
+  let { data: lData } = useSWR(lUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   lData = convertToCompilerPerformanceData(lData);
@@ -100,7 +100,7 @@ function Report({
     JSON.stringify(queryParamsWithR)
   )}`;
 
-  let { data: rData, error: _rError } = useSWR(rUrl, fetcher, {
+  let { data: rData } = useSWR(rUrl, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   rData = convertToCompilerPerformanceData(rData);
@@ -144,7 +144,6 @@ function Report({
         queryName={queryName}
         queryParams={queryParams}
         granularity={granularity}
-        compiler={compiler}
         model={model}
         branch={lBranchAndCommit.branch}
         lCommit={lBranchAndCommit.commit}

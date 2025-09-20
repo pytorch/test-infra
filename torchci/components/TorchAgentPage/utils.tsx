@@ -246,6 +246,7 @@ export const renderMarkdownWithLinks = (
         ),
         th: ({ children, ...props }) => {
           // Filter out react-markdown specific props that conflict with HTML props
+          // eslint-disable-next-line unused-imports/no-unused-vars
           const { node, ...htmlProps } = props as any;
           return (
             <th
@@ -264,6 +265,7 @@ export const renderMarkdownWithLinks = (
         },
         td: ({ children, ...props }) => {
           // Filter out react-markdown specific props that conflict with HTML props
+          // eslint-disable-next-line unused-imports/no-unused-vars
           const { node, ...htmlProps } = props as any;
           return (
             <td

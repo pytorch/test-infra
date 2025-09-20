@@ -88,7 +88,6 @@ export default async function handler(
     }
 
     const content = await fileData.Body?.transformToString();
-    const sessionData = JSON.parse(content || "{}");
 
     // Generate a unique UUID for the shared session
     const shareUuid = uuidv4();

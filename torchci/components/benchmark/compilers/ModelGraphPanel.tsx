@@ -23,7 +23,6 @@ export function GraphPanel({
   queryName,
   queryParams,
   granularity,
-  compiler,
   model,
   branch,
   lCommit,
@@ -32,7 +31,6 @@ export function GraphPanel({
   queryName: string;
   queryParams: { [key: string]: any };
   granularity: Granularity;
-  compiler: string;
   model: string;
   branch: string;
   lCommit: string;
@@ -46,7 +44,7 @@ export function GraphPanel({
     JSON.stringify(queryParamsWithBranch)
   )}`;
 
-  let { data, error } = useSWR(url, fetcher, {
+  let { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
   data = convertToCompilerPerformanceData(data);

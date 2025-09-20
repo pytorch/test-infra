@@ -7,8 +7,8 @@ interface QueryInputSectionProps {
   query: string;
   isLoading: boolean;
   debugVisible: boolean;
-  onQueryChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
-  onSubmit: (event: React.FormEvent) => void;
+  onQueryChange: (_event: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: (_event: React.FormEvent) => void;
   onToggleDebug: () => void;
   onCancel: () => void;
   currentSessionId: string | null;
