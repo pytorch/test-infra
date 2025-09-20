@@ -1,3 +1,4 @@
+import { LAST_N_DAYS } from "components/benchmark/common";
 import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 
@@ -6,6 +7,8 @@ export type ArtifactFile = {
   url: string;
   date: string;
   modelName: string;
+  deviceType: string;
+  deviceName: string;
   fileName: string;
   commitHash: string;
   workflowId: string;
@@ -17,11 +20,14 @@ export type ArtifactResponse = {
 
 export type UseArtifactsOptions = {
   prefix?: string;
-  lookbackMonths?: number;
+  lookbackDays?: number;
+  modelName?: string;
+  deviceType?: string;
+  deviceName?: string;
 };
 
-const DEFAULT_OPTIONS: Required<Pick<UseArtifactsOptions, "lookbackMonths">> = {
-  lookbackMonths: 6,
+const DEFAULT_OPTIONS: Required<Pick<UseArtifactsOptions, "lookbackDays">> = {
+  lookbackDays: LAST_N_DAYS,
 };
 
 export const useArtifacts = (options: UseArtifactsOptions = {}) => {
@@ -32,8 +38,20 @@ export const useArtifacts = (options: UseArtifactsOptions = {}) => {
     params.set("prefix", options.prefix);
   }
 
-  if (mergedOptions.lookbackMonths) {
-    params.set("lookbackMonths", String(mergedOptions.lookbackMonths));
+  if (options.modelName) {
+    params.set("modelName", options.modelName);
+  }
+
+  if (options.deviceType) {
+    params.set("deviceType", options.deviceType);
+  }
+
+  if (options.deviceName) {
+    params.set("deviceName", options.deviceName);
+  }
+
+  if (mergedOptions.lookbackDays) {
+    params.set("lookbackDays", String(mergedOptions.lookbackDays));
   }
 
   const queryString = params.toString();

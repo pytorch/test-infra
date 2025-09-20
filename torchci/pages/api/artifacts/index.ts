@@ -1,15 +1,17 @@
+import { LAST_N_DAYS } from "components/benchmark/common";
 import dayjs from "dayjs";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 const S3_BASE_URL = "https://gha-artifacts.s3.us-east-1.amazonaws.com";
 const DEFAULT_TARGET_PREFIX = "vllm-project/vllm/";
-const DEFAULT_LOOKBACK_MONTHS = 6;
 
 type ArtifactFile = {
   key: string;
   url: string;
   date: string;
   modelName: string;
+  deviceType: string;
+  deviceName: string;
   fileName: string;
   commitHash: string;
   workflowId: string;
@@ -29,17 +31,32 @@ export default async function handler(
   }
 
   try {
-    const prefixParam = Array.isArray(req.query.prefix)
-      ? req.query.prefix[0]
-      : req.query.prefix;
-    const lookbackParam = Array.isArray(req.query.lookbackMonths)
-      ? req.query.lookbackMonths[0]
-      : req.query.lookbackMonths;
+    const prefixParam = req.query.prefix as string | undefined;
+    const lookbackParam = req.query.lookbackDays as string | undefined;
+    const modelNameParam = req.query.modelName as string | undefined;
+    const deviceTypeParam = req.query.deviceType as string | undefined;
+    const deviceNameParam = req.query.deviceName as string | undefined;
 
-    const targetPrefix = parsePrefix(prefixParam);
-    const lookbackMonths = parseLookbackMonths(lookbackParam);
+    // Build the full S3 prefix path based on provided parameters
+    let targetPrefix = parsePrefix(prefixParam);
 
-    const files = await collectArtifacts(targetPrefix, lookbackMonths);
+    // Append model name if provided
+    if (modelNameParam && modelNameParam.trim()) {
+      targetPrefix = `${targetPrefix}${modelNameParam}/`;
+    }
+
+    // Append device type if provided
+    if (deviceTypeParam && deviceTypeParam.trim()) {
+      targetPrefix = `${targetPrefix}${deviceTypeParam}/`;
+    }
+
+    // Append device name if provided
+    if (deviceNameParam && deviceNameParam.trim()) {
+      targetPrefix = `${targetPrefix}${deviceNameParam}/`;
+    }
+
+    const lookbackDays = parseLookbackDays(lookbackParam);
+    const files = await collectArtifacts(targetPrefix, lookbackDays);
 
     res.setHeader("Cache-Control", "s-maxage=600, stale-while-revalidate=300");
     return res.status(200).json({ files });
@@ -49,40 +66,26 @@ export default async function handler(
   }
 }
 
-async function collectArtifacts(targetPrefix: string, lookbackMonths: number) {
+async function collectArtifacts(targetPrefix: string, lookbackDays: number) {
   const now = dayjs();
-  const earliestDate = now.subtract(lookbackMonths, "month").startOf("day");
+  const startDate = now.subtract(lookbackDays, "day").startOf("day");
 
   const files: ArtifactFile[] = [];
-  let cursor = earliestDate.startOf("month");
 
-  while (cursor.isBefore(now, "month") || cursor.isSame(now, "month")) {
-    const monthPrefix = cursor.format("YYYY-MM");
-    const monthKeys = await listS3Keys(monthPrefix);
+  let currentDate = startDate;
+  while (currentDate.isBefore(now, "day") || currentDate.isSame(now, "day")) {
+    const dayPrefix = currentDate.format("YYYY-MM-DD");
+    const fullPrefix = `${dayPrefix}/${targetPrefix}`;
 
-    for (const key of monthKeys) {
+    const dayKeys = await listS3Keys(fullPrefix);
+
+    for (const key of dayKeys) {
       if (key.endsWith("/")) {
-        continue;
-      }
-
-      if (!key.includes(`/${targetPrefix}`)) {
         continue;
       }
 
       const metadata = extractFileMetadata(key);
       if (!metadata) {
-        continue;
-      }
-
-      const fileDate = dayjs(metadata.date);
-      if (!fileDate.isValid()) {
-        continue;
-      }
-
-      if (
-        fileDate.isBefore(earliestDate, "day") ||
-        fileDate.isAfter(now, "day")
-      ) {
         continue;
       }
 
@@ -93,9 +96,8 @@ async function collectArtifacts(targetPrefix: string, lookbackMonths: number) {
       });
     }
 
-    cursor = cursor.add(1, "month");
+    currentDate = currentDate.add(1, "day");
   }
-
   return files.sort((a, b) => b.key.localeCompare(a.key));
 }
 
@@ -129,12 +131,12 @@ function parsePrefix(raw: string | undefined) {
   return value.endsWith("/") ? value : `${value}/`;
 }
 
-function parseLookbackMonths(raw: string | undefined) {
+function parseLookbackDays(raw: string | undefined) {
   const parsed = Number.parseInt(raw ?? "", 10);
   if (!Number.isFinite(parsed) || parsed <= 0) {
-    return DEFAULT_LOOKBACK_MONTHS;
+    return LAST_N_DAYS;
   }
-  return Math.min(parsed, 24);
+  return Math.min(parsed, 180); // Max 6 months
 }
 
 function buildDownloadUrl(key: string) {
@@ -145,21 +147,37 @@ function buildDownloadUrl(key: string) {
 }
 
 function extractFileMetadata(key: string) {
+  // Path structure: <date>/<repo_name>/<model_name>/<device_type>/<device_name>/<test_name>/<commit_sha>/<github_workflow_id>/<github_job_id>/<file_name>
   const segments = key.split("/").filter(Boolean);
-  if (segments.length < 7) {
+
+  // We need at least 10 segments for a valid vLLM artifact path
+  if (segments.length < 10) {
     return null;
   }
 
-  const fileName = segments.pop() ?? "";
-  const modelName = segments.pop() ?? "";
-  segments.pop();
-  const workflowId = segments.pop() ?? "";
-  const commitHash = segments.pop() ?? "";
-  const date = segments.shift() ?? "";
+  // Extract from the end (file_name is last)
+  const fileName = segments[segments.length - 1];
+  // Skip github_job_id (segments.length - 2)
+  const workflowId = segments[segments.length - 3];
+  const commitHash = segments[segments.length - 4];
+  // Skip test_name (segments.length - 5)
+  const deviceName = segments[segments.length - 6];
+  const deviceType = segments[segments.length - 7];
+  const modelName = segments[segments.length - 8];
+  // Skip repo name (segments[1] and segments[2])
+  const date = segments[0];
 
   if (!date) {
     return null;
   }
 
-  return { date, modelName, fileName, commitHash, workflowId };
+  return {
+    date,
+    modelName,
+    deviceType,
+    deviceName,
+    fileName,
+    commitHash,
+    workflowId,
+  };
 }

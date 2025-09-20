@@ -1,6 +1,13 @@
 import { Alert, Grid, Link } from "@mui/material";
 import type { GridColDef } from "@mui/x-data-grid";
+import { LAST_N_DAYS } from "components/benchmark/common";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
+import {
+  DEFAULT_ARCH_NAME,
+  DEFAULT_DEVICE_NAME,
+  DEFAULT_MODEL_NAME,
+} from "lib/benchmark/llms/common";
+import { LLMsBenchmarkProps } from "lib/benchmark/llms/types/dashboardProps";
 import type { ArtifactFile } from "lib/benchmark/llms/utils/artifacts";
 import { useArtifacts } from "lib/benchmark/llms/utils/artifacts";
 
@@ -15,7 +22,7 @@ const columns: GridColDef<ArtifactRow>[] = [
   },
   {
     field: "modelName",
-    headerName: "Model name",
+    headerName: "Model Name",
     flex: 1.1,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
@@ -24,9 +31,29 @@ const columns: GridColDef<ArtifactRow>[] = [
     ),
   },
   {
+    field: "deviceType",
+    headerName: "Device Type",
+    flex: 0.8,
+    renderCell: (params) => (
+      <span style={{ overflowWrap: "anywhere" }}>
+        {params.row.deviceType || "—"}
+      </span>
+    ),
+  },
+  {
+    field: "deviceName",
+    headerName: "Device Name",
+    flex: 1.1,
+    renderCell: (params) => (
+      <span style={{ overflowWrap: "anywhere" }}>
+        {params.row.deviceName || "—"}
+      </span>
+    ),
+  },
+  {
     field: "commitHash",
     headerName: "Commit Hash",
-    flex: 1.2,
+    flex: 1.0,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.commitHash || "—"}
@@ -35,8 +62,8 @@ const columns: GridColDef<ArtifactRow>[] = [
   },
   {
     field: "workflowId",
-    headerName: "Github workflow id",
-    flex: 1.2,
+    headerName: "Workflow ID",
+    flex: 1.0,
     renderCell: (params) => (
       <span style={{ overflowWrap: "anywhere" }}>
         {params.row.workflowId || "—"}
@@ -45,8 +72,8 @@ const columns: GridColDef<ArtifactRow>[] = [
   },
   {
     field: "fileName",
-    headerName: "Profiler trace",
-    flex: 1.6,
+    headerName: "Profiler Trace",
+    flex: 1.4,
     renderCell: (params) => (
       <Link
         href={params.row.url}
@@ -62,21 +89,53 @@ const columns: GridColDef<ArtifactRow>[] = [
 ];
 
 type VllmArtifactsTableProps = {
-  selectedModelName: string;
+  props: LLMsBenchmarkProps;
 };
 
-export function VllmArtifactsTable({
-  selectedModelName,
-}: VllmArtifactsTableProps) {
+export function VllmArtifactsTable({ props }: VllmArtifactsTableProps) {
+  // Parse deviceName which is in format "deviceType (architecture)"
+  // e.g., "cuda (NVIDIA B200)" -> deviceType: "cuda", deviceName: "NVIDIA B200"
+  const deviceName =
+    props.deviceName === DEFAULT_DEVICE_NAME ? "" : props.deviceName;
+  const archName = props.archName === DEFAULT_ARCH_NAME ? "" : props.archName;
+
+  let device = "";
+  let arch = "";
+  if (archName === "") {
+    // All the dashboards currently put device and arch into the same field in
+    // device (arch) format, i.e. cuda (NVIDIA B200). So, we need to extract
+    // the arch name here to use it in the query
+    const deviceArchRegex = /^(.+)\s+\((.+)\)$/;
+    const m = deviceName.match(deviceArchRegex);
+
+    if (m !== null && m[1] !== undefined && m[2] !== undefined) {
+      device = m[1]; // e.g., "cuda"
+      // Extract just the architecture name from "NVIDIA B200" -> "B200"
+      const archParts = m[2].split(" ");
+      arch = archParts.length > 1 ? archParts[archParts.length - 1] : m[2];
+    } else {
+      device = deviceName;
+      arch = archName;
+    }
+  } else {
+    // If both device and arch are set, we just need to use them as they are
+    device = deviceName;
+    arch = archName;
+  }
+
+  // Replace "/" with "_" in model name for S3 path compatibility
+  const processedModelName =
+    props.modelName !== DEFAULT_MODEL_NAME && props.modelName
+      ? props.modelName.replace(/\//g, "_")
+      : undefined;
+
   const { data, error } = useArtifacts({
     prefix: "vllm-project/vllm/",
+    modelName: processedModelName,
+    deviceType: device !== "" ? device : undefined,
+    deviceName: arch !== "" ? arch : undefined,
+    lookbackDays: props.timeRange > 0 ? props.timeRange : LAST_N_DAYS,
   });
-
-  // TODO: Currently, we only support vLLM traces for opt-125m.
-  // In the future, we should refactor this to support any model.
-  if (selectedModelName !== "facebook/opt-125m") {
-    return null;
-  }
 
   if (error) {
     return (

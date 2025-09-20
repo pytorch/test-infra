@@ -221,7 +221,7 @@ const MainPage = ({
         benchmarkPropsQueryParams={queryParams}
       />
       {props.repoName === "vllm-project/vllm" && (
-        <VllmArtifactsTable selectedModelName={props.modelName} />
+        <VllmArtifactsTable props={props} />
       )}
     </div>
   );
