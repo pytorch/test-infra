@@ -90,3 +90,16 @@ Run with `--help` for more information:
 ```bash
 python -m pytorch_auto_revert --help
 ```
+
+## Rendering HUD HTML
+
+- Add `--hud-html` (optionally with a filepath) to `autorevert-checker` to dump the
+  run state as a HUD-style HTML grid alongside the regular ClickHouse logging:
+  ```bash
+  python -m pytorch_auto_revert autorevert-checker pull trunk --hud-html results.html
+  ```
+
+- Render historical runs from ClickHouse by timestamp with the `hud` subcommand:
+  ```bash
+  python -m pytorch_auto_revert hud "2025-09-17 20:29:15" --repo-full-name pytorch/pytorch --hud-html hud.html
+  ```
