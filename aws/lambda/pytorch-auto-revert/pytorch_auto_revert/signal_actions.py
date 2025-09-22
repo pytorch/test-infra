@@ -468,35 +468,45 @@ class SignalActionProcessor:
             )
             return False
 
-        # Comment on the PR to notify the author about the revert
-        comment_body = (
-            "This PR is breaking the following workflows:\n"
-            + "- {}".format("\n- ".join(source.workflow_name for source in sources))
-            + "\n\nPlease investigate and fix the issues."
-        )
+        comment_body = ""
 
-        pr.create_issue_comment(comment_body)
-        logging.warning(
-            "[v2][action] revert for sha %s: notified author in PR #%d",
-            commit_sha[:8],
-            pr.number,
-        )
-
+        did_comment_revert = False
         if ctx.revert_action == RevertAction.RUN_REVERT:
             # TODO Add autorevert cause for pytorchbot OR decide if we need to use
             # other causes like weird
 
             # TODO check if the tag `autorevert:disable` is present and don't do the revert
             # comment, instead limiting to poke the author
-            comment_body = (
-                "XXXX revert -m \"Reverted automatically by pytorch's autorevert, "
-                + 'to avoid this behaviour add the tag autorevert:disable" -c autorevert'
+            did_comment_revert = True
+            comment_body += (
+                "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
+                + 'to avoid this behaviour add the tag autorevert:disable" -c autorevert\n\n'
             )
+
+        # Comment on the PR to notify the author about the revert
+        comment_body += (
+            "This PR is breaking the following workflows:\n"
+            + "- {}".format("\n- ".join(source.workflow_name for source in sources))
+            + "\n\nPlease investigate and fix the issues."
+        )
+
+        try:
             pr.create_issue_comment(comment_body)
-            logging.warning(
-                "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",
+        except Exception as e:
+            logging.error(
+                "[v2][action] revert for sha %s: failed to comment on PR #%d: %s",
                 commit_sha[:8],
                 pr.number,
+                str(e),
             )
+            return False
+
+        action = "notified the author" if did_comment_revert else "requested pytorchbot revert"
+        logging.warning(
+            "[v2][action] revert for sha %s: %s in PR #%d",
+            commit_sha[:8],
+            action,
+            pr.number,
+        )
 
         return True
