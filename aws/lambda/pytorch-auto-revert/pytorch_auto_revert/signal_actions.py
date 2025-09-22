@@ -493,7 +493,7 @@ class SignalActionProcessor:
         try:
             pr.create_issue_comment(comment_body)
         except Exception as e:
-            logging.error(
+            logging.error(  # noqa: G200
                 "[v2][action] revert for sha %s: failed to comment on PR #%d: %s",
                 commit_sha[:8],
                 pr.number,
@@ -501,7 +501,11 @@ class SignalActionProcessor:
             )
             return False
 
-        action = "notified the author" if did_comment_revert else "requested pytorchbot revert"
+        action = (
+            "notified the author"
+            if did_comment_revert
+            else "requested pytorchbot revert"
+        )
         logging.warning(
             "[v2][action] revert for sha %s: %s in PR #%d",
             commit_sha[:8],
