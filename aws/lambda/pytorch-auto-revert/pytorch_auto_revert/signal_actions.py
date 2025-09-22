@@ -226,7 +226,7 @@ class SignalActionProcessor:
             )
             return False
 
-        if ctx.revert_action in (RevertAction.RUN_NOTIFY, RevertAction.RUN_REVERT):
+        if not dry_run:
             self._comment_pr_notify_revert(commit_sha, sources, ctx)
 
         self._logger.insert_event(
@@ -340,18 +340,20 @@ class SignalActionProcessor:
             # Use findall to get all matches and pick the last one (pytorchbot appends at the end)
 
             # Look for "Reverted #XXXXX" - indicates a revert action
-            revert_matches = re.findall(r"Reverted #(\d+)", commit_message)
+            revert_matches = re.findall(
+                r"Reverted https://github.com/pytorch/pytorch/pull/(\d+)",
+                commit_message,
+            )
             if revert_matches:
                 pr_number = int(revert_matches[-1])  # Use the last match
                 try:
                     pr = repo.get_pull(pr_number)
-                    if pr.base.ref == "main":
-                        logging.info(
-                            "[v2][action] Found reverted PR #%d from commit message for commit %s",
-                            pr.number,
-                            commit_sha[:8],
-                        )
-                        return (CommitPRSourceAction.REVERT, pr)
+                    logging.info(
+                        "[v2][action] Found reverted PR #%d from commit message for commit %s",
+                        pr.number,
+                        commit_sha[:8],
+                    )
+                    return (CommitPRSourceAction.REVERT, pr)
                 except Exception as e:
                     logging.warning(  # noqa: G200
                         "[v2][action] Error fetching reverted PR #%d from commit message: %s",
@@ -361,19 +363,19 @@ class SignalActionProcessor:
 
             # Look for "Pull Request resolved: #XXXXX" - indicates a merge action
             pr_resolved_matches = re.findall(
-                r"Pull Request resolved: #(\d+)", commit_message
+                r"Pull Request resolved: https://github.com/pytorch/pytorch/pull/(\d+)",
+                commit_message,
             )
             if pr_resolved_matches:
                 pr_number = int(pr_resolved_matches[-1])  # Use the last match
                 try:
                     pr = repo.get_pull(pr_number)
-                    if pr.base.ref == "main":
-                        logging.info(
-                            "[v2][action] Found PR #%d from commit message for commit %s",
-                            pr.number,
-                            commit_sha[:8],
-                        )
-                        return (CommitPRSourceAction.MERGE, pr)
+                    logging.info(
+                        "[v2][action] Found PR #%d from commit message for commit %s",
+                        pr.number,
+                        commit_sha[:8],
+                    )
+                    return (CommitPRSourceAction.MERGE, pr)
                 except Exception as e:
                     logging.warning(  # noqa: G200
                         "[v2][action] Error fetching PR #%d from commit message: %s",
@@ -451,13 +453,13 @@ class SignalActionProcessor:
             return False
 
         # Comment on the PR to notify the author about the revert
-        comment_body = """
-        @here
-        This PR is breaking the following workflows:
-        - {}
-        Please investigate and fix the issues.
-        """.format("\n- ".join(source.workflow_name for source in sources))
-        pr.create_comment(comment_body)
+        comment_body = (
+            "This PR is breaking the following workflows:\n"
+            + "- {}".format("\n- ".join(source.workflow_name for source in sources))
+            + "\n\nPlease investigate and fix the issues."
+        )
+
+        pr.create_issue_comment(comment_body)
         logging.warning(
             "[v2][action] revert for sha %s: notified author in PR #%d",
             commit_sha[:8],
@@ -471,10 +473,10 @@ class SignalActionProcessor:
             # TODO check if the tag `autorevert:disable` is present and don't do the revert
             # comment, instead limiting to poke the author
             comment_body = (
-                "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
+                "XXXX revert -m \"Reverted automatically by pytorch's autorevert, "
                 + 'to avoid this behaviour add the tag autorevert:disable" -c autorevert'
             )
-            pr.create_comment(comment_body)
+            pr.create_issue_comment(comment_body)
             logging.warning(
                 "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",
                 commit_sha[:8],
