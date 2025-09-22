@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Dict, Iterable, List, Tuple, Union
+from enum import Enum
+from typing import Dict, Iterable, List, Optional, Tuple, Union
+
+import github
 
 from .clickhouse_client_helper import CHCliFactory, ensure_utc_datetime
+from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
 from .utils import RestartAction, RevertAction
@@ -14,6 +19,11 @@ from .workflow_checker import WorkflowRestartChecker
 
 # Alias for outcomes produced by signal processing
 SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
+
+
+class CommitPRSourceAction(Enum):
+    MERGE = "merge"
+    REVERT = "revert"
 
 
 @dataclass(frozen=True)
@@ -215,6 +225,10 @@ class SignalActionProcessor:
                 "[v2][action] revert for sha %s: skipping existing", commit_sha[:8]
             )
             return False
+
+        if ctx.revert_action in (RevertAction.RUN_NOTIFY, RevertAction.RUN_REVERT):
+            self._comment_pr_notify_revert(commit_sha, sources, ctx)
+
         self._logger.insert_event(
             repo=ctx.repo_full_name,
             ts=ctx.ts,
@@ -298,4 +312,173 @@ class SignalActionProcessor:
             logging.info(
                 "[v2][action] restart for sha %s: logged (dry_run)", commit_sha[:8]
             )
+        return True
+
+    def _find_pr_by_sha(
+        self, commit_sha: str, ctx: RunContext
+    ) -> Optional[Tuple[CommitPRSourceAction, github.PullRequest.PullRequest]]:
+        """Find the PR that contains the given commit SHA on the main branch.
+
+        Args:
+            commit_sha: The commit SHA to search for
+            ctx: The run context containing repo information
+
+        Returns:
+            Tuple of (action_type, PullRequest) if found, None otherwise
+        """
+        try:
+            # Get GitHub client
+            gh_client = GHClientFactory().client
+            repo = gh_client.get_repo(ctx.repo_full_name)
+
+            # Get the commit to check its message
+            commit = repo.get_commit(commit_sha)
+            commit_message = commit.commit.message
+
+            # First check: parse commit message for PR references
+            # This is the most reliable way to determine the pytorchbot action
+            # Use findall to get all matches and pick the last one (pytorchbot appends at the end)
+
+            # Look for "Reverted #XXXXX" - indicates a revert action
+            revert_matches = re.findall(r"Reverted #(\d+)", commit_message)
+            if revert_matches:
+                pr_number = int(revert_matches[-1])  # Use the last match
+                try:
+                    pr = repo.get_pull(pr_number)
+                    if pr.base.ref == "main":
+                        logging.info(
+                            "[v2][action] Found reverted PR #%d from commit message for commit %s",
+                            pr.number,
+                            commit_sha[:8],
+                        )
+                        return (CommitPRSourceAction.REVERT, pr)
+                except Exception as e:
+                    logging.warning(  # noqa: G200
+                        "[v2][action] Error fetching reverted PR #%d from commit message: %s",
+                        pr_number,
+                        str(e),
+                    )
+
+            # Look for "Pull Request resolved: #XXXXX" - indicates a merge action
+            pr_resolved_matches = re.findall(
+                r"Pull Request resolved: #(\d+)", commit_message
+            )
+            if pr_resolved_matches:
+                pr_number = int(pr_resolved_matches[-1])  # Use the last match
+                try:
+                    pr = repo.get_pull(pr_number)
+                    if pr.base.ref == "main":
+                        logging.info(
+                            "[v2][action] Found PR #%d from commit message for commit %s",
+                            pr.number,
+                            commit_sha[:8],
+                        )
+                        return (CommitPRSourceAction.MERGE, pr)
+                except Exception as e:
+                    logging.warning(  # noqa: G200
+                        "[v2][action] Error fetching PR #%d from commit message: %s",
+                        pr_number,
+                        str(e),
+                    )
+
+            # Second check: GitHub's API for associated pull requests
+            # Default to MERGE action if we find a PR this way
+            prs = commit.get_pulls()
+
+            for pr in prs:
+                # Check if this PR targets main branch
+                if pr.base.ref == "main":
+                    logging.info(
+                        "[v2][action] Found PR #%d associated with commit %s",
+                        pr.number,
+                        commit_sha[:8],
+                    )
+                    return (CommitPRSourceAction.MERGE, pr)
+
+            # Third check: search API fallback
+            # Default to MERGE action if we find a PR this way
+            search_query = f"{commit_sha} repo:{ctx.repo_full_name} is:pr is:closed"
+            search_results = gh_client.search_issues(search_query)
+
+            for issue in search_results:
+                pr = repo.get_pull(issue.number)
+                if pr.base.ref == "main":
+                    logging.info(
+                        "[v2][action] Found PR #%d via search for commit %s",
+                        pr.number,
+                        commit_sha[:8],
+                    )
+                    return (CommitPRSourceAction.MERGE, pr)
+
+            logging.warning(
+                "[v2][action] No PR found for commit %s on main branch", commit_sha[:8]
+            )
+            return None
+
+        except Exception as e:
+            logging.error(  # noqa: G200
+                "[v2][action] Error finding PR for commit %s: %s",
+                commit_sha[:8],
+                str(e),
+            )
+            return None
+
+    def _comment_pr_notify_revert(
+        self, commit_sha: str, sources: List[SignalMetadata], ctx: RunContext
+    ) -> bool:
+        """Comment on the pull request to notify the author about that their PR is breaking signals."""
+
+        logging.debug(
+            "[v2][action] revert for sha %s: finding the PR andnotifying author",
+            commit_sha[:8],
+        )
+
+        # find the PR from commit_sha on main
+        pr_result = self._find_pr_by_sha(commit_sha, ctx)
+        if not pr_result:
+            logging.error(
+                "[v2][action] revert for sha %s: no PR found!", commit_sha[:8]
+            )
+            return False
+
+        action_type, pr = pr_result
+        if action_type == CommitPRSourceAction.REVERT:
+            logging.warning(
+                "[v2][action] revert for sha %s: PR #%d is already a revert, skipping comment",
+                commit_sha[:8],
+                pr.number,
+            )
+            return False
+
+        # Comment on the PR to notify the author about the revert
+        comment_body = """
+        @here
+        This PR is breaking the following workflows:
+        - {}
+        Please investigate and fix the issues.
+        """.format("\n- ".join(source.workflow_name for source in sources))
+        pr.create_comment(comment_body)
+        logging.warning(
+            "[v2][action] revert for sha %s: notified author in PR #%d",
+            commit_sha[:8],
+            pr.number,
+        )
+
+        if ctx.revert_action == RevertAction.RUN_REVERT:
+            # TODO Add autorevert cause for pytorchbot OR decide if we need to use
+            # other causes like weird
+
+            # TODO check if the tag `autorevert:disable` is present and don't do the revert
+            # comment, instead limiting to poke the author
+            comment_body = (
+                "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
+                + 'to avoid this behaviour add the tag autorevert:disable" -c autorevert'
+            )
+            pr.create_comment(comment_body)
+            logging.warning(
+                "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",
+                commit_sha[:8],
+                pr.number,
+            )
+
         return True
