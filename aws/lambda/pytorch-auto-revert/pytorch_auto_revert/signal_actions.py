@@ -314,6 +314,32 @@ class SignalActionProcessor:
             )
         return True
 
+    def _commit_message_check_pr_is_revert(
+        self, commit_message: str, ctx: RunContext
+    ) -> Optional[int]:
+        # Look for "Reverted #XXXXX" - indicates a revert action
+        revert_matches = re.findall(
+            f"Reverted https://github.com/{ctx.repo_full_name}/pull/(\\d+)",
+            commit_message,
+        )
+        if revert_matches:
+            pr_number = int(revert_matches[-1])
+            return pr_number
+        return None
+
+    def _commit_message_check_pr_is_merge(
+        self, commit_message: str, ctx: RunContext
+    ) -> Optional[int]:
+        # Look for "Pull Request resolved: #XXXXX" - indicates a merge action
+        merge_matches = re.findall(
+            f"Pull Request resolved: https://github.com/{ctx.repo_full_name}/pull/(\\d+)",
+            commit_message,
+        )
+        if merge_matches:
+            pr_number = int(merge_matches[-1])
+            return pr_number
+        return None
+
     def _find_pr_by_sha(
         self, commit_sha: str, ctx: RunContext
     ) -> Optional[Tuple[CommitPRSourceAction, github.PullRequest.PullRequest]]:
@@ -339,13 +365,8 @@ class SignalActionProcessor:
             # This is the most reliable way to determine the pytorchbot action
             # Use findall to get all matches and pick the last one (pytorchbot appends at the end)
 
-            # Look for "Reverted #XXXXX" - indicates a revert action
-            revert_matches = re.findall(
-                f"Reverted https://github.com/{ctx.repo_full_name}/pull/(\\d+)",
-                commit_message,
-            )
-            if revert_matches:
-                pr_number = int(revert_matches[-1])  # Use the last match
+            pr_number = self._commit_message_check_pr_is_revert(commit_message, ctx)
+            if pr_number is not None:
                 try:
                     pr = repo.get_pull(pr_number)
                     logging.info(
@@ -361,13 +382,8 @@ class SignalActionProcessor:
                         str(e),
                     )
 
-            # Look for "Pull Request resolved: #XXXXX" - indicates a merge action
-            pr_resolved_matches = re.findall(
-                f"Pull Request resolved: https://github.com/{ctx.repo_full_name}/pull/(\\d+)",
-                commit_message,
-            )
-            if pr_resolved_matches:
-                pr_number = int(pr_resolved_matches[-1])  # Use the last match
+            pr_number = self._commit_message_check_pr_is_merge(commit_message, ctx)
+            if pr_number is not None:
                 try:
                     pr = repo.get_pull(pr_number)
                     logging.info(
