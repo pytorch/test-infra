@@ -2350,7 +2350,7 @@ def edit(
                 rprint("[red]❌ Maximum extension is 24 hours[/red]")
                 return
 
-            success = reservation_mgr.extend_reservation(reservation_id, extend)
+            success = reservation_mgr.extend_reservation(reservation_id, user_info["user_id"], extend)
             if success:
                 rprint(
                     f"[green]✅ Extended reservation {reservation_id} by {extend} hours[/green]"

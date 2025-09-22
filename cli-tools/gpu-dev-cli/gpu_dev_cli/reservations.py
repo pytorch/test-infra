@@ -441,7 +441,7 @@ class ReservationManager:
 
             # Poll for 3 minutes to show the outcome
             return self._poll_jupyter_action_result(
-                reservation_id, "enable", timeout_minutes=3
+                reservation_id, user_id, "enable", timeout_minutes=3
             )
 
         except Exception as e:
@@ -472,7 +472,7 @@ class ReservationManager:
 
             # Poll for 3 minutes to show the outcome
             return self._poll_jupyter_action_result(
-                reservation_id, "disable", timeout_minutes=3
+                reservation_id, user_id, "disable", timeout_minutes=3
             )
 
         except Exception as e:
@@ -514,7 +514,7 @@ class ReservationManager:
 
             # Poll for 3 minutes to show the outcome
             return self._poll_add_user_result(
-                reservation_id, github_username, timeout_minutes=3
+                reservation_id, user_id, github_username, timeout_minutes=3
             )
 
         except Exception as e:
@@ -523,7 +523,7 @@ class ReservationManager:
             )
             return False
 
-    def extend_reservation(self, reservation_id: str, extension_hours: float) -> bool:
+    def extend_reservation(self, reservation_id: str, user_id: str, extension_hours: float) -> bool:
         """Extend an active reservation by the specified number of hours"""
         try:
             # Send message to Lambda to extend reservation
@@ -545,7 +545,7 @@ class ReservationManager:
 
             # Poll for 3 minutes to show the outcome
             return self._poll_extend_action_result(
-                reservation_id, extension_hours, timeout_minutes=3
+                reservation_id, user_id, extension_hours, timeout_minutes=3
             )
 
         except Exception as e:
@@ -559,11 +559,19 @@ class ReservationManager:
             availability_table_name = self.config.availability_table
             availability_table = self.config.dynamodb.Table(availability_table_name)
 
-            # Just scan the whole availability table
+            # Scan the whole availability table with pagination
             response = availability_table.scan()
             availability_info = {}
+            all_items = response.get("Items", [])
 
-            for item in response.get("Items", []):
+            # Handle pagination for availability table
+            while "LastEvaluatedKey" in response:
+                response = availability_table.scan(
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+                all_items.extend(response.get("Items", []))
+
+            for item in all_items:
                 gpu_type = item["gpu_type"]
                 queue_length = self._get_queue_length_for_gpu_type(gpu_type)
                 estimated_wait = queue_length * 15 if queue_length > 0 else 0
@@ -625,6 +633,20 @@ class ReservationManager:
                         },
                     )
                     total_count += len(response.get("Items", []))
+
+                    # Handle pagination for StatusGpuTypeIndex query
+                    while "LastEvaluatedKey" in response:
+                        response = self.reservations_table.query(
+                            IndexName="StatusGpuTypeIndex",
+                            KeyConditionExpression="#status = :status AND gpu_type = :gpu_type",
+                            ExpressionAttributeNames={"#status": "status"},
+                            ExpressionAttributeValues={
+                                ":status": status,
+                                ":gpu_type": gpu_type,
+                            },
+                            ExclusiveStartKey=response["LastEvaluatedKey"]
+                        )
+                        total_count += len(response.get("Items", []))
                 except Exception as query_error:
                     # Fallback to scanning if the composite index doesn't exist yet
                     console.print(
@@ -640,6 +662,19 @@ class ReservationManager:
                     )
                     total_count += len(response.get("Items", []))
 
+                    # Handle pagination for fallback scan
+                    while "LastEvaluatedKey" in response:
+                        response = self.reservations_table.scan(
+                            FilterExpression="contains(#status, :status) AND contains(gpu_type, :gpu_type)",
+                            ExpressionAttributeNames={"#status": "status"},
+                            ExpressionAttributeValues={
+                                ":status": status,
+                                ":gpu_type": gpu_type,
+                            },
+                            ExclusiveStartKey=response["LastEvaluatedKey"]
+                        )
+                        total_count += len(response.get("Items", []))
+
             return total_count
 
         except Exception as e:
@@ -649,7 +684,7 @@ class ReservationManager:
             return 0
 
     def _poll_jupyter_action_result(
-        self, reservation_id: str, action: str, timeout_minutes: int = 3
+        self, reservation_id: str, user_id: str, action: str, timeout_minutes: int = 3
     ) -> bool:
         """Poll reservation table for Jupyter action result"""
         try:
@@ -666,13 +701,29 @@ class ReservationManager:
 
                 while time.time() - start_time < timeout_seconds:
                     try:
-                        # Get current reservation state - support partial reservation IDs
-                        scan_response = self.reservations_table.scan(
-                            FilterExpression="begins_with(reservation_id, :prefix)",
-                            ExpressionAttributeValues={":prefix": reservation_id},
+                        # Get current reservation state - query by user first, then filter by prefix
+                        response = self.reservations_table.query(
+                            IndexName="UserIndex",
+                            KeyConditionExpression="user_id = :user_id",
+                            ExpressionAttributeValues={":user_id": user_id},
                         )
+                        all_reservations = response.get("Items", [])
 
-                        items = scan_response.get("Items", [])
+                        # Handle pagination for UserIndex query
+                        while "LastEvaluatedKey" in response:
+                            response = self.reservations_table.query(
+                                IndexName="UserIndex",
+                                KeyConditionExpression="user_id = :user_id",
+                                ExpressionAttributeValues={":user_id": user_id},
+                                ExclusiveStartKey=response["LastEvaluatedKey"]
+                            )
+                            all_reservations.extend(response.get("Items", []))
+
+                        # Filter by reservation_id prefix in memory
+                        items = [
+                            res for res in all_reservations
+                            if res.get("reservation_id", "").startswith(reservation_id)
+                        ]
                         if len(items) == 0:
                             spinner.text = f"🔄 Waiting for reservation data..."
                             live.update(spinner)
@@ -756,7 +807,7 @@ class ReservationManager:
             return False
 
     def _poll_add_user_result(
-        self, reservation_id: str, github_username: str, timeout_minutes: int = 3
+        self, reservation_id: str, user_id: str, github_username: str, timeout_minutes: int = 3
     ) -> bool:
         """Poll reservation table for add user action result"""
         try:
@@ -771,13 +822,29 @@ class ReservationManager:
 
                 while time.time() - start_time < timeout_seconds:
                     try:
-                        # Get current reservation state - support partial reservation IDs
-                        scan_response = self.reservations_table.scan(
-                            FilterExpression="begins_with(reservation_id, :prefix)",
-                            ExpressionAttributeValues={":prefix": reservation_id},
+                        # Get current reservation state - query by user first, then filter by prefix
+                        response = self.reservations_table.query(
+                            IndexName="UserIndex",
+                            KeyConditionExpression="user_id = :user_id",
+                            ExpressionAttributeValues={":user_id": user_id},
                         )
+                        all_reservations = response.get("Items", [])
 
-                        items = scan_response.get("Items", [])
+                        # Handle pagination for UserIndex query
+                        while "LastEvaluatedKey" in response:
+                            response = self.reservations_table.query(
+                                IndexName="UserIndex",
+                                KeyConditionExpression="user_id = :user_id",
+                                ExpressionAttributeValues={":user_id": user_id},
+                                ExclusiveStartKey=response["LastEvaluatedKey"]
+                            )
+                            all_reservations.extend(response.get("Items", []))
+
+                        # Filter by reservation_id prefix in memory
+                        items = [
+                            res for res in all_reservations
+                            if res.get("reservation_id", "").startswith(reservation_id)
+                        ]
                         if len(items) == 0:
                             spinner.text = f"🔄 Waiting for reservation data..."
                             live.update(spinner)
@@ -838,7 +905,7 @@ class ReservationManager:
             return False
 
     def _poll_extend_action_result(
-        self, reservation_id: str, extension_hours: float, timeout_minutes: int = 3
+        self, reservation_id: str, user_id: str, extension_hours: float, timeout_minutes: int = 3
     ) -> bool:
         """Poll reservation table for extend action result"""
         try:
@@ -856,13 +923,29 @@ class ReservationManager:
 
                 while time.time() - start_time < timeout_seconds:
                     try:
-                        # Get current reservation state - support partial reservation IDs
-                        scan_response = self.reservations_table.scan(
-                            FilterExpression="begins_with(reservation_id, :prefix)",
-                            ExpressionAttributeValues={":prefix": reservation_id},
+                        # Get current reservation state - query by user first, then filter by prefix
+                        response = self.reservations_table.query(
+                            IndexName="UserIndex",
+                            KeyConditionExpression="user_id = :user_id",
+                            ExpressionAttributeValues={":user_id": user_id},
                         )
+                        all_reservations = response.get("Items", [])
 
-                        items = scan_response.get("Items", [])
+                        # Handle pagination for UserIndex query
+                        while "LastEvaluatedKey" in response:
+                            response = self.reservations_table.query(
+                                IndexName="UserIndex",
+                                KeyConditionExpression="user_id = :user_id",
+                                ExpressionAttributeValues={":user_id": user_id},
+                                ExclusiveStartKey=response["LastEvaluatedKey"]
+                            )
+                            all_reservations.extend(response.get("Items", []))
+
+                        # Filter by reservation_id prefix in memory
+                        items = [
+                            res for res in all_reservations
+                            if res.get("reservation_id", "").startswith(reservation_id)
+                        ]
                         if len(items) == 0:
                             spinner.text = f"🔄 Waiting for reservation data..."
                             live.update(spinner)
@@ -963,9 +1046,16 @@ class ReservationManager:
     def get_cluster_status(self) -> Optional[Dict[str, Any]]:
         """Get overall GPU cluster status from availability table"""
         try:
-            # Get reservations
+            # Get reservations with pagination
             reservations_response = self.reservations_table.scan()
             reservations = reservations_response.get("Items", [])
+
+            # Handle pagination for admin stats scan
+            while "LastEvaluatedKey" in reservations_response:
+                reservations_response = self.reservations_table.scan(
+                    ExclusiveStartKey=reservations_response["LastEvaluatedKey"]
+                )
+                reservations.extend(reservations_response.get("Items", []))
 
             # Get total GPUs from availability table
             availability_info = self.get_gpu_availability_by_type()
