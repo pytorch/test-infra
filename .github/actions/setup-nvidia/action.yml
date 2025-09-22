@@ -113,6 +113,9 @@ runs:
                       set +e
                       sudo /bin/bash /tmp/nvidia_driver -s --no-drm
                       NVIDIA_INSTALLATION_STATUS=$?
+                      
+                      # try reset GPU
+                      sudo nvidia-smi --gpu-reset
 
                       RESET_GPU=0
                       if [ "$NVIDIA_INSTALLATION_STATUS" -ne 0 ]; then
