@@ -212,7 +212,6 @@ def main(*args, **kwargs) -> None:
         )
 
     if opts.subcommand is None:
-        # New default without subcommand: run v2 using env defaults
         autorevert_v2(
             os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
             hours=int(os.environ.get("HOURS", 16)),
