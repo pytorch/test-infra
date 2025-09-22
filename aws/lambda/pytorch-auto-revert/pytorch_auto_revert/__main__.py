@@ -110,7 +110,7 @@ def get_opts() -> argparse.Namespace:
         default=RevertAction.LOG,
         choices=list(RevertAction),
         help=(
-            "Revert mode: skip, log (no side effects), run-notify (side effect), or run-revert (side effect)."
+            "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or run-revert."
         ),
     )
 
@@ -203,7 +203,7 @@ def main(*args, **kwargs) -> None:
             hours=int(os.environ.get("HOURS", 16)),
             repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
             restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
-            revert_action=RevertAction.LOG,
+            revert_action=(RevertAction.LOG if opts.dry_run else RevertAction.RUN_LOG),
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
