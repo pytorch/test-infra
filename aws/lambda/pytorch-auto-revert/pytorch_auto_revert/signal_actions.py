@@ -341,7 +341,7 @@ class SignalActionProcessor:
 
             # Look for "Reverted #XXXXX" - indicates a revert action
             revert_matches = re.findall(
-                r"Reverted https://github.com/pytorch/pytorch/pull/(\d+)",
+                f"Reverted https://github.com/{ctx.repo_full_name}/pull/(\\d+)",
                 commit_message,
             )
             if revert_matches:
@@ -363,7 +363,7 @@ class SignalActionProcessor:
 
             # Look for "Pull Request resolved: #XXXXX" - indicates a merge action
             pr_resolved_matches = re.findall(
-                r"Pull Request resolved: https://github.com/pytorch/pytorch/pull/(\d+)",
+                f"Pull Request resolved: https://github.com/{ctx.repo_full_name}/pull/(\\d+)",
                 commit_message,
             )
             if pr_resolved_matches:
