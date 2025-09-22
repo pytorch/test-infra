@@ -5,6 +5,7 @@ Creates Kubernetes Jobs that build Docker images from Dockerfiles using daemonle
 
 import logging
 import os
+import re
 from kubernetes import client
 from typing import Dict, Any
 
@@ -81,13 +82,17 @@ def create_buildkit_job(
 EOF
             echo "[BUILDKIT] Docker config created"
 
-            # Build with BuildKit daemonless mode
-            echo "[BUILDKIT] Starting BuildKit build..."
+            # Build with BuildKit daemonless mode with registry cache
+            CACHE_URI="{ecr_repository_url.split(':')[0]}:cache"
+            echo "[BUILDKIT] Starting BuildKit build with registry cache..."
+            echo "[BUILDKIT] Cache location: $CACHE_URI"
             buildctl-daemonless.sh build \\
                 --frontend dockerfile.v0 \\
                 --local context=/tmp/work \\
                 --local dockerfile=/tmp/work \\
-                --output type=image,name={full_image_uri},push=true
+                --output type=image,name={full_image_uri},push=true \\
+                --export-cache type=registry,ref=$CACHE_URI \\
+                --import-cache type=registry,ref=$CACHE_URI
 
             echo "[BUILDKIT] Build completed successfully: {full_image_uri}"
             """
@@ -167,7 +172,125 @@ EOF
         raise
 
 
-def wait_for_buildkit_job(k8s_client, job_name: str, timeout_seconds: int = 600) -> Dict[str, Any]:
+def parse_buildkit_progress(logs: str) -> str:
+    """
+    Parse BuildKit logs to extract detailed progress information
+
+    Args:
+        logs: Raw BuildKit logs
+
+    Returns:
+        Human-readable progress string
+    """
+    if not logs:
+        return "Starting Docker build..."
+
+    # Split into lines and get the most recent meaningful lines
+    lines = logs.strip().split('\n')
+    recent_lines = lines[-20:]  # Look at last 20 lines for current status
+
+    # Look for step progress patterns like "[ 3/11] RUN apt-get update"
+    for line in reversed(recent_lines):
+        step_match = re.search(r'#\d+\s+\[\s*(\d+)/(\d+)\]\s+(.+)', line)
+        if step_match:
+            current_step, total_steps, command = step_match.groups()
+            # Simplify common commands
+            if "RUN" in command:
+                if "apt-get update" in command:
+                    return f"Step {current_step}/{total_steps}: Updating package lists"
+                elif "apt-get install" in command:
+                    return f"Step {current_step}/{total_steps}: Installing packages"
+                elif "curl" in command or "wget" in command:
+                    return f"Step {current_step}/{total_steps}: Downloading files"
+                else:
+                    # Truncate long commands
+                    cmd_short = command[:50] + "..." if len(command) > 50 else command
+                    return f"Step {current_step}/{total_steps}: {cmd_short}"
+            elif "FROM" in command:
+                return f"Step {current_step}/{total_steps}: Loading base image"
+            elif "COPY" in command:
+                return f"Step {current_step}/{total_steps}: Copying files"
+
+    # Look for download progress patterns like "sha256:abc... 4.43GB / 4.76GB"
+    for line in reversed(recent_lines):
+        download_match = re.search(r'sha256:\w+.*?(\d+\.?\d*\w+)\s*/\s*(\d+\.?\d*\w+)', line)
+        if download_match and "done" not in line:
+            current, total = download_match.groups()
+            # Calculate percentage if possible
+            try:
+                current_bytes = _parse_size_to_bytes(current)
+                total_bytes = _parse_size_to_bytes(total)
+                if total_bytes > 0:
+                    pct = int((current_bytes / total_bytes) * 100)
+                    return f"Downloading base image: {current} / {total} ({pct}%)"
+            except:
+                pass
+            return f"Downloading base image: {current} / {total}"
+
+    # Look for extraction patterns
+    for line in reversed(recent_lines):
+        if "extracting sha256:" in line and "done" not in line:
+            return "Extracting base image layers..."
+        elif "extracting sha256:" in line and "done" in line:
+            return "Finalizing base image extraction..."
+
+    # Look for common BuildKit stages
+    for line in reversed(recent_lines):
+        if "[internal] load build definition" in line:
+            return "Loading Dockerfile..."
+        elif "[internal] load metadata" in line:
+            return "Fetching image metadata..."
+        elif "[internal] load .dockerignore" in line:
+            return "Processing build context..."
+        elif "importing cache" in line.lower():
+            return "Loading shared build cache..."
+        elif "exporting cache" in line.lower():
+            return "Saving build cache for future builds..."
+        elif "DONE" in line and "FROM" in line:
+            return "Base image loaded successfully"
+
+    # Look for error patterns
+    for line in reversed(recent_lines):
+        if "ERROR:" in line or "error:" in line:
+            return "Build encountered an error"
+
+    # Default progress messages based on log content
+    if "downloading" in logs.lower():
+        return "Downloading base image layers..."
+    elif "extracting" in logs.lower():
+        return "Extracting image layers..."
+    elif any(word in logs.lower() for word in ["apt-get", "apk add", "yum install"]):
+        return "Installing packages..."
+    elif "push" in logs.lower() and "registry" in logs.lower():
+        return "Pushing built image to registry..."
+
+    return "Building Docker image..."
+
+
+def _parse_size_to_bytes(size_str: str) -> int:
+    """Convert size string like '4.43GB' to bytes"""
+    size_str = size_str.upper()
+    multipliers = {
+        'B': 1,
+        'KB': 1024,
+        'MB': 1024**2,
+        'GB': 1024**3,
+        'TB': 1024**4
+    }
+
+    for suffix, multiplier in multipliers.items():
+        if size_str.endswith(suffix):
+            number = float(size_str[:-len(suffix)])
+            return int(number * multiplier)
+
+    # If no suffix, assume bytes
+    try:
+        return int(float(size_str))
+    except:
+        return 0
+
+
+def wait_for_buildkit_job(k8s_client, job_name: str, timeout_seconds: int = 600, progress_callback=None) -> Dict[str, Any]:
     """
     Wait for BuildKit job to complete and return status
 
@@ -175,9 +298,10 @@ def wait_for_buildkit_job(k8s_client, job_name: str, timeout_seconds: int = 600)
         k8s_client: Kubernetes API client
         job_name: Name of the BuildKit job
         timeout_seconds: Maximum time to wait
+        progress_callback: Optional function to call with progress updates
 
     Returns:
-        Dict with status information: {"success": bool, "message": str, "logs": str}
+        Dict with status information: {"success": bool, "message": str, "logs": str, "progress": str}
     """
     import time
 
@@ -196,21 +320,30 @@ def wait_for_buildkit_job(k8s_client, job_name: str, timeout_seconds: int = 600)
             if job.status.succeeded:
                 # Job completed successfully
                 logs = _get_job_logs(core_v1, job_name)
+                progress = parse_buildkit_progress(logs)
                 return {
                     "success": True,
                     "message": "Docker image built successfully",
-                    "logs": logs
+                    "logs": logs,
+                    "progress": progress
                 }
             elif job.status.failed:
                 # Job failed
                 logs = _get_job_logs(core_v1, job_name)
+                progress = parse_buildkit_progress(logs)
                 return {
                     "success": False,
                     "message": f"Docker build failed (attempts: {job.status.failed})",
-                    "logs": logs
+                    "logs": logs,
+                    "progress": progress
                 }
 
-            # Job still running, wait and check again
+            # Job still running - get current progress
+            if progress_callback:
+                logs = _get_job_logs(core_v1, job_name)
+                current_progress = parse_buildkit_progress(logs)
+                progress_callback(current_progress)
+
             time.sleep(10)
 
         except Exception as e:
@@ -219,10 +352,12 @@ def wait_for_buildkit_job(k8s_client, job_name: str, timeout_seconds: int = 600)
 
     # Timeout reached
     logs = _get_job_logs(core_v1, job_name)
+    progress = parse_buildkit_progress(logs)
     return {
         "success": False,
         "message": f"Docker build timed out after {timeout_seconds} seconds",
-        "logs": logs
+        "logs": logs,
+        "progress": progress
     }
 
 

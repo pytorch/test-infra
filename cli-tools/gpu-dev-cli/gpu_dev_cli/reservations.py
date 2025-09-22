@@ -273,13 +273,23 @@ class ReservationManager:
             all_reservations = []
 
             if user_filter:
-                # Query by specific user
+                # Query by specific user with pagination
                 response = self.reservations_table.query(
                     IndexName="UserIndex",
                     KeyConditionExpression="user_id = :user_id",
                     ExpressionAttributeValues={":user_id": user_filter},
                 )
                 all_reservations = response.get("Items", [])
+
+                # Handle pagination for UserIndex query
+                while "LastEvaluatedKey" in response:
+                    response = self.reservations_table.query(
+                        IndexName="UserIndex",
+                        KeyConditionExpression="user_id = :user_id",
+                        ExpressionAttributeValues={":user_id": user_filter},
+                        ExclusiveStartKey=response["LastEvaluatedKey"]
+                    )
+                    all_reservations.extend(response.get("Items", []))
             else:
                 # Get all reservations (scan with pagination for admin use)
                 all_reservations = []
@@ -349,22 +359,36 @@ class ReservationManager:
     ) -> Optional[Dict[str, Any]]:
         """Get SSH connection information for a reservation"""
         try:
-            # Search by prefix - allows short reservation IDs
-            scan_response = self.reservations_table.scan(
-                FilterExpression="begins_with(reservation_id, :prefix) AND user_id = :user_id",
-                ExpressionAttributeValues={
-                    ":prefix": reservation_id,
-                    ":user_id": user_id,
-                },
+            # Query by user first (efficient), then filter by reservation_id prefix
+            response = self.reservations_table.query(
+                IndexName="UserIndex",
+                KeyConditionExpression="user_id = :user_id",
+                ExpressionAttributeValues={":user_id": user_id},
             )
+            all_reservations = response.get("Items", [])
 
-            items = scan_response.get("Items", [])
-            if len(items) == 0:
+            # Handle pagination for UserIndex query
+            while "LastEvaluatedKey" in response:
+                response = self.reservations_table.query(
+                    IndexName="UserIndex",
+                    KeyConditionExpression="user_id = :user_id",
+                    ExpressionAttributeValues={":user_id": user_id},
+                    ExclusiveStartKey=response["LastEvaluatedKey"]
+                )
+                all_reservations.extend(response.get("Items", []))
+
+            # Filter by reservation_id prefix in memory
+            matching_reservations = [
+                res for res in all_reservations
+                if res.get("reservation_id", "").startswith(reservation_id)
+            ]
+
+            if len(matching_reservations) == 0:
                 return None
-            elif len(items) > 1:
+            elif len(matching_reservations) > 1:
                 return None  # Ambiguous - need longer prefix
 
-            reservation = items[0]
+            reservation = matching_reservations[0]
 
             return {
                 "ssh_command": reservation.get("ssh_command", "ssh user@pending"),
@@ -994,6 +1018,7 @@ class ReservationManager:
             "pending": "⏳ Reservation request submitted, waiting for processing...",
             "queued": "📋 In queue - waiting for GPU resources...",
             "preparing": "🚀 GPUs found! Preparing your development environment...",
+            "creating_server": "🐳 Building custom Docker image...",
             "active": "✅ Reservation complete!",
             "failed": "❌ Reservation failed",
             "cancelled": "🛑 Reservation cancelled",
@@ -1002,6 +1027,7 @@ class ReservationManager:
         start_time = time.time()
         timeout_seconds = timeout_minutes * 60 if timeout_minutes is not None else None
         last_status = None
+        last_message = None
         cancelled = False
         close_tool = False
         show_queue_help = True
@@ -1176,7 +1202,12 @@ class ReservationManager:
                             elif queued_count > 0:
                                 aggregate_status = "queued"
                             else:
-                                aggregate_status = "pending"
+                                # Check for creating_server status
+                                creating_server_count = statuses.count("creating_server")
+                                if creating_server_count > 0:
+                                    aggregate_status = "creating_server"
+                                else:
+                                    aggregate_status = "pending"
 
                         # Build status message based on aggregate status and mode
                         message = ""
@@ -1396,20 +1427,33 @@ class ReservationManager:
                             if is_multinode:
                                 message = f"⏳ Processing multinode reservation... ({active_count}/{total_nodes} ready)"
                             else:
-                                message = status_messages.get(aggregate_status, f"Status: {aggregate_status}")
+                                # Check for detailed status during Docker builds or other detailed operations
+                                if aggregate_status == "creating_server" and len(all_reservations) > 0:
+                                    reservation = all_reservations[0]
+                                    current_detailed_status = reservation.get("current_detailed_status", "")
+                                    if current_detailed_status:
+                                        message = f"🐳 {current_detailed_status}"
+                                    else:
+                                        message = status_messages.get(aggregate_status, f"Status: {aggregate_status}")
+                                else:
+                                    message = status_messages.get(aggregate_status, f"Status: {aggregate_status}")
 
-                        # Update spinner if status changed or we're in certain states
+                        # Update spinner if status changed, message changed, or we're in certain states
                         # BUT: Don't override custom Panel display for multinode with spinner
-                        if aggregate_status != last_status or aggregate_status in ["queued", "preparing"]:
+                        if (aggregate_status != last_status or
+                            message != last_message or
+                            aggregate_status in ["queued", "preparing", "creating_server"]):
                             if message and not (is_multinode and aggregate_status == "preparing"):
                                 # Only use spinner for single-node or non-preparing multinode states
                                 spinner.text = message
                                 last_status = aggregate_status
+                                last_message = message
                                 live.update(spinner)
                             elif not is_multinode and message:
                                 # Single node - always use spinner
                                 spinner.text = message
                                 last_status = aggregate_status
+                                last_message = message
                                 live.update(spinner)
                             # For multinode preparing with custom display, we already updated above with Panel
 

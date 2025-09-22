@@ -1689,9 +1689,32 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                     ECR_REPOSITORY_URL
                 )
 
+                # Create progress callback to update DynamoDB status (with deduplication)
+                last_progress_message = [None]  # Use list to allow modification in nested function
+
+                def progress_callback(progress_message):
+                    try:
+                        # Only update if the progress message has actually changed
+                        if progress_message != last_progress_message[0]:
+                            update_reservation_status(
+                                reservation_id,
+                                "creating_server",
+                                detailed_status=progress_message
+                            )
+                            logger.info(f"Updated build progress for {reservation_id}: {progress_message}")
+                            last_progress_message[0] = progress_message
+                        # If message hasn't changed, skip the update (no log spam)
+                    except Exception as e:
+                        logger.warning(f"Failed to update build progress for {reservation_id}: {str(e)}")
+
                 # Wait for build to complete
                 logger.info(f"Waiting for Docker build to complete: {buildkit_job_name}")
-                build_result = wait_for_buildkit_job(k8s_client, buildkit_job_name, timeout_seconds=900)  # 15 minutes
+                build_result = wait_for_buildkit_job(
+                    k8s_client,
+                    buildkit_job_name,
+                    timeout_seconds=900,  # 15 minutes
+                    progress_callback=progress_callback
+                )
 
                 if build_result["success"]:
                     logger.info(f"Docker build successful for {reservation_id}")
