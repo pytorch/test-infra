@@ -237,3 +237,24 @@ class SignalExtractionDatasource:
                 }
             )
         return rows
+
+    def fetch_latest_non_dry_run_timestamp(
+        self, *, repo_full_name: Optional[str] = None
+    ) -> Optional[str]:
+        """Return the most recent non-dry-run autorevert_state timestamp."""
+
+        query = "SELECT ts FROM misc.autorevert_state WHERE dry_run = 0"
+        params: Dict[str, Any] = {}
+        if repo_full_name:
+            query += " AND repo = {repo:String}"
+            params["repo"] = repo_full_name
+        query += " ORDER BY ts DESC LIMIT 1"
+
+        res = CHCliFactory().client.query(query, parameters=params)
+        if not res.result_rows:
+            return None
+
+        (ts_value,) = res.result_rows[0]
+        if isinstance(ts_value, datetime):
+            return ts_value.strftime("%Y-%m-%d %H:%M:%S")
+        return str(ts_value)
