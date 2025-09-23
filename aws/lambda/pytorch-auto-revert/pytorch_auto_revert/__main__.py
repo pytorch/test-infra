@@ -242,7 +242,9 @@ def main(*args, **kwargs) -> None:
             ),
             repo_full_name=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
             restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
-            revert_action=(RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY),
+            revert_action=(
+                RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
+            ),
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
