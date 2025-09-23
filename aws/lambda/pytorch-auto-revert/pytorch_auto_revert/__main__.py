@@ -17,6 +17,11 @@ from .utils import RestartAction, RevertAction
 
 
 DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
+DEFAULT_REPO_FULL_NAME = "pytorch/pytorch"
+DEFAULT_HOURS = 16
+DEFAULT_COMMENT_ISSUE_NUMBER = (
+    163650  # https://github.com/pytorch/pytorch/issues/163650
+)
 # Special constant to indicate --hud-html was passed as a flag (without a value)
 HUD_HTML_NO_VALUE_FLAG = object()
 
@@ -106,11 +111,14 @@ def get_opts() -> argparse.Namespace:
         + ' list (e.g., "pull" or "pull,trunk,inductor")',
     )
     workflow_parser.add_argument(
-        "--hours", type=int, default=48, help="Lookback window in hours (default: 48)"
+        "--hours",
+        type=int,
+        default=DEFAULT_HOURS,
+        help=f"Lookback window in hours (default: {DEFAULT_HOURS})",
     )
     workflow_parser.add_argument(
         "--repo-full-name",
-        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        default=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
         help="Full repo name to filter by (owner/repo).",
     )
     workflow_parser.add_argument(
@@ -139,6 +147,14 @@ def get_opts() -> argparse.Namespace:
         help=(
             "If set, write the run state to HUD HTML; omit a value to use the run timestamp as the filename."
         ),
+    )
+    workflow_parser.add_argument(
+        "--notify-issue-number",
+        type=int,
+        default=int(
+            os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
+        ),
+        help=f"Issue number to notify (default: {DEFAULT_COMMENT_ISSUE_NUMBER})",
     )
 
     # workflow-restart-checker subcommand
@@ -219,17 +235,21 @@ def main(*args, **kwargs) -> None:
 
     if opts.subcommand is None:
         autorevert_v2(
-            os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
-            hours=int(os.environ.get("HOURS", 16)),
-            repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+            os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
+            hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
+            notify_issue_number=int(
+                os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
+            ),
+            repo_full_name=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
             restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
-            revert_action=(RevertAction.LOG if opts.dry_run else RevertAction.RUN_LOG),
+            revert_action=(RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY),
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
-        _signals, _pairs, state_json = autorevert_v2(
+        _, _, state_json = autorevert_v2(
             opts.workflows,
             hours=opts.hours,
+            notify_issue_number=opts.notify_issue_number,
             repo_full_name=opts.repo_full_name,
             restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
             revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
