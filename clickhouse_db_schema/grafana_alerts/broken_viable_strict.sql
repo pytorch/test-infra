@@ -1,6 +1,8 @@
 -- Alert when a viable/strict blocking job has been failing for 3 or more
 --   consecutive commits on main.
--- This query is used by the Grafana alert https://pytorchci.grafana.net/alerting/grafana/eewi8oa4ccef4e/view
+-- This query is used by these Grafana alerts:
+--   - https://pytorchci.grafana.net/alerting/grafana/eewi8oa4ccef4e/view [HUD is broken - 3 commits in a row (<=5 jobs failing)]
+--   - https://pytorchci.grafana.net/alerting/grafana/ceyyxwjkgjbb4e/view [HUD is badly broken - Likely infra related (>5 jobs failing)]
 
 -- This subtable does two things:
 --   1. Collect the jobs that we actually care about for this alert.
