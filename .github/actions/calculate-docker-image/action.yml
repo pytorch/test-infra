@@ -42,6 +42,9 @@ inputs:
     description: If set to true, always push the image to ECR even if it exists.
     required: false
     default: false
+  repo-name:
+    description: The name of the repository containing the docker-build-dir.
+    required: false
 
 outputs:
   docker-image:
@@ -56,7 +59,7 @@ runs:
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
-        REPO_NAME: ${{ github.event.repository.name }}
+        REPO_NAME: ${{ inputs.repo-name || github.event.repository.name }}
         DOCKER_IMAGE_NAME: ${{ inputs.docker-image-name }}
         DOCKER_BUILD_DIR: ${{ inputs.docker-build-dir }}
         DOCKER_BUILD_SCRIPT: ${{ inputs.docker-build-script }}
