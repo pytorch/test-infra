@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Optional
 
 import github
@@ -34,37 +35,26 @@ class WorkflowResolver:
         wf = resolver.resolve("pull.yml")    # file basename
     """
 
-    _resolver_cache: dict[str, WorkflowResolver] = {}
-
     def __init__(
         self, repo_full_name: str, repository: "github.Repository.Repository"
     ) -> None:
+        if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", repo_full_name) is None:
+            raise ValueError(
+                f"Invalid repo format: {repo_full_name}. Expected 'owner/repo'."
+            )
+        if repository is None or not isinstance(
+            repository, github.Repository.Repository
+        ):
+            raise ValueError(f"Invalid repository object for {repo_full_name}.")
+
         self._repo_full_name = repo_full_name
         self._repository = repository
         self._by_display: dict[str, WorkflowRef] = {}
         self._by_file: dict[str, WorkflowRef] = {}
         self._build_indices()
 
-    def __new__(
-        cls, repo_full_name: str, repository: "github.Repository.Repository"
-    ) -> WorkflowResolver:
-        """Create or return a cached resolver for the given repo."""
-
-        if re.match(r"^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$", repo_full_name) is None:
-            raise ValueError(
-                f"Invalid repo format: {repo_full_name}. Expected 'owner/repo'."
-            )
-
-        if repository is None or not isinstance(
-            repository, github.Repository.Repository
-        ):
-            raise ValueError(f"Invalid repository object for {repo_full_name}.")
-
-        if repo_full_name not in cls._resolver_cache:
-            cls._resolver_cache[repo_full_name] = super().__new__(cls)
-        return cls._resolver_cache[repo_full_name]
-
     @staticmethod
+    @lru_cache(maxsize=None)
     def get(repo: str) -> "WorkflowResolver":
         """Get a cached resolver for a repo in owner/repo format.
 
