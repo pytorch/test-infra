@@ -74,6 +74,7 @@ class TestSignalActionsPacing(unittest.TestCase):
         self.proc._restart = FakeRestart()  # type: ignore[attr-defined]
         self.ctx = RunContext(
             ts=datetime.now(timezone.utc),
+            notify_issue_number=123456,
             repo_full_name="pytorch/pytorch",
             workflows=["trunk"],
             lookback_hours=24,

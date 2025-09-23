@@ -226,8 +226,10 @@ class SignalActionProcessor:
             )
             return False
 
-        if not dry_run:
-            self._comment_pr_notify_revert(commit_sha, sources, ctx)
+        if ctx.revert_action == RevertAction.RUN_REVERT:
+            self._comment_pr_do_revert(commit_sha, sources, ctx)
+        elif ctx.revert_action == RevertAction.RUN_NOTIFY:
+            self._comment_issue_notify(commit_sha, sources, ctx)
 
         self._logger.insert_event(
             repo=ctx.repo_full_name,
@@ -441,13 +443,65 @@ class SignalActionProcessor:
             )
             return None
 
-    def _comment_pr_notify_revert(
+    def _comment_issue_notify(
         self, commit_sha: str, sources: List[SignalMetadata], ctx: RunContext
     ) -> bool:
-        """Comment on the pull request to notify the author about that their PR is breaking signals."""
+        """Comment on the issue to notify interested stakeholders about the detected autorevert"""
+
+        if ctx.revert_action != RevertAction.RUN_NOTIFY:
+            return False
 
         logging.debug(
-            "[v2][action] revert for sha %s: finding the PR andnotifying author",
+            "[v2][action] notify for sha %s: finding the issue and notifying stakeholders on issue %s",
+            commit_sha[:8],
+            ctx.notify_issue_number,
+        )
+
+        # find the PR from commit_sha on main
+        pr_result = self._find_pr_by_sha(commit_sha, ctx)
+        if not pr_result:
+            logging.error(
+                "[v2][action] revert for sha %s: no PR found!", commit_sha[:8]
+            )
+            return False
+
+        try:
+            issue = (
+                GHClientFactory()
+                .client.get_repo(ctx.repo_full_name)
+                .get_issue(number=ctx.notify_issue_number)
+            )
+            action_type, pr = pr_result
+            issue.create_comment(
+                f"Autorevert detected a possible offender: {commit_sha[:8]} from PR #{pr.number}.\n"
+                + (
+                    "The commit is a revert"
+                    if action_type == CommitPRSourceAction.REVERT
+                    else "The commit is a PR merge"
+                )
+                + "\n"
+                + "This commit is breaking the following workflows:\n"
+                + "- {}".format("\n- ".join(source.workflow_name for source in sources))
+                + "\n"
+            )
+        except Exception:
+            logging.exception(
+                "[v2][action] revert for sha %s: failed to comment on issue #%d",
+                commit_sha[:8],
+                ctx.notify_issue_number,
+            )
+            return False
+
+    def _comment_pr_do_revert(
+        self, commit_sha: str, sources: List[SignalMetadata], ctx: RunContext
+    ) -> bool:
+        """Comment on the pull request to pytorchbot to revert it."""
+
+        if ctx.revert_action != RevertAction.RUN_REVERT:
+            return False
+
+        logging.debug(
+            "[v2][action] revert for sha %s: finding the PR and notifying author",
             commit_sha[:8],
         )
 
@@ -468,30 +522,20 @@ class SignalActionProcessor:
             )
             return False
 
-        comment_body = ""
+        # TODO Add autorevert cause for pytorchbot OR decide if we need to use
+        # other causes like weird
 
-        did_comment_revert = False
-        if ctx.revert_action == RevertAction.RUN_REVERT:
-            # TODO Add autorevert cause for pytorchbot OR decide if we need to use
-            # other causes like weird
-
-            # TODO check if the tag `autorevert:disable` is present and don't do the revert
-            # comment, instead limiting to poke the author
-            did_comment_revert = True
-            comment_body += (
-                "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
-                + 'to avoid this behaviour add the tag autorevert:disable" -c autorevert\n\n'
-            )
-
-        # Comment on the PR to notify the author about the revert
-        comment_body += (
-            "This PR is breaking the following workflows:\n"
-            + "- {}".format("\n- ".join(source.workflow_name for source in sources))
-            + "\n\nPlease investigate and fix the issues."
-        )
-
+        # TODO check if the tag `autorevert:disable` is present and don't do the revert
+        # comment, instead limiting to poke the author
         try:
-            pr.create_issue_comment(comment_body)
+            pr.create_issue_comment(
+                "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
+                + 'to avoid this behaviour add the tag autorevert:disable" -c autorevert\n'
+                + "\n"
+                + "This PR is breaking the following workflows:\n"
+                + "- {}".format("\n- ".join(source.workflow_name for source in sources))
+                + "\n\nPlease investigate and fix the issues."
+            )
         except Exception as e:
             logging.error(  # noqa: G200
                 "[v2][action] revert for sha %s: failed to comment on PR #%d: %s",
@@ -501,15 +545,9 @@ class SignalActionProcessor:
             )
             return False
 
-        action = (
-            "notified the author"
-            if did_comment_revert
-            else "requested pytorchbot revert"
-        )
         logging.warning(
-            "[v2][action] revert for sha %s: %s in PR #%d",
+            "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",
             commit_sha[:8],
-            action,
             pr.number,
         )
 
