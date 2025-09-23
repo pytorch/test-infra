@@ -261,15 +261,15 @@ class TestSignal(unittest.TestCase):
                 self._ev("job", SignalStatus.SUCCESS, 7),
             ],
         )
-        s = Signal(
-            key="job", workflow_name="wf", commits=[c_failed_pending, c_base]
-        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_failed_pending, c_base])
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.INFRA_NOT_CONFIRMED)
         self.assertIn("sha_failed_pend", res.message)
 
-    def test_insufficient_successes_returns_restart_newest_success_when_no_pending(self):
+    def test_insufficient_successes_returns_restart_newest_success_when_no_pending(
+        self,
+    ):
         # Ensure we have at least two failure events to avoid the failure-side heuristic
         c_fail_new = SignalCommit(
             head_sha="sha_fail_new",
