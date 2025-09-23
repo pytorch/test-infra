@@ -222,6 +222,108 @@ class TestSignal(unittest.TestCase):
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.FIXED)
 
+    def test_insufficient_failures_returns_restart_oldest_failed_when_no_pending(self):
+        # Only one failure event overall (< 2) → suggest restart of oldest failed
+        c_failed = SignalCommit(
+            head_sha="sha_failed",
+            events=[self._ev("job", SignalStatus.FAILURE, 5)],
+        )
+        # Base successful commit with enough successes to avoid infra ambiguity
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 7),
+            ],
+        )
+        s = Signal(key="job", workflow_name="wf", commits=[c_failed, c_base])
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsNotNone(res)
+        # With insufficient failures, we never produce an AutorevertPattern
+        self.assertNotIsInstance(res, AutorevertPattern)
+        # Should propose a restart on the suspected failure side (oldest failed)
+        self.assertTrue(hasattr(res, "commit_shas"))
+        self.assertIn("sha_failed", res.commit_shas)
+
+    def test_insufficient_failures_infra_not_confirmed_when_pending_on_failed(self):
+        # Only one failure overall, but the failed commit also has pending → ineligible awaiting confirmation
+        c_failed_pending = SignalCommit(
+            head_sha="sha_failed_pend",
+            events=[
+                self._ev("job", SignalStatus.PENDING, 4),
+                self._ev("job", SignalStatus.FAILURE, 5),
+            ],
+        )
+        c_base = SignalCommit(
+            head_sha="sha_base",
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.SUCCESS, 7),
+            ],
+        )
+        s = Signal(
+            key="job", workflow_name="wf", commits=[c_failed_pending, c_base]
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.INFRA_NOT_CONFIRMED)
+        self.assertIn("sha_failed_pend", res.message)
+
+    def test_insufficient_successes_returns_restart_newest_success_when_no_pending(self):
+        # Ensure we have at least two failure events to avoid the failure-side heuristic
+        c_fail_new = SignalCommit(
+            head_sha="sha_fail_new",
+            events=[self._ev("job", SignalStatus.FAILURE, 10)],
+        )
+        c_fail_old = SignalCommit(
+            head_sha="sha_fail_old",
+            events=[self._ev("job", SignalStatus.FAILURE, 9)],
+        )
+        # Only one success event overall (< 2) → suggest restart of newest successful
+        c_success = SignalCommit(
+            head_sha="sha_success",
+            events=[self._ev("job", SignalStatus.SUCCESS, 3)],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_fail_new, c_fail_old, c_success],
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsNotNone(res)
+        # With insufficient successes, we never produce an AutorevertPattern
+        self.assertNotIsInstance(res, AutorevertPattern)
+        # Should propose a restart on the suspected success side (newest successful)
+        self.assertTrue(hasattr(res, "commit_shas"))
+        self.assertIn("sha_success", res.commit_shas)
+
+    def test_insufficient_successes_infra_not_confirmed_when_pending_on_success(self):
+        # Two failures present, but newest successful has pending → ineligible awaiting confirmation
+        c_fail_new = SignalCommit(
+            head_sha="sha_fail_new",
+            events=[self._ev("job", SignalStatus.FAILURE, 10)],
+        )
+        c_fail_old = SignalCommit(
+            head_sha="sha_fail_old",
+            events=[self._ev("job", SignalStatus.FAILURE, 9)],
+        )
+        c_success_pending = SignalCommit(
+            head_sha="sha_success_pend",
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 3),
+                self._ev("job", SignalStatus.PENDING, 8),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_fail_new, c_fail_old, c_success_pending],
+        )
+        res = s.process_valid_autorevert_pattern()
+        self.assertIsInstance(res, Ineligible)
+        self.assertEqual(res.reason, IneligibleReason.INFRA_NOT_CONFIRMED)
+        self.assertIn("sha_success_pend", res.message)
+
 
 if __name__ == "__main__":
     unittest.main()
