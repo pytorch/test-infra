@@ -286,9 +286,18 @@ class SignalActionProcessor:
         notes = ""
         ok = True
         if not dry_run:
-            ok = self._restart.restart_workflow(workflow_target, commit_sha)
-            if not ok:
-                notes = "dispatch_failed"
+            try:
+                ok = self._restart.restart_workflow(workflow_target, commit_sha)
+            except Exception as exc:
+                ok = False
+                notes = str(exc) or repr(exc)
+                logging.exception(
+                    "[v2][action] restart for sha %s: exception while dispatching",
+                    commit_sha[:8],
+                )
+            else:
+                if not ok:
+                    notes = "already_restarted"
         self._logger.insert_event(
             repo=ctx.repo_full_name,
             ts=ctx.ts,
@@ -302,11 +311,11 @@ class SignalActionProcessor:
         )
         if not dry_run and ok:
             logging.info("[v2][action] restart for sha %s: dispatched", commit_sha[:8])
-        elif not ok:
+        elif not dry_run:
             logging.info(
-                "[v2][action] restart for sha %s: dispatch_failed: %s",
+                "[v2][action] restart for sha %s: not dispatched (%s)",
                 commit_sha[:8],
-                notes,
+                notes or "",
             )
         else:
             logging.info(
