@@ -11,12 +11,7 @@ from dotenv import load_dotenv
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
-from .testers.hud import (
-    default_hud_filename,
-    get_state_timestamp,
-    render_hud_html_from_clickhouse,
-    write_hud_html,
-)
+from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
 from .testers.restart_checker import workflow_restart_checker
 from .utils import RestartAction, RevertAction
 
@@ -239,15 +234,7 @@ def main(*args, **kwargs) -> None:
             restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
             revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
         )
-        hud_out_path: Optional[str] = None
-        if opts.hud_html is not None:
-            if opts.hud_html is HUD_HTML_NO_VALUE_FLAG:
-                ts = get_state_timestamp(state_json)
-                hud_out_path = default_hud_filename(ts)
-            else:
-                hud_out_path = opts.hud_html
-        if hud_out_path:
-            write_hud_html(state_json, hud_out_path)
+        write_hud_html_from_cli(opts.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "hud":

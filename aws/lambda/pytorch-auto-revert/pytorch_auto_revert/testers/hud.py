@@ -37,6 +37,22 @@ def default_hud_filename(timestamp: str) -> str:
     return f"{sanitized}.html"
 
 
+def write_hud_html_from_cli(
+    opts_hud_html,
+    HUD_HTML_NO_VALUE_FLAG,
+    state_json: RunStatePayload,
+):
+    hud_out_path: Optional[str] = None
+    if opts_hud_html is not None:
+        if opts_hud_html is HUD_HTML_NO_VALUE_FLAG:
+            ts = get_state_timestamp(state_json)
+            hud_out_path = default_hud_filename(ts)
+        else:
+            hud_out_path = opts_hud_html
+    if hud_out_path:
+        write_hud_html(state_json, hud_out_path)
+
+
 def write_hud_html(state: RunStatePayload, out_path: str) -> str:
     """Render the given run-state JSON (string or mapping) to HUD HTML."""
     state_dict = _ensure_state_dict(state)
