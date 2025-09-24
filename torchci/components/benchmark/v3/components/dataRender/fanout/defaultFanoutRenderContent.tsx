@@ -93,8 +93,7 @@ export function DefaultFanoutRenderContent() {
             </div>
           );
         }
-        const title =
-          fanoutUIConfig.title ?? fanoutUIConfig.type ?? `Section ${index + 1}`;
+        const title = fanoutUIConfig.title ?? `Section ${index + 1}`;
         return (
           <ToggleSection key={index} title={title}>
             <Component
