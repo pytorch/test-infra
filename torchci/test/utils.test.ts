@@ -1,7 +1,6 @@
 import { hasApprovedPullRuns } from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
-import triggerInductorTestsBot from "../lib/bot/triggerInductorTestsBot";
 import * as utils from "./utils";
 
 nock.disableNetConnect();
@@ -14,7 +13,6 @@ describe("utils: hasApprovedPullRuns", () => {
 
   beforeEach(() => {
     probot = utils.testProbot();
-    probot.load(triggerInductorTestsBot);
   });
 
   function mockRuns(

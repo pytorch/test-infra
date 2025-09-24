@@ -114,63 +114,51 @@ class WorkflowRestartChecker:
             commit_sha: The commit SHA to restart workflow for
 
         Returns:
-            bool: True if workflow was successfully dispatched, False otherwise
+            bool: True if workflow was successfully dispatched,
+            False if it was already restarted
         """
         # Check if already restarted
         if self.has_restarted_workflow(workflow_name, commit_sha):
             logging.warning(
-                f"Workflow {workflow_name} already restarted for commit {commit_sha}"
+                "Workflow %s already restarted for commit %s",
+                workflow_name,
+                commit_sha,
             )
             return False
 
-        # Get GitHub client
-        try:
-            from .github_client_helper import GHClientFactory
+        from .github_client_helper import GHClientFactory
 
-            if not (
-                GHClientFactory().token_auth_provided
-                or GHClientFactory().key_auth_provided
-            ):
-                logging.error("GitHub authentication not configured")
-                return False
+        factory = GHClientFactory()
+        if not (factory.token_auth_provided or factory.key_auth_provided):
+            raise RuntimeError("GitHub authentication not configured")
 
-            client = GHClientFactory().client
-        except Exception as e:
-            logging.error(f"Failed to get GitHub client: {e}")
-            return False
+        client = factory.client
 
-        try:
-            # Use trunk/{sha} tag format
-            tag_ref = f"trunk/{commit_sha}"
+        # Use trunk/{sha} tag format
+        tag_ref = f"trunk/{commit_sha}"
 
-            # Resolve workflow
-            wf_ref = self.resolver.require(workflow_name)
+        # Resolve workflow (exact display or file name)
+        wf_ref = self.resolver.require(workflow_name)
 
-            # Dispatch via file name
-            client.get_repo(f"{self.repo_owner}/{self.repo_name}").get_workflow(
-                wf_ref.file_name
-            ).create_dispatch(ref=tag_ref, inputs={})
+        repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
+        workflow = repo.get_workflow(wf_ref.file_name)
+        workflow.create_dispatch(ref=tag_ref, inputs={})
 
-            # Construct the workflow runs URL
-            workflow_url = (
-                f"https://github.com/{self.repo_owner}/{self.repo_name}"
-                f"/actions/workflows/{wf_ref.file_name}"
-                f"?query=branch%3Atrunk%2F{commit_sha}"
-            )
-            logging.info(
-                f"Successfully dispatched workflow {wf_ref.display_name} for commit {commit_sha}\n"
-                f"  View at: {workflow_url}"
-            )
+        workflow_url = (
+            f"https://github.com/{self.repo_owner}/{self.repo_name}"
+            f"/actions/workflows/{wf_ref.file_name}?query=branch%3Atrunk%2F{commit_sha}"
+        )
+        logging.info(
+            "Successfully dispatched workflow %s for commit %s (run: %s)",
+            wf_ref.display_name,
+            commit_sha,
+            workflow_url,
+        )
 
-            # Invalidate cache for this workflow/commit
-            cache_key = f"{wf_ref.display_name}:{commit_sha}"
-            if cache_key in self._cache:
-                del self._cache[cache_key]
-            return True
-
-        except Exception as e:
-            logging.error(f"Error dispatching workflow {workflow_name}: {e}")
-            return False
+        cache_key = f"{wf_ref.display_name}:{commit_sha}"
+        if cache_key in self._cache:
+            del self._cache[cache_key]
+        return True
 
     @property
     def resolver(self) -> WorkflowResolver:

@@ -9,7 +9,7 @@ import {
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import {
-  groupByBenchmarkData,
+  to_table,
   to_time_series_data,
   toTimeSeriesResponse,
   toWorkflowIdMap,
@@ -33,11 +33,13 @@ const COMPILER_PRECOMPUTE_TABLE_GROUP_KEY = [
   "arch",
   "device",
   "mode",
-  "metric",
   "workflow_id",
+  "commit",
   "branch",
+  "metric",
+  "compiler",
 ];
-const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["compiler"];
+const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["suite"];
 
 export function toPrecomputeCompilerData(
   rawData: any[],
@@ -121,7 +123,7 @@ function getFormat(data: any, format: string) {
       );
       break;
     case "table":
-      return groupByBenchmarkData(
+      return to_table(
         data,
         COMPILER_PRECOMPUTE_TABLE_GROUP_KEY,
         COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY

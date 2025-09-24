@@ -32,6 +32,7 @@ TestId = NewType("TestId", str)
 @dataclass(frozen=True)
 class RunContext:
     lookback_hours: int
+    notify_issue_number: int
     repo_full_name: str
     restart_action: RestartAction
     revert_action: RevertAction

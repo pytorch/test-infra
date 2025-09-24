@@ -13,6 +13,7 @@ from ..utils import RestartAction, RevertAction
 def autorevert_v2(
     workflows: Iterable[str],
     *,
+    notify_issue_number: int,
     hours: int = 24,
     repo_full_name: str = "pytorch/pytorch",
     restart_action: RestartAction = RestartAction.RUN,
@@ -32,12 +33,13 @@ def autorevert_v2(
     ts = datetime.now(timezone.utc)
 
     logging.info(
-        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s revert_action=%s",
+        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s revert_action=%s notify_issue_number=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
         restart_action,
         revert_action,
+        notify_issue_number,
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
@@ -59,6 +61,7 @@ def autorevert_v2(
     # Build run context
     run_ctx = RunContext(
         lookback_hours=hours,
+        notify_issue_number=notify_issue_number,
         repo_full_name=repo_full_name,
         restart_action=restart_action,
         revert_action=revert_action,
