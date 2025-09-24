@@ -1,5 +1,5 @@
 import {
-  groupByBenchmarkData,
+  to_table,
   to_time_series_data,
   toTimeSeriesResponse,
 } from "../../utils";
@@ -26,6 +26,7 @@ const COMPILER_GENERAL_TABLE_GROUP_KEY = [
   "branch",
   "compiler",
   "model",
+  "suite",
 ];
 const COMPILER_GENERAL_TABLE_SUB_GROUP_KEY = ["metric"];
 
@@ -62,7 +63,7 @@ function getformat(data: any, format: string) {
         COMPILER_GENERAL_TS_SUB_GROUP_KEY
       );
     case "table":
-      return groupByBenchmarkData(
+      return to_table(
         data,
         COMPILER_GENERAL_TABLE_GROUP_KEY,
         COMPILER_GENERAL_TABLE_SUB_GROUP_KEY

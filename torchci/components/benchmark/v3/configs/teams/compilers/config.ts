@@ -9,11 +9,49 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/compilers/type";
 import { BenchmarkUIConfig } from "../../configBook";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 dayjs.extend(utc);
+
+const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "passrate",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 0.95,
+    goodRatio: 1.05,
+    direction: "up",
+  },
+};
+const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "geomean",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 0.95,
+    goodRatio: 1.05,
+    direction: "up",
+  },
+};
+const EXECUTION_TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "execution_time",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.1,
+    goodRatio: 0.9,
+    direction: "down",
+  },
+};
+const COMPILATION_LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "compilation_latency",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 0.95,
+    goodRatio: 1.05,
+    direction: "up",
+  },
+};
 
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
@@ -95,6 +133,30 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                   passrate: { type: "percent", scale: 100 },
                 },
               },
+            },
+          },
+        },
+      },
+      {
+        type: "FanoutBenchmarkTimeSeriesComparisonTableSection",
+        config: {
+          groupByFields: ["metric"],
+          filterByFieldValues: {
+            metric: [
+              "passrate",
+              "geomean",
+              "execution_time",
+              "compilation_latency",
+            ],
+          },
+          tableConfig: {
+            nameKeys: ["compiler"],
+            comparisonPolicyTargetField: "metric",
+            comparisonPolicy: {
+              passrate: PASSRATE_COMPARISON_POLICY,
+              geomean: GEOMEAN_COMPARISON_POLICY,
+              execution_time: EXECUTION_TIME_COMPARISON_POLICY,
+              compilation_latency: COMPILATION_LATENCY_POLICY,
             },
           },
         },
