@@ -127,10 +127,6 @@ function NavBar() {
       href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
     },
     {
-      name: "vLLM vs SGLang",
-      href: "/benchmark/llms?repos=vllm-project%2Fvllm%2Csgl-project%2Fsglang",
-    },
-    {
       name: "PyTorch Operator Microbenchmark",
       href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
     },
