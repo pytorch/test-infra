@@ -93,8 +93,8 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
     device: "cuda",
     arch: "h100",
   },
-  lBranch: "main",
-  rBranch: "main",
+  lbranch: "main",
+  rbranch: "main",
 };
 
 // main config for the compiler benchmark regression page

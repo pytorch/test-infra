@@ -1,79 +1,7 @@
 import { useDashboardSelector, useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { queryToState, stableQuerySig, stateToQuery } from "lib/helpers/urlQuery";
 import { NextRouter, useRouter } from "next/router";
 import { useEffect, useRef } from "react";
-
-// -------- Utilities --------
-// Normalize query object (so arrays and single values compare fairly)
-function stableQuerySig(q: Record<string, any>): string {
-  const map: Record<string, string[]> = {};
-  for (const [k, v] of Object.entries(q ?? {})) {
-    if (v == null) continue;
-    const arr = Array.isArray(v) ? v : [v];
-    map[k] = arr.map(String).sort(); // insensitive to ordering
-  }
-  const keys = Object.keys(map).sort();
-  const pairs: [string, string][] = [];
-  for (const k of keys) for (const v of map[k]) pairs.push([k, v]);
-  return new URLSearchParams(pairs).toString();
-}
-
-function sameQuery(a: Record<string, any>, b: Record<string, any>) {
-  return stableQuerySig(a) === stableQuerySig(b);
-}
-
-/** Convert state -> flat query params */
-export function stateToQuery(obj: Record<string, any>): Record<string, string | string[]> {
-  const q: Record<string, string | string[]> = {};
-
-  const walk = (prefix: string, value: any) => {
-    if (value == null) return;
-
-    if (Array.isArray(value)) {
-      q[prefix] = value.map(String);
-      return;
-    }
-    if (value instanceof Date || (value?.toISOString && typeof value.toISOString === "function")) {
-      q[prefix] = value.toISOString();
-      return;
-    }
-    if (typeof value === "object") {
-      for (const [k, v] of Object.entries(value)) {
-        walk(prefix ? `${prefix}.${k}` : k, v);
-      }
-      return;
-    }
-    q[prefix] = String(value);
-  };
-
-  for (const [k, v] of Object.entries(obj ?? {})) {
-    walk(k, v);
-  }
-
-  return q;
-}
-
-/** Convert query object -> nested state */
-export function queryToState(query: Record<string, any>): Record<string, any> {
-  const result: any = {};
-
-  for (const [rawKey, value] of Object.entries(query ?? {})) {
-    const parts = rawKey.split(".");
-    let cur = result;
-
-    for (let i = 0; i < parts.length; i++) {
-      const p = parts[i];
-      if (i === parts.length - 1) {
-        const arr = Array.isArray(value) ? value : [value];
-        cur[p] = arr.length > 1 ? arr.map(String) : String(arr[0]);
-      } else {
-        cur[p] = cur[p] || {};
-        cur = cur[p];
-      }
-    }
-  }
-
-  return result;
-}
 
 
 // -------- Hook --------
@@ -116,6 +44,7 @@ export function useUrlStoreSync<T extends Record<string, any>>(
     const nextQueryObj = stateToQuery(state);
     const currQueryObj = router.query as Record<string, any>;
 
+    // prevent no-op replace and re-pushing the same thing
     const nextSig = stableQuerySig(nextQueryObj);
     const currSig = stableQuerySig(currQueryObj);
 

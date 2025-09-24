@@ -14,7 +14,6 @@ import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { BranchDropdowns } from "./BranchDropdown";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { useRouter } from "next/router";
-import { objectToQueryString } from "components/utilization/UtilizationReportPage/hepler";
 import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
@@ -43,8 +42,7 @@ export function SideBarMainSection() {
     rbranch: s.committedRbranch
   }));
 
-  console.log("committedState",committedState)
-
+  // sync the url with the store
   const { pushUrlFromStore } = useUrlStoreSync(router, committedState, hydrateFromUrl);
 
   // make the url in sync with the state of the store

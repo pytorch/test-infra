@@ -77,8 +77,8 @@ export function createDashboardStore(initial: {
   benchmarkId: string;
   time: TimeRange;
   filters: Record<string, string>;
-  lBranch: string;
-  rBranch: string;
+  lbranch: string;
+  rbranch: string;
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
 }) {
@@ -88,14 +88,14 @@ export function createDashboardStore(initial: {
     // staged
     stagedTime: initial.time,
     stagedFilters: initial.filters,
-    stagedLbranch: initial.lBranch ?? "",
-    stagedRbranch: initial.rBranch ?? "",
+    stagedLbranch: initial.lbranch ?? "",
+    stagedRbranch: initial.rbranch ?? "",
 
     // committed
     committedTime: initial.time,
     committedFilters: initial.filters,
-    committedLbranch: initial.lBranch ?? "",
-    committedRbranch: initial.rBranch ?? "",
+    committedLbranch: initial.lbranch ?? "",
+    committedRbranch: initial.rbranch ?? "",
 
     // current commits
     lcommit: initial.lcommit ?? null,
@@ -145,8 +145,6 @@ export function createDashboardStore(initial: {
       }),
 
     update: (next) =>{
-      console.log("in update", next.lBranch, next.rBranch)
-
       set((s) => ({
         // important to keep the benchmarkId as original if not specified
         benchmarkId: next.benchmarkId?? s.benchmarkId,
@@ -155,7 +153,6 @@ export function createDashboardStore(initial: {
         stagedFilters: next.filters ?? s.stagedFilters,
         stagedLbranch: next.lBranch ?? s.stagedLbranch ?? "",
         stagedRbranch: next.rBranch ?? s.stagedRbranch ?? "",
-
         // committed mirrors staged on first load
         committedTime: next.time?? s.committedTime,
         committedFilters: next.filters?? s.committedFilters,
