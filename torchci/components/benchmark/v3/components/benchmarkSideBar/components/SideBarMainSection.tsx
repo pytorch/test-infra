@@ -153,8 +153,8 @@ export function SideBarMainSection() {
   return (
     <Stack spacing={2} sx={styles.root}>
       <Stack direction="row" alignItems="center" spacing={0}>
-        <Typography variant="body2" sx={{ fontSize: "0.6rem" }}>
-          Share link:{" "}
+        <Typography variant="body2" sx={{ fontSize: "0.65rem" }}>
+          Share link:
         </Typography>
         <UMCopyLink
           params={{
