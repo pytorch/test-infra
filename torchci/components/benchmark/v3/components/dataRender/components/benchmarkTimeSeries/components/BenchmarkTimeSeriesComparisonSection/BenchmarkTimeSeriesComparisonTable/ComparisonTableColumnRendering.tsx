@@ -1,5 +1,5 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { IconButton, Tooltip, Typography } from "@mui/material";
+import { Button, IconButton, Tooltip, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   GridColDef,
@@ -25,7 +25,8 @@ export function getComparisionTableConlumnRendering(
   columnsFields: string[],
   lWorkflowId: string | null,
   rWorkflowId: string | null,
-  config: ComparisonTableConfig
+  config: ComparisonTableConfig,
+  onClick?: (data: any) => void
 ): GridColDef[] {
   const nameCol: GridColDef = {
     field: "name",
@@ -48,6 +49,7 @@ export function getComparisionTableConlumnRendering(
         lWorkflowId={lWorkflowId}
         rWorkflowId={rWorkflowId}
         config={config}
+        onClick={onClick}
       />
     ),
   }));
@@ -82,6 +84,7 @@ export function ComparisonTableValueCell({
   lWorkflowId,
   rWorkflowId,
   config,
+  onClick,
 }: {
   field: string;
   row: GridRowModel;
@@ -89,19 +92,19 @@ export function ComparisonTableValueCell({
   rWorkflowId: string | null;
   comparisonTargetField?: string;
   config?: ComparisonTableConfig;
+  onClick?: (data: any) => void;
 }) {
-  const L = valOf(
-    lWorkflowId
-      ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
-          row.byWorkflow[lWorkflowId]?.[field]
-      : undefined
-  );
-  const R = valOf(
-    rWorkflowId
-      ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
-          row.byWorkflow[rWorkflowId]?.[field]
-      : undefined
-  );
+  const ldata = lWorkflowId
+    ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
+      row.byWorkflow[lWorkflowId]?.[field]
+    : undefined;
+  const rdata = rWorkflowId
+    ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
+      row.byWorkflow[rWorkflowId]?.[field]
+    : undefined;
+
+  const L = valOf(ldata);
+  const R = valOf(rdata);
 
   const fmt = (v: any) =>
     v == null
@@ -158,7 +161,14 @@ export function ComparisonTableValueCell({
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
       <Tooltip title={renderComparisonResult(result)}>
-        <Typography variant="body2">{text}</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          {config?.customizedConfirmDialog && onClick && (
+            <Button onClick={() => onClick({ left: ldata, right: rdata })}>
+              click
+            </Button>
+          )}
+          <Typography variant="body2">{text}</Typography>
+        </Box>
       </Tooltip>
     </Box>
   );

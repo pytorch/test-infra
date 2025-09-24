@@ -23,6 +23,11 @@ export type ComparisonTableConfig = {
   comparisonPolicy?: {
     [key: string]: BenchmarkComparisonPolicyConfig;
   };
+  enableDialog?: boolean;
+  customizedConfirmDialog?: {
+    type: string;
+    id?: string;
+  };
 };
 
 export type ChartGroupConfig = {
@@ -36,6 +41,10 @@ export type ChartGroupConfig = {
 };
 
 export type ChartConfig = {
+  customizedConfirmDialog?: {
+    type: string;
+    id?: string;
+  };
   renderOptions?: any;
 };
 

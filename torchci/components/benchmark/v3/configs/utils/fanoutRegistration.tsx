@@ -1,3 +1,4 @@
+import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import {
   FanoutBenchmarkTimeSeriesChartSection,
   FanoutBenchmarkTimeSeriesComparisonTableSection,
@@ -8,6 +9,8 @@ export type FanoutComponentProps = {
   data?: any[];
   config: any; // your UIRenderConfig slice
   onChange?: (payload: any) => void;
+  lcommit?: BenchmarkCommitMeta | null;
+  rcommit?: BenchmarkCommitMeta | null;
 };
 export type FanoutComponent = React.ComponentType<FanoutComponentProps>;
 

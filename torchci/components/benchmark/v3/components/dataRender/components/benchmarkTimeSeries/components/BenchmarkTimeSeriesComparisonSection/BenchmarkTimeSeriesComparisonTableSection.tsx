@@ -1,7 +1,8 @@
 import { Paper } from "@mui/material";
 import { Box, Grid } from "@mui/system";
 import { StickyBar } from "components/benchmark/v3/components/common/StickyBar";
-import { useMemo, useState } from "react";
+import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
+import { useEffect, useMemo, useState } from "react";
 import {
   BenchmarkComparisonTableSectionConfig,
   passesFilter,
@@ -25,10 +26,16 @@ const styles = {
 export default function BenchmarkTimeSeriesComparisonTableSection({
   data = [],
   tableSectionConfig,
+  lcommit,
+  rcommit,
+  customizedConfirmDialog,
   onChange,
 }: {
   data?: any[];
   tableSectionConfig: BenchmarkComparisonTableSectionConfig;
+  lcommit?: BenchmarkCommitMeta;
+  rcommit?: BenchmarkCommitMeta;
+  customizedConfirmDialog?: any;
   onChange?: (payload: any) => void;
 }) {
   // Sticky bar offset
@@ -77,40 +84,57 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     return <></>;
   }
 
+  useEffect(() => {
+    if (!lcommit || !rcommit) return;
+    console.log("lcommit", lcommit);
+    setLlWorkflowId(lcommit?.workflow_id);
+    setRWorkflowId(rcommit?.workflow_id);
+  }, [lcommit, rcommit]);
+
   return (
-    <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
-      <StickyBar
-        offset={barOffset}
-        zIndex={900}
-        align="left"
-        contentMode="full"
-        onMount={handleMount}
-        onUnmount={handleUnmount}
-      >
-        <BenchmarkTimeSeriesComparisonTableSlider
-          workflows={workflowInfos}
-          onChange={onSliderChange}
-        />
-      </StickyBar>
-      <Grid container sx={{ m: 1 }}>
-        {Array.from(groupMap.entries()).map(([key, tableData]) => {
-          if (!tableData) return null;
-          const title = tableData.labels.join(" ");
-          return (
-            <Grid key={key} sx={{ p: 0.2 }} size={{ xs: 12, md: 12, lg: 6 }}>
-              <Paper sx={styles.paper}>
-                <ComparisonTable
-                  data={tableData.items}
-                  config={tableSectionConfig.tableConfig}
-                  lWorkflowId={lWorkflowId}
-                  rWorkflowId={rWorkflowId}
-                  title={title}
-                />
-              </Paper>
-            </Grid>
-          );
-        })}
-      </Grid>
-    </Box>
+    <>
+      <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
+        <StickyBar
+          offset={barOffset}
+          zIndex={900}
+          align="left"
+          contentMode="full"
+          onMount={handleMount}
+          onUnmount={handleUnmount}
+        >
+          <BenchmarkTimeSeriesComparisonTableSlider
+            workflows={workflowInfos}
+            onChange={onSliderChange}
+            lWorkflowId={lWorkflowId}
+            rWorkflowId={rWorkflowId}
+          />
+        </StickyBar>
+        <Grid container sx={{ m: 1 }}>
+          {Array.from(groupMap.entries()).map(([key, tableData]) => {
+            if (!tableData) return null;
+            const title = tableData.labels.join(" ");
+            return (
+              <Grid
+                key={key}
+                sx={{ p: 0.2 }}
+                size={{ xs: 12, md: 12, lg: 6 }}
+                id={`benchmark-time-series-comparison-table-${key}`}
+              >
+                <Paper sx={styles.paper}>
+                  <ComparisonTable
+                    data={tableData.items}
+                    config={tableSectionConfig.tableConfig}
+                    lWorkflowId={lWorkflowId}
+                    rWorkflowId={rWorkflowId}
+                    title={title}
+                    onChange={onChange}
+                  />
+                </Paper>
+              </Grid>
+            );
+          })}
+        </Grid>
+      </Box>
+    </>
   );
 }

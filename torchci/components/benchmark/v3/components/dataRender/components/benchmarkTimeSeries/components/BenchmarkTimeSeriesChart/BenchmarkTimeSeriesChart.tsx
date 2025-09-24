@@ -22,6 +22,7 @@ type ConfirmPayload = {
 
 type Props = {
   timeseries: BenchmarkTimeSeriesInput[];
+  customizedConfirmDialog?: { type: string; id?: string };
   renderOptions?: {
     height?: string | number;
     lineMapping?: Record<string, any>;
@@ -36,6 +37,7 @@ const DEFAULT_HEIGHT = 200;
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   timeseries,
   renderOptions,
+  customizedConfirmDialog,
   defaultSelectMode = false,
   onConfirm = () => {},
 }) => {
@@ -272,6 +274,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         onConfirm={confirm}
         confirmDisabled={!hasBoth}
         clearDisabled={!leftMeta && !rightMeta}
+        customizedConfirmDialog={customizedConfirmDialog}
       />
       {/* Echart controls */}
       <ReactECharts

@@ -130,6 +130,11 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             groupByFields: ["metric"],
             lineKey: ["compiler"],
             chart: {
+              enableDialog: true,
+              customizedConfirmDialog: {
+                type: "component",
+                id: "CompilerPrecomputeConfirmDialogContent",
+              },
               renderOptions: {
                 lineMapping: {
                   passrate: { type: "percent", scale: 100 },
@@ -154,6 +159,11 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
           },
           tableConfig: {
             nameKeys: ["compiler"],
+            enableDialog: true,
+            customizedConfirmDialog: {
+              type: "component",
+              id: "CompilerPrecomputeConfirmDialogContent",
+            },
             comparisonPolicyTargetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,

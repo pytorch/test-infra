@@ -1,6 +1,6 @@
 import styled from "@emotion/styled";
 import { Box, Chip, Paper, Slider, Stack, Typography } from "@mui/material";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { shortSha } from "../../helper";
 
 export type WorkflowMetaInfo = {
@@ -25,15 +25,18 @@ const fmtTs = (ts?: string) => {
   const d = new Date(ts);
   return isNaN(d.getTime()) ? ts : d.toLocaleString();
 };
-
 export function BenchmarkTimeSeriesComparisonTableSlider({
   workflows,
   onChange,
+  lWorkflowId, // 👈 new
+  rWorkflowId, // 👈 new
 }: {
   workflows: WorkflowMetaInfo[];
   onChange: (next: [string, string]) => void;
+  lWorkflowId?: string; // optional controlled inputs
+  rWorkflowId?: string;
 }) {
-  // sort & map
+  // map ids
   const { ids, byId } = useMemo(() => {
     const byId: Record<string, WorkflowMetaInfo> = {};
     workflows.forEach((it) => (byId[it.workflow_id] = it));
@@ -41,34 +44,55 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
     return { ids, byId };
   }, [workflows]);
 
-  // Controlled slider range (indices)
+  // controlled slider indices
   const [range, setRange] = useState<[number, number]>(() => {
     const n = workflows.length;
     return n >= 2 ? [0, n - 1] : [0, 0];
   });
 
-  // update range when workflows change
-  useMemo(() => {
-    const n = workflows.length;
-    if (n >= 2) {
+  // ❗ useEffect (not useMemo) for side effects
+  // 1) When workflows list changes, reset to ends—unless l/r are provided and found.
+  useEffect(() => {
+    const n = ids.length;
+    if (n === 0) return;
+
+    // prefer external l/r if they exist and are present in ids
+    const li = lWorkflowId ? ids.indexOf(lWorkflowId) : -1;
+    const ri = rWorkflowId ? ids.indexOf(rWorkflowId) : -1;
+
+    if (li >= 0 && ri >= 0) {
+      setRange(li <= ri ? [li, ri] : [ri, li]);
+    } else if (n >= 2) {
       setRange([0, n - 1]);
     } else {
       setRange([0, 0]);
     }
-  }, [workflows]);
+  }, [ids, lWorkflowId, rWorkflowId]);
 
-  function rangeLabelFormat(wfi: any) {
-    const wf = byId[ids[wfi as number]];
+  // If only l or only r changes later, sync partially without breaking
+  useEffect(() => {
+    const [curL, curR] = range;
+    const li = lWorkflowId ? ids.indexOf(lWorkflowId) : -1;
+    const ri = rWorkflowId ? ids.indexOf(rWorkflowId) : -1;
+
+    let next: [number, number] | null = null;
+    if (li >= 0 && ri >= 0) next = li <= ri ? [li, ri] : [ri, li];
+    else if (li >= 0) next = li <= curR ? [li, curR] : [curR, li];
+    else if (ri >= 0) next = curL <= ri ? [curL, ri] : [ri, curL];
+
+    if (next && (next[0] !== curL || next[1] !== curR)) setRange(next);
+  }, [lWorkflowId, rWorkflowId, ids]); // ids needed for indexOf
+
+  function rangeLabelFormat(wfi: number) {
+    const wf = byId[ids[wfi]];
     if (!wf) return "-";
     const commit = wf.commit ? shortSha(wf.commit) : "";
     return `${wf.workflow_id} (commit: ${commit})`;
   }
 
-  // render slider tick labels when slider is hovered
   function valueLabelFormat(idx: number) {
-    const wf = byId[ids[idx as number]];
+    const wf = byId[ids[idx]];
     if (!wf) return "";
-
     return (
       <Box sx={{ p: 0.5 }}>
         <strong>WorkflowId: {wf.workflow_id}</strong>
@@ -79,22 +103,23 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
   }
 
   const handleChange = useCallback(
-    (_event: Event, value: number | number[], _activeThumb: number) => {
+    (_e: Event, value: number | number[]) => {
       if (Array.isArray(value) && value.length === 2) {
-        const [a, b] = value[0] <= value[1] ? value : [value[1], value[0]];
+        const [a, b] =
+          value[0] <= value[1]
+            ? (value as [number, number])
+            : [value[1], value[0]];
         setRange([a, b]);
-        const l = ids[a];
-        const r = ids[b];
-        console.log("onChange", l, r);
-        onChange([l, r]);
+        onChange([ids[a], ids[b]]); // emit workflow ids
       }
     },
-    [onChange]
+    [ids, onChange]
   );
 
   const minWidth = Math.max(200, 50 * ids.length);
+
   return (
-    <Paper sx={{ p: 2, width: "100%", minWidth: minWidth }}>
+    <Paper sx={{ p: 2, width: "100%", minWidth }}>
       <Typography variant="subtitle1" gutterBottom>
         Select L / R Data
       </Typography>
@@ -108,11 +133,11 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
             max={Math.max(0, ids.length - 1)}
             step={1}
             valueLabelDisplay="auto"
-            valueLabelFormat={(idx) => valueLabelFormat(idx)}
+            valueLabelFormat={valueLabelFormat}
             disableSwap
           />
         </Box>
-        <Chip label={`R:  ${rangeLabelFormat(range[1])}`} />
+        <Chip label={`R: ${rangeLabelFormat(range[1])}`} />
       </Stack>
     </Paper>
   );

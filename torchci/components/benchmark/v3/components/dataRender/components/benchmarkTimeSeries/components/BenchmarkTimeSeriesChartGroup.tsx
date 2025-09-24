@@ -74,6 +74,7 @@ export default function BenchmarkTimeSeriesChartGroup({
           <Grid
             key={g.key}
             size={{ xs: 12, md: 12, lg: 6, ...chartGroup.renderOptions }}
+            id={`benchmark-time-series-chart-group-${g.key}`}
           >
             <Typography variant="h6" sx={{ mb: 1.5 }}>
               {g.labels.join(" ")}
@@ -81,6 +82,9 @@ export default function BenchmarkTimeSeriesChartGroup({
             </Typography>
             <BenchmarkTimeSeriesChart
               timeseries={groupSeries}
+              customizedConfirmDialog={
+                chartGroup?.chart?.customizedConfirmDialog
+              }
               renderOptions={chartGroup?.chart?.renderOptions}
               defaultSelectMode={defaultSelectMode}
               onConfirm={onConfirm}

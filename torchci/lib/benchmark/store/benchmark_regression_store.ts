@@ -39,8 +39,8 @@ export interface BenchmarkDashboardState {
   commitMainOptions: () => void;
   revertMainOptions: () => void;
 
-  setLCommit: (commit: BenchmarkCommitMeta | null) => void;
-  setRCommit: (commit: BenchmarkCommitMeta | null) => void;
+  setLcommit: (commit: BenchmarkCommitMeta | null) => void;
+  setRcommit: (commit: BenchmarkCommitMeta | null) => void;
 
   update: (initial: {
     time?: TimeRange;
@@ -126,8 +126,8 @@ export function createDashboardStore(initial: {
         stagedRbranch: get().committedRbranch,
       }),
 
-    setLCommit: (commit) => set({ lcommit: commit }),
-    setRCommit: (commit) => set({ rcommit: commit }),
+    setLcommit: (commit) => set({ lcommit: commit }),
+    setRcommit: (commit) => set({ rcommit: commit }),
 
     reset: (next) =>
       set({
