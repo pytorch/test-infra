@@ -1,6 +1,5 @@
 import { isDayjs } from "dayjs";
 
-
 /** Decide if a key should be excluded (supports exact key or prefix match) */
 export function shouldExclude(key: string, exclude: Set<string>) {
   if (exclude.has(key)) return true;
@@ -72,7 +71,6 @@ export function stateToQuery(
   for (const [k, v] of Object.entries(obj ?? {})) walk(k, v);
   return out;
 }
-
 
 // Normalize query object (so arrays and single values compare fairly)
 export function stableQuerySig(q: Record<string, any>): string {

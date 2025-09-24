@@ -1,8 +1,10 @@
-import { useDashboardSelector, useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
-import { queryToState, stableQuerySig, stateToQuery } from "lib/helpers/urlQuery";
-import { NextRouter, useRouter } from "next/router";
+import {
+  queryToState,
+  stableQuerySig,
+  stateToQuery,
+} from "lib/helpers/urlQuery";
+import { NextRouter } from "next/router";
 import { useEffect, useRef } from "react";
-
 
 // -------- Hook --------
 
@@ -16,7 +18,7 @@ import { useEffect, useRef } from "react";
 export function useUrlStoreSync<T extends Record<string, any>>(
   router: NextRouter,
   state: T,
-  hydrate: (parsed: any) => void
+  update: (parsed: any) => void
 ) {
   const isApplyingUrlRef = useRef(false);
   const didInitRef = useRef(false);
@@ -30,10 +32,12 @@ export function useUrlStoreSync<T extends Record<string, any>>(
     isApplyingUrlRef.current = true;
     try {
       const parsed = queryToState(router.query);
-      hydrate(parsed);
+      update(parsed);
     } finally {
       // release in next tick to avoid immediate store->url bounce
-      setTimeout(() => { isApplyingUrlRef.current = false; }, 0);
+      setTimeout(() => {
+        isApplyingUrlRef.current = false;
+      }, 0);
     }
   }, [router.isReady]); // only depends on readiness
 
@@ -54,10 +58,14 @@ export function useUrlStoreSync<T extends Record<string, any>>(
     // briefly mark as syncing to avoid URL->store echo
     isApplyingUrlRef.current = true;
     router
-      .replace({ pathname: router.pathname, query: nextQueryObj }, undefined, { shallow: true })
+      .replace({ pathname: router.pathname, query: nextQueryObj }, undefined, {
+        shallow: true,
+      })
       .finally(() => {
         lastPushedSigRef.current = nextSig;
-        setTimeout(() => { isApplyingUrlRef.current = false; }, 0);
+        setTimeout(() => {
+          isApplyingUrlRef.current = false;
+        }, 0);
       });
   };
 

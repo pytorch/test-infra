@@ -4,7 +4,9 @@ import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
 
 /** Convert query object → query string */
-function queryObjectToSearchParams(q: Record<string, string | string[] | undefined>): string {
+function queryObjectToSearchParams(
+  q: Record<string, string | string[] | undefined>
+): string {
   const usp = new URLSearchParams();
   for (const [k, v] of Object.entries(q)) {
     if (Array.isArray(v)) {
