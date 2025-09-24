@@ -9,7 +9,6 @@ import drciBot from "./drciBot";
 import pytorchBot from "./pytorchBot";
 import retryBot from "./retryBot";
 import stripApprovalBot from "./stripApprovalBot";
-import triggerCircleCIWorkflows from "./triggerCircleCIWorkflows";
 import triggerInductorTestsBot from "./triggerInductorTestsBot";
 import verifyDisableTestIssueBot from "./verifyDisableTestIssueBot";
 import webhookToDynamo from "./webhookToDynamo";
@@ -25,7 +24,6 @@ export default function bot(app: Probot) {
   pytorchBot(app);
   retryBot(app);
   stripApprovalBot(app);
-  triggerCircleCIWorkflows(app);
   verifyDisableTestIssueBot(app);
   webhookToDynamo(app);
   triggerInductorTestsBot(app);

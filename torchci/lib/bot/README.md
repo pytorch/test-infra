@@ -47,7 +47,6 @@ The bot supports these primary commands:
 
 ### CI Integration Bots
 
-8. **triggerCircleCIWorkflows** - CircleCI pipeline integration
 9. **triggerInductorTestsBot** - PyTorch Inductor test triggering
 10. **verifyDisableTestIssueBot** - Test disabling authorization
 
@@ -140,26 +139,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Creates tags in format `ciflow/label/PR_NUMBER` to trigger downstream CI systems
 
-### 5. triggerCircleCIWorkflows.ts
-
-**Primary Purpose:** Integrates with CircleCI by triggering workflows based on GitHub events and labels.
-
-**Key Features:**
-
-- **Label-to-parameter mapping**: Converts GitHub labels to CircleCI pipeline parameters
-- **Branch/tag filtering**: Different behavior for push events vs. pull requests
-- **Configuration-driven**: Uses YAML config to define label-to-parameter mappings
-- **Fork handling**: Special handling for PRs from forked repositories
-- **Default parameters**: Supports default parameter values for workflows
-
-**GitHub Webhooks:**
-
-- `pull_request.labeled`, `pull_request.synchronize`
-- `push`
-
-**Special Logic:** Translates GitHub repository state into CircleCI pipeline parameters using configurable mappings
-
-### 6. triggerInductorTestsBot.ts
+### 5. triggerInductorTestsBot.ts
 
 **Primary Purpose:** Allows authorized users to trigger PyTorch Inductor tests via comment commands.
 
@@ -177,7 +157,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Security-focused with explicit allowlists for users and repositories
 
-### 7. cancelWorkflowsOnCloseBot.ts
+### 6. cancelWorkflowsOnCloseBot.ts
 
 **Primary Purpose:** Cancels running GitHub Actions workflows when PRs are closed to save compute resources.
 
@@ -195,7 +175,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Prevents unnecessary resource usage by canceling workflows for closed/abandoned PRs
 
-### 8. verifyDisableTestIssueBot.ts
+### 7. verifyDisableTestIssueBot.ts
 
 **Primary Purpose:** Validates and processes issues that request disabling or marking tests as unstable.
 
@@ -213,7 +193,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Critical security component that ensures only authorized users can disable CI tests
 
-### 9. stripApprovalBot.ts
+### 8. stripApprovalBot.ts
 
 **Primary Purpose:** Removes PR approvals when PRs are reopened to ensure fresh review.
 
@@ -230,7 +210,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Maintains code review integrity by requiring fresh approvals after PR reopening
 
-### 10. codevNoWritePermBot.ts
+### 9. codevNoWritePermBot.ts
 
 **Primary Purpose:** Notifies Phabricator/Codev users when they need GitHub write permissions for CI.
 
@@ -247,7 +227,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Bridges the gap between internal Facebook/Meta development workflow and external GitHub CI requirements
 
-### 11. drciBot.ts
+### 10. drciBot.ts
 
 **Primary Purpose:** Manages Dr. CI (Diagnostic CI) comments that provide comprehensive PR status information.
 
@@ -264,7 +244,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
 
-### 12. webhookToDynamo.ts
+### 11. webhookToDynamo.ts
 
 **Primary Purpose:** Logs GitHub webhook events to DynamoDB tables for analytics and auditing.
 
