@@ -17,7 +17,8 @@ export function repoKey(context: Context): string {
 }
 
 export function isPyTorchManagedOrg(owner: string): boolean {
-  return owner === "pytorch" || owner === "meta-pytorch";
+  // We frequently test CI changes on malfet/deleteme
+  return owner === "pytorch" || owner === "meta-pytorch" || owner === "malfet";
 }
 
 export function isPyTorchPyTorch(owner: string, repo: string): boolean {

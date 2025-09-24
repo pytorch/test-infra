@@ -1,14 +1,19 @@
 import { Probot } from "probot";
 import { getInputArgs } from "./cliParser";
 import PytorchBotHandler from "./pytorchBotHandler";
-import { CachedConfigTracker } from "./utils";
+import { CachedConfigTracker, isPyTorchManagedOrg } from "./utils";
 
 function pytorchBot(app: Probot): void {
   const cachedConfigTracker = new CachedConfigTracker(app);
 
   app.on("issue_comment.created", async (ctx) => {
-    const commentBody = ctx.payload.comment.body;
     const owner = ctx.payload.repository.owner.login;
+    if (!isPyTorchManagedOrg(owner)) {
+      ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
+    const commentBody = ctx.payload.comment.body;
     const repo = ctx.payload.repository.name;
     const prNum = ctx.payload.issue.number;
     const commentId = ctx.payload.comment.id;
@@ -45,8 +50,13 @@ function pytorchBot(app: Probot): void {
   app.on(
     ["pull_request_review.submitted", "pull_request_review.edited"],
     async (ctx) => {
-      const reviewBody = ctx.payload.review.body;
       const owner = ctx.payload.repository.owner.login;
+      if (!isPyTorchManagedOrg(owner)) {
+        ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
+      const reviewBody = ctx.payload.review.body;
       const repo = ctx.payload.repository.name;
       const prNum = ctx.payload.pull_request.number;
       const commentId = ctx.payload.review.id;

@@ -206,6 +206,12 @@ function genCircleParametersForPush(config: Config, context: Context): Params {
 }
 
 async function runBotForPR(context: Context): Promise<void> {
+  const owner = context.payload.repository.owner.login;
+  if (!isPyTorchManagedOrg(owner)) {
+    context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   try {
     let triggerBranch = context.payload["pull_request"]["head"]["ref"];
     if (context.payload["pull_request"]["head"]["repo"]["fork"]) {
@@ -235,6 +241,12 @@ async function runBotForPR(context: Context): Promise<void> {
 }
 
 async function runBotForPush(context: Context): Promise<void> {
+  const owner = context.payload.repository.owner.login;
+  if (!isPyTorchManagedOrg(owner)) {
+    context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   try {
     const rawRef = context.payload["ref"];
     const onTag: boolean = rawRef.startsWith("refs/tags");

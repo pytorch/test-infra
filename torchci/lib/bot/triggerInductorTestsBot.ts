@@ -1,5 +1,5 @@
 import { Context, Probot } from "probot";
-import { reactOnComment } from "./utils";
+import { isPyTorchManagedOrg, reactOnComment } from "./utils";
 
 export default function triggerInductorTestsBot(app: Probot): void {
   const preapprovedUsers = ["pytorchbot", "PaliC", "huydhn"]; // List of preapproved users
@@ -11,6 +11,12 @@ export default function triggerInductorTestsBot(app: Probot): void {
   app.on(
     ["issue_comment.created"],
     async (ctx: Context<"issue_comment.created">) => {
+      const owner = ctx.payload.repository.owner.login;
+      if (!isPyTorchManagedOrg(owner)) {
+        ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
       const commentBody = ctx.payload.comment.body.toLowerCase();
       const commenter = ctx.payload.comment.user.login;
       const orgRepo = `${ctx.payload.repository.owner.login}/${ctx.payload.repository.name}`;

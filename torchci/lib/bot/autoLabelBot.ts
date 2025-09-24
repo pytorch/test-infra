@@ -8,6 +8,7 @@ import {
   getFilesChangedByPr,
   hasApprovedPullRuns,
   hasWritePermissions,
+  isPyTorchManagedOrg,
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
 } from "./utils";
@@ -432,6 +433,12 @@ function myBot(app: Probot): void {
   const labelToLabelConfigTracker = new LabelToLabelConfigTracker(app);
 
   app.on("issues.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchManagedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     // Careful!  For most labels, we only apply actions *when the issue
     // is added*; not if the issue is pre-existing (for example, high
     // priority label results in triage review, but if we unlabel it
@@ -471,6 +478,12 @@ function myBot(app: Probot): void {
   });
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchManagedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const existingLabels: string[] = context.payload.issue.labels!.map(
       (e) => e["name"]
     );
@@ -484,10 +497,15 @@ function myBot(app: Probot): void {
   app.on(
     ["pull_request.opened", "pull_request.edited", "pull_request.synchronize"],
     async (context) => {
+      const owner = context.payload.repository.owner.login;
+      if (!isPyTorchManagedOrg(owner)) {
+        context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
       const labels: string[] = context.payload.pull_request.labels.map(
         (e) => e["name"]
       );
-      const owner = context.payload.repository.owner.login;
       const repo = context.payload.repository.name;
       const title = context.payload.pull_request.title;
       const filesChanged = await getFilesChangedByPr(
@@ -554,6 +572,12 @@ function myBot(app: Probot): void {
   );
 
   app.on("pull_request.opened", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchManagedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     // Add labels based on PR author, but only when the PR is opened so they can
     // edit the labels later if they want
     const author = context.payload.pull_request.user.login;

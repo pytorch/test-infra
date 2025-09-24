@@ -1,10 +1,16 @@
 import { Context, Probot } from "probot";
-import { hasWritePermissions } from "./utils";
+import { hasWritePermissions, isPyTorchManagedOrg } from "./utils";
 
 export default function stripApprovalBot(app: Probot): void {
   app.on(
     ["pull_request.reopened"],
     async (ctx: Context<"pull_request.reopened">) => {
+      const owner = ctx.payload.repository.owner.login;
+      if (!isPyTorchManagedOrg(owner)) {
+        ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
       const pr_author = ctx.payload.pull_request.user.login;
       console.log("pr_author: ", pr_author);
       // cause error
@@ -13,7 +19,6 @@ export default function stripApprovalBot(app: Probot): void {
         return;
       }
 
-      const owner = ctx.payload.repository.owner.login;
       const repo = ctx.payload.repository.name;
       const issue_number = ctx.payload.pull_request.number;
 

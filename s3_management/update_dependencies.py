@@ -412,7 +412,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "outlines-core": [{"version": "0.2.10", "project": "vllm"}],
     "diskcache": [{"version": "latest", "project": "vllm"}],
     "lark": [{"version": "latest", "project": "vllm"}],
-    "xgrammar": [{"version": "0.1.23", "project": "vllm"}],
+    "xgrammar": [{"version": "0.1.24", "project": "vllm"}],
     "partial-json-parser": [{"version": "latest", "project": "vllm"}],
     "pyzmq": [{"version": "latest", "project": "vllm"}],
     "msgspec": [{"version": "latest", "project": "vllm"}],
