@@ -3,7 +3,6 @@
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { Box } from "@mui/system";
 import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
@@ -154,7 +153,9 @@ export function SideBarMainSection() {
   return (
     <Stack spacing={2} sx={styles.root}>
       <Stack direction="row" alignItems="center" spacing={0}>
-        <Typography variant="body2" sx={{ fontSize: '0.6rem' }}>Share link: </Typography>
+        <Typography variant="body2" sx={{ fontSize: "0.6rem" }}>
+          Share link:{" "}
+        </Typography>
         <UMCopyLink
           params={{
             timeRange: committedTime,
