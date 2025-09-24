@@ -223,7 +223,7 @@ class TestSignal(unittest.TestCase):
         self.assertEqual(res.reason, IneligibleReason.FIXED)
 
     def test_insufficient_failures_returns_restart_oldest_failed_when_no_pending(self):
-        # Only one failure event overall (< 2) → suggest restart of oldest failed
+        # Only one failure event overall (< 2) -> suggest restart of oldest failed
         c_failed = SignalCommit(
             head_sha="sha_failed",
             events=[self._ev("job", SignalStatus.FAILURE, 5)],
