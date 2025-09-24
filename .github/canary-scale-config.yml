@@ -92,6 +92,16 @@ runner_types:
     instance_type: c5.2xlarge
     is_ephemeral: true
     os: linux
+  c.linux.2xlarge.c7i.test.donotuse:
+    disk_size: 150
+    instance_type: c7i.2xlarge
+    is_ephemeral: true
+    os: linux
+  c.linux.2xlarge.c7a.test.donotuse:
+    disk_size: 150
+    instance_type: c7a.2xlarge
+    is_ephemeral: true
+    os: linux
   c.linux.4xlarge:
     disk_size: 150
     instance_type: c5.4xlarge
