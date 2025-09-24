@@ -1,5 +1,6 @@
 // benchmark_regression_store.ts
 import type { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
@@ -41,14 +42,34 @@ export interface BenchmarkDashboardState {
   setLCommit: (commit: BenchmarkCommitMeta | null) => void;
   setRCommit: (commit: BenchmarkCommitMeta | null) => void;
 
+  update: (initial: {
+    time?: TimeRange;
+    benchmarkId?: string;
+    filters?: Record<string, string>;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
+    lBranch?: string;
+    rBranch?: string;
+  }) => void;
+
+  hydrateFromUrl: (initial: {
+    time: TimeRange;
+    benchmarkId: string;
+    filters: Record<string, string>;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
+    lBranch?: string;
+    rBranch?: string;
+  }) => void;
+
   reset: (initial: {
     time: TimeRange;
     benchmarkId: string;
     filters: Record<string, string>;
     lcommit?: BenchmarkCommitMeta | null;
     rcommit?: BenchmarkCommitMeta | null;
-    lbranch?: string;
-    rbranch?: string;
+    lBranch?: string;
+    rBranch?: string;
   }) => void;
 }
 
@@ -56,8 +77,8 @@ export function createDashboardStore(initial: {
   benchmarkId: string;
   time: TimeRange;
   filters: Record<string, string>;
-  lbranch: string;
-  rbranch: string;
+  lBranch: string;
+  rBranch: string;
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
 }) {
@@ -67,14 +88,14 @@ export function createDashboardStore(initial: {
     // staged
     stagedTime: initial.time,
     stagedFilters: initial.filters,
-    stagedLbranch: initial.lbranch ?? "",
-    stagedRbranch: initial.rbranch ?? "",
+    stagedLbranch: initial.lBranch ?? "",
+    stagedRbranch: initial.rBranch ?? "",
 
     // committed
     committedTime: initial.time,
     committedFilters: initial.filters,
-    committedLbranch: initial.lbranch ?? "",
-    committedRbranch: initial.rbranch ?? "",
+    committedLbranch: initial.lBranch ?? "",
+    committedRbranch: initial.rBranch ?? "",
 
     // current commits
     lcommit: initial.lcommit ?? null,
@@ -114,13 +135,65 @@ export function createDashboardStore(initial: {
         committedTime: next.time,
         stagedFilters: next.filters,
         committedFilters: next.filters,
-        stagedLbranch: next.lbranch ?? "",
-        stagedRbranch: next.rbranch ?? "",
-        committedLbranch: next.lbranch ?? "",
-        committedRbranch: next.rbranch ?? "",
+        stagedLbranch: next.lBranch ?? "",
+        stagedRbranch: next.rBranch ?? "",
+        committedLbranch: next.lBranch ?? "",
+        committedRbranch: next.rBranch ?? "",
         lcommit: next.lcommit ?? null,
         rcommit: next.rcommit ?? null,
         // (optional) benchmarkId: next.benchmarkId,
       }),
+
+    update: (next) =>{
+      console.log("in update", next.lBranch, next.rBranch)
+
+      set((s) => ({
+        // important to keep the benchmarkId as original if not specified
+        benchmarkId: next.benchmarkId?? s.benchmarkId,
+        // staged
+        stagedTime: next.time ?? s.stagedTime,
+        stagedFilters: next.filters ?? s.stagedFilters,
+        stagedLbranch: next.lBranch ?? s.stagedLbranch ?? "",
+        stagedRbranch: next.rBranch ?? s.stagedRbranch ?? "",
+
+        // committed mirrors staged on first load
+        committedTime: next.time?? s.committedTime,
+        committedFilters: next.filters?? s.committedFilters,
+        committedLbranch: next.lBranch ?? s.committedLbranch ?? "",
+        committedRbranch: next.lBranch ?? s.committedRbranch ?? "",
+        lcommit: next.lcommit ?? null,
+        rcommit: next.rcommit ?? null,
+
+      }))
+    },
+
+  hydrateFromUrl: ({
+    time,
+    filters,
+    benchmarkId,
+    lBranch,
+    rBranch,
+    lcommit,
+    rcommit,
+  }) =>{
+    let timeRange = undefined
+    if (time?.end && time?.start){
+      timeRange = {
+        start: dayjs.utc(time.start),
+        end: dayjs.utc(time.end)
+      }
+    }
+    return get().update({
+      time: timeRange,
+      filters,
+      benchmarkId,
+      lBranch,
+      rBranch,
+      lcommit,
+      rcommit,
+    })
+  },
   }));
+
+
 }

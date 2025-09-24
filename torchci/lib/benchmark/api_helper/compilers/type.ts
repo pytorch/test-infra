@@ -155,7 +155,8 @@ export function useBenchmarkCommitsData(
 ): any {
   const shouldFetch = !!baseParams;
 
-  if (!baseParams.branches) {
+
+  if (baseParams && !baseParams.branches) {
     baseParams.branches = [];
   }
 

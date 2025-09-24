@@ -1,6 +1,7 @@
 import { getConfig } from "components/benchmark/v3/configs/configBook";
 import { getFanoutRenderComponent } from "components/benchmark/v3/configs/utils/fanoutRegistration";
 import LoadingPage from "components/common/LoadingPage";
+import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useState } from "react";
@@ -76,6 +77,7 @@ export function DefaultFanoutRenderContent() {
 
   return (
     <div>
+      <div>{config.benchmarkId}</div>
       {fanoutUIConfigs.map((fanoutUIConfig, index) => {
         const { Component, data_path } =
           getFanoutRenderComponent(fanoutUIConfig);

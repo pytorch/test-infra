@@ -8,10 +8,14 @@ import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
-import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { useDashboardSelector, useDashboardStore } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useEffect, useRef } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { BranchDropdowns } from "./BranchDropdown";
+import { UMCopyLink } from "components/uiModules/UMCopyLink";
+import { useRouter } from "next/router";
+import { objectToQueryString } from "components/utilization/UtilizationReportPage/hepler";
+import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
   root: {
@@ -26,6 +30,27 @@ const styles = {
  *
  */
 export function SideBarMainSection() {
+
+  const router = useRouter()
+  const hydrateFromUrl = useDashboardSelector((s) => s.hydrateFromUrl)
+
+  const committedState = useDashboardSelector((s) => ({
+    time: s.committedTime,
+    filters: s.committedFilters,
+    lcommit: s.lcommit,
+    rcommit: s.rcommit,
+    lbranch: s.committedLbranch,
+    rbranch: s.committedRbranch
+  }));
+
+  console.log("committedState",committedState)
+
+  const { pushUrlFromStore } = useUrlStoreSync(router, committedState, hydrateFromUrl);
+
+  // make the url in sync with the state of the store
+  pushUrlFromStore()
+
+
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
@@ -47,7 +72,6 @@ export function SideBarMainSection() {
     committedFilters,
     committedLbranch,
     committedRbranch,
-
     commitMainOptions,
     revertMainOptions,
   } = useDashboardSelector((s) => ({
@@ -114,7 +138,6 @@ export function SideBarMainSection() {
   }, [branches]);
 
   const DropdownComp = dataBinding?.getFilterOptionComponent();
-
   const dirty =
     stagedTime.start.valueOf() !== committedTime.start.valueOf() ||
     stagedTime.end.valueOf() !== committedTime.end.valueOf() ||
@@ -129,6 +152,13 @@ export function SideBarMainSection() {
 
   return (
     <Stack spacing={2} sx={styles.root}>
+      <UMCopyLink params={{
+        timeRange: committedTime,
+        filters: committedFilters,
+        lBranch: committedLbranch,
+        rBranch: committedRbranch,
+      }} />
+
       <UMDateButtonPicker
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) =>
           setStagedTime({ start, end })
