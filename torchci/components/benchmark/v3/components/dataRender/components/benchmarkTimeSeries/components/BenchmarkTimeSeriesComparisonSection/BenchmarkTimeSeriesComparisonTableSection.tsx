@@ -1,4 +1,4 @@
-import { Divider, Paper, Typography } from "@mui/material";
+import { Paper } from "@mui/material";
 import { Box, Grid } from "@mui/system";
 import { StickyBar } from "components/benchmark/v3/components/common/StickyBar";
 import { useMemo, useState } from "react";
@@ -79,8 +79,6 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
 
   return (
     <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
-      <Typography variant="h4"> Time Series Comparison Section </Typography>
-      <Divider />
       <StickyBar
         offset={barOffset}
         zIndex={900}

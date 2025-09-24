@@ -78,6 +78,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
 // The initial config for the compiler benchmark regression page
 export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   benchmarkId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
+  apiId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
   // (elainewy): todo change this to json-friend config
   time: {
     start: dayjs.utc().startOf("day").subtract(7, "day"),
@@ -101,7 +102,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
 export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
   benchmarkId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
   apiId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
-  benchmarkName: "Compiler Inductor Regression Tracking",
+  title: "Compiler Inductor Regression Tracking",
   dataBinding: {
     initial: COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
     required_filter_fields: REQUIRED_COMPLIER_LIST_COMMITS_KEYS,
@@ -121,6 +122,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
     renders: [
       {
         type: "FanoutBenchmarkTimeSeriesChartSection",
+        title: "Time Series Chart Section",
         config: {
           groupByFields: ["suite"],
           chartGroup: {
@@ -139,6 +141,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
       },
       {
         type: "FanoutBenchmarkTimeSeriesComparisonTableSection",
+        title: "Time Series Comparison Table Section",
         config: {
           groupByFields: ["metric"],
           filterByFieldValues: {

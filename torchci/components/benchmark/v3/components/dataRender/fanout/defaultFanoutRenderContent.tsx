@@ -1,9 +1,12 @@
+import { Divider, Typography } from "@mui/material";
+import { Box, Stack } from "@mui/system";
 import { getConfig } from "components/benchmark/v3/configs/configBook";
 import { getFanoutRenderComponent } from "components/benchmark/v3/configs/utils/fanoutRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useState } from "react";
+import { ToggleSection } from "../../common/ToggleSection";
 
 /**
  * The default fanout component fetches pre-processed data for chart,
@@ -75,25 +78,33 @@ export function DefaultFanoutRenderContent() {
   const multidata = resp.data.data;
 
   return (
-    <div>
-      <div>{config.benchmarkId}</div>
+    <Box>
+      <Stack spacing={1}>
+        <Typography variant="h2"> {config.raw.title} </Typography>
+      </Stack>
+      <Divider />
       {fanoutUIConfigs.map((fanoutUIConfig, index) => {
         const { Component, data_path } =
           getFanoutRenderComponent(fanoutUIConfig);
         if (!data_path) {
           return (
-            <div> unable to fetch fanout component {fanoutUIConfig.type}</div>
+            <div key={index}>
+              unable to fetch fanout component {fanoutUIConfig.type}
+            </div>
           );
         }
+        const title =
+          fanoutUIConfig.title ?? fanoutUIConfig.type ?? `Section ${index + 1}`;
         return (
-          <Component
-            key={index}
-            data={multidata[data_path]}
-            config={fanoutUIConfig.config}
-            onChange={setPayload}
-          />
+          <ToggleSection key={index} title={title}>
+            <Component
+              data={multidata[data_path]}
+              config={fanoutUIConfig.config}
+              onChange={setPayload}
+            />
+          </ToggleSection>
         );
       })}
-    </div>
+    </Box>
   );
 }

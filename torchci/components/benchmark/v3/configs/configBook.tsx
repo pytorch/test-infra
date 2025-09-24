@@ -10,6 +10,8 @@ import {
 } from "./utils/dataBindingRegistration";
 
 export type UIRenderConfig = {
+  title?: string; // title of the component to render
+  id?: string; // id of the component to render
   type: string; // type of the component to render
   config: any; // config of the component to render
 };
@@ -24,7 +26,7 @@ export type DataRenderOption = {
 export type BenchmarkUIConfig = {
   benchmarkId: string;
   apiId: string;
-  benchmarkName: string;
+  title: string;
   dataBinding: DataBindingConfig; // data binding config
   dataRender?: DataRenderOption; // either binds a component or a converter function to render data
   required_filter_fields?: readonly string[]; // required filter fields
