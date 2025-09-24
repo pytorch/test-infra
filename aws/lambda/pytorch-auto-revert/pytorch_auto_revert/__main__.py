@@ -4,14 +4,26 @@ import argparse
 import base64
 import logging
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
 
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
-from .testers.hud import run_hud
+from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
 from .testers.restart_checker import workflow_restart_checker
+from .utils import RestartAction, RevertAction
+
+
+DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
+DEFAULT_REPO_FULL_NAME = "pytorch/pytorch"
+DEFAULT_HOURS = 16
+DEFAULT_COMMENT_ISSUE_NUMBER = (
+    163650  # https://github.com/pytorch/pytorch/issues/163650
+)
+# Special constant to indicate --hud-html was passed as a flag (without a value)
+HUD_HTML_NO_VALUE_FLAG = object()
 
 
 def setup_logging(log_level: str) -> None:
@@ -19,7 +31,22 @@ def setup_logging(log_level: str) -> None:
     numeric_level = getattr(logging, log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError(f"Invalid log level: {log_level}")
-    logging.basicConfig(level=numeric_level)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(numeric_level)
+
+    if not root_logger.handlers:
+        handler = logging.StreamHandler()
+        handler.setLevel(numeric_level)
+        formatter = logging.Formatter(
+            "%(asctime)s %(levelname)s [%(name)s] %(message)s"
+        )
+        handler.setFormatter(formatter)
+        root_logger.addHandler(handler)
+    else:
+        for handler in root_logger.handlers:
+            if handler.level == logging.NOTSET:
+                handler.setLevel(numeric_level)
 
 
 def get_opts() -> argparse.Namespace:
@@ -71,7 +98,7 @@ def get_opts() -> argparse.Namespace:
     # no subcommand runs the lambda flow
     subparsers = parser.add_subparsers(dest="subcommand")
 
-    # autorevert-checker subcommand (new default; legacy behind a flag)
+    # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
         "autorevert-checker",
         help="Analyze workflows for autorevert using Signals (default), or legacy via flag",
@@ -79,37 +106,55 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "workflows",
         nargs="+",
+        default=DEFAULT_WORKFLOWS,
         help="Workflow name(s) to analyze - single name or comma/space separated"
         + ' list (e.g., "pull" or "pull,trunk,inductor")',
     )
     workflow_parser.add_argument(
-        "--hours", type=int, default=48, help="Lookback window in hours (default: 48)"
+        "--hours",
+        type=int,
+        default=DEFAULT_HOURS,
+        help=f"Lookback window in hours (default: {DEFAULT_HOURS})",
     )
     workflow_parser.add_argument(
         "--repo-full-name",
-        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
+        default=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
         help="Full repo name to filter by (owner/repo).",
     )
     workflow_parser.add_argument(
-        "--verbose",
-        "-v",
-        action="store_true",
-        help="Show detailed output including commit summaries",
+        "--restart-action",
+        type=RestartAction,
+        default=RestartAction.RUN,
+        choices=list(RestartAction),
+        help=(
+            "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
+        ),
     )
     workflow_parser.add_argument(
-        "--do-restart",
-        action="store_true",
-        help="Actually restart workflows for detected autorevert patterns",
+        "--revert-action",
+        type=RevertAction,
+        default=RevertAction.LOG,
+        choices=list(RevertAction),
+        help=(
+            "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or run-revert."
+        ),
     )
     workflow_parser.add_argument(
-        "--do-revert",
-        action="store_true",
-        help="When restarts complete and secondary pattern matches, log REVERT",
+        "--hud-html",
+        nargs="?",
+        const=HUD_HTML_NO_VALUE_FLAG,
+        default=None,
+        help=(
+            "If set, write the run state to HUD HTML; omit a value to use the run timestamp as the filename."
+        ),
     )
     workflow_parser.add_argument(
-        "--ignore-common-errors",
-        action="store_true",
-        help="Ignore common errors in autorevert patterns (e.g., 'No tests found')",
+        "--notify-issue-number",
+        type=int,
+        default=int(
+            os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
+        ),
+        help=f"Issue number to notify (default: {DEFAULT_COMMENT_ISSUE_NUMBER})",
     )
 
     # workflow-restart-checker subcommand
@@ -133,34 +178,28 @@ def get_opts() -> argparse.Namespace:
 
     # hud subcommand: generate local HTML report for signals/detections
     hud_parser = subparsers.add_parser(
-        "hud", help="Generate local HUD-like HTML with extracted signals"
+        "hud", help="Render HUD HTML from a logged autorevert run state"
     )
     hud_parser.add_argument(
-        "workflows",
-        nargs="+",
-        help="Workflow name(s) to analyze - e.g. trunk pull inductor",
-    )
-    hud_parser.add_argument(
-        "--hours", type=int, default=24, help="Lookback window in hours (default: 24)"
+        "timestamp",
+        nargs="?",
+        default=None,
+        help="Run timestamp in UTC (e.g. '2025-09-17 20:29:15') matching misc.autorevert_state.ts",
     )
     hud_parser.add_argument(
         "--repo-full-name",
-        default=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
-        help="Full repo name to filter by (owner/repo).",
-    )
-    hud_parser.add_argument(
-        "--out",
-        default="hud.html",
-        help="Output HTML file path (default: hud.html)",
-    )
-    hud_parser.add_argument(
-        "--ignore-newer-than",
-        dest="ignore_newer_than",
+        dest="repo_full_name",
         default=None,
         help=(
-            "Commit SHA (short or long) — drop all commits that are newer than "
-            "this SHA from signal detection and HUD rendering"
+            "Optional repo filter (owner/repo). Required if multiple runs share the same timestamp."
         ),
+    )
+    hud_parser.add_argument(
+        "--hud-html",
+        nargs="?",
+        const=HUD_HTML_NO_VALUE_FLAG,
+        default=None,
+        help="Output HTML file path (defaults to the timestamp-based filename)",
     )
 
     return parser.parse_args()
@@ -195,35 +234,41 @@ def main(*args, **kwargs) -> None:
         )
 
     if opts.subcommand is None:
-        # New default without subcommand: run v2 using env defaults
         autorevert_v2(
-            os.environ.get("WORKFLOWS", "Lint,trunk,pull,inductor").split(","),
-            hours=int(os.environ.get("HOURS", 16)),
-            repo_full_name=os.environ.get("REPO_FULL_NAME", "pytorch/pytorch"),
-            dry_run=opts.dry_run,
-            do_restart=True,
-            do_revert=True,
+            os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
+            hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
+            notify_issue_number=int(
+                os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
+            ),
+            repo_full_name=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
+            restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
+            revert_action=(
+                RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
+            ),
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
-        autorevert_v2(
+        _, _, state_json = autorevert_v2(
             opts.workflows,
             hours=opts.hours,
+            notify_issue_number=opts.notify_issue_number,
             repo_full_name=opts.repo_full_name,
-            dry_run=opts.dry_run,
-            do_restart=opts.do_restart,
-            do_revert=opts.do_revert,
+            restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
+            revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
         )
+        write_hud_html_from_cli(opts.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
     elif opts.subcommand == "workflow-restart-checker":
         workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
     elif opts.subcommand == "hud":
+        out_path: Optional[str] = (
+            None if opts.hud_html is HUD_HTML_NO_VALUE_FLAG else opts.hud_html
+        )
+
         # Delegate to testers.hud module
-        run_hud(
-            opts.workflows,
-            hours=opts.hours,
+        render_hud_html_from_clickhouse(
+            opts.timestamp,
             repo_full_name=opts.repo_full_name,
-            out=opts.out,
-            ignore_newer_than=getattr(opts, "ignore_newer_than", None),
+            out_path=out_path,
         )
 
 

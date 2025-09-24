@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Any, Dict, Iterable, List, Tuple, Union
 
 from .clickhouse_client_helper import CHCliFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
@@ -26,8 +26,8 @@ class RunStateLogger:
         repo: str,
         ctx: RunContext,
         pairs: Iterable[Tuple[Signal, SignalProcOutcome]],
-    ) -> str:
-        """Build a compact JSON string describing the run’s HUD-like grid and outcomes."""
+    ) -> Dict[str, Any]:
+        """Build a dictionary describing the run’s HUD-like grid and outcomes."""
         pairs_list = list(pairs)
         signals: List[Signal] = [s for s, _ in pairs_list]
 
@@ -59,30 +59,41 @@ class RunStateLogger:
 
         # Build columns with outcomes, notes, and per-commit events
         cols = []
+        outcome_map: Dict[str, Dict[str, Any]] = {}
         for sig, outcome in pairs_list:
             if isinstance(outcome, AutorevertPattern):
                 oc = "revert"
-                note = (
-                    f"Pattern: newer fail {len(outcome.newer_failing_commits)}; "
-                    f"suspect {outcome.suspected_commit[:7]} vs baseline {outcome.older_successful_commit[:7]}"
-                )
                 ineligible = None
+                serialized = {
+                    "type": "AutorevertPattern",
+                    "data": {
+                        "workflow_name": outcome.workflow_name,
+                        "suspected_commit": outcome.suspected_commit,
+                        "older_successful_commit": outcome.older_successful_commit,
+                        "newer_failing_commits": list(outcome.newer_failing_commits),
+                    },
+                }
             elif isinstance(outcome, RestartCommits):
                 oc = "restart"
-                if outcome.commit_shas:
-                    short = ", ".join(sorted(s[:7] for s in outcome.commit_shas))
-                    note = f"Suggest restart: {short}"
-                else:
-                    note = "Suggest restart: <none>"
                 ineligible = None
+                serialized = {
+                    "type": "RestartCommits",
+                    "data": {
+                        "commit_shas": sorted(outcome.commit_shas),
+                    },
+                }
             else:
                 oc = "ineligible"
-                note = f"Ineligible: {outcome.reason.value}"
-                if outcome.message:
-                    note += f" — {outcome.message}"
                 ineligible = {
                     "reason": outcome.reason.value,
                     "message": outcome.message,
+                }
+                serialized = {
+                    "type": "Ineligible",
+                    "data": {
+                        "reason": outcome.reason.value,
+                        "message": outcome.message,
+                    },
                 }
 
             # Per-commit events for this signal
@@ -105,26 +116,31 @@ class RunStateLogger:
                 "workflow": sig.workflow_name,
                 "key": sig.key,
                 "outcome": oc,
-                "note": note,
                 "cells": cells,
             }
             if ineligible is not None:
                 col["ineligible"] = ineligible
             cols.append(col)
 
-        doc = {
+            sig_key = f"{sig.workflow_name}:{sig.key}"
+            outcome_map[sig_key] = serialized
+
+        doc: Dict[str, Any] = {
+            "version": 2,
             "commits": commits,
             "commit_times": commit_times,
             "columns": cols,
+            "outcomes": outcome_map,
             "meta": {
                 "repo": repo,
                 "workflows": ctx.workflows,
                 "lookback_hours": ctx.lookback_hours,
                 "ts": ctx.ts.isoformat(),
-                "dry_run": ctx.dry_run,
+                "restart_action": str(ctx.restart_action),
+                "revert_action": str(ctx.revert_action),
             },
         }
-        return json.dumps(doc, separators=(",", ":"))
+        return doc
 
     def insert_state(
         self,
@@ -132,11 +148,14 @@ class RunStateLogger:
         ctx: RunContext,
         pairs: Iterable[Tuple[Signal, SignalProcOutcome]],
         params: str = "",
-    ) -> None:
-        """Insert one state row into misc.autorevert_state for this run context."""
-        state_json = self._build_state_json(
-            repo=ctx.repo_full_name, ctx=ctx, pairs=list(pairs)
-        )
+    ) -> str:
+        """Insert one state row into misc.autorevert_state for this run context.
+
+        Returns the serialized JSON state that was stored, so callers can reuse it
+        for local rendering/debugging without rebuilding the structure.
+        """
+        doc = self._build_state_json(repo=ctx.repo_full_name, ctx=ctx, pairs=pairs)
+        state_json = json.dumps(doc, separators=(",", ":"))
         cols = [
             "ts",
             "repo",
@@ -151,7 +170,11 @@ class RunStateLogger:
                 ctx.ts,
                 ctx.repo_full_name,
                 state_json,
-                1 if ctx.dry_run else 0,
+                1
+                if not (
+                    ctx.restart_action.side_effects or ctx.revert_action.side_effects
+                )
+                else 0,
                 ctx.workflows,
                 int(ctx.lookback_hours),
                 params or "",
@@ -160,3 +183,4 @@ class RunStateLogger:
         CHCliFactory().client.insert(
             table="autorevert_state", data=data, column_names=cols, database="misc"
         )
+        return state_json

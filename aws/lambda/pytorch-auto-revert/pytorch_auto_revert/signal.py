@@ -368,15 +368,15 @@ class Signal:
         infra_check_result = partition.confirm_not_an_infra_issue()
         # note re: event_count < 2:
         # this is a confidence heuristic to detect flakiness, can adjust as needed
-        if (
-            infra_check_result == InfraCheckResult.RESTART_FAILURE
-            or partition.failure_events_count() < 2
+        if infra_check_result == InfraCheckResult.RESTART_FAILURE or (
+            partition.failure_events_count() < 2
+            and not partition.failed[-1].has_pending
         ):
             # restarting oldest failed
             restart_commits.add(partition.failed[-1].head_sha)
-        elif (
-            infra_check_result == InfraCheckResult.RESTART_SUCCESS
-            or partition.success_events_count() < 2
+        elif infra_check_result == InfraCheckResult.RESTART_SUCCESS or (
+            partition.success_events_count() < 2
+            and not partition.successful[0].has_pending
         ):
             # restarting newest successful
             restart_commits.add(partition.successful[0].head_sha)

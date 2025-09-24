@@ -9,6 +9,18 @@ variable "aws_region_instances" {
   type        = list(string)
 }
 
+variable "auth_gh_repo" {
+  description = "GitHub repository to authenticate for the runners."
+  type        = string
+  default     = ""
+}
+
+variable "auth_gh_org" {
+  description = "GitHub organization to authenticate for the runners."
+  type        = string
+  default     = ""
+}
+
 variable "vpc_ids" {
   description = "The list of vpc_id for aws_region. keys; 'vpc' 'region'"
   type        = list(map(string))

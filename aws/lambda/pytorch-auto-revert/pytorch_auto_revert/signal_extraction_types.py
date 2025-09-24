@@ -6,6 +6,8 @@ from datetime import datetime
 from functools import cached_property
 from typing import List, NewType, Set
 
+from .utils import RestartAction, RevertAction
+
 
 # Default classification rules that indicate test failures.
 DEFAULT_TEST_RULES: Set[str] = {
@@ -29,11 +31,13 @@ TestId = NewType("TestId", str)
 
 @dataclass(frozen=True)
 class RunContext:
-    ts: datetime
-    repo_full_name: str
-    workflows: List[str]
     lookback_hours: int
-    dry_run: bool = False
+    notify_issue_number: int
+    repo_full_name: str
+    restart_action: RestartAction
+    revert_action: RevertAction
+    ts: datetime
+    workflows: List[str]
 
 
 # Represents a job row from the jobs table in ClickHouse

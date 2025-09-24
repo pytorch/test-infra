@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Optional
 
 from .clickhouse_client_helper import CHCliFactory
 from .signal_extraction_types import (
@@ -211,3 +211,50 @@ class SignalExtractionDatasource:
             dt,
         )
         return rows
+
+    def fetch_autorevert_state_rows(
+        self, *, ts: str, repo_full_name: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
+        """Fetch run state rows from misc.autorevert_state for a given timestamp."""
+
+        query = (
+            "SELECT repo, workflows, state FROM misc.autorevert_state "
+            "WHERE ts = parseDateTimeBestEffort({ts:String})"
+        )
+        params: Dict[str, Any] = {"ts": ts}
+        if repo_full_name:
+            query += " AND repo = {repo:String}"
+            params["repo"] = repo_full_name
+
+        res = CHCliFactory().client.query(query, parameters=params)
+        rows: List[Dict[str, Any]] = []
+        for repo, workflows, state_json in res.result_rows:
+            rows.append(
+                {
+                    "repo": repo,
+                    "workflows": workflows,
+                    "state": state_json,
+                }
+            )
+        return rows
+
+    def fetch_latest_non_dry_run_timestamp(
+        self, *, repo_full_name: Optional[str] = None
+    ) -> Optional[str]:
+        """Return the most recent non-dry-run autorevert_state timestamp."""
+
+        query = "SELECT ts FROM misc.autorevert_state WHERE dry_run = 0"
+        params: Dict[str, Any] = {}
+        if repo_full_name:
+            query += " AND repo = {repo:String}"
+            params["repo"] = repo_full_name
+        query += " ORDER BY ts DESC LIMIT 1"
+
+        res = CHCliFactory().client.query(query, parameters=params)
+        if not res.result_rows:
+            return None
+
+        (ts_value,) = res.result_rows[0]
+        if isinstance(ts_value, datetime):
+            return ts_value.strftime("%Y-%m-%d %H:%M:%S")
+        return str(ts_value)

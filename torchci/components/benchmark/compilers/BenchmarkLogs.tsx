@@ -20,7 +20,7 @@ export function BenchmarkLogs({ workflowId }: { workflowId: number }) {
     JSON.stringify(queryParams)
   )}`;
 
-  let { data, error } = useSWR(url, fetcher, {
+  let { data } = useSWR(url, fetcher, {
     refreshInterval: 60 * 60 * 1000, // refresh every hour
   });
 

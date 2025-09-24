@@ -1,94 +1,130 @@
+import json
 import logging
-from typing import Iterable, Optional
+import re
+from typing import Any, Mapping, Optional, Union
 
-from ..hud_renderer import build_grid_model, render_html
-from ..signal_extraction import SignalExtractor
+from ..hud_renderer import render_html_from_state
+from ..signal_extraction_datasource import SignalExtractionDatasource
 
 
-def run_hud(
-    workflows: Iterable[str],
-    *,
-    hours: int = 24,
-    repo_full_name: str = "pytorch/pytorch",
-    out: str = "hud.html",
-    ignore_newer_than: Optional[str] = None,
-) -> str:
-    """
-    Extracts signals for the given workflows, optionally truncates commit history
-    to ignore commits newer than a specific SHA, builds a HUD model, and writes
-    an HTML report to `out`.
+RunStatePayload = Union[str, Mapping[str, Any]]
 
-    Returns the output filepath.
-    """
 
+def _ensure_state_dict(state: RunStatePayload) -> Mapping[str, Any]:
+    if isinstance(state, str):
+        return json.loads(state)
+    return state
+
+
+def get_state_timestamp(state: RunStatePayload) -> str:
+    """Extract the run timestamp embedded in the HUD state payload."""
+    state_dict = _ensure_state_dict(state)
+    meta = state_dict.get("meta", {})
+    ts = meta.get("ts")
+    if not ts:
+        raise ValueError("State payload is missing meta.ts")
+    return str(ts)
+
+
+def default_hud_filename(timestamp: str) -> str:
+    """Produce a filesystem-friendly HUD filename for the given timestamp."""
+    # Replace separators that are invalid on some filesystems (e.g. Windows).
+    sanitized = timestamp.strip().replace(" ", "_").replace(":", "-")
+    # Whitelist characters to minimize surprises.
+    sanitized = re.sub(r"[^A-Za-z0-9._-]", "-", sanitized)
+    if not sanitized:
+        raise ValueError("Timestamp did not produce a usable filename")
+    return f"{sanitized}.html"
+
+
+def write_hud_html_from_cli(
+    opts_hud_html,
+    HUD_HTML_NO_VALUE_FLAG,
+    state_json: RunStatePayload,
+):
+    hud_out_path: Optional[str] = None
+    if opts_hud_html is not None:
+        if opts_hud_html is HUD_HTML_NO_VALUE_FLAG:
+            ts = get_state_timestamp(state_json)
+            hud_out_path = default_hud_filename(ts)
+        else:
+            hud_out_path = opts_hud_html
+    if hud_out_path:
+        write_hud_html(state_json, hud_out_path)
+
+
+def write_hud_html(state: RunStatePayload, out_path: str) -> str:
+    """Render the given run-state JSON (string or mapping) to HUD HTML."""
+    state_dict = _ensure_state_dict(state)
+    meta = state_dict.get("meta", {})
+    workflows = meta.get("workflows") or []
+    lookback = meta.get("lookback_hours")
     logging.info(
-        "[hud] Start: workflows=%s hours=%s repo=%s",
-        ",".join(workflows),
-        hours,
-        repo_full_name,
+        "[hud] Rendering HTML for repo=%s workflows=%s lookback=%s → %s",
+        meta.get("repo"),
+        ",".join(workflows) if isinstance(workflows, list) else workflows,
+        lookback,
+        out_path,
     )
-
-    extractor = SignalExtractor(
-        workflows=workflows,
-        lookback_hours=hours,
-        repo_full_name=repo_full_name,
-    )
-    logging.info("[hud] Extracting signals ...")
-    signals = extractor.extract()
-    logging.info("[hud] Extracted %d signals", len(signals))
-
-    # Optionally cut off newest commits above a given commit SHA prefix
-    if ignore_newer_than:
-        cut_prefix = str(ignore_newer_than).strip()
-        if cut_prefix:
-            total_trimmed = 0
-            found_any = False
-            for s in signals:
-                # commits are ordered newest -> older; find first index that matches prefix
-                idx = next(
-                    (
-                        i
-                        for i, c in enumerate(s.commits)
-                        if c.head_sha.startswith(cut_prefix)
-                    ),
-                    None,
-                )
-                if idx is None:
-                    continue
-                found_any = True
-                trimmed = idx  # number of newer commits dropped
-                if trimmed > 0:
-                    total_trimmed += trimmed
-                    s.commits = s.commits[idx:]
-            if not found_any:
-                logging.warning(
-                    "[hud] ignore-newer-than='%s' did not match any commit in extracted signals",
-                    cut_prefix,
-                )
-            else:
-                logging.info(
-                    "[hud] Applied ignore-newer-than=%s; dropped %d newer commit entries across signals",
-                    cut_prefix,
-                    total_trimmed,
-                )
-
-    logging.info("[hud] Building grid model ...")
-    model = build_grid_model(signals)
-    logging.info(
-        "[hud] Model: %d commits, %d columns",
-        len(model.commits),
-        len(model.columns),
-    )
-
-    logging.info("[hud] Rendering HTML ...")
-    html = render_html(
-        model,
-        title=f"Signal HUD: {', '.join(workflows)} ({hours}h)",
-        repo_full_name=repo_full_name,
-    )
-    with open(out, "w", encoding="utf-8") as f:
+    html = render_html_from_state(state_dict)
+    with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
-    logging.info("[hud] HUD written to %s", out)
-    logging.info("HUD written to %s", out)
+    logging.info("HUD written to %s", out_path)
+    return out_path
 
-    return out
+
+def render_hud_html_from_clickhouse(
+    timestamp: Optional[str],
+    *,
+    repo_full_name: Optional[str] = None,
+    out_path: Optional[str] = None,
+) -> str:
+    """Fetch a logged autorevert state from ClickHouse and render HUD HTML.
+
+    If ``timestamp`` is ``None``, the latest non-dry-run state is used.
+    When ``out_path`` is ``None``, the filename defaults to the resolved timestamp.
+    """
+
+    datasource = SignalExtractionDatasource()
+    resolved_ts = timestamp
+    if resolved_ts is None:
+        resolved_ts = datasource.fetch_latest_non_dry_run_timestamp(
+            repo_full_name=repo_full_name
+        )
+        if resolved_ts is None:
+            raise RuntimeError(
+                "No non-dry-run autorevert_state rows available for HUD rendering"
+            )
+
+    logging.info(
+        "[hud] Fetching run state ts=%s repo=%s",
+        resolved_ts,
+        repo_full_name or "<any>",
+    )
+    rows = datasource.fetch_autorevert_state_rows(
+        ts=resolved_ts, repo_full_name=repo_full_name
+    )
+    if not rows:
+        raise RuntimeError(
+            "No autorevert_state row found for ts="
+            + timestamp
+            + (" repo=" + repo_full_name if repo_full_name else "")
+        )
+    if len(rows) > 1:
+        raise RuntimeError(
+            "Multiple autorevert_state rows found for ts="
+            + timestamp
+            + "; pass --repo-full-name to disambiguate"
+        )
+
+    row = rows[0]
+    repo = row["repo"]
+    workflows = row["workflows"]
+    state_json = row["state"]
+    if isinstance(workflows, str):
+        workflows_display = workflows
+    else:
+        workflows_display = ",".join(workflows or [])
+    final_out_path = out_path or default_hud_filename(resolved_ts)
+    logging.info("[hud] Loaded state for repo=%s workflows=%s", repo, workflows_display)
+    return write_hud_html(state_json, final_out_path)

@@ -8,7 +8,7 @@ export const useMessageProcessor = () => {
   const [response, setResponse] = useState("");
 
   const processSessionData = useCallback(
-    (sessionData: any, setCurrentSessionId?: (id: string) => void) => {
+    (sessionData: any, setCurrentSessionId?: (_id: string) => void) => {
       if (sessionData.messages && Array.isArray(sessionData.messages)) {
         setParsedResponses([]);
 

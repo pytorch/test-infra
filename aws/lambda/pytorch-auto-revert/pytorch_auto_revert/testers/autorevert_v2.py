@@ -7,17 +7,18 @@ from ..signal import Signal
 from ..signal_actions import SignalActionProcessor, SignalProcOutcome
 from ..signal_extraction import SignalExtractor
 from ..signal_extraction_types import RunContext
+from ..utils import RestartAction, RevertAction
 
 
 def autorevert_v2(
     workflows: Iterable[str],
     *,
+    notify_issue_number: int,
     hours: int = 24,
     repo_full_name: str = "pytorch/pytorch",
-    dry_run: bool = False,
-    do_restart: bool = True,
-    do_revert: bool = True,
-) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]]]:
+    restart_action: RestartAction = RestartAction.RUN,
+    revert_action: RevertAction = RevertAction.LOG,
+) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
     """Run the Signals-based autorevert flow end-to-end.
 
     - Extracts signals for the specified workflows and window
@@ -25,18 +26,20 @@ def autorevert_v2(
     - Persists a single HUD-like state row for auditability
 
     Returns:
-        (signals, pairs) for diagnostics and potential external rendering
+        (signals, pairs, state_json) for diagnostics and potential external rendering
     """
     workflows = list(workflows)
     # Use timezone-aware UTC to match ClickHouse DateTime semantics
     ts = datetime.now(timezone.utc)
 
     logging.info(
-        "[v2] Start: workflows=%s hours=%s repo=%s dry_run=%s",
+        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s revert_action=%s notify_issue_number=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
-        dry_run,
+        restart_action,
+        revert_action,
+        notify_issue_number,
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
@@ -57,11 +60,13 @@ def autorevert_v2(
 
     # Build run context
     run_ctx = RunContext(
-        ts=ts,
-        repo_full_name=repo_full_name,
-        workflows=workflows,
         lookback_hours=hours,
-        dry_run=dry_run,
+        notify_issue_number=notify_issue_number,
+        repo_full_name=repo_full_name,
+        restart_action=restart_action,
+        revert_action=revert_action,
+        ts=ts,
+        workflows=workflows,
     )
 
     # Group and execute actions
@@ -69,17 +74,11 @@ def autorevert_v2(
     groups = proc.group_actions(pairs)
     logging.info("[v2] Candidate action groups: %d", len(groups))
 
-    # Support toggling specific kinds of actions via flags
-    if not do_revert:
-        groups = [g for g in groups if g.type != "revert"]
-    if not do_restart:
-        groups = [g for g in groups if g.type != "restart"]
-
     executed_count = sum(1 for g in groups if proc.execute(g, run_ctx))
     logging.info("[v2] Executed action groups: %d", executed_count)
 
     # Persist full run state via separate logger
-    RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
+    state_json = RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
     logging.info("[v2] State logged")
 
-    return signals, pairs
+    return signals, pairs, state_json

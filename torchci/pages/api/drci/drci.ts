@@ -58,6 +58,7 @@ export interface FlakyRule {
 
 export interface UpdateCommentBody {
   repo: string;
+  org?: string;
 }
 
 // Attempt to set the maxDuration of this serveless function on Vercel https://vercel.com/docs/functions/configuring-functions/duration,
@@ -66,6 +67,23 @@ export interface UpdateCommentBody {
 export const config = {
   maxDuration: 900,
 };
+
+function validateOrg(org: string | undefined): string {
+  if (!org) {
+    // Default to existing behavior.
+    // TODO: Remove this fallback soon after this PR is merged
+    return OWNER;
+  }
+
+  const normalizedOrg = org.toLowerCase();
+  if (normalizedOrg === "pytorch" || normalizedOrg === "meta-pytorch") {
+    return normalizedOrg;
+  }
+
+  throw new Error(
+    `Invalid org: ${org}. Only 'pytorch' and 'meta-pytorch' are allowed.`
+  );
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -101,44 +119,54 @@ export default async function handler(
   }
 
   const { prNumber } = req.query;
-  const { repo }: UpdateCommentBody = req.body;
-  const octokit = await getOctokit(OWNER, repo);
+  const { repo, org }: UpdateCommentBody = req.body;
 
-  const failures = await updateDrciComments(
-    octokit,
-    repo,
-    prNumber ? [parseInt(prNumber as string)] : []
-  );
-  return res.status(200).json(failures);
+  try {
+    const validatedOrg = validateOrg(org);
+    const octokit = await getOctokit(validatedOrg, repo);
+
+    const failures = await updateDrciComments(
+      octokit,
+      validatedOrg,
+      repo,
+      prNumber ? [parseInt(prNumber as string)] : []
+    );
+    return res.status(200).json(failures);
+  } catch (error) {
+    console.error("Error in Dr.CI handler:", error);
+    res.status(400).json({ error: (error as Error).message } as any);
+    return;
+  }
 }
 
 export async function updateDrciComments(
   octokit: Octokit,
+  owner: string = "pytorch",
   repo: string = "pytorch",
   prNumbers: number[]
 ): Promise<{ [pr: number]: { [cat: string]: RecentWorkflowsData[] } }> {
   // Fetch in two separate queries because combining into one query took much
   // longer to run on CH
   const [recentWorkflows, workflowsFromPendingComments] = await Promise.all([
-    fetchRecentWorkflows(`${OWNER}/${repo}`, prNumbers, NUM_MINUTES + ""),
+    fetchRecentWorkflows(`${owner}/${repo}`, prNumbers, NUM_MINUTES + ""),
     // Only fetch if we are not updating a specific PR
     prNumbers.length != 0
       ? []
       : fetchRecentWorkflows(
-          `${OWNER}/${repo}`,
-          await getPRsWithPendingJobInComment(`${OWNER}/${repo}`),
+          `${owner}/${repo}`,
+          await getPRsWithPendingJobInComment(`${owner}/${repo}`),
           NUM_MINUTES + ""
         ),
   ]);
 
   const workflowsByPR = await reorganizeWorkflows(
-    OWNER,
+    owner,
     repo,
     recentWorkflows.concat(workflowsFromPendingComments),
     octokit
   );
   const head = get_head_branch(repo);
-  await addMergeBaseCommits(octokit, repo, head, workflowsByPR);
+  await addMergeBaseCommits(octokit, owner, repo, head, workflowsByPR);
   const sevs = getActiveSEVs(
     await fetchIssuesByLabel("ci: sev", /*cache*/ true)
   );
@@ -153,11 +181,11 @@ export async function updateDrciComments(
   );
   const baseCommitJobs = await getBaseCommitJobs(workflowsByPR);
   const existingDrCiComments = await getExistingDrCiComments(
-    `${OWNER}/${repo}`,
+    `${owner}/${repo}`,
     workflowsByPR
   );
   const prMergeCommits = await getPRMergeCommits(
-    OWNER,
+    owner,
     repo,
     Array.from(workflowsByPR.keys())
   );
@@ -217,14 +245,14 @@ export async function updateDrciComments(
         pr_info.merge_base,
         pr_info.merge_base_date,
         HUD_URL,
-        OWNER,
+        owner,
         repo,
         pr_info.pr_number
       );
 
       const comment = formDrciComment(
         pr_info.pr_number,
-        OWNER,
+        owner,
         repo,
         failureInfo,
         formDrciSevBody(sevs)
@@ -232,7 +260,7 @@ export async function updateDrciComments(
 
       const { id, body } =
         existingDrCiComments.get(pr_info.pr_number) ||
-        (await getDrciComment(octokit, OWNER, repo, pr_info.pr_number));
+        (await getDrciComment(octokit, owner, repo, pr_info.pr_number));
 
       // The comment is there and remains unchanged, so there is no need to do anything
       if (body === comment) {
@@ -244,7 +272,7 @@ export async function updateDrciComments(
       if (id === 0) {
         await octokit.rest.issues.createComment({
           body: comment,
-          owner: OWNER,
+          owner: owner,
           repo: repo,
           issue_number: pr_info.pr_number,
         });
@@ -253,7 +281,7 @@ export async function updateDrciComments(
       else {
         await octokit.rest.issues.updateComment({
           body: comment,
-          owner: OWNER,
+          owner: owner,
           repo: repo,
           comment_id: id,
         });
@@ -262,7 +290,7 @@ export async function updateDrciComments(
       // Also update the check run status. As this is run under pytorch-bot,
       // the check run will show up under that GitHub app
       await octokit.rest.checks.create({
-        owner: OWNER,
+        owner: owner,
         repo: repo,
         name: "Dr.CI",
         head_sha: pr_info.head_sha,
@@ -353,6 +381,7 @@ function get_head_branch(_repo: string) {
 
 async function addMergeBaseCommits(
   octokit: Octokit,
+  owner: string,
   repo: string,
   head: string,
   workflowsByPR: Map<number, PRandJobs>
@@ -363,7 +392,7 @@ async function addMergeBaseCommits(
     (
       await queryClickhouseSaved("merge_bases", {
         shas: Array.from(workflowsByPR.values()).map((v) => v.head_sha),
-        repo: `${OWNER}/${repo}`,
+        repo: `${owner}/${repo}`,
       })
     )?.map((v) => [v.head_sha, v])
   );
@@ -376,7 +405,7 @@ async function addMergeBaseCommits(
         // Not found on CH, ask github instead, then put into dynamo, which will
         // get synced with CH
         const diff = await octokit.rest.repos.compareCommits({
-          owner: OWNER,
+          owner: owner,
           repo: repo,
           base: pr_info.head_sha,
           head: head,
@@ -386,7 +415,7 @@ async function addMergeBaseCommits(
           diff.data.merge_base_commit.commit.committer?.date ?? "";
 
         const diffWithMergeBase = await octokit.rest.repos.compareCommits({
-          owner: OWNER,
+          owner: owner,
           repo: repo,
           base: pr_info.merge_base,
           head: pr_info.head_sha,
@@ -398,13 +427,13 @@ async function addMergeBaseCommits(
             merge_base: pr_info.merge_base,
             changed_files: diffWithMergeBase.data.files?.map((e) => e.filename),
             merge_base_commit_date: pr_info.merge_base_date,
-            repo: `${OWNER}/${repo}`,
-            _id: `${OWNER}-${repo}-${pr_info.head_sha}`,
+            repo: `${owner}/${repo}`,
+            _id: `${owner}-${repo}-${pr_info.head_sha}`,
           };
           s3client.send(
             new PutObjectCommand({
               Bucket: "ossci-raw-job-status",
-              Key: `merge_bases/${OWNER}/${repo}/${pr_info.head_sha}.gzip`,
+              Key: `merge_bases/${owner}/${repo}/${pr_info.head_sha}.gzip`,
               Body: JSON.stringify(data),
               ContentType: "application/json",
             })

@@ -134,7 +134,7 @@ export const TodoListBlock = styled(Paper)(({ theme }) => ({
   overflow: "hidden",
 }));
 
-export const TodoListTitle = styled(Typography)(({ theme }) => ({
+export const TodoListTitle = styled(Typography)(({ theme: _theme }) => ({
   fontFamily: "Roboto, 'Helvetica Neue', Arial, sans-serif",
   fontWeight: 500,
   marginBottom: "8px",
@@ -233,7 +233,7 @@ export const ChartHeader = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.mode === "dark" ? "#1f1f1f" : "#f5f5f5",
 }));
 
-export const ScrollToBottomButton = styled(Button)(({ theme }) => ({
+export const ScrollToBottomButton = styled(Button)(({ theme: _theme }) => ({
   position: "fixed",
   bottom: "20px",
   right: "20px",

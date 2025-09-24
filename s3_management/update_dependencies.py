@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import boto3  # type: ignore[import-untyped]
 
@@ -8,7 +8,7 @@ S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
 
-PACKAGES_PER_PROJECT = {
+PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "sympy": [{"version": "latest", "project": "torch"}],
     "mpmath": [{"version": "latest", "project": "torch"}],
     "pillow": [{"version": "latest", "project": "torch"}],
@@ -18,7 +18,6 @@ PACKAGES_PER_PROJECT = {
     "filelock": [{"version": "latest", "project": "torch"}],
     "fsspec": [{"version": "latest", "project": "torch"}],
     "nvidia-cudnn-cu11": [{"version": "latest", "project": "torch"}],
-    "nvidia-cudnn-cu12": [{"version": "latest", "project": "torch"}],
     "typing-extensions": [{"version": "latest", "project": "torch"}],
     "nvidia-cuda-nvrtc-cu12": [
         {
@@ -331,7 +330,6 @@ PACKAGES_PER_PROJECT = {
     "certifi": [{"version": "latest", "project": "torchtune"}],
     "charset-normalizer": [{"version": "latest", "project": "torchtune"}],
     "datasets": [{"version": "latest", "project": "torchtune"}],
-    "dill": [{"version": "latest", "project": "torchtune"}],
     "frozenlist": [{"version": "latest", "project": "torchtune"}],
     "huggingface-hub": [{"version": "latest", "project": "torchtune"}],
     "idna": [{"version": "latest", "project": "torchtune"}],
@@ -340,12 +338,10 @@ PACKAGES_PER_PROJECT = {
     "multidict": [{"version": "latest", "project": "torchtune"}],
     "multiprocess": [{"version": "latest", "project": "torchtune"}],
     "omegaconf": [{"version": "latest", "project": "torchtune"}],
-    "pandas": [{"version": "latest", "project": "torchtune"}],
     "pyarrow": [{"version": "latest", "project": "torchtune"}],
     "pyarrow-hotfix": [{"version": "latest", "project": "torchtune"}],
     "pycryptodomex": [{"version": "latest", "project": "torchtune"}],
     "python-dateutil": [{"version": "latest", "project": "torchtune"}],
-    "pytz": [{"version": "latest", "project": "torchtune"}],
     "pyyaml": [{"version": "latest", "project": "torchtune"}],
     "regex": [{"version": "latest", "project": "torchtune"}],
     "requests": [{"version": "latest", "project": "torchtune"}],
@@ -354,7 +350,6 @@ PACKAGES_PER_PROJECT = {
     "six": [{"version": "latest", "project": "torchtune"}],
     "tiktoken": [{"version": "latest", "project": "torchtune"}],
     "tqdm": [{"version": "latest", "project": "torchtune"}],
-    "tzdata": [{"version": "latest", "project": "torchtune"}],
     "urllib3": [{"version": "latest", "project": "torchtune"}],
     "xxhash": [{"version": "latest", "project": "torchtune"}],
     "yarl": [{"version": "latest", "project": "torchtune"}],
@@ -378,6 +373,99 @@ PACKAGES_PER_PROJECT = {
     "onemkl-sycl-sparse": [{"version": "latest", "project": "torch_xpu"}],
     "onemkl-sycl-rng": [{"version": "latest", "project": "torch_xpu"}],
     "mkl": [{"version": "latest", "project": "torch_xpu"}],
+    # vLLM
+    "ninja": [{"version": "latest", "project": "vllm"}],
+    "cuda-python": [{"version": "12.9.0", "project": "vllm"}],
+    "cuda-bindings": [{"version": "12.9.2", "project": "vllm"}],
+    "cuda-pathfinder": [{"version": "latest", "project": "vllm"}],
+    "pynvml": [{"version": "latest", "project": "vllm"}],
+    "nvidia-ml-py": [{"version": "latest", "project": "vllm"}],
+    "einops": [{"version": "latest", "project": "vllm"}],
+    "packaging": [{"version": "latest", "project": "vllm"}],
+    "nvidia-cudnn-frontend": [{"version": "latest", "project": "vllm"}],
+    "cachetools": [{"version": "latest", "project": "vllm"}],
+    "blake3": [{"version": "latest", "project": "vllm"}],
+    "py-cpuinfo": [{"version": "latest", "project": "vllm"}],
+    "transformers": [{"version": "latest", "project": "vllm"}],
+    "hf-xet": [{"version": "latest", "project": "vllm"}],
+    "tokenizers": [{"version": "latest", "project": "vllm"}],
+    "protobuf": [{"version": "latest", "project": "vllm"}],
+    "fastapi": [{"version": "latest", "project": "vllm"}],
+    "annotated-types": [{"version": "latest", "project": "vllm"}],
+    "anyio": [{"version": "latest", "project": "vllm"}],
+    "pydantic": [{"version": "latest", "project": "vllm"}],
+    "pydantic-core": [{"version": "2.33.2", "project": "vllm"}],
+    "sniffio": [{"version": "latest", "project": "vllm"}],
+    "starlette": [{"version": "latest", "project": "vllm"}],
+    "typing-inspection": [{"version": "latest", "project": "vllm"}],
+    "openai": [{"version": "latest", "project": "vllm"}],
+    "distro": [{"version": "latest", "project": "vllm"}],
+    "h11": [{"version": "latest", "project": "vllm"}],
+    "httpcore": [{"version": "latest", "project": "vllm"}],
+    "httpx": [{"version": "latest", "project": "vllm"}],
+    "jiter": [{"version": "latest", "project": "vllm"}],
+    "prometheus-client": [{"version": "latest", "project": "vllm"}],
+    "prometheus-fastapi-instrumentator": [{"version": "latest", "project": "vllm"}],
+    "lm-format-enforcer": [{"version": "latest", "project": "vllm"}],
+    "interegular": [{"version": "latest", "project": "vllm"}],
+    "llguidance": [{"version": "0.7.11", "project": "vllm"}],
+    "outlines-core": [{"version": "0.2.10", "project": "vllm"}],
+    "diskcache": [{"version": "latest", "project": "vllm"}],
+    "lark": [{"version": "latest", "project": "vllm"}],
+    "xgrammar": [{"version": "0.1.23", "project": "vllm"}],
+    "partial-json-parser": [{"version": "latest", "project": "vllm"}],
+    "pyzmq": [{"version": "latest", "project": "vllm"}],
+    "msgspec": [{"version": "latest", "project": "vllm"}],
+    "gguf": [{"version": "latest", "project": "vllm"}],
+    "mistral-common": [{"version": "latest", "project": "vllm"}],
+    "rpds-py": [{"version": "latest", "project": "vllm"}],
+    "pycountry": [{"version": "latest", "project": "vllm"}],
+    "referencing": [{"version": "latest", "project": "vllm"}],
+    "pydantic-extra-types": [{"version": "latest", "project": "vllm"}],
+    "jsonschema-specifications": [{"version": "latest", "project": "vllm"}],
+    "jsonschema": [{"version": "latest", "project": "vllm"}],
+    "opencv-python-headless": [{"version": "latest", "project": "vllm"}],
+    "compressed-tensors": [{"version": "latest", "project": "vllm"}],
+    "frozendict": [{"version": "latest", "project": "vllm"}],
+    "depyf": [{"version": "latest", "project": "vllm"}],
+    "astor": [{"version": "latest", "project": "vllm"}],
+    "cloudpickle": [{"version": "latest", "project": "vllm"}],
+    "watchfiles": [{"version": "latest", "project": "vllm"}],
+    "python-json-logger": [{"version": "latest", "project": "vllm"}],
+    "scipy": [{"version": "latest", "project": "vllm"}],
+    "pybase64": [{"version": "latest", "project": "vllm"}],
+    "cbor2": [{"version": "latest", "project": "vllm"}],
+    "setproctitle": [{"version": "latest", "project": "vllm"}],
+    "openai-harmony": [{"version": "latest", "project": "vllm"}],
+    "numba": [{"version": "0.61.2", "project": "vllm"}],
+    "llvmlite": [{"version": "latest", "project": "vllm"}],
+    "ray": [{"version": "latest", "project": "vllm"}],
+    "click": [{"version": "latest", "project": "vllm"}],
+    "msgpack": [{"version": "latest", "project": "vllm"}],
+    "fastapi-cli": [{"version": "latest", "project": "vllm"}],
+    "httptools": [{"version": "latest", "project": "vllm"}],
+    "markdown-it-py": [{"version": "latest", "project": "vllm"}],
+    "pygments": [{"version": "latest", "project": "vllm"}],
+    "python-dotenv": [{"version": "latest", "project": "vllm"}],
+    "rich": [{"version": "latest", "project": "vllm"}],
+    "rich-toolkit": [{"version": "latest", "project": "vllm"}],
+    "shellingham": [{"version": "latest", "project": "vllm"}],
+    "typer": [{"version": "latest", "project": "vllm"}],
+    "uvicorn": [{"version": "latest", "project": "vllm"}],
+    "uvloop": [{"version": "latest", "project": "vllm"}],
+    "websockets": [{"version": "latest", "project": "vllm"}],
+    "python-multipart": [{"version": "latest", "project": "vllm"}],
+    "email-validator": [{"version": "latest", "project": "vllm"}],
+    "dnspython": [{"version": "2.7.0", "project": "vllm"}],
+    "fastapi-cloud-cli": [{"version": "latest", "project": "vllm"}],
+    "mdurl": [{"version": "latest", "project": "vllm"}],
+    "rignore": [{"version": "latest", "project": "vllm"}],
+    "sentry-sdk": [{"version": "latest", "project": "vllm"}],
+    "cupy-cuda12x": [{"version": "latest", "project": "vllm"}],
+    "fastrlock": [{"version": "latest", "project": "vllm"}],
+    "soundfile": [{"version": "latest", "project": "vllm"}],
+    "cffi": [{"version": "latest", "project": "vllm"}],
+    "pycparser": [{"version": "latest", "project": "vllm"}],
 }
 
 
@@ -485,11 +573,11 @@ def main() -> None:
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     # Get unique paths from the packages list
     project_paths = list(
-        set(
+        {
             config["project"]
             for pkg_configs in PACKAGES_PER_PROJECT.values()
             for config in pkg_configs
-        )
+        }
     )
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")

@@ -94,9 +94,6 @@ export function getRepo(repoDef: string, repoName?: string): Repo {
     }
 
     const repoArr = repoDef.split('/');
-    if (repoArr.length != 2) {
-      throw Error('getRepo: repoDef string must be in the format "owner/repo_name"');
-    }
     return { owner: repoArr[0], repo: repoArr[1] };
   } catch (e) {
     console.error(`[getRepo]: ${e}`);

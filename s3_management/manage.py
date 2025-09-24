@@ -7,11 +7,9 @@ import dataclasses
 import functools
 import time
 from collections import defaultdict
-from contextlib import suppress
-from datetime import datetime
 from os import makedirs, path
-from re import match, search, sub
-from typing import Dict, Iterable, List, Optional, Set, Type, TypeVar, Union
+from re import compile, match, sub
+from typing import Dict, Iterable, List, Optional, Set, TypeVar
 
 import boto3  # type: ignore[import]
 import botocore  # type: ignore[import]
@@ -226,6 +224,99 @@ PACKAGE_ALLOW_LIST = {
         "setuptools",
         "setuptools_scm",
         "wheel",
+        # vllm
+        "ninja",
+        "cuda_python",
+        "cuda_bindings",
+        "cuda_pathfinder",
+        "pynvml",
+        "nvidia_ml_py",
+        "einops",
+        "packaging",
+        "nvidia_cudnn_frontend",
+        "cachetools",
+        "blake3",
+        "py_cpuinfo",
+        "transformers",
+        "hf_xet",
+        "tokenizers",
+        "protobuf",
+        "fastapi",
+        "annotated_types",
+        "anyio",
+        "pydantic",
+        "pydantic_core",
+        "sniffio",
+        "starlette",
+        "typing_inspection",
+        "openai",
+        "distro",
+        "h11",
+        "httpcore",
+        "httpx",
+        "jiter",
+        "prometheus_client",
+        "prometheus_fastapi_instrumentator",
+        "lm_format_enforcer",
+        "interegular",
+        "llguidance",
+        "outlines_core",
+        "diskcache",
+        "lark",
+        "xgrammar",
+        "partial_json_parser",
+        "pyzmq",
+        "msgspec",
+        "gguf",
+        "mistral_common",
+        "rpds_py",
+        "pycountry",
+        "referencing",
+        "pydantic_extra_types",
+        "jsonschema_specifications",
+        "jsonschema",
+        "opencv_python_headless",
+        "compressed_tensors",
+        "frozendict",
+        "depyf",
+        "astor",
+        "cloudpickle",
+        "watchfiles",
+        "python_json_logger",
+        "scipy",
+        "pybase64",
+        "cbor2",
+        "setproctitle",
+        "openai_harmony",
+        "numba",
+        "llvmlite",
+        "ray",
+        "click",
+        "msgpack",
+        "fastapi_cli",
+        "fastapi_cloud_cli",
+        "httptools",
+        "markdown_it_py",
+        "pygments",
+        "python_dotenv",
+        "rich",
+        "rich_toolkit",
+        "shellingham",
+        "typer",
+        "uvicorn",
+        "uvloop",
+        "websockets",
+        "python_multipart",
+        "email_validator",
+        "dnspython",
+        "mdurl",
+        "rignore",
+        "sentry_sdk",
+        "cupy_cuda12x",
+        "fastrlock",
+        "soundfile",
+        "cffi",
+        "pycparser",
         "vllm",
         "flashinfer_python",
     ]
@@ -539,15 +630,12 @@ class S3Index:
         CLIENT.put_object_acl(Bucket=BUCKET.name, Key=key, ACL="public-read")
 
     @classmethod
-    def fetch_object_names(cls, prefix: str) -> List[str]:
+    def fetch_object_names(cls, prefix: str, pattern: str) -> List[str]:
         obj_names = []
         for obj in BUCKET.objects.filter(Prefix=prefix):
             is_acceptable = any(
                 [path.dirname(obj.key) == prefix]
-                + [
-                    match(f"{prefix}/{pattern}", path.dirname(obj.key))
-                    for pattern in ACCEPTED_SUBDIR_PATTERNS
-                ]
+                + [match(compile(f"{prefix}/{pattern}"), path.dirname(obj.key))]
             ) and obj.key.endswith(ACCEPTED_FILE_EXTENSIONS)
             if not is_acceptable:
                 continue
@@ -615,9 +703,11 @@ class S3Index:
                     self.objects[idx].pep658 = response
 
     @classmethod
-    def from_S3(cls, prefix: str, with_metadata: bool = True) -> "S3Index":
+    def from_S3(
+        cls, prefix: str, pattern: str, with_metadata: bool = True
+    ) -> "S3Index":
         prefix = prefix.rstrip("/")
-        obj_names = cls.fetch_object_names(prefix)
+        obj_names = cls.fetch_object_names(prefix, pattern)
 
         def sanitize_key(key: str) -> str:
             return key.replace("+", "%2B")
@@ -658,6 +748,12 @@ class S3Index:
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("Manage S3 HTML indices for PyTorch")
     parser.add_argument("prefix", type=str, choices=PREFIXES + ["all"])
+    parser.add_argument(
+        "--subdir-pattern",
+        type=str,
+        choices=ACCEPTED_SUBDIR_PATTERNS + ["all"],
+        default="all",
+    )
     parser.add_argument("--do-not-upload", action="store_true")
     parser.add_argument("--compute-sha256", action="store_true")
     return parser
@@ -670,14 +766,22 @@ def main() -> None:
     if args.compute_sha256:
         action = "Computing checksums"
 
+    patterns = (
+        ACCEPTED_SUBDIR_PATTERNS
+        if args.subdir_pattern == "all"
+        else [args.subdir_pattern]
+    )
     prefixes = PREFIXES if args.prefix == "all" else [args.prefix]
     for prefix in prefixes:
         generate_pep503 = prefix.startswith("whl")
         print(f"INFO: {action} for '{prefix}'")
         stime = time.time()
-        idx = S3Index.from_S3(
-            prefix=prefix, with_metadata=generate_pep503 or args.compute_sha256
-        )
+        for pattern in patterns:
+            idx = S3Index.from_S3(
+                prefix=prefix,
+                pattern=pattern,
+                with_metadata=generate_pep503 or args.compute_sha256,
+            )
         etime = time.time()
         print(
             f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime-stime:.2f} seconds"
