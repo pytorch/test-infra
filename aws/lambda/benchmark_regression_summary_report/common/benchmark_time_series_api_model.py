@@ -21,11 +21,14 @@ class BenchmarkTimeSeriesItem:
     data: List[Dict[str, Any]] = field(default_factory=list)
     # catch-all for unknown/extra keys
     extra: Dict[str, Any] = field(default_factory=dict)
+
     def __init__(self, **kwargs):
         # separate known vs unknown
         known_fields = {f.name for f in self.__dataclass_fields__.values() if f.init}
         init_args = {k: v for k, v in kwargs.items() if k in known_fields}
-        object.__setattr__(self, "extra", {k: v for k, v in kwargs.items() if k not in known_fields})
+        object.__setattr__(
+            self, "extra", {k: v for k, v in kwargs.items() if k not in known_fields}
+        )
         for k, v in init_args.items():
             object.__setattr__(self, k, v)
 
