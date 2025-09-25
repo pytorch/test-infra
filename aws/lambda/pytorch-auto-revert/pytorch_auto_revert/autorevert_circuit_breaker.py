@@ -21,18 +21,32 @@ def check_autorevert_disabled(repo_full_name: str = "pytorch/pytorch") -> bool:
         gh_client = GHClientFactory().client
         repo = gh_client.get_repo(repo_full_name)
 
-        # Search for open issues with the specific label
-        issues = repo.get_issues(state="open", labels=["ci: disable-autorevert"])
+        should_disable = False
 
-        for issue in issues:
+        # Search for open issues with the specific label
+        disable_issues = repo.get_issues(state="open", labels=["ci: disable-autorevert"])
+
+        for issue in disable_issues:
             logger.info(
                 f"Found open issue #{issue.number} with 'ci: disable-autorevert' label "
                 f"created by user {issue.user.login}. "
                 f"Autorevert circuit breaker is ACTIVE."
             )
+            should_disable = True
+
+        sev_issues = repo.get_issues(state="open", labels=["ci: sev"])
+        for issue in sev_issues:
+            logger.info(
+                f"Found open issue #{issue.number} with 'ci: sev' label "
+                f"created by user {issue.user.login}. "
+                f"Autorevert circuit breaker is ACTIVE."
+            )
+            should_disable = True
+
+        if should_disable:
             return True
 
-        logger.debug("No open issues with 'ci: disable-autorevert' label from authorized users found.")
+        logger.debug("No open issues with 'ci: disable-autorevert' label found.")
         return False
 
     except Exception as e:
