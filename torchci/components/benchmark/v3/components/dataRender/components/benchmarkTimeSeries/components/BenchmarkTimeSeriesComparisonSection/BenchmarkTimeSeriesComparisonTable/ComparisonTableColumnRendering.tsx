@@ -6,7 +6,7 @@ import {
   GridRenderCellParams,
   GridRowModel,
 } from "@mui/x-data-grid";
-import { HoverOnMoreVertButton } from "components/benchmark/v3/components/common/HoverRevealCell";
+import { MoreVertButton } from "components/benchmark/v3/components/common/MoreVertButton";
 import {
   BenchmarkComparisonPolicyConfig,
   ComparisonResult,
@@ -168,7 +168,7 @@ export function ComparisonTableValueCell({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="body2">{text}</Typography>
           {config?.customizedConfirmDialog && (
-            <HoverOnMoreVertButton
+            <MoreVertButton
               onClick={() => onClick({ left: ldata, right: rdata })}
             />
           )}

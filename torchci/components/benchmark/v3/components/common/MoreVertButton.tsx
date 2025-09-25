@@ -1,7 +1,7 @@
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { Box, IconButton } from "@mui/material";
 
-export function HoverOnMoreVertButton({
+export function MoreVertButton({
   onClick = () => {},
 }: {
   onClick?: () => void;
