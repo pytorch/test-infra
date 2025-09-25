@@ -1,5 +1,4 @@
 import logging
-from typing import List, Optional
 
 from .github_client_helper import GHClientFactory
 
@@ -24,7 +23,9 @@ def check_autorevert_disabled(repo_full_name: str = "pytorch/pytorch") -> bool:
         should_disable = False
 
         # Search for open issues with the specific label
-        disable_issues = repo.get_issues(state="open", labels=["ci: disable-autorevert"])
+        disable_issues = repo.get_issues(
+            state="open", labels=["ci: disable-autorevert"]
+        )
 
         for issue in disable_issues:
             logger.info(
