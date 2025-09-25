@@ -100,7 +100,7 @@ def get_ghf_revert_revision(commit: GitCommit) -> Optional[str]:
             rc is not None,
         ]
     ):
-        return rc.group(1)
+        return rc.group(1) if rc else None
     return None
 
 
@@ -139,6 +139,7 @@ def parse_medium_format(lines: Union[str, List[str]]) -> GitCommit:
         author_date=datetime.fromtimestamp(int(lines[2].split(":", 1)[1].strip())),
         title=lines[4].strip(),
         body="\n".join(lines[5:]),
+        pr_url="",
     )
 
 
@@ -553,47 +554,97 @@ def extract_commit_hash_from_revert(text):
     Returns:
         str or None: The extracted commit hash, or None if not found
     """
-    # Pattern to match "This reverts commit <hash>."
-    pattern = r"This reverts commit ([0-9a-f]+)\."
+    # Enhanced patterns to match various PyTorch revert formats
+    patterns = [
+        r"This reverts commit ([0-9a-f]{40})\.",  # Full 40-char hash
+        r"This reverts commit ([0-9a-f]{7,40})\.",  # Variable length hash
+        r"reverts commit ([0-9a-f]{7,40})",  # Case insensitive
+        r"Revert.*commit ([0-9a-f]{7,40})",  # Flexible revert format
+        r"Back out.*([0-9a-f]{7,40})",  # Back out format
+    ]
 
-    match = re.search(pattern, text)
-    if match:
-        return match.group(1)
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            return match.group(1)
     return None
 
 
-def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
+def analyze_reverts_missing_from_branch(
+    repo: GitRepo, branch: str, fork_cut_date: Optional[datetime] = None
+) -> None:
     """
     Analyze reverts applied to main branch but not applied to specified branch.
     This identifies potential missing revert commits that may need to be cherry-picked
-    to the release branch. Also detects if reverted commits from main were cherry-picked
-    to the branch.
+    to maintain parity with main. Enhanced to validate fork branch contents and timing.
+
+    Args:
+        repo: GitRepo instance
+        branch: Target branch to analyze (e.g., release branch)
+        fork_cut_date: Optional date when fork was created from main
     """
     # Get commits from main that are not in the specified branch
     main_only_commits = build_commit_dict(repo.get_commit_list(branch, "main"))
 
     # Get commits from the specified branch that are not in main
     branch_only_commits = build_commit_dict(repo.get_commit_list("main", branch))
+
+    # Get all commits in the branch to check original PR presence
+    all_branch_commits = build_commit_dict(
+        repo._run_git_log(f"{repo.remote}/orig/{branch}")
+    )
+
     branch_only_reverts = set()
+    branch_commit_hashes = set(all_branch_commits.keys())
 
     print(f"Analyzing reverts in main branch not present in {branch} branch")
+    if fork_cut_date:
+        print(f"Filtering for reverts after fork cut date: {fork_cut_date}")
     print(f"Total commits in main but not in {branch}: {len(main_only_commits)}")
     print(f"Total commits in {branch} but not in main: {len(branch_only_commits)}")
+    print(f"Total commits in {branch}: {len(all_branch_commits)}")
     print()
 
+    # Build set of reverted commits in branch and reverts in branch
     for commit_hash, commit in branch_only_commits.items():
         revert_hash = extract_commit_hash_from_revert(commit.body)
-        if revert_hash != None:
+        if revert_hash:
             branch_only_reverts.add(revert_hash)
         if is_revert(commit):
             branch_only_reverts.add(commit_hash)
 
+    # Also check all branch commits for existing reverts
+    for commit_hash, commit in all_branch_commits.items():
+        revert_hash = extract_commit_hash_from_revert(commit.body)
+        if revert_hash:
+            branch_only_reverts.add(revert_hash)
+
     # Find reverts in main that are not in the specified branch
     reverts_missing_from_branch = []
+    reverts_needing_cherry_pick = []
 
     for commit_hash, commit in main_only_commits.items():
         if is_revert(commit):
+            # Apply fork cut date filter if specified
+            commit_date = commit.commit_date or commit.author_date
+            if fork_cut_date and commit_date < fork_cut_date:
+                continue
+
             reverts_missing_from_branch.append(commit)
+
+            # Check if the original reverted commit exists in the branch
+            reverted_hash = extract_commit_hash_from_revert(commit.body)
+            if not reverted_hash:
+                reverted_hash = get_ghf_revert_revision(commit)
+
+            if reverted_hash and reverted_hash in branch_commit_hashes:
+                reverts_needing_cherry_pick.append(
+                    {
+                        "revert_commit": commit,
+                        "reverted_commit_hash": reverted_hash,
+                        "reason": f"Original commit {reverted_hash[:8]} exists in {branch}",
+                    }
+                )
 
     if not reverts_missing_from_branch:
         print(f"No reverts found in main branch that are missing from {branch} branch.")
@@ -602,14 +653,47 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
     print(
         f"Found {len(reverts_missing_from_branch)} revert(s) in main branch not present in {branch} branch:"
     )
+    print(
+        f"Of these, {len(reverts_needing_cherry_pick)} revert(s) need cherry-picking for parity:"
+    )
     print("=" * 80)
 
+    # First show reverts that definitely need cherry-picking
+    if reverts_needing_cherry_pick:
+        print("🔴 REVERTS REQUIRING CHERRY-PICK (original commit exists in branch):")
+        print("=" * 80)
+
+        for revert_info in reverts_needing_cherry_pick:
+            commit = revert_info["revert_commit"]
+            print(f"✅ CHERRY-PICK NEEDED: {commit.commit_hash}")
+            print(f"   Command: git cherry-pick {commit.commit_hash}")
+            print(f"   Date: {commit.commit_date or commit.author_date}")
+            print(f"   Author: {commit.author}")
+            print(f"   Title: {commit.title}")
+            print(f"   Reverted: {revert_info['reverted_commit_hash']}")
+            print(f"   Reason: {revert_info['reason']}")
+            if commit.pr_url:
+                print(f"   PR URL: {commit.pr_url}")
+            print("-" * 80)
+
+        print()
+        print("🟡 OTHER REVERTS (may not need cherry-picking):")
+        print("=" * 80)
+
+    # Show remaining reverts (those not requiring cherry-pick)
+    already_shown = {
+        r["revert_commit"].commit_hash for r in reverts_needing_cherry_pick
+    }
+
     for commit in reverts_missing_from_branch:
+        if commit.commit_hash in already_shown:
+            continue
+
         # Try to identify what was reverted
         revert_revision = get_revert_revision(commit)
         ghf_revert_revision = get_ghf_revert_revision(commit)
+        reverted_commit_hash = extract_commit_hash_from_revert(commit.body)
 
-        reverted_commit_hash = None
         if revert_revision:
             print(f"Reverted Phabricator Diff: {revert_revision}")
         elif ghf_revert_revision:
@@ -617,13 +701,9 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
             reverted_commit_hash = ghf_revert_revision
 
         # Check if the reverted commit was cherry-picked to the branch
-        cherry_picked_to_branch = False
-        if reverted_commit_hash:
-            if reverted_commit_hash in branch_only_reverts:
-                cherry_picked_to_branch = True
-                print(
-                    f"✅  DETECTED: The reverted commit {reverted_commit_hash} was cherry-picked to {branch}"
-                )
+        cherry_picked_to_branch = (
+            reverted_commit_hash and reverted_commit_hash in branch_commit_hashes
+        )
 
         print(f"Commit Hash: {commit.commit_hash}")
         print(f"Author: {commit.author}")
@@ -632,9 +712,13 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         if commit.pr_url:
             print(f"PR URL: {commit.pr_url}")
 
-        if not cherry_picked_to_branch:
+        if cherry_picked_to_branch and reverted_commit_hash:
             print(
-                f"⚠️ STATUS: The reverted commit does not appear to be in {branch}, so this revert may not be needed."
+                f"⚠️  WARNING: Original commit {reverted_commit_hash[:8]} exists in {branch} - consider cherry-picking this revert"
+            )
+        else:
+            print(
+                f"ℹ️  INFO: Original commit not found in {branch} - revert may not be needed"
             )
 
         print(
@@ -668,6 +752,11 @@ def parse_arguments():
         action="store_true",
         help="Analyze reverts applied to main branch but not applied to specified branch",
     )
+    parser.add_argument(
+        "--fork-cut-date",
+        type=lambda d: datetime.strptime(d, "%Y-%m-%d"),
+        help="Date when fork branch was cut from main (YYYY-MM-DD format). Only reverts after this date will be considered.",
+    )
     parser.add_argument("--date", type=lambda d: datetime.strptime(d, "%Y-%m-%d"))
     parser.add_argument("--issue-num", type=int)
     return parser.parse_args()
@@ -698,7 +787,8 @@ def main():
                 "Error: --branch argument is required for --analyze-missing-reverts-from-branch"
             )
             return
-        analyze_reverts_missing_from_branch(repo, args.branch)
+        fork_cut_date = getattr(args, "fork_cut_date", None)
+        analyze_reverts_missing_from_branch(repo, args.branch, fork_cut_date)
         return
 
     # Use milestone idx or search it along milestone titles
