@@ -7,6 +7,7 @@ import { CODEV_INDICATOR } from "./codevNoWritePermBot";
 import {
   hasApprovedPullRuns,
   hasWritePermissions,
+  isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
 } from "./utils";
 
@@ -42,6 +43,11 @@ async function doCodevLabeling(
 
 function myBot(app: Probot): void {
   app.on("pull_request_review.submitted", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
     if (context.payload.review.state !== "approved") {
       return;
     }
@@ -49,6 +55,11 @@ function myBot(app: Probot): void {
   });
 
   app.on("pull_request.edited", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
     // Apply `ciflow/trunk` to PRs that have just been imported.  It is unclear
     // if the PR body is edited.
     if (context.payload.changes.body?.from.match(CODEV_INDICATOR)) {
@@ -59,13 +70,18 @@ function myBot(app: Probot): void {
   });
 
   app.on("issue_comment.created", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     // Apply `ciflow/trunk` to PRs that have just been imported
     if (
       context.payload.comment.user.login == "facebook-github-bot" &&
       context.payload.comment.body.match("has imported this pull request") &&
       context.payload.issue.pull_request
     ) {
-      const owner = context.payload.repository.owner.login;
       const repo = context.payload.repository.name;
       const existingLabels = context.payload.issue.labels.map((e) => e["name"]);
 

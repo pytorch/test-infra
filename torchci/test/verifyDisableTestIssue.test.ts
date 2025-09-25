@@ -1,3 +1,4 @@
+import * as botUtils from "lib/bot/utils";
 import _ from "lodash";
 import nock from "nock";
 import { Probot } from "probot";
@@ -52,6 +53,11 @@ describe("Verify disable issues integration tests", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
   });
 
   afterEach(() => {

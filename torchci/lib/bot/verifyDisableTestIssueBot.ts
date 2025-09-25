@@ -1,7 +1,7 @@
 import * as aggregateDisableIssue from "lib/flakyBot/aggregateDisableIssue";
 import * as singleDisableIssue from "lib/flakyBot/singleDisableIssue";
 import { Context, Probot } from "probot";
-import { hasWritePermissions } from "./utils";
+import { hasWritePermissions, isPyTorchbotSupportedOrg } from "./utils";
 
 const validationCommentStart = "<!-- validation-comment-start -->";
 const validationCommentEnd = "<!-- validation-comment-end -->";
@@ -60,9 +60,14 @@ export function formJobValidationComment(
 
 export default function verifyDisableTestIssueBot(app: Probot): void {
   app.on(["issues.opened", "issues.edited"], async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const state = context.payload["issue"]["state"];
     const title = context.payload["issue"]["title"];
-    const owner = context.payload["repository"]["owner"]["login"];
     const repo = context.payload["repository"]["name"];
 
     if (state === "closed") {

@@ -1,12 +1,18 @@
 import { upsertDrCiComment } from "lib/drciUtils";
 import { Probot } from "probot";
+import { isPyTorchbotSupportedOrg } from "./utils";
 
 export default function drciBot(app: Probot): void {
   app.on(
     ["pull_request.opened", "pull_request.synchronize"],
     async (context) => {
-      // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#pull_request
       const owner = context.payload.repository.owner.login;
+      if (!isPyTorchbotSupportedOrg(owner)) {
+        context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
+      // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#pull_request
       const repo = context.payload.repository.name;
       const prNum = context.payload.pull_request.number;
       const prOwner = context.payload.pull_request.user.login;

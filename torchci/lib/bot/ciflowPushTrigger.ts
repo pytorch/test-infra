@@ -4,6 +4,7 @@ import {
   CachedConfigTracker,
   hasApprovedPullRuns,
   hasWritePermissions,
+  isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
 } from "./utils";
 
@@ -245,8 +246,14 @@ async function handleLabelEvent(
 export default function ciflowPushTrigger(app: Probot) {
   const tracker = new CachedConfigTracker(app);
   app.on("pull_request.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
     await handleLabelEvent(context, context.payload, tracker);
   });
+
   app.on(
     [
       "pull_request.synchronize",
@@ -254,13 +261,31 @@ export default function ciflowPushTrigger(app: Probot) {
       "pull_request.reopened",
     ],
     async (context) => {
+      const owner = context.payload.repository.owner.login;
+      if (!isPyTorchbotSupportedOrg(owner)) {
+        context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+        return;
+      }
+
       await handleSyncEvent(context, context.payload);
     }
   );
   app.on("pull_request.closed", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     await handleClosedEvent(context, context.payload);
   });
   app.on("pull_request.unlabeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     await handleUnlabeledEvent(context, context.payload);
   });
 }
