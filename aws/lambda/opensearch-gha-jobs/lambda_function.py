@@ -189,7 +189,12 @@ def upsert_document(client: OpenSearch, record: Any) -> None:
         return
 
     # Use monthly index for easier data retention management
-    month = record.get("dynamodb", {}).get("NewImage", {}).get("created_at", {}).get("S", "")[:7]
+    month = (
+        record.get("dynamodb", {})
+        .get("NewImage", {})
+        .get("created_at", {})
+        .get("S", "")[:7]
+    )
     index += "-" + month.replace("-", ".")
 
     # Create index using the table name if it's not there yet
