@@ -65,19 +65,19 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       .format("YYYY-MM-DD HH:mm [UTC]");
     const pct = fmtFixed2(meta.value)
     const commitShort = meta.commit.slice(0, 7);
+    const rc = getBenchmarkTimeSeriesChartRenderingConfig(meta.metric, renderOptions)
 
     let value = pct;
-
-    console.log(meta, renderOptions)
-    const rc = getBenchmarkTimeSeriesChartRenderingConfig(meta.metric, renderOptions)
+    let displayName = meta.metric;
     if (rc) {
       value = renderBasedOnUnitConifg(value,rc?.unit)
+      displayName = rc?.displayName ?? meta.metric
     }
 
     return [
       `<div style="font-weight:600;margin-bottom:4px;">${t}</div>`,
       `<div style="font-size:12px;">${p?.data?.legend_name}</div>`,
-      `<b>${meta.metric}</b>: <b>${value}</b><br/>`,
+      `<b>${displayName}</b>: <b>${value}</b><br/>`,
       `commit <code>${commitShort}</code> · workflow ${meta.workflow_id} · branch ${meta.branch}`,
     ].join("");
   }) as any;

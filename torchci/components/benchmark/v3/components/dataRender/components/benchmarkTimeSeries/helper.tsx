@@ -29,6 +29,7 @@ export interface BenchmarkTimeSeriesChartRenderingBook {
 }
 
 export interface BenchmarkTimeSeriesChartRenderingConfig {
+  displayName?: string;
   unit: BenchmarkUnitConfig;
 }
 
@@ -86,11 +87,13 @@ export type ChartConfig = {
     type: string;
     id?: string;
   };
+
   renderOptions?: BenchmarkTimeSeriesCharRenderOpiton;
 };
 
 export type BenchmarkTimeSeriesCharRenderOpiton = {
   height?: string | number;
+  title_group_mapping: BenchmarkComparisonTitleMapping;
   chartRenderBook?: BenchmarkTimeSeriesChartRenderingBook;
 };
 
@@ -193,7 +196,7 @@ export const shortSha = (id?: string) =>
 export function getBenchmarkTimeSeriesTitle(
   default_title: string = "unknown",
   key: string,
-  config?: ComparisonTableConfig | ChartGroupConfig
+  config?: ComparisonTableConfig | ChartConfig
 ) {
   if (!config?.renderOptions?.title_group_mapping) {
     return {
