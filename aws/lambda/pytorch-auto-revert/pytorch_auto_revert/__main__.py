@@ -244,18 +244,18 @@ def main(*args, **kwargs) -> None:
             )
             return
 
-        # autorevert_v2(
-        #     os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
-        #     hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
-        #     notify_issue_number=int(
-        #         os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
-        #     ),
-        #     repo_full_name=repo_name,
-        #     restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
-        #     revert_action=(
-        #         RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
-        #     ),
-        # )
+        autorevert_v2(
+            os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
+            hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
+            notify_issue_number=int(
+                os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
+            ),
+            repo_full_name=repo_name,
+            restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
+            revert_action=(
+                RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
+            ),
+        )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
         _, _, state_json = autorevert_v2(
