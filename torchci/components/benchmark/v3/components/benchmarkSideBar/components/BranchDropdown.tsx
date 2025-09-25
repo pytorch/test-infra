@@ -4,10 +4,10 @@ import { UMDenseDropdown } from "components/uiModules/UMDenseComponents";
 
 type BranchDropdownsProps = {
   type: string;
-  lBranch: string;
-  rBranch: string;
-  setLBranch: (val: string) => void;
-  setRBranch: (val: string) => void;
+  lbranch: string;
+  rbranch: string;
+  setLbranch: (val: string) => void;
+  setRbranch: (val: string) => void;
   branchOptions?: string[];
 };
 
@@ -59,10 +59,10 @@ const SectionShell: React.FC<{ children: React.ReactNode }> = ({
 
 export function BranchDropdowns({
   type,
-  lBranch,
-  rBranch,
-  setLBranch,
-  setRBranch,
+  lbranch,
+  rbranch,
+  setLbranch,
+  setRbranch,
   branchOptions,
 }: BranchDropdownsProps) {
   const empty = !branchOptions || branchOptions.length === 0;
@@ -76,24 +76,24 @@ export function BranchDropdowns({
       ) : type === "comparison" ? (
         <>
           <UMDenseDropdown
-            dtype={lBranch}
-            setDType={setLBranch}
+            dtype={lbranch}
+            setDType={setLbranch}
             dtypes={branchOptions}
             label="Left Branch"
           />
           <UMDenseDropdown
-            dtype={rBranch}
-            setDType={setRBranch}
+            dtype={rbranch}
+            setDType={setRbranch}
             dtypes={branchOptions}
             label="Right Branch"
           />
         </>
       ) : (
         <UMDenseDropdown
-          dtype={lBranch}
+          dtype={lbranch}
           setDType={(val: string) => {
-            setLBranch(val);
-            setRBranch(val);
+            setLbranch(val);
+            setRbranch(val);
           }}
           dtypes={branchOptions}
           label="Branch"

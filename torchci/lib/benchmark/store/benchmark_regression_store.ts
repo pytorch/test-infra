@@ -1,5 +1,6 @@
 // benchmark_regression_store.ts
 import type { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
@@ -30,8 +31,8 @@ export interface BenchmarkDashboardState {
   rcommit: BenchmarkCommitMeta | null;
 
   setStagedTime: (t: TimeRange) => void;
-  setStagedLBranch: (c: string) => void;
-  setStagedRBranch: (c: string) => void;
+  setStagedLbranch: (c: string) => void;
+  setStagedRbranch: (c: string) => void;
   setStagedFilter: (k: string, v: string) => void;
   setStagedFilters: (filters: Record<string, string>) => void;
 
@@ -40,6 +41,26 @@ export interface BenchmarkDashboardState {
 
   setLCommit: (commit: BenchmarkCommitMeta | null) => void;
   setRCommit: (commit: BenchmarkCommitMeta | null) => void;
+
+  update: (initial: {
+    time?: TimeRange;
+    benchmarkId?: string;
+    filters?: Record<string, string>;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
+    lbranch?: string;
+    rbranch?: string;
+  }) => void;
+
+  hydrateFromUrl: (initial: {
+    time: TimeRange;
+    benchmarkId: string;
+    filters: Record<string, string>;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
+    lbranch?: string;
+    rbranch?: string;
+  }) => void;
 
   reset: (initial: {
     time: TimeRange;
@@ -81,8 +102,8 @@ export function createDashboardStore(initial: {
     rcommit: initial.rcommit ?? null,
 
     // actions...
-    setStagedLBranch: (c) => set({ stagedLbranch: c }),
-    setStagedRBranch: (c) => set({ stagedRbranch: c }),
+    setStagedLbranch: (c) => set({ stagedLbranch: c }),
+    setStagedRbranch: (c) => set({ stagedRbranch: c }),
     setStagedTime: (t) => set({ stagedTime: t }),
     setStagedFilter: (k, v) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, [k]: v } })),
@@ -122,5 +143,51 @@ export function createDashboardStore(initial: {
         rcommit: next.rcommit ?? null,
         // (optional) benchmarkId: next.benchmarkId,
       }),
+
+    update: (next) => {
+      set((s) => ({
+        // important to keep the benchmarkId as original if not specified
+        benchmarkId: next.benchmarkId ?? s.benchmarkId,
+        // staged
+        stagedTime: next.time ?? s.stagedTime,
+        stagedFilters: next.filters ?? s.stagedFilters,
+        stagedLbranch: next.lbranch ?? s.stagedLbranch ?? "",
+        stagedRbranch: next.rbranch ?? s.stagedRbranch ?? "",
+        // committed mirrors staged on first load
+        committedTime: next.time ?? s.committedTime,
+        committedFilters: next.filters ?? s.committedFilters,
+        committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
+        committedRbranch: next.lbranch ?? s.committedRbranch ?? "",
+        lcommit: next.lcommit ?? null,
+        rcommit: next.rcommit ?? null,
+      }));
+    },
+
+    hydrateFromUrl: ({
+      time,
+      filters,
+      benchmarkId,
+      lbranch,
+      rbranch,
+      lcommit,
+      rcommit,
+    }) => {
+      let timeRange = undefined;
+      if (time?.end && time?.start) {
+        timeRange = {
+          start: dayjs.utc(time.start),
+          end: dayjs.utc(time.end),
+        };
+      }
+      return get().update({
+        time: timeRange,
+        filters,
+        benchmarkId,
+        lbranch,
+        rbranch,
+        lcommit,
+        rcommit,
+      });
+    },
   }));
 }

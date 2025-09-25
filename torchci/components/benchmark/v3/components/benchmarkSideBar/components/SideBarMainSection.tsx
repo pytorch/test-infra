@@ -4,14 +4,17 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
+import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { BranchDropdowns } from "./BranchDropdown";
+import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
   root: {
@@ -26,6 +29,28 @@ const styles = {
  *
  */
 export function SideBarMainSection() {
+  const router = useRouter();
+  const hydrateFromUrl = useDashboardSelector((s) => s.hydrateFromUrl);
+
+  const committedState = useDashboardSelector((s) => ({
+    time: s.committedTime,
+    filters: s.committedFilters,
+    lcommit: s.lcommit,
+    rcommit: s.rcommit,
+    lbranch: s.committedLbranch,
+    rbranch: s.committedRbranch,
+  }));
+
+  // sync the url with the store
+  const { pushUrlFromStore } = useUrlStoreSync(
+    router,
+    committedState,
+    hydrateFromUrl
+  );
+
+  // make the url in sync with the state of the store
+  pushUrlFromStore();
+
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
   const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
@@ -47,7 +72,6 @@ export function SideBarMainSection() {
     committedFilters,
     committedLbranch,
     committedRbranch,
-
     commitMainOptions,
     revertMainOptions,
   } = useDashboardSelector((s) => ({
@@ -56,8 +80,8 @@ export function SideBarMainSection() {
     stagedLbranch: s.stagedLbranch,
     stagedRbranch: s.stagedRbranch,
     setStagedTime: s.setStagedTime,
-    setStagedLBranch: s.setStagedLBranch,
-    setStagedRBranch: s.setStagedRBranch,
+    setStagedLBranch: s.setStagedLbranch,
+    setStagedRBranch: s.setStagedRbranch,
 
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -114,7 +138,6 @@ export function SideBarMainSection() {
   }, [branches]);
 
   const DropdownComp = dataBinding?.getFilterOptionComponent();
-
   const dirty =
     stagedTime.start.valueOf() !== committedTime.start.valueOf() ||
     stagedTime.end.valueOf() !== committedTime.end.valueOf() ||
@@ -129,6 +152,19 @@ export function SideBarMainSection() {
 
   return (
     <Stack spacing={2} sx={styles.root}>
+      <Stack direction="row" alignItems="center" spacing={0}>
+        <Typography variant="body2" sx={{ fontSize: "0.65rem" }}>
+          Share link:
+        </Typography>
+        <UMCopyLink
+          params={{
+            timeRange: committedTime,
+            filters: committedFilters,
+            lbranch: committedLbranch,
+            rbranch: committedRbranch,
+          }}
+        />
+      </Stack>
       <UMDateButtonPicker
         setTimeRange={(start: dayjs.Dayjs, end: dayjs.Dayjs) =>
           setStagedTime({ start, end })
@@ -146,10 +182,10 @@ export function SideBarMainSection() {
       {!isCommitsLoading && !commitsError && (
         <BranchDropdowns
           type="single"
-          lBranch={stagedLbranch}
-          rBranch={stagedRbranch}
-          setLBranch={setStagedLBranch}
-          setRBranch={setStagedRBranch}
+          lbranch={stagedLbranch}
+          rbranch={stagedRbranch}
+          setLbranch={setStagedLBranch}
+          setRbranch={setStagedRBranch}
           branchOptions={branches}
         />
       )}
