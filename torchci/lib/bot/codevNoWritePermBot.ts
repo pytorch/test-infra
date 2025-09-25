@@ -1,5 +1,9 @@
 import { Probot } from "probot";
-import { hasWritePermissions, isPyTorchPyTorch } from "./utils";
+import {
+  hasWritePermissions,
+  isPyTorchbotSupportedOrg,
+  isPyTorchPyTorch,
+} from "./utils";
 
 export const CODEV_INDICATOR = /Differential Revision: \[?D/;
 const CODEV_WIKI_LINK =
@@ -20,10 +24,15 @@ export function genCodevNoWritePermComment(author: string) {
 // access.
 export default function codevNoWritePerm(app: Probot): void {
   app.on("pull_request.opened", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const body = context.payload.pull_request.body;
     const author = context.payload.pull_request.user.login;
     const prNumber = context.payload.pull_request.number;
-    const owner = context.payload.repository.owner.login;
     const repo = context.payload.repository.name;
     if (
       isPyTorchPyTorch(owner, repo) &&

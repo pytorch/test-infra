@@ -62,6 +62,26 @@ export interface BenchmarkDashboardState {
     rbranch?: string;
   }) => void;
 
+  update: (initial: {
+    time?: TimeRange;
+    benchmarkId?: string;
+    filters?: Record<string, string>;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
+    lbranch?: string;
+    rbranch?: string;
+  }) => void;
+
+  hydrateFromUrl: (initial: {
+    time: TimeRange;
+    benchmarkId: string;
+    filters: Record<string, string>;
+    lcommit?: BenchmarkCommitMeta | null;
+    rcommit?: BenchmarkCommitMeta | null;
+    lbranch?: string;
+    rbranch?: string;
+  }) => void;
+
   reset: (initial: {
     time: TimeRange;
     benchmarkId: string;

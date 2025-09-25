@@ -1,8 +1,14 @@
 import { Probot } from "probot";
+import { isPyTorchbotSupportedOrg } from "./utils";
 
 function cancelWorkflowsOnCloseBot(app: Probot): void {
   app.on("pull_request.closed", async (ctx) => {
     const owner = ctx.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const repo = ctx.payload.repository.name;
     const senderLogin = ctx.payload.sender.login;
     const senderId = ctx.payload.sender.id;

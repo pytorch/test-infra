@@ -15,6 +15,11 @@ describe("autoLabelCodevTrunkBot", () => {
     probot.load(myProbotApp);
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     // zhouzhuojie/gha-ci-playground is the repo used in almost all the tests
     utils.mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
   });

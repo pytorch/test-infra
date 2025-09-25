@@ -1,6 +1,6 @@
 import { Probot } from "probot";
 import { queryClickhouseSaved } from "../clickhouse";
-import { CachedConfigTracker } from "./utils";
+import { CachedConfigTracker, isPyTorchbotSupportedOrg } from "./utils";
 
 const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
@@ -166,10 +166,15 @@ function retryBot(app: Probot): void {
   const tracker = new CachedConfigTracker(app);
 
   app.on("workflow_run.completed", async (ctx) => {
+    const owner = ctx.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
     const workflowName = ctx.payload.workflow_run.name;
     const attemptNumber = ctx.payload.workflow_run.run_attempt;
     const defaultBranch = ctx.payload.repository.default_branch;
-    const owner = ctx.payload.repository.owner.login;
     const repo = ctx.payload.repository.name;
     const runId = ctx.payload.workflow_run.id;
 
