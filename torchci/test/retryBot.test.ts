@@ -1,3 +1,4 @@
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
 import myProbotApp from "../lib/bot/retryBot";
@@ -20,7 +21,12 @@ describe("retry-bot", () => {
     jest.restoreAllMocks();
   });
 
+  function mockIsPytorchManagedOrg(bool: boolean) {
+    return jest.spyOn(botUtils, "isPyTorchManagedOrg").mockReturnValue(bool);
+  }
+
   test("rerun when one job fails", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -59,6 +65,7 @@ describe("retry-bot", () => {
   });
 
   test("rerun when workflow name starts with a valid prefix", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "linux-binary-manywheel";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -97,6 +104,7 @@ describe("retry-bot", () => {
   });
 
   test("dont rerun if failed at test step", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -137,6 +145,7 @@ describe("retry-bot", () => {
   });
 
   test("dont rerun unstable jobs", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -173,6 +182,7 @@ describe("retry-bot", () => {
   });
 
   test("rerun known flaky jobs", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -213,6 +223,7 @@ describe("retry-bot", () => {
   });
 
   test("rerun previous workflow if it has more than one flaky jobs in trunk", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -264,6 +275,7 @@ describe("retry-bot", () => {
   });
 
   test("rerun previous job if it is flaky in trunk", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     const workflow_jobs = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -313,6 +325,7 @@ describe("retry-bot", () => {
   });
 
   test("Check the previous job whether the current one fails or not", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.conclusion = "success";
     event.payload.workflow_run.name = "pull";
@@ -356,6 +369,7 @@ describe("retry-bot", () => {
   });
 
   test("dont rerun if has already been rerun", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     event.payload.workflow_run.run_attempt = 2;
@@ -380,6 +394,7 @@ describe("retry-bot", () => {
   });
 
   test("get more pages of workflow_jobs", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "Pull";
     const workflow_jobs1 = requireDeepCopy("./fixtures/workflow_jobs.json");
@@ -424,6 +439,7 @@ describe("retry-bot", () => {
   });
 
   test("dont re-run unless retryable_workflows is specified in .github/pytorch-probot.yml", async () => {
+    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/workflow_run.completed.json");
     event.payload.workflow_run.name = "pull";
     event.payload.workflow_run.run_attempt = 1;

@@ -1,4 +1,5 @@
 import _ from "lodash";
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
 import * as bot from "../lib/bot/verifyDisableTestIssueBot";
@@ -52,6 +53,8 @@ describe("Verify disable issues integration tests", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(myProbotApp);
+    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
+    mockManagedOrg.mockReturnValue(true);
   });
 
   afterEach(() => {

@@ -1,3 +1,4 @@
+import * as botUtils from "lib/bot/utils";
 import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
@@ -30,6 +31,8 @@ describe("Push trigger integration tests", () => {
         throttle: { enabled: false },
       }),
     });
+    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
+    mockManagedOrg.mockReturnValue(true);
     ciflowPushTrigger(probot);
   });
 
@@ -40,6 +43,7 @@ describe("Push trigger integration tests", () => {
     }
     expect(nock.isDone()).toBe(true);
     nock.cleanAll();
+    jest.restoreAllMocks();
   });
 
   test("CIFlow label trigger ignores closed PR", async () => {

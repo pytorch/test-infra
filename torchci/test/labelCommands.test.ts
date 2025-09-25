@@ -1,3 +1,4 @@
+import * as botUtils from "lib/bot/utils";
 import pytorchBot from "lib/bot/pytorchBot";
 import nock from "nock";
 import * as probot from "probot";
@@ -14,6 +15,8 @@ describe("label-bot", () => {
   beforeEach(() => {
     probot = utils.testProbot();
     probot.load(pytorchBot);
+    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
+    mockManagedOrg.mockReturnValue(true);
   });
 
   afterEach(() => {
