@@ -81,7 +81,7 @@ export function ComparisonTable({
         columns={columns}
         initialState={{
           sorting: {
-            sortModel: [{ field: 'name', sort: 'asc' }],
+            sortModel: [{ field: "name", sort: "asc" }],
           },
         }}
         getRowId={(r) => {
