@@ -79,6 +79,11 @@ export function ComparisonTable({
         disableRowSelectionOnClick
         rows={rows}
         columns={columns}
+        initialState={{
+          sorting: {
+            sortModel: [{ field: 'name', sort: 'asc' }],
+          },
+        }}
         getRowId={(r) => {
           return r.id;
         }}
