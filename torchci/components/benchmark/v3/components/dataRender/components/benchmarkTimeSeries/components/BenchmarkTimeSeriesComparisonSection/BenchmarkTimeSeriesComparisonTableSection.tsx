@@ -79,7 +79,6 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     setRWorkflowId(rcommit?.workflow_id);
   }, [lcommit, rcommit]);
 
-
   const onSliderChange = (next: [string, string]) => {
     setLlWorkflowId(next[0]);
     setRWorkflowId(next[1]);
