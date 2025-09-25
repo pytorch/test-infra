@@ -15,7 +15,7 @@ export function FanoutBenchmarkTimeSeriesChartSection({
       <BenchmarkChartSection
         data={data}
         chartSectionConfig={config as BenchmarkChartSectionConfig}
-        onChange={(payload) => {
+        onSelect={(payload) => {
           onChange?.(payload);
         }}
         lcommit={lcommit ?? undefined}

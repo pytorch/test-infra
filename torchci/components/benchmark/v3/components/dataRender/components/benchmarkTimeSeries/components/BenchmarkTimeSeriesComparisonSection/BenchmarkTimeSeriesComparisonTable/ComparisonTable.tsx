@@ -13,7 +13,7 @@ export function ComparisonTable({
   config,
   columnOrder,
   title = "Group",
-  onChange,
+  onSelect,
 }: {
   data: SnapshotRow[];
   lWorkflowId: string | null;
@@ -21,7 +21,7 @@ export function ComparisonTable({
   config: ComparisonTableConfig;
   columnOrder?: string[]; // optional preferred ordering of columns
   title?: string;
-  onChange?: (payload: any) => void;
+  onSelect?: (payload: any) => void;
 }) {
   // group raw data into rows, each row contains all values across workflowIds
   const rows: GridRowModel[] = useMemo(() => {
@@ -37,10 +37,7 @@ export function ComparisonTable({
   };
 
   const onConfirm = () => {
-    if (onChange)
-      onChange({
-        selectedData,
-      });
+    onSelect?.(selectedData);
   };
 
   // iterate the column map in row data, and get all column names
@@ -108,7 +105,7 @@ export function ComparisonTable({
         onClose={() => setDialogOpen(false)}
         leftMeta={selectedData?.left}
         rightMeta={selectedData?.right}
-        onConfirm={onConfirm}
+        onSelect={onConfirm}
         other={{ parent: "comparisonTable" }}
         enabled={config.enableDialog ?? false}
         config={config.customizedConfirmDialog}

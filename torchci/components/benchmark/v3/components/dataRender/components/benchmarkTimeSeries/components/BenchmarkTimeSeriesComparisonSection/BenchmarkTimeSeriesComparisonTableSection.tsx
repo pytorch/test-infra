@@ -28,14 +28,12 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   tableSectionConfig,
   lcommit,
   rcommit,
-  customizedConfirmDialog,
   onChange,
 }: {
   data?: any[];
   tableSectionConfig: BenchmarkComparisonTableSectionConfig;
   lcommit?: BenchmarkCommitMeta;
   rcommit?: BenchmarkCommitMeta;
-  customizedConfirmDialog?: any;
   onChange?: (payload: any) => void;
 }) {
   // Sticky bar offset
@@ -86,7 +84,6 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
 
   useEffect(() => {
     if (!lcommit || !rcommit) return;
-    console.log("lcommit", lcommit);
     setLlWorkflowId(lcommit?.workflow_id);
     setRWorkflowId(rcommit?.workflow_id);
   }, [lcommit, rcommit]);
@@ -127,7 +124,7 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
                     lWorkflowId={lWorkflowId}
                     rWorkflowId={rWorkflowId}
                     title={title}
-                    onChange={onChange}
+                    onSelect={onChange}
                   />
                 </Paper>
               </Grid>
@@ -137,4 +134,8 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
       </Box>
     </>
   );
+}
+
+export function toBenchamrkTimeSeriesComparisonTableId(key: string) {
+  return `benchmark-time-series-comparison-table-${key}`;
 }

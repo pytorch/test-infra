@@ -27,13 +27,13 @@ const styles = {
 export default function BenchmarkChartSection({
   data = [],
   chartSectionConfig,
-  onChange,
+  onSelect,
 }: {
   data?: BenchmarkTimeSeriesInput[];
   chartSectionConfig: BenchmarkChartSectionConfig;
   lcommit?: BenchmarkCommitMeta;
   rcommit?: BenchmarkCommitMeta;
-  onChange?: (payload: any) => void;
+  onSelect?: (payload: any) => void;
 }) {
   const filtered = useMemo(() => {
     if (!data) {
@@ -86,15 +86,15 @@ export default function BenchmarkChartSection({
             <Box
               key={key}
               sx={styles.groupBox}
-              id={`benchmark-time-series-chart-section-${key}`}
+              id={toBenchmarkTimeseriesChartSectionId(key)}
             >
               <Paper sx={styles.paper}>
                 <Typography variant="h6">{title.toUpperCase()}</Typography>
                 <BenchmarkTimeSeriesChartGroup
                   data={data.items}
                   chartGroup={chartSectionConfig.chartGroup}
-                  onConfirm={(payload: any) => {
-                    onChange?.(payload);
+                  onSelect={(payload: any) => {
+                    onSelect?.(payload);
                   }}
                 />
               </Paper>
@@ -104,4 +104,8 @@ export default function BenchmarkChartSection({
       </Box>
     </Box>
   );
+}
+
+export function toBenchmarkTimeseriesChartSectionId(key: string) {
+  return `benchmark-time-series-chart-section-${key}`;
 }

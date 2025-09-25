@@ -11,7 +11,7 @@ type SelectionControlsProps = {
   leftMeta: RawTimeSeriesPoint | null;
   rightMeta: RawTimeSeriesPoint | null;
   onClear: () => void;
-  onConfirm: () => void;
+  onSelect?: () => void;
   confirmDisabled: boolean;
   clearDisabled: boolean;
   customizedConfirmDialog?: any;
@@ -23,7 +23,7 @@ export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
   leftMeta,
   rightMeta,
   onClear,
-  onConfirm,
+  onSelect = () => {},
   confirmDisabled,
   clearDisabled,
   customizedConfirmDialog,
@@ -101,7 +101,9 @@ export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
         other={{ parent: "timeSeriesChart" }}
         leftMeta={leftMeta}
         rightMeta={rightMeta}
-        onConfirm={onConfirm}
+        onSelect={() => {
+          onSelect();
+        }}
         enabled={true}
         config={customizedConfirmDialog}
       />

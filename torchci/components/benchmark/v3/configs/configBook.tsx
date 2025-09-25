@@ -1,4 +1,4 @@
-import { DefaultFanoutRenderContent } from "../components/dataRender/fanout/defaultFanoutRenderContent";
+import { DefaultFanoutRenderContent } from "../components/dataRender/fanout/DefaultFanoutRenderContent";
 import { NotFoundComponent, resolveComponent } from "./configRegistration";
 import {
   CompilerPrecomputeBenchmarkUIConfig,

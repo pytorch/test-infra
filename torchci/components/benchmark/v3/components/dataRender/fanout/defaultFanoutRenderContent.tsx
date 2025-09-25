@@ -8,7 +8,7 @@ import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useState } from "react";
-import { ToggleSection } from "../../common/ToggleSection";
+import { ToggleSection, toToggleSectionId } from "../../common/ToggleSection";
 
 /**
  * The default fanout component fetches pre-processed data for chart,
@@ -125,14 +125,18 @@ export function DefaultFanoutRenderContent() {
             getFanoutRenderComponent(fanoutUIConfig);
           if (!data_path) {
             return (
-              <div key={index}>
+              <div key={index} id={toToggleSectionId(index + 1)}>
                 unable to fetch fanout component {fanoutUIConfig.type}
               </div>
             );
           }
           const title = fanoutUIConfig.title ?? `Section ${index + 1}`;
           return (
-            <ToggleSection key={index} title={title}>
+            <ToggleSection
+              key={index}
+              title={title}
+              id={toToggleSectionId(index + 1)}
+            >
               <Component
                 data={multidata[data_path]}
                 config={fanoutUIConfig.config}

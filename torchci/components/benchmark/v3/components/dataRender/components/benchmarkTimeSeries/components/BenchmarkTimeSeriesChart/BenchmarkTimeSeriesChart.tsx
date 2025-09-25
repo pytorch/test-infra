@@ -29,7 +29,7 @@ type Props = {
   };
   defaultSelectMode?: boolean;
   /** Called when user clicks Confirm with L/R selected for a single series. */
-  onConfirm?: (sel: ConfirmPayload) => void;
+  onSelect?: (sel: ConfirmPayload) => void;
 };
 
 const DEFAULT_HEIGHT = 200;
@@ -39,7 +39,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   renderOptions,
   customizedConfirmDialog,
   defaultSelectMode = false,
-  onConfirm = () => {},
+  onSelect = () => {},
 }) => {
   const chartRef = useRef<ReactECharts>(null);
 
@@ -243,9 +243,9 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       ? (seriesDatas[selectedSeriesIdx][rightIdx].meta as RawTimeSeriesPoint)
       : null;
 
-  function confirm() {
+  function select() {
     if (!hasBoth) return;
-    onConfirm({
+    onSelect({
       seriesIndex: selectedSeriesIdx!,
       seriesName: currentSeriesName!,
       groupInfo: currentGroupInfo || {},
@@ -271,7 +271,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         leftMeta={leftMeta}
         rightMeta={rightMeta}
         onClear={resetSelection}
-        onConfirm={confirm}
+        onSelect={select}
         confirmDisabled={!hasBoth}
         clearDisabled={!leftMeta && !rightMeta}
         customizedConfirmDialog={customizedConfirmDialog}

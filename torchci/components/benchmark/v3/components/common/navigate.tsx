@@ -1,3 +1,7 @@
+import { openToggleSectionById } from "./ToggleSection";
+
+const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
  * Navigate inside a MUI DataGrid by matching rowId keywords,
  * and optionally focus on a specific column (field).
@@ -7,14 +11,26 @@
  * @param field      Optional column field (suite name) to highlight a specific cell
  * @returns          The matched row or cell HTMLElement | null
  */
-export function navigateToDataGrid(
+export async function navigateToDataGrid(
+  sectionId: string,
+  keywords: string[],
+  field?: string,
+  toggleId?: string
+): Promise<HTMLElement | null> {
+  if (toggleId) {
+    openToggleSectionById(toggleId);
+    await delay(350); // wait for toggle animation
+  }
+  return scrollToDataGridView(sectionId, keywords, field);
+}
+
+function scrollToDataGridView(
   sectionId: string,
   keywords: string[],
   field?: string
-): HTMLElement | null {
+) {
   const section = document.getElementById(sectionId);
   if (!section) return null;
-
   const grid = section.querySelector(".MuiDataGrid-root") as HTMLElement | null;
   if (!grid) return null;
 
@@ -29,7 +45,6 @@ export function navigateToDataGrid(
 
   // Scroll to the row
   match.scrollIntoView({ behavior: "smooth", block: "center" });
-
   // If a specific column (field) is given, focus on that cell
   let target: HTMLElement | null = match;
   if (field) {
@@ -44,16 +59,22 @@ export function navigateToDataGrid(
   return target;
 }
 
-export function navigateToEchartInGroup(
+export async function navigateToEchartInGroup(
   sectionId: string,
-  chartId: string // optional keywords to filter which chart
-): HTMLElement | null {
+  chartId: string,
+  toggleId?: string // optional toggleId to open
+): Promise<HTMLElement | null> {
   const section = document.getElementById(sectionId);
   if (!section) return null;
 
-  // assume each chart container has className="echart"
-  const chart = document.getElementById(chartId);
-  let target: HTMLElement | null = chart;
+  let target: HTMLElement | null = section.querySelector<HTMLElement>(
+    `#${CSS.escape(chartId)}`
+  );
+
+  if (toggleId) {
+    openToggleSectionById(toggleId);
+    await delay(350);
+  }
 
   if (!target) {
     return null;

@@ -10,13 +10,21 @@ import { Typography } from "@mui/material";
 import { resolveComponent } from "../../configs/configRegistration";
 import { RawTimeSeriesPoint } from "../dataRender/components/benchmarkTimeSeries/helper";
 
+export interface TimeSeriesChartDialogContentProps {
+  leftMeta: RawTimeSeriesPoint | null;
+  rightMeta: RawTimeSeriesPoint | null;
+  other?: any;
+  triggerUpdate: () => void;
+  closeDialog: () => void;
+}
+
 type SelectionDialogProps = {
   open: boolean;
   onClose: () => void;
   leftMeta: any;
   rightMeta: any;
   other?: Record<string, any>;
-  onConfirm: () => void;
+  onSelect?: () => void;
   config?: any;
   enabled?: boolean;
 };
@@ -27,7 +35,7 @@ export function SelectionDialog({
   leftMeta,
   rightMeta,
   other,
-  onConfirm,
+  onSelect = () => {},
   config,
   enabled = false,
 }: SelectionDialogProps) {
@@ -35,7 +43,6 @@ export function SelectionDialog({
     return <></>;
   }
 
-  console.log(config);
   const DialogContentComponent = resolveDialogContentRenderer(config);
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
@@ -46,7 +53,9 @@ export function SelectionDialog({
           rightMeta={rightMeta}
           other={other}
           closeDialog={onClose}
-          triggerUpdate={onConfirm}
+          triggerUpdate={() => {
+            onSelect();
+          }}
         />
       </DialogContent>
       <DialogActions>
@@ -56,23 +65,15 @@ export function SelectionDialog({
   );
 }
 
-export interface TimeSeriesChartDialogContentProps {
-  leftMeta: RawTimeSeriesPoint | null;
-  rightMeta: RawTimeSeriesPoint | null;
-  other?: any;
-  triggerUpdate: (trigger: boolean) => void;
-  closeDialog: () => void;
-}
-
 export function resolveDialogContentRenderer(config?: any) {
   if (!config || config.type != "component")
-    return renderDefaultSelectionDialogContent;
+    return DefaultSelectionDialogContent;
 
   const key = config.id;
-  return (key && resolveComponent(key)) || renderDefaultSelectionDialogContent;
+  return (key && resolveComponent(key)) || DefaultSelectionDialogContent;
 }
 
-export function renderDefaultSelectionDialogContent({
+export function DefaultSelectionDialogContent({
   leftMeta,
   rightMeta,
   other,

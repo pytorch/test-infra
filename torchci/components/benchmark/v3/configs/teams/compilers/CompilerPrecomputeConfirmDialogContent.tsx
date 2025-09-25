@@ -6,6 +6,10 @@ import {
   navigateToEchartInGroup,
 } from "components/benchmark/v3/components/common/navigate";
 import { TimeSeriesChartDialogContentProps } from "components/benchmark/v3/components/common/SelectionDialog";
+import { toToggleSectionId } from "components/benchmark/v3/components/common/ToggleSection";
+import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/BenchmarkChartSection";
+import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChartGroup";
+import { toBenchamrkTimeSeriesComparisonTableId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTableSection";
 /**
  * Customized dialog content for compiler precompute benchmark page.
  * if parent is timeSeriesChart, we will show the following options:
@@ -25,34 +29,38 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   if (leftMeta == null || rightMeta == null) {
     return <>Error: No data</>;
   }
-  const onGoToTable = () => {
-    const cell = navigateToDataGrid(
-      `benchmark-time-series-comparison-table-metric=${leftMeta.metric}`,
+  const onGoToTable = async () => {
+    closeDialog();
+    const cell = await navigateToDataGrid(
+      toBenchamrkTimeSeriesComparisonTableId(`metric=${leftMeta.metric}`),
       [`${leftMeta?.compiler}`],
-      `${leftMeta?.suite}`
+      `${leftMeta?.suite}`,
+      toToggleSectionId(2)
     );
     if (cell) {
       highlightUntilClick(cell);
-      closeDialog();
-      triggerUpdate(true);
+      triggerUpdate();
     }
   };
 
-  const onGoToChart = () => {
-    const cell = navigateToEchartInGroup(
-      `benchmark-time-series-chart-section-suite=${leftMeta.suite}`,
-      `benchmark-time-series-chart-group-metric=${leftMeta.metric}`
+  const onGoToChart = async () => {
+    closeDialog();
+
+    const cell = await navigateToEchartInGroup(
+      toBenchmarkTimeseriesChartSectionId(`suite=${leftMeta.suite}`),
+      toBenchmarkTimeseriesChartGroupId(`metric=${leftMeta.metric}`),
+      toToggleSectionId(1)
     );
 
     if (cell) {
       highlightUntilClick(cell);
-      closeDialog();
-      triggerUpdate(true);
+      triggerUpdate();
     }
   };
 
   const onGoToUrl = () => {
     const url = toBenchmarkLegacyUrl(leftMeta, rightMeta);
+    // open a new tab
     window.open(url, "_blank");
   };
   return (
@@ -109,5 +117,7 @@ function toBenchmarkLegacyUrl(leftMeta: any, rightMeta: any) {
   const query = Object.entries(params)
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join("&");
-  return `/benchmark/${leftMeta.suite}/${DISPLAY_NAMES_TO_COMPILER_NAMES[leftMeta.compiler]}?${query}`;
+  return `/benchmark/${leftMeta.suite}/${
+    DISPLAY_NAMES_TO_COMPILER_NAMES[leftMeta.compiler]
+  }?${query}`;
 }
