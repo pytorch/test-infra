@@ -76,7 +76,6 @@ export default function BenchmarkTimeSeriesChartGroup({
           g.labels.join("-"),
           chartGroup?.chart
         );
-        console.log("title", chartGroup?.chart?.renderOptions);
         return (
           <Grid
             key={g.key}

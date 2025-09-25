@@ -54,32 +54,32 @@ const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
 };
 
 const RENDER_MAPPING_BOOK = {
-        passrate: {
-                unit: {
-                    type: "percent",
-                    unit: "%",
-                    scale: 100,
-                },
-                },
-                geomean: {
-                  unit: {
-                    unit: "x",
-                  },
-                },
-                compilation_latency: {
-                  displayName: "compilation time",
-                  unit: {
-                    type: "time",
-                    unit: "s",
-                  },
-                },
-                compression_ratio: {
-                  displayName:"compression ratio",
-                  unit: {
-                    unit: "x",
-                  },
-                },
-              }
+  passrate: {
+    unit: {
+      type: "percent",
+      unit: "%",
+      scale: 100,
+    },
+  },
+  geomean: {
+    unit: {
+      unit: "x",
+    },
+  },
+  compilation_latency: {
+    displayName: "compilation time",
+    unit: {
+      type: "time",
+      unit: "s",
+    },
+  },
+  compression_ratio: {
+    displayName: "compression ratio",
+    unit: {
+      unit: "x",
+    },
+  },
+};
 
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
@@ -167,7 +167,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                 chartRenderBook: RENDER_MAPPING_BOOK,
                 title_group_mapping: {
                   passrate: {
-                    text: "Passrate"
+                    text: "Passrate",
                   },
                   geomean: {
                     text: "Geometric mean speedup",
@@ -181,7 +181,6 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                 },
               },
             },
-
           },
         },
       },
@@ -215,7 +214,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             renderOptions: {
               title_group_mapping: {
                 passrate: {
-                   text: "Passrate (threshold: 95%)"
+                  text: "Passrate (threshold: 95%)",
                 },
                 geomean: {
                   text: "Geometric mean speedup (threshold = 0.95x)",

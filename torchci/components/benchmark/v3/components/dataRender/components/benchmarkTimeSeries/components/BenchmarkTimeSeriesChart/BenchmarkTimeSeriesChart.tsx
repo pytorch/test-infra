@@ -5,7 +5,14 @@ import utc from "dayjs/plugin/utc";
 import * as echarts from "echarts";
 import ReactECharts from "echarts-for-react";
 import React, { useMemo, useRef, useState } from "react";
-import { BenchmarkTimeSeriesCharRenderOpiton, BenchmarkTimeSeriesInput, fmtFixed2, getBenchmarkTimeSeriesChartRenderingConfig, getBenchmarkTimeSeriesComparisionTableRenderingConfig, RawTimeSeriesPoint, renderBasedOnUnitConifg } from "../../helper";
+import {
+  BenchmarkTimeSeriesCharRenderOpiton,
+  BenchmarkTimeSeriesInput,
+  fmtFixed2,
+  getBenchmarkTimeSeriesChartRenderingConfig,
+  RawTimeSeriesPoint,
+  renderBasedOnUnitConifg,
+} from "../../helper";
 import { ChartSelectionControl } from "./ChartSelectionControl";
 import { echartRenderingOptions } from "./RenderingOptions";
 import { toEchartTimeSeriesData } from "./type";
@@ -63,15 +70,18 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
     const t = dayjs
       .utc(meta.granularity_bucket)
       .format("YYYY-MM-DD HH:mm [UTC]");
-    const pct = fmtFixed2(meta.value)
+    const pct = fmtFixed2(meta.value);
     const commitShort = meta.commit.slice(0, 7);
-    const rc = getBenchmarkTimeSeriesChartRenderingConfig(meta.metric, renderOptions)
+    const rc = getBenchmarkTimeSeriesChartRenderingConfig(
+      meta.metric,
+      renderOptions
+    );
 
     let value = pct;
     let displayName = meta.metric;
     if (rc) {
-      value = renderBasedOnUnitConifg(value,rc?.unit)
-      displayName = rc?.displayName ?? meta.metric
+      value = renderBasedOnUnitConifg(value, rc?.unit);
+      displayName = rc?.displayName ?? meta.metric;
     }
 
     return [
