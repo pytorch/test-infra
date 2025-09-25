@@ -8,6 +8,7 @@ from typing import Optional
 
 from dotenv import load_dotenv
 
+from .autorevert_circuit_breaker import check_autorevert_disabled
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
@@ -234,13 +235,22 @@ def main(*args, **kwargs) -> None:
         )
 
     if opts.subcommand is None:
+        repo_name = os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME)
+
+        if check_autorevert_disabled(repo_name):
+            logging.error(
+                "Autorevert is disabled via circuit breaker (ci: disable-autorevert issue found). "
+                "Exiting successfully."
+            )
+            return
+
         autorevert_v2(
             os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
             hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
             notify_issue_number=int(
                 os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
             ),
-            repo_full_name=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
+            repo_full_name=repo_name,
             restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
             revert_action=(
                 RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
