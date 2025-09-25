@@ -12,7 +12,7 @@ import { RawTimeSeriesPoint } from "../dataRender/components/benchmarkTimeSeries
 
 export interface TimeSeriesChartDialogContentProps {
   left: RawTimeSeriesPoint | null;
-  rightMeta: RawTimeSeriesPoint | null;
+  right: RawTimeSeriesPoint | null;
   other?: any;
   triggerUpdate: () => void;
   closeDialog: () => void;
@@ -21,8 +21,8 @@ export interface TimeSeriesChartDialogContentProps {
 type SelectionDialogProps = {
   open: boolean;
   onClose: () => void;
-  left: any;
-  rightMeta: any;
+  left: RawTimeSeriesPoint | null;
+  right: RawTimeSeriesPoint | null;
   other?: Record<string, any>;
   onSelect?: () => void;
   config?: any;
@@ -33,7 +33,7 @@ export function SelectionDialog({
   open,
   onClose,
   left,
-  rightMeta,
+  right,
   other,
   onSelect = () => {},
   config,
@@ -50,7 +50,7 @@ export function SelectionDialog({
       <DialogContent dividers>
         <DialogContentComponent
           left={left}
-          rightMeta={rightMeta}
+          right={right}
           other={other}
           closeDialog={onClose}
           triggerUpdate={() => {
@@ -75,7 +75,7 @@ export function resolveDialogContentRenderer(config?: any) {
 
 export function DefaultSelectionDialogContent({
   left,
-  rightMeta,
+  right,
   other,
   closeDialog,
   triggerUpdate,
@@ -85,13 +85,17 @@ export function DefaultSelectionDialogContent({
       <Typography variant="body1" gutterBottom>
         Left Selection:
       </Typography>
-      {left ? <pre>{JSON.stringify(left, null, 2)}</pre> : <em>None</em>}
+      {left ? (
+        <pre>{JSON.stringify(left, null, 2)}</pre>
+      ) : (
+        <em>None</em>
+      )}
 
       <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
         Right Selection:
       </Typography>
-      {rightMeta ? (
-        <pre>{JSON.stringify(rightMeta, null, 2)}</pre>
+      {right ? (
+        <pre>{JSON.stringify(right, null, 2)}</pre>
       ) : (
         <em>None</em>
       )}
