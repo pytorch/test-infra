@@ -6,21 +6,10 @@ from .github_client_helper import GHClientFactory
 
 logger = logging.getLogger(__name__)
 
-ALLOWED_USERS = [
-    "clee2000",
-    "huydhn",
-    "izaitsevfb",
-    "jeanschmidt",
-    "malfet",
-    "seemethere",
-    "ZainRizvi",
-]
-
 
 def check_autorevert_disabled(repo_full_name: str = "pytorch/pytorch") -> bool:
     """
-    Check if autorevert is disabled by looking for open issues with 'ci: disable-autorevert' label
-    created by authorized users.
+    Check if autorevert is disabled by looking for open issues with 'ci: disable-autorevert' label.
 
     Args:
         repo_full_name: Repository name in format 'owner/repo'
@@ -36,13 +25,12 @@ def check_autorevert_disabled(repo_full_name: str = "pytorch/pytorch") -> bool:
         issues = repo.get_issues(state="open", labels=["ci: disable-autorevert"])
 
         for issue in issues:
-            if issue.user.login in ALLOWED_USERS:
-                logger.info(
-                    f"Found open issue #{issue.number} with 'ci: disable-autorevert' label "
-                    f"created by authorized user {issue.user.login}. "
-                    f"Autorevert circuit breaker is ACTIVE."
-                )
-                return True
+            logger.info(
+                f"Found open issue #{issue.number} with 'ci: disable-autorevert' label "
+                f"created by authorized user {issue.user.login}. "
+                f"Autorevert circuit breaker is ACTIVE."
+            )
+            return True
 
         logger.debug("No open issues with 'ci: disable-autorevert' label from authorized users found.")
         return False
