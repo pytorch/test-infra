@@ -73,6 +73,13 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
       : null
   );
 
+  useEffect(() => {
+    if (!lcommit || !rcommit) return;
+    setLlWorkflowId(lcommit?.workflow_id);
+    setRWorkflowId(rcommit?.workflow_id);
+  }, [lcommit, rcommit]);
+
+
   const onSliderChange = (next: [string, string]) => {
     setLlWorkflowId(next[0]);
     setRWorkflowId(next[1]);
@@ -81,12 +88,6 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   if (!filtered || filtered.length == 0) {
     return <></>;
   }
-
-  useEffect(() => {
-    if (!lcommit || !rcommit) return;
-    setLlWorkflowId(lcommit?.workflow_id);
-    setRWorkflowId(rcommit?.workflow_id);
-  }, [lcommit, rcommit]);
 
   return (
     <>
