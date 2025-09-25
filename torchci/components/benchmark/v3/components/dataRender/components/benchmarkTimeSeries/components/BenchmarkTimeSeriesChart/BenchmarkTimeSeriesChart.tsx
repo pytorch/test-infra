@@ -5,7 +5,7 @@ import utc from "dayjs/plugin/utc";
 import * as echarts from "echarts";
 import ReactECharts from "echarts-for-react";
 import React, { useMemo, useRef, useState } from "react";
-import { BenchmarkTimeSeriesInput, RawTimeSeriesPoint } from "../../helper";
+import { BenchmarkTimeSeriesCharRenderOpiton, BenchmarkTimeSeriesInput, fmtFixed2, getBenchmarkTimeSeriesChartRenderingConfig, getBenchmarkTimeSeriesComparisionTableRenderingConfig, RawTimeSeriesPoint, renderBasedOnUnitConifg } from "../../helper";
 import { ChartSelectionControl } from "./ChartSelectionControl";
 import { echartRenderingOptions } from "./RenderingOptions";
 import { toEchartTimeSeriesData } from "./type";
@@ -23,10 +23,7 @@ type ConfirmPayload = {
 type Props = {
   timeseries: BenchmarkTimeSeriesInput[];
   customizedConfirmDialog?: { type: string; id?: string };
-  renderOptions?: {
-    height?: string | number;
-    lineMapping?: Record<string, any>;
-  };
+  renderOptions?: BenchmarkTimeSeriesCharRenderOpiton;
   defaultSelectMode?: boolean;
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onSelect?: (sel: ConfirmPayload) => void;
@@ -66,18 +63,17 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
     const t = dayjs
       .utc(meta.granularity_bucket)
       .format("YYYY-MM-DD HH:mm [UTC]");
-    const pct = meta.value.toFixed(3);
+    const pct = fmtFixed2(meta.value)
     const commitShort = meta.commit.slice(0, 7);
 
     let value = pct;
-    const rule = renderOptions?.lineMapping?.[meta.metric];
-    if (rule) {
-      value = renderByRule(
-        rule?.type ?? "default",
-        rule?.scale ? rule?.scale : 1,
-        pct
-      );
+
+    console.log(meta, renderOptions)
+    const rc = getBenchmarkTimeSeriesChartRenderingConfig(meta.metric, renderOptions)
+    if (rc) {
+      value = renderBasedOnUnitConifg(value,rc?.unit)
     }
+
     return [
       `<div style="font-weight:600;margin-bottom:4px;">${t}</div>`,
       `<div style="font-size:12px;">${p?.data?.legend_name}</div>`,
@@ -234,11 +230,11 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   const currentGroupInfo =
     selectedSeriesIdx != null ? timeseries[selectedSeriesIdx].group_info : null;
 
-  const leftMeta =
+  const left =
     selectedSeriesIdx != null && leftIdx != null
       ? (seriesDatas[selectedSeriesIdx][leftIdx].meta as RawTimeSeriesPoint)
       : null;
-  const rightMeta =
+  const right =
     selectedSeriesIdx != null && rightIdx != null
       ? (seriesDatas[selectedSeriesIdx][rightIdx].meta as RawTimeSeriesPoint)
       : null;
@@ -249,8 +245,8 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       seriesIndex: selectedSeriesIdx!,
       seriesName: currentSeriesName!,
       groupInfo: currentGroupInfo || {},
-      left: leftMeta!,
-      right: rightMeta!,
+      left: left!,
+      right: right!,
     });
   }
 
@@ -268,12 +264,12 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
           setSelectMode(v);
           if (!v) resetSelection();
         }}
-        leftMeta={leftMeta}
-        rightMeta={rightMeta}
+        left={left}
+        right={right}
         onClear={resetSelection}
         onSelect={select}
         confirmDisabled={!hasBoth}
-        clearDisabled={!leftMeta && !rightMeta}
+        clearDisabled={!left && !right}
         customizedConfirmDialog={customizedConfirmDialog}
       />
       {/* Echart controls */}
