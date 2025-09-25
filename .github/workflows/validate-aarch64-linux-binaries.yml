@@ -221,29 +221,7 @@ jobs:
         # is based on https://github.com/ContinuumIO/anaconda-issues/issues/12822
         unset LD_LIBRARY_PATH
 
-        # GPU case: Validate aarch64 CUDA-enabled binaries in CPU fallback mode
-        # Since validation runners don't have GPUs, we test that CUDA builds work in CPU mode
-        echo "Validating aarch64 CUDA build - testing installation and CPU fallback mode"
-        echo "GPU arch type: ${{ matrix.gpu_arch_type }}, GPU arch version: ${{ matrix.gpu_arch_version }}"
-
-        # For aarch64 CUDA builds, we expect:
-        # 1. Installation to succeed
-        # 2. torch.cuda.is_available() to return False (no GPU hardware)
-        # 3. CPU operations to work correctly
-        # 4. No runtime errors when importing torch with CUDA support
-
+        # GPU case: Validate aarch64 CUDA-enabled binaries
+        # The validation script automatically handles CPU fallback mode for aarch64 CUDA builds
+        echo "Validating aarch64 CUDA build: ${{ matrix.gpu_arch_type }} ${{ matrix.gpu_arch_version }}"
         source ../../test-infra/.github/scripts/validate_binaries.sh
-
-        # Additional validation specific to aarch64 CUDA builds
-        python3 -c "
-        import torch
-        print(f'PyTorch version: {torch.__version__}')
-        print(f'CUDA available: {torch.cuda.is_available()}')
-        print(f'CUDA version: {torch.version.cuda}')
-        print('CPU tensor operations work:')
-        x = torch.randn(3, 3)
-        y = torch.randn(3, 3)
-        z = torch.mm(x, y)
-        print(f'Matrix multiplication result shape: {z.shape}')
-        print('✓ aarch64 CUDA build validation passed - installation works and CPU mode functions correctly')
-        "
