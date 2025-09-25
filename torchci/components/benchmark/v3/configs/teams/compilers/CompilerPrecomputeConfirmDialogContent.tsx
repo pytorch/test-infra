@@ -5,7 +5,19 @@ import {
   navigateToEchartInGroup,
 } from "components/benchmark/v3/components/common/navigate";
 import { TimeSeriesChartDialogContentProps } from "components/benchmark/v3/components/common/SelectionDialog";
-
+/**
+ * Customized dialog content for compiler precompute benchmark page.
+ * if parent is timeSeriesChart, we will show the following options:
+ *  1. Navigate to the time series comparison table section on this page.
+ *  2. Navigate to the legacy benchmark data page.
+ *
+ * if parent is comparisonTable, we will show the following options:
+ * 1. Navigate to the time series chart section on this page.
+ * 2. Navigate to the legacy benchmark data page.
+ * 
+ * the option 2 will be replaced by new raw data page in the future.
+ * @returns
+ */
 export const CompilerPrecomputeConfirmDialogContent: React.FC<
   TimeSeriesChartDialogContentProps
 > = ({ leftMeta, rightMeta, other, closeDialog, triggerUpdate }) => {
@@ -31,7 +43,6 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       `benchmark-time-series-chart-group-metric=${leftMeta.metric}`
     );
 
-    console.log("leftmeta", leftMeta);
     if (cell) {
       highlightUntilClick(cell);
       closeDialog();

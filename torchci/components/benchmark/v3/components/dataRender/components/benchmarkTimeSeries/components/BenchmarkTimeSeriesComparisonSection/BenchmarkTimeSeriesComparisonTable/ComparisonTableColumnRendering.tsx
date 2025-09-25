@@ -13,6 +13,7 @@ import {
 } from "components/benchmark/v3/configs/helpers/RegressionPolicy";
 import { ComparisonTableConfig } from "../../../helper";
 import { asNumber, valOf } from "./ComparisonTableHelpers";
+import { HoverOnMoreVertButton } from "components/benchmark/v3/components/common/HoverRevealCell";
 
 /**
  *
@@ -84,7 +85,7 @@ export function ComparisonTableValueCell({
   lWorkflowId,
   rWorkflowId,
   config,
-  onClick,
+  onClick = (data:any) => {},
 }: {
   field: string;
   row: GridRowModel;
@@ -103,8 +104,14 @@ export function ComparisonTableValueCell({
       row.byWorkflow[rWorkflowId]?.[field]
     : undefined;
 
+  // get rabw value of left and right field
   const L = valOf(ldata);
   const R = valOf(rdata);
+
+  // assume l and r are numbers
+  // todo(elainwy): support non-number values (e.g. string)
+  const ln = asNumber(L);
+  const rn = asNumber(R);
 
   const fmt = (v: any) =>
     v == null
@@ -112,9 +119,6 @@ export function ComparisonTableValueCell({
       : typeof v === "number"
       ? Number(v).toFixed(2)
       : String(v.toFixed(2));
-
-  const ln = asNumber(L);
-  const rn = asNumber(R);
 
   // get comparison policy for the field
   const targetPolicyField = config?.comparisonPolicyTargetField;
@@ -125,8 +129,7 @@ export function ComparisonTableValueCell({
       ? config?.comparisonPolicy[fieldValue]
       : undefined;
   }
-
-  // evaluate comparison
+  // evaluate the value comparison result, return the comparison report for each field
   const result = evaluateComparison(
     comparisonPolicy?.target,
     ln,
@@ -134,6 +137,7 @@ export function ComparisonTableValueCell({
     comparisonPolicy
   );
 
+  // pick background color based on result signals
   let bgColor = "";
   switch (result.verdict) {
     case "good":
@@ -162,12 +166,10 @@ export function ComparisonTableValueCell({
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
       <Tooltip title={renderComparisonResult(result)}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          {config?.customizedConfirmDialog && onClick && (
-            <Button onClick={() => onClick({ left: ldata, right: rdata })}>
-              click
-            </Button>
-          )}
           <Typography variant="body2">{text}</Typography>
+           {config?.customizedConfirmDialog && (
+            <HoverOnMoreVertButton onClick={()=> onClick({ left: ldata, right: rdata })} />
+          )}
         </Box>
       </Tooltip>
     </Box>
