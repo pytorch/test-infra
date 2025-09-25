@@ -22,8 +22,8 @@ export function CommitWorflowSelectSection() {
     rcommit,
     committedLBranch,
     committedRBranch,
-    setLCommit,
-    setRCommit,
+    setLcommit,
+    setRcommit,
   } = useDashboardSelector((s) => ({
     benchmarkId: s.benchmarkId,
     committedTime: s.committedTime,
@@ -32,8 +32,8 @@ export function CommitWorflowSelectSection() {
     rcommit: s.rcommit,
     committedLBranch: s.committedLbranch,
     committedRBranch: s.committedRbranch,
-    setLCommit: s.setLCommit,
-    setRCommit: s.setRCommit,
+    setLcommit: s.setLcommit,
+    setRcommit: s.setRcommit,
   }));
 
   const [leftList, setLeftList] = useState<BenchmarkCommitMeta[]>([]);
@@ -84,10 +84,10 @@ export function CommitWorflowSelectSection() {
     if (!ready) {
       setLeftList([]);
       setRightList([]);
-      setLCommit(null);
-      setRCommit(null);
+      setLcommit(null);
+      setRcommit(null);
     }
-  }, [ready, setLCommit, setRCommit]);
+  }, [ready, setLcommit, setRcommit]);
 
   useEffect(() => {
     if (isLoading || !data) return;
@@ -104,11 +104,11 @@ export function CommitWorflowSelectSection() {
 
     // update auto
     if (L.length === 0) {
-      if (lcommit) setLCommit(null);
+      if (lcommit) setLcommit(null);
     }
     if (R.length === 0) {
       setAutoRightSha(null);
-      if (rcommit) setRCommit(null);
+      if (rcommit) setRcommit(null);
     }
     if (L.length === 0 || R.length === 0) return;
 
@@ -123,12 +123,12 @@ export function CommitWorflowSelectSection() {
     const nextAutoR = rHas ? rSelected : R[R.length - 1]?.workflow_id ?? null;
 
     if (!lHas) {
-      setLCommit(
+      setLcommit(
         nextAutoL ? L.find((c) => c.workflow_id === nextAutoL) ?? null : null
       );
     }
     if (!rHas) {
-      setRCommit(
+      setRcommit(
         nextAutoR ? R.find((c) => c.workflow_id === nextAutoR) ?? null : null
       );
     }
@@ -139,8 +139,8 @@ export function CommitWorflowSelectSection() {
     committedRBranch,
     lcommit?.workflow_id,
     rcommit?.workflow_id,
-    setLCommit,
-    setRCommit,
+    setLcommit,
+    setRcommit,
   ]);
 
   if (error) return <div>Error: {error.message}</div>;
@@ -155,7 +155,7 @@ export function CommitWorflowSelectSection() {
         disable={!ready || leftList.length === 0 || isLoading}
         selectedCommit={lcommit}
         commitList={leftList}
-        setCommit={setLCommit}
+        setCommit={setLcommit}
       />
       <UMDenseCommitDropdown
         label={"lbl-right"}
@@ -163,7 +163,7 @@ export function CommitWorflowSelectSection() {
         disable={!ready || rightList.length === 0 || isLoading}
         selectedCommit={rcommit}
         commitList={rightList}
-        setCommit={setRCommit}
+        setCommit={setRcommit}
       />
     </Stack>
   );

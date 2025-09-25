@@ -1,6 +1,7 @@
 import { Typography } from "@mui/material";
 import { DataGrid, GridColDef, GridRowModel } from "@mui/x-data-grid";
-import { useMemo } from "react";
+import { SelectionDialog } from "components/benchmark/v3/components/common/SelectionDialog";
+import { useMemo, useState } from "react";
 import { ComparisonTableConfig } from "../../../helper";
 import { getComparisionTableConlumnRendering } from "./ComparisonTableColumnRendering";
 import { SnapshotRow, ToComparisonTableRow } from "./ComparisonTableHelpers";
@@ -12,6 +13,7 @@ export function ComparisonTable({
   config,
   columnOrder,
   title = "Group",
+  onSelect,
 }: {
   data: SnapshotRow[];
   lWorkflowId: string | null;
@@ -19,11 +21,24 @@ export function ComparisonTable({
   config: ComparisonTableConfig;
   columnOrder?: string[]; // optional preferred ordering of columns
   title?: string;
+  onSelect?: (payload: any) => void;
 }) {
   // group raw data into rows, each row contains all values across workflowIds
   const rows: GridRowModel[] = useMemo(() => {
     return ToComparisonTableRow(config, data);
   }, [data]);
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [selectedData, setSelectedData] = useState<any>(undefined);
+
+  const onClick = (data: any) => {
+    setSelectedData(data);
+    setDialogOpen(true);
+  };
+
+  const onConfirm = () => {
+    onSelect?.(selectedData);
+  };
 
   // iterate the column map in row data, and get all column names
   const allColumns = useMemo(() => {
@@ -47,7 +62,8 @@ export function ComparisonTable({
         allColumns,
         lWorkflowId,
         rWorkflowId,
-        config
+        config,
+        onClick
       ),
     [allColumns, lWorkflowId, rWorkflowId, title]
   );
@@ -63,7 +79,14 @@ export function ComparisonTable({
         disableRowSelectionOnClick
         rows={rows}
         columns={columns}
-        getRowId={(r) => r.id}
+        initialState={{
+          sorting: {
+            sortModel: [{ field: "name", sort: "asc" }],
+          },
+        }}
+        getRowId={(r) => {
+          return r.id;
+        }}
         sx={{
           "& .MuiDataGrid-cell": {
             py: 0, // less vertical padding
@@ -81,6 +104,16 @@ export function ComparisonTable({
           },
         }}
         hideFooter
+      />
+      <SelectionDialog
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        leftMeta={selectedData?.left}
+        rightMeta={selectedData?.right}
+        onSelect={onConfirm}
+        other={{ parent: "comparisonTable" }}
+        enabled={config.enableDialog ?? false}
+        config={config.customizedConfirmDialog}
       />
     </>
   );

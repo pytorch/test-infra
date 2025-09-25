@@ -1,5 +1,6 @@
 import { Paper, Typography } from "@mui/material";
 import { Box } from "@mui/system";
+import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useMemo } from "react";
 import BenchmarkTimeSeriesChartGroup from "./components/BenchmarkTimeSeriesChartGroup";
 import {
@@ -26,11 +27,13 @@ const styles = {
 export default function BenchmarkChartSection({
   data = [],
   chartSectionConfig,
-  onChange,
+  onSelect,
 }: {
   data?: BenchmarkTimeSeriesInput[];
   chartSectionConfig: BenchmarkChartSectionConfig;
-  onChange?: (payload: any) => void;
+  lcommit?: BenchmarkCommitMeta;
+  rcommit?: BenchmarkCommitMeta;
+  onSelect?: (payload: any) => void;
 }) {
   const filtered = useMemo(() => {
     if (!data) {
@@ -80,14 +83,18 @@ export default function BenchmarkChartSection({
             };
           }
           return (
-            <Box key={key} sx={styles.groupBox}>
+            <Box
+              key={key}
+              sx={styles.groupBox}
+              id={toBenchmarkTimeseriesChartSectionId(key)}
+            >
               <Paper sx={styles.paper}>
                 <Typography variant="h6">{title.toUpperCase()}</Typography>
                 <BenchmarkTimeSeriesChartGroup
                   data={data.items}
                   chartGroup={chartSectionConfig.chartGroup}
-                  onConfirm={(payload: any) => {
-                    onChange?.(payload);
+                  onSelect={(payload: any) => {
+                    onSelect?.(payload);
                   }}
                 />
               </Paper>
@@ -97,4 +104,8 @@ export default function BenchmarkChartSection({
       </Box>
     </Box>
   );
+}
+
+export function toBenchmarkTimeseriesChartSectionId(key: string) {
+  return `benchmark-time-series-chart-section-${key}`;
 }

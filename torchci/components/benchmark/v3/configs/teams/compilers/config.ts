@@ -34,8 +34,8 @@ const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
     direction: "up",
   },
 };
-const EXECUTION_TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
-  target: "execution_time",
+const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "compilation_latency",
   type: "ratio",
   ratioPolicy: {
     badRatio: 1.1,
@@ -43,8 +43,8 @@ const EXECUTION_TIME_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
     direction: "down",
   },
 };
-const COMPILATION_LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
-  target: "compilation_latency",
+const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "compression_ratio",
   type: "ratio",
   ratioPolicy: {
     badRatio: 0.95,
@@ -130,6 +130,11 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             groupByFields: ["metric"],
             lineKey: ["compiler"],
             chart: {
+              enableDialog: true,
+              customizedConfirmDialog: {
+                type: "component",
+                id: "CompilerPrecomputeConfirmDialogContent",
+              },
               renderOptions: {
                 lineMapping: {
                   passrate: { type: "percent", scale: 100 },
@@ -148,18 +153,23 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             metric: [
               "passrate",
               "geomean",
-              "execution_time",
               "compilation_latency",
+              "compression_ratio",
             ],
           },
           tableConfig: {
             nameKeys: ["compiler"],
+            enableDialog: true,
+            customizedConfirmDialog: {
+              type: "component",
+              id: "CompilerPrecomputeConfirmDialogContent",
+            },
             comparisonPolicyTargetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,
               geomean: GEOMEAN_COMPARISON_POLICY,
-              execution_time: EXECUTION_TIME_COMPARISON_POLICY,
-              compilation_latency: COMPILATION_LATENCY_POLICY,
+              compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
+              compression_ratio: COMPRESSION_RATIO_POLICY,
             },
           },
         },

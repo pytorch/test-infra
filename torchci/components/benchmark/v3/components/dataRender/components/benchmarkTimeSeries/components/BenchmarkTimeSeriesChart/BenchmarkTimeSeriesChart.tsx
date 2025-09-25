@@ -22,13 +22,14 @@ type ConfirmPayload = {
 
 type Props = {
   timeseries: BenchmarkTimeSeriesInput[];
+  customizedConfirmDialog?: { type: string; id?: string };
   renderOptions?: {
     height?: string | number;
     lineMapping?: Record<string, any>;
   };
   defaultSelectMode?: boolean;
   /** Called when user clicks Confirm with L/R selected for a single series. */
-  onConfirm?: (sel: ConfirmPayload) => void;
+  onSelect?: (sel: ConfirmPayload) => void;
 };
 
 const DEFAULT_HEIGHT = 200;
@@ -36,8 +37,9 @@ const DEFAULT_HEIGHT = 200;
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   timeseries,
   renderOptions,
+  customizedConfirmDialog,
   defaultSelectMode = false,
-  onConfirm = () => {},
+  onSelect = () => {},
 }) => {
   const chartRef = useRef<ReactECharts>(null);
 
@@ -187,16 +189,16 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   }, [seriesDatas, selectedSeriesIdx, leftIdx, rightIdx]);
 
   const legendSelected = useMemo(() => {
-    if (selectedSeriesIdx == null) return undefined; // 不锁定时不干预 legend
+    if (selectedSeriesIdx == null) return undefined;
     const m: Record<string, boolean> = {};
     timeseries.forEach((s, i) => {
       const name = s.legend_name ?? `Series ${i + 1}`;
-      m[name] = i === selectedSeriesIdx; // 只选中被锁定的那条
+      m[name] = i === selectedSeriesIdx;
     });
     return m;
   }, [selectedSeriesIdx, timeseries]);
 
-  // 合成 option
+  // form the final option
   const option: echarts.EChartsOption = useMemo(() => {
     return {
       ...echartRenderingOptions,
@@ -241,9 +243,9 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       ? (seriesDatas[selectedSeriesIdx][rightIdx].meta as RawTimeSeriesPoint)
       : null;
 
-  function confirm() {
+  function select() {
     if (!hasBoth) return;
-    onConfirm({
+    onSelect({
       seriesIndex: selectedSeriesIdx!,
       seriesName: currentSeriesName!,
       groupInfo: currentGroupInfo || {},
@@ -269,9 +271,10 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         leftMeta={leftMeta}
         rightMeta={rightMeta}
         onClear={resetSelection}
-        onConfirm={confirm}
+        onSelect={select}
         confirmDisabled={!hasBoth}
         clearDisabled={!leftMeta && !rightMeta}
+        customizedConfirmDialog={customizedConfirmDialog}
       />
       {/* Echart controls */}
       <ReactECharts

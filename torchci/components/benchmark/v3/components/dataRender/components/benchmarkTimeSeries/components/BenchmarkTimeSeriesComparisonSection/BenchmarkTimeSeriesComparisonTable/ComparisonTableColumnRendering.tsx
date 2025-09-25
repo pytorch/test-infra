@@ -6,6 +6,7 @@ import {
   GridRenderCellParams,
   GridRowModel,
 } from "@mui/x-data-grid";
+import { MoreVertButton } from "components/benchmark/v3/components/common/MoreVertButton";
 import {
   BenchmarkComparisonPolicyConfig,
   ComparisonResult,
@@ -25,7 +26,8 @@ export function getComparisionTableConlumnRendering(
   columnsFields: string[],
   lWorkflowId: string | null,
   rWorkflowId: string | null,
-  config: ComparisonTableConfig
+  config: ComparisonTableConfig,
+  onClick?: (data: any) => void
 ): GridColDef[] {
   const nameCol: GridColDef = {
     field: "name",
@@ -48,6 +50,7 @@ export function getComparisionTableConlumnRendering(
         lWorkflowId={lWorkflowId}
         rWorkflowId={rWorkflowId}
         config={config}
+        onClick={onClick}
       />
     ),
   }));
@@ -82,6 +85,7 @@ export function ComparisonTableValueCell({
   lWorkflowId,
   rWorkflowId,
   config,
+  onClick = (data: any) => {},
 }: {
   field: string;
   row: GridRowModel;
@@ -89,19 +93,25 @@ export function ComparisonTableValueCell({
   rWorkflowId: string | null;
   comparisonTargetField?: string;
   config?: ComparisonTableConfig;
+  onClick?: (data: any) => void;
 }) {
-  const L = valOf(
-    lWorkflowId
-      ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
-          row.byWorkflow[lWorkflowId]?.[field]
-      : undefined
-  );
-  const R = valOf(
-    rWorkflowId
-      ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
-          row.byWorkflow[rWorkflowId]?.[field]
-      : undefined
-  );
+  const ldata = lWorkflowId
+    ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
+      row.byWorkflow[lWorkflowId]?.[field]
+    : undefined;
+  const rdata = rWorkflowId
+    ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
+      row.byWorkflow[rWorkflowId]?.[field]
+    : undefined;
+
+  // get rabw value of left and right field
+  const L = valOf(ldata);
+  const R = valOf(rdata);
+
+  // assume l and r are numbers
+  // todo(elainwy): support non-number values (e.g. string)
+  const ln = asNumber(L);
+  const rn = asNumber(R);
 
   const fmt = (v: any) =>
     v == null
@@ -109,9 +119,6 @@ export function ComparisonTableValueCell({
       : typeof v === "number"
       ? Number(v).toFixed(2)
       : String(v.toFixed(2));
-
-  const ln = asNumber(L);
-  const rn = asNumber(R);
 
   // get comparison policy for the field
   const targetPolicyField = config?.comparisonPolicyTargetField;
@@ -122,8 +129,7 @@ export function ComparisonTableValueCell({
       ? config?.comparisonPolicy[fieldValue]
       : undefined;
   }
-
-  // evaluate comparison
+  // evaluate the value comparison result, return the comparison report for each field
   const result = evaluateComparison(
     comparisonPolicy?.target,
     ln,
@@ -131,6 +137,7 @@ export function ComparisonTableValueCell({
     comparisonPolicy
   );
 
+  // pick background color based on result signals
   let bgColor = "";
   switch (result.verdict) {
     case "good":
@@ -158,7 +165,14 @@ export function ComparisonTableValueCell({
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
       <Tooltip title={renderComparisonResult(result)}>
-        <Typography variant="body2">{text}</Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2">{text}</Typography>
+          {config?.customizedConfirmDialog && (
+            <MoreVertButton
+              onClick={() => onClick({ left: ldata, right: rdata })}
+            />
+          )}
+        </Box>
       </Tooltip>
     </Box>
   );

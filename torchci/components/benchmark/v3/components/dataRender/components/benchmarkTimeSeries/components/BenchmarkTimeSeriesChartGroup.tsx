@@ -13,7 +13,7 @@ type Props = {
   data: any[];
   chartGroup: ChartGroupConfig;
   defaultSelectMode?: boolean;
-  onConfirm?: (payload: any) => void;
+  onSelect?: (payload: any) => void;
 };
 
 // ---- Real React component with hooks (internal) ----
@@ -21,7 +21,7 @@ export default function BenchmarkTimeSeriesChartGroup({
   data,
   chartGroup,
   defaultSelectMode = false,
-  onConfirm = () => {},
+  onSelect = () => {},
 }: Props) {
   const filtered = useMemo(
     () =>
@@ -74,6 +74,7 @@ export default function BenchmarkTimeSeriesChartGroup({
           <Grid
             key={g.key}
             size={{ xs: 12, md: 12, lg: 6, ...chartGroup.renderOptions }}
+            id={toBenchmarkTimeseriesChartGroupId(g.key)}
           >
             <Typography variant="h6" sx={{ mb: 1.5 }}>
               {g.labels.join(" ")}
@@ -81,13 +82,20 @@ export default function BenchmarkTimeSeriesChartGroup({
             </Typography>
             <BenchmarkTimeSeriesChart
               timeseries={groupSeries}
+              customizedConfirmDialog={
+                chartGroup?.chart?.customizedConfirmDialog
+              }
               renderOptions={chartGroup?.chart?.renderOptions}
               defaultSelectMode={defaultSelectMode}
-              onConfirm={onConfirm}
+              onSelect={onSelect}
             />
           </Grid>
         );
       })}
     </Grid>
   );
+}
+
+export function toBenchmarkTimeseriesChartGroupId(key: string) {
+  return `benchmark-time-series-chart-group-${key}`;
 }
