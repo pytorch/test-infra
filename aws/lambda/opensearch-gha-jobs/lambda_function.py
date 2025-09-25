@@ -188,6 +188,10 @@ def upsert_document(client: OpenSearch, record: Any) -> None:
     if not index:
         return
 
+    # Use monthly index for easier data retention management
+    month = record.get("dynamodb", {}).get("NewImage", {}).get("created_at", {}).get("S", "")[:7]
+    index += "-" + month.replace("-", ".")
+
     # Create index using the table name if it's not there yet
     if not client.indices.exists(index):
         # https://www.elastic.co/guide/en/elasticsearch/reference/current/coerce.html
