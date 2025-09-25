@@ -27,7 +27,7 @@ def check_autorevert_disabled(repo_full_name: str = "pytorch/pytorch") -> bool:
         for issue in issues:
             logger.info(
                 f"Found open issue #{issue.number} with 'ci: disable-autorevert' label "
-                f"created by authorized user {issue.user.login}. "
+                f"created by user {issue.user.login}. "
                 f"Autorevert circuit breaker is ACTIVE."
             )
             return True
