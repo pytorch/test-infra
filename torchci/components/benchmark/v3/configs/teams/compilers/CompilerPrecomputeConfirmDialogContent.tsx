@@ -27,7 +27,11 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   TimeSeriesChartDialogContentProps
 > = ({ left, right, other, closeDialog, triggerUpdate }) => {
   if (left == null || right == null) {
-    return <>Error: No data</>;
+    return (
+      <>
+        Can't provide options whent at least one value (left|right) is missing
+      </>
+    );
   }
   const onGoToTable = async () => {
     closeDialog();

@@ -85,20 +85,12 @@ export function DefaultSelectionDialogContent({
       <Typography variant="body1" gutterBottom>
         Left Selection:
       </Typography>
-      {left ? (
-        <pre>{JSON.stringify(left, null, 2)}</pre>
-      ) : (
-        <em>None</em>
-      )}
+      {left ? <pre>{JSON.stringify(left, null, 2)}</pre> : <em>None</em>}
 
       <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
         Right Selection:
       </Typography>
-      {right ? (
-        <pre>{JSON.stringify(right, null, 2)}</pre>
-      ) : (
-        <em>None</em>
-      )}
+      {right ? <pre>{JSON.stringify(right, null, 2)}</pre> : <em>None</em>}
     </>
   );
 }
