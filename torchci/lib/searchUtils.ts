@@ -7,7 +7,7 @@ import { getOpenSearchClient } from "./opensearch";
 // https://stackoverflow.com/questions/45111198/how-to-mock-functions-in-the-same-module-using-jest
 import * as thisModule from "./searchUtils";
 
-export const WORKFLOW_JOB_INDEX = "torchci-workflow-job";
+export const WORKFLOW_JOB_INDEX = "torchci-workflow-job*";
 // https://www.elastic.co/guide/en/elasticsearch/reference/7.17/similarity.html#similarity
 // OpenSearch uses https://en.wikipedia.org/wiki/Okapi_BM25 by default.  TODO: learn more
 // about which is a reasonable value here and how to tune it
