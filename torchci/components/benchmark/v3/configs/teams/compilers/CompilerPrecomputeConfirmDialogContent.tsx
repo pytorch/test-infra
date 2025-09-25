@@ -1,4 +1,5 @@
 import { List, ListItemButton, ListItemText } from "@mui/material";
+import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "components/benchmark/compilers/common";
 import { highlightUntilClick } from "components/benchmark/v3/components/common/highlight";
 import {
   navigateToDataGrid,
@@ -84,26 +85,29 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
 
 // set url to nagivate to the legacy benchmark data page
 function toBenchmarkLegacyUrl(leftMeta: any, rightMeta: any) {
-  // the legacy benchmark page has time dependent data fetch logics,
-  // extend the time range to make sure we have enough data
+  // Expand the time range
   const startTime = new Date(leftMeta.granularity_bucket);
   startTime.setHours(startTime.getHours() - 6);
   const stopTime = new Date(rightMeta.granularity_bucket);
   stopTime.setHours(stopTime.getHours() + 6);
-  const params = {
+
+  const params: Record<string, string> = {
     dashboard: "torchinductor",
-    startTime: startTime.toISOString(),
-    stopTime: stopTime.toISOString(),
+    startTime: startTime.toUTCString(), // ✅ RFC-1123 format
+    stopTime: stopTime.toUTCString(),
     granularity: "hour",
     mode: leftMeta.mode,
     dtype: leftMeta.dtype,
     deviceName: `${leftMeta.device} (${leftMeta.arch})`,
-    lBranch: leftMeta.branch,
-    lCommit: leftMeta.commit,
-    rBranch: rightMeta.branch,
-    rCommit: rightMeta.commit,
+    rBranch: leftMeta.branch,
+    rCommit: leftMeta.commit,
+    lBranch: rightMeta.branch,
+    lCommit: rightMeta.commit,
   };
-  return `/benchmark/${leftMeta.suite}/${
-    leftMeta.compiler
-  }?${new URLSearchParams(params).toString()}`;
+
+  // Build query string with encodeURIComponent
+  const query = Object.entries(params)
+    .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
+    .join("&");
+  return `/benchmark/${leftMeta.suite}/${DISPLAY_NAMES_TO_COMPILER_NAMES[leftMeta.compiler]}?${query}`;
 }
