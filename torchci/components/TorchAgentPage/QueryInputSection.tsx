@@ -34,11 +34,19 @@ export const QueryInputSection: React.FC<QueryInputSectionProps> = ({
           onChange={onQueryChange}
           margin="normal"
           multiline
-          rows={3}
+          minRows={3}
+          maxRows={10}
           placeholder={
             "Example: Make a graph of the number of failing jobs per day  (Tip: Ctrl+Enter to submit)"
           }
           variant="outlined"
+          sx={{
+            "& .MuiInputBase-root": {
+              "& textarea": {
+                resize: "vertical",
+              },
+            },
+          }}
           onKeyDown={(e) => {
             if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
               e.preventDefault();
