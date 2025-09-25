@@ -14,7 +14,7 @@ import { TimeSeriesChartDialogContentProps } from "components/benchmark/v3/compo
  * if parent is comparisonTable, we will show the following options:
  * 1. Navigate to the time series chart section on this page.
  * 2. Navigate to the legacy benchmark data page.
- * 
+ *
  * the option 2 will be replaced by new raw data page in the future.
  * @returns
  */

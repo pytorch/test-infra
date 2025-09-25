@@ -1,8 +1,5 @@
-import * as React from "react";
-import { Box, IconButton, Typography, Tooltip } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import type { SxProps, Theme } from "@mui/material/styles";
-
+import { Box, IconButton } from "@mui/material";
 
 export function HoverOnMoreVertButton({
   onClick = () => {},

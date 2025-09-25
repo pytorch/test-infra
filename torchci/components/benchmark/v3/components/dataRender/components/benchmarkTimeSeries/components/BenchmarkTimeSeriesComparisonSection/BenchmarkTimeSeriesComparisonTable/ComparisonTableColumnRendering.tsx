@@ -1,11 +1,12 @@
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Button, IconButton, Tooltip, Typography } from "@mui/material";
+import { IconButton, Tooltip, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   GridColDef,
   GridRenderCellParams,
   GridRowModel,
 } from "@mui/x-data-grid";
+import { HoverOnMoreVertButton } from "components/benchmark/v3/components/common/HoverRevealCell";
 import {
   BenchmarkComparisonPolicyConfig,
   ComparisonResult,
@@ -13,7 +14,6 @@ import {
 } from "components/benchmark/v3/configs/helpers/RegressionPolicy";
 import { ComparisonTableConfig } from "../../../helper";
 import { asNumber, valOf } from "./ComparisonTableHelpers";
-import { HoverOnMoreVertButton } from "components/benchmark/v3/components/common/HoverRevealCell";
 
 /**
  *
@@ -85,7 +85,7 @@ export function ComparisonTableValueCell({
   lWorkflowId,
   rWorkflowId,
   config,
-  onClick = (data:any) => {},
+  onClick = (data: any) => {},
 }: {
   field: string;
   row: GridRowModel;
@@ -167,8 +167,10 @@ export function ComparisonTableValueCell({
       <Tooltip title={renderComparisonResult(result)}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="body2">{text}</Typography>
-           {config?.customizedConfirmDialog && (
-            <HoverOnMoreVertButton onClick={()=> onClick({ left: ldata, right: rdata })} />
+          {config?.customizedConfirmDialog && (
+            <HoverOnMoreVertButton
+              onClick={() => onClick({ left: ldata, right: rdata })}
+            />
           )}
         </Box>
       </Tooltip>
