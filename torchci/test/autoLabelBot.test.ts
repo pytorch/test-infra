@@ -19,8 +19,11 @@ describe("auto-label-bot", () => {
     probot.load(myProbotApp);
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
-    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
-    mockManagedOrg.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     // zhouzhuojie/gha-ci-playground is the repo used in almost all the tests
     utils.mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
     emptyMockConfig("zhouzhuojie/gha-ci-playground");
@@ -975,8 +978,11 @@ describe("auto-label-bot: labeler.yml config", () => {
     probot.load(myProbotApp);
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
-    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
-    mockManagedOrg.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -1139,8 +1145,11 @@ describe("auto-label-bot: label-to-label.yml config", () => {
     probot.load(myProbotApp);
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
-    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
-    mockManagedOrg.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -1251,8 +1260,11 @@ adfadsfasd
     probot.load(myProbotApp);
     const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
     mock.mockReturnValue(true);
-    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
-    mockManagedOrg.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });

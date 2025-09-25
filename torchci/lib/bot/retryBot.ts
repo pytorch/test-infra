@@ -1,6 +1,6 @@
 import { Probot } from "probot";
 import { queryClickhouseSaved } from "../clickhouse";
-import { CachedConfigTracker, isPyTorchManagedOrg } from "./utils";
+import { CachedConfigTracker, isPyTorchbotSupportedOrg } from "./utils";
 
 const SUCCESS_CONCLUSIONS = ["success"];
 const FAILURE_CONCLUSIONS = ["failure", "cancelled", "timed_out"];
@@ -167,7 +167,7 @@ function retryBot(app: Probot): void {
 
   app.on("workflow_run.completed", async (ctx) => {
     const owner = ctx.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }

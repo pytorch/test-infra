@@ -1,7 +1,7 @@
 import { Probot } from "probot";
 import {
   hasWritePermissions,
-  isPyTorchManagedOrg,
+  isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
 } from "./utils";
 
@@ -25,7 +25,7 @@ export function genCodevNoWritePermComment(author: string) {
 export default function codevNoWritePerm(app: Probot): void {
   app.on("pull_request.opened", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }

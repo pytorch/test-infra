@@ -5,7 +5,6 @@ import pytorchBot from "../lib/bot/pytorchBot";
 import * as clickhouse from "../lib/clickhouse";
 import { handleScope, requireDeepCopy } from "./common";
 import * as utils from "./utils";
-import * as botUtils from "lib/bot/utils";
 
 nock.disableNetConnect();
 
@@ -26,12 +25,7 @@ describe("merge-bot", () => {
     jest.restoreAllMocks();
   });
 
-  function mockIsPytorchManagedOrg(bool: boolean) {
-    return jest.spyOn(botUtils, "isPyTorchManagedOrg").mockReturnValue(bool);
-  }
-
   test("random pr comment no reaction", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
@@ -39,7 +33,6 @@ describe("merge-bot", () => {
   });
 
   test("random issue comment no event", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/issue_comment.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
@@ -47,7 +40,6 @@ describe("merge-bot", () => {
   });
 
   test("random pull request review no event", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     const scope = nock("https://api.github.com");
     await probot.receive(event);
@@ -55,7 +47,6 @@ describe("merge-bot", () => {
   });
 
   test("quoted merge/revert command no event", async () => {
-    mockIsPytorchManagedOrg(true);
     const merge_event = requireDeepCopy("./fixtures/issue_comment.json");
     merge_event.payload.comment.body = "> @pytorchbot merge";
     const revert_event = requireDeepCopy("./fixtures/issue_comment.json");
@@ -70,7 +61,6 @@ describe("merge-bot", () => {
   });
 
   test("no space no event", async () => {
-    mockIsPytorchManagedOrg(true);
     const merge_event = requireDeepCopy("./fixtures/issue_comment.json");
     merge_event.payload.comment.body = "> @pytorchbotmerge";
     const revert_event = requireDeepCopy("./fixtures/issue_comment.json");
@@ -85,7 +75,6 @@ describe("merge-bot", () => {
   });
 
   test("merge command on issue triggers confused reaction", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/issue_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
 
@@ -107,7 +96,6 @@ describe("merge-bot", () => {
   });
 
   test("merge command on pytorch/pytorch pull request triggers label, dispatch and like", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge";
@@ -156,7 +144,6 @@ describe("merge-bot", () => {
   });
 
   test("merge command with multiple spaces on pytorch/pytorch pull request triggers", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot                    merge";
@@ -205,7 +192,6 @@ describe("merge-bot", () => {
   });
 
   test("merge command on pytorch/pytorch pull request does not trigger dispatch if no write permissions for label", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge";
@@ -244,7 +230,6 @@ describe("merge-bot", () => {
   });
 
   test("merge command on pull request triggers dispatch and like", async () => {
-    mockIsPytorchManagedOrg(false);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge";
@@ -275,7 +260,6 @@ describe("merge-bot", () => {
   });
 
   test("merge -f on pull request triggers permission checks, dispatch and like", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f '[MINOR] Fix lint'";
@@ -311,7 +295,6 @@ describe("merge-bot", () => {
   });
 
   test("merge -f with a minimal acceptable message (2 words)", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f 'Fix lint'";
@@ -346,7 +329,6 @@ describe("merge-bot", () => {
   });
 
   test("reject merge -f without a reason", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f";
@@ -369,7 +351,6 @@ describe("merge-bot", () => {
   });
 
   test("reject merge -f without write access", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f 'cuz I want to'";
@@ -402,7 +383,6 @@ describe("merge-bot", () => {
   });
 
   test("reject merge -f with an empty reason", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f ''";
@@ -437,7 +417,6 @@ describe("merge-bot", () => {
   });
 
   test("reject merge -f with a too short reason (< 2 words)", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f 'YOLO'";
@@ -472,7 +451,6 @@ describe("merge-bot", () => {
   });
 
   test("merge -i command on pull request triggers dispatch and like", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -i";
@@ -507,7 +485,6 @@ describe("merge-bot", () => {
   });
 
   test("merge -i command on pull request triggers error without write permissions", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -i";
@@ -544,7 +521,6 @@ describe("merge-bot", () => {
   });
 
   test("merge -ic command on pull request returns deprecation message and fails", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -ic";
@@ -573,7 +549,6 @@ describe("merge-bot", () => {
   });
 
   test("merge this command raises an error", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge this";
@@ -594,7 +569,6 @@ describe("merge-bot", () => {
   });
 
   test("revert command w/o explanation on pull request triggers comment only", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot revert";
@@ -617,7 +591,6 @@ describe("merge-bot", () => {
   });
 
   test("revert command on HUD", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     const msg = getMessage(
       "this is breaking stuff on trunk",
@@ -665,7 +638,6 @@ describe("merge-bot", () => {
     handleScope(scope);
   });
   test("revert command w/ explanation on pull request triggers dispatch and like", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     const reason =
       "--breaks master: " +
@@ -703,7 +675,6 @@ describe("merge-bot", () => {
   });
 
   test("rebase command on pull request triggers dispatch and like", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase";
@@ -741,7 +712,6 @@ describe("merge-bot", () => {
   });
 
   test("rebase to viable/strict", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase -s";
@@ -780,7 +750,6 @@ describe("merge-bot", () => {
   });
 
   test("rebase to any branch", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase -b randombranch";
@@ -819,7 +788,6 @@ describe("merge-bot", () => {
   });
 
   test("merge fail because mutually exclusive options", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -i -f '[MINOR] Fix lint'";
@@ -843,7 +811,6 @@ describe("merge-bot", () => {
   });
 
   test("merge fail because mutually exclusive options without force merge reason", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -i -f";
@@ -867,7 +834,6 @@ describe("merge-bot", () => {
   });
 
   test("rebase fail because -b and -s", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase -b randombranch -s";
@@ -891,7 +857,6 @@ describe("merge-bot", () => {
   });
 
   test("rebase does not have permissions", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase";
@@ -926,7 +891,6 @@ describe("merge-bot", () => {
   });
 
   test("rebase no write permissions but has committed before", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot rebase";
@@ -970,7 +934,6 @@ describe("merge-bot", () => {
   });
 
   test("merge this pull request review triggers dispatch and +1 comment in pytorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.pull_request.user.login = "randomuser";
     event.payload.review.body = "@pytorchbot merge";
@@ -1001,7 +964,6 @@ describe("merge-bot", () => {
   });
 
   test("Revert pull request review triggers dispatch and +1 comment", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_review.json");
     event.payload.pull_request.user.login = "randomuser";
     event.payload.review.body =
@@ -1030,7 +992,6 @@ describe("merge-bot", () => {
   });
 
   test("merge with ignore current flag using CLI", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchmergebot merge -i";
@@ -1065,7 +1026,6 @@ describe("merge-bot", () => {
   });
 
   test("merge with land checks using CLI in pytorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchmergebot merge";
@@ -1099,7 +1059,6 @@ describe("merge-bot", () => {
   });
 
   test("merge using CLI + other content in comment", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = `esome text
@@ -1133,7 +1092,6 @@ some other text lol
   });
 
   test("force merge using CLI", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -f '[MINOR] Fix lint'";
@@ -1168,7 +1126,6 @@ some other text lol
   });
 
   test("merge rebase default", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r";
@@ -1203,7 +1160,6 @@ some other text lol
   });
 
   test("merge rebase main", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r main";
@@ -1238,7 +1194,6 @@ some other text lol
   });
 
   test("merge rebase no permissions", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r";
@@ -1286,7 +1241,6 @@ some other text lol
   });
 
   test("merge rebase no write permissions but has committed before", async () => {
-    mockIsPytorchManagedOrg(false);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r";
@@ -1327,7 +1281,6 @@ some other text lol
   });
 
   test("merge rebase invalid branch", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchbot merge -r something";
@@ -1349,7 +1302,6 @@ some other text lol
   });
 
   test("help using CLI", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = `@pytorchbot --help`;
@@ -1369,7 +1321,6 @@ some other text lol
   });
 
   async function handleRevertTest(commentBody: string, reason: string) {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = commentBody;
 
@@ -1398,7 +1349,6 @@ some other text lol
     handleScope(scope);
   }
   test("revert using @pytorchmergebot CLI", async () => {
-    mockIsPytorchManagedOrg(true);
     const reason = "this is breaking test_meta";
     await handleRevertTest(
       '@pytorchmergebot revert -m="' + reason + '" -c="ghfirst"',
@@ -1407,7 +1357,6 @@ some other text lol
   });
 
   test("revert using CLI", async () => {
-    mockIsPytorchManagedOrg(true);
     const reason = "this is breaking test_meta";
     await handleRevertTest(
       '@pytorchbot revert -m="' + reason + '" -c="ghfirst"',
@@ -1416,7 +1365,6 @@ some other text lol
   });
 
   test("Random commands won't trigger CLI", async () => {
-    mockIsPytorchManagedOrg(true);
     const eventCantMerge = requireDeepCopy(
       "./fixtures/pull_request_comment.json"
     );
@@ -1439,7 +1387,6 @@ some other text lol
   });
 
   test("A PR with only requested changes doesn't trigger the merge workflow in PyTorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1478,7 +1425,6 @@ some other text lol
   });
 
   test("An approval with changes requested doesn't trigger the merge workflow in pytorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1517,7 +1463,6 @@ some other text lol
   });
 
   test("A PR with an approval and a dismissed changes requested does trigger the merge workflow in pytorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1563,7 +1508,6 @@ some other text lol
   });
 
   test("Comment only workflows don't let a PR get merged in pytorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1601,7 +1545,6 @@ some other text lol
   });
 
   test("Zero Reviews in PyTorch org blocks the merge", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1634,7 +1577,6 @@ some other text lol
   });
 
   test("Approvals from unauthorized users don't count in pytorch org", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
     event.payload.comment.body = "@pytorchbot merge";
     event.payload.repository.owner.login = "pytorch";
@@ -1673,7 +1615,6 @@ some other text lol
   });
 
   test("pytorchmergebot -h rebase command on pull request prints help message and does not execute rebase", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchmergebot -h rebase";
@@ -1699,7 +1640,6 @@ some other text lol
   });
 
   test("pytorchmergebot rebase -h command on pull request prints help message and does not execute rebase", async () => {
-    mockIsPytorchManagedOrg(true);
     const event = requireDeepCopy("./fixtures/pull_request_comment.json");
 
     event.payload.comment.body = "@pytorchmergebot rebase -h";

@@ -27,21 +27,23 @@ describe("codevNoWritePermBot", () => {
     return jest.spyOn(botUtils, "isPyTorchPyTorch").mockReturnValue(bool);
   }
 
-  function mockIsPytorchManagedOrg(bool: boolean) {
-    return jest.spyOn(botUtils, "isPyTorchManagedOrg").mockReturnValue(bool);
+  function mockIsPytorchbotSupportedOrg(bool: boolean) {
+    return jest
+      .spyOn(botUtils, "isPyTorchbotSupportedOrg")
+      .mockReturnValue(bool);
   }
 
   test("ignore non pytorch/pytorch PR", async () => {
     const payload = requireDeepCopy("./fixtures/pull_request.opened");
     payload.payload.pull_request.body = "Differential Revision: D123123123";
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     mockIsPytorchPytorch(false);
     await probot.receive(payload);
   });
 
   test("ignore pytorch/pytorch PR that is not codev", async () => {
     const payload = requireDeepCopy("./fixtures/pull_request.opened");
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     mockIsPytorchPytorch(true);
     payload.payload.pull_request.body = "This is not a codev PR";
     await probot.receive(payload);
@@ -52,7 +54,7 @@ describe("codevNoWritePermBot", () => {
     payload.payload.pull_request.body = "Differential Revision: D123123123";
     const repoFullName = payload.payload.repository.full_name;
     const author = payload.payload.pull_request.user.login;
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     mockIsPytorchPytorch(true);
     const scope = utils.mockPermissions(repoFullName, author, "write");
     await probot.receive(payload);
@@ -64,7 +66,7 @@ describe("codevNoWritePermBot", () => {
     payload.payload.pull_request.body = "Differential Revision: D123123123";
     const repoFullName = payload.payload.repository.full_name;
     const author = payload.payload.pull_request.user.login;
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     mockIsPytorchPytorch(true);
     const scopes = [
       utils.mockPermissions(repoFullName, author, "read"),
@@ -83,7 +85,7 @@ describe("codevNoWritePermBot", () => {
       "Differential Revision: [D123123123](Link)";
     const repoFullName = payload.payload.repository.full_name;
     const author = payload.payload.pull_request.user.login;
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     mockIsPytorchPytorch(true);
     const scopes = [
       utils.mockPermissions(repoFullName, author, "read"),

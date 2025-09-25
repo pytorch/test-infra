@@ -1,5 +1,5 @@
-import * as botUtils from "lib/bot/utils";
 import ciflowPushTrigger from "lib/bot/ciflowPushTrigger";
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot, ProbotOctokit } from "probot";
 import {
@@ -31,8 +31,11 @@ describe("Push trigger integration tests", () => {
         throttle: { enabled: false },
       }),
     });
-    const mockManagedOrg = jest.spyOn(botUtils, "isPyTorchManagedOrg");
-    mockManagedOrg.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
     ciflowPushTrigger(probot);
   });
 

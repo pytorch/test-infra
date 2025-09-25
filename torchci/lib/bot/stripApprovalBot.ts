@@ -1,12 +1,12 @@
 import { Context, Probot } from "probot";
-import { hasWritePermissions, isPyTorchManagedOrg } from "./utils";
+import { hasWritePermissions, isPyTorchbotSupportedOrg } from "./utils";
 
 export default function stripApprovalBot(app: Probot): void {
   app.on(
     ["pull_request.reopened"],
     async (ctx: Context<"pull_request.reopened">) => {
       const owner = ctx.payload.repository.owner.login;
-      if (!isPyTorchManagedOrg(owner)) {
+      if (!isPyTorchbotSupportedOrg(owner)) {
         ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
         return;
       }

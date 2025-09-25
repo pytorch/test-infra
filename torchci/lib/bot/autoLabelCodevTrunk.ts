@@ -7,7 +7,7 @@ import { CODEV_INDICATOR } from "./codevNoWritePermBot";
 import {
   hasApprovedPullRuns,
   hasWritePermissions,
-  isPyTorchManagedOrg,
+  isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
 } from "./utils";
 
@@ -44,7 +44,7 @@ async function doCodevLabeling(
 function myBot(app: Probot): void {
   app.on("pull_request_review.submitted", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
@@ -56,7 +56,7 @@ function myBot(app: Probot): void {
 
   app.on("pull_request.edited", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
@@ -71,7 +71,7 @@ function myBot(app: Probot): void {
 
   app.on("issue_comment.created", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }

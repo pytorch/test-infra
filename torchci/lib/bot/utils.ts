@@ -16,7 +16,7 @@ export function repoKey(context: Context): string {
   return `${repo.owner}/${repo.repo}`;
 }
 
-export function isPyTorchManagedOrg(owner: string): boolean {
+export function isPyTorchbotSupportedOrg(owner: string): boolean {
   // We frequently test CI changes on malfet/deleteme
   return owner === "pytorch" || owner === "meta-pytorch" || owner === "malfet";
 }
@@ -27,7 +27,7 @@ export function isPyTorchPyTorch(owner: string, repo: string): boolean {
 
 export function isDrCIEnabled(owner: string, repo: string): boolean {
   return (
-    isPyTorchManagedOrg(owner) &&
+    isPyTorchbotSupportedOrg(owner) &&
     [
       "pytorch",
       "vision",

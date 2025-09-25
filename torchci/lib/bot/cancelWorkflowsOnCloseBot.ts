@@ -1,10 +1,10 @@
 import { Probot } from "probot";
-import { isPyTorchManagedOrg } from "./utils";
+import { isPyTorchbotSupportedOrg } from "./utils";
 
 function cancelWorkflowsOnCloseBot(app: Probot): void {
   app.on("pull_request.closed", async (ctx) => {
     const owner = ctx.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       ctx.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }

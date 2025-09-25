@@ -20,8 +20,10 @@ describe("auto-cc-bot", () => {
     nock.cleanAll();
   });
 
-  function mockIsPytorchManagedOrg(bool: boolean) {
-    return jest.spyOn(botUtils, "isPyTorchManagedOrg").mockReturnValue(bool);
+  function mockIsPytorchbotSupportedOrg(bool: boolean) {
+    return jest
+      .spyOn(botUtils, "isPyTorchbotSupportedOrg")
+      .mockReturnValue(bool);
   }
 
   test("no-op when tracker is missing", async () => {
@@ -47,7 +49,7 @@ describe("auto-cc-bot", () => {
   });
 
   test("add a cc when issue is labeled(skipping self)", async () => {
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -78,7 +80,7 @@ Some header text
     scope.done();
   });
   test("add a cc to issue with empty body", async () => {
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -110,7 +112,7 @@ Some header text
   });
 
   test("add a cc when PR is labeled", async () => {
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -142,7 +144,7 @@ Some header text
   });
 
   test("update an existing cc when issue is labeled", async () => {
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
@@ -174,7 +176,7 @@ Some header text
   });
 
   test("mkldnn update bug", async () => {
-    mockIsPytorchManagedOrg(true);
+    mockIsPytorchbotSupportedOrg(true);
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });

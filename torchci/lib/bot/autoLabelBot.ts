@@ -8,7 +8,7 @@ import {
   getFilesChangedByPr,
   hasApprovedPullRuns,
   hasWritePermissions,
-  isPyTorchManagedOrg,
+  isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
   LabelToLabelConfigTracker,
 } from "./utils";
@@ -433,7 +433,7 @@ function myBot(app: Probot): void {
 
   app.on("issues.labeled", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
@@ -478,7 +478,7 @@ function myBot(app: Probot): void {
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
@@ -497,7 +497,7 @@ function myBot(app: Probot): void {
     ["pull_request.opened", "pull_request.edited", "pull_request.synchronize"],
     async (context) => {
       const owner = context.payload.repository.owner.login;
-      if (!isPyTorchManagedOrg(owner)) {
+      if (!isPyTorchbotSupportedOrg(owner)) {
         context.log(`${__filename} isn't enabled on ${owner}'s repos`);
         return;
       }
@@ -572,7 +572,7 @@ function myBot(app: Probot): void {
 
   app.on("pull_request.opened", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }

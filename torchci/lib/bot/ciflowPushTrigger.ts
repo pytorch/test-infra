@@ -4,7 +4,7 @@ import {
   CachedConfigTracker,
   hasApprovedPullRuns,
   hasWritePermissions,
-  isPyTorchManagedOrg,
+  isPyTorchbotSupportedOrg,
   isPyTorchPyTorch,
 } from "./utils";
 
@@ -247,7 +247,7 @@ export default function ciflowPushTrigger(app: Probot) {
   const tracker = new CachedConfigTracker(app);
   app.on("pull_request.labeled", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
@@ -262,7 +262,7 @@ export default function ciflowPushTrigger(app: Probot) {
     ],
     async (context) => {
       const owner = context.payload.repository.owner.login;
-      if (!isPyTorchManagedOrg(owner)) {
+      if (!isPyTorchbotSupportedOrg(owner)) {
         context.log(`${__filename} isn't enabled on ${owner}'s repos`);
         return;
       }
@@ -272,7 +272,7 @@ export default function ciflowPushTrigger(app: Probot) {
   );
   app.on("pull_request.closed", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
@@ -281,7 +281,7 @@ export default function ciflowPushTrigger(app: Probot) {
   });
   app.on("pull_request.unlabeled", async (context) => {
     const owner = context.payload.repository.owner.login;
-    if (!isPyTorchManagedOrg(owner)) {
+    if (!isPyTorchbotSupportedOrg(owner)) {
       context.log(`${__filename} isn't enabled on ${owner}'s repos`);
       return;
     }
