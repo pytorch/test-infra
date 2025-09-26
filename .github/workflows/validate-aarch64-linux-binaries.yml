@@ -106,6 +106,7 @@ jobs:
       os: linux-aarch64
       channel: ${{ inputs.channel }}
       with-cuda: enable
+      with-cpu: disable
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
 
   linux-aarch64-cpu:
@@ -168,6 +169,7 @@ jobs:
 
   linux-aarch64-gpu:
     needs: generate-aarch64-linux-gpu-matrix
+    if: ${{ fromJson(needs.generate-aarch64-linux-gpu-matrix.outputs.matrix).include != null && fromJson(needs.generate-aarch64-linux-gpu-matrix.outputs.matrix).include[0] != null }}
     strategy:
       matrix: ${{ fromJson(needs.generate-aarch64-linux-gpu-matrix.outputs.matrix) }}
       fail-fast: false
