@@ -368,7 +368,10 @@ is_formatter = true
 
 [[linter]]
 code = 'SQLFLUFF'
-include_patterns = ['torchci/clickhouse_queries/**/*.sql']
+include_patterns = [
+    'torchci/clickhouse_queries/**/*.sql',
+    'clickhouse_db_schema/**/*.sql',
+]
 command = [
     'python3',
     'tools/linter/adapters/sqlfluff_linter.py',
