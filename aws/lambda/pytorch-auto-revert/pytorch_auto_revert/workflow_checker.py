@@ -105,7 +105,7 @@ class WorkflowRestartChecker:
         """Clear the results cache."""
         self._cache.clear()
 
-    def restart_workflow(self, workflow_name: str, commit_sha: str) -> bool:
+    def restart_workflow(self, workflow_name: str, commit_sha: str) -> None:
         """
         Restart a workflow for a specific commit SHA.
 
@@ -113,19 +113,12 @@ class WorkflowRestartChecker:
             workflow_name: Name of the workflow (e.g., "trunk" or "trunk.yml")
             commit_sha: The commit SHA to restart workflow for
 
-        Returns:
-            bool: True if workflow was successfully dispatched,
-            False if it was already restarted
+        Raises:
+            RuntimeError: If GitHub authentication is not configured.
+            GithubException: If the GitHub API rejects the dispatch
+                (e.g., workflow not found, insufficient permissions, rate limit exceeded, or validation error).
+            Exception: For unexpected client or network errors during the dispatch request.
         """
-        # Check if already restarted
-        if self.has_restarted_workflow(workflow_name, commit_sha):
-            logging.warning(
-                "Workflow %s already restarted for commit %s",
-                workflow_name,
-                commit_sha,
-            )
-            return False
-
         from .github_client_helper import GHClientFactory
 
         factory = GHClientFactory()
@@ -158,7 +151,6 @@ class WorkflowRestartChecker:
         cache_key = f"{wf_ref.display_name}:{commit_sha}"
         if cache_key in self._cache:
             del self._cache[cache_key]
-        return True
 
     @property
     def resolver(self) -> WorkflowResolver:

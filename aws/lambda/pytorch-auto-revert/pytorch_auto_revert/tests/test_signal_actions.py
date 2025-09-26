@@ -1,7 +1,11 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from pytorch_auto_revert.signal_actions import SignalActionProcessor, SignalMetadata
+from pytorch_auto_revert.signal_actions import (
+    ActionLogger,
+    SignalActionProcessor,
+    SignalMetadata,
+)
 from pytorch_auto_revert.signal_extraction_types import RunContext
 from pytorch_auto_revert.utils import RestartAction, RevertAction
 
@@ -22,15 +26,25 @@ class FakeLogger:
     ) -> bool:
         return False
 
-    def recent_restarts(
+    def restart_stats(
         self,
         *,
         repo: str,
         workflow: str,
         commit_sha: str,
-        limit: int = 2,
-    ):
-        return list(self._recent)
+        pacing,
+    ) -> ActionLogger.RestartStats:
+        from datetime import timezone
+
+        now = datetime.now(timezone.utc)
+        has_win = any((now - t) < pacing for t in self._recent)
+        total = len(self._recent)
+        return ActionLogger.RestartStats(
+            total_restarts=total,
+            has_success_within_window=has_win,
+            failures_since_last_success=0,
+            secs_since_last_failure=10**9,
+        )
 
     def insert_event(
         self,
@@ -61,8 +75,8 @@ class FakeLogger:
 
 
 class FakeRestart:
-    def restart_workflow(self, workflow_name: str, commit_sha: str) -> bool:
-        return True
+    def restart_workflow(self, workflow_name: str, commit_sha: str) -> None:
+        return None
 
 
 class TestSignalActionsPacing(unittest.TestCase):

@@ -32,8 +32,9 @@ Immutable run-scoped metadata shared by all actions in the same run:
 
 - `restart` (execute + log):
   - Scope: per `(workflow, commit_sha)` pair
-  - Caps: up to 2 non-dry-run restarts total for the pair
-  - Pacing: skip if the most recent non-dry-run restart was within 15 minutes before `ts`
+  - Pacing: skip if there was a successful (failed=0) non-dry-run restart within 20 minutes before `ts`
+  - Cap: skip if there were ≥ 5 non-dry-run restarts total (successful or failed)
+  - Backoff: if the most recent consecutive restarts failed, apply exponential wait before retrying: 20m, 40m, then 60m (cap)
   - No extra GitHub-side “already restarted” guard; rely on ClickHouse logs for dedup/caps
 
 - `none`:
