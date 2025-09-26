@@ -290,6 +290,11 @@ function FiltersAndSettings({}: {}) {
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
+  const [hideRocm, setHideRocm] = usePreference(
+    "hideRocm",
+    /*override*/ undefined,
+    /*default*/ false
+  );
   const [hideGreenColumns, setHideGreenColumns] =
     useHideGreenColumnsPreference();
   const [useGrouping, setUseGrouping] = useGroupingPreference(
@@ -324,6 +329,13 @@ function FiltersAndSettings({}: {}) {
               checkBoxName="hideUnstable"
               key="hideUnstable"
               labelText={"Hide unstable jobs"}
+            />,
+            <CheckBoxSelector
+              value={hideRocm}
+              setValue={(value) => setHideRocm(value)}
+              checkBoxName="hideRocm"
+              key="hideRocm"
+              labelText={"Hide ROCm jobs"}
             />,
             <CheckBoxSelector
               value={hideGreenColumns}
@@ -558,6 +570,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   );
 
   const [hideUnstable] = usePreference("hideUnstable");
+  const [hideRocm] = usePreference("hideRocm", /*override*/ undefined, /*default*/ false);
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [useGrouping] = useGroupingPreference(params.nameFilter);
 
@@ -629,6 +642,14 @@ function GroupedHudTable({ params }: { params: HudParams }) {
       )
     ) {
       return false;
+    }
+
+    // Hide ROCm jobs/groups if enabled
+    if (hideRocm) {
+      const rocmRe = /\brocm\b/i;
+      if (rocmRe.test(name)) {
+        return false;
+      }
     }
 
     // If hiding green columns, filter out names that don't have any failed jobs
