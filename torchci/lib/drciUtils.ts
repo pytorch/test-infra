@@ -508,12 +508,11 @@ export async function getPRMergeCommits(
   });
 
   // If the array is empty, the PR hasn't been merged yet
-  return results.reduce((acc: { [prNumber: number]: string[] }, row: any) => {
-    if (!acc[row.pr_num]) {
-      acc[row.pr_num] = [];
+  return results.reduce((acc: Map<number, string[]>, row: any) => {
+    if (!acc.has(row.pr_num)) {
+      acc.set(row.pr_num, []);
     }
-
-    acc[row.pr_num].push(row.merge_commit_sha);
+    acc.get(row.pr_num)!.push(row.merge_commit_sha);
     return acc;
   }, new Map<number, string[]>());
 }
