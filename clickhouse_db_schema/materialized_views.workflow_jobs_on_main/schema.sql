@@ -9,7 +9,8 @@
 --   SYSTEM WAIT VIEW materialized_views.workflow_jobs_on_main_mv;
 
 -- If the table already exists, drop it to ensure a fresh start.
-DROP TABLE materialized_views.workflow_jobs_on_main;
+DROP TABLE IF EXISTS materialized_views.workflow_jobs_on_main_mv;
+DROP TABLE IF EXISTS materialized_views.workflow_jobs_on_main;
 
 -- Create the table to store the materialized view data.
 CREATE TABLE materialized_views.workflow_jobs_on_main
@@ -26,7 +27,7 @@ ENGINE = MergeTree
 ORDER BY (workflow_name, job_name, conclusion, commit_time);
 
 -- Create the materialized view to populate the table with relevant data.
-CREATE MATERIALIZED VIEW IF NOT EXISTS materialized_views.workflow_jobs_on_main_mv
+CREATE MATERIALIZED VIEW materialized_views.workflow_jobs_on_main_mv
 REFRESH EVERY 5 MINUTE
 TO materialized_views.workflow_jobs_on_main
 AS
