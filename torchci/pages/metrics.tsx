@@ -497,7 +497,6 @@ export default function Page() {
   const docsJobNames = [
     "docs push / build-docs-python-true",
     "docs push / build-docs-cpp-true",
-    "docs push / build-docs-functorch-true",
   ];
 
   const disabledTestsTotal = Object.keys(
