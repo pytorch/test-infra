@@ -173,6 +173,34 @@ class PartitionedCommits:
     def success_events_count(self) -> int:
         return sum(c.statuses.get(SignalStatus.SUCCESS, 0) for c in self.successful)
 
+    def cover_gap_unknown_commits(self, *, bisection_limit: Optional[int]) -> Set[str]:
+        """
+        Decide which unknown commits (with no events) to start to cover the gap,
+        using the hybrid bisection algorithm with an optional limit.
+
+        - Already pending commits act as separators (covered=True)
+        - Missing commits are candidates (covered=False)
+        - When limit is None: schedule all candidates
+        - When limit is set: allowed = max(0, limit - currently_pending)
+          and iteratively bisect the largest gaps.
+        """
+        if not self.unknown:
+            return set()
+
+        from .bisection_planner import GapBisectionPlanner
+
+        covered = [bool(c.events) for c in self.unknown]
+        if all(covered) or bisection_limit == 0:
+            return set()
+
+        plan = GapBisectionPlanner.plan(covered, bisection_limit)
+        to_schedule: Set[str] = set()
+        for i, choose in enumerate(plan):
+            if choose:
+                to_schedule.add(self.unknown[i].head_sha)
+
+        return to_schedule
+
     def confirm_not_an_infra_issue(self) -> "InfraCheckResult":
         """
         Infra check based on this partition that classifies whether observed
@@ -329,7 +357,7 @@ class Signal:
         return PartitionedCommits(failed=failed, unknown=unknown, successful=successful)
 
     def process_valid_autorevert_pattern(
-        self,
+        self, *, bisection_limit: Optional[int] = None
     ) -> Union[AutorevertPattern, RestartCommits, Ineligible]:
         """
         Detect valid autorevert pattern in the Signal.
@@ -364,10 +392,10 @@ class Signal:
 
         restart_commits = set()
 
-        # close gaps in the signal (greedily for now)
-        for c in partition.unknown:
-            if not c.events:
-                restart_commits.add(c.head_sha)
+        # Cover the unknown gap (between failed and successful partitions)
+        restart_commits.update(
+            partition.cover_gap_unknown_commits(bisection_limit=bisection_limit)
+        )
 
         # infra check section
 

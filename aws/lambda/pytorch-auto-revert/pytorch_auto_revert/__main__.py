@@ -160,6 +160,14 @@ def get_opts() -> argparse.Namespace:
         ),
     )
     workflow_parser.add_argument(
+        "--bisection-limit",
+        type=int,
+        default=None,
+        help=(
+            "Max new pending jobs to schedule per signal to cover gaps (None = unlimited)."
+        ),
+    )
+    workflow_parser.add_argument(
         "--notify-issue-number",
         type=int,
         default=int(
@@ -292,6 +300,10 @@ def main(*args, **kwargs) -> None:
             )
             return
 
+        # Read env-driven defaults for the lambda path
+        _bis_env = os.environ.get("BISECTION_LIMIT", "").strip()
+        _bis_limit = int(_bis_env) if _bis_env else None
+
         autorevert_v2(
             os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
             hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
@@ -303,6 +315,7 @@ def main(*args, **kwargs) -> None:
             revert_action=(
                 RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
             ),
+            bisection_limit=_bis_limit,
         )
     elif opts.subcommand == "autorevert-checker":
         # New default behavior under the same subcommand
@@ -313,6 +326,7 @@ def main(*args, **kwargs) -> None:
             repo_full_name=opts.repo_full_name,
             restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
             revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
+            bisection_limit=opts.bisection_limit,
         )
         write_hud_html_from_cli(opts.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
     elif opts.subcommand == "workflow-restart-checker":
