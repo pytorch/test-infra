@@ -9,7 +9,7 @@ from typing import Dict, Iterable, List, Optional, Tuple, Union
 
 import github
 
-from .clickhouse_client_helper import CHCliFactory, ensure_utc_datetime
+from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
@@ -71,20 +71,64 @@ class ActionLogger:
         res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
         return len(res.result_rows) > 0
 
-    def recent_restarts(
-        self, *, repo: str, workflow: str, commit_sha: str, limit: int = 2
-    ):
-        """Return most recent non-dry-run restart timestamps for (workflow, commit)."""
+    @dataclass(frozen=True)
+    class RestartStats:
+        total_restarts: int = 0
+        has_success_within_window: bool = False
+        failures_since_last_success: int = 0
+        secs_since_last_failure: int = 0
+
+    def restart_stats(
+        self,
+        *,
+        repo: str,
+        workflow: str,
+        commit_sha: str,
+        pacing: timedelta,
+    ) -> RestartStats:
+        """Return pacing/cap/backoff stats in one query."""
         q = (
-            "SELECT ts FROM misc.autorevert_events_v2 "
-            "WHERE repo = {repo:String} AND action = 'restart' AND dry_run = 0 "
-            "AND commit_sha = {sha:String} AND has(workflows, {wf:String}) "
-            "ORDER BY ts DESC LIMIT {lim:UInt16}"
+            "WITH\n"
+            "  rows AS (\n"
+            "    SELECT ts, failed FROM misc.autorevert_events_v2\n"
+            "    WHERE repo = {repo:String} AND action = 'restart' AND dry_run = 0\n"
+            "      AND commit_sha = {sha:String} AND has(workflows, {wf:String})\n"
+            "  ),\n"
+            "  latest_success AS (\n"
+            "    SELECT maxIf(ts, failed = 0) AS ts FROM rows\n"
+            "  ),\n"
+            "  base AS (\n"
+            "    SELECT\n"
+            "      count() AS total_restarts,\n"
+            "      maxIf(ts, failed = 1) AS last_failure_ts,\n"
+            "      any(failed = 0 AND ts > (now() - toIntervalSecond({pacing_sec:UInt32}))) "
+            "               AS has_success_within_window\n"
+            "    FROM rows\n"
+            "  )\n"
+            "SELECT\n"
+            "  total_restarts,\n"
+            "  has_success_within_window,\n"
+            "  (SELECT sumIf(1, failed = 1 AND ts > (SELECT ts FROM latest_success)) FROM rows) "
+            "           AS failures_since_last_success,\n"
+            "  toUInt32(now() - last_failure_ts) AS secs_since_last_failure\n"
+            "FROM base"
         )
-        res = CHCliFactory().client.query(
-            q, {"repo": repo, "wf": workflow, "sha": commit_sha, "lim": limit}
+        params = {
+            "repo": repo,
+            "wf": workflow,
+            "sha": commit_sha,
+            "pacing_sec": max(0, int(pacing.total_seconds())),
+        }
+        res = CHCliFactory().client.query(q, params)
+        if not res.result_rows:
+            return ActionLogger.RestartStats()
+        row = res.result_rows[0]
+        return ActionLogger.RestartStats(
+            total_restarts=int(row[0]),
+            has_success_within_window=bool(row[1]),
+            failures_since_last_success=int(row[2]),
+            secs_since_last_failure=int(row[3]),
         )
-        return [ensure_utc_datetime(ts) for (ts,) in res.result_rows]
 
     def insert_event(
         self,
@@ -257,7 +301,7 @@ class SignalActionProcessor:
         sources: List[SignalMetadata],
         ctx: RunContext,
     ) -> bool:
-        """Dispatch a workflow restart if under cap and outside pacing window; always logs the event."""
+        """Dispatch a workflow restart subject to pacing, cap, and backoff; always logs the event."""
         if ctx.restart_action == RestartAction.SKIP:
             logging.info(
                 "[v2][action] restart for sha %s: skipping (ignored)", commit_sha[:8]
@@ -266,30 +310,45 @@ class SignalActionProcessor:
 
         dry_run = not ctx.restart_action.side_effects
 
-        recent = self._logger.recent_restarts(
-            repo=ctx.repo_full_name, workflow=workflow_target, commit_sha=commit_sha
+        pacing_window = timedelta(minutes=20)
+        stats = self._logger.restart_stats(
+            repo=ctx.repo_full_name,
+            workflow=workflow_target,
+            commit_sha=commit_sha,
+            pacing=pacing_window,
         )
-        if len(recent) >= 2:
+        if stats.has_success_within_window:
             logging.info(
-                "[v2][action] restart for sha %s: skipping cap (recent=%d)",
+                "[v2][action] restart for sha %s: skipping pacing (successful restart within %d sec)",
                 commit_sha[:8],
-                len(recent),
+                int(pacing_window.total_seconds()),
             )
             return False
-        if recent and (ctx.ts - recent[0]) < timedelta(minutes=15):
-            delta = (ctx.ts - recent[0]).total_seconds()
+        if stats.total_restarts >= 5:
             logging.info(
-                "[v2][action] restart for sha %s: skipping pacing (delta_sec=%d)",
+                "[v2][action] restart for sha %s: skipping cap (total=%d)",
                 commit_sha[:8],
-                int(delta),
+                stats.total_restarts,
             )
             return False
+        fail_streak = stats.failures_since_last_success
+        if fail_streak > 0:
+            # Exponential backoff: 20min, 40min, ... capped at 60min
+            required_wait_sec = min(1200 * (2 ** (fail_streak - 1)), 3600)
+            if stats.secs_since_last_failure < required_wait_sec:
+                logging.info(
+                    "[v2][action] restart for sha %s: skipping backoff (streak=%d, wait=%dm)",
+                    commit_sha[:8],
+                    fail_streak,
+                    int(required_wait_sec // 60),
+                )
+                return False
 
         notes = ""
         ok = True
         if not dry_run:
             try:
-                ok = self._restart.restart_workflow(workflow_target, commit_sha)
+                self._restart.restart_workflow(workflow_target, commit_sha)
             except Exception as exc:
                 ok = False
                 notes = str(exc) or repr(exc)
@@ -297,9 +356,6 @@ class SignalActionProcessor:
                     "[v2][action] restart for sha %s: exception while dispatching",
                     commit_sha[:8],
                 )
-            else:
-                if not ok:
-                    notes = "already_restarted"
         self._logger.insert_event(
             repo=ctx.repo_full_name,
             ts=ctx.ts,
