@@ -55,7 +55,7 @@ on:
       build-command:
         description: The build command to use if build-platform is python-build-package
         required: false
-        default: "python -m build --wheel"
+        default: "python -m build --wheel --no-isolation"
         type: string
       trigger-event:
         description: "Trigger Event in caller that determines whether or not to upload"
@@ -274,8 +274,26 @@ jobs:
           else
             ${CONDA_RUN} ${ENV_SCRIPT} python setup.py bdist_wheel ${BUILD_PARAMS}
           fi
-      - name: Build the wheel (bdist_wheel) Arm64
-        if: inputs.architecture == 'arm64'
+      - name: Build the wheel (python-build-package) Arm64
+        if: ${{ inputs.build-platform == 'python-build-package' && inputs.architecture == 'arm64' }}
+        env:
+          SRC_DIR: ${{ inputs.repository }}
+          DEPENDENCIES_DIR: c:\temp\dependencies\
+        shell: cmd
+        run: |
+          set CONDA_PREFIX=%DEPENDENCIES_DIR%
+          set PATH=%PATH%;%DEPENDENCIES_DIR%\Library\bin
+          set DISTUTILS_USE_SDK=1
+          set VS_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Auxiliary\Build\vcvarsall.bat
+
+          call "%VS_PATH%" arm64
+          cd %SRC_DIR%
+          call .venv\Scripts\activate.bat
+
+          pip install --upgrade setuptools==72.1.0 build==1.2.2 wheel
+          ${{ inputs.build-command }}
+      - name: Build the wheel (setup-py) Arm64
+        if: ${{ inputs.build-platform == 'setup-py' && inputs.architecture == 'arm64' }}
         env:
           SRC_DIR: ${{ inputs.repository }}
           DEPENDENCIES_DIR: c:\temp\dependencies\
