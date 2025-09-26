@@ -336,7 +336,9 @@ class TestSignal(unittest.TestCase):
         )
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
-        self.assertEqual(res.reason, IneligibleReason.INSUFFICIENT_SUCCESSES)
+        # Should be ineligible due to insufficient successes, but infra check takes precedence and
+        # it currently requires two successes to confirm not infra
+        self.assertEqual(res.reason, IneligibleReason.INFRA_NOT_CONFIRMED)
 
     def test_both_sides_restart_accumulate_when_below_thresholds(self):
         # One failure total (<3) and one success total (<2), neither pending.

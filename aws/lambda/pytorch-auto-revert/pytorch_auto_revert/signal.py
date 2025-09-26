@@ -406,6 +406,12 @@ class Signal:
         if restart_commits:
             return RestartCommits(commit_shas=restart_commits)
 
+        if infra_check_result != InfraCheckResult.CONFIRMED:
+            return Ineligible(
+                IneligibleReason.INFRA_NOT_CONFIRMED,
+                f"infra check result: {infra_check_result.value}",
+            )
+
         if partition.failure_events_count() < REQUIRE_FAILED_EVENTS:
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_FAILURES,
@@ -416,12 +422,6 @@ class Signal:
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_SUCCESSES,
                 f"not enough successes to make call: {partition.success_events_count()}",
-            )
-
-        if infra_check_result != InfraCheckResult.CONFIRMED:
-            return Ineligible(
-                IneligibleReason.INFRA_NOT_CONFIRMED,
-                f"infra check result: {infra_check_result.value}",
             )
 
         if partition.unknown:
