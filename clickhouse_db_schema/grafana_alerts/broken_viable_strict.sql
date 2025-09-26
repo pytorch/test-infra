@@ -21,15 +21,15 @@ WITH raw_jobs AS (
         j.commit_message
     FROM materialized_views.workflow_jobs_on_main j
     WHERE
-       -- Filter down to the viable/strict blocking jobs we care about
-       (
+        -- Filter down to the viable/strict blocking jobs we care about
+        (
             j.workflow_name IN ('pull', 'trunk')
-            OR j.workflow_name like 'linux-binary-%'
-       )
-       and j.job_name not like '%rerun_disabled_tests%'
-       and j.job_name not like '%unstable%'
-       and j.job_name not like '%mem_leak_check%'
-       AND j.conclusion IN ('success', 'failure')
+            OR j.workflow_name LIKE 'linux-binary-%'
+        )
+        AND j.job_name NOT LIKE '%rerun_disabled_tests%'
+        AND j.job_name NOT LIKE '%unstable%'
+        AND j.job_name NOT LIKE '%mem_leak_check%'
+        AND j.conclusion IN ('success', 'failure')
 ),
 
 -- Shards add funniness to how we handle jobs completions.  If two
@@ -48,11 +48,11 @@ merged_jobs AS (
         head_sha,
         commit_time,
         anyHeavy(commit_message) AS commit_message,
-        countIf(conclusion = 'failure')                    AS failures,
-        countIf(status != 'completed')                     AS incomplete,
+        countIf(conclusion = 'failure') AS failures,
+        countIf(status != 'completed') AS incomplete,
         multiIf(
             countIf(conclusion = 'failure') > 0, 'failure',
-            countIf(status != 'completed')  > 0, 'pending',
+            countIf(status != 'completed') > 0, 'pending',
             'success'
         ) AS merged_conclusion
     FROM raw_jobs
@@ -142,21 +142,25 @@ latest AS (
 --  Comment out the outer select to see the actual data.
 SELECT COUNT(*)
 FROM (
-  SELECT
-      concat(fs.workflow_name, ' → ', fs.job_group) AS failing_job,
-      fs.streak_length AS consecutive_failures,
-      fs.first_commit_sha AS first_failure_commit,
-      fs.first_commit_time AS first_failure_time,
-      fs.last_commit_sha AS last_failure_commit,
-      fs.last_commit_time AS last_failure_time,
-      substring(fs.first_commit_message, 1, 60) AS first_failure_message,
-      (l.latest_conclusion = 'failure' AND l.latest_group = fs.group_id) AS is_ongoing
-  FROM failure_streaks AS fs
-  JOIN latest AS l
-    ON fs.workflow_name = l.workflow_name
-  AND fs.job_group    = l.job_group
-  WHERE TRUE
-    AND (l.latest_conclusion = 'failure' AND l.latest_group = fs.group_id) -- Is ongoing
-    AND fs.last_commit_time >= now() - INTERVAL 24 HOURS
-  ORDER BY fs.first_commit_time DESC, fs.streak_length DESC
+    SELECT
+        concat(fs.workflow_name, ' → ', fs.job_group) AS failing_job,
+        fs.streak_length AS consecutive_failures,
+        fs.first_commit_sha AS first_failure_commit,
+        fs.first_commit_time AS first_failure_time,
+        fs.last_commit_sha AS last_failure_commit,
+        fs.last_commit_time AS last_failure_time,
+        substring(fs.first_commit_message, 1, 60) AS first_failure_message,
+        (l.latest_conclusion = 'failure' AND l.latest_group = fs.group_id)
+            AS is_ongoing
+    FROM failure_streaks AS fs
+    JOIN latest AS l
+        ON
+            fs.workflow_name = l.workflow_name
+            AND fs.job_group = l.job_group
+    WHERE
+        TRUE
+        -- Is ongoing
+        AND (l.latest_conclusion = 'failure' AND l.latest_group = fs.group_id)
+        AND fs.last_commit_time >= now() - INTERVAL 24 HOURS
+    ORDER BY fs.first_commit_time DESC, fs.streak_length DESC
 )
