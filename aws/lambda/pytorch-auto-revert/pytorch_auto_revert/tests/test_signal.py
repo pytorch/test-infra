@@ -270,7 +270,6 @@ class TestSignal(unittest.TestCase):
         s = Signal(key="job", workflow_name="wf", commits=[c_failed_pending, c_base])
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
-        # With pending on failed side and insufficient failures, we now return a specific reason
         self.assertEqual(res.reason, IneligibleReason.INSUFFICIENT_FAILURES)
 
     def test_insufficient_successes_returns_restart_newest_success_when_no_pending(
@@ -337,7 +336,6 @@ class TestSignal(unittest.TestCase):
         )
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
-        # Reason switches from INFRA_NOT_CONFIRMED to an explicit insufficient_successes
         self.assertEqual(res.reason, IneligibleReason.INSUFFICIENT_SUCCESSES)
 
     def test_both_sides_restart_accumulate_when_below_thresholds(self):
@@ -365,7 +363,7 @@ class TestSignal(unittest.TestCase):
     def test_success_restart_even_when_failed_side_pending_and_insufficient_failures(
         self,
     ):
-        # Scenario to cover gap:
+        # Scenario:
         # - Only one failed event on the failed side, and that failed commit also has a pending event
         # - Success side has successes that are earlier than failure (so infra check yields RESTART_SUCCESS)
         # Expected: restart is still proposed on the success side (due to infra check),
