@@ -570,7 +570,11 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   );
 
   const [hideUnstable] = usePreference("hideUnstable");
-  const [hideRocm] = usePreference("hideRocm", /*override*/ undefined, /*default*/ false);
+  const [hideRocm] = usePreference(
+    "hideRocm",
+    /*override*/ undefined,
+    /*default*/ false
+  );
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [useGrouping] = useGroupingPreference(params.nameFilter);
 
