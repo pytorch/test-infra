@@ -282,7 +282,7 @@ def get_wheel_install_command(
         if getting_started
         else PACKAGES_TO_INSTALL_WHL
     )
-   
+
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
