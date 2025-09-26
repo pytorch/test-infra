@@ -68,7 +68,7 @@ export default function BenchmarkTimeSeriesChartGroup({
   }
 
   return (
-    <Grid container spacing={2}>
+    <Grid container spacing={1}>
       {groups.map((g) => {
         const groupSeries = g.items.map((s) => ({ ...s }));
         const title = getBenchmarkTimeSeriesTitle(
@@ -97,6 +97,7 @@ export default function BenchmarkTimeSeriesChartGroup({
               defaultSelectMode={defaultSelectMode}
               onSelect={onSelect}
             />
+            ={" "}
           </Grid>
         );
       })}

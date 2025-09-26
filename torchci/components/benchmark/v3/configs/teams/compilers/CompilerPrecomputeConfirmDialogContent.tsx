@@ -1,4 +1,5 @@
 import { List, ListItemButton, ListItemText } from "@mui/material";
+import { Box } from "@mui/system";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "components/benchmark/compilers/common";
 import { highlightUntilClick } from "components/benchmark/v3/components/common/highlight";
 import {
@@ -28,9 +29,10 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
 > = ({ left, right, other, closeDialog, triggerUpdate }) => {
   if (left == null || right == null) {
     return (
-      <>
-        Can't provide options whent at least one value (left|right) is missing
-      </>
+      <Box>
+        Can&apos;t provide options whent at least one value (left|right) is
+        missing
+      </Box>
     );
   }
   const onGoToTable = async () => {
