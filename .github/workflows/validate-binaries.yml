@@ -42,12 +42,6 @@ on:
         default: false
         required: false
         type: boolean
-      use_split_build:
-        description: |
-          [Experimental] Use Split Build
-        required: false
-        type: boolean
-        default: false
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
         default: false
@@ -101,12 +95,6 @@ on:
         default: false
         required: false
         type: boolean
-      use_split_build:
-        description: |
-          [Experimental] Use Split Build
-        required: false
-        type: boolean
-        default: false
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
         default: false
@@ -143,7 +131,6 @@ jobs:
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       include-test-ops: ${{ inputs.include-test-ops }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
-      use_split_build: ${{ inputs.use_split_build }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
       use-meta-cdn: ${{ inputs.use-meta-cdn }}
 
