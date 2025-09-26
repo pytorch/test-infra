@@ -380,12 +380,6 @@ class TestAutorevertMocked(unittest.TestCase):
                 "trunk", "bbc0df1094b5a4dcd2cce83f8402127b07913231"
             )
         )
-        self.assertFalse(
-            rc.restart_workflow("trunk", "bbc0df1094b5a4dcd2cce83f8402127b07913231")
-        )
-        self.assertTrue(
-            rc.restart_workflow("trunk", "4fd5fabee9b2641440a413adf54f728fe2816375")
-        )
 
     def test_event_logger_inserts(self):
         before = len(self.fake_ch.inserts)

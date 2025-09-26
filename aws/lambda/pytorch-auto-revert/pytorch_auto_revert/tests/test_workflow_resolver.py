@@ -21,6 +21,10 @@ class TestWorkflowResolverRealRepo(unittest.TestCase):
                 installation_id=0,
                 token=token,
             )
+        else:
+            raise unittest.SkipTest(
+                "Skipping real GitHub resolver tests: GITHUB_TOKEN not configured"
+            )
 
     def test_resolve_pull_workflow(self):
         resolver = WorkflowResolver.get("pytorch/pytorch")
