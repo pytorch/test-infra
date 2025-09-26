@@ -19,11 +19,15 @@ venv/bin/lintrunner: venv/bin/python
 
 .PHONY: run-local
 run-local: venv/bin/python
-	venv/bin/python -m pytorch_auto_revert
+	venv/bin/python -m pytorch_auto_revert --dry-run
 
 .PHONY: run-local-workflows
 run-local-workflows: venv/bin/python
-	venv/bin/python -m pytorch_auto_revert autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 8 --revert-action log
+	venv/bin/python -m pytorch_auto_revert --dry-run autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 8 --revert-action log
+
+.PHONY: run-local-hud
+run-local-hud: venv/bin/python
+	venv/bin/python -m pytorch_auto_revert --dry-run hud
 
 deployment.zip:
 	mkdir -p deployment
