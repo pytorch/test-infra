@@ -12,7 +12,14 @@ import {
   ComparisonResult,
   evaluateComparison,
 } from "components/benchmark/v3/configs/helpers/RegressionPolicy";
-import { ComparisonTableConfig } from "../../../helper";
+import {
+  BenchmarkUnitConfig,
+  ComparisonTableConfig,
+  fmtFixed2,
+  getBenchmarkTimeSeriesComparisionTableRenderingConfig,
+  getBenchmarkTimeSeriesComparisonTableTarget,
+  renderBasedOnUnitConifg,
+} from "../../../helper";
 import { asNumber, valOf } from "./ComparisonTableHelpers";
 
 /**
@@ -113,18 +120,11 @@ export function ComparisonTableValueCell({
   const ln = asNumber(L);
   const rn = asNumber(R);
 
-  const fmt = (v: any) =>
-    v == null
-      ? "—"
-      : typeof v === "number"
-      ? Number(v).toFixed(2)
-      : String(v.toFixed(2));
-
   // get comparison policy for the field
-  const targetPolicyField = config?.comparisonPolicyTargetField;
+  const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
   let comparisonPolicy: BenchmarkComparisonPolicyConfig | undefined = undefined;
-  if (targetPolicyField && config?.comparisonPolicy) {
-    const fieldValue = row[targetPolicyField];
+  if (targetField && config?.comparisonPolicy) {
+    const fieldValue = row[targetField];
     comparisonPolicy = fieldValue
       ? config?.comparisonPolicy[fieldValue]
       : undefined;
@@ -151,17 +151,8 @@ export function ComparisonTableValueCell({
       break;
   }
 
-  const text =
-    L == null && R == null
-      ? "N/A"
-      : L == null
-      ? `N/A→${fmt(R)}`
-      : R == null
-      ? `${fmt(L)}→N/A`
-      : fmt(L) === fmt(R)
-      ? `${fmt(L)}`
-      : `${fmt(L)}→${fmt(R)}`;
-
+  const targetFieldValue = row[targetField] ?? "";
+  const text = getFieldRender(targetFieldValue, L, R, config);
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
       <Tooltip title={renderComparisonResult(result)}>
@@ -188,4 +179,38 @@ function renderComparisonResult(result: ComparisonResult) {
       ))}
     </Box>
   );
+}
+
+export function getFieldRender(
+  targetField: string,
+  L: any,
+  R: any,
+  config?: ComparisonTableConfig
+) {
+  const rc = getBenchmarkTimeSeriesComparisionTableRenderingConfig(
+    targetField,
+    config
+  );
+  return formatTransitionWithUnit(L, R, rc?.unit);
+}
+export function formatTransitionWithUnit(
+  L: any,
+  R: any,
+  table_unit?: BenchmarkUnitConfig
+): string {
+  const formatValue = (v: any) =>
+    v == null ? "N/A" : renderBasedOnUnitConifg(fmtFixed2(v), table_unit);
+  if (L == null && R == null) {
+    return "N/A";
+  }
+  if (L == null) {
+    return `N/A→${formatValue(R)}`;
+  }
+  if (R == null) {
+    return `${formatValue(L)}→N/A`;
+  }
+  if (fmtFixed2(L) === fmtFixed2(R)) {
+    return formatValue(L);
+  }
+  return `${formatValue(L)}→${formatValue(R)}`;
 }

@@ -8,8 +8,8 @@ import { RawTimeSeriesPoint } from "../../helper";
 type SelectionControlsProps = {
   selectMode: boolean;
   setSelectMode: (v: boolean) => void;
-  leftMeta: RawTimeSeriesPoint | null;
-  rightMeta: RawTimeSeriesPoint | null;
+  left: RawTimeSeriesPoint | null;
+  right: RawTimeSeriesPoint | null;
   onClear: () => void;
   onSelect?: () => void;
   confirmDisabled: boolean;
@@ -20,8 +20,8 @@ type SelectionControlsProps = {
 export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
   selectMode,
   setSelectMode,
-  leftMeta,
-  rightMeta,
+  left,
+  right,
   onClear,
   onSelect = () => {},
   confirmDisabled,
@@ -53,10 +53,10 @@ export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
         />
         <Typography variant="body2" sx={{ ml: 2 }}>
           L:&nbsp;
-          {leftMeta ? (
+          {left ? (
             <>
-              {dayjs.utc(leftMeta.granularity_bucket).format("MM-DD HH:mm")} ·{" "}
-              <code>{leftMeta.commit.slice(0, 7)}</code>
+              {dayjs.utc(left.granularity_bucket).format("MM-DD HH:mm")} ·{" "}
+              <code>{left.commit.slice(0, 7)}</code>
             </>
           ) : (
             <em>—</em>
@@ -65,10 +65,10 @@ export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
 
         <Typography variant="body2" sx={{ ml: 2 }}>
           R:&nbsp;
-          {rightMeta ? (
+          {right ? (
             <>
-              {dayjs.utc(rightMeta.granularity_bucket).format("MM-DD HH:mm")} ·{" "}
-              <code>{rightMeta.commit.slice(0, 7)}</code>
+              {dayjs.utc(right.granularity_bucket).format("MM-DD HH:mm")} ·{" "}
+              <code>{right.commit.slice(0, 7)}</code>
             </>
           ) : (
             <em>—</em>
@@ -99,8 +99,8 @@ export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         other={{ parent: "timeSeriesChart" }}
-        leftMeta={leftMeta}
-        rightMeta={rightMeta}
+        left={left}
+        right={right}
         onSelect={() => {
           onSelect();
         }}

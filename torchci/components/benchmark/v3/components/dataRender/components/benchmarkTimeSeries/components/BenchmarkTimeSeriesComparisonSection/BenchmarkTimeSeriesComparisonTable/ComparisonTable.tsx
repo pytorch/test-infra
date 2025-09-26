@@ -12,7 +12,9 @@ export function ComparisonTable({
   rWorkflowId,
   config,
   columnOrder,
-  title = "Group",
+  title = {
+    text: "Comparison Table",
+  },
   onSelect,
 }: {
   data: SnapshotRow[];
@@ -20,7 +22,10 @@ export function ComparisonTable({
   rWorkflowId: string | null;
   config: ComparisonTableConfig;
   columnOrder?: string[]; // optional preferred ordering of columns
-  title?: string;
+  title?: {
+    text: string;
+    description?: string;
+  };
   onSelect?: (payload: any) => void;
 }) {
   // group raw data into rows, each row contains all values across workflowIds
@@ -54,7 +59,6 @@ export function ComparisonTable({
     const tail = auto.filter((c) => !head.includes(c));
     return [...head, ...tail];
   }, [rows, columnOrder]);
-
   // Form the columns
   const columns: GridColDef[] = useMemo(
     () =>
@@ -70,7 +74,10 @@ export function ComparisonTable({
 
   return (
     <>
-      <Typography variant="h6">{title.toUpperCase()}</Typography>
+      <Typography variant="h6">{title.text}</Typography>
+      {title.description && (
+        <Typography variant="body2">{title.description}</Typography>
+      )}
       <Typography variant="body2">
         {lWorkflowId} - {rWorkflowId}
       </Typography>
@@ -108,8 +115,8 @@ export function ComparisonTable({
       <SelectionDialog
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
-        leftMeta={selectedData?.left}
-        rightMeta={selectedData?.right}
+        left={selectedData?.left}
+        right={selectedData?.right}
         onSelect={onConfirm}
         other={{ parent: "comparisonTable" }}
         enabled={config.enableDialog ?? false}

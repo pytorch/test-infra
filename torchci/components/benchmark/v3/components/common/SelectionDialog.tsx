@@ -11,8 +11,8 @@ import { resolveComponent } from "../../configs/configRegistration";
 import { RawTimeSeriesPoint } from "../dataRender/components/benchmarkTimeSeries/helper";
 
 export interface TimeSeriesChartDialogContentProps {
-  leftMeta: RawTimeSeriesPoint | null;
-  rightMeta: RawTimeSeriesPoint | null;
+  left: RawTimeSeriesPoint | null;
+  right: RawTimeSeriesPoint | null;
   other?: any;
   triggerUpdate: () => void;
   closeDialog: () => void;
@@ -21,8 +21,8 @@ export interface TimeSeriesChartDialogContentProps {
 type SelectionDialogProps = {
   open: boolean;
   onClose: () => void;
-  leftMeta: any;
-  rightMeta: any;
+  left: RawTimeSeriesPoint | null;
+  right: RawTimeSeriesPoint | null;
   other?: Record<string, any>;
   onSelect?: () => void;
   config?: any;
@@ -32,8 +32,8 @@ type SelectionDialogProps = {
 export function SelectionDialog({
   open,
   onClose,
-  leftMeta,
-  rightMeta,
+  left,
+  right,
   other,
   onSelect = () => {},
   config,
@@ -49,8 +49,8 @@ export function SelectionDialog({
       <DialogTitle>Selection Confirmed</DialogTitle>
       <DialogContent dividers>
         <DialogContentComponent
-          leftMeta={leftMeta}
-          rightMeta={rightMeta}
+          left={left}
+          right={right}
           other={other}
           closeDialog={onClose}
           triggerUpdate={() => {
@@ -74,8 +74,8 @@ export function resolveDialogContentRenderer(config?: any) {
 }
 
 export function DefaultSelectionDialogContent({
-  leftMeta,
-  rightMeta,
+  left,
+  right,
   other,
   closeDialog,
   triggerUpdate,
@@ -85,20 +85,12 @@ export function DefaultSelectionDialogContent({
       <Typography variant="body1" gutterBottom>
         Left Selection:
       </Typography>
-      {leftMeta ? (
-        <pre>{JSON.stringify(leftMeta, null, 2)}</pre>
-      ) : (
-        <em>None</em>
-      )}
+      {left ? <pre>{JSON.stringify(left, null, 2)}</pre> : <em>None</em>}
 
       <Typography variant="body1" gutterBottom sx={{ mt: 2 }}>
         Right Selection:
       </Typography>
-      {rightMeta ? (
-        <pre>{JSON.stringify(rightMeta, null, 2)}</pre>
-      ) : (
-        <em>None</em>
-      )}
+      {right ? <pre>{JSON.stringify(right, null, 2)}</pre> : <em>None</em>}
     </>
   );
 }

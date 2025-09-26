@@ -1,5 +1,7 @@
 import { BenchmarkComparisonPolicyConfig } from "components/benchmark/v3/configs/helpers/RegressionPolicy";
 
+export const DEFAULT_TARGET_FILED = "metric";
+
 export type BenchmarkChartSectionConfig = {
   titleMapping?: Record<string, string>;
   groupByFields: string[];
@@ -14,12 +16,53 @@ export type BenchmarkComparisonTableSectionConfig = {
   tableConfig: ComparisonTableConfig;
 };
 
+// How to render a single metric in a table
+export interface BenchmarkUnitConfig {
+  type: "percent" | "number" | "duration" | "bytes" | "none";
+  unit?: string; // e.g. "%", "ms", "MB"
+  scale?: number; // no scale will applied if not set
+}
+
+// The book: dictionary keyed by field name
+export interface BenchmarkTimeSeriesChartRenderingBook {
+  [id: string]: BenchmarkTimeSeriesChartRenderingConfig;
+}
+
+export interface BenchmarkTimeSeriesChartRenderingConfig {
+  displayName?: string;
+  unit: BenchmarkUnitConfig;
+}
+
+// Config for table rendering
+export interface BenchmarkComparisonTableRenderingConfig {
+  unit: BenchmarkUnitConfig;
+}
+
+// The book: dictionary keyed by field name
+export interface BenchmarkComparisonTableRenderingBook {
+  [id: string]: BenchmarkComparisonTableRenderingConfig;
+}
+
+export interface BenchmarkTitle {
+  text: string; // display title in the table header
+  description?: string; // optional help text
+  link: string; // link to nav
+}
+
+export interface BenchmarkComparisonTitleMapping {
+  [id: string]: BenchmarkTitle;
+}
+// Full renderOptions container
+export interface BenchmarkComparisonTableRenderingOptions {
+  title_group_mapping: BenchmarkComparisonTitleMapping;
+  tableRenderingBook: BenchmarkComparisonTableRenderingBook;
+}
+
 export type ComparisonTableConfig = {
-  titleMapping?: Record<string, string>;
   nameKeys?: string[]; // the field name used to render the name of the row, if not set, use all groupinfo labels
-  renderOptions?: {};
-  // indicates the field to use for comparison policy map
-  comparisonPolicyTargetField?: string;
+  renderOptions?: BenchmarkComparisonTableRenderingOptions;
+  // indicates the field to use for comparison policy map, and rendering map
+  targetField?: string;
   comparisonPolicy?: {
     [key: string]: BenchmarkComparisonPolicyConfig;
   };
@@ -32,7 +75,6 @@ export type ComparisonTableConfig = {
 
 export type ChartGroupConfig = {
   type: "line";
-  titleMapping?: Record<string, string>;
   groupByFields?: string[];
   filterByFieldValues?: Record<string, Array<string>>;
   lineKey?: string[];
@@ -45,7 +87,14 @@ export type ChartConfig = {
     type: string;
     id?: string;
   };
-  renderOptions?: any;
+
+  renderOptions?: BenchmarkTimeSeriesCharRenderOpiton;
+};
+
+export type BenchmarkTimeSeriesCharRenderOpiton = {
+  height?: string | number;
+  title_group_mapping: BenchmarkComparisonTitleMapping;
+  chartRenderBook?: BenchmarkTimeSeriesChartRenderingBook;
 };
 
 export type RawTimeSeriesPoint = {
@@ -143,3 +192,95 @@ export function toSortedWorkflowIdMap(data: any[]) {
 
 export const shortSha = (id?: string) =>
   id ? (id.length > 10 ? id.slice(0, 7) : id) : "—";
+
+export function getBenchmarkTimeSeriesTitle(
+  default_title: string = "unknown",
+  key: string,
+  config?: ComparisonTableConfig | ChartConfig
+) {
+  if (!config?.renderOptions?.title_group_mapping) {
+    return {
+      text: default_title,
+    };
+  }
+  const book = config.renderOptions.title_group_mapping;
+  if (!book) {
+    return {
+      text: default_title,
+    };
+  }
+  const text = book[key]?.text || default_title;
+  const description = book[key]?.description || undefined;
+  return {
+    text,
+    description,
+  };
+}
+
+const DEFAULT_UNIT_TYPE = "none";
+const DEFAULT_BYTE_UNIT = "B";
+const DEFAULT_DURATION_UNIT = "ms";
+const DEFAULT_PERCENT_UNIT = "%";
+
+export function renderBasedOnUnitConifg(
+  value: any,
+  table_unit?: BenchmarkUnitConfig
+) {
+  if (!table_unit) return `${value}`;
+
+  if (!value) return "";
+
+  const type = table_unit?.type || DEFAULT_UNIT_TYPE;
+  const scale = table_unit?.scale || undefined;
+  let unit = table_unit?.unit || undefined;
+
+  let renderedValue = value;
+  if (scale) {
+    renderedValue = value * scale;
+  }
+
+  switch (type) {
+    case "percent":
+      if (!unit) unit = DEFAULT_PERCENT_UNIT;
+      return `${renderedValue}%`;
+    case "number":
+      return `${renderedValue}`;
+    case "duration":
+      if (!unit) unit = DEFAULT_DURATION_UNIT;
+      return `${renderedValue}${unit}`;
+    case "bytes":
+      if (!unit) unit = DEFAULT_BYTE_UNIT;
+      return `${renderedValue}${unit}`;
+    case "none":
+    default:
+      if (unit) return `${renderedValue}${unit}`;
+      return `${value}`;
+  }
+}
+
+export function getBenchmarkTimeSeriesComparisionTableRenderingConfig(
+  target: string,
+  config?: ComparisonTableConfig
+) {
+  return config?.renderOptions?.tableRenderingBook?.[target];
+}
+
+export function getBenchmarkTimeSeriesChartRenderingConfig(
+  target: string,
+  renderOptions?: BenchmarkTimeSeriesCharRenderOpiton
+) {
+  return renderOptions?.chartRenderBook?.[target];
+}
+
+export function getBenchmarkTimeSeriesComparisonTableTarget(
+  config?: ComparisonTableConfig
+) {
+  return config?.targetField || DEFAULT_TARGET_FILED;
+}
+
+export const fmtFixed2 = (v: any) =>
+  v == null
+    ? "—"
+    : typeof v === "number"
+    ? Number(v).toFixed(2)
+    : String(v.toFixed(2));

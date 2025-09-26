@@ -5,6 +5,7 @@ import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_st
 import { useEffect, useMemo, useState } from "react";
 import {
   BenchmarkComparisonTableSectionConfig,
+  getBenchmarkTimeSeriesTitle,
   passesFilter,
   toGroupKeyMap,
   toSortedWorkflowIdMap,
@@ -109,7 +110,13 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
         <Grid container sx={{ m: 1 }}>
           {Array.from(groupMap.entries()).map(([key, tableData]) => {
             if (!tableData) return null;
-            const title = tableData.labels.join(" ");
+            const default_title = tableData.labels.join(" ");
+            const k = tableData.labels.join("-");
+            const title = getBenchmarkTimeSeriesTitle(
+              default_title,
+              k,
+              tableSectionConfig.tableConfig
+            );
             return (
               <Grid
                 key={key}
