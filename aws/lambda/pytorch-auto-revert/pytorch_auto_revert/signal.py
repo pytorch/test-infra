@@ -50,6 +50,7 @@ class IneligibleReason(Enum):
     NO_SUCCESSES = "no_successes"
     NO_PARTITION = "no_partition"  # insufficient commit history to form partitions
     INFRA_NOT_CONFIRMED = "infra_not_confirmed"  # infra check not confirmed
+    INSUFFICIENT_FAILURES = "insufficient_failures"  # not enough failures to make call
     PENDING_GAP = "pending_gap"  # unknown/pending commits present
 
 
@@ -366,21 +367,29 @@ class Signal:
                 restart_commits.add(c.head_sha)
 
         infra_check_result = partition.confirm_not_an_infra_issue()
-        # note re: event_count < 2:
+        # note re: event_count < 3:
         # this is a confidence heuristic to detect flakiness, can adjust as needed
         if (
             infra_check_result == InfraCheckResult.RESTART_FAILURE
-            or partition.failure_events_count() < 2
+            or partition.failure_events_count() < 3
         ):
             if not partition.failed[-1].has_pending:
                 # restarting oldest failed
                 restart_commits.add(partition.failed[-1].head_sha)
             else:
-                return Ineligible(
-                    IneligibleReason.INFRA_NOT_CONFIRMED,
-                    f"waiting on pending events on suspected failure side: {partition.failed[-1].head_sha}",
-                )
-        elif (
+                if infra_check_result == InfraCheckResult.RESTART_FAILURE:
+                    return Ineligible(
+                        IneligibleReason.INFRA_NOT_CONFIRMED,
+                        f"waiting on pending events on suspected failure side: {partition.failed[-1].head_sha}",
+                    )
+                else:
+                    return Ineligible(
+                        IneligibleReason.INSUFFICIENT_FAILURES,
+                        f"insufficient failures to make call, "
+                        f"pending events on suspected failure side: {partition.failed[-1].head_sha}",
+                    )
+
+        if (
             infra_check_result == InfraCheckResult.RESTART_SUCCESS
             or partition.success_events_count() < 2
         ):
