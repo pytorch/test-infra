@@ -8,9 +8,8 @@ import os
 import sys
 from typing import Optional
 
-from attr import dataclass
 import boto3
-
+from attr import dataclass
 from dotenv import load_dotenv
 
 from .autorevert_circuit_breaker import check_autorevert_disabled
@@ -226,17 +225,16 @@ class AWSSecretsFromStore:
 def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
     try:
         session = boto3.session.Session()
-        client = session.client(
-            service_name="secretsmanager",
-            region_name="us-east-1"
-        )
+        client = session.client(service_name="secretsmanager", region_name="us-east-1")
         get_secret_value_response = client.get_secret_value(
             SecretId="pytorch-autorevert-secrets"
         )
         secret_value_string = json.loads(get_secret_value_response["SecretString"])
         return AWSSecretsFromStore(
-            github_app_secret=base64.b64decode(secret_value_string["GITHUB_APP_SECRET"]),  #.decode("utf-8"),
-            clickhouse_password=secret_value_string["CLICKHOUSE_PASSWORD"]
+            github_app_secret=base64.b64decode(
+                secret_value_string["GITHUB_APP_SECRET"]
+            ).decode("utf-8"),
+            clickhouse_password=secret_value_string["CLICKHOUSE_PASSWORD"],
         )
     except Exception:
         logging.exception("Failed to retrieve secrets from AWS Secrets Manager")
