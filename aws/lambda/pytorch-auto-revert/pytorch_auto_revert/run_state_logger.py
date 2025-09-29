@@ -184,6 +184,9 @@ class RunStateLogger:
         for attempt in RetryWithBackoff():
             with attempt:
                 CHCliFactory().client.insert(
-                    table="autorevert_state", data=data, column_names=cols, database="misc"
+                    table="autorevert_state",
+                    data=data,
+                    column_names=cols,
+                    database="misc",
                 )
         return state_json

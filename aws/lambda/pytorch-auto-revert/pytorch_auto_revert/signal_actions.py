@@ -14,7 +14,7 @@ from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
-from .utils import RestartAction, RevertAction, RetryWithBackoff
+from .utils import RestartAction, RetryWithBackoff, RevertAction
 from .workflow_checker import WorkflowRestartChecker
 
 
@@ -176,7 +176,10 @@ class ActionLogger:
         for attempt in RetryWithBackoff():
             with attempt:
                 CHCliFactory().client.insert(
-                    table="autorevert_events_v2", data=data, column_names=cols, database="misc"
+                    table="autorevert_events_v2",
+                    data=data,
+                    column_names=cols,
+                    database="misc",
                 )
 
 

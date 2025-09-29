@@ -1,6 +1,5 @@
-import time
 import random
-
+import time
 from enum import Enum
 
 
@@ -92,6 +91,7 @@ class RetryWithBackoff:
             with attempt:
                 # your code that might raise
     """
+
     def __init__(self, max_retries=5, base_delay=0.5, jitter=True):
         self.max_retries = max_retries
         self.base_delay = base_delay
