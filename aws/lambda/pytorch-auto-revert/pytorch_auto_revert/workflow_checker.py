@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Set
 
 from .clickhouse_client_helper import CHCliFactory
+from .utils import RetryWithBackoff
 from .workflow_resolver import WorkflowResolver
 
 
@@ -51,19 +52,21 @@ class WorkflowRestartChecker:
         LIMIT 1
         """
 
-        result = CHCliFactory().client.query(
-            query,
-            {
-                "commit_sha": commit_sha,
-                "workflow_event": "workflow_dispatch",
-                "head_branch": f"trunk/{commit_sha}",
-                "workflow_name": display_name,
-            },
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                result = CHCliFactory().client.query(
+                    query,
+                    {
+                        "commit_sha": commit_sha,
+                        "workflow_event": "workflow_dispatch",
+                        "head_branch": f"trunk/{commit_sha}",
+                        "workflow_name": display_name,
+                    },
+                )
 
-        has_restart = len(result.result_rows) > 0
-        self._cache[cache_key] = has_restart
-        return has_restart
+                has_restart = len(result.result_rows) > 0
+                self._cache[cache_key] = has_restart
+                return has_restart
 
     def get_restarted_commits(self, workflow_name: str, days_back: int = 7) -> Set[str]:
         """
@@ -88,9 +91,11 @@ class WorkflowRestartChecker:
           AND workflow_created_at >= {since_date:DateTime}
         """
 
-        result = CHCliFactory().client.query(
-            query, {"workflow_name": display_name, "since_date": since_date}
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                result = CHCliFactory().client.query(
+                    query, {"workflow_name": display_name, "since_date": since_date}
+                )
 
         commits = {row[0] for row in result.result_rows}
 

@@ -14,7 +14,7 @@ from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
-from .utils import RestartAction, RevertAction
+from .utils import RestartAction, RevertAction, RetryWithBackoff
 from .workflow_checker import WorkflowRestartChecker
 
 
@@ -69,8 +69,10 @@ class ActionLogger:
             "WHERE repo = {repo:String} AND action = 'revert' "
             "AND commit_sha = {sha:String} AND dry_run = 0 LIMIT 1"
         )
-        res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
-        return len(res.result_rows) > 0
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
+                return len(res.result_rows) > 0
 
     @dataclass(frozen=True)
     class RestartStats:
@@ -120,16 +122,18 @@ class ActionLogger:
             "sha": commit_sha,
             "pacing_sec": max(0, int(pacing.total_seconds())),
         }
-        res = CHCliFactory().client.query(q, params)
-        if not res.result_rows:
-            return ActionLogger.RestartStats()
-        row = res.result_rows[0]
-        return ActionLogger.RestartStats(
-            total_restarts=int(row[0]),
-            has_success_within_window=bool(row[1]),
-            failures_since_last_success=int(row[2]),
-            secs_since_last_failure=int(row[3]),
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(q, params)
+                if not res.result_rows:
+                    return ActionLogger.RestartStats()
+                row = res.result_rows[0]
+                return ActionLogger.RestartStats(
+                    total_restarts=int(row[0]),
+                    has_success_within_window=bool(row[1]),
+                    failures_since_last_success=int(row[2]),
+                    secs_since_last_failure=int(row[3]),
+                )
 
     def insert_event(
         self,
@@ -169,9 +173,11 @@ class ActionLogger:
                 notes or "",
             ]
         ]
-        CHCliFactory().client.insert(
-            table="autorevert_events_v2", data=data, column_names=cols, database="misc"
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                CHCliFactory().client.insert(
+                    table="autorevert_events_v2", data=data, column_names=cols, database="misc"
+                )
 
 
 class SignalActionProcessor:

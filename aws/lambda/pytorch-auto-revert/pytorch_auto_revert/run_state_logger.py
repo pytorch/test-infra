@@ -6,6 +6,7 @@ from typing import Any, Dict, Iterable, List, Tuple, Union
 from .clickhouse_client_helper import CHCliFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
+from .utils import RetryWithBackoff
 
 
 SignalProcOutcome = Union[AutorevertPattern, RestartCommits, Ineligible]
@@ -180,7 +181,9 @@ class RunStateLogger:
                 params or "",
             ]
         ]
-        CHCliFactory().client.insert(
-            table="autorevert_state", data=data, column_names=cols, database="misc"
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                CHCliFactory().client.insert(
+                    table="autorevert_state", data=data, column_names=cols, database="misc"
+                )
         return state_json
