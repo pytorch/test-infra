@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import {
   BenchmarkTimeSeriesInput,
   ChartGroupConfig,
+  getBenchmarkTimeSeriesTitle,
   makeGroupKeyAndLabel,
   passesFilter,
 } from "../helper";
@@ -67,18 +68,25 @@ export default function BenchmarkTimeSeriesChartGroup({
   }
 
   return (
-    <Grid container spacing={2}>
+    <Grid container spacing={1}>
       {groups.map((g) => {
         const groupSeries = g.items.map((s) => ({ ...s }));
+        const title = getBenchmarkTimeSeriesTitle(
+          g.labels.join(" "),
+          g.labels.join("-"),
+          chartGroup?.chart
+        );
         return (
           <Grid
             key={g.key}
-            size={{ xs: 12, md: 12, lg: 6, ...chartGroup.renderOptions }}
+            size={{ xs: 12, md: 12, lg: 6 }}
             id={toBenchmarkTimeseriesChartGroupId(g.key)}
           >
             <Typography variant="h6" sx={{ mb: 1.5 }}>
-              {g.labels.join(" ")}
-              {chartGroup.renderOptions?.titleSuffix}
+              {title.text}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {title.description}
             </Typography>
             <BenchmarkTimeSeriesChart
               timeseries={groupSeries}
@@ -89,6 +97,7 @@ export default function BenchmarkTimeSeriesChartGroup({
               defaultSelectMode={defaultSelectMode}
               onSelect={onSelect}
             />
+            ={" "}
           </Grid>
         );
       })}

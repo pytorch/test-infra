@@ -1,4 +1,5 @@
 import { List, ListItemButton, ListItemText } from "@mui/material";
+import { Box } from "@mui/system";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "components/benchmark/compilers/common";
 import { highlightUntilClick } from "components/benchmark/v3/components/common/highlight";
 import {
@@ -25,16 +26,21 @@ import { toBenchamrkTimeSeriesComparisonTableId } from "components/benchmark/v3/
  */
 export const CompilerPrecomputeConfirmDialogContent: React.FC<
   TimeSeriesChartDialogContentProps
-> = ({ leftMeta, rightMeta, other, closeDialog, triggerUpdate }) => {
-  if (leftMeta == null || rightMeta == null) {
-    return <>Error: No data</>;
+> = ({ left, right, other, closeDialog, triggerUpdate }) => {
+  if (left == null || right == null) {
+    return (
+      <Box>
+        Can&apos;t provide options whent at least one value (left|right) is
+        missing
+      </Box>
+    );
   }
   const onGoToTable = async () => {
     closeDialog();
     const cell = await navigateToDataGrid(
-      toBenchamrkTimeSeriesComparisonTableId(`metric=${leftMeta.metric}`),
-      [`${leftMeta?.compiler}`],
-      `${leftMeta?.suite}`,
+      toBenchamrkTimeSeriesComparisonTableId(`metric=${left.metric}`),
+      [`${left?.compiler}`],
+      `${left?.suite}`,
       toToggleSectionId(2)
     );
     if (cell) {
@@ -47,8 +53,8 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
     closeDialog();
 
     const cell = await navigateToEchartInGroup(
-      toBenchmarkTimeseriesChartSectionId(`suite=${leftMeta.suite}`),
-      toBenchmarkTimeseriesChartGroupId(`metric=${leftMeta.metric}`),
+      toBenchmarkTimeseriesChartSectionId(`suite=${left.suite}`),
+      toBenchmarkTimeseriesChartGroupId(`metric=${left.metric}`),
       toToggleSectionId(1)
     );
 
@@ -59,7 +65,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   };
 
   const onGoToUrl = () => {
-    const url = toBenchmarkLegacyUrl(leftMeta, rightMeta);
+    const url = toBenchmarkLegacyUrl(left, right);
     // open a new tab
     window.open(url, "_blank");
   };
@@ -84,7 +90,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       <ListItemButton onClick={onGoToUrl}>
         <ListItemText
           primary="Navigate to detail view"
-          secondary={`Open the detailed benchmark view for suite "${leftMeta?.suite}" and compiler "${leftMeta?.compiler}" in the compiler dashboard.`}
+          secondary={`Open the detailed benchmark view for suite "${left?.suite}" and compiler "${left?.compiler}" in the compiler dashboard.`}
         />
       </ListItemButton>
     </List>
@@ -92,11 +98,11 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
 };
 
 // set url to nagivate to the legacy benchmark data page
-function toBenchmarkLegacyUrl(leftMeta: any, rightMeta: any) {
+function toBenchmarkLegacyUrl(left: any, right: any) {
   // Expand the time range
-  const startTime = new Date(leftMeta.granularity_bucket);
+  const startTime = new Date(left.granularity_bucket);
   startTime.setHours(startTime.getHours() - 6);
-  const stopTime = new Date(rightMeta.granularity_bucket);
+  const stopTime = new Date(right.granularity_bucket);
   stopTime.setHours(stopTime.getHours() + 6);
 
   const params: Record<string, string> = {
@@ -104,20 +110,20 @@ function toBenchmarkLegacyUrl(leftMeta: any, rightMeta: any) {
     startTime: startTime.toUTCString(), // ✅ RFC-1123 format
     stopTime: stopTime.toUTCString(),
     granularity: "hour",
-    mode: leftMeta.mode,
-    dtype: leftMeta.dtype,
-    deviceName: `${leftMeta.device} (${leftMeta.arch})`,
-    rBranch: leftMeta.branch,
-    rCommit: leftMeta.commit,
-    lBranch: rightMeta.branch,
-    lCommit: rightMeta.commit,
+    mode: left.mode,
+    dtype: left.dtype,
+    deviceName: `${left.device} (${left.arch})`,
+    rBranch: left.branch,
+    rCommit: left.commit,
+    lBranch: right.branch,
+    lCommit: right.commit,
   };
 
   // Build query string with encodeURIComponent
   const query = Object.entries(params)
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join("&");
-  return `/benchmark/${leftMeta.suite}/${
-    DISPLAY_NAMES_TO_COMPILER_NAMES[leftMeta.compiler]
+  return `/benchmark/${left.suite}/${
+    DISPLAY_NAMES_TO_COMPILER_NAMES[left.compiler]
   }?${query}`;
 }

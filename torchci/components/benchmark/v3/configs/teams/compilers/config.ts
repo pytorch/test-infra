@@ -53,6 +53,34 @@ const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
+const RENDER_MAPPING_BOOK = {
+  passrate: {
+    unit: {
+      type: "percent",
+      unit: "%",
+      scale: 100,
+    },
+  },
+  geomean: {
+    unit: {
+      unit: "x",
+    },
+  },
+  compilation_latency: {
+    displayName: "compilation time",
+    unit: {
+      type: "time",
+      unit: "s",
+    },
+  },
+  compression_ratio: {
+    displayName: "compression ratio",
+    unit: {
+      unit: "x",
+    },
+  },
+};
+
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
 ) => {
@@ -136,8 +164,20 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                 id: "CompilerPrecomputeConfirmDialogContent",
               },
               renderOptions: {
-                lineMapping: {
-                  passrate: { type: "percent", scale: 100 },
+                chartRenderBook: RENDER_MAPPING_BOOK,
+                title_group_mapping: {
+                  passrate: {
+                    text: "Passrate",
+                  },
+                  geomean: {
+                    text: "Geometric mean speedup",
+                  },
+                  compilation_latency: {
+                    text: "compilation time (seconds)",
+                  },
+                  compression_ratio: {
+                    text: "Peak memory footprint compression ratio",
+                  },
                 },
               },
             },
@@ -164,12 +204,29 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
               type: "component",
               id: "CompilerPrecomputeConfirmDialogContent",
             },
-            comparisonPolicyTargetField: "metric",
+            targetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,
               geomean: GEOMEAN_COMPARISON_POLICY,
               compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
               compression_ratio: COMPRESSION_RATIO_POLICY,
+            },
+            renderOptions: {
+              title_group_mapping: {
+                passrate: {
+                  text: "Passrate (threshold: 95%)",
+                },
+                geomean: {
+                  text: "Geometric mean speedup (threshold = 0.95x)",
+                },
+                compilation_latency: {
+                  text: "compilation time (seconds)",
+                },
+                compression_ratio: {
+                  text: "Peak memory footprint compression ratio (threshold = 0.95x)",
+                },
+              },
+              tableRenderingBook: RENDER_MAPPING_BOOK,
             },
           },
         },
