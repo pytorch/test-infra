@@ -7,11 +7,11 @@ from .utils import transform_cuversion
 WINDOWS_PATH_PREFIX = "C:\\Program Files\\NVIDIA GPU Computing Toolkit\\CUDA\\v"
 
 
-def get_cuda_arch_list(sanitized_version: str, package_type: str = "", platform: str = "") -> str:
+def get_cuda_arch_list(
+    sanitized_version: str, package_type: str = "", platform: str = ""
+) -> str:
     # Fallback for other versions - maintain backward compatibility
-    base_arch_list = (
-        "5.0;6.0;7.0;7.5;8.0;8.6;9.0"
-    )
+    base_arch_list = "5.0;6.0;7.0;7.5;8.0;8.6;9.0"
     # removing sm_50-sm_60 as these architectures are deprecated in CUDA 12.8/9 and will be removed in future releases
     # however we would like to keep sm_70 architecture see: https://github.com/pytorch/pytorch/issues/157517
     if sanitized_version == "12.8":
