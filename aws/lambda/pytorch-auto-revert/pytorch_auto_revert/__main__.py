@@ -2,9 +2,14 @@
 
 import argparse
 import base64
+import json
 import logging
 import os
+import sys
 from typing import Optional
+
+from attr import dataclass
+import boto3
 
 from dotenv import load_dotenv
 
@@ -94,6 +99,12 @@ def get_opts() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Show what would be restarted without actually doing it",
+    )
+    parser.add_argument(
+        "--secret-store-name",
+        action="store",
+        default=os.environ.get("SECRET_STORE_NAME", ""),
+        help="Name of the secret in AWS Secrets Manager to fetch GitHub App secret from",
     )
 
     # no subcommand runs the lambda flow
@@ -206,6 +217,32 @@ def get_opts() -> argparse.Namespace:
     return parser.parse_args()
 
 
+@dataclass
+class AWSSecretsFromStore:
+    github_app_secret: str
+    clickhouse_password: str
+
+
+def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
+    try:
+        session = boto3.session.Session()
+        client = session.client(
+            service_name="secretsmanager",
+            region_name="us-east-1"
+        )
+        get_secret_value_response = client.get_secret_value(
+            SecretId="pytorch-autorevert-secrets"
+        )
+        secret_value_string = json.loads(get_secret_value_response["SecretString"])
+        return AWSSecretsFromStore(
+            github_app_secret=base64.b64decode(secret_value_string["GITHUB_APP_SECRET"]),  #.decode("utf-8"),
+            clickhouse_password=secret_value_string["CLICKHOUSE_PASSWORD"]
+        )
+    except Exception:
+        logging.exception("Failed to retrieve secrets from AWS Secrets Manager")
+        sys.exit(1)
+
+
 def main(*args, **kwargs) -> None:
     load_dotenv()
     opts = get_opts()
@@ -214,12 +251,21 @@ def main(*args, **kwargs) -> None:
     if opts.github_app_secret:
         gh_app_secret = base64.b64decode(opts.github_app_secret).decode("utf-8")
 
+    ch_password = ""
+    if ch_password:
+        ch_password = opts.clickhouse_password
+
+    if opts.secret_store_name:
+        secrets = get_secret_from_aws(opts.secret_store_name)
+        gh_app_secret = secrets.github_app_secret
+        ch_password = secrets.clickhouse_password
+
     setup_logging(opts.log_level)
     CHCliFactory.setup_client(
         opts.clickhouse_host,
         opts.clickhouse_port,
         opts.clickhouse_username,
-        opts.clickhouse_password,
+        ch_password,
         opts.clickhouse_database,
     )
     GHClientFactory.setup_client(
