@@ -87,8 +87,8 @@ const NavBarDropdown = ({
 function NavBar() {
   const benchmarksDropdown = [
     {
-      name: "TorchInductor",
-      href: "/benchmark/compilers",
+      name: " Benchmark Lists (new)",
+      href: "/benchmark/benchmark_list",
     },
     {
       name: "Triton",
@@ -101,14 +101,6 @@ function NavBar() {
     {
       name: "ExecuTorch",
       href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
-    },
-    {
-      name: "TorchAO",
-      href: "/benchmark/llms?repoName=pytorch%2Fao",
-    },
-    {
-      name: "TorchAO Micro API",
-      href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
     },
     {
       name: "PT CacheBench",
@@ -125,10 +117,6 @@ function NavBar() {
     {
       name: "Helion",
       href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
-    },
-    {
-      name: "PyTorch Operator Microbenchmark",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
     },
   ].sort((a, b) => a.name.localeCompare(b.name));
 
