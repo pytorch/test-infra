@@ -255,9 +255,7 @@ def main(*args, **kwargs) -> None:
     if opts.github_app_secret:
         gh_app_secret = base64.b64decode(opts.github_app_secret).decode("utf-8")
 
-    ch_password = ""
-    if ch_password:
-        ch_password = opts.clickhouse_password
+    ch_password = opts.clickhouse_password
 
     if opts.secret_store_name:
         secrets = get_secret_from_aws(opts.secret_store_name)
