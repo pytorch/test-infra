@@ -72,5 +72,5 @@ output "efs_security_group_id" {
 # Output subnet IDs for Lambda to create mount targets in all AZs
 output "efs_subnet_ids" {
   description = "All subnet IDs for EFS mount targets (one per AZ)"
-  value       = [aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id]
+  value       = concat([aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id], length(aws_subnet.gpu_dev_subnet_tertiary) > 0 ? [aws_subnet.gpu_dev_subnet_tertiary[0].id] : [])
 }

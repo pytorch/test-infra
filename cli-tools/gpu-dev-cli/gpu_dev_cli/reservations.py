@@ -17,6 +17,7 @@ from rich.live import Live
 from rich.spinner import Spinner
 
 from .config import Config
+from .name_generator import sanitize_name
 
 console = Console()
 
@@ -118,6 +119,16 @@ class ReservationManager:
             reservation_id = str(uuid.uuid4())
             created_at = datetime.utcnow().isoformat()
 
+            # Process the name: sanitize user input or let Lambda generate
+            processed_name = None
+            if name:
+                # Sanitize user-provided name
+                processed_name = sanitize_name(name)
+                # If sanitization results in empty string, let Lambda generate
+                if not processed_name:
+                    processed_name = None
+            # If no name provided, let Lambda generate (processed_name stays None)
+
             # Create initial reservation record for polling
             # Convert float to Decimal for DynamoDB compatibility
             duration_decimal = Decimal(str(duration_hours))
@@ -128,7 +139,7 @@ class ReservationManager:
                 "gpu_count": gpu_count,
                 "gpu_type": gpu_type,
                 "duration_hours": duration_decimal,
-                "name": name or f"{gpu_count}x {gpu_type.upper()} reservation",
+                "name": processed_name,
                 "created_at": created_at,
                 "status": "pending",
                 "expires_at": (
@@ -149,7 +160,7 @@ class ReservationManager:
                 "gpu_count": gpu_count,
                 "gpu_type": gpu_type,
                 "duration_hours": float(duration_hours),
-                "name": name or f"{gpu_count}x {gpu_type.upper()} reservation",
+                "name": processed_name,
                 "created_at": created_at,
                 "status": "pending",
                 "jupyter_enabled": jupyter_enabled,

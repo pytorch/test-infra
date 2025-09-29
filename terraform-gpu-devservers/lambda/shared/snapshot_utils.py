@@ -87,10 +87,11 @@ def create_pod_shutdown_snapshot(volume_id, user_id, snapshot_type="shutdown"):
         return None
 
 
-def cleanup_old_snapshots(user_id, keep_count=3, max_age_days=7):
+def cleanup_old_snapshots(user_id, keep_count=3, max_age_days=7, max_deletions_per_run=10):
     """
     Clean up old snapshots for a user, keeping only the most recent ones.
     Keeps 'keep_count' newest snapshots and deletes any older than max_age_days.
+    Limited to max_deletions_per_run to prevent lambda timeouts.
     Returns number of snapshots deleted.
     """
     try:
@@ -119,6 +120,11 @@ def cleanup_old_snapshots(user_id, keep_count=3, max_age_days=7):
         deleted_count = 0
 
         for i, snapshot in enumerate(snapshots):
+            # Limit deletions per run to prevent timeouts
+            if deleted_count >= max_deletions_per_run:
+                logger.info(f"Reached max deletions per run ({max_deletions_per_run}) for user {user_id}")
+                break
+
             snapshot_id = snapshot['SnapshotId']
             snapshot_date = snapshot['StartTime'].replace(tzinfo=None)
 
@@ -186,10 +192,11 @@ def get_latest_snapshot(user_id, volume_id=None, include_pending=False):
         return None
 
 
-def cleanup_all_user_snapshots():
+def cleanup_all_user_snapshots(max_users_per_run=20):
     """
     Run scheduled cleanup of old snapshots for all users.
     This runs separately from expiry processing.
+    Limited to max_users_per_run to prevent lambda timeouts.
     """
     try:
         logger.info("Starting scheduled snapshot cleanup for all users")
@@ -212,12 +219,22 @@ def cleanup_all_user_snapshots():
                 users_snapshots[user_tag].append(snapshot)
 
         total_deleted = 0
-        for user_id in users_snapshots:
+        users_processed = 0
+
+        # Sort users by number of snapshots (process users with most snapshots first)
+        sorted_users = sorted(users_snapshots.keys(), key=lambda u: len(users_snapshots[u]), reverse=True)
+
+        for user_id in sorted_users:
+            if users_processed >= max_users_per_run:
+                logger.info(f"Reached max users per run ({max_users_per_run}), will process remaining users in next run")
+                break
+
             deleted_count = cleanup_old_snapshots(user_id)
             total_deleted += deleted_count
+            users_processed += 1
 
         logger.info(
-            f"Scheduled snapshot cleanup completed: cleaned up {total_deleted} snapshots for {len(users_snapshots)} users")
+            f"Scheduled snapshot cleanup completed: cleaned up {total_deleted} snapshots for {users_processed}/{len(users_snapshots)} users")
         return total_deleted
 
     except Exception as e:

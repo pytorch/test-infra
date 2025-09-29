@@ -132,3 +132,14 @@ variable "queue_message_retention" {
   default     = 1209600 # 14 days
 }
 
+variable "domain_name" {
+  description = "Domain name for SSH access to reservations. Leave empty to disable domain names."
+  type        = string
+  default     = null # Will use workspace config if not overridden
+
+  validation {
+    condition = var.domain_name == null || var.domain_name == "" || can(regex("^[a-z0-9.-]+\\.[a-z]{2,}$", var.domain_name))
+    error_message = "Domain name must be a valid DNS name (e.g., devservers.io or test.devservers.io)."
+  }
+}
+

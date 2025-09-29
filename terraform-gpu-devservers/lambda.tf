@@ -153,7 +153,7 @@ resource "aws_lambda_function" "reservation_processor" {
   handler          = "index.handler"
   runtime          = "python3.13"
   timeout          = 900 # 15 minutes for K8s operations
-  source_code_hash = data.archive_file.reservation_processor_zip.output_base64sha256
+  source_code_hash = null_resource.reservation_processor_build.triggers.code_hash
 
   environment {
     variables = {
@@ -168,16 +168,20 @@ resource "aws_lambda_function" "reservation_processor" {
       PRIMARY_AVAILABILITY_ZONE          = data.aws_availability_zones.available.names[0]
       GPU_DEV_CONTAINER_IMAGE            = local.full_image_uri
       EFS_SECURITY_GROUP_ID              = aws_security_group.efs_sg.id
-      EFS_SUBNET_IDS                     = join(",", [aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id])
+      EFS_SUBNET_IDS                     = join(",", concat([aws_subnet.gpu_dev_subnet.id, aws_subnet.gpu_dev_subnet_secondary.id], length(aws_subnet.gpu_dev_subnet_tertiary) > 0 ? [aws_subnet.gpu_dev_subnet_tertiary[0].id] : []))
       ECR_REPOSITORY_URL                 = aws_ecr_repository.gpu_dev_custom_images.repository_url
       ECR_PULL_THROUGH_CACHE_DOCKERHUB   = "${data.aws_caller_identity.current.account_id}.dkr.ecr.${local.current_config.aws_region}.amazonaws.com/dockerhub"
+      DOMAIN_NAME                        = local.effective_domain_name
+      HOSTED_ZONE_ID                     = local.effective_domain_name != "" ? local.hosted_zone_id : ""
+      SSH_DOMAIN_MAPPINGS_TABLE          = local.effective_domain_name != "" ? aws_dynamodb_table.ssh_domain_mappings.name : ""
+      SSL_CERTIFICATE_ARN                = local.effective_domain_name != "" ? aws_acm_certificate.wildcard[0].arn : ""
     }
   }
 
   depends_on = [
     aws_iam_role_policy.reservation_processor_policy,
     aws_cloudwatch_log_group.reservation_processor_log_group,
-    data.archive_file.reservation_processor_zip,
+    null_resource.reservation_processor_build,
     null_resource.docker_build_and_push,
   ]
 
@@ -198,15 +202,14 @@ resource "aws_cloudwatch_log_group" "reservation_processor_log_group" {
   }
 }
 
-# Build Lambda package with dependencies
+# Build Lambda package with dependencies and create zip in one step
 resource "null_resource" "reservation_processor_build" {
   triggers = {
     # Rebuild when source files change
-    code_hash           = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
-    buildkit_hash       = filebase64sha256("${path.module}/lambda/reservation_processor/buildkit_job.py")
-    requirements_hash   = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
-    shared_code_hash    = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
-    shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
+    code_hash         = filebase64sha256("${path.module}/lambda/reservation_processor/index.py")
+    buildkit_hash     = filebase64sha256("${path.module}/lambda/reservation_processor/buildkit_job.py")
+    requirements_hash = filebase64sha256("${path.module}/lambda/reservation_processor/requirements.txt")
+    shared_folder_hash = sha256(join("", [for f in fileset("${path.module}/lambda/shared", "**") : filesha256("${path.module}/lambda/shared/${f}")]))
   }
 
   provisioner "local-exec" {
@@ -231,18 +234,23 @@ resource "null_resource" "reservation_processor_build" {
 
       echo "Lambda package built successfully"
       ls -la package/
+
+      # Create zip file directly, excluding any existing zip files
+      cd package/
+      zip -r ../reservation_processor_new.zip .
+      cd ..
+
+      # Replace old zip file and move to parent lambda directory
+      mv reservation_processor_new.zip ../reservation_processor.zip
+
+      # Clean up package folder
+      rm -rf package
+
+      echo "Lambda zip created and package folder cleaned up"
     EOT
   }
 }
 
-# Create zip file for Lambda deployment with dependencies
-data "archive_file" "reservation_processor_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/lambda/reservation_processor/package"
-  output_path = "${path.module}/lambda/reservation_processor.zip"
-
-  depends_on = [null_resource.reservation_processor_build]
-}
 
 # Lambda event source mapping for SQS
 resource "aws_lambda_event_source_mapping" "sqs_trigger" {

@@ -71,6 +71,7 @@ locals {
     default = {
       aws_region = "us-west-1"
       environment = "test"
+      domain_name = "test.devservers.io"
       gpu_instance_count = 2
       use_self_managed_nodes = true
       instance_type = "g4dn.12xlarge"
@@ -108,6 +109,7 @@ locals {
     prod = {
       aws_region = "us-east-2"
       environment = "prod"
+      domain_name = "devservers.io"
       gpu_instance_count = 2
       use_self_managed_nodes = true
       instance_type = "p4d.24xlarge"

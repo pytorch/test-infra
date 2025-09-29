@@ -21,6 +21,11 @@ from shared.snapshot_utils import (
     safe_create_snapshot,
     cleanup_all_user_snapshots
 )
+from shared.dns_utils import (
+    delete_dns_record,
+    delete_domain_mapping,
+    get_dns_enabled
+)
 
 # Setup logging
 logger = logging.getLogger()
@@ -778,6 +783,29 @@ def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dic
     """Clean up Kubernetes pod and associated resources"""
     try:
         logger.info(f"Cleaning up pod {pod_name} in namespace {namespace}")
+
+        # Clean up DNS records if domain is configured
+        if get_dns_enabled() and reservation_data:
+            domain_name = reservation_data.get("domain_name")
+            node_ip = reservation_data.get("node_ip")
+            node_port = reservation_data.get("node_port")
+
+            if domain_name and node_ip and node_port:
+                logger.info(f"Cleaning up DNS record for domain: {domain_name}")
+
+                # Delete DNS A record
+                dns_success = delete_dns_record(domain_name, node_ip, node_port)
+                if dns_success:
+                    logger.info(f"Successfully deleted DNS record for {domain_name}")
+                else:
+                    logger.warning(f"Failed to delete DNS record for {domain_name}")
+
+                # Delete domain mapping from tracking table
+                mapping_success = delete_domain_mapping(domain_name)
+                if mapping_success:
+                    logger.info(f"Successfully deleted domain mapping for {domain_name}")
+                else:
+                    logger.warning(f"Failed to delete domain mapping for {domain_name}")
 
         # Configure Kubernetes client
         logger.info(f"Setting up Kubernetes client for cleanup...")

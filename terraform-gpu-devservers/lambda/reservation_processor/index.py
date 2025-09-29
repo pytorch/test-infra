@@ -22,6 +22,15 @@ import boto3
 from shared import K8sGPUTracker, setup_kubernetes_client
 from shared.snapshot_utils import create_pod_shutdown_snapshot, get_latest_snapshot
 from buildkit_job import create_buildkit_job, wait_for_buildkit_job
+from shared.dns_utils import (
+    generate_unique_name,
+    create_dns_record,
+    delete_dns_record,
+    get_dns_enabled,
+    format_ssh_command_with_domain,
+    store_domain_mapping,
+    delete_domain_mapping
+)
 
 from kubernetes import client
 from kubernetes.stream import stream
@@ -1947,11 +1956,37 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
         # Get node public IP for the specific pod
         node_public_ip = get_pod_node_public_ip(pod_name)
 
-        # Generate SSH command
-        ssh_command = f"ssh -p {node_port} dev@{node_public_ip}"
+        # Generate domain name if DNS is enabled
+        domain_name = None
+        domain_ssh_command = None
+        if get_dns_enabled():
+            # Get the preferred name from the request
+            preferred_name = request.get("name")
+            domain_name = generate_unique_name(preferred_name)
+
+            # Create DNS record
+            dns_success = create_dns_record(domain_name, node_public_ip, node_port)
+            if dns_success:
+                domain_ssh_command = format_ssh_command_with_domain(domain_name, node_port)
+
+                # Store domain mapping for tracking
+                duration_hours = float(request.get("duration_hours", 8))
+                expires_timestamp = int(time.time()) + int(duration_hours * 3600)
+                store_domain_mapping(domain_name, node_public_ip, node_port, reservation_id, expires_timestamp)
+
+                logger.info(f"Created domain name {domain_name} for reservation {reservation_id}")
+
+        # Generate SSH command (prefer domain name if available)
+        ssh_command = domain_ssh_command if domain_ssh_command else f"ssh -p {node_port} dev@{node_public_ip}"
 
         # Generate Jupyter URL (we'll get the token after pod is ready)
-        jupyter_url_base = f"http://{node_public_ip}:{jupyter_port}"
+        if domain_name and domain_ssh_command:
+            # Use HTTP with domain name for Jupyter when DNS is configured
+            # TODO: Add HTTPS support with SSL certificate
+            jupyter_url_base = f"http://{domain_name}:{jupyter_port}"
+        else:
+            # Fallback to HTTP with IP when DNS is not configured
+            jupyter_url_base = f"http://{node_public_ip}:{jupyter_port}"
 
         # Update status: Waiting for SSH service
         update_reservation_status(
@@ -1984,6 +2019,7 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                 k8s_client=k8s_client,
                 persistent_volume_id=persistent_volume_id,
                 ebs_availability_zone=target_az if use_persistent_disk else None,
+                domain_name=domain_name,
             )
 
             # Trigger availability table update after successful reservation
@@ -2705,6 +2741,11 @@ def create_pod(
                     volume_mounts=[
                         client.V1VolumeMount(name="dev-home", mount_path="/home/dev")
                     ],
+                    security_context=client.V1SecurityContext(
+                        # Init container always runs as root to set up SSH keys
+                        run_as_user=0,
+                        run_as_group=0
+                    ),
                 )
             ],
             containers=[
@@ -2723,6 +2764,14 @@ def create_pod(
                         echo "[STARTUP] - CREATE_SH_ENV=$CREATE_SH_ENV"
                         echo "[STARTUP] - JUPYTER_ENABLED=$JUPYTER_ENABLED"
                         echo "[STARTUP] - USE_PERSISTENT_DISK=$USE_PERSISTENT_DISK"
+
+                        echo "[STARTUP] Setting up dev user..."
+                        # Create dev user with zsh as default shell (same UID as init container)
+                        id dev &>/dev/null || useradd -u 1000 -m -s /usr/bin/zsh dev
+
+                        # Ensure dev user is not locked (useradd creates locked accounts by default)
+                        # Use passwd -d to remove password and unlock account for SSH key authentication
+                        passwd -d dev >/dev/null 2>&1 || echo "[STARTUP] Warning: Could not unlock dev user"
 
                         echo "[STARTUP] Checking persistent disk setup..."
                         
@@ -2768,13 +2817,18 @@ def create_pod(
                         # Copy shell configs from Docker image to persistent disk if needed
                         echo "[STARTUP] Shell config setup - CREATE_SH_ENV='$CREATE_SH_ENV'"
                         
-                        # List what's available in the source directory
-                        echo "[STARTUP] Available files in /devserver-setup:"
-                        ls -la /devserver-setup/ || echo "[STARTUP] ERROR: /devserver-setup directory not found!"
-                        
-                        if [ "$CREATE_SH_ENV" = "true" ]; then
+                        # Check if the source directory exists (custom Docker images may not have it)
+                        if [ -d "/devserver-setup" ]; then
+                            echo "[STARTUP] Available files in /devserver-setup:"
+                            ls -la /devserver-setup/
+                        else
+                            echo "[STARTUP] /devserver-setup directory not found - custom Docker image detected"
+                            echo "[STARTUP] Skipping pre-built shell configuration copy"
+                        fi
+
+                        if [ "$CREATE_SH_ENV" = "true" ] && [ -d "/devserver-setup" ]; then
                             echo "[STARTUP] CREATE_SH_ENV=true - Copying shell configurations and user directories to persistent disk..."
-                            
+
                             # Copy pre-built configs from Docker image to persistent disk with error checking
                             echo "[STARTUP] Copying shell configurations from /devserver-setup to /home/dev..."
                             
@@ -2821,6 +2875,49 @@ def create_pod(
 
                             echo "[STARTUP] Shell configuration files and user directories copied to persistent disk"
 
+                        elif [ "$CREATE_SH_ENV" = "true" ]; then
+                            echo "[STARTUP] CREATE_SH_ENV=true but /devserver-setup not found - creating basic shell configuration"
+
+                            # Create basic bashrc with expiration warning support for custom Docker images
+                            cat > /home/dev/.bashrc << 'EOF_BASHRC'
+# Basic bashrc for GPU dev servers - Custom Docker image
+
+# Source system bashrc if it exists
+[ -r /etc/bash.bashrc ] && . /etc/bash.bashrc
+
+# Function to check for GPU reservation expiry warnings
+check_warnings() {{
+    for warning_file in /home/dev/WARN_EXPIRES_IN_*MIN.txt; do
+        if [ -f "$warning_file" ]; then
+            # Extract minutes from filename (e.g., WARN_EXPIRES_IN_15MIN.txt -> 15)
+            minutes=$(echo "$warning_file" | sed 's/.*WARN_EXPIRES_IN_\\([0-9]*\\)MIN.txt/\\1/')
+            echo -e "\\033[1;31m🚨 URGENT: Server expires in <${{minutes}} minutes! 🚨\\033[0m"
+            return
+        fi
+    done 2>/dev/null
+}}
+
+# Run warning check before every command prompt
+PROMPT_COMMAND="check_warnings; $PROMPT_COMMAND"
+
+# Basic info on login
+echo "🚀 GPU Dev Server Ready!"
+echo "🔗 Shared storage: /shared (if mounted)"
+echo "📁 Original container files preserved in their original locations"
+EOF_BASHRC
+
+                            chown 1000:1000 /home/dev/.bashrc
+                            echo "[STARTUP] ✓ Created basic .bashrc with expiration warnings"
+
+                            # Ensure .bashrc is sourced for SSH login shells
+                            cat > /home/dev/.bash_profile << 'EOF_PROFILE'
+# Source .bashrc for interactive login shells (like SSH)
+if [ -f ~/.bashrc ]; then
+    . ~/.bashrc
+fi
+EOF_PROFILE
+                            chown 1000:1000 /home/dev/.bash_profile
+                            echo "[STARTUP] ✓ Created .bash_profile to source .bashrc for SSH sessions"
                         else
                             echo "[STARTUP] CREATE_SH_ENV='$CREATE_SH_ENV' - Using existing shell configuration from persistent disk"
                             echo "[STARTUP] Current files in /home/dev:"
@@ -2891,8 +2988,8 @@ EOFREADME
                             echo "[STARTUP] Dotfiles persistence not available without shared storage"
                         fi
 
-                        echo "[STARTUP] Setting up dev user..."
-                        # Create dev user with zsh as default shell (same UID as init container)
+                        echo "[STARTUP] Configuring dev user shell and permissions..."
+                        # Set up default shell for dev user (user already created earlier)
                         # Fallback to bash if zsh is not available
                         if [ -x "/usr/bin/zsh" ]; then
                             DEFAULT_SHELL="/usr/bin/zsh"
@@ -2905,7 +3002,11 @@ EOFREADME
                             echo "[STARTUP] Neither zsh nor bash available, using sh as default shell"
                         fi
 
-                        id dev &>/dev/null || useradd -u 1000 -m -s "$DEFAULT_SHELL" dev
+                        # Update shell for existing dev user
+                        usermod -s "$DEFAULT_SHELL" dev
+
+                        # Ensure dev user is not locked (important for existing users from persistent disks)
+                        passwd -d dev >/dev/null 2>&1 || echo "[STARTUP] Warning: Could not unlock existing dev user"
 
                         # Set up sudo access if sudo is available
                         if command -v usermod >/dev/null 2>&1 && getent group sudo >/dev/null 2>&1; then
@@ -2991,7 +3092,21 @@ EOFREADME
 
                         # Configure SSH daemon - NO password authentication
                         if [ -d "/etc/ssh" ]; then
-                            cat > /etc/ssh/sshd_config << 'EOF'
+                            # Find the correct sftp-server path
+                            SFTP_SERVER=""
+                            for path in /usr/lib/openssh/sftp-server /usr/libexec/openssh/sftp-server /usr/lib/ssh/sftp-server; do
+                                if [ -x "$path" ]; then
+                                    SFTP_SERVER="$path"
+                                    break
+                                fi
+                            done
+
+                            if [ -z "$SFTP_SERVER" ]; then
+                                echo "[STARTUP] Warning: sftp-server not found, SSH may have limited functionality"
+                                SFTP_SERVER="/usr/lib/openssh/sftp-server"  # fallback
+                            fi
+
+                            cat > /etc/ssh/sshd_config << EOF
 Port 22
 PermitRootLogin no
 PasswordAuthentication no
@@ -3000,12 +3115,12 @@ AuthorizedKeysFile .ssh/authorized_keys
 HostKey /etc/ssh/ssh_host_rsa_key
 HostKey /etc/ssh/ssh_host_ecdsa_key
 HostKey /etc/ssh/ssh_host_ed25519_key
-UsePAM yes
+UsePAM no
 X11Forwarding yes
 PrintMotd no
 PrintLastLog yes
 AcceptEnv LANG LC_*
-Subsystem sftp /usr/lib/openssh/sftp-server
+Subsystem sftp $SFTP_SERVER
 EOF
                             echo "[STARTUP] SSH daemon configured"
                         else
@@ -3103,31 +3218,34 @@ EOF
                             echo "Welcome to GPU dev server!" > /etc/motd
                         fi
 
-                        echo "[STARTUP] Jupyter Lab pre-installed in Docker image..."
+                        # Check if Jupyter Lab is actually available in the Docker image
+                        if command -v jupyter-lab >/dev/null 2>&1 || [ -x "/opt/conda/bin/jupyter-lab" ]; then
+                            echo "[STARTUP] Jupyter Lab found in Docker image"
 
-                        # Always create Jupyter config and token (for later use)
-                        echo "[STARTUP] Setting up Jupyter Lab configuration..."
-                        su - dev -c "mkdir -p ~/.jupyter"
+                            # Always create Jupyter config and token (for later use)
+                            echo "[STARTUP] Setting up Jupyter Lab configuration..."
+                            su - dev -c "mkdir -p ~/.jupyter"
 
-                        # Generate Jupyter config and token (always, regardless of JUPYTER_ENABLED)
-                        # Check if openssl is available for token generation
-                        if command -v openssl >/dev/null 2>&1; then
-                            JUPYTER_TOKEN=$(openssl rand -hex 32)
-                            echo "[STARTUP] Generated Jupyter token using openssl"
-                        else
-                            # Fallback: use /dev/urandom if available, otherwise disable Jupyter
-                            if [ -r "/dev/urandom" ]; then
-                                JUPYTER_TOKEN=$(head -c 32 /dev/urandom | xxd -p -c 32)
-                                echo "[STARTUP] Generated Jupyter token using /dev/urandom (openssl not available)"
+                            # Generate Jupyter config and token (always, regardless of JUPYTER_ENABLED)
+                            # Check if openssl is available for token generation
+                            if command -v openssl >/dev/null 2>&1; then
+                                JUPYTER_TOKEN=$(openssl rand -hex 32)
+                                echo "[STARTUP] Generated Jupyter token using openssl"
                             else
-                                JUPYTER_TOKEN=""
-                                echo "[STARTUP] Neither openssl nor /dev/urandom available - Jupyter functionality disabled"
+                                # Fallback: use /dev/urandom if available, otherwise disable Jupyter
+                                if [ -r "/dev/urandom" ]; then
+                                    JUPYTER_TOKEN=$(head -c 32 /dev/urandom | xxd -p -c 32)
+                                    echo "[STARTUP] Generated Jupyter token using /dev/urandom (openssl not available)"
+                                else
+                                    JUPYTER_TOKEN=""
+                                    echo "[STARTUP] Neither openssl nor /dev/urandom available - Jupyter functionality disabled"
+                                fi
                             fi
-                        fi
 
-                        # Create Jupyter config file only if we have a token
-                        if [ -n "$JUPYTER_TOKEN" ]; then
-                            cat > /home/dev/.jupyter/jupyter_lab_config.py << EOF
+                            # Create Jupyter config file only if we have a token
+                            if [ -n "$JUPYTER_TOKEN" ]; then
+                                mkdir -p /home/dev/.jupyter
+                                cat > /home/dev/.jupyter/jupyter_lab_config.py << EOF
 c.ServerApp.ip = '0.0.0.0'
 c.ServerApp.port = 8888
 c.ServerApp.token = '$JUPYTER_TOKEN'
@@ -3138,46 +3256,61 @@ c.ServerApp.allow_remote_access = True
 c.ServerApp.notebook_dir = '/workspace'
 c.ServerApp.root_dir = '/workspace'
 EOF
-                            chown 1000:1000 /home/dev/.jupyter/jupyter_lab_config.py
-                            echo "[STARTUP] Jupyter Lab configured with security token"
+                                chown 1000:1000 /home/dev/.jupyter/jupyter_lab_config.py
+                                echo "[STARTUP] Jupyter Lab configured with security token"
 
-                            # Store Jupyter token in a file for later retrieval
-                            echo "$JUPYTER_TOKEN" > /tmp/jupyter_token
-                            chown 1000:1000 /tmp/jupyter_token
-                            chmod 600 /tmp/jupyter_token
-                        else
-                            echo "[STARTUP] Jupyter Lab configuration skipped - no token available"
-                        fi
+                                # Store Jupyter token in a file for later retrieval
+                                echo "$JUPYTER_TOKEN" > /tmp/jupyter_token
+                                chown 1000:1000 /tmp/jupyter_token
+                                chmod 600 /tmp/jupyter_token
+                            else
+                                echo "[STARTUP] Jupyter Lab configuration skipped - no token available"
+                            fi
 
-                        # Only start Jupyter if enabled at creation time
-                        if [ "$JUPYTER_ENABLED" = "true" ]; then
-                            echo "[STARTUP] Starting Jupyter Lab in background..."
-                            nohup su - dev -c "cd /workspace && /opt/conda/bin/jupyter-lab --config=/home/dev/.jupyter/jupyter_lab_config.py" > /tmp/jupyter.log 2>&1 &
-                            echo "[STARTUP] Jupyter Lab started (check /tmp/jupyter.log for details)"
+                            # Only start Jupyter if enabled at creation time
+                            if [ "$JUPYTER_ENABLED" = "true" ]; then
+                                echo "[STARTUP] Starting Jupyter Lab in background..."
+                                nohup su - dev -c "cd /workspace && /opt/conda/bin/jupyter-lab --config=/home/dev/.jupyter/jupyter_lab_config.py" > /tmp/jupyter.log 2>&1 &
+                                echo "[STARTUP] Jupyter Lab started (check /tmp/jupyter.log for details)"
+                            else
+                                echo "[STARTUP] Jupyter Lab configured but not started (use 'gpu-dev edit --enable-jupyter' to enable)"
+                            fi
+
                         else
-                            echo "[STARTUP] Jupyter Lab configured but not started (use 'gpu-dev edit --enable-jupyter' to enable)"
+                            echo "[STARTUP] Jupyter Lab not found in Docker image - skipping Jupyter setup"
                         fi
 
                         # Set up automatic dotfiles backup on container shutdown
                         if [ -d "/shared-personal" ]; then
                             echo "[STARTUP] Setting up automatic dotfiles backup on shutdown..."
-                            
+
                             # Set up signal handler to backup dotfiles on graceful shutdown
-                            trap '/usr/local/bin/dotfiles-shutdown-handler; exit 0' TERM INT
-                            
+                            if [ -f "/usr/local/bin/dotfiles-shutdown-handler" ]; then
+                                trap '/usr/local/bin/dotfiles-shutdown-handler; exit 0' TERM INT
+                                echo "[STARTUP] Shutdown backup handler configured"
+                            else
+                                echo "[STARTUP] No shutdown backup handler found - using default signal handling"
+                                trap 'exit 0' TERM INT
+                            fi
+
                             # Also set up periodic backup every 30 minutes if shared storage is available
-                            echo "[STARTUP] Starting periodic backup (every 30 minutes)..."
-                            (
-                                while true; do
-                                    sleep 1800  # 30 minutes
-                                    if [ -f /usr/local/bin/backup-dotfiles ]; then
+                            # Only enable if backup script exists
+                            if [ -f "/usr/local/bin/backup-dotfiles" ]; then
+                                echo "[STARTUP] Starting periodic backup (every 30 minutes)..."
+                                (
+                                    while true; do
+                                        sleep 1800  # 30 minutes
                                         echo "$(date): Performing periodic dotfiles backup..."
                                         su - dev -c "/usr/local/bin/backup-dotfiles" 2>/dev/null || echo "Periodic backup failed"
-                                    fi
-                                done
-                            ) &
-                            
+                                    done
+                                ) &
+                            else
+                                echo "[STARTUP] No backup script found - skipping periodic backup for custom Docker image"
+                            fi
+
                             echo "[STARTUP] ✓ Automatic dotfiles backup configured"
+                        else
+                            echo "[STARTUP] No shared storage - skipping backup setup"
                         fi
 
                         echo "[STARTUP] Starting SSH daemon..."
@@ -3190,10 +3323,26 @@ EOF
                             exit 1
                         fi
 
-                        # Start SSH daemon in foreground
+                        # Start SSH daemon with auto-restart capability
                         echo "[STARTUP] SSH daemon starting on port 22 using $SSHD_PATH"
                         echo "[STARTUP] Container ready for SSH connections"
-                        exec $SSHD_PATH -D -e
+
+                        # Run SSH daemon with automatic restart in case of crashes
+                        while true; do
+                            echo "[STARTUP] Starting SSH daemon..."
+                            $SSHD_PATH -D -e
+                            EXIT_CODE=$?
+                            echo "[STARTUP] SSH daemon exited with code $EXIT_CODE"
+
+                            # If SSH daemon exits, wait a moment and restart it
+                            if [ $EXIT_CODE -eq 0 ]; then
+                                echo "[STARTUP] SSH daemon exited normally"
+                                break
+                            else
+                                echo "[STARTUP] SSH daemon crashed, restarting in 5 seconds..."
+                                sleep 5
+                            fi
+                        done
                         """,
                     ],
                     ports=[
@@ -3231,7 +3380,10 @@ EOF
                     security_context=client.V1SecurityContext(
                         capabilities=client.V1Capabilities(
                             add=["IPC_LOCK"]
-                        )
+                        ),
+                        # Run as root when using custom Docker images to allow SSH setup
+                        run_as_user=0 if dockerimage else None,
+                        run_as_group=0 if dockerimage else None
                     ),
                 )
             ],
@@ -3529,9 +3681,20 @@ def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -
 
         volumes = response.get("Volumes", [])
         if volumes:
-            volume_id = volumes[0]["VolumeId"]
-            logger.info(f"Found existing persistent disk {volume_id} for user {user_id} in {availability_zone}")
-            return volume_id, False  # existing disk
+            # Check if any volumes are available (not in-use)
+            available_volumes = [vol for vol in volumes if vol["State"] == "available"]
+            if available_volumes:
+                volume_id = available_volumes[0]["VolumeId"]
+                logger.info(f"Found existing available persistent disk {volume_id} for user {user_id} in {availability_zone}")
+                return volume_id, False  # existing disk
+            else:
+                # All volumes are in-use, log this and create a new one
+                in_use_volumes = [vol for vol in volumes if vol["State"] == "in-use"]
+                if in_use_volumes:
+                    in_use_volume_id = in_use_volumes[0]["VolumeId"]
+                    logger.warning(f"User {user_id} has persistent disk {in_use_volume_id} but it's currently in-use by another reservation. Creating new disk instead.")
+                else:
+                    logger.warning(f"User {user_id} has persistent disk(s) in unexpected state: {[vol['State'] for vol in volumes]}. Creating new disk.")
 
         # Create new 1TB gp3 disk in the specified AZ
         logger.info(f"Creating new 1TB persistent disk for user {user_id} in AZ {availability_zone}")
@@ -3590,9 +3753,20 @@ def create_or_find_persistent_disk(user_id: str) -> tuple[str, bool]:
 
         volumes = response.get("Volumes", [])
         if volumes:
-            volume_id = volumes[0]["VolumeId"]
-            logger.info(f"Found existing persistent disk {volume_id} for user {user_id}")
-            return volume_id, False  # existing disk
+            # Check if any volumes are available (not in-use)
+            available_volumes = [vol for vol in volumes if vol["State"] == "available"]
+            if available_volumes:
+                volume_id = available_volumes[0]["VolumeId"]
+                logger.info(f"Found existing available persistent disk {volume_id} for user {user_id}")
+                return volume_id, False  # existing disk
+            else:
+                # All volumes are in-use, log this and create a new one
+                in_use_volumes = [vol for vol in volumes if vol["State"] == "in-use"]
+                if in_use_volumes:
+                    in_use_volume_id = in_use_volumes[0]["VolumeId"]
+                    logger.warning(f"User {user_id} has persistent disk {in_use_volume_id} but it's currently in-use by another reservation. Creating new disk instead.")
+                else:
+                    logger.warning(f"User {user_id} has persistent disk(s) in unexpected state: {[vol['State'] for vol in volumes]}. Creating new disk.")
 
         # Create new 1TB gp3 disk
         logger.info(f"Creating new 1TB persistent disk for user {user_id}")
@@ -3828,6 +4002,7 @@ def update_reservation_connection_info(
     k8s_client=None,
     persistent_volume_id: str = None,
     ebs_availability_zone: str = None,
+    domain_name: str = None,
 ):
     """Update reservation with connection details and set proper expiration time"""
     logger.info(f"MAIN FLOW: Starting to update connection info for reservation {reservation_id} (pod: {pod_name})")
@@ -3944,6 +4119,10 @@ def update_reservation_connection_info(
         # Add Jupyter error message if there was one
         if jupyter_error_msg:
             update_fields["jupyter_error"] = jupyter_error_msg
+
+        # Add domain name if provided
+        if domain_name:
+            update_fields["domain_name"] = domain_name
 
         # Update all fields at once
         update_reservation_fields(reservation_id, **update_fields)

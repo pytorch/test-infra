@@ -9,7 +9,8 @@ resource "aws_lambda_function" "reservation_expiry" {
   handler          = "index.handler"
   runtime          = "python3.13"
   timeout          = 900 # 15 minutes for K8s operations
-  source_code_hash = data.archive_file.reservation_expiry_zip.output_base64sha256
+  memory_size      = 1024 # 1GB memory for better performance
+  source_code_hash = null_resource.reservation_expiry_build.triggers.code_hash
 
   environment {
     variables = {
@@ -19,12 +20,15 @@ resource "aws_lambda_function" "reservation_expiry" {
       WARNING_MINUTES                    = "30"  # Warn 30 minutes before expiry
       GRACE_PERIOD_SECONDS               = "120" # 2 minutes grace period after expiry
       AVAILABILITY_UPDATER_FUNCTION_NAME = aws_lambda_function.availability_updater.function_name
+      DOMAIN_NAME                        = local.effective_domain_name
+      HOSTED_ZONE_ID                     = local.effective_domain_name != "" ? local.hosted_zone_id : ""
+      SSH_DOMAIN_MAPPINGS_TABLE          = local.effective_domain_name != "" ? aws_dynamodb_table.ssh_domain_mappings.name : ""
     }
   }
 
   depends_on = [
     aws_iam_role_policy.reservation_expiry_policy,
-    data.archive_file.reservation_expiry_zip,
+    null_resource.reservation_expiry_build,
   ]
 
   tags = {
@@ -134,14 +138,13 @@ resource "aws_iam_role_policy" "reservation_expiry_policy" {
   })
 }
 
-# Build expiry Lambda package with dependencies
+# Build expiry Lambda package with dependencies and create zip in one step
 resource "null_resource" "reservation_expiry_build" {
   triggers = {
     # Rebuild when source files change
-    code_hash           = filebase64sha256("${path.module}/lambda/reservation_expiry/index.py")
-    requirements_hash   = filebase64sha256("${path.module}/lambda/reservation_expiry/requirements.txt")
-    shared_code_hash    = filebase64sha256("${path.module}/lambda/shared/k8s_client.py")
-    shared_tracker_hash = filebase64sha256("${path.module}/lambda/shared/k8s_resource_tracker.py")
+    code_hash         = filebase64sha256("${path.module}/lambda/reservation_expiry/index.py")
+    requirements_hash = filebase64sha256("${path.module}/lambda/reservation_expiry/requirements.txt")
+    shared_folder_hash = sha256(join("", [for f in fileset("${path.module}/lambda/shared", "**") : filesha256("${path.module}/lambda/shared/${f}")]))
   }
 
   provisioner "local-exec" {
@@ -165,18 +168,23 @@ resource "null_resource" "reservation_expiry_build" {
 
       echo "Expiry Lambda package built successfully"
       ls -la package/
+
+      # Create zip file directly, excluding any existing zip files
+      cd package/
+      zip -r ../reservation_expiry_new.zip .
+      cd ..
+
+      # Replace old zip file and move to parent lambda directory
+      mv reservation_expiry_new.zip ../reservation_expiry.zip
+
+      # Clean up package folder
+      rm -rf package
+
+      echo "Expiry Lambda zip created and package folder cleaned up"
     EOT
   }
 }
 
-# Create zip file for expiry lambda with dependencies
-data "archive_file" "reservation_expiry_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/lambda/reservation_expiry/package"
-  output_path = "${path.module}/lambda/reservation_expiry.zip"
-
-  depends_on = [null_resource.reservation_expiry_build]
-}
 
 # CloudWatch Event Rule to trigger expiry check every 1 minute
 resource "aws_cloudwatch_event_rule" "reservation_expiry_schedule" {
