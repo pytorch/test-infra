@@ -6,10 +6,10 @@ import json
 import logging
 import os
 import sys
+from dataclasses import dataclass
 from typing import Optional
 
 import boto3
-from dataclasses import dataclass
 from dotenv import load_dotenv
 
 from .autorevert_circuit_breaker import check_autorevert_disabled
