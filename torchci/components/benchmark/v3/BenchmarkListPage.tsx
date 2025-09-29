@@ -52,7 +52,8 @@ export function BenchmarkListPage() {
       tags: ["pytorch", "operator", "micro"],
       items: [
         {
-          name: "PyTorch Operator Microbenchmark Page",
+          name: "PyTorch Operator Microbenchmark",
+          description: "PyTorch Operator Microbenchmark Behcnmarks",
           route:
             "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
         },
