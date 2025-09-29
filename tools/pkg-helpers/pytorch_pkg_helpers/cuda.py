@@ -55,7 +55,7 @@ def get_cuda_variables(
                 f"Unrecognized platform ({sys.platform}) "
                 f"for gpu_arch_version ({gpu_arch_version})"
             )
-        cuda_arch_list = get_cuda_arch_list(sanitized_version, platform)
+        cuda_arch_list = get_cuda_arch_list(sanitized_version, package_type, platform)
         ret.extend(
             [
                 f"export CUDA_HOME='{cuda_home}'",
