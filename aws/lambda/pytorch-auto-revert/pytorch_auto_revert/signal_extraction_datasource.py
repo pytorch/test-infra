@@ -192,22 +192,22 @@ class SignalExtractionDatasource:
                 "failed_job_ids": [int(j) for j in failed_job_ids],
             }
 
-        for attempt in RetryWithBackoff():
-            with attempt:
-                res = CHCliFactory().client.query(query, parameters=params)
-                for r in res.result_rows:
-                    rows.append(
-                        TestRow(
-                            job_id=JobId(int(r[0])),
-                            wf_run_id=WfRunId(int(r[1])),
-                            workflow_run_attempt=RunAttempt(int(r[2])),
-                            file=str(r[3] or ""),
-                            classname=str(r[4] or ""),
-                            name=str(r[5] or ""),
-                            failing=int(r[6] or 0),
-                            errored=int(r[7] or 0),
+            for attempt in RetryWithBackoff():
+                with attempt:
+                    res = CHCliFactory().client.query(query, parameters=params)
+                    for r in res.result_rows:
+                        rows.append(
+                            TestRow(
+                                job_id=JobId(int(r[0])),
+                                wf_run_id=WfRunId(int(r[1])),
+                                workflow_run_attempt=RunAttempt(int(r[2])),
+                                file=str(r[3] or ""),
+                                classname=str(r[4] or ""),
+                                name=str(r[5] or ""),
+                                failing=int(r[6] or 0),
+                                errored=int(r[7] or 0),
+                            )
                         )
-                    )
         dt = time.perf_counter() - t0
         log.info(
             "[extract] Tests fetched: %d rows for %d job_ids in %.2fs",
