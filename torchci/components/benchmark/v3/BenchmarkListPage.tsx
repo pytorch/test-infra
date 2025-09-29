@@ -21,7 +21,7 @@ export function BenchmarkListPage() {
           ],
         },
         {
-          name: "Compiler Regression Tracking (legacy)",
+          name: "Compiler Inductor Regression Tracking (legacy)",
           description:
             "Legacy compiler regression tracking page. Use the new one above",
           route: "benchmark/compilers",
