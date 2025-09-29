@@ -80,8 +80,8 @@ class _Attempt:
             delay += random.uniform(0, 0.1 * delay)
         time.sleep(delay)
 
-        # Tell the iterator to yield another attempt
-        raise _TryAgain()
+        # Swallow the original exception so the iterator can decide to retry
+        return True
 
 
 class RetryWithBackoff:
@@ -101,12 +101,12 @@ class RetryWithBackoff:
         self._attempt = 1
         self._done = False
         while True:
-            try:
-                yield _Attempt(self)
-                # If the with-block succeeded, stop iterating.
-                if self._done:
-                    return
-                return  # defensive: stop if block exited cleanly
-            except _TryAgain:
-                self._attempt += 1
-                continue
+            # Yield a context manager for the attempt; if the with-block
+            # raised but is retryable, __exit__ returns True to suppress it.
+            yield _Attempt(self)
+            # If the with-block succeeded, stop iterating.
+            if self._done:
+                return
+            # Otherwise, a retryable exception occurred and was suppressed.
+            # Move to the next attempt.
+            self._attempt += 1
