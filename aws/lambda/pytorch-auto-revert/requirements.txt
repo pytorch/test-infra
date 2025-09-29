@@ -1,3 +1,4 @@
+boto3==1.38.29
 clickhouse-connect==0.8.14
 PyGithub==2.6.1
 python-dotenv>=1.0.0

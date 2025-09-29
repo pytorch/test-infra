@@ -9,7 +9,7 @@ import sys
 from typing import Optional
 
 import boto3
-from attr import dataclass
+from dataclasses import dataclass
 from dotenv import load_dotenv
 
 from .autorevert_circuit_breaker import check_autorevert_disabled
