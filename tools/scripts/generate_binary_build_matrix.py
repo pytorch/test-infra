@@ -33,9 +33,9 @@ CUDA_ARCHES_DICT = {
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["6.3", "6.4"],
-    "test": ["6.3", "6.4"],
-    "release": ["6.3", "6.4"],
+    "nightly": ["6.4", "7.0"],
+    "test": ["6.4", "7.0"],
+    "release": ["6.4", "7.0"],
 }
 
 CUDA_CUDNN_VERSIONS = {
