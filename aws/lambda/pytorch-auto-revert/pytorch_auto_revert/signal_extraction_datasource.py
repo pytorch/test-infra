@@ -24,13 +24,57 @@ class SignalExtractionDatasource:
     Encapsulates ClickHouse queries used by the signal extraction layer.
     """
 
+    def fetch_commits_in_time_range(
+        self, *, repo_full_name: str, lookback_hours: int
+    ) -> List[tuple[Sha, datetime]]:
+        """
+        Fetch all commits pushed to main within the lookback window.
+        Returns list of (sha, timestamp) tuples ordered newest → older.
+        """
+        lookback_time = datetime.now() - timedelta(hours=lookback_hours)
+
+        query = """
+        SELECT head_commit.id AS sha, max(head_commit.timestamp) AS ts
+        FROM default.push
+        WHERE head_commit.timestamp >= {lookback_time:DateTime}
+          AND ref = 'refs/heads/main'
+          AND dynamoKey like {repo:String}
+        GROUP BY sha
+        ORDER BY ts DESC
+        """
+
+        params = {
+            "lookback_time": lookback_time,
+            "repo": f"{repo_full_name}%",
+        }
+
+        log = logging.getLogger(__name__)
+        log.info(
+            "[extract] Fetching commits in time range: repo=%s lookback=%sh",
+            repo_full_name,
+            lookback_hours,
+        )
+        t0 = time.perf_counter()
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(query, parameters=params)
+                commits = [(Sha(row[0]), row[1]) for row in res.result_rows]
+        dt = time.perf_counter() - t0
+        log.info("[extract] Commits fetched: %d commits in %.2fs", len(commits), dt)
+        return commits
+
     def fetch_jobs_for_workflows(
-        self, *, repo_full_name: str, workflows: Iterable[str], lookback_hours: int
+        self,
+        *,
+        repo_full_name: str,
+        workflows: Iterable[str],
+        lookback_hours: int,
+        head_shas: List[Sha],
     ) -> List[JobRow]:
         """
-        Fetch recent workflow job rows for the given workflows within the lookback window.
+        Fetch workflow job rows for the given head_shas and workflows.
 
-        Returns rows ordered by push timestamp desc, then by workflow run/job identity.
+        Returns rows ordered by head_sha (following the order of head_shas), then by started_at ASC.
         """
         lookback_time = datetime.now() - timedelta(hours=lookback_hours)
 
@@ -38,6 +82,7 @@ class SignalExtractionDatasource:
         params: Dict[str, Any] = {
             "lookback_time": lookback_time,
             "repo": repo_full_name,
+            "head_shas": [str(s) for s in head_shas],
         }
         workflow_list = list(workflows)
         if workflow_list:
@@ -55,13 +100,6 @@ class SignalExtractionDatasource:
         # the extractor and downstream logic rely on the KG-adjusted value so
         # that pending jobs can also be recognized as failures-in-progress.
         query = f"""
-        WITH push_dedup AS (
-            SELECT head_commit.id AS sha, max(head_commit.timestamp) AS ts
-            FROM default.push
-            WHERE head_commit.timestamp >= {{lookback_time:DateTime}}
-              AND ref = 'refs/heads/main'
-            GROUP BY sha
-        )
         SELECT
             wf.head_sha,
             wf.workflow_name,
@@ -76,19 +114,20 @@ class SignalExtractionDatasource:
             wf.created_at,
             tupleElement(wf.torchci_classification_kg,'rule') AS rule
         FROM default.workflow_job AS wf FINAL
-        INNER JOIN push_dedup p ON wf.head_sha = p.sha
         WHERE wf.repository_full_name = {{repo:String}}
+          AND wf.head_sha IN {{head_shas:Array(String)}}
           AND wf.created_at >= {{lookback_time:DateTime}}
           AND (wf.name NOT LIKE '%mem_leak_check%' AND wf.name NOT LIKE '%rerun_disabled_tests%')
           {workflow_filter}
-        ORDER BY p.ts DESC, wf.started_at ASC, wf.head_sha, wf.run_id, wf.run_attempt, wf.name
+        ORDER BY wf.head_sha, wf.started_at ASC, wf.run_id, wf.run_attempt, wf.name
         """
 
         log = logging.getLogger(__name__)
         log.info(
-            "[extract] Fetching jobs: repo=%s workflows=%s lookback=%sh",
+            "[extract] Fetching jobs: repo=%s workflows=%s commits=%d lookback=%sh",
             repo_full_name,
             ",".join(workflow_list) if workflow_list else "<all>",
+            len(head_shas),
             lookback_hours,
         )
         t0 = time.perf_counter()

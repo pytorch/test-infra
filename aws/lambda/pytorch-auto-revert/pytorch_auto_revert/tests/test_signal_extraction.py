@@ -29,8 +29,25 @@ class FakeDatasource(SignalExtractionDatasource):
         self._jobs = jobs
         self._tests = tests
 
+    def fetch_commits_in_time_range(
+        self, *, repo_full_name: str, lookback_hours: int
+    ) -> List[tuple[Sha, datetime]]:
+        # Extract unique commits from jobs in the order they appear
+        seen = set()
+        commits = []
+        for j in self._jobs:
+            if j.head_sha not in seen:
+                seen.add(j.head_sha)
+                commits.append((j.head_sha, j.started_at))
+        return commits
+
     def fetch_jobs_for_workflows(
-        self, *, workflows: Iterable[str], lookback_hours: int, repo_full_name: str
+        self,
+        *,
+        workflows: Iterable[str],
+        lookback_hours: int,
+        repo_full_name: str,
+        head_shas: List[Sha],
     ) -> List[JobRow]:
         return list(self._jobs)
 
@@ -275,6 +292,64 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNotNone(
             self._find_job_signal(signals_b, "trunk", jobs_b[0].base_name)
         )
+
+    def test_commits_without_jobs_are_included(self):
+        # Verify that commits with no jobs at all are still included in signals
+        # Simulate case where C2 has a failure, C3 has no jobs (e.g., periodic workflow),
+        # and C1 has success
+        jobs = [
+            J(
+                sha="C2",
+                run=900,
+                job=70,
+                attempt=1,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="C1",
+                run=910,
+                job=71,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+
+        # Create a fake datasource that returns an extra commit without jobs
+        t0 = self.t0  # capture t0 for closure
+        se = SignalExtractor(workflows=["trunk"], lookback_hours=24)
+
+        class FakeDatasourceWithExtraCommit(FakeDatasource):
+            def fetch_commits_in_time_range(
+                self, *, repo_full_name: str, lookback_hours: int
+            ):
+                # Return commits C2, C3 (no jobs), C1 in newest->older order
+                return [
+                    (Sha("C2"), ts(t0, 10)),
+                    (Sha("C3"), ts(t0, 5)),
+                    (Sha("C1"), ts(t0, 1)),
+                ]
+
+        se._datasource = FakeDatasourceWithExtraCommit(jobs, [])
+        signals = se.extract()
+
+        base = jobs[0].base_name
+        sig = self._find_job_signal(signals, "trunk", base)
+        self.assertIsNotNone(sig)
+        # Should have 3 commits: C2 (with events), C3 (no events), C1 (with events)
+        self.assertEqual(len(sig.commits), 3)
+        self.assertEqual([c.head_sha for c in sig.commits], ["C2", "C3", "C1"])
+        # C2 should have failure event
+        self.assertEqual(len(sig.commits[0].events), 1)
+        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
+        # C3 should have no events (commit without jobs)
+        self.assertEqual(len(sig.commits[1].events), 0)
+        # C1 should have success event
+        self.assertEqual(len(sig.commits[2].events), 1)
+        self.assertEqual(sig.commits[2].events[0].status, SignalStatus.SUCCESS)
 
     def test_test_track_mapping_failure_then_success(self):
         # Same test fails on newer commit and passes on older commit

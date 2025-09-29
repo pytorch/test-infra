@@ -64,10 +64,21 @@ class SignalExtractor:
     # -----------------------------
     def extract(self) -> List[Signal]:
         """Extract Signals for configured workflows within the lookback window."""
+        # Fetch commits first to ensure we include commits without jobs
+        commits = self._datasource.fetch_commits_in_time_range(
+            repo_full_name=self.repo_full_name,
+            lookback_hours=self.lookback_hours,
+        )
+
+        # Extract just the ordered list of shas
+        commit_shas = [sha for sha, _ in commits]
+
+        # Fetch jobs for these commits
         jobs = self._datasource.fetch_jobs_for_workflows(
             repo_full_name=self.repo_full_name,
             workflows=self.workflows,
             lookback_hours=self.lookback_hours,
+            head_shas=commit_shas,
         )
 
         # Select jobs to participate in test-track details fetch
@@ -76,8 +87,8 @@ class SignalExtractor:
             test_track_job_ids, failed_job_ids=failed_job_ids
         )
 
-        test_signals = self._build_test_signals(jobs, test_rows)
-        job_signals = self._build_non_test_signals(jobs)
+        test_signals = self._build_test_signals(jobs, test_rows, commit_shas)
+        job_signals = self._build_non_test_signals(jobs, commit_shas)
         # Deduplicate events within commits across all signals as a final step
         # GitHub-specific behavior like "rerun failed" can reuse job instances for reruns.
         # When that happens, the jobs have identical timestamps by DIFFERENT job ids.
@@ -145,6 +156,7 @@ class SignalExtractor:
         self,
         jobs: List[JobRow],
         test_rows: List[TestRow],
+        commit_shas: List[Sha],
     ) -> List[Signal]:
         """Build per-test Signals across commits, scoped to job base.
 
@@ -155,6 +167,11 @@ class SignalExtractor:
           - If test_run_s3 rows exist → FAILURE if any failing/errored else SUCCESS
           - Else if group pending → PENDING
           - Else → no event (missing)
+
+        Args:
+            jobs: List of job rows from the datasource
+            test_rows: List of test rows from the datasource
+            commit_shas: Ordered list of commit shas (newest → older)
         """
 
         jobs_by_id = {j.job_id: j for j in jobs}
@@ -170,11 +187,6 @@ class SignalExtractor:
                 j.wf_run_id,
                 j.run_attempt,
             ),
-        )
-
-        # Preserve newest → older commit order from the datasource
-        commit_shas = index_by_commit_job_base_wf_run_attempt.unique_values(
-            lambda j: j.head_sha
         )
 
         run_ids_attempts = index_by_commit_job_base_wf_run_attempt.group_map_values_by(
@@ -295,9 +307,17 @@ class SignalExtractor:
 
         return signals
 
-    def _build_non_test_signals(self, jobs: List[JobRow]) -> List[Signal]:
-        # Build Signals keyed by normalized job base name per workflow.
-        # Aggregate across shards within (wf_run_id, run_attempt) using JobAggIndex.
+    def _build_non_test_signals(
+        self, jobs: List[JobRow], commit_shas: List[Sha]
+    ) -> List[Signal]:
+        """Build Signals keyed by normalized job base name per workflow.
+
+        Aggregate across shards within (wf_run_id, run_attempt) using JobAggIndex.
+
+        Args:
+            jobs: List of job rows from the datasource
+            commit_shas: Ordered list of commit shas (newest → older)
+        """
 
         index = JobAggIndex.from_rows(
             jobs,
@@ -309,9 +329,6 @@ class SignalExtractor:
                 j.run_attempt,
             ),
         )
-
-        # Preserve commit order as first-seen in the job rows (datasource orders newest→older).
-        commit_shas = index.unique_values(lambda j: j.head_sha)
 
         # Map (sha, workflow, base) -> [attempt_keys]
         groups_index = index.group_keys_by(
