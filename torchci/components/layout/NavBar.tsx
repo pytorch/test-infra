@@ -87,7 +87,26 @@ const NavBarDropdown = ({
 function NavBar() {
   const benchmarksDropdown = [
     {
-      name: " Benchmark Lists (new)",
+      name: (
+        <span style={{ position: "relative" }}>
+          Benchmark Lists
+          <span
+            style={{
+              marginLeft: "4px",
+              padding: "2px 6px",
+              fontSize: "10px",
+              fontWeight: "bold",
+              backgroundColor: "green",
+              color: "white",
+              borderRadius: "8px",
+              textTransform: "uppercase",
+              lineHeight: "1",
+            }}
+          >
+            New!
+          </span>
+        </span>
+      ),
       href: "/benchmark/benchmark_list",
     },
     {
