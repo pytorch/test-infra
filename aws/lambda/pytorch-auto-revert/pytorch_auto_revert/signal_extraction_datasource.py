@@ -16,6 +16,7 @@ from .signal_extraction_types import (
     WfRunId,
     WorkflowName,
 )
+from .utils import RetryWithBackoff
 
 
 class SignalExtractionDatasource:
@@ -91,40 +92,42 @@ class SignalExtractionDatasource:
             lookback_hours,
         )
         t0 = time.perf_counter()
-        res = CHCliFactory().client.query(query, parameters=params)
-        rows: List[JobRow] = []
-        for (
-            head_sha,
-            workflow_name,
-            job_id,
-            run_id,
-            run_attempt,
-            name,
-            status,
-            conclusion,  # Note: this is `conclusion_kg` from the query above
-            started_at,
-            created_at,
-            rule,
-        ) in res.result_rows:
-            # Guard against placeholder started_at by using the later of
-            # started_at and created_at as the effective start.
-            # Both columns are non-NULL in ClickHouse.
-            effective_started = max(started_at, created_at)
-            rows.append(
-                JobRow(
-                    head_sha=Sha(head_sha),
-                    workflow_name=WorkflowName(workflow_name),
-                    wf_run_id=WfRunId(int(run_id)),
-                    job_id=JobId(int(job_id)),
-                    run_attempt=RunAttempt(int(run_attempt)),
-                    name=JobName(str(name or "")),
-                    status=str(status or ""),
-                    conclusion=str(conclusion or ""),
-                    started_at=effective_started,
-                    created_at=created_at,
-                    rule=str(rule or ""),
-                )
-            )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(query, parameters=params)
+                rows: List[JobRow] = []
+                for (
+                    head_sha,
+                    workflow_name,
+                    job_id,
+                    run_id,
+                    run_attempt,
+                    name,
+                    status,
+                    conclusion,  # Note: this is `conclusion_kg` from the query above
+                    started_at,
+                    created_at,
+                    rule,
+                ) in res.result_rows:
+                    # Guard against placeholder started_at by using the later of
+                    # started_at and created_at as the effective start.
+                    # Both columns are non-NULL in ClickHouse.
+                    effective_started = max(started_at, created_at)
+                    rows.append(
+                        JobRow(
+                            head_sha=Sha(head_sha),
+                            workflow_name=WorkflowName(workflow_name),
+                            wf_run_id=WfRunId(int(run_id)),
+                            job_id=JobId(int(job_id)),
+                            run_attempt=RunAttempt(int(run_attempt)),
+                            name=JobName(str(name or "")),
+                            status=str(status or ""),
+                            conclusion=str(conclusion or ""),
+                            started_at=effective_started,
+                            created_at=created_at,
+                            rule=str(rule or ""),
+                        )
+                    )
         dt = time.perf_counter() - t0
         log.info("[extract] Jobs fetched: %d rows in %.2fs", len(rows), dt)
         return rows
@@ -189,20 +192,22 @@ class SignalExtractionDatasource:
                 "failed_job_ids": [int(j) for j in failed_job_ids],
             }
 
-            res = CHCliFactory().client.query(query, parameters=params)
-            for r in res.result_rows:
-                rows.append(
-                    TestRow(
-                        job_id=JobId(int(r[0])),
-                        wf_run_id=WfRunId(int(r[1])),
-                        workflow_run_attempt=RunAttempt(int(r[2])),
-                        file=str(r[3] or ""),
-                        classname=str(r[4] or ""),
-                        name=str(r[5] or ""),
-                        failing=int(r[6] or 0),
-                        errored=int(r[7] or 0),
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(query, parameters=params)
+                for r in res.result_rows:
+                    rows.append(
+                        TestRow(
+                            job_id=JobId(int(r[0])),
+                            wf_run_id=WfRunId(int(r[1])),
+                            workflow_run_attempt=RunAttempt(int(r[2])),
+                            file=str(r[3] or ""),
+                            classname=str(r[4] or ""),
+                            name=str(r[5] or ""),
+                            failing=int(r[6] or 0),
+                            errored=int(r[7] or 0),
+                        )
                     )
-                )
         dt = time.perf_counter() - t0
         log.info(
             "[extract] Tests fetched: %d rows for %d job_ids in %.2fs",
@@ -226,17 +231,19 @@ class SignalExtractionDatasource:
             query += " AND repo = {repo:String}"
             params["repo"] = repo_full_name
 
-        res = CHCliFactory().client.query(query, parameters=params)
-        rows: List[Dict[str, Any]] = []
-        for repo, workflows, state_json in res.result_rows:
-            rows.append(
-                {
-                    "repo": repo,
-                    "workflows": workflows,
-                    "state": state_json,
-                }
-            )
-        return rows
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(query, parameters=params)
+                rows: List[Dict[str, Any]] = []
+                for repo, workflows, state_json in res.result_rows:
+                    rows.append(
+                        {
+                            "repo": repo,
+                            "workflows": workflows,
+                            "state": state_json,
+                        }
+                    )
+                return rows
 
     def fetch_latest_non_dry_run_timestamp(
         self, *, repo_full_name: Optional[str] = None
@@ -250,11 +257,13 @@ class SignalExtractionDatasource:
             params["repo"] = repo_full_name
         query += " ORDER BY ts DESC LIMIT 1"
 
-        res = CHCliFactory().client.query(query, parameters=params)
-        if not res.result_rows:
-            return None
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(query, parameters=params)
+                if not res.result_rows:
+                    return None
 
-        (ts_value,) = res.result_rows[0]
-        if isinstance(ts_value, datetime):
-            return ts_value.strftime("%Y-%m-%d %H:%M:%S")
-        return str(ts_value)
+                (ts_value,) = res.result_rows[0]
+                if isinstance(ts_value, datetime):
+                    return ts_value.strftime("%Y-%m-%d %H:%M:%S")
+                return str(ts_value)

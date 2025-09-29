@@ -11,6 +11,7 @@ from functools import cached_property
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .clickhouse_client_helper import CHCliFactory
+from .utils import RetryWithBackoff
 
 
 @dataclass
@@ -160,45 +161,47 @@ class AutorevertPatternChecker:
                 wf.workflow_name, push_dedup.timestamp DESC, wf.head_sha, wf.name
         """
 
-        result = CHCliFactory().client.query(
-            query,
-            parameters={
-                "workflow_names": self.workflow_names,
-                "lookback_time": lookback_time,
-            },
-        )
-
-        # Group by workflow and commit SHA
-        workflow_commits_data = {}
-        for row in result.result_rows:
-            (
-                workflow_name,
-                head_sha,
-                name,
-                conclusion,
-                status,
-                classification_rule,
-                created_at,
-            ) = row
-
-            if workflow_name not in workflow_commits_data:
-                workflow_commits_data[workflow_name] = {}
-
-            if head_sha not in workflow_commits_data[workflow_name]:
-                workflow_commits_data[workflow_name][head_sha] = CommitJobs(
-                    head_sha=head_sha, created_at=created_at, jobs=[]
+        for attempt in RetryWithBackoff():
+            with attempt:
+                result = CHCliFactory().client.query(
+                    query,
+                    parameters={
+                        "workflow_names": self.workflow_names,
+                        "lookback_time": lookback_time,
+                    },
                 )
 
-            workflow_commits_data[workflow_name][head_sha].jobs.append(
-                JobResult(
-                    head_sha=head_sha,
-                    name=name,
-                    conclusion=conclusion,
-                    status=status,
-                    classification_rule=classification_rule or "",
-                    workflow_created_at=created_at,
-                )
-            )
+                # Group by workflow and commit SHA
+                workflow_commits_data = {}
+                for row in result.result_rows:
+                    (
+                        workflow_name,
+                        head_sha,
+                        name,
+                        conclusion,
+                        status,
+                        classification_rule,
+                        created_at,
+                    ) = row
+
+                    if workflow_name not in workflow_commits_data:
+                        workflow_commits_data[workflow_name] = {}
+
+                    if head_sha not in workflow_commits_data[workflow_name]:
+                        workflow_commits_data[workflow_name][head_sha] = CommitJobs(
+                            head_sha=head_sha, created_at=created_at, jobs=[]
+                        )
+
+                    workflow_commits_data[workflow_name][head_sha].jobs.append(
+                        JobResult(
+                            head_sha=head_sha,
+                            name=name,
+                            conclusion=conclusion,
+                            status=status,
+                            classification_rule=classification_rule or "",
+                            workflow_created_at=created_at,
+                        )
+                    )
 
         # Sort and cache results per workflow
         for workflow_name, commits_data in workflow_commits_data.items():
@@ -230,14 +233,16 @@ class AutorevertPatternChecker:
             ORDER BY timestamp DESC
         """
 
-        result = CHCliFactory().client.query(
-            query, parameters={"lookback_time": lookback_time}
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                result = CHCliFactory().client.query(
+                    query, parameters={"lookback_time": lookback_time}
+                )
 
-        return [
-            {"sha": row[0], "message": row[1], "timestamp": row[2]}
-            for row in result.result_rows
-        ]
+                return [
+                    {"sha": row[0], "message": row[1], "timestamp": row[2]}
+                    for row in result.result_rows
+                ]
 
     def _find_last_commit_with_job(
         self, commits: Iterable[CommitJobs], job_name: str
@@ -472,18 +477,20 @@ class AutorevertPatternChecker:
         we = "workflow_dispatch" if restarted_only else "workflow_dispatch"
         # Note: for non-restarted we exclude workflow_dispatch via != in WHERE above
 
-        result = CHCliFactory().client.query(
-            query,
-            parameters={
-                "workflow_name": workflow_name,
-                "head_sha": head_sha,
-                "we": we,
-                "hb": hb,
-                "lookback_time": lookback_time,
-            },
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                result = CHCliFactory().client.query(
+                    query,
+                    parameters={
+                        "workflow_name": workflow_name,
+                        "head_sha": head_sha,
+                        "we": we,
+                        "hb": hb,
+                        "lookback_time": lookback_time,
+                    },
+                )
 
-        rows = list(result.result_rows)
+                rows = list(result.result_rows)
         if not rows:
             return None
 
@@ -644,24 +651,27 @@ class AutorevertPatternChecker:
                 FROM issue_comment
                 WHERE id IN {comment_ids:Array(Int64)}
                 """
-                result = CHCliFactory().client.query(
-                    query, parameters={"comment_ids": comment_ids}
-                )
 
-                for row in result.result_rows:
-                    comment_id, body = row
-                    # Look for -c flag in comment body
-                    match = re.search(r"-c\s+(\w+)", body)
-                    if match:
-                        category = match.group(1).lower()
-                        if category in [
-                            "nosignal",
-                            "ignoredsignal",
-                            "landrace",
-                            "weird",
-                            "ghfirst",
-                        ]:
-                            comment_id_to_category[comment_id] = category
+                for attempt in RetryWithBackoff():
+                    with attempt:
+                        result = CHCliFactory().client.query(
+                            query, parameters={"comment_ids": comment_ids}
+                        )
+
+                        for row in result.result_rows:
+                            comment_id, body = row
+                            # Look for -c flag in comment body
+                            match = re.search(r"-c\s+(\w+)", body)
+                            if match:
+                                category = match.group(1).lower()
+                                if category in [
+                                    "nosignal",
+                                    "ignoredsignal",
+                                    "landrace",
+                                    "weird",
+                                    "ghfirst",
+                                ]:
+                                    comment_id_to_category[comment_id] = category
             except Exception:
                 # If query fails, continue without error
                 pass
