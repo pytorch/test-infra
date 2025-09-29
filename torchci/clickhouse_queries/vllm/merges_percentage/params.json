@@ -9,8 +9,8 @@
     {
       "granularity": "day",
       "repo": "vllm-project/vllm",
-      "startTime": "2025-09-29T00:00:00.000",
-      "stopTime": "2025-09-22T00:00:00.000"
+      "startTime": "2025-09-22T00:00:00.000",
+      "stopTime": "2025-09-29T00:00:00.000"
     }
   ]
 }
