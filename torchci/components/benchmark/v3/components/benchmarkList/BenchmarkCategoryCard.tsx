@@ -33,16 +33,17 @@ const styles = {
 // Types
 // ============================
 export interface BenchmarkLinkItem {
-  /** Visible link text */
   name: string;
-  /** Route href, e.g. "/benchmark/compiler_regression" */
   route: string;
-  /** Optional sentence describing what the page shows */
   description?: string;
-  /** Optional tags to render as chips */
-  tags?: string[];
+  keys?: string[];
+  actions?: {
+    label: string;
+    onClick?: () => void;
+    href?: string;
+    icon?: React.ReactNode;
+  }[];
 }
-
 export interface BenchmarkCategoryGroup {
   /** Category title shown on the card header */
   title: string;
@@ -67,31 +68,44 @@ function BenchmarkCardItem({
 }) {
   return (
     <ListItem key={it.route} disablePadding>
-      <ListItemButton component={LinkComponent as any} href={it.route}>
-        <ListItemText
-          primary={
-            <Stack direction="row" alignItems="center" spacing={1}>
-              <Typography variant="subtitle1" component="span">
+      <Box sx={{ width: "100%" }}>
+        <ListItemButton component={LinkComponent as any} href={it.route}>
+          <ListItemText
+            primary={
+              <Typography variant="subtitle1">
                 {highlight(it.name, query)}
               </Typography>
-              {it.tags && it.tags.length > 0 && (
-                <Stack direction="row" spacing={0.5} sx={styles.chipWrap}>
-                  {it.tags.map((t) => (
-                    <Chip key={t} size="small" label={t} />
-                  ))}
-                </Stack>
-              )}
-            </Stack>
-          }
-          secondary={
-            it.description ? (
-              <Typography variant="body2" color="text.secondary">
-                {highlight(it.description, query)}
-              </Typography>
-            ) : undefined
-          }
-        />
-      </ListItemButton>
+            }
+            secondary={it.description}
+          />
+        </ListItemButton>
+
+        {it.actions && (
+          <Stack direction="row" spacing={1} sx={{ px: 0, pb: 1, pt: 0.5 }}>
+            {it.actions.map((a, idx) =>
+              a.href ? (
+                <LinkComponent key={idx} href={a.href}>
+                  <Chip
+                    clickable
+                    size="small"
+                    color="primary"
+                    label={a.label}
+                  />
+                </LinkComponent>
+              ) : (
+                <Chip
+                  key={idx}
+                  clickable
+                  size="small"
+                  color="secondary"
+                  label={a.label}
+                  onClick={a.onClick}
+                />
+              )
+            )}
+          </Stack>
+        )}
+      </Box>
     </ListItem>
   );
 }
@@ -127,17 +141,26 @@ export function BenchmarkCategoryCard({
           </Typography>
         ) : (
           <List dense disablePadding sx={styles.list}>
-                {cat.items.map((it, index) => (
+            {cat.items.map((it, index) => {
+              // add "Main Page" action to all items
+              const actions = [
+                { label: "Main Page", href: it.route },
+                ...(it.actions ?? []), // keep existing actions if any
+              ];
+              return (
                 <>
-                    <BenchmarkCardItem
-                        key={it.route}
-                        it={it}
-                        query={query}
-                        LinkComponent={LinkComponent}
-                    />
-                    {index<cat.items.length - 1 && <Divider key={`divider-${index}`} />}
+                  <BenchmarkCardItem
+                    key={it.route}
+                    it={{ ...it, actions }}
+                    query={query}
+                    LinkComponent={LinkComponent}
+                  />
+                  {index < cat.items.length - 1 && (
+                    <Divider key={`divider-${index}`} />
+                  )}
                 </>
-            ))}
+              );
+            })}
           </List>
         )}
       </CardContent>

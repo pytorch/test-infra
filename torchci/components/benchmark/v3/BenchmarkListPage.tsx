@@ -13,14 +13,18 @@ export function BenchmarkListPage() {
           name: "Compiler Inductor Regression Tracking (v3)",
           route: "/benchmark/compilers_regression",
           description: "New compiler regression tracking page.",
-          tags: ["v3"],
+          actions: [
+            {
+              label: "Docs",
+              href: "https://pytorch.org/docs/stable/inductor.html",
+            },
+          ],
         },
         {
           name: "Compiler Regression Tracking (legacy)",
           description:
             "Legacy compiler regression tracking page. Use the new one above",
           route: "benchmark/compilers",
-          tags: ["legacy", "deprecated"],
         },
       ],
     },
@@ -34,14 +38,12 @@ export function BenchmarkListPage() {
           name: "TorchAO",
           route: "/benchmark/llms?repoName=pytorch%2Fao",
           description: "TorchAO benchmark Page",
-          tags: ["main"],
         },
         {
           name: "TorchAO Micro API",
           route:
             "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
           description: "TorchAO Micro API benchmark Page",
-          tags: ["micro", "api"],
         },
       ],
     },

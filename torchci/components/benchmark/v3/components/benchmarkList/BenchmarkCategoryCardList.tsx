@@ -55,7 +55,7 @@ export default function BenchmarkCategoryCardList({
       .map((cat) => {
         const catMatches = matchQuery(q, cat.title, cat.subtitle, cat.tags);
         const matchedItems = cat.items.filter((it) =>
-          matchQuery(q, it.name, it.description, it.tags, it.route)
+          matchQuery(q, it.name, it.description, it.route)
         );
         // If category matches but no items matched, keep all; else keep only matched items
         const items =
