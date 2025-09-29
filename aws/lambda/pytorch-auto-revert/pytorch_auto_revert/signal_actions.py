@@ -14,7 +14,7 @@ from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
-from .utils import RestartAction, RevertAction
+from .utils import RestartAction, RetryWithBackoff, RevertAction
 from .workflow_checker import WorkflowRestartChecker
 
 
@@ -69,8 +69,10 @@ class ActionLogger:
             "WHERE repo = {repo:String} AND action = 'revert' "
             "AND commit_sha = {sha:String} AND dry_run = 0 LIMIT 1"
         )
-        res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
-        return len(res.result_rows) > 0
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(q, {"repo": repo, "sha": commit_sha})
+                return len(res.result_rows) > 0
 
     @dataclass(frozen=True)
     class RestartStats:
@@ -120,16 +122,18 @@ class ActionLogger:
             "sha": commit_sha,
             "pacing_sec": max(0, int(pacing.total_seconds())),
         }
-        res = CHCliFactory().client.query(q, params)
-        if not res.result_rows:
-            return ActionLogger.RestartStats()
-        row = res.result_rows[0]
-        return ActionLogger.RestartStats(
-            total_restarts=int(row[0]),
-            has_success_within_window=bool(row[1]),
-            failures_since_last_success=int(row[2]),
-            secs_since_last_failure=int(row[3]),
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                res = CHCliFactory().client.query(q, params)
+                if not res.result_rows:
+                    return ActionLogger.RestartStats()
+                row = res.result_rows[0]
+                return ActionLogger.RestartStats(
+                    total_restarts=int(row[0]),
+                    has_success_within_window=bool(row[1]),
+                    failures_since_last_success=int(row[2]),
+                    secs_since_last_failure=int(row[3]),
+                )
 
     def insert_event(
         self,
@@ -169,9 +173,14 @@ class ActionLogger:
                 notes or "",
             ]
         ]
-        CHCliFactory().client.insert(
-            table="autorevert_events_v2", data=data, column_names=cols, database="misc"
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                CHCliFactory().client.insert(
+                    table="autorevert_events_v2",
+                    data=data,
+                    column_names=cols,
+                    database="misc",
+                )
 
 
 class SignalActionProcessor:
@@ -419,22 +428,24 @@ class SignalActionProcessor:
             Tuple of (action_type, PullRequest) if found, None otherwise
         """
         try:
-            # Get GitHub client
-            gh_client = GHClientFactory().client
-            repo = gh_client.get_repo(ctx.repo_full_name)
+            for attempt in RetryWithBackoff():
+                with attempt:
+                    gh_client = GHClientFactory().client
+                    repo = gh_client.get_repo(ctx.repo_full_name)
 
-            # Get the commit to check its message
-            commit = repo.get_commit(commit_sha)
-            commit_message = commit.commit.message
+                    # Get the commit to check its message
+                    commit = repo.get_commit(commit_sha)
+                    commit_message = commit.commit.message
 
             # First check: parse commit message for PR references
             # This is the most reliable way to determine the pytorchbot action
             # Use findall to get all matches and pick the last one (pytorchbot appends at the end)
-
             pr_number = self._commit_message_check_pr_is_revert(commit_message, ctx)
             if pr_number is not None:
                 try:
-                    pr = repo.get_pull(pr_number)
+                    for attempt in RetryWithBackoff():
+                        with attempt:
+                            pr = repo.get_pull(pr_number)
                     logging.info(
                         "[v2][action] Found reverted PR #%d from commit message for commit %s",
                         pr.number,
@@ -451,7 +462,9 @@ class SignalActionProcessor:
             pr_number = self._commit_message_check_pr_is_merge(commit_message, ctx)
             if pr_number is not None:
                 try:
-                    pr = repo.get_pull(pr_number)
+                    for attempt in RetryWithBackoff():
+                        with attempt:
+                            pr = repo.get_pull(pr_number)
                     logging.info(
                         "[v2][action] Found PR #%d from commit message for commit %s",
                         pr.number,
@@ -467,32 +480,38 @@ class SignalActionProcessor:
 
             # Second check: GitHub's API for associated pull requests
             # Default to MERGE action if we find a PR this way
-            prs = commit.get_pulls()
+            for attempt in RetryWithBackoff():
+                with attempt:
+                    prs = commit.get_pulls()
 
-            for pr in prs:
-                # Check if this PR targets main branch
-                if pr.base.ref == "main":
-                    logging.info(
-                        "[v2][action] Found PR #%d associated with commit %s",
-                        pr.number,
-                        commit_sha[:8],
-                    )
-                    return (CommitPRSourceAction.MERGE, pr)
+                    for pr in prs:
+                        # Check if this PR targets main branch
+                        if pr.base.ref == "main":
+                            logging.info(
+                                "[v2][action] Found PR #%d associated with commit %s",
+                                pr.number,
+                                commit_sha[:8],
+                            )
+                            return (CommitPRSourceAction.MERGE, pr)
 
             # Third check: search API fallback
             # Default to MERGE action if we find a PR this way
-            search_query = f"{commit_sha} repo:{ctx.repo_full_name} is:pr is:closed"
-            search_results = gh_client.search_issues(search_query)
-
-            for issue in search_results:
-                pr = repo.get_pull(issue.number)
-                if pr.base.ref == "main":
-                    logging.info(
-                        "[v2][action] Found PR #%d via search for commit %s",
-                        pr.number,
-                        commit_sha[:8],
+            for attempt in RetryWithBackoff():
+                with attempt:
+                    search_query = (
+                        f"{commit_sha} repo:{ctx.repo_full_name} is:pr is:closed"
                     )
-                    return (CommitPRSourceAction.MERGE, pr)
+                    search_results = gh_client.search_issues(search_query)
+
+                    for issue in search_results:
+                        pr = repo.get_pull(issue.number)
+                        if pr.base.ref == "main":
+                            logging.info(
+                                "[v2][action] Found PR #%d via search for commit %s",
+                                pr.number,
+                                commit_sha[:8],
+                            )
+                            return (CommitPRSourceAction.MERGE, pr)
 
             logging.warning(
                 "[v2][action] No PR found for commit %s on main branch", commit_sha[:8]
@@ -534,7 +553,11 @@ class SignalActionProcessor:
 
         if should_do_revert_on_pr:
             # check if label 'autorevert: disable' is on the `pr`
-            if "autorevert: disable" in [label.name for label in pr.labels]:
+            labels = []
+            for attempt in RetryWithBackoff():
+                with attempt:
+                    labels = [label.name for label in pr.labels]
+            if "autorevert: disable" in labels:
                 logging.info(
                     "[v2][action] (%s, %s) revert for sha %s: author disabled autorevert for PR #%d",
                     ctx.revert_action,
@@ -576,41 +599,45 @@ class SignalActionProcessor:
 
         try:
             if should_do_revert_on_pr:
-                pr.create_issue_comment(
-                    "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
-                    + 'to avoid this behaviour add the tag autorevert: disable" -c autorevert\n'
-                    + "\n"
-                    + breaking_notification_msg
-                    + "\nPlease investigate and fix the issues."
-                )
-                logging.warning(
-                    "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",
-                    commit_sha[:8],
-                    pr.number,
-                )
-                return True
+                for attempt in RetryWithBackoff():
+                    with attempt:
+                        pr.create_issue_comment(
+                            "@pytorchbot revert -m \"Reverted automatically by pytorch's autorevert, "
+                            + 'to avoid this behaviour add the tag autorevert: disable" -c autorevert\n'
+                            + "\n"
+                            + breaking_notification_msg
+                            + "\nPlease investigate and fix the issues."
+                        )
+                        logging.warning(
+                            "[v2][action] revert for sha %s: requested pytorchbot revert in PR #%d",
+                            commit_sha[:8],
+                            pr.number,
+                        )
+                        return True
 
-            # Gets the main issue and notify
-            issue = (
-                GHClientFactory()
-                .client.get_repo(ctx.repo_full_name)
-                .get_issue(number=ctx.notify_issue_number)
-            )
-            issue.create_comment(
-                f"Autorevert detected a possible offender: {commit_sha[:8]} from PR #{pr.number}.\n\n"
-                + (
-                    "The commit is a revert"
-                    if action_type == CommitPRSourceAction.REVERT
-                    else "The commit is a PR merge"
-                )
-                + "\n\n"
-                + breaking_notification_msg
-            )
-            logging.info(
-                "[v2][action] revert for sha %s: added notification on the issue #%d",
-                commit_sha[:8],
-                ctx.notify_issue_number,
-            )
+            for attempt in RetryWithBackoff():
+                with attempt:
+                    # Gets the main issue and notify
+                    issue = (
+                        GHClientFactory()
+                        .client.get_repo(ctx.repo_full_name)
+                        .get_issue(number=ctx.notify_issue_number)
+                    )
+                    issue.create_comment(
+                        f"Autorevert detected a possible offender: {commit_sha[:8]} from PR #{pr.number}.\n\n"
+                        + (
+                            "The commit is a revert"
+                            if action_type == CommitPRSourceAction.REVERT
+                            else "The commit is a PR merge"
+                        )
+                        + "\n\n"
+                        + breaking_notification_msg
+                    )
+                    logging.info(
+                        "[v2][action] revert for sha %s: added notification on the issue #%d",
+                        commit_sha[:8],
+                        ctx.notify_issue_number,
+                    )
 
             # we succeeded if we requested a notification, if the action is a revert but it could not be performed
             # due to either the author disabling autorevert or the PR not being a merge we return False
