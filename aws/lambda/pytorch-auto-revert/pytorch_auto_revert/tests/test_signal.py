@@ -34,6 +34,7 @@ class TestSignal(unittest.TestCase):
         # Newest commit has success (even with pending present) -> recovered
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.PENDING, 1),
                 self._ev("job", SignalStatus.SUCCESS, 2),
@@ -41,6 +42,7 @@ class TestSignal(unittest.TestCase):
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
@@ -50,10 +52,12 @@ class TestSignal(unittest.TestCase):
         # Newest commit only has failure (no success)
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 1)],
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
@@ -63,10 +67,12 @@ class TestSignal(unittest.TestCase):
         # First commit is all pending; next has success -> recovered
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.PENDING, 1)],
         )
         c_mid = SignalCommit(
             head_sha="mid",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_mid])
@@ -75,6 +81,7 @@ class TestSignal(unittest.TestCase):
     def test_detect_flaky_true_on_same_commit_success_and_failure(self):
         c = SignalCommit(
             head_sha="sha",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 1),
                 self._ev("job", SignalStatus.FAILURE, 2),
@@ -86,10 +93,12 @@ class TestSignal(unittest.TestCase):
     def test_detect_flaky_false_when_separate_commits(self):
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 1)],
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 1)],
         )
         s = Signal(key="job", workflow_name="wf", commits=[c_new, c_old])
@@ -100,10 +109,12 @@ class TestSignal(unittest.TestCase):
         # Newer commit has a failure at t=20 (between) -> True
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 20)],
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 10),
                 self._ev("job", SignalStatus.SUCCESS, 30),
@@ -118,10 +129,12 @@ class TestSignal(unittest.TestCase):
         # Older has two successes; newer has pending between -> Maybe (None)
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.PENDING, 20)],
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 10),
                 self._ev("job", SignalStatus.SUCCESS, 30),
@@ -136,10 +149,12 @@ class TestSignal(unittest.TestCase):
         # Older has two successes; newer has pending outside the [oldest, newest] success window -> False
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.PENDING, 35)],
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 10),
                 self._ev("job", SignalStatus.SUCCESS, 30),
@@ -155,10 +170,12 @@ class TestSignal(unittest.TestCase):
         # Not within bracketing window -> False (and no maybe)
         c_new = SignalCommit(
             head_sha="new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 40)],
         )
         c_old = SignalCommit(
             head_sha="old",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 10),
                 self._ev("job", SignalStatus.PENDING, 20),
@@ -174,19 +191,23 @@ class TestSignal(unittest.TestCase):
         # Commits newest -> older. With 3 failures total, we meet the new 3+ threshold
         c_newest = SignalCommit(
             head_sha="sha_newest",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 7)],
         )
         c_newer = SignalCommit(
             head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 5)],
         )
         c_suspected = SignalCommit(
             head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 4)],
         )
         # base commit has two successes to confirm not infra
         c_base = SignalCommit(
             head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 3),
                 self._ev("job", SignalStatus.SUCCESS, 6),
@@ -209,14 +230,17 @@ class TestSignal(unittest.TestCase):
     def test_detect_autorevert_pattern_ineligible_when_fixed(self):
         c_newer = SignalCommit(
             head_sha="sha_newer",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 5)],
         )
         c_suspected = SignalCommit(
             head_sha="sha_mid",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 4)],
         )
         c_base = SignalCommit(
             head_sha="sha_old",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 3)],
         )
         s = Signal(
@@ -230,11 +254,13 @@ class TestSignal(unittest.TestCase):
         # Only one failure event overall (< 2) -> suggest restart of oldest failed
         c_failed = SignalCommit(
             head_sha="sha_failed",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 5)],
         )
         # Base successful commit with enough successes to avoid infra ambiguity
         c_base = SignalCommit(
             head_sha="sha_base",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 3),
                 self._ev("job", SignalStatus.SUCCESS, 7),
@@ -255,6 +281,7 @@ class TestSignal(unittest.TestCase):
         # Only one failure overall, but the failed commit also has pending → ineligible due to insufficient failures
         c_failed_pending = SignalCommit(
             head_sha="sha_failed_pend",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.PENDING, 4),
                 self._ev("job", SignalStatus.FAILURE, 5),
@@ -262,6 +289,7 @@ class TestSignal(unittest.TestCase):
         )
         c_base = SignalCommit(
             head_sha="sha_base",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 3),
                 self._ev("job", SignalStatus.SUCCESS, 7),
@@ -278,19 +306,23 @@ class TestSignal(unittest.TestCase):
         # Ensure we have at least three failure events to avoid the failure-side heuristic
         c_fail_newest = SignalCommit(
             head_sha="sha_fail_newest",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 11)],
         )
         c_fail_new = SignalCommit(
             head_sha="sha_fail_new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 10)],
         )
         c_fail_old = SignalCommit(
             head_sha="sha_fail_old",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 9)],
         )
         # Only one success event overall (< 2) → suggest restart of newest successful
         c_success = SignalCommit(
             head_sha="sha_success",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 3)],
         )
         s = Signal(
@@ -312,18 +344,22 @@ class TestSignal(unittest.TestCase):
         # Three failures present, but newest successful has pending → ineligible due to insufficient successes
         c_fail_newest = SignalCommit(
             head_sha="sha_fail_newest",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 11)],
         )
         c_fail_new = SignalCommit(
             head_sha="sha_fail_new",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 10)],
         )
         c_fail_old = SignalCommit(
             head_sha="sha_fail_old",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 9)],
         )
         c_success_pending = SignalCommit(
             head_sha="sha_success_pend",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 3),
                 self._ev("job", SignalStatus.PENDING, 8),
@@ -345,10 +381,12 @@ class TestSignal(unittest.TestCase):
         # Should propose restarts for both oldest failed and newest successful.
         c_failed = SignalCommit(
             head_sha="sha_failed",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.FAILURE, 10)],
         )
         c_success = SignalCommit(
             head_sha="sha_success",
+            timestamp=ts(self.t0, 0),
             events=[self._ev("job", SignalStatus.SUCCESS, 3)],
         )
         s = Signal(
@@ -374,6 +412,7 @@ class TestSignal(unittest.TestCase):
         # Failed (newer): has PENDING and then FAILURE
         c_failed_pending = SignalCommit(
             head_sha="sha_fail_pend",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.PENDING, 5),
                 self._ev("job", SignalStatus.FAILURE, 6),
@@ -382,6 +421,7 @@ class TestSignal(unittest.TestCase):
         # Successful (older): two successes earlier than any failure/pending, not pending
         c_success_ok = SignalCommit(
             head_sha="sha_success_ok",
+            timestamp=ts(self.t0, 0),
             events=[
                 self._ev("job", SignalStatus.SUCCESS, 2),
                 self._ev("job", SignalStatus.SUCCESS, 4),

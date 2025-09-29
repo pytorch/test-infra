@@ -34,29 +34,17 @@ class RunStateLogger:
 
         # Collect commit order (newest → older) across signals
         commits: List[str] = []
+        commit_times: Dict[str, str] = {}
         seen = set()
         for s in signals:
             for c in s.commits:
                 if c.head_sha not in seen:
                     seen.add(c.head_sha)
                     commits.append(c.head_sha)
+                    commit_times[c.head_sha] = c.timestamp.isoformat()
 
-        # Compute minimal started_at per commit (for timestamp context)
-        commit_times: Dict[str, str] = {}
-        for sha in commits:
-            tmin_iso: str | None = None
-            for s in signals:
-                # find commit in this signal
-                sc = next((cc for cc in s.commits if cc.head_sha == sha), None)
-                if not sc or not sc.events:
-                    continue
-                # events are sorted oldest first
-                t = sc.events[0].started_at
-                ts_iso = t.isoformat()
-                if tmin_iso is None or ts_iso < tmin_iso:
-                    tmin_iso = ts_iso
-            if tmin_iso is not None:
-                commit_times[sha] = tmin_iso
+        # sorting commits by their timestamp
+        commits.sort(key=lambda sha: commit_times[sha], reverse=True)
 
         # Build columns with outcomes, notes, and per-commit events
         cols = []

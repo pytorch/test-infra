@@ -100,8 +100,9 @@ class SignalEvent:
 class SignalCommit:
     """All events for a single commit, ordered oldest → newest by start time."""
 
-    def __init__(self, head_sha: str, events: List[SignalEvent]):
+    def __init__(self, head_sha: str, timestamp: datetime, events: List[SignalEvent]):
         self.head_sha = head_sha
+        self.timestamp = timestamp
         # enforce events ordered by time, then by wf_run_id (oldest first)
         self.events = (
             sorted(events, key=lambda e: (e.started_at, e.wf_run_id)) if events else []
