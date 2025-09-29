@@ -18,7 +18,7 @@ from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
 from .testers.restart_checker import workflow_restart_checker
-from .utils import RestartAction, RevertAction
+from .utils import RestartAction, RetryWithBackoff, RevertAction
 
 
 DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
@@ -224,18 +224,24 @@ class AWSSecretsFromStore:
 
 def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
     try:
-        session = boto3.session.Session()
-        client = session.client(service_name="secretsmanager", region_name="us-east-1")
-        get_secret_value_response = client.get_secret_value(
-            SecretId="pytorch-autorevert-secrets"
-        )
-        secret_value_string = json.loads(get_secret_value_response["SecretString"])
-        return AWSSecretsFromStore(
-            github_app_secret=base64.b64decode(
-                secret_value_string["GITHUB_APP_SECRET"]
-            ).decode("utf-8"),
-            clickhouse_password=secret_value_string["CLICKHOUSE_PASSWORD"],
-        )
+        for attempt in RetryWithBackoff():
+            with attempt:
+                session = boto3.session.Session()
+                client = session.client(
+                    service_name="secretsmanager", region_name="us-east-1"
+                )
+                get_secret_value_response = client.get_secret_value(
+                    SecretId="pytorch-autorevert-secrets"
+                )
+                secret_value_string = json.loads(
+                    get_secret_value_response["SecretString"]
+                )
+                return AWSSecretsFromStore(
+                    github_app_secret=base64.b64decode(
+                        secret_value_string["GITHUB_APP_SECRET"]
+                    ).decode("utf-8"),
+                    clickhouse_password=secret_value_string["CLICKHOUSE_PASSWORD"],
+                )
     except Exception:
         logging.exception("Failed to retrieve secrets from AWS Secrets Manager")
         sys.exit(1)
