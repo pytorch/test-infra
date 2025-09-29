@@ -51,6 +51,9 @@ class IneligibleReason(Enum):
     NO_PARTITION = "no_partition"  # insufficient commit history to form partitions
     INFRA_NOT_CONFIRMED = "infra_not_confirmed"  # infra check not confirmed
     INSUFFICIENT_FAILURES = "insufficient_failures"  # not enough failures to make call
+    INSUFFICIENT_SUCCESSES = (
+        "insufficient_successes"  # not enough successes to make call
+    )
     PENDING_GAP = "pending_gap"  # unknown/pending commits present
 
 
@@ -366,41 +369,39 @@ class Signal:
             if not c.events:
                 restart_commits.add(c.head_sha)
 
+        # infra check section
+
         infra_check_result = partition.confirm_not_an_infra_issue()
-        # note re: event_count < 3:
-        # this is a confidence heuristic to detect flakiness, can adjust as needed
         if (
             infra_check_result == InfraCheckResult.RESTART_FAILURE
-            or partition.failure_events_count() < 3
+            and not partition.failed[-1].has_pending
         ):
-            if not partition.failed[-1].has_pending:
-                # restarting oldest failed
-                restart_commits.add(partition.failed[-1].head_sha)
-            else:
-                if infra_check_result == InfraCheckResult.RESTART_FAILURE:
-                    return Ineligible(
-                        IneligibleReason.INFRA_NOT_CONFIRMED,
-                        f"waiting on pending events on suspected failure side: {partition.failed[-1].head_sha}",
-                    )
-                else:
-                    return Ineligible(
-                        IneligibleReason.INSUFFICIENT_FAILURES,
-                        f"insufficient failures to make call, "
-                        f"pending events on suspected failure side: {partition.failed[-1].head_sha}",
-                    )
+            # restarting oldest failed
+            restart_commits.add(partition.failed[-1].head_sha)
 
         if (
             infra_check_result == InfraCheckResult.RESTART_SUCCESS
-            or partition.success_events_count() < 2
+            and not partition.successful[0].has_pending
         ):
-            if not partition.successful[0].has_pending:
-                # restarting newest successful
-                restart_commits.add(partition.successful[0].head_sha)
-            else:
-                return Ineligible(
-                    IneligibleReason.INFRA_NOT_CONFIRMED,
-                    f"waiting on pending events on suspected success side: {partition.successful[0].head_sha}",
-                )
+            # restarting newest successful
+            restart_commits.add(partition.successful[0].head_sha)
+
+        # additional heuristics to reduce uncertainty / flakiness
+        REQUIRE_FAILED_EVENTS = 3
+        REQUIRE_SUCCESS_EVENTS = 2
+
+        # this is a confidence heuristic to detect flakiness, can adjust the number of events as needed
+        if (
+            partition.failure_events_count() < REQUIRE_FAILED_EVENTS
+            and not partition.failed[-1].has_pending
+        ):
+            restart_commits.add(partition.failed[-1].head_sha)
+
+        if (
+            partition.success_events_count() < REQUIRE_SUCCESS_EVENTS
+            and not partition.successful[0].has_pending
+        ):
+            restart_commits.add(partition.successful[0].head_sha)
 
         if restart_commits:
             return RestartCommits(commit_shas=restart_commits)
@@ -409,6 +410,18 @@ class Signal:
             return Ineligible(
                 IneligibleReason.INFRA_NOT_CONFIRMED,
                 f"infra check result: {infra_check_result.value}",
+            )
+
+        if partition.failure_events_count() < REQUIRE_FAILED_EVENTS:
+            return Ineligible(
+                IneligibleReason.INSUFFICIENT_FAILURES,
+                f"not enough failures to make call: {partition.failure_events_count()}",
+            )
+
+        if partition.success_events_count() < REQUIRE_SUCCESS_EVENTS:
+            return Ineligible(
+                IneligibleReason.INSUFFICIENT_SUCCESSES,
+                f"not enough successes to make call: {partition.success_events_count()}",
             )
 
         if partition.unknown:

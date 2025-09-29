@@ -271,7 +271,6 @@ class TestSignal(unittest.TestCase):
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
         self.assertEqual(res.reason, IneligibleReason.INSUFFICIENT_FAILURES)
-        self.assertIn("sha_failed_pend", res.message)
 
     def test_insufficient_successes_returns_restart_newest_success_when_no_pending(
         self,
@@ -307,8 +306,10 @@ class TestSignal(unittest.TestCase):
         self.assertTrue(hasattr(res, "commit_shas"))
         self.assertIn("sha_success", res.commit_shas)
 
-    def test_insufficient_successes_infra_not_confirmed_when_pending_on_success(self):
-        # Three failures present, but newest successful has pending → ineligible awaiting confirmation
+    def test_insufficient_successes_returns_specific_reason_when_pending_on_success(
+        self,
+    ):
+        # Three failures present, but newest successful has pending → ineligible due to insufficient successes
         c_fail_newest = SignalCommit(
             head_sha="sha_fail_newest",
             events=[self._ev("job", SignalStatus.FAILURE, 11)],
@@ -335,8 +336,9 @@ class TestSignal(unittest.TestCase):
         )
         res = s.process_valid_autorevert_pattern()
         self.assertIsInstance(res, Ineligible)
+        # Should be ineligible due to insufficient successes, but infra check takes precedence and
+        # it currently requires two successes to confirm not infra
         self.assertEqual(res.reason, IneligibleReason.INFRA_NOT_CONFIRMED)
-        self.assertIn("sha_success_pend", res.message)
 
     def test_both_sides_restart_accumulate_when_below_thresholds(self):
         # One failure total (<3) and one success total (<2), neither pending.
@@ -359,6 +361,43 @@ class TestSignal(unittest.TestCase):
         self.assertTrue(hasattr(res, "commit_shas"))
         self.assertIn("sha_failed", res.commit_shas)
         self.assertIn("sha_success", res.commit_shas)
+
+    def test_success_restart_even_when_failed_side_pending_and_insufficient_failures(
+        self,
+    ):
+        # Scenario:
+        # - Only one failed event on the failed side, and that failed commit also has a pending event
+        # - Success side has successes that are earlier than failure (so infra check yields RESTART_SUCCESS)
+        # Expected: restart is still proposed on the success side (due to infra check),
+        # even though failures < 3 and the failed commit is pending.
+
+        # Failed (newer): has PENDING and then FAILURE
+        c_failed_pending = SignalCommit(
+            head_sha="sha_fail_pend",
+            events=[
+                self._ev("job", SignalStatus.PENDING, 5),
+                self._ev("job", SignalStatus.FAILURE, 6),
+            ],
+        )
+        # Successful (older): two successes earlier than any failure/pending, not pending
+        c_success_ok = SignalCommit(
+            head_sha="sha_success_ok",
+            events=[
+                self._ev("job", SignalStatus.SUCCESS, 2),
+                self._ev("job", SignalStatus.SUCCESS, 4),
+            ],
+        )
+        s = Signal(
+            key="job",
+            workflow_name="wf",
+            commits=[c_failed_pending, c_success_ok],  # newest -> older
+        )
+        res = s.process_valid_autorevert_pattern()
+        # Should be a RestartCommits proposing restart on the success side only
+        self.assertNotIsInstance(res, AutorevertPattern)
+        self.assertTrue(hasattr(res, "commit_shas"))
+        self.assertIn("sha_success_ok", res.commit_shas)
+        self.assertNotIn("sha_fail_pend", res.commit_shas)
 
 
 if __name__ == "__main__":
