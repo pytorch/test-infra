@@ -498,7 +498,9 @@ class SignalActionProcessor:
             # Default to MERGE action if we find a PR this way
             for attempt in RetryWithBackoff():
                 with attempt:
-                    search_query = f"{commit_sha} repo:{ctx.repo_full_name} is:pr is:closed"
+                    search_query = (
+                        f"{commit_sha} repo:{ctx.repo_full_name} is:pr is:closed"
+                    )
                     search_results = gh_client.search_issues(search_query)
 
                     for issue in search_results:

@@ -50,7 +50,9 @@ def check_autorevert_disabled(repo_full_name: str = "pytorch/pytorch") -> bool:
                 if should_disable:
                     return True
 
-                logger.debug("No open issues with 'ci: disable-autorevert' label found.")
+                logger.debug(
+                    "No open issues with 'ci: disable-autorevert' label found."
+                )
                 return False
 
     except Exception as e:
