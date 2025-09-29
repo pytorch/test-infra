@@ -1,6 +1,14 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 export DESIRED_DEVTOOLSET="cxx11-abi"
 
+# Handle aarch64 CUDA builds: Override GPU arch type for CPU-mode validation
+# aarch64 CUDA builds have MATRIX_GPU_ARCH_TYPE="cuda-aarch64" or "cuda" but validation runners don't have GPUs
+# So we test these builds in CPU fallback mode by setting MATRIX_GPU_ARCH_TYPE=cpu
+if [[ ${TARGET_OS} == 'linux-aarch64' && (${MATRIX_GPU_ARCH_TYPE} == 'cuda-aarch64' || ${MATRIX_GPU_ARCH_TYPE} == 'cuda') ]]; then
+    echo "Detected aarch64 CUDA build (${MATRIX_GPU_ARCH_TYPE}) - overriding to test CPU fallback mode"
+    export MATRIX_GPU_ARCH_TYPE="cpu"
+fi
+
 if [[ ${MATRIX_PACKAGE_TYPE} == "libtorch" ]]; then
     curl ${MATRIX_INSTALLATION} -o libtorch.zip
     unzip libtorch.zip
