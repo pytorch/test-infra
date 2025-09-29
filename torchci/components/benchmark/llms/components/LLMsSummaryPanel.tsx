@@ -420,10 +420,7 @@ export default function LLMsSummaryPanel({
               let rUnit = unit;
 
               if (benchmarkName === HELION_BENCHMARK_NAME) {
-                if (metric.includes("accuracy")) {
-                  l = l === 1 ? "Pass" : "Fail";
-                  r = r === 1 ? "Pass" : "Fail";
-                } else if (metric.includes("speedup")) {
+                if (metric.includes("speedup")) {
                   l = v.l.actual_geomean;
                   r = v.r.actual_geomean;
 

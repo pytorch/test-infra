@@ -23,6 +23,9 @@ export const EXCLUDED_METRICS: string[] = [
   // TODO (huydhn): Hide generate_time(ms) metric temporarily because of
   // https://github.com/pytorch/executorch/issues/8576#issuecomment-2669706120
   "generate_time(ms)",
+  "triton_accuracy",
+  "torch_compile_accuracy",
+  "helion_accuracy",
 ];
 export const DEFAULT_MODEL_NAME = "All Models";
 export const SCALE = 2;
@@ -44,11 +47,8 @@ export const METRIC_DISPLAY_HEADERS: { [k: string]: string } = {
   requests_per_second: "Requests/s",
   tokens_per_second: "Tokens/s",
   triton_speedup: "Triton Speedup (Geomean)",
-  triton_accuracy: "Triton Accuracy",
   torch_compile_speedup: "Torch Compile Speedup (Geomean)",
-  torch_compile_accuracy: "Torch Compile Accuracy",
   helion_speedup: "Helion Speedup (Geomean)",
-  helion_accuracy: "Helion Accuracy",
 };
 // The variable name is a bit dumb, but it tells if a higher metric value
 // is good or bad so that we can highlight it on the dashboard accordingly.
@@ -79,11 +79,8 @@ export const IS_INCREASING_METRIC_VALUE_GOOD: { [k: string]: boolean } = {
   Speedup: true,
   "Speedup (%)": true,
   triton_speedup: true,
-  triton_accuracy: true,
   torch_compile_speedup: true,
-  torch_compile_accuracy: true,
   helion_speedup: true,
-  helion_accuracy: true,
 };
 export const METRIC_DISPLAY_SHORT_HEADERS: { [k: string]: string } = {
   "memory_bandwidth(GB/s)": "Bandwidth",
