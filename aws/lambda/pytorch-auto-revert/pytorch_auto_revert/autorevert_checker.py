@@ -624,6 +624,7 @@ class AutorevertPatternChecker:
         - landrace
         - weird
         - ghfirst
+        - autorevert
 
         Args:
             messages: List of revert commit messages
@@ -670,6 +671,7 @@ class AutorevertPatternChecker:
                                     "landrace",
                                     "weird",
                                     "ghfirst",
+                                    "autorevert",
                                 ]:
                                     comment_id_to_category[comment_id] = category
             except Exception:

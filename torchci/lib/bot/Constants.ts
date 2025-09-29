@@ -4,6 +4,7 @@ export const revertClassifications = {
   landrace: "Land Race",
   weird: "Weird",
   ghfirst: "Github First",
+  autorevert: "Auto Revert",
 };
 
 interface CherryPickClassification {

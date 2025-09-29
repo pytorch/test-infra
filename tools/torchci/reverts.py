@@ -23,6 +23,7 @@ CLASSIFICATIONS = {
     "weird": "Weird",
     "ghfirst": "GHFirst",
     "manual": "Not through pytorchbot",
+    "autorevert": "Auto Revert",
 }
 
 DB_REVERT_QUERY = """
