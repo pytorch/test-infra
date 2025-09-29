@@ -71,7 +71,7 @@ class GapBisectionPlanner:
         # Max-heap by gap length; store negatives for Python's min-heap
         import heapq
 
-        heap: List[tuple[Tuple[int, int, int], Gap]] = []
+        heap: List[Tuple[Tuple[int, int, int], Gap]] = []
 
         # Build contiguous gaps over `cand` indices
         start = prev = cand[0]
