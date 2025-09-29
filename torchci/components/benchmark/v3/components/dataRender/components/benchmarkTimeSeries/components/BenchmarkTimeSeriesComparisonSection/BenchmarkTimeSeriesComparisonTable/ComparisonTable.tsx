@@ -101,13 +101,11 @@ export function ComparisonTable({
           },
           "& .MuiDataGrid-columnHeaders": {
             minHeight: 32,
-            maxHeight: 32,
             lineHeight: "32px",
             fontSize: "0.75rem",
           },
           "& .MuiDataGrid-row": {
             minHeight: 32,
-            maxHeight: 32,
           },
         }}
         hideFooter
