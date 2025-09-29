@@ -151,4 +151,4 @@ SELECT
 FROM
     results
 ORDER BY
-    granularity_bucket DESC
+    granularity_bucket ASC
