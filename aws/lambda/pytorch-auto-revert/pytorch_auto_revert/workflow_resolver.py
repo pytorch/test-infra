@@ -16,6 +16,7 @@ from typing import Optional
 import github
 
 from .github_client_helper import GHClientFactory
+from .utils import RetryWithBackoff
 
 
 @dataclass(frozen=True)
@@ -61,8 +62,10 @@ class WorkflowResolver:
         Internally creates a GitHub Repository client using GHClientFactory when
         available; otherwise falls back to an anonymous client for public repos.
         """
-        repository = GHClientFactory().client.get_repo(repo)
-        return WorkflowResolver(repo_full_name=repo, repository=repository)
+        for attempt in RetryWithBackoff():
+            with attempt:
+                repository = GHClientFactory().client.get_repo(repo)
+                return WorkflowResolver(repo_full_name=repo, repository=repository)
 
     def resolve(self, input_name: str) -> Optional[WorkflowRef]:
         """Resolve by exact display name, file basename, or full path.
@@ -88,12 +91,14 @@ class WorkflowResolver:
         return ref
 
     def _build_indices(self) -> None:
-        for w in self._repository.get_workflows():
-            name = getattr(w, "name", "") or ""
-            path = getattr(w, "path", "") or ""
-            base = os.path.basename(path) if path else ""
-            if not (name and base):
-                continue
-            ref = WorkflowRef(display_name=name, file_name=base)
-            self._by_display[name] = ref
-            self._by_file[base] = ref
+        for attempt in RetryWithBackoff():
+            with attempt:
+                for w in self._repository.get_workflows():
+                    name = getattr(w, "name", "") or ""
+                    path = getattr(w, "path", "") or ""
+                    base = os.path.basename(path) if path else ""
+                    if not (name and base):
+                        continue
+                    ref = WorkflowRef(display_name=name, file_name=base)
+                    self._by_display[name] = ref
+                    self._by_file[base] = ref

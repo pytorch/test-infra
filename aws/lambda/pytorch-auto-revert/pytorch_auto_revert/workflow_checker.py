@@ -138,9 +138,11 @@ class WorkflowRestartChecker:
         # Resolve workflow (exact display or file name)
         wf_ref = self.resolver.require(workflow_name)
 
-        repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
-        workflow = repo.get_workflow(wf_ref.file_name)
-        workflow.create_dispatch(ref=tag_ref, inputs={})
+        for attempt in RetryWithBackoff():
+            with attempt:
+                repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
+                workflow = repo.get_workflow(wf_ref.file_name)
+                workflow.create_dispatch(ref=tag_ref, inputs={})
 
         workflow_url = (
             f"https://github.com/{self.repo_owner}/{self.repo_name}"
