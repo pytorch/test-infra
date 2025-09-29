@@ -108,7 +108,6 @@ export function ComparisonTable({
             minHeight: 32,
           },
         }}
-        hideFooter
       />
       <SelectionDialog
         open={dialogOpen}
