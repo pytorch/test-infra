@@ -97,7 +97,6 @@ export default function BenchmarkTimeSeriesChartGroup({
               defaultSelectMode={defaultSelectMode}
               onSelect={onSelect}
             />
-            ={" "}
           </Grid>
         );
       })}

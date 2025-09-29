@@ -10,21 +10,21 @@ export function BenchmarkListPage() {
       tags: ["torchinductor", "inductor"],
       items: [
         {
-          name: "Compiler Inductor Regression Tracking (v3)",
+          name: "Compiler Inductor Benchmark Dashboard (v3)",
           route: "/benchmark/compilers_regression",
           description: "New compiler regression tracking page.",
           actions: [
             {
               label: "Docs",
-              href: "https://pytorch.org/docs/stable/inductor.html",
+              href: "https://docs.pytorch.org/docs/main/torch.compiler_performance_dashboard.html",
             },
           ],
         },
         {
-          name: "Compiler Inductor Regression Tracking (legacy)",
+          name: "Compiler Inductor Benchmark Danshboard (legacy)",
           description:
-            "Legacy compiler regression tracking page. Use the new one above",
-          route: "benchmark/compilers",
+            "Legacy compiler benchmark page. Use the new one above for regression tracking",
+          route: "/benchmark/compilers",
         },
       ],
     },
@@ -35,12 +35,12 @@ export function BenchmarkListPage() {
         "Pages related to torch ao benchmark performance and regressions",
       items: [
         {
-          name: "TorchAO",
+          name: "TorchAO Benchmark Danshboard",
           route: "/benchmark/llms?repoName=pytorch%2Fao",
           description: "TorchAO benchmark Page",
         },
         {
-          name: "TorchAO Micro API",
+          name: "TorchAO Micro API Benchmark Danshboard",
           route:
             "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
           description: "TorchAO Micro API benchmark Page",
