@@ -5,31 +5,6 @@ import BenchmarkCategoryCardList from "./components/benchmarkList/BenchmarkCateg
 export function BenchmarkListPage() {
   const categories: BenchmarkCategoryGroup[] = [
     {
-      title: "Compiler Inductor Benchmark",
-      subtitle:
-        "Benchmarks related to compiler inductor in repo pytorch/pytorch",
-      tags: ["torchinductor", "inductor", "repo:pytorch/pytorch"],
-      items: [
-        {
-          name: "Compiler Inductor Benchmark Dashboard (v3)",
-          route: "/benchmark/compilers_regression",
-          description: "New compiler regression tracking page.",
-          actions: [
-            {
-              label: "Docs",
-              href: "https://docs.pytorch.org/docs/main/torch.compiler_performance_dashboard.html",
-            },
-          ],
-        },
-        {
-          name: "Compiler Inductor Benchmark Danshboard (legacy)",
-          description:
-            "Legacy compiler benchmark page. Use the new one above for regression tracking",
-          route: "/benchmark/compilers",
-        },
-      ],
-    },
-    {
       title: "PyTorch Benchmarks",
       subtitle: "Benchmarks related to repo pytorch/pytorch",
       tags: ["repo:pytorch/pytorch"],
@@ -38,6 +13,21 @@ export function BenchmarkListPage() {
           name: "PyTorch CacheBench Benchmark",
           route:
             "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
+        },
+        {
+          name: "Pytorch Compiler Inductor Benchmark Dashboard",
+          route: "/benchmark/compilers_regression",
+          description: "Use the `legacy page` if you want to see comparison view for different branches. It will be deprecated soon",
+          actions: [
+            {
+              label: "Legacy Page/ Playground",
+              href: "/benchmark/compilers",
+            },
+            {
+              label: "Docs",
+              href: "https://docs.pytorch.org/docs/main/torch.compiler_performance_dashboard.html",
+            },
+          ],
         },
         {
           name: "PyTorch LLMs Benchmark",

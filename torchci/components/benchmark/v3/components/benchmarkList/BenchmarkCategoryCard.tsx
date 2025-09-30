@@ -62,11 +62,9 @@ export interface BenchmarkCategoryGroup {
 function BenchmarkCardItem({
   it,
   query,
-  LinkComponent,
 }: {
   it: BenchmarkLinkItem;
   query: string;
-  LinkComponent: React.ElementType<{ href: string; children: React.ReactNode }>;
 }) {
   const buttonProps = isExternal(it.route)
     ? {
@@ -102,26 +100,39 @@ function BenchmarkCardItem({
         {it.actions && (
           <Stack direction="row" spacing={1} sx={{ px: 2, pb: 1, pt: 0.5 }}>
             {it.actions.map((a, idx) => {
-              if (a.href) {
+              if (!a.href) {
+                // non-link action (local click)
                 return (
-                  <LinkComponent key={idx} href={a.href}>
-                    <Chip
-                      clickable
-                      size="small"
-                      color="primary"
-                      label={a.label}
-                    />
-                  </LinkComponent>
+                  <Chip
+                    key={idx}
+                    clickable
+                    size="small"
+                    color="secondary"
+                    label={a.label}
+                    onClick={a.onClick}
+                  />
                 );
               }
+              const linkProps = isExternal(a.href)
+                ? {
+                    component: "a" as const,
+                    href: a.href,
+                    target: "_blank",
+                    rel: "noopener noreferrer",
+                  }
+                : {
+                    component: Link as any,
+                    href: a.href,
+                    // optional Next.js tweaks:
+                    prefetch: false,
+                  };
               return (
                 <Chip
-                  key={idx}
+                  {...linkProps}
                   clickable
                   size="small"
-                  color="secondary"
+                  color="primary"
                   label={a.label}
-                  onClick={a.onClick}
                 />
               );
             })}
@@ -156,6 +167,7 @@ export function BenchmarkCategoryCard({
           ) : null
         }
       />
+      <Divider />
       <CardContent sx={styles.content}>
         {cat.items.length === 0 ? (
           <Typography variant="body2" color="text.secondary">
@@ -175,7 +187,6 @@ export function BenchmarkCategoryCard({
                     key={it.route}
                     it={{ ...it, actions }}
                     query={query}
-                    LinkComponent={LinkComponent}
                   />
                   {index < cat.items.length - 1 && (
                     <Divider key={`divider-${index}`} />
