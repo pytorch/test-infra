@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - .github/workflows/release_library_download_pytorch_org.yml
+  push:
+    branches:
+      - test-promotion
   workflow_dispatch:
     inputs:
       domain:
