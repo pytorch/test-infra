@@ -16,13 +16,13 @@ jobs:
         include: [
           { repo: ao, org: pytorch },
           { repo: audio, org: pytorch },
-          { repo: data, org: pytorch },
+          { repo: data, org: meta-pytorch },
           { repo: executorch, org: pytorch },
           { repo: pytorch, org: pytorch },
           { repo: rl, org: pytorch },
           { repo: text, org: pytorch },
           { repo: torchchat, org: pytorch },
-          { repo: torchtune, org: pytorch },
+          { repo: torchtune, org: meta-pytorch },
           { repo: tutorials, org: pytorch },
           { repo: vision, org: pytorch },
         ]
