@@ -27,7 +27,7 @@ class TestSignalDedup(unittest.TestCase):
             started_at=ts(self.t0, 1),
             wf_run_id=100,
         )
-        commit = SignalCommit(head_sha="sha", events=[e1, e2])
+        commit = SignalCommit(head_sha="sha", timestamp=ts(self.t0, 0), events=[e1, e2])
         s = Signal(key="k", workflow_name="wf", commits=[commit])
 
         ex = SignalExtractor(workflows=["wf"], lookback_hours=24)
@@ -57,7 +57,9 @@ class TestSignalDedup(unittest.TestCase):
             started_at=ts(self.t0, 2),
             wf_run_id=1,
         )
-        commit = SignalCommit(head_sha="sha", events=[e1, e2, e3])
+        commit = SignalCommit(
+            head_sha="sha", timestamp=ts(self.t0, 0), events=[e1, e2, e3]
+        )
         s = Signal(key="k", workflow_name="wf", commits=[commit])
 
         ex = SignalExtractor(workflows=["wf"], lookback_hours=24)
@@ -78,8 +80,8 @@ class TestSignalDedup(unittest.TestCase):
             started_at=ts(self.t0, 1),
             wf_run_id=100,
         )
-        c1 = SignalCommit(head_sha="sha1", events=[e1, e2])
-        c2 = SignalCommit(head_sha="sha2", events=[e1, e2])
+        c1 = SignalCommit(head_sha="sha1", timestamp=ts(self.t0, 0), events=[e1, e2])
+        c2 = SignalCommit(head_sha="sha2", timestamp=ts(self.t0, 0), events=[e1, e2])
         s = Signal(key="k", workflow_name="wf", commits=[c1, c2])
 
         ex = SignalExtractor(workflows=["wf"], lookback_hours=24)
