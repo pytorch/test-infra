@@ -1,9 +1,6 @@
 name: Release ecosystem library from test to production.
 
 on:
-  pull_request:
-    paths:
-      - .github/workflows/release_library_download_pytorch_org.yml
   push:
     branches:
       - test-promotion
@@ -41,7 +38,7 @@ jobs:
       - name: Promote library to download.pytorch.org
         shell: bash
         env:
-          PACKAGE: ${{ inputs.package }}
+          PACKAGE: ${{ inputs.package || "torchvision" }}
         run: |
             set -ex
             cd release
