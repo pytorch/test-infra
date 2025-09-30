@@ -89,7 +89,7 @@ function NavBar() {
     {
       name: (
         <span style={{ position: "relative" }}>
-          Benchmark Lists
+          Benchmark Dashboards
           <span
             style={{
               marginLeft: "4px",
@@ -109,40 +109,7 @@ function NavBar() {
       ),
       href: "/benchmark/benchmark_list",
     },
-    {
-      name: "Triton",
-      href: "/tritonbench/commit_view",
-    },
-    {
-      name: "PyTorch LLMs",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
-    },
-    {
-      name: "ExecuTorch",
-      href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
-    },
-    {
-      name: "PT CacheBench",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
-    },
-    {
-      name: "vLLM v1",
-      href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
-    },
-    {
-      name: "SGLang",
-      href: "/benchmark/llms?repoName=sgl-project%2Fsglang",
-    },
-    {
-      name: "Helion",
-      href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
-    },
-  ].sort((a, b) => {
-    if (typeof a.name === "string" && typeof b.name === "string") {
-      return a.name.localeCompare(b.name);
-    }
-    return 0; // leave order unchanged if either is not a string
-  });
+  ];
 
   const devInfraDropdown = [
     {

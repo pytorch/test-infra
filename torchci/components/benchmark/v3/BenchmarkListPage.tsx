@@ -6,8 +6,8 @@ export function BenchmarkListPage() {
   const categories: BenchmarkCategoryGroup[] = [
     {
       title: "Compiler Inductor Benchmark",
-      subtitle: "Pages related to compiler performance and regressions",
-      tags: ["torchinductor", "inductor"],
+      subtitle: "Benchmarks related to compiler performance and regressions",
+      tags: ["torchinductor", "inductor", "repo:pytorch/pytorch"],
       items: [
         {
           name: "Compiler Inductor Benchmark Dashboard (v3)",
@@ -29,10 +29,36 @@ export function BenchmarkListPage() {
       ],
     },
     {
+      title: "PyTorch Benchmarks",
+      subtitle: "Benchmarks related to repo pytorch/pytorch",
+      tags: ["repo:pytorch/pytorch"],
+      items: [
+        {
+          name: "PyTorch CacheBench Benchmark",
+          route:
+            "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
+        },
+        {
+          name: "PyTorch LLMs Benchmark",
+          route: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+        },
+        {
+          name: "PyTorch Operator Microbenchmark",
+          description: "PyTorch Operator Microbenchmark Behcnmarks",
+          route:
+            "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
+        },
+        {
+          name: "Pytorch Triton Benchmark Dashboard",
+          description: "Pytorch Triton Benchmark Dashboard",
+          route: "/tritonbench/commit_view",
+        },
+      ],
+    },
+    {
       title: "TorchAo Benchmark",
-      tags: ["torchao", "ao"],
-      subtitle:
-        "Pages related to torch ao benchmark performance and regressions",
+      tags: ["repo:pytorch/torchao"],
+      subtitle: "Benchmarks related to repo pytorch/torchao",
       items: [
         {
           name: "TorchAO Benchmark Danshboard",
@@ -48,14 +74,47 @@ export function BenchmarkListPage() {
       ],
     },
     {
-      title: "PyTorch Operator Microbenchmark",
-      tags: ["pytorch", "operator", "micro"],
+      title: "ExecuTorch",
+      tags: ["repo:pytorch/executorch"],
+      subtitle: "Benchmarks related to repo pytorch/executorch",
       items: [
         {
-          name: "PyTorch Operator Microbenchmark",
-          description: "PyTorch Operator Microbenchmark Behcnmarks",
+          name: "ExecuTorch Benchmark",
+          route: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
+        },
+      ],
+    },
+    {
+      title: "vLLM Benchmarks ",
+      tags: ["repo:vllm-project/vllm"],
+      subtitle: "Benchmarks related to repo vllm-project/vllm",
+      items: [
+        {
+          name: "VLLM V1 Benchmark",
+          route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
+        },
+      ],
+    },
+    {
+      title: "SGLang Benchmark",
+      subtitle: "Benchmarks related to repo sgl-project/sglang",
+      tags: ["repo:sgl-project/sglang"],
+      items: [
+        {
+          name: "SGLang Benchmark Dashboard",
+          route: "/benchmark/llms?repoName=sgl-project%2Fsglang",
+        },
+      ],
+    },
+    {
+      title: "Helion Benchmark",
+      subtitle: "Benchmarks related to repo pytorch/helion",
+      tags: ["repo:pytorch/helion"],
+      items: [
+        {
+          name: "Helion Benchmark Dashboard",
           route:
-            "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
+            "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
         },
       ],
     },
