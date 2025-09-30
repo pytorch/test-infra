@@ -11,21 +11,22 @@ Usage:
 """
 
 import argparse
-from functools import lru_cache
+import concurrent.futures
 import gzip
 import json
 import multiprocessing
-import random
-import re
-import urllib.request
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Any
-from dataclasses import dataclass
-from pathlib import Path
 import os
-from torchci.clickhouse import query_clickhouse
-import concurrent.futures
+import re
 import time
+import urllib.request
+from collections import defaultdict
+from datetime import datetime, timezone
+from functools import lru_cache
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+from torchci.clickhouse import query_clickhouse
+
 
 def get_temp_dir() -> Path:
     """Create a temporary directory for processing files"""
@@ -35,35 +36,23 @@ def get_temp_dir() -> Path:
     (temp_dir / "intermediate_status_changes").mkdir(parents=True, exist_ok=True)
     return temp_dir
 
-@dataclass
-class FileReportData:
-    file: str
-    owner_labels: List[str]
-    timestamp: int
-    errors: int = 0
-    failures: int = 0
-    skipped: int = 0
-    successes: int = 0
-    tests: int = 0
-    time: float = 0.0
-    cost: float = 0.0
-    workflows: List[Dict[str, Any]] = None
-
-    def __post_init__(self):
-        if self.workflows is None:
-            self.workflows = []
-
 
 class FileReportGenerator:
     """Generator for file reports based on owner labels"""
 
     # S3 URL for EC2 pricing data
-    EC2_PRICING_URL = "https://ossci-metrics.s3.us-east-1.amazonaws.com/ec2_pricing.json.gz"
+    EC2_PRICING_URL = (
+        "https://ossci-metrics.s3.us-east-1.amazonaws.com/ec2_pricing.json.gz"
+    )
 
-    def __init__(self, reports_dir: str, test_owners_file: str = "test_owner_labels.json"):
+    def __init__(
+        self, reports_dir: str, test_owners_file: str = "test_owner_labels.json"
+    ):
         """Initialize the generator with the test owners file path"""
         self.test_owners_file = test_owners_file
-        self.base_dir = Path(__file__).parent.parent.parent.parent  # Navigate to repo root
+        self.base_dir = Path(
+            __file__
+        ).parent.parent.parent.parent  # Navigate to repo root
         self.test_owners_path = self.base_dir / test_owners_file
         self.reports_dir = Path(reports_dir)
         if not self.reports_dir.exists():
@@ -78,7 +67,7 @@ class FileReportGenerator:
 
         decompressed_data = gzip.decompress(compressed_data)
         pricing_data = {}
-        for line in decompressed_data.decode('utf-8').splitlines():
+        for line in decompressed_data.decode("utf-8").splitlines():
             if line.strip():
                 line_json = json.loads(line)
                 pricing_data[line_json[0]] = float(line_json[2])
@@ -93,11 +82,10 @@ class FileReportGenerator:
             compressed_data = response.read()
         decompressed_data = gzip.decompress(compressed_data)
         test_owners = []
-        for line in decompressed_data.decode('utf-8').splitlines():
+        for line in decompressed_data.decode("utf-8").splitlines():
             if line.strip():
                 test_owners.append(json.loads(line))
         return test_owners
-
 
     def get_runner_cost(self, runner_label: str) -> float:
         """Get the cost per hour for a given runner"""
@@ -106,20 +94,20 @@ class FileReportGenerator:
             runner_label = runner_label[3:]
         return runner_costs.get(runner_label, 0.0)
 
-    def _get_first_suitable_sha(self, shas: list[str]) -> Optional[str]:
+    def _get_first_suitable_sha(self, shas: list[dict[str, Any]]) -> Optional[str]:
         """Get the first suitable SHA from a list of SHAs."""
         lens = []
         for sha in shas:
-            head_sha = sha['head_sha']
-            test_data = self._get_all_test_data_for_sha(head_sha)
+            head_sha = sha["head_sha"]
+            test_data = self._get_invoking_file_test_data_for_sha(head_sha)
 
             has_no_job_name = False
             for entry in test_data:
-                if not entry.get("job_id"):
+                if "NoJobName" in entry.get("short_job_name", ""):
                     has_no_job_name = True
                     break
             if has_no_job_name:
-                print(f"Has entries with no job IDs for {head_sha}")
+                print(f"Has entries with no job name for {head_sha}")
                 continue
 
             lens.append((head_sha, len(test_data)))
@@ -127,7 +115,7 @@ class FileReportGenerator:
 
             if len(lens) > 1:
                 lens.sort(key=lambda x: x[1], reverse=True)
-                if abs(lens[0][1] - lens[1][1]) * 2/ (lens[0][1] + lens[1][1]) < 0.1:
+                if abs(lens[0][1] - lens[1][1]) * 2 / (lens[0][1] + lens[1][1]) < 0.1:
                     return lens[0][0]
         return None
 
@@ -147,8 +135,8 @@ class FileReportGenerator:
         print("Searching for suitable SHAs from PyTorch main branch...")
 
         params = {
-            "start_date": start_date + ' 00:00:00',
-            "stop_date": stop_date + ' 23:59:59',
+            "start_date": start_date + " 00:00:00",
+            "stop_date": stop_date + " 23:59:59",
         }
 
         # Single query with conditional logic using CASE expressions
@@ -174,11 +162,12 @@ class FileReportGenerator:
 
         print(f"Found {len(candidates)} candidate workflow runs")
 
-
         # Test each candidate SHA
         group_by_day = {}
         for candidate in candidates:
-            day = datetime.fromtimestamp(candidate['push_date'], timezone.utc).strftime('%Y-%m-%d')
+            day = datetime.fromtimestamp(candidate["push_date"], timezone.utc).strftime(
+                "%Y-%m-%d"
+            )
             if day not in group_by_day:
                 group_by_day[day] = []
             group_by_day[day].append(candidate)
@@ -188,6 +177,7 @@ class FileReportGenerator:
 
         return [sha for sha in results if sha is not None]
 
+    @lru_cache
     def _get_workflow_jobs_for_sha(self, sha: str) -> List[Dict[str, Any]]:
         """Get workflow runs for a specific SHA using ClickHouse."""
         query = """
@@ -203,13 +193,15 @@ class FileReportGenerator:
             AND j.workflow_name in ('pull', 'trunk', 'inductor', 'slow')
         """
 
-        params = {'sha': sha}
+        params = {"sha": sha}
 
         print(f"Querying ClickHouse for workflow runs with SHA: {sha}")
         result = query_clickhouse(query, params)
 
         for row in result:
-            row["short_job_name"] = f"{row.get('workflow_name')} / {self._parse_job_name(row.get('job_name', ''))}"
+            row["short_job_name"] = (
+                f"{row.get('workflow_name')} / {self._parse_job_name(row.get('job_name', ''))}"
+            )
             row["runner_type"] = self._get_runner_label_from_job_info(row)
             row["cost"] = self.get_runner_cost(row.get("runner_type", 0))
             row["frequency"] = self.get_frequency(row.get("workflow_name", 0))
@@ -217,7 +209,7 @@ class FileReportGenerator:
         return result
 
     @lru_cache
-    def _get_frequency(self) -> float:
+    def _get_frequency(self) -> List[Dict[str, Any]]:
         query = """
         select
             count(*) as count,
@@ -251,9 +243,9 @@ class FileReportGenerator:
 
         # Replace with just the first part in parentheses
         # First extract the part before the comma if it exists
-        match = re.search(r'\(([^,]+),.*\)', job_name)
+        match = re.search(r"\(([^,]+),.*\)", job_name)
         if match:
-            base_part = job_name[:job_name.find('(')]
+            base_part = job_name[: job_name.find("(")]
             first_param = match.group(1)
             return f"{base_part}({first_param})"
 
@@ -274,15 +266,13 @@ class FileReportGenerator:
 
         return "unknown"
 
-    def _fetch_test_data_from_s3(self, workflow_run_id: int, workflow_run_attempt: int) -> Optional[list[dict[str, Any]]]:
+    def _fetch_from_s3(self, bucket: str, key: str) -> str:
         """
-        Use local cache for a specific workflow run.
+        Fetch a file from s3 and return its contents as a string. Also saves the
+        contents to a local cache.
         """
-        bucket = "ossci-raw-job-status"
-        key = f"test_run/{workflow_run_id}/{workflow_run_attempt}"
         try:
-            start_time = time.time()
-            file_loc = get_temp_dir() / f"cache_{workflow_run_id}_{workflow_run_attempt}"
+            file_loc = get_temp_dir() / f"cache_{bucket}_{key.replace('/', '_')}"
             if file_loc.exists():
                 print(f"Using cached download for {file_loc}")
                 compressed_data = file_loc.read_bytes()
@@ -291,103 +281,48 @@ class FileReportGenerator:
                 with urllib.request.urlopen(url) as response:
                     compressed_data = response.read()
 
-                with open(file_loc, 'wb') as f:
+                with open(file_loc, "wb") as f:
                     f.write(compressed_data)
 
             decompressed_data = gzip.decompress(compressed_data)
-            text_data = decompressed_data.decode('utf-8')
-
-            test_data = []
-            for line in text_data.strip().split('\n'):
-                if line.strip():
-                    test_data.append(json.loads(line))
-
-            print(f"Fetched {len(test_data)} test entries from {key}, took {time.time() - start_time:.2f} seconds")
-            return test_data
+            text_data = decompressed_data.decode("utf-8")
+            return text_data
         except Exception as e:
-            print(f"Failed to fetch from {key}: {e}")
-            return None
+            print(f"Failed to fetch from s3://{bucket}/{key}: {e}")
+            return ""
 
-    def process_all_test_data(self, all_test_data):
-        files = {}
+    def _fetch_invoking_file_summary_from_s3(
+        self, workflow_run_id: int, workflow_run_attempt: int
+    ) -> list[dict[str, Any]]:
+        """
+        Use local cache for a specific workflow run.
+        """
+        bucket = "ossci-raw-job-status"
+        key = f"additional_info/invoking_file_summary/{workflow_run_id}/{workflow_run_attempt}"
 
-        for entry in all_test_data:
-            # Get file name (prefer 'file' over 'invoking_file')
-            file_name = entry.get("file_name") or entry.get("invoking_file")
-            if not file_name:
-                continue
+        def reformat(data):
+            data_as_list = []
+            for build, entries in data.items():
+                for config, entries in entries.items():
+                    for test_file, entry in entries.items():
+                        entry["file_name"] = test_file
+                        entry["run_id"] = workflow_run_id
+                        entry["run_attempt"] = workflow_run_attempt
+                        # TODO remove this later
+                        entry["short_job_name"] = f"{build} / test ({config})"
+                        data_as_list.append(entry)
+            return data_as_list
 
-            job_id = str(entry.get("job_id", "unknown"))
-            job_info = entry.get("_job_info", {})
+        start_time = time.time()
+        text_data = self._fetch_from_s3(bucket, key)
+        test_data = json.loads(text_data)
 
-            # Use pre-computed short job name if available, otherwise parse
-            job_name = job_info.get("short_job_name")
-            if not job_name:
-                raw_job_name = job_info.get("job_name", f"unknown_job")
-                job_name = self._parse_job_name(raw_job_name)
+        print(
+            f"Fetched {len(test_data)} test entries from {key}, took {time.time() - start_time:.2f} seconds"
+        )
+        return reformat(test_data)
 
-            test_name = f"{entry.get('classname', '')}::{entry.get('name', '')}"
-            key = (file_name, job_name, test_name)
-
-            if key not in files:
-                files[key] = {
-                    "test_name": test_name,
-                    "job_name": job_name,
-                    "file_name": file_name,
-                    "count": 0,
-                    "time": 0.0,
-                    "cost": 0.0,
-                    "errors": 0,
-                    "failures": 0,
-                    "skipped": 0,
-                    "successes": 0,
-                    "job_info": job_info,
-                    "job_ids": set()  # Track which job IDs contribute to this job name
-                }
-
-            # Update test data
-            files[key]["count"] += 1
-            files[key]["job_ids"].add(job_id)
-
-            # Handle time conversion safely
-            time_value = entry.get("time", 0)
-            if isinstance(time_value, (int, float)):
-                files[key]["time"] += time_value
-            elif isinstance(time_value, str):
-                try:
-                    files[key]["time"] += float(time_value)
-                except (ValueError, TypeError):
-                    # Skip invalid time values
-                    pass
-
-            # Determine test outcome
-            if "failure" in entry:
-                files[key]["failures"] += 1
-            elif "error" in entry:
-                files[key]["errors"] += 1
-            elif "skipped" in entry:
-                files[key]["skipped"] += 1
-            else:
-                files[key]["successes"] += 1
-
-            # Calculate cost using pre-computed cost per hour if available
-            cost_per_hour = job_info.get("cost_per_hour")
-            if cost_per_hour is None:
-                # Fallback to manual calculation if not pre-computed
-                runner_label = self._get_runner_label_from_job_info(job_info)
-                cost_per_hour = self.get_runner_cost(runner_label)
-
-            try:
-                time_float = float(time_value)
-                files[key]["cost"] += time_float * cost_per_hour / 3600.0
-            except (ValueError, TypeError):
-                pass
-
-        for val in files.values():
-            val["job_ids"] = list(val["job_ids"])
-        return list(files.values())
-
-    def _get_all_test_data_for_sha(self, sha: str) -> List[Dict[str, Any]]:
+    def _get_invoking_file_test_data_for_sha(self, sha: str) -> List[Dict[str, Any]]:
         """
         Fetch all test data for a given SHA once and cache it.
         Returns a flat list of test entries with job info embedded.
@@ -409,7 +344,7 @@ class FileReportGenerator:
                 "workflow_name": job_data.get("workflow_name", ""),
                 "frequency": job_data.get("frequency", 0),
             }
-            workflow_runs.add((job_data.get("workflow_id"), job_data.get("run_attempt", 1)))
+            workflow_runs.add((job_data["workflow_id"], job_data["run_attempt"]))
 
         all_test_data = []
 
@@ -417,102 +352,119 @@ class FileReportGenerator:
         results = []
         with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
             futures = [
-                executor.submit(self._fetch_test_data_from_s3, run_id, run_attempt)
+                executor.submit(
+                    self._fetch_invoking_file_summary_from_s3, run_id, run_attempt
+                )
                 for run_id, run_attempt in workflow_runs
             ]
             # Maintain order to match workflow_runs
             results = [f.result() for f in futures]
+
         for test_data in results:
-            if test_data:
-                # Enrich each test entry with job info
-                for entry in test_data:
-                    job_id = str(entry.get("job_id", "unknown"))
-                    entry["_job_info"] = job_info.get(job_id, {})
-                all_test_data.extend(test_data)
+            all_test_data.extend(test_data)
+
+        # Create lookup table for workflow_id -> workflow_name to construct
+        # short_job_name
+        workflow_id_to_name = {
+            job["workflow_id"]: job["workflow_name"] for job in workflow_jobs
+        }
+        # Map short job name to full job data to get cost per hour and runner
+        # type. There will be duplicates but the only info we need is
+        # cost/runner which should be the same
+        job_name_to_job = {job["short_job_name"]: job for job in job_info.values()}
+
+        # Embed workflow name and job info into each test entry
+        for entry in all_test_data:
+            run_id = entry.get("run_id")
+            workflow_name = workflow_id_to_name.get(run_id)
+            entry["short_job_name"] = (
+                f"{workflow_name} / {entry.get('short_job_name', '')}"
+            )
+            entry["_job_info"] = job_name_to_job[entry["short_job_name"]]
 
         return all_test_data
 
-    def group_by_job_file(self, tests, sha, push_date):
-        job_file_map = {}
-        for test in tests:
-            job_name = test["job_name"]
-            file_name = test["file_name"]
-            key = (job_name, file_name)
-            if key not in job_file_map:
-                job_file_map[key] = {
-                    "job_name": job_name,
-                    "file_name": file_name,
-                    "count": 0,
-                    "time": 0.0,
-                    "cost": 0.0,
-                    # "tests": set(),
-                    "errors": 0,
-                    "failures": 0,
-                    "skipped": 0,
-                    "successes": 0,
-                    "frequency": test["job_info"].get("frequency", 0),
-                    # "job_info": [],
-                    # "job_ids": set(),
-                    # "duplicate_tests": [],  # Track tests with multiple entries
-                    "labels": self.get_label_for_file(file_name),
-                    "sha": sha,
-                    "push_date": push_date
-                }
-            job_file_map[key]["count"] += 1
-            job_file_map[key]["time"] += test["time"]
-            job_file_map[key]["cost"] += test["cost"]
-            job_file_map[key]["errors"] += test["errors"]
-            job_file_map[key]["failures"] += test["failures"]
-            job_file_map[key]["skipped"] += test["skipped"]
-            job_file_map[key]["successes"] += test["successes"]
-
-            # # Track tests with multiple entries
-            # if test["count"] > 1:
-            #     job_file_map[key]["duplicate_tests"].append({
-            #         "test_name": test["test_name"],
-            #         "count": test["count"]
-            #     })
-
-        # for val in job_file_map.values():
-        #     val["tests"] = list(val["tests"])
-        #     val["job_ids"] = list(val["job_ids"])
-
-        return list(job_file_map.values())
-
     def get_label_for_file(self, file_name: str) -> List[str]:
         for row in self.load_test_owners():
-            if row["file"] == f"{file_name.replace('.', '/')}.py":
+            if row["file"] == file_name:
                 return row["owner_labels"]
         return []
 
-    def get_status_changes(self, sha1: str, sha2: str, sha2_push_date: str) -> Dict[str, Any]:
+    def _fetch_status_changes_from_s3(
+        self, workflow_run_id: int, workflow_run_attempt: int
+    ) -> list[dict[str, Any]]:
+        """
+        Use local cache for a specific workflow run.
+        """
+        bucket = "ossci-raw-job-status"
+        key = f"additional_info/test_status/{workflow_run_id}/{workflow_run_attempt}"
+
+        start_time = time.time()
+        text_data = self._fetch_from_s3(bucket, key)
+
+        test_data = []
+        for line in text_data.splitlines():
+            data = json.loads(line)
+            data["run_id"] = workflow_run_id
+            test_data.append(data)
+
+        print(
+            f"Fetched {len(test_data)} test entries from {key}, took {time.time() - start_time:.2f} seconds"
+        )
+        return test_data
+
+    def _get_status_changes_for_sha(self, sha: str) -> List[Dict[str, Any]]:
+        """ """
+        workflow_jobs = self._get_workflow_jobs_for_sha(sha)
+        workflow_runs = set()
+        for job_data in workflow_jobs:
+            workflow_runs.add((job_data["workflow_id"], job_data["run_attempt"]))
+
+        all_test_data = []
+
+        # Use threads instead of processes for IO-bound S3 fetching
+        results = []
+        with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
+            futures = [
+                executor.submit(self._fetch_status_changes_from_s3, run_id, run_attempt)
+                for run_id, run_attempt in workflow_runs
+            ]
+            # Maintain order to match workflow_runs
+            results = [f.result() for f in futures]
+
+        for test_data in results:
+            all_test_data.extend(test_data)
+
+        # Create lookup table for workflow_id -> workflow_name to construct
+        # short_job_name
+        workflow_id_to_name = {
+            job["workflow_id"]: job["workflow_name"] for job in workflow_jobs
+        }
+
+        # Embed workflow name and job info into each test entry
+        for entry in all_test_data:
+            run_id = entry["run_id"]
+            workflow_name = workflow_id_to_name.get(run_id)
+            entry["short_job_name"] = (
+                f"{workflow_name} / {entry.get('short_job_name', '')}"
+            )
+
+        return all_test_data
+
+    def get_status_changes(
+        self, sha1: str, sha2: str, sha2_push_date: str
+    ) -> list[dict[str, Any]]:
         """
         Compare test data between two pre-fetched datasets.
         Returns a dictionary with file_name as keys and job diffs as values.
         """
 
-        def save_to_final(data):
-            if len(data) > 50:
-                # Too much data... sampling
-                shuffled = random.sample(data, len(data))
-                data = shuffled[:50]
-            with open(self.reports_dir / f"status_changes.json", 'a') as f:
-                json.dump(data, f)
-                f.write("\n")
-
-        cache_key = get_temp_dir() / "intermediate_status_changes" / f"{sha1} {sha2}"
-        if cache_key.exists():
-            with open(cache_key) as f:
-                data = json.load(f)
-            save_to_final(data)
-            return data
-
-        tests1 = self.get_data_for_sha(sha1)["process_all_test_data"]
-        tests2 = self.get_data_for_sha(sha2)["process_all_test_data"]
+        tests1 = self._get_status_changes_for_sha(sha1)
+        tests2 = self._get_status_changes_for_sha(sha2)
 
         # Group by key
-        map1 = {(v["job_name"], v["file_name"], v["test_name"]): v for v in tests1}
-        map2 = {(v["job_name"], v["file_name"], v["test_name"]): v for v in tests2}
+        map1 = {(v["short_job_name"], v["file"], v["name"]): v for v in tests1}
+        map2 = {(v["short_job_name"], v["file"], v["name"]): v for v in tests2}
 
         status_changes = []
 
@@ -524,58 +476,54 @@ class FileReportGenerator:
             elif key not in map1 and key in map2:
                 status = "added"
             else:
-                skipped1 = map1[key].get("skipped", 0) > 0
-                skipped2 = map2[key].get("skipped", 0) > 0
+                skipped1 = map1[key]["status"] == "skipped"
+                skipped2 = map2[key]["status"] == "skipped"
                 if not skipped1 and skipped2:
                     status = "started_skipping"
                 elif skipped1 and not skipped2:
                     status = "stopped_skipping"
             if status is not None:
-                status_changes.append({
-                    "job_name": key[0],
-                    "file_name": key[1],
-                    "test_name": key[2],
-                    "status": status,
-                    "labels": self.get_label_for_file(key[1]),
-                    "sha": sha2,
-                    "push_date": sha2_push_date
-                })
+                status_changes.append(
+                    {
+                        "job_name": key[0],
+                        "file_name": key[1],
+                        "test_name": key[2],
+                        "status": status,
+                        "labels": self.get_label_for_file(key[1]),
+                        "sha": sha2,
+                        "push_date": sha2_push_date,
+                    }
+                )
 
-        with open(get_temp_dir() / "intermediate_status_changes" / f"{sha1} {sha2}", 'w') as f:
-            json.dump(status_changes, f)
-        save_to_final(status_changes)
+        # Too large so truncate for now - just keep first 10 of each type
+        counts = defaultdict(list)
+        for entry in status_changes:
+            counts[(entry["job_name"], entry["file_name"], entry["status"])].append(
+                entry
+            )
+        to_write = []
+        for key, entries in counts.items():
+            to_write.extend(entries[:10])
+
+        with open(self.reports_dir / f"status_changes_{sha1}_{sha2}.json", "a") as f:
+            for entry in to_write:
+                json.dump(entry, f)
+                f.write("\n")
 
         return status_changes
 
     def get_data_for_sha(self, sha: str) -> Dict[str, Any]:
-        def save_to_final(data):
-            with open(self.reports_dir / f"data.json", 'a') as f:
-                json.dump(data["group_by_job_file"], f)
-                f.write("\n")
-
-        json_path = get_temp_dir() / "intermediate_ind" / f"{sha}"
-        if json_path.exists():
-            with open(json_path, 'r') as f:
-                data = json.load(f)
-            save_to_final(data)
-            return data
-
         push_date = self.get_push_date_for_sha(sha)
-        _get_all_test_data_for_sha = self._get_all_test_data_for_sha(sha)
-        process_all_test_data = self.process_all_test_data(_get_all_test_data_for_sha)
-        group_by_job_file = self.group_by_job_file(process_all_test_data, sha, push_date)
+        invoking_file_test_data = self._get_invoking_file_test_data_for_sha(sha)
         data = {
             "sha": sha,
             "push_date": push_date,
-            # "_get_all_test_data_for_sha": _get_all_test_data_for_sha,
-            "process_all_test_data": process_all_test_data,
-            "group_by_job_file": group_by_job_file
+            "invoking_file_test_data": invoking_file_test_data,
         }
-        with open(json_path, 'w') as f:
-            json.dump(data, f, indent=2)
-        save_to_final(data)
+        with open(self.reports_dir / f"data.json", "a") as f:
+            json.dump(data, f)
+            f.write("\n")
         return data
-
 
     def get_push_date_for_sha(self, sha: str) -> Optional[str]:
         """
@@ -595,6 +543,7 @@ class FileReportGenerator:
             return result[0]["pushed_at"]
         return None
 
+
 def main():
     """Main function to run the file report generator"""
     parser = argparse.ArgumentParser(
@@ -604,16 +553,30 @@ def main():
 Examples:
   # Generate report with two specific dates (auto-select SHAs for each date)
   python file_report_generator.py --day1 2025-08-15 --day2 2025-08-20
-        """
+        """,
     )
 
     parser.add_argument("--start-date", help="Start date for filtering (YYYY-MM-DD)")
     parser.add_argument("--stop-date", help="Stop date for filtering (YYYY-MM-DD)")
-    parser.add_argument("--shas", nargs="+", help="List of commit SHAs to compare in sequence")
+    parser.add_argument(
+        "--shas", nargs="+", help="List of commit SHAs to compare in sequence"
+    )
     parser.add_argument("--output", help="Output folder to write results to")
-    parser.add_argument("--test-pricing", action="store_true", help="Test fetching pricing data from S3 and exit")
-    parser.add_argument("--list-runners", action="store_true", help="List all available runners and their costs, then exit")
-    parser.add_argument("--test-owners-file", default="test_owner_labels.json", help="Path to the test owners file")
+    parser.add_argument(
+        "--test-pricing",
+        action="store_true",
+        help="Test fetching pricing data from S3 and exit",
+    )
+    parser.add_argument(
+        "--list-runners",
+        action="store_true",
+        help="List all available runners and their costs, then exit",
+    )
+    parser.add_argument(
+        "--test-owners-file",
+        default="test_owner_labels.json",
+        help="Path to the test owners file",
+    )
 
     args = parser.parse_args()
 
@@ -640,12 +603,18 @@ Examples:
             print(f"  {runner:<50} ${cost:>8.4f}/hour")
         return
 
-    if (args.start_date and not args.stop_date) or (not args.start_date and args.stop_date):
-        parser.error("Must provide both --start-date and --stop-date for auto-selection")
+    if (args.start_date and not args.stop_date) or (
+        not args.start_date and args.stop_date
+    ):
+        parser.error(
+            "Must provide both --start-date and --stop-date for auto-selection"
+        )
     if args.shas and (args.start_date or args.stop_date):
         parser.error("Cannot mix --shas with --start-date/--stop-date parameters")
     if args.shas and len(args.shas) < 2:
-        parser.error("Either provide --shas with at least 2 SHAs, or --start-date and --stop-date for auto-selection")
+        parser.error(
+            "Either provide --shas with at least 2 SHAs, or --start-date and --stop-date for auto-selection"
+        )
 
     # Handle the start-date/stop-date parameters
     if args.start_date:
@@ -657,17 +626,18 @@ Examples:
     shas_with_push_date = []
     for sha in args.shas:
         data = generator.get_data_for_sha(sha)
-        shas_with_push_date.append({
-            "sha": sha,
-            "push_date": data["push_date"]
-        })
+        shas_with_push_date.append({"sha": sha, "push_date": data["push_date"]})
         del data
 
     shas_with_push_date = sorted(shas_with_push_date, key=lambda x: x["push_date"])
 
     print("Calculating diffs for all files and grouping by labels...")
     for i in range(1, len(shas_with_push_date)):
-        generator.get_status_changes(shas_with_push_date[i-1]["sha"], shas_with_push_date[i]["sha"], shas_with_push_date[i]["push_date"])
+        generator.get_status_changes(
+            shas_with_push_date[i - 1]["sha"],
+            shas_with_push_date[i]["sha"],
+            shas_with_push_date[i]["push_date"],
+        )
 
 
 if __name__ == "__main__":
