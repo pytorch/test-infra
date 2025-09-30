@@ -95,10 +95,7 @@ export default function BenchmarkCategoryCardList({
       <Grid container spacing={2} columns={12}>
         {filtered.map((cat, i) => (
           <Grid key={cat.title + i} size={columns}>
-            <BenchmarkCategoryCard
-              cat={cat}
-              query={query}
-            />
+            <BenchmarkCategoryCard cat={cat} query={query} />
           </Grid>
         ))}
       </Grid>
