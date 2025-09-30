@@ -146,11 +146,9 @@ function BenchmarkCardItem({
 export function BenchmarkCategoryCard({
   cat,
   query,
-  LinkComponent,
 }: {
   cat: BenchmarkCategoryGroup;
   query: string;
-  LinkComponent: React.ElementType<{ href: string; children: React.ReactNode }>;
 }) {
   return (
     <Card variant="outlined" sx={styles.card}>
