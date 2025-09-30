@@ -220,6 +220,10 @@ function NavBar() {
       ),
       href: "/flambeau",
     },
+    {
+      name: "vLLM CI metrics",
+      href: "/metrics/vllm",
+    },
   ];
 
   return (
