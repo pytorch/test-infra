@@ -99,7 +99,6 @@ export default function BenchmarkCategoryCardList({
             <BenchmarkCategoryCard
               cat={cat}
               query={query}
-              LinkComponent={LinkComponent}
             />
           </Grid>
         ))}
