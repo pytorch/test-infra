@@ -124,6 +124,7 @@ function toBenchmarkLegacyUrl(left: any, right: any) {
     .map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`)
     .join("&");
 
-  const compilerName = DISPLAY_NAMES_TO_COMPILER_NAMES[left.compiler]??left.compiler;
+  const compilerName =
+    DISPLAY_NAMES_TO_COMPILER_NAMES[left.compiler] ?? left.compiler;
   return `/benchmark/${left.suite}/${compilerName}?${query}`;
 }
