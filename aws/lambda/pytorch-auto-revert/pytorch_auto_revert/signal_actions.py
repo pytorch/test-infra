@@ -594,7 +594,7 @@ class SignalActionProcessor:
         # used both to revert and notify
         breaking_notification_msg = "This PR is breaking the following workflows:\n"
         for workflow_name, sources in workflow_groups.items():
-            all_signals = ", ".join([source.signal_name for source in sources])
+            all_signals = ", ".join([source.key for source in sources])
             breaking_notification_msg += f"- {workflow_name}: {all_signals}\n"
 
         try:
