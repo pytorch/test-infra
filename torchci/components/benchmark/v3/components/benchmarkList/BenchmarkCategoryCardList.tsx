@@ -44,7 +44,6 @@ export default function BenchmarkCategoryCardList({
   searchPlaceholder = "Search benchmarks, categories, tags…",
   initialQuery = "",
   columns = { xs: 12, sm: 12, md: 6, lg: 4, xl: 3 },
-  linkComponent: LinkComponent = DefaultLink,
 }: BenchmarkCategoryCardsProps) {
   const [query, setQuery] = useState(initialQuery);
 
