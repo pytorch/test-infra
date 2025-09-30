@@ -9,14 +9,18 @@ on:
       - test-promotion
   workflow_dispatch:
     inputs:
-      domain:
+      package:
         description: "Domain to prepare and release"
         required: false
         type: choice
-        default: torchao
+        default: torchvision
         options:
           - torchao
-
+          - torchtune
+          - executorch
+          - torchvision
+          - torchaudio
+          
 permissions:
   id-token: write
   contents: read
@@ -36,6 +40,8 @@ jobs:
           aws-region: us-east-1
       - name: Promote library to download.pytorch.org
         shell: bash
+        env:
+          PACKAGE: ${{ inputs.package }}
         run: |
             set -ex
             cd release
@@ -43,7 +49,7 @@ jobs:
             DRY_RUN=enabled
             pip install awscli==1.32.18
             
-            # Init release versions vars
+            # Init release versions variables
             source ./release_versions.sh
             
             promote_s3() {
@@ -66,4 +72,5 @@ jobs:
               echo
             }
 
-            promote_s3 "torchao" whl "${TORCHAO_VERSION}"
+            version="${PACKAGE^^}_VERSION"
+            promote_s3 ${PACKAGE} whl "${!version}"
