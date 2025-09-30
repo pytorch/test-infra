@@ -178,6 +178,12 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                   compression_ratio: {
                     text: "Peak memory footprint compression ratio",
                   },
+                  execution_time: {
+                    text: "Execution time (seconds)",
+                  },
+                  dynamo_peak_mem: {
+                    text: "Dynamo memory usage (MB)",
+                  },
                 },
               },
             },

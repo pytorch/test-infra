@@ -137,7 +137,12 @@ function NavBar() {
       name: "Helion",
       href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
     },
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  ].sort((a, b) => {
+    if (typeof a.name === "string" && typeof b.name === "string") {
+      return a.name.localeCompare(b.name);
+    }
+    return 0; // leave order unchanged if either is not a string
+  });
 
   const devInfraDropdown = [
     {
