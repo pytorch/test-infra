@@ -44,6 +44,7 @@ jobs:
             CPU_VERSION_SUFFIX="%2Bcpu"
             DRY_RUN=enabled
             TORCHAO_VERSION=0.13.0
+            pip install awscli==1.32.18
 
             pwd
             promote_s3() {
