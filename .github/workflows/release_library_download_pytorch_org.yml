@@ -1,4 +1,4 @@
-name: Release ecosystem library from test to production
+name: Release ecosystem library from test to production.
 
 on:
   pull_request:
