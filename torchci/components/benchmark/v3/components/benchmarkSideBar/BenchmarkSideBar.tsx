@@ -14,6 +14,7 @@ const styles = {
   container: (open: boolean) => (theme: any) => ({
     width: open
       ? {
+          xs: "200px",
           sm: "250px",
           md: "300px",
           lg: "350px",

@@ -85,53 +85,6 @@ const NavBarDropdown = ({
 };
 
 function NavBar() {
-  const benchmarksDropdown = [
-    {
-      name: "TorchInductor",
-      href: "/benchmark/compilers",
-    },
-    {
-      name: "Triton",
-      href: "/tritonbench/commit_view",
-    },
-    {
-      name: "PyTorch LLMs",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
-    },
-    {
-      name: "ExecuTorch",
-      href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
-    },
-    {
-      name: "TorchAO",
-      href: "/benchmark/llms?repoName=pytorch%2Fao",
-    },
-    {
-      name: "TorchAO Micro API",
-      href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
-    },
-    {
-      name: "PT CacheBench",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
-    },
-    {
-      name: "vLLM v1",
-      href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
-    },
-    {
-      name: "SGLang",
-      href: "/benchmark/llms?repoName=sgl-project%2Fsglang",
-    },
-    {
-      name: "Helion",
-      href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
-    },
-    {
-      name: "PyTorch Operator Microbenchmark",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
-    },
-  ].sort((a, b) => a.name.localeCompare(b.name));
-
   const devInfraDropdown = [
     {
       name: "SLIs",
@@ -281,13 +234,17 @@ function NavBar() {
               Requests
             </Link>
           </li>
+          <li>
+            <Link href="/benchmark/benchmark_list">
+              <span style={{ position: "relative" }}>Benchmarks</span>
+            </Link>
+          </li>
           <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <li>
             <Link prefetch={false} href="/kpis">
               KPIs
             </Link>
           </li>
-          <NavBarDropdown title="Benchmarks" items={benchmarksDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
