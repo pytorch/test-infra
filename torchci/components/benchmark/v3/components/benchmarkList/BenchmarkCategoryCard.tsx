@@ -93,9 +93,7 @@ function BenchmarkCardItem({
               }
               secondary={
                 it.description?.length ? (
-                  <Typography variant="subtitle1">
-                    {highlight(it.description, query)}
-                  </Typography>
+                  <>{highlight(it.description, query)}</>
                 ) : null
               }
             />
