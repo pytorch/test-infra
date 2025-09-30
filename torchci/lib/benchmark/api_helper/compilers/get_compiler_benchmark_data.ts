@@ -47,11 +47,14 @@ export async function getCompilerCommits(inputparams: any): Promise<any[]> {
     ...inputparams, // override with caller's values
   };
 
-  if (queryParams.arch && queryParams.device) {
+  if (queryParams.arch != undefined && queryParams.device) {
     const arch_list = toQueryArch(inputparams.device, inputparams.arch);
     queryParams["arch"] = arch_list;
+  } else {
+    queryParams["arch"] = [];
   }
 
+  console.log("querying commits from clickhouse", queryParams);
   const commit_results = await queryClickhouseSaved(
     COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
     queryParams
@@ -67,9 +70,11 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     ...inputparams, // override with caller's values
   };
 
-  if (queryParams.arch && queryParams.device) {
+  if (queryParams.arch != undefined && queryParams.device) {
     const arch_list = toQueryArch(queryParams.device, queryParams.arch);
     queryParams["arch"] = arch_list;
+  } else {
+    queryParams["arch"] = [];
   }
 
   // use the startTime and endTime to fetch commits from clickhouse if commits field is not provided
