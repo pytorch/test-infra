@@ -15,6 +15,8 @@ export function extractBackendSqlStyle(
 }
 
 export function toQueryArch(device: string, arch: string) {
+  if (arch === undefined) return [];
+  if (!device) return [];
   switch (device) {
     case "rocm":
       if (arch === "mi300x" || arch == "") return ["mi300x", "mi325x"];

@@ -100,7 +100,7 @@ export default function BenchmarkCategoryCardList({
 // ============================
 // Helper utils
 // ============================
-function norm(s?: string) {
+function safeLowercase(s?: string) {
   return (s ?? "").toLowerCase();
 }
 
@@ -109,9 +109,9 @@ function matchQuery(
   ...fields: Array<string | undefined | string[]>
 ) {
   if (!q) return true;
-  const nq = norm(q);
+  const nq = safeLowercase(q);
   return fields.some((f) => {
-    if (Array.isArray(f)) return f.some((x) => norm(x).includes(nq));
-    return norm(f).includes(nq);
+    if (Array.isArray(f)) return f.some((x) => safeLowercase(x).includes(nq));
+    return safeLowercase(f).includes(nq);
   });
 }
