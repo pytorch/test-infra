@@ -21,7 +21,7 @@ export function BenchmarkListPage() {
             "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
           actions: [
             {
-              label: "Legacy Page/ Playground",
+              label: "Legacy Page/Playground",
               href: "/benchmark/compilers",
             },
             {
@@ -36,7 +36,6 @@ export function BenchmarkListPage() {
         },
         {
           name: "PyTorch Operator Microbenchmark Dashboard",
-          description: "PyTorch Operator Microbenchmark Behcnmarks",
           route:
             "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
         },
