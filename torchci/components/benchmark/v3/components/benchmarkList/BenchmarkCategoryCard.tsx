@@ -83,7 +83,7 @@ function BenchmarkCardItem({
   return (
     <ListItem key={it.route} disablePadding>
       <Box sx={{ width: "100%" }}>
-        <Tooltip title="go to main page" arrow>
+        <Tooltip title="Go to Main Page" arrow>
           <ListItemButton {...buttonProps}>
             <ListItemText
               primary={

@@ -41,7 +41,6 @@ export function BenchmarkListPage() {
         },
         {
           name: "Pytorch Triton Benchmark Dashboard",
-          description: "Pytorch Triton Benchmark Dashboard",
           route: "/tritonbench/commit_view",
         },
       ],
