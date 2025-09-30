@@ -6,7 +6,8 @@ export function BenchmarkListPage() {
   const categories: BenchmarkCategoryGroup[] = [
     {
       title: "Compiler Inductor Benchmark",
-      subtitle: "Benchmarks related to compiler performance and regressions",
+      subtitle:
+        "Benchmarks related to compiler inductor in repo pytorch/pytorch",
       tags: ["torchinductor", "inductor", "repo:pytorch/pytorch"],
       items: [
         {
