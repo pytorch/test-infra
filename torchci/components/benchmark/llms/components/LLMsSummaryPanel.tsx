@@ -7,6 +7,7 @@ import dayjs from "dayjs";
 import {
   BranchAndCommitPerfData,
   HELION_BENCHMARK_NAME,
+  HELION_SPEEDUP_FAIL_VALUE,
   IS_INCREASING_METRIC_VALUE_GOOD,
   METRIC_DISPLAY_HEADERS,
   RELATIVE_THRESHOLD,
@@ -306,15 +307,11 @@ export default function LLMsSummaryPanel({
       // add all other metrics as columns
       ...metricNames
         .filter((metric: string) => {
-          // TODO (huydhn): Just a temp fix, remove this after a few weeks
           return (
-            repoName !== "pytorch/pytorch" ||
-            benchmarkName !== "TorchCache Benchmark" ||
-            (metric !== "speedup" && metric !== "Speedup")
+            metric !== "FAILURE_REPORT" &&
+            (benchmarkName !== HELION_BENCHMARK_NAME ||
+              !metric.endsWith("_accuracy"))
           );
-        })
-        .filter((metric: string) => {
-          return metric !== "FAILURE_REPORT";
         })
         .map((metric: string) => {
           return {
@@ -346,6 +343,12 @@ export default function LLMsSummaryPanel({
 
               if (lCommit === rCommit) {
                 if (benchmarkName === HELION_BENCHMARK_NAME) {
+                  if (
+                    params.row[metric].r.actual_geomean ===
+                    HELION_SPEEDUP_FAIL_VALUE
+                  ) {
+                    return styles.error;
+                  }
                   // Highlight the fastest speedup
                   if (metric.endsWith("_speedup")) {
                     let maxKey: string | null = null;
@@ -353,6 +356,8 @@ export default function LLMsSummaryPanel({
                     for (const key in params.row) {
                       if (
                         key.endsWith("_speedup") &&
+                        params.row[key].r.actual_geomean !==
+                          HELION_SPEEDUP_FAIL_VALUE &&
                         params.row[key].r.actual_geomean > maxValue
                       ) {
                         maxKey = key;
@@ -420,20 +425,12 @@ export default function LLMsSummaryPanel({
               let rUnit = unit;
 
               if (benchmarkName === HELION_BENCHMARK_NAME) {
-                if (metric.includes("accuracy")) {
-                  l = l === 1 ? "Pass" : "Fail";
-                  r = r === 1 ? "Pass" : "Fail";
-                } else if (metric.includes("speedup")) {
-                  l = v.l.actual_geomean;
-                  r = v.r.actual_geomean;
-
-                  const accuracy = metric.replace(/_speedup$/, "_accuracy");
-                  const accuracy_v = params.row[accuracy];
-                  if (accuracy_v.l.actual !== 1) {
+                if (metric.includes("speedup")) {
+                  if (l === HELION_SPEEDUP_FAIL_VALUE) {
                     l = "FAILED ACCURACY";
                     lUnit = "";
                   }
-                  if (accuracy_v.r.actual !== 1) {
+                  if (r === HELION_SPEEDUP_FAIL_VALUE) {
                     r = "FAILED ACCURACY";
                     rUnit = "";
                   }
