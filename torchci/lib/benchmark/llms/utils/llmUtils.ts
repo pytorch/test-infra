@@ -14,6 +14,8 @@ import {
   DEFAULT_MODEL_NAME,
   DEFAULT_QPS_NAME,
   EXCLUDED_METRICS,
+  HELION_BENCHMARK_NAME,
+  HELION_SPEEDUP_FAIL_VALUE,
   LLM_BENCHMARK_CONFIG_QUERY,
   LLM_BENCHMARK_DATA_QUERY,
   LLMsBenchmarkData,
@@ -438,6 +440,25 @@ const toRowData = (
         highlight: hasL && hasR,
       };
     }
+  }
+  // Post-process Helion speedups after all metrics are populated to avoid order dependence
+  if (benchmarkName === HELION_BENCHMARK_NAME) {
+    Object.keys(row).forEach((k: string) => {
+      if (!k.endsWith("_speedup")) {
+        return;
+      }
+      const accMetric = k.replace(/_speedup$/, "_accuracy");
+      const speedupVal = row[k];
+      const accVal = row[accMetric];
+      if (accVal.l && accVal.l.actual !== 1) {
+        speedupVal.l.actual = HELION_SPEEDUP_FAIL_VALUE;
+        speedupVal.l.actual_geomean = HELION_SPEEDUP_FAIL_VALUE;
+      }
+      if (accVal.r && accVal.r.actual !== 1) {
+        speedupVal.r.actual = HELION_SPEEDUP_FAIL_VALUE;
+        speedupVal.r.actual_geomean = HELION_SPEEDUP_FAIL_VALUE;
+      }
+    });
   }
   return row;
 };
