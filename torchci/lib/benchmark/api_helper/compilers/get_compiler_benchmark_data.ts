@@ -54,7 +54,6 @@ export async function getCompilerCommits(inputparams: any): Promise<any[]> {
     queryParams["arch"] = [];
   }
 
-  console.log("querying commits from clickhouse", queryParams);
   const commit_results = await queryClickhouseSaved(
     COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
     queryParams

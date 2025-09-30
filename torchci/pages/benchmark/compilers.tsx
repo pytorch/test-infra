@@ -267,8 +267,6 @@ export default function Page() {
     workflowId: 0,
   };
 
-  console.log(queryParams);
-
   return (
     <div>
       <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
