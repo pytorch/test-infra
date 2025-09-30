@@ -38,7 +38,7 @@ jobs:
       - name: Promote library to download.pytorch.org
         shell: bash
         env:
-          PACKAGE: ${{ inputs.package || "torchvision" }}
+          PACKAGE: ${{ inputs.package || 'torchvision' }}
         run: |
             set -ex
             cd release
