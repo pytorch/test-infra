@@ -9,9 +9,11 @@ import {
   ListItemButton,
   ListItemText,
   Stack,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { Box } from "@mui/system";
+import Link from "next/link";
 
 // ============================
 // Styles (centralized)
@@ -66,33 +68,53 @@ function BenchmarkCardItem({
   query: string;
   LinkComponent: React.ElementType<{ href: string; children: React.ReactNode }>;
 }) {
+  const buttonProps = isExternal(it.route)
+    ? {
+        component: "a" as const,
+        href: it.route,
+        target: "_blank",
+        rel: "noopener noreferrer",
+      }
+    : {
+        component: Link as any,
+        href: it.route,
+        // optional Next.js tweaks:
+        prefetch: false,
+      };
+
   return (
     <ListItem key={it.route} disablePadding>
       <Box sx={{ width: "100%" }}>
-        <ListItemButton component={LinkComponent as any} href={it.route}>
-          <ListItemText
-            primary={
-              <Typography variant="subtitle1">
-                {highlight(it.name, query)}
-              </Typography>
-            }
-            secondary={it.description}
-          />
-        </ListItemButton>
+        <Tooltip title="go to main page" arrow>
+          <ListItemButton {...buttonProps}>
+            <ListItemText
+              primary={
+                <Typography variant="subtitle1">
+                  {highlight(it.name, query)}
+                </Typography>
+              }
+              secondary={it.description}
+            />
+          </ListItemButton>
+        </Tooltip>
 
+        {/* Actions */}
         {it.actions && (
-          <Stack direction="row" spacing={1} sx={{ px: 0, pb: 1, pt: 0.5 }}>
-            {it.actions.map((a, idx) =>
-              a.href ? (
-                <LinkComponent key={idx} href={a.href}>
-                  <Chip
-                    clickable
-                    size="small"
-                    color="primary"
-                    label={a.label}
-                  />
-                </LinkComponent>
-              ) : (
+          <Stack direction="row" spacing={1} sx={{ px: 2, pb: 1, pt: 0.5 }}>
+            {it.actions.map((a, idx) => {
+              if (a.href) {
+                return (
+                  <LinkComponent key={idx} href={a.href}>
+                    <Chip
+                      clickable
+                      size="small"
+                      color="primary"
+                      label={a.label}
+                    />
+                  </LinkComponent>
+                );
+              }
+              return (
                 <Chip
                   key={idx}
                   clickable
@@ -101,8 +123,8 @@ function BenchmarkCardItem({
                   label={a.label}
                   onClick={a.onClick}
                 />
-              )
-            )}
+              );
+            })}
           </Stack>
         )}
       </Box>
@@ -188,3 +210,5 @@ function highlight(text: string, q: string) {
     </>
   );
 }
+
+const isExternal = (url: string) => /^https?:\/\//i.test(url);

@@ -85,32 +85,6 @@ const NavBarDropdown = ({
 };
 
 function NavBar() {
-  const benchmarksDropdown = [
-    {
-      name: (
-        <span style={{ position: "relative" }}>
-          Benchmark Dashboards
-          <span
-            style={{
-              marginLeft: "4px",
-              padding: "2px 6px",
-              fontSize: "10px",
-              fontWeight: "bold",
-              backgroundColor: "green",
-              color: "white",
-              borderRadius: "8px",
-              textTransform: "uppercase",
-              lineHeight: "1",
-            }}
-          >
-            New!
-          </span>
-        </span>
-      ),
-      href: "/benchmark/benchmark_list",
-    },
-  ];
-
   const devInfraDropdown = [
     {
       name: "SLIs",
@@ -251,13 +225,17 @@ function NavBar() {
               Requests
             </Link>
           </li>
+          <li>
+            <Link href="/benchmark/benchmark_list">
+              <span style={{ position: "relative" }}>Benchmarks</span>
+            </Link>
+          </li>
           <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <li>
             <Link prefetch={false} href="/kpis">
               KPIs
             </Link>
           </li>
-          <NavBarDropdown title="Benchmarks" items={benchmarksDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
