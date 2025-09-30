@@ -17,7 +17,8 @@ export function BenchmarkListPage() {
         {
           name: "Pytorch Compiler Inductor Benchmark Dashboard",
           route: "/benchmark/compilers_regression",
-          description: "Use the `legacy page` if you want to see comparison view for different branches. It will be deprecated soon",
+          description:
+            "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
           actions: [
             {
               label: "Legacy Page/ Playground",
