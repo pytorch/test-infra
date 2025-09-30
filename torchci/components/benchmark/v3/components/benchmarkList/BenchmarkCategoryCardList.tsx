@@ -6,7 +6,6 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import Link from "next/link"; // If you don't use Next.js, swap with your router and update LinkComponent below
 import * as React from "react";
 import { useMemo, useState } from "react";
 import {
@@ -30,12 +29,6 @@ export interface BenchmarkCategoryCardsProps {
   }>;
 }
 
-// Provide a safe default Link component.
-const DefaultLink: React.FC<{ href: string; children: React.ReactNode }> = ({
-  href,
-  children,
-}) => <Link href={href}>{children}</Link>;
-
 // ============================
 // Component
 // ============================
@@ -47,6 +40,7 @@ export default function BenchmarkCategoryCardList({
 }: BenchmarkCategoryCardsProps) {
   const [query, setQuery] = useState(initialQuery);
 
+  // Filter categories and items based on user input from search box
   const filtered = useMemo(() => {
     const q = query.trim();
     if (!q) return categories;
@@ -54,7 +48,7 @@ export default function BenchmarkCategoryCardList({
       .map((cat) => {
         const catMatches = matchQuery(q, cat.title, cat.subtitle, cat.tags);
         const matchedItems = cat.items.filter((it) =>
-          matchQuery(q, it.name, it.description, it.route)
+          matchQuery(q, it.name, it.description)
         );
         // If category matches but no items matched, keep all; else keep only matched items
         const items =

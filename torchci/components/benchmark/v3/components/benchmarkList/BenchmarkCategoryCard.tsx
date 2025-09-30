@@ -91,7 +91,13 @@ function BenchmarkCardItem({
                   {highlight(it.name, query)}
                 </Typography>
               }
-              secondary={it.description}
+              secondary={
+                it.description?.length ? (
+                  <Typography variant="subtitle1">
+                    {highlight(it.description, query)}
+                  </Typography>
+                ) : null
+              }
             />
           </ListItemButton>
         </Tooltip>
@@ -200,6 +206,16 @@ export function BenchmarkCategoryCard({
   );
 }
 
+// ============================
+// Helpers
+// ============================
+
+/**
+ * Highlight a substring in a string based on a query string
+ * @param text
+ * @param q
+ * @returns
+ */
 function highlight(text: string, q: string) {
   if (!q) return text;
   const idx = text.toLowerCase().indexOf(q.toLowerCase());

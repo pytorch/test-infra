@@ -10,7 +10,7 @@ export function BenchmarkListPage() {
       tags: ["repo:pytorch/pytorch"],
       items: [
         {
-          name: "PyTorch CacheBench Benchmark",
+          name: "PyTorch CacheBench Benchmark Dashboard",
           route:
             "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
         },
@@ -35,7 +35,7 @@ export function BenchmarkListPage() {
           route: "/benchmark/llms?repoName=pytorch%2Fpytorch",
         },
         {
-          name: "PyTorch Operator Microbenchmark",
+          name: "PyTorch Operator Microbenchmark Dashboard",
           description: "PyTorch Operator Microbenchmark Behcnmarks",
           route:
             "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
@@ -48,30 +48,28 @@ export function BenchmarkListPage() {
       ],
     },
     {
-      title: "TorchAo Benchmark",
+      title: "TorchAo Benchmarks",
       tags: ["repo:pytorch/torchao"],
       subtitle: "Benchmarks related to repo pytorch/torchao",
       items: [
         {
           name: "TorchAO Benchmark Danshboard",
           route: "/benchmark/llms?repoName=pytorch%2Fao",
-          description: "TorchAO benchmark Page",
         },
         {
           name: "TorchAO Micro API Benchmark Danshboard",
           route:
             "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
-          description: "TorchAO Micro API benchmark Page",
         },
       ],
     },
     {
-      title: "ExecuTorch",
+      title: "ExecuTorch Benchmarks",
       tags: ["repo:pytorch/executorch"],
       subtitle: "Benchmarks related to repo pytorch/executorch",
       items: [
         {
-          name: "ExecuTorch Benchmark",
+          name: "ExecuTorch Benchmark Dashboard",
           route: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
         },
       ],
@@ -82,13 +80,13 @@ export function BenchmarkListPage() {
       subtitle: "Benchmarks related to repo vllm-project/vllm",
       items: [
         {
-          name: "VLLM V1 Benchmark",
+          name: "VLLM V1 Benchmark Dashboard",
           route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
         },
       ],
     },
     {
-      title: "SGLang Benchmark",
+      title: "SGLang Benchmarks",
       subtitle: "Benchmarks related to repo sgl-project/sglang",
       tags: ["repo:sgl-project/sglang"],
       items: [
@@ -99,7 +97,7 @@ export function BenchmarkListPage() {
       ],
     },
     {
-      title: "Helion Benchmark",
+      title: "Helion Benchmarks",
       subtitle: "Benchmarks related to repo pytorch/helion",
       tags: ["repo:pytorch/helion"],
       items: [
