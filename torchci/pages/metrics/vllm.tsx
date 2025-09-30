@@ -63,10 +63,16 @@ function MergesPanel({ data }: { data: any }) {
         const total = manualMergedFailures + manualMerged + autoMerged;
 
         const manualMergedFailuresPct =
-          ((manualMergedFailures / total) * 100).toFixed(2) + "%";
-        const manualMergedPct = ((manualMerged / total) * 100).toFixed(2) + "%";
-        const autoMergedPct = ((autoMerged / total) * 100).toFixed(2) + "%";
-        return `Force merges: ${manualMergedFailures} (${manualMergedFailuresPct})<br/>Manual merges: ${manualMerged} (${manualMergedPct})<br/>Auto merges: ${autoMerged} (${autoMergedPct})<br/>Total: ${total}`;
+          ((manualMergedFailures / total) * 100).toFixed(1) + "%";
+        const manualMergedPct = ((manualMerged / total) * 100).toFixed(1) + "%";
+        const autoMergedPct = ((autoMerged / total) * 100).toFixed(1) + "%";
+        return `Force merges (red): ${manualMergedFailures} (${manualMergedFailuresPct})
+          <br/>
+          Manual merges (orange): ${manualMerged} (${manualMergedPct})
+          <br/>
+          Auto merges (green): ${autoMerged} (${autoMergedPct})
+          <br/>
+          Total: ${total}`;
       },
     },
   };
