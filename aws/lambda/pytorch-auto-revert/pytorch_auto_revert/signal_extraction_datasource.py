@@ -117,7 +117,11 @@ class SignalExtractionDatasource:
         WHERE wf.repository_full_name = {{repo:String}}
           AND wf.head_sha IN {{head_shas:Array(String)}}
           AND wf.created_at >= {{lookback_time:DateTime}}
-          AND (wf.name NOT LIKE '%mem_leak_check%' AND wf.name NOT LIKE '%rerun_disabled_tests%')
+          AND (
+                wf.name NOT LIKE '%mem_leak_check%'
+                AND wf.name NOT LIKE '%rerun_disabled_tests%'
+                AND wf.name NOT LIKE '%unstable%'
+            )
           {workflow_filter}
         ORDER BY wf.head_sha, wf.started_at ASC, wf.run_id, wf.run_attempt, wf.name
         """
