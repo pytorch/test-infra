@@ -129,6 +129,7 @@ function BenchmarkCardItem({
               return (
                 <Chip
                   {...linkProps}
+                  key={idx}
                   clickable
                   size="small"
                   color="primary"
