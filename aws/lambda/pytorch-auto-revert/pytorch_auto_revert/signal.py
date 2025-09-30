@@ -63,6 +63,15 @@ class Ineligible:
     message: str = ""
 
 
+class InfraCheckResult(Enum):
+    """Outcome of infra check based on partitioned commits."""
+
+    CONFIRMED = "confirmed"  # failure bracketed by two successes (not infra)
+    PENDING = "pending"  # pending events could still form the sandwich
+    RESTART_SUCCESS = "restart_success"  # no success after any failure
+    RESTART_FAILURE = "restart_failure"  # no failure after any success
+
+
 class SignalEvent:
     """A single observation contributing to a Signal on a given commit.
 
@@ -174,61 +183,126 @@ class PartitionedCommits:
     def success_events_count(self) -> int:
         return sum(c.statuses.get(SignalStatus.SUCCESS, 0) for c in self.successful)
 
-    def confirm_not_an_infra_issue(self) -> "InfraCheckResult":
+    class InfraCheckResultInternal(Enum):
+        CONFIRMED = "confirmed"
+        PENDING = "pending"
+        RESTART_TOP = "restart_top"
+        RESTART_BOTTOM = "restart_bottom"
+
+        def map_to_infra(
+            self, top_mapping: InfraCheckResult, bottom_mapping: InfraCheckResult
+        ) -> InfraCheckResult:
+            if self == PartitionedCommits.InfraCheckResultInternal.CONFIRMED:
+                return InfraCheckResult.CONFIRMED
+            elif self == PartitionedCommits.InfraCheckResultInternal.PENDING:
+                return InfraCheckResult.PENDING
+            elif self == PartitionedCommits.InfraCheckResultInternal.RESTART_TOP:
+                return top_mapping
+            elif self == PartitionedCommits.InfraCheckResultInternal.RESTART_BOTTOM:
+                return bottom_mapping
+
+        @property
+        def is_restart(self) -> bool:
+            return self in {
+                PartitionedCommits.InfraCheckResultInternal.RESTART_TOP,
+                PartitionedCommits.InfraCheckResultInternal.RESTART_BOTTOM,
+            }
+
+    @classmethod
+    def confirm_event_sandwich(
+        cls,
+        top: List[SignalCommit],
+        bottom: List[SignalCommit],
+        top_predicate: Callable[[SignalEvent], bool] = lambda e: e.is_success,
+        bottom_predicate: Callable[[SignalEvent], bool] = lambda e: e.is_failure,
+    ) -> "InfraCheckResultInternal":
         """
         Infra check based on this partition that classifies whether observed
         failures are likely infra or code-caused.
 
+        This method is generalized to work with two arbitrary partitions
+        (top and bottom) and two arbitrary predicates.
+
         Invariants established (priority: CONFIRMED > PENDING):
-        - CONFIRMED: at least one failure (newer side) timestamp lies strictly
-          between two actual success timestamps (older side).
-        - PENDING: success-like and failure-like time ranges overlap, but no
+        - CONFIRMED: at least one resolved "top" event timestamp lies strictly
+          between two resolved "bottom" timestamps.
+        - PENDING: top-like and bottom-like time ranges overlap, but no
           confirmed sandwich yet; pending events could complete the sandwich.
-        - RESTART_SUCCESS: no success-like event occurs after any failure-like
+        - RESTART_TOP: no "top"-like event occurs after any "bottom"-like
           event (ranges do not overlap in that direction).
-        - RESTART_FAILURE: no failure-like event occurs after any success-like
+        - RESTART_BOTTOM: no "bottom"-like event occurs after any "top"-like
           event (ranges do not overlap in that direction).
 
         Notes:
-        - success-like = SUCCESS or PENDING; failure-like = FAILURE or PENDING.
-        - Only "failed" and "successful" partitions are considered; "unknown" is ignored.
-        - Flakiness is assumed to be ruled out upstream.
+        - "top"-like = matching top predicate, resolved or PENDING;
+            bottom-like = matching bottom predicate, resolved or PENDING.
         """
-
-        # success-like includes pending; actual-success excludes pending
-        min_succ_like, max_succ_like = _bounds(
-            self.successful, lambda e: e.is_success or e.is_pending
+        # "top"-like includes pending; actual-"top" excludes pending
+        min_top_like, max_top_like = _bounds(
+            top, lambda e: top_predicate(e) or e.is_pending
         )
-        min_succ, max_succ = _bounds(self.successful, lambda e: e.is_success)
-        # failure-like includes pending
-        min_fail_like, max_fail_like = _bounds(
-            self.failed, lambda e: e.is_failure or e.is_pending
+        min_top, max_top = _bounds(top, top_predicate)
+        # "bottom"-like includes pending
+        min_bottom_like, max_bottom_like = _bounds(
+            bottom, lambda e: bottom_predicate(e) or e.is_pending
         )
 
         # Strict ordering without overlap → restart
-        if min_succ_like is None or max_succ_like <= min_fail_like:
-            return InfraCheckResult.RESTART_SUCCESS
-        if min_fail_like is None or max_fail_like <= min_succ_like:
-            return InfraCheckResult.RESTART_FAILURE
+        if min_top_like is None or max_top_like <= min_bottom_like:
+            return cls.InfraCheckResultInternal.RESTART_TOP
+        if min_bottom_like is None or max_bottom_like <= min_top_like:
+            return cls.InfraCheckResultInternal.RESTART_BOTTOM
 
-        # Confirmed: any actual failure falls strictly between two actual successes
-        if min_succ is not None and max_succ is not None and min_succ < max_succ:
-            for c in self.failed:
+        # Confirmed: any actual "bottom" falls strictly between two actual "top" events
+        if min_top is not None and max_top is not None and min_top < max_top:
+            for c in bottom:
                 for e in c.events:
-                    if e.is_failure and (min_succ < e.started_at < max_succ):
-                        return InfraCheckResult.CONFIRMED
+                    if bottom_predicate(e) and (min_top < e.started_at < max_top):
+                        return cls.InfraCheckResultInternal.CONFIRMED
 
         # Overlap exists, but not confirmed yet → pending
-        return InfraCheckResult.PENDING
+        return cls.InfraCheckResultInternal.PENDING
 
+    def confirm_not_an_infra_issue(self) -> "InfraCheckResult":
+        """
+        Looks for two "sandwich" pattern of events:
+        1. a failure bracketed by two successes (timewise).
+        2. a success bracketed by two failures (timewise).
 
-class InfraCheckResult(Enum):
-    """Outcome of infra check based on partitioned commits."""
+        Uses rules outlined in `confirm_event_sandwich`, returns most conservative result from both checks.
 
-    CONFIRMED = "confirmed"  # failure bracketed by two successes (not infra)
-    PENDING = "pending"  # pending events could still form the sandwich
-    RESTART_SUCCESS = "restart_success"  # no success after any failure
-    RESTART_FAILURE = "restart_failure"  # no failure after any success
+        Notes:
+            - Only "failed" and "successful" partitions are considered; "unknown" is ignored.
+            - Flakiness is assumed to be ruled out upstream.
+        """
+
+        # first check for failure bracketed by successes
+        result = self.confirm_event_sandwich(
+            top=self.successful,
+            bottom=self.failed,
+            top_predicate=lambda e: e.is_success,
+            bottom_predicate=lambda e: e.is_failure,
+        )
+
+        # if need to restart either side, return that immediately
+        if result.is_restart:
+            return result.map_to_infra(
+                top_mapping=InfraCheckResult.RESTART_SUCCESS,
+                bottom_mapping=InfraCheckResult.RESTART_FAILURE,
+            )
+
+        # we're good or waiting for signal, check the reverse sandwich:
+        #    success bracketed by failures
+        result = self.confirm_event_sandwich(
+            top=self.failed,
+            bottom=self.successful,
+            top_predicate=lambda e: e.is_failure,
+            bottom_predicate=lambda e: e.is_success,
+        )
+        return result.map_to_infra(
+            top_mapping=InfraCheckResult.RESTART_FAILURE,
+            bottom_mapping=InfraCheckResult.RESTART_SUCCESS,
+        )
 
 
 class Signal:
