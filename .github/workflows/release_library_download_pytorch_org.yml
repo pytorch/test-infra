@@ -11,7 +11,7 @@ on:
     inputs:
       package:
         description: "Domain to prepare and release"
-        required: false
+        required: true
         type: choice
         default: torchvision
         options:
