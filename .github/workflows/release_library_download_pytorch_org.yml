@@ -22,6 +22,8 @@ jobs:
       image: pytorch/almalinux-builder:cpu
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Setup AWS CLI
+        uses: aws-actions/setup-aws-cli@v2
       - name: Promote library to download.pytorch.org
         shell: bash
         run: |
