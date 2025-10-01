@@ -1,4 +1,4 @@
-import { List, ListItemButton, ListItemText } from "@mui/material";
+import { List } from "@mui/material";
 import { Box } from "@mui/system";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "components/benchmark/compilers/common";
 import { highlightUntilClick } from "components/benchmark/v3/components/common/highlight";
@@ -7,6 +7,7 @@ import {
   navigateToEchartInGroup,
 } from "components/benchmark/v3/components/common/navigate";
 import { TimeSeriesChartDialogContentProps } from "components/benchmark/v3/components/common/SelectionDialog";
+import { NavListItem } from "components/benchmark/v3/components/common/styledComponents";
 import { toToggleSectionId } from "components/benchmark/v3/components/common/ToggleSection";
 import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/BenchmarkChartSection";
 import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChartGroup";
@@ -72,27 +73,24 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   return (
     <List>
       {other?.parent === "timeSeriesChart" && (
-        <ListItemButton onClick={onGoToTable}>
-          <ListItemText
-            primary="Navigate to comparison table"
-            secondary="Jump to the time series comparison table section on this page."
-          />
-        </ListItemButton>
+        <NavListItem
+          primary="Navigate to comparison table"
+          secondary="Jump to the time series comparison table section on this page."
+          onClick={onGoToTable}
+        />
       )}
       {other?.parent === "comparisonTable" && (
-        <ListItemButton onClick={onGoToChart}>
-          <ListItemText
-            primary="Navigate to time series chart"
-            secondary="Jump to the time series comparison table section on this page."
-          />
-        </ListItemButton>
-      )}
-      <ListItemButton onClick={onGoToUrl}>
-        <ListItemText
-          primary="Navigate to detail view"
-          secondary={`Open the detailed benchmark view for suite "${left?.suite}" and compiler "${left?.compiler}" in the compiler dashboard.`}
+        <NavListItem
+          primary="Navigate to time series chart"
+          secondary="Jump to the comparison table section on this page."
+          onClick={onGoToChart}
         />
-      </ListItemButton>
+      )}
+      <NavListItem
+        primary="Navigate to detail view"
+        secondary={`Open the detailed benchmark view for suite "${left?.suite}" and compiler "${left?.compiler}" in the compiler dashboard.`}
+        onClick={onGoToUrl}
+      />
     </List>
   );
 };

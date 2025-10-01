@@ -46,7 +46,7 @@ export function SelectionDialog({
   const DialogContentComponent = resolveDialogContentRenderer(config);
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="md">
-      <DialogTitle>Selection Confirmed</DialogTitle>
+      <DialogTitle>Choose a destination to navigate</DialogTitle>
       <DialogContent dividers>
         <DialogContentComponent
           left={left}
