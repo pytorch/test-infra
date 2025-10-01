@@ -6,6 +6,15 @@ This script generates file reports by comparing test data between commit SHAs.
 It fetches test data, calculates diffs, and groups results by owner labels from
 test_owner_labels.json. It then uploads the results to S3 to be used by HUD.
 
+General format:
+commits_metadata.json.gz: list of commits with push dates
+data_<sha>.json.gz: test data for a specific sha
+status_changes_<sha1>_<sha2>.json.gz: diffs between two shas
+
+When this script is run, it can add new SHAs (either specified directly or
+auto-selected based on dates) to the available information, or remove a specific
+SHA.
+
 Usage:
     python file_report_generator.py --add-dates <date1> <date2>
     python file_report_generator.py --add-shas <sha1> <sha2>
