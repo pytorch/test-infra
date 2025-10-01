@@ -1,4 +1,5 @@
 import { Button, Divider, ListSubheader, Menu, MenuItem } from "@mui/material";
+import { Box } from "@mui/system";
 import Link from "next/link";
 import { Fragment, MouseEvent, useMemo, useState } from "react";
 
@@ -112,7 +113,6 @@ export function NavBarGroupDropdown({
         {/* Multi-item groups next, sorted by group label; each group header + its sorted items */}
         {multis.map((group, gi) => (
           <Fragment key={`multi-${group.label}`}>
-            <Divider component="li" />
             <ListSubheader
               disableSticky
               sx={{
@@ -125,21 +125,30 @@ export function NavBarGroupDropdown({
             >
               {group.label}
             </ListSubheader>
-            {group.items.map((item) => (
-              <MenuItem
-                key={`${group.label}-${item.label}`}
-                component={Link as any}
-                href={item.route}
-                prefetch={false}
-                onClick={handleMouseLeaveAll}
-                sx={{
-                  color: "primary.main",
-                  pl: 3,
-                }}
-              >
-                {item.label}
-              </MenuItem>
-            ))}
+            <Box
+              sx={{
+                borderLeft: "2px solid",
+                borderColor: "divider",
+                ml: 2,
+                pl: 1.5,
+              }}
+            >
+              {group.items.map((item) => (
+                <MenuItem
+                  key={`${group.label}-${item.label}`}
+                  component={Link as any}
+                  href={item.route}
+                  prefetch={false}
+                  onClick={handleMouseLeaveAll}
+                  sx={{
+                    color: "primary.main",
+                    pl: 1,
+                  }}
+                >
+                  {item.label}
+                </MenuItem>
+              ))}
+            </Box>
           </Fragment>
         ))}
         {bottom != undefined && (
