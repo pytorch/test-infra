@@ -3,12 +3,24 @@ name: Test upload-benchmark-results
 on:
   pull_request:
     paths:
+      # GHA route
+      - .github/scripts/benchmarks/*
       - .github/scripts/upload_benchmark_results.py
-      - .github/workflows/test_upload_benchmark_results.ym
       - .github/actions/upload-benchmark-results/*
+      # Reusable workflow route
+      - .github/actions/gather-benchmark-metadata/*
+      - .github/actions/gather-runners-info/*
+      - .github/actions/gather-dependencies/*
+      - .github/workflows/upload_benchmark_results.yml
+      # The test workflow itself
+      - .github/workflows/test_upload_benchmark_results.yml
+
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  test:
+  test-upload-benchmark-results-gha:
     runs-on: linux.2xlarge
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -20,3 +32,18 @@ jobs:
           schema-version: v3
           dry-run: true
           github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  test-gather-benchmark-info:
+    uses: ./.github/workflows/test_gather_benchmark_info.yml
+
+  test-upload-benchmark-results-reusable-workflow:
+    needs: test-gather-benchmark-info
+    uses: ./.github/workflows/upload_benchmark_results.yml
+    permissions:
+      id-token: write
+      contents: read
+    with:
+      benchmark-artifact: benchmark-results
+      benchmark-metadata: ${{ needs.test-gather-benchmark-info.outpus.benchmark-metadata }}
+      runners-info: ${{ needs.test-gather-benchmark-info.outpus.runners-info }}
+      dependencies: ${{ needs.test-gather-benchmark-info.outpus.dependencies }}

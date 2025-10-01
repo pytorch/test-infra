@@ -1,0 +1,41 @@
+name: Test all GHA to gather different benchmark info
+
+on:
+  workflow_call:
+    outputs:
+      benchmark-metadata:
+        value:
+      runners-info:
+        value:
+      dependencies:
+        value:
+
+jobs:
+  test-gather-benchmark-info:
+    runs-on: linux.2xlarge
+    outputs:
+      benchmark-metadata: ${{ steps.gather-benchmark-metadata.outputs.benchmark-metadata }}
+      runners-info: ${{ steps.gather-runners-info.outputs.runners-info }}
+      dependencies: ${{ steps.gather-dependencies.outputs.dependencies }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Gather benchmark metadata
+        id: gather-benchmark-metadata
+        uses: ./.github/actions/gather-benchmark-metadata
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gather runners info
+        id: gather-runners-info
+        uses: ./.github/actions/gather-runners-info
+
+      - name: Gather dependencies
+        id: gather-dependencies
+        uses: ./.github/actions/gather-dependencies
+
+      - name: Upload the mock benchmark results
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: benchmark-results
+          path: .github/scripts/benchmark-results-dir-for-testing/v3
