@@ -288,7 +288,7 @@ class TestCommentIssueRevert(unittest.TestCase):
         # Check that job link is in the comment
         self.assertEqual(
             comment_text,
-            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
+            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
         )
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
@@ -372,7 +372,7 @@ class TestCommentIssueRevert(unittest.TestCase):
 
         # HUD link should still be present
         self.assertIn(
-            "- trunk: test_signal ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
+            "- trunk: test_signal ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
             comment_text,
         )
 
@@ -482,11 +482,11 @@ class TestCommentIssueRevert(unittest.TestCase):
 
         # Check workflow grouping
         self.assertIn(
-            "- trunk: [test_signal_1](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true)), [test_signal_2](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
+            "- trunk: [test_signal_1](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true)), [test_signal_2](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
             comment_text,
         )
         self.assertIn(
-            "- inductor: test_inductor ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20inductor&mergeEphemeralLF=true))\n",
+            "- inductor: test_inductor ([hud](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20inductor&mergeEphemeralLF=true))\n",
             comment_text,
         )
 

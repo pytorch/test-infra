@@ -642,7 +642,7 @@ class SignalActionProcessor:
                         num_commits=50,
                         job_base_name=wf_source.job_base_name,
                     )
-                    curr_url += f" ([\U0001f5d2]({hud_url}))"
+                    curr_url += f" ([hud]({hud_url}))"
 
                 all_signals_urls.append(curr_url)
 
