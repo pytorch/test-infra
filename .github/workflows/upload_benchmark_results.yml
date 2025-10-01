@@ -69,14 +69,14 @@ jobs:
           fi
 
           if [[ "${DRY_RUN}" == "true" ]]; then
-            python3 "scripts/upload_benchmark_results.py" \
+            python3 ".github/scripts/upload_benchmark_results.py" \
               --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
               --metadata "${BENCHMARK_METADATA}" \
               --runners "${RUNNERS_INFO}" \
               --dependencies "${DEPENDENCIES}" \
               --dry-run
           else
-            python3 "scripts/upload_benchmark_results.py" \
+            python3 ".github/scripts/upload_benchmark_results.py" \
               --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
               --metadata "${BENCHMARK_METADATA}" \
               --runners "${RUNNERS_INFO}" \
