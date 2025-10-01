@@ -47,6 +47,7 @@ class JobMeta:
     - has_non_test_failures: True if any failure is not classified as a test
       failure. Used by the extractor to keep non-test job signals while omitting
       job signals accounted for by per-test signals.
+    - job_id: Optional job_id from the failing job, or from the first job if none failed.
     """
 
     started_at: datetime = datetime.min
@@ -55,6 +56,7 @@ class JobMeta:
     has_failures: bool = False
     all_completed_success: bool = False
     has_non_test_failures: bool = False
+    job_id: Optional[int] = None
 
     @property
     def status(self) -> Optional[SignalStatus]:
@@ -166,6 +168,12 @@ class JobAggIndex(Generic[KeyT]):
         # Inline aggregations (only used here)
         started_at = min(r.started_at for r in jrows)
 
+        # pick job_id from the group: failing takes priority
+        job_id = None
+        for r in jrows:
+            if job_id is None or r.is_failure:
+                job_id = int(r.job_id)
+
         meta = JobMeta(
             started_at=started_at,
             is_pending=(any(r.is_pending for r in jrows)),
@@ -175,6 +183,7 @@ class JobAggIndex(Generic[KeyT]):
             has_non_test_failures=(
                 any((r.is_failure and not r.is_test_failure) for r in jrows)
             ),
+            job_id=job_id,
         )
         self._meta_cache[key] = meta
         return meta

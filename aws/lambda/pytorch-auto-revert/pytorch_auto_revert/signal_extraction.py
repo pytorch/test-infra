@@ -32,6 +32,7 @@ class TestOutcome:
     failing: bool
     errored: bool
     started_at: datetime
+    job_id: int
 
 
 class SignalExtractor:
@@ -115,7 +116,12 @@ class SignalExtractor:
                     )
                 )
             deduped.append(
-                Signal(key=s.key, workflow_name=s.workflow_name, commits=new_commits)
+                Signal(
+                    key=s.key,
+                    workflow_name=s.workflow_name,
+                    commits=new_commits,
+                    job_base_name=s.job_base_name,
+                )
             )
         return deduped
 
@@ -219,10 +225,17 @@ class SignalExtractor:
             started_at = min(
                 (prev.started_at if prev else job.started_at), job.started_at
             )
+            # Use job_id from the first failing test, or current job_id
+            use_job_id = (
+                prev.job_id
+                if prev and (prev.failing or prev.errored)
+                else int(tr.job_id)
+            )
             outcome = TestOutcome(
                 failing=(prev.failing if prev else False) or bool(tr.failing),
                 errored=(prev.errored if prev else False) or bool(tr.errored),
                 started_at=started_at,
+                job_id=use_job_id,
             )
             tests_by_group_attempt[key] = outcome
             if outcome.failing or outcome.errored:
@@ -274,6 +287,7 @@ class SignalExtractor:
                         ),
                         "ended_at": None,
                         "wf_run_id": int(wf_run_id),
+                        "run_attempt": int(run_attempt),
                     }
 
                     if verdict:
@@ -283,6 +297,7 @@ class SignalExtractor:
                                 if (verdict.failing or verdict.errored)
                                 else SignalStatus.SUCCESS,
                                 started_at=verdict.started_at,
+                                job_id=verdict.job_id,
                                 **event_common,
                             )
                         )
@@ -291,6 +306,7 @@ class SignalExtractor:
                             SignalEvent(
                                 status=SignalStatus.PENDING,
                                 started_at=meta.started_at,
+                                job_id=meta.job_id,
                                 **event_common,
                             )
                         )
@@ -310,7 +326,12 @@ class SignalExtractor:
 
             if has_any_events:
                 signals.append(
-                    Signal(key=test_id, workflow_name=wf_name, commits=commit_objs)
+                    Signal(
+                        key=test_id,
+                        workflow_name=wf_name,
+                        commits=commit_objs,
+                        job_base_name=str(job_base_name),
+                    )
                 )
 
         return signals
@@ -397,6 +418,8 @@ class SignalExtractor:
                             started_at=meta.started_at,
                             ended_at=None,
                             wf_run_id=int(wf_run_id),
+                            run_attempt=int(run_attempt),
+                            job_id=meta.job_id,
                         )
                     )
 
@@ -410,7 +433,12 @@ class SignalExtractor:
             # Emit job signal when failures were present and failures were NOT exclusively test-caused
             if has_relevant_failures:
                 signals.append(
-                    Signal(key=base_name, workflow_name=wf_name, commits=commit_objs)
+                    Signal(
+                        key=base_name,
+                        workflow_name=wf_name,
+                        commits=commit_objs,
+                        job_base_name=str(base_name),
+                    )
                 )
 
         return signals

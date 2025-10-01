@@ -1,5 +1,6 @@
 import random
 import time
+import urllib.parse
 from enum import Enum
 
 
@@ -110,3 +111,32 @@ class RetryWithBackoff:
             # Otherwise, a retryable exception occurred and was suppressed.
             # Move to the next attempt.
             self._attempt += 1
+
+
+def build_job_pytorch_url(repo_full_name: str, wf_run_id: str, job_id: str) -> str:
+    return f"https://github.com/{repo_full_name}/actions/runs/{wf_run_id}/job/{job_id}"
+
+
+def build_pytorch_hud_url(
+    *,
+    repo_full_name: str,
+    top_sha: str,
+    num_commits: int,
+    job_base_name: str,
+) -> str:
+    """Build PyTorch HUD dashboard URL for a signal.
+
+    Args:
+        repo_full_name: Repository in format "owner/repo"
+        top_sha: Most recent commit SHA
+        num_commits: Number of commits to display
+        job_base_name: Job base name to filter by
+
+    Returns:
+        URL to PyTorch HUD dashboard
+    """
+    encoded_name = urllib.parse.quote(job_base_name)
+    return (
+        f"https://hud.pytorch.org/hud/{repo_full_name}/{top_sha}/1?"
+        f"per_page={num_commits}&name_filter={encoded_name}&mergeEphemeralLF=true"
+    )

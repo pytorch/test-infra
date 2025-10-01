@@ -5,6 +5,7 @@ from datetime import datetime
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from .signal import SignalStatus
+from .utils import build_pytorch_hud_url
 
 
 HUD_CSS = """
@@ -388,6 +389,25 @@ def render_html_from_state(
             badge = '<span class="badge badge-ineligible">N/A</span>'
         header_label = f"{workflow}:{key}" if key else workflow
         safe_note = note.replace('"', "'")
+
+        # Build PyTorch HUD dashboard link if job_base_name is available
+        hud_link = ""
+        job_base_name = col.get("job_base_name")
+        if job_base_name and commits:
+            # Top commit (most recent)
+            top_sha = commits[0]
+            num_commits = len(commits)
+            hud_url = build_pytorch_hud_url(
+                repo_full_name=repo_full_name,
+                top_sha=top_sha,
+                num_commits=num_commits,
+                job_base_name=job_base_name,
+            )
+            hud_link = (
+                f'<div><a href="{hud_url}" target="_blank" '
+                f'rel="noopener noreferrer">View in PyTorch HUD →</a></div>'
+            )
+
         html_parts.append(
             f'<th id="{rid}" class="outcome" onclick="toggleOutcome(\'{rid}\')" '
             f'title="Click to expand">{badge}'
@@ -395,6 +415,7 @@ def render_html_from_state(
             f"onclick=\"toggleOutcome('{rid}'); event.stopPropagation();\">×</span>"
             f"<div><strong>{header_label}</strong></div>"
             f"<div>{safe_note}</div>"
+            f"{hud_link}"
             "</div>"
             "</th>"
         )
@@ -423,8 +444,20 @@ def render_html_from_state(
                 status = event.get("status", "")
                 icon = _status_icon(status)
                 title_attr = _event_title_from_dict(event).replace('"', "'")
+
+                # Prefer job_id if available, otherwise fall back to parsing run_id from name
+                job_id = event.get("job_id")
                 run_id = _parse_run_id(str(event.get("name", "")))
-                if run_id is not None:
+
+                if job_id is not None and run_id is not None:
+                    # Link directly to the specific job
+                    url = f"https://github.com/{repo_full_name}/actions/runs/{run_id}/job/{job_id}"
+                    cell_parts.append(
+                        f'<a class="ev" href="{url}" title="{title_attr}" '
+                        f'target="_blank" rel="noopener noreferrer">{icon}</a>'
+                    )
+                elif run_id is not None:
+                    # Link to workflow run (no job_id available)
                     url = f"https://github.com/{repo_full_name}/actions/runs/{run_id}"
                     cell_parts.append(
                         f'<a class="ev" href="{url}" title="{title_attr}" '

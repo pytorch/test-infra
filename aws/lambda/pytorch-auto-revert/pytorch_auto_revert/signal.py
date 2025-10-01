@@ -25,12 +25,17 @@ class AutorevertPattern:
     - suspected_commit: the oldest commit that first started to fail.
     - older_successful_commit: the most recent successful commit before
       failures started (direct parent of the suspected commit for this signal).
+    - job_base_name: optional job base name for the signal
+    - wf_run_id: optional workflow run ID from a failing event on suspected commit
+    - job_id: optional job ID from a failing event on suspected commit
     """
 
     workflow_name: str
     newer_failing_commits: List[str]
     suspected_commit: str
     older_successful_commit: str
+    wf_run_id: Optional[int] = None
+    job_id: Optional[int] = None
 
 
 @dataclass
@@ -77,12 +82,18 @@ class SignalEvent:
         started_at: datetime,
         wf_run_id: int,
         ended_at: Optional[datetime] = None,
+        run_attempt: Optional[int] = None,
+        job_name: Optional[str] = None,
+        job_id: Optional[int] = None,
     ):
         self.name = name
         self.status = status
         self.started_at = started_at
         self.ended_at = ended_at
         self.wf_run_id = wf_run_id
+        self.run_attempt = run_attempt
+        self.job_name = job_name
+        self.job_id = job_id
 
     @property
     def is_pending(self) -> bool:
@@ -237,13 +248,21 @@ class Signal:
     - key: stable identifier for the signal (e.g., normalized job/test name)
     - workflow_name: source workflow this signal is derived from
     - commits: newest → older list of SignalCommit objects for this signal
+    - job_base_name: optional job base name for job-level signals (recorded when signal is created)
     """
 
-    def __init__(self, key: str, workflow_name: str, commits: List[SignalCommit]):
+    def __init__(
+        self,
+        key: str,
+        workflow_name: str,
+        commits: List[SignalCommit],
+        job_base_name: Optional[str] = None,
+    ):
         self.key = key
         self.workflow_name = workflow_name
         # commits are ordered from newest to oldest
         self.commits = commits
+        self.job_base_name = job_base_name
 
     def detect_fixed(self) -> bool:
         """
@@ -437,9 +456,18 @@ class Signal:
         # failed is newest -> older; the last element is the suspected commit
         suspected = partition.failed[-1]
         newer_failures = [c.head_sha for c in partition.failed[:-1]]
+
+        # Extract job_id and wf_run_id from a failing event on the suspected commit
+        failure_event = next(
+            (e for e in suspected.events if e.is_failure and e.job_id is not None),
+            None,
+        )
+
         return AutorevertPattern(
             workflow_name=self.workflow_name,
             newer_failing_commits=newer_failures,
             suspected_commit=suspected.head_sha,
             older_successful_commit=partition.successful[0].head_sha,
+            wf_run_id=failure_event.wf_run_id if failure_event else None,
+            job_id=failure_event.job_id if failure_event else None,
         )
