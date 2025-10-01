@@ -24,7 +24,7 @@ on:
         default: 'v3'
         type: string
       dry-run:
-        default: false
+        default: true
         type: boolean
 
 jobs:

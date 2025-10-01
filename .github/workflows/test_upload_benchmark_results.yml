@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Test upload the benchmark results (v3)
+      - name: Test upload the benchmark results
         uses: ./.github/actions/upload-benchmark-results
         with:
           benchmark-results-dir: .github/scripts/benchmark-results-dir-for-testing/v3
@@ -47,3 +47,5 @@ jobs:
       benchmark-metadata: ${{ needs.test-gather-benchmark-info.outputs.benchmark-metadata }}
       runners-info: ${{ needs.test-gather-benchmark-info.outputs.runners-info }}
       dependencies: ${{ needs.test-gather-benchmark-info.outputs.dependencies }}
+      schema-version: v3
+      dry-run: true
