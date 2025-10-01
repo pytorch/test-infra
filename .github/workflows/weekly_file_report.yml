@@ -35,11 +35,20 @@ jobs:
             --start-date "${{ steps.date-vars.outputs.PREVIOUS }}" \
             --stop-date "${{ steps.date-vars.outputs.TODAY }}" \
             --output nightly_file_report
-          zip -r ${{ steps.date-vars.outputs.TODAY }}.zip nightly_file_report
 
-      - name: Upload report artifact
-        uses: .github/actions/upload-artifact-s3
-        with:
-          s3-prefix: additional_info/weekly_file_report/
-          s3-bucket: ossci-raw-job-stats
-          path: ${{ steps.date-vars.outputs.TODAY }}.zip
+
+      - name: Upload artifacts
+        run: |
+          set -eux
+
+          S3_PATH="s3://ossci-raw-job-status/additional_info/weekly_file_report/${{ steps.date-vars.outputs.TODAY }}/"
+          cd nightly_file_report
+
+          gzip data.json
+          aws s3 cp data.json.gz "$S3_PATH" --content-type "application/json" --content-encoding "gzip"
+
+          # For each status_changes_*.json file, zip and upload to S3
+          for file in status_changes_*.json; do
+            gzip "$file"
+            aws s3 cp "${file}.gz" "$S3_PATH" --content-type "application/json" --content-encoding "gzip"
+          done
