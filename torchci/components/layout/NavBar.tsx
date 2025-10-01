@@ -1,9 +1,146 @@
+import { Button, Divider, ListSubheader, Menu, MenuItem } from "@mui/material";
+import { benchmarkNavGroup } from "components/benchmark/v3/BenchmarkListPage";
 import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
 import React, { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
+
+export type NavItem = { label: string; route: string };
+export type NavCategory = { label: string; items: NavItem[]; type?: string };
+
+function sortForMenu(groups: NavCategory[]) {
+  const singles: NavItem[] = [];
+  const multis: NavCategory[] = [];
+  let bottom: NavItem | undefined = undefined;
+
+  for (const g of groups) {
+    if (g.type === "bottom") {
+      if (g.items.length !== 1) {
+        continue;
+      }
+      bottom = g?.items[0];
+    } else if (g.items.length === 1) {
+      singles.push(g.items[0]);
+    } else if (g.items.length > 1) {
+      multis.push({
+        label: g.label,
+        items: [...g.items].sort((a, b) => a.label.localeCompare(b.label)),
+      });
+    }
+  }
+  singles.sort((a, b) => a.label.localeCompare(b.label));
+  multis.sort((a, b) => a.label.localeCompare(b.label));
+  return { singles, multis, bottom };
+}
+
+/**
+ * NavBarGroupDropdown
+ * it flats the group with single item in sorted order, then list
+ * group in sorted order
+ * @returns
+ */
+export function NavBarGroupDropdown({
+  title,
+  groups,
+}: {
+  title: string;
+  groups: NavCategory[];
+}) {
+  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  const handleMouseEnter = (e: React.MouseEvent<HTMLButtonElement>) =>
+    setAnchorEl(e.currentTarget);
+  const handleMouseLeaveAll = () => setAnchorEl(null);
+
+  const { singles, multis, bottom } = React.useMemo(
+    () => sortForMenu(groups),
+    [groups]
+  );
+
+  return (
+    <div onMouseLeave={handleMouseLeaveAll}>
+      <Button
+        id="grouped-menu-button"
+        aria-controls={open ? "grouped-menu" : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? "true" : undefined}
+        onMouseEnter={handleMouseEnter}
+        sx={{ textTransform: "none", cursor: "pointer" }}
+      >
+        {title} ▾
+      </Button>
+      <Menu
+        id="grouped-menu"
+        autoFocus={false}
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleMouseLeaveAll}
+        slotProps={{
+          list: {
+            "aria-labelledby": "grouped-menu-button",
+            sx: {
+              py: 0,
+              "& .MuiMenuItem-root": { cursor: "pointer" },
+              "& .MuiListSubheader-root": { cursor: "default" },
+            },
+          },
+        }}
+      >
+        {/* Singles first (no headers), sorted by item label */}
+        {singles.map((item) => (
+          <MenuItem
+            key={`single-${item.label}`}
+            component={Link as any}
+            href={item.route}
+            prefetch={false}
+            onClick={handleMouseLeaveAll}
+          >
+            {item.label}
+          </MenuItem>
+        ))}
+
+        {singles.length > 0 && multis.length > 0 && <Divider component="li" />}
+        {/* Multi-item groups next, sorted by group label; each group header + its sorted items */}
+        {multis.map((group, gi) => (
+          <React.Fragment key={`multi-${group.label}`}>
+            <ListSubheader disableSticky>{group.label}</ListSubheader>
+            {group.items.map((item) => (
+              <MenuItem
+                key={`${group.label}-${item.label}`}
+                component={Link as any}
+                href={item.route}
+                prefetch={false}
+                onClick={handleMouseLeaveAll}
+              >
+                {item.label}
+              </MenuItem>
+            ))}
+
+            {/* Divider between multi groups (but not after the last one) */}
+            {gi < multis.length - 1 && <Divider component="li" />}
+          </React.Fragment>
+        ))}
+        {bottom != undefined && (
+          <>
+            <Divider component="li" />
+            <MenuItem
+              key={`bottom-${bottom.label}`}
+              component={Link as any}
+              href={bottom.route}
+              prefetch={false}
+              onClick={handleMouseLeaveAll}
+            >
+              {bottom.label}
+            </MenuItem>
+          </>
+        )}
+      </Menu>
+    </div>
+  );
+}
 
 const NavBarDropdown = ({
   title,
@@ -85,6 +222,8 @@ const NavBarDropdown = ({
 };
 
 function NavBar() {
+  const benchmarkDropdown = benchmarkNavGroup;
+
   const devInfraDropdown = [
     {
       name: "SLIs",
@@ -234,11 +373,7 @@ function NavBar() {
               Requests
             </Link>
           </li>
-          <li>
-            <Link href="/benchmark/benchmark_list">
-              <span style={{ position: "relative" }}>Benchmarks</span>
-            </Link>
-          </li>
+          <NavBarGroupDropdown title="Benchmarks" groups={benchmarkDropdown} />
           <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <li>
             <Link prefetch={false} href="/kpis">
