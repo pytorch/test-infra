@@ -97,6 +97,10 @@ class RunStateLogger:
                     }
                     if e.ended_at:
                         ev["ended_at"] = e.ended_at.isoformat()
+                    if e.job_id is not None:
+                        ev["job_id"] = e.job_id
+                    if e.run_attempt is not None:
+                        ev["run_attempt"] = e.run_attempt
                     evs.append(ev)
                 if evs:
                     cells[c.head_sha] = evs
@@ -107,6 +111,8 @@ class RunStateLogger:
                 "outcome": oc,
                 "cells": cells,
             }
+            if sig.job_base_name:
+                col["job_base_name"] = sig.job_base_name
             if ineligible is not None:
                 col["ineligible"] = ineligible
             cols.append(col)

@@ -77,12 +77,18 @@ class SignalEvent:
         started_at: datetime,
         wf_run_id: int,
         ended_at: Optional[datetime] = None,
+        run_attempt: Optional[int] = None,
+        job_name: Optional[str] = None,
+        job_id: Optional[int] = None,
     ):
         self.name = name
         self.status = status
         self.started_at = started_at
         self.ended_at = ended_at
         self.wf_run_id = wf_run_id
+        self.run_attempt = run_attempt
+        self.job_name = job_name
+        self.job_id = job_id
 
     @property
     def is_pending(self) -> bool:
@@ -237,13 +243,21 @@ class Signal:
     - key: stable identifier for the signal (e.g., normalized job/test name)
     - workflow_name: source workflow this signal is derived from
     - commits: newest → older list of SignalCommit objects for this signal
+    - job_base_name: optional job base name for job-level signals (recorded when signal is created)
     """
 
-    def __init__(self, key: str, workflow_name: str, commits: List[SignalCommit]):
+    def __init__(
+        self,
+        key: str,
+        workflow_name: str,
+        commits: List[SignalCommit],
+        job_base_name: Optional[str] = None,
+    ):
         self.key = key
         self.workflow_name = workflow_name
         # commits are ordered from newest to oldest
         self.commits = commits
+        self.job_base_name = job_base_name
 
     def detect_fixed(self) -> bool:
         """
