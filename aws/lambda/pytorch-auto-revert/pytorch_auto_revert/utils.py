@@ -113,6 +113,13 @@ class RetryWithBackoff:
             self._attempt += 1
 
 
+def build_job_pytorch_url(self, repo_full_name: str, wf_run_id: str, job_id: str) -> str:
+    return (
+        f"https://github.com/{repo_full_name}/"
+        f"actions/runs/{wf_run_id}/job/{job_id}"
+    )
+
+
 def build_pytorch_hud_url(
     *,
     repo_full_name: str,

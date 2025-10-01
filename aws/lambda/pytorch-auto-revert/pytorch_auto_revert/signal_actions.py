@@ -14,7 +14,7 @@ from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
-from .utils import build_pytorch_hud_url, RestartAction, RetryWithBackoff, RevertAction
+from .utils import build_pytorch_hud_url, build_job_pytorch_url, RestartAction, RetryWithBackoff, RevertAction
 from .workflow_checker import WorkflowRestartChecker
 
 
@@ -613,29 +613,33 @@ class SignalActionProcessor:
         # used both to revert and notify
         breaking_notification_msg = "This PR is breaking the following workflows:\n"
         for workflow_name, wf_sources in workflow_groups.items():
-            all_signals = ", ".join([source.key for source in wf_sources])
+            all_signals_urls = []
+            for wf_source in wf_sources:
+                curr_url = ""
+
+                if wf_source.job_id and wf_source.wf_run_id:
+                    job_url = build_job_pytorch_url(
+                        repo_full_name=ctx.repo_full_name,
+                        wf_run_id=str(wf_source.wf_run_id),
+                        job_id=str(wf_source.job_id),
+                    )
+                    curr_url += f"[{wf_source.key}]({job_url})"
+                else:
+                    curr_url += wf_source.key
+
+                if wf_source.job_base_name:
+                    hud_url = build_pytorch_hud_url(
+                        repo_full_name=ctx.repo_full_name,
+                        top_sha=commit_sha,
+                        num_commits=50,
+                        job_base_name=wf_source.job_base_name,
+                    )
+                    curr_url += f" ([\U0001F5D2]({hud_url}))"
+
+                all_signals_urls.append(curr_url)
+
+            all_signals = ", ".join(all_signals_urls)
             breaking_notification_msg += f"- {workflow_name}: {all_signals}\n"
-
-        # Add job link and HUD link from first source if available
-        if sources:
-            first_source = sources[0]
-            if first_source.job_id and first_source.wf_run_id:
-                job_link = (
-                    f"https://github.com/{ctx.repo_full_name}/"
-                    f"actions/runs/{first_source.wf_run_id}/job/{first_source.job_id}"
-                )
-                breaking_notification_msg += f"\n**Failed job:** {job_link}\n"
-
-            if first_source.job_base_name:
-                hud_url = build_pytorch_hud_url(
-                    repo_full_name=ctx.repo_full_name,
-                    top_sha=commit_sha,
-                    num_commits=50,
-                    job_base_name=first_source.job_base_name,
-                )
-                breaking_notification_msg += (
-                    f"\n**PyTorch HUD:** [View signal]({hud_url})\n"
-                )
 
         try:
             if should_do_revert_on_pr:
