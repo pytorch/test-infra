@@ -4,11 +4,11 @@ on:
   workflow_call:
     outputs:
       benchmark-metadata:
-        value:
+        value: ${{ jobs.test-gather-benchmark-info.outputs.benchmark-metadata }}
       runners-info:
-        value:
+        value: ${{ jobs.test-gather-benchmark-info.outputs.runners-info }}
       dependencies:
-        value:
+        value: ${{ jobs.test-gather-benchmark-info.outputs.dependencies }}
 
 jobs:
   test-gather-benchmark-info:

@@ -44,6 +44,6 @@ jobs:
       contents: read
     with:
       benchmark-artifact: benchmark-results
-      benchmark-metadata: ${{ needs.test-gather-benchmark-info.outpus.benchmark-metadata }}
-      runners-info: ${{ needs.test-gather-benchmark-info.outpus.runners-info }}
-      dependencies: ${{ needs.test-gather-benchmark-info.outpus.dependencies }}
+      benchmark-metadata: ${{ needs.test-gather-benchmark-info.outputs.benchmark-metadata }}
+      runners-info: ${{ needs.test-gather-benchmark-info.outputs.runners-info }}
+      dependencies: ${{ needs.test-gather-benchmark-info.outputs.dependencies }}
