@@ -912,26 +912,10 @@ export default function Page() {
 
   return (
     <Stack spacing={4}>
-      <Typography variant="h5">Test Reports</Typography>
-      <Select
-        name="commit"
-        value={headShaIndex}
-        onChange={(e) => {
-          const selectedIndex = e.target.value;
-          setHeadShaIndex(selectedIndex);
-        }}
-      >
-        {commitMetadata.map((commit, index) => (
-          <MenuItem value={index} key={index}>
-            {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
-          </MenuItem>
-        ))}
-      </Select>
-
-      <Typography variant="h6">Introduction</Typography>
+      <Typography variant="h4">Test Reports</Typography>
       <Stack spacing={2}>
         <Typography variant="body1">
-          This report provides insights into the test files executed over recent
+          This provides insights into the test files executed over recent
           commits. It includes statistics on test counts, durations, costs, and
           skips, along with visualizations to help identify trends and
           anomalies. Use the filters below to narrow down the data by specific
@@ -948,7 +932,24 @@ export default function Page() {
           owner label. If a label is incorrect, you can change this in test file
           in `pytorch/pytorch`.
         </Typography>
+        <Typography variant="body1">
+          Select a commit to view data from the week leading up to that commit.
+        </Typography>
       </Stack>
+      <Select
+        name="commit"
+        value={headShaIndex}
+        onChange={(e) => {
+          const selectedIndex = e.target.value;
+          setHeadShaIndex(selectedIndex);
+        }}
+      >
+        {commitMetadata.map((commit, index) => (
+          <MenuItem value={index} key={index}>
+            {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+          </MenuItem>
+        ))}
+      </Select>
       <Box
         component="form"
         noValidate
