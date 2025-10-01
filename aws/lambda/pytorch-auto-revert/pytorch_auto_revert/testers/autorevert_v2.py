@@ -34,13 +34,15 @@ def autorevert_v2(
     ts = datetime.now(timezone.utc)
 
     logging.info(
-        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s revert_action=%s notify_issue_number=%s",
+        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s"
+        " revert_action=%s notify_issue_number=%s bisection=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
         restart_action,
         revert_action,
         notify_issue_number,
+        ("unlimited" if bisection_limit is None else f"limit={bisection_limit}"),
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
