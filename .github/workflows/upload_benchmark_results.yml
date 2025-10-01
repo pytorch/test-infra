@@ -68,6 +68,8 @@ jobs:
             exit 0
           fi
 
+          python3 -mpip install boto3==1.35.33
+
           if [[ "${DRY_RUN}" == "true" ]]; then
             python3 ".github/scripts/upload_benchmark_results.py" \
               --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
