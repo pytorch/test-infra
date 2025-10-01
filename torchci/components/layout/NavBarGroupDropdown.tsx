@@ -34,7 +34,7 @@ function sortForMenu(groups: NavCategory[]) {
 /**
  * NavBarGroupDropdown
  * it flats the group with single item in sorted order, then list
- * group in sorted order
+ * group in sorted order.
  * @returns
  */
 export function NavBarGroupDropdown({
@@ -49,7 +49,7 @@ export function NavBarGroupDropdown({
 
   const handleMouseEnter = (e: MouseEvent<HTMLButtonElement>) =>
     setAnchorEl(e.currentTarget);
-  const handleMouseLeaveAll = () => setAnchorEl(null);
+  const handleMouseLeave = () => setAnchorEl(null);
 
   const { singles, multis, bottom } = useMemo(
     () => sortForMenu(groups),
@@ -57,7 +57,7 @@ export function NavBarGroupDropdown({
   );
 
   return (
-    <div onMouseLeave={handleMouseLeaveAll}>
+    <div onMouseLeave={handleMouseLeave}>
       <Button
         id="grouped-menu-button"
         aria-controls={open ? "grouped-menu" : undefined}
@@ -79,10 +79,10 @@ export function NavBarGroupDropdown({
         autoFocus={false}
         anchorEl={anchorEl}
         open={open}
-        onClose={handleMouseLeaveAll}
+        onClose={handleMouseLeave}
         slotProps={{
           paper: {
-            onMouseLeave: handleMouseLeaveAll,
+            onMouseLeave: handleMouseLeave,
           },
           list: {
             "aria-labelledby": "grouped-menu-button",
@@ -101,7 +101,7 @@ export function NavBarGroupDropdown({
             component={Link as any}
             href={item.route}
             prefetch={false}
-            onClick={handleMouseLeaveAll}
+            onClick={handleMouseLeave}
             sx={{
               color: "primary.main",
             }}
@@ -139,7 +139,7 @@ export function NavBarGroupDropdown({
                   component={Link as any}
                   href={item.route}
                   prefetch={false}
-                  onClick={handleMouseLeaveAll}
+                  onClick={handleMouseLeave}
                   sx={{
                     color: "primary.main",
                     pl: 1,
@@ -153,13 +153,13 @@ export function NavBarGroupDropdown({
         ))}
         {bottom != undefined && (
           <>
-            <Divider component="li" />
+            <Divider sx={{ mt: 1 }} />
             <MenuItem
               key={`bottom-${bottom.label}`}
               component={Link as any}
               href={bottom.route}
               prefetch={false}
-              onClick={handleMouseLeaveAll}
+              onClick={handleMouseLeave}
               sx={{
                 color: "primary.main",
               }}
