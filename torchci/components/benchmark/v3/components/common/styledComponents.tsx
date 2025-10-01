@@ -14,7 +14,7 @@ interface NavListItemProps {
 
 export function NavListItem({ primary, secondary, onClick }: NavListItemProps) {
   return (
-    <ListItem divider disablePadding>
+    <ListItem>
       <ListItemButton onClick={onClick}>
         <ClickableListItemText primary={primary} secondary={secondary} />
       </ListItemButton>
