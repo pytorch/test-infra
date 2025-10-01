@@ -92,8 +92,8 @@ class TestGapBisectionPlanner(unittest.TestCase):
         self.assertEqual(res, [False] * len(covered))
         # With bigger limit we actually pick from the left big gap
         res2 = GapBisectionPlanner.plan(covered, 10)  # unlimited effectively
-        # Unlimited picks all False positions
-        self.assertEqual(res2, [bool(c) for c in covered])
+        # Unlimited picks all False positions (plan returns positions to newly cover)
+        self.assertEqual(res2, [not c for c in covered])
 
     def test_choose_leftmost_on_equal_gap_lengths(self):
         # Two equal gaps [0,1] and [3,4]
