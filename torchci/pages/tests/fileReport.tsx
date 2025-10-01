@@ -729,7 +729,7 @@ function TestStatus({
     }
   }, [shas, selectedIndex]);
   let data = useData(
-    selectedIndex !== -1
+    selectedIndex !== 0
       ? `${S3_LOCATION}/status_changes_${options[selectedIndex - 1].sha}_${
           options[selectedIndex].sha
         }.json.gz`
