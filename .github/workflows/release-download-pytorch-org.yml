@@ -1,11 +1,14 @@
 name: Release ecosystem library from test to production.
 
 on:
-  push:
-    branches:
-      - test-promotion
   workflow_dispatch:
     inputs:
+      dryrun:
+        required: true
+        default: enabled
+        options:
+          - enabled
+          - disabled
       package:
         description: "Domain to prepare and release"
         required: true
@@ -40,11 +43,11 @@ jobs:
         shell: bash
         env:
           PACKAGE: ${{ inputs.package || 'torchvision' }}
+          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}'
         run: |
             set -ex
             cd release
             # Install requirements
-            DRY_RUN=enabled
             pip install awscli==1.32.18
             
             promote_s3() {
