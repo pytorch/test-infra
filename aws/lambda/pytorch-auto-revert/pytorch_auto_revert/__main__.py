@@ -162,7 +162,11 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "--bisection-limit",
         type=int,
-        default=None,
+        default=(
+            int(os.environ["BISECTION_LIMIT"])
+            if os.environ.get("BISECTION_LIMIT", "").strip()
+            else None
+        ),
         help=(
             "Max new pending jobs to schedule per signal to cover gaps (None = unlimited)."
         ),
