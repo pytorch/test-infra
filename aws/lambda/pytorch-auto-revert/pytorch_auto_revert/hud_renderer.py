@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import re
-import urllib.parse
 from datetime import datetime
 from typing import Any, Dict, List, Mapping, Optional, Sequence, Union
 
 from .signal import SignalStatus
+from .utils import build_pytorch_hud_url
 
 
 HUD_CSS = """
@@ -397,10 +397,11 @@ def render_html_from_state(
             # Top commit (most recent)
             top_sha = commits[0]
             num_commits = len(commits)
-            encoded_name = urllib.parse.quote(job_base_name)
-            hud_url = (
-                f"https://hud.pytorch.org/hud/{repo_full_name}/{top_sha}/1?"
-                f"per_page={num_commits}&name_filter={encoded_name}&mergeEphemeralLF=true"
+            hud_url = build_pytorch_hud_url(
+                repo_full_name=repo_full_name,
+                top_sha=top_sha,
+                num_commits=num_commits,
+                job_base_name=job_base_name,
             )
             hud_link = (
                 f'<div><a href="{hud_url}" target="_blank" '

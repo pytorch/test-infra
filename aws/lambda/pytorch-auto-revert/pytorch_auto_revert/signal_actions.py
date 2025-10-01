@@ -14,7 +14,7 @@ from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
-from .utils import RestartAction, RetryWithBackoff, RevertAction
+from .utils import build_pytorch_hud_url, RestartAction, RetryWithBackoff, RevertAction
 from .workflow_checker import WorkflowRestartChecker
 
 
@@ -33,6 +33,9 @@ class SignalMetadata:
 
     workflow_name: str
     key: str
+    job_base_name: Optional[str] = None
+    wf_run_id: Optional[int] = None
+    job_id: Optional[int] = None
 
 
 @dataclass(frozen=True)
@@ -42,7 +45,7 @@ class ActionGroup:
     - type: 'revert' | 'restart'
     - commit_sha: target commit
     - workflow_target: workflow to restart (restart only); None/'' for revert
-    - sources: contributing signals (workflow_name, key)
+    - sources: contributing signals (workflow_name, key, outcome)
     """
 
     type: str  # 'revert' | 'restart'
@@ -209,7 +212,20 @@ class SignalActionProcessor:
         restart_map: Dict[tuple[str, str], List[SignalMetadata]] = {}
 
         for sig, outcome in pairs:
-            meta = SignalMetadata(workflow_name=sig.workflow_name, key=sig.key)
+            # Extract fields for job/HUD links from AutorevertPattern
+            wf_run_id = None
+            job_id = None
+            if isinstance(outcome, AutorevertPattern):
+                wf_run_id = outcome.wf_run_id
+                job_id = outcome.job_id
+
+            meta = SignalMetadata(
+                workflow_name=sig.workflow_name,
+                key=sig.key,
+                job_base_name=sig.job_base_name,
+                wf_run_id=wf_run_id,
+                job_id=job_id,
+            )
             if isinstance(outcome, AutorevertPattern):
                 sha = outcome.suspected_commit
                 revert_map.setdefault(sha, []).append(meta)
@@ -527,7 +543,10 @@ class SignalActionProcessor:
             return None
 
     def _comment_issue_pr_revert(
-        self, commit_sha: str, sources: List[SignalMetadata], ctx: RunContext
+        self,
+        commit_sha: str,
+        sources: List[SignalMetadata],
+        ctx: RunContext,
     ) -> bool:
         logging.debug(
             "[v2][action] (%s) revert for sha %s: finding the PR notifying",
@@ -593,9 +612,30 @@ class SignalActionProcessor:
         # Build a nice message to show which workflows are broken
         # used both to revert and notify
         breaking_notification_msg = "This PR is breaking the following workflows:\n"
-        for workflow_name, sources in workflow_groups.items():
-            all_signals = ", ".join([source.key for source in sources])
+        for workflow_name, wf_sources in workflow_groups.items():
+            all_signals = ", ".join([source.key for source in wf_sources])
             breaking_notification_msg += f"- {workflow_name}: {all_signals}\n"
+
+        # Add job link and HUD link from first source if available
+        if sources:
+            first_source = sources[0]
+            if first_source.job_id and first_source.wf_run_id:
+                job_link = (
+                    f"https://github.com/{ctx.repo_full_name}/"
+                    f"actions/runs/{first_source.wf_run_id}/job/{first_source.job_id}"
+                )
+                breaking_notification_msg += f"\n**Failed job:** {job_link}\n"
+
+            if first_source.job_base_name:
+                hud_url = build_pytorch_hud_url(
+                    repo_full_name=ctx.repo_full_name,
+                    top_sha=commit_sha,
+                    num_commits=50,
+                    job_base_name=first_source.job_base_name,
+                )
+                breaking_notification_msg += (
+                    f"\n**PyTorch HUD:** [View signal]({hud_url})\n"
+                )
 
         try:
             if should_do_revert_on_pr:

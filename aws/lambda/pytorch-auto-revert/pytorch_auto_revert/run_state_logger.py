@@ -53,14 +53,21 @@ class RunStateLogger:
             if isinstance(outcome, AutorevertPattern):
                 oc = "revert"
                 ineligible = None
+                data = {
+                    "workflow_name": outcome.workflow_name,
+                    "suspected_commit": outcome.suspected_commit,
+                    "older_successful_commit": outcome.older_successful_commit,
+                    "newer_failing_commits": list(outcome.newer_failing_commits),
+                }
+                if outcome.job_base_name:
+                    data["job_base_name"] = outcome.job_base_name
+                if outcome.wf_run_id is not None:
+                    data["wf_run_id"] = outcome.wf_run_id
+                if outcome.job_id is not None:
+                    data["job_id"] = outcome.job_id
                 serialized = {
                     "type": "AutorevertPattern",
-                    "data": {
-                        "workflow_name": outcome.workflow_name,
-                        "suspected_commit": outcome.suspected_commit,
-                        "older_successful_commit": outcome.older_successful_commit,
-                        "newer_failing_commits": list(outcome.newer_failing_commits),
-                    },
+                    "data": data,
                 }
             elif isinstance(outcome, RestartCommits):
                 oc = "restart"
