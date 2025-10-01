@@ -76,6 +76,9 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
           <ListItemText
             primary="Navigate to comparison table"
             secondary="Jump to the time series comparison table section on this page."
+            sx={{
+              color: "primary.main",
+            }}
           />
         </ListItemButton>
       )}
@@ -84,6 +87,9 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
           <ListItemText
             primary="Navigate to time series chart"
             secondary="Jump to the time series comparison table section on this page."
+            sx={{
+              color: "primary.main",
+            }}
           />
         </ListItemButton>
       )}
@@ -91,6 +97,9 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
         <ListItemText
           primary="Navigate to detail view"
           secondary={`Open the detailed benchmark view for suite "${left?.suite}" and compiler "${left?.compiler}" in the compiler dashboard.`}
+          sx={{
+              color: "primary.main",
+          }}
         />
       </ListItemButton>
     </List>
