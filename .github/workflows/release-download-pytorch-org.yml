@@ -21,11 +21,11 @@ on:
           - executorch
           - torchvision
           - torchaudio
-          
+
 permissions:
   id-token: write
   contents: read
-  
+
 jobs:
   trigger:
     runs-on: ubuntu-latest
@@ -50,7 +50,7 @@ jobs:
             cd release
             # Install requirements
             pip install awscli==1.32.18
-            
+
             promote_s3() {
               local package_name
               package_name=$1
@@ -59,9 +59,11 @@ jobs:
               local promote_version
               promote_version=$3
 
+              # shellcheck disable=SC2086
               echo "=-=-=-= Promoting ${package_name}'s v${promote_version} ${package_type} packages' =-=-=-="
               (
                   set -x
+                  # shellcheck disable=SC2086
                   TEST_PYTORCH_PROMOTE_VERSION="${promote_version}" \
                       PACKAGE_NAME="${package_name}" \
                       PACKAGE_TYPE="${package_type}" \
@@ -74,5 +76,7 @@ jobs:
             # Init release versions variables
             source ./release_versions.sh
             # Run promotion
+            # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
+            # shellcheck disable=SC2086
             promote_s3 ${PACKAGE} whl "${!version}"
