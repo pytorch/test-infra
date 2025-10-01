@@ -5,6 +5,7 @@ on:
     inputs:
       dryrun:
         required: true
+        type: choice
         default: enabled
         options:
           - enabled
@@ -43,7 +44,7 @@ jobs:
         shell: bash
         env:
           PACKAGE: ${{ inputs.package || 'torchvision' }}
-          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}'
+          DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
         run: |
             set -ex
             cd release
