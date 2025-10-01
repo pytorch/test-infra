@@ -199,6 +199,12 @@ def _show_single_reservation(connection_info: dict) -> None:
             connection_info["ssh_command"]
         )
 
+        # Check for warnings
+        warning_message = connection_info.get("warning", "")
+        warning_section = ""
+        if warning_message:
+            warning_section = f"\n\n{warning_message}"
+
         panel_content = (
             f"[green]Reservation Details[/green]\n\n"
             f"[blue]SSH Command:[/blue] {ssh_with_forwarding}\n"
@@ -211,6 +217,7 @@ def _show_single_reservation(connection_info: dict) -> None:
             + f"[blue]Storage:[/blue] {disk_status}\n"
             f"[blue]Started:[/blue] {launched_formatted}\n"
             f"[blue]Expires:[/blue] {expires_formatted}"
+            + warning_section
         )
         panel = Panel.fit(panel_content, title="🚀 Active Reservation")
         console.print(panel)

@@ -18,8 +18,14 @@ from rich.spinner import Spinner
 
 from .config import Config
 from .name_generator import sanitize_name
+from . import __version__
 
 console = Console()
+
+
+def get_version() -> str:
+    """Get CLI version for inclusion in SQS messages"""
+    return __version__
 
 
 def _add_agent_forwarding_to_ssh(ssh_command: str) -> str:
@@ -165,6 +171,7 @@ class ReservationManager:
                 "status": "pending",
                 "jupyter_enabled": jupyter_enabled,
                 "recreate_env": recreate_env,
+                "version": get_version(),
             }
 
             # Add github_user if provided
@@ -246,6 +253,7 @@ class ReservationManager:
                     "gpu_type": gpu_type,
                     "duration_hours": float(duration_hours),
                     "name": node_name,
+                    "version": get_version(),
                     "created_at": created_at,
                     "status": "pending",
                     "jupyter_enabled": jupyter_enabled and node_idx == 0,  # Only enable Jupyter on master node
@@ -338,6 +346,7 @@ class ReservationManager:
                 "reservation_id": reservation_id,
                 "user_id": user_id,
                 "requested_at": datetime.utcnow().isoformat(),
+                "version": get_version(),
             }
 
             queue_url = self.config.get_queue_url()
@@ -424,6 +433,7 @@ class ReservationManager:
                 "jupyter_error": reservation.get("jupyter_error", ""),
                 "ebs_volume_id": reservation.get("ebs_volume_id", ""),
                 "secondary_users": reservation.get("secondary_users", []),
+                "warning": reservation.get("warning", ""),
             }
 
         except Exception as e:
@@ -439,6 +449,7 @@ class ReservationManager:
                 "action": "enable_jupyter",
                 "reservation_id": reservation_id,
                 "user_id": user_id,
+                "version": get_version(),
             }
 
             queue_url = self.config.get_queue_url()
@@ -470,6 +481,7 @@ class ReservationManager:
                 "action": "disable_jupyter",
                 "reservation_id": reservation_id,
                 "user_id": user_id,
+                "version": get_version(),
             }
 
             queue_url = self.config.get_queue_url()
@@ -512,6 +524,7 @@ class ReservationManager:
                 "reservation_id": reservation_id,
                 "user_id": user_id,
                 "github_username": github_username,
+                "version": get_version(),
             }
 
             queue_url = self.config.get_queue_url()
@@ -543,6 +556,7 @@ class ReservationManager:
                 "action": "extend_reservation",
                 "reservation_id": reservation_id,
                 "extension_hours": extension_hours,
+                "version": get_version(),
             }
 
             queue_url = self.config.get_queue_url()

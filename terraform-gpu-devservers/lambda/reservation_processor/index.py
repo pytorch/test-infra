@@ -52,6 +52,10 @@ EFS_SECURITY_GROUP_ID = os.environ.get("EFS_SECURITY_GROUP_ID")
 EFS_SUBNET_IDS = os.environ.get("EFS_SUBNET_IDS", "").split(",") if os.environ.get("EFS_SUBNET_IDS") else []
 ECR_REPOSITORY_URL = os.environ.get("ECR_REPOSITORY_URL")
 
+# Version validation - injected via Terraform
+LAMBDA_VERSION = os.environ.get("LAMBDA_VERSION", "0.2.0")
+MIN_CLI_VERSION = os.environ.get("MIN_CLI_VERSION", "0.2.0")
+
 # AWS clients
 dynamodb = boto3.resource("dynamodb", region_name=REGION)
 eks_client = boto3.client("eks")
@@ -64,6 +68,40 @@ _k8s_client = None
 
 # Global monitoring threads registry (for cancellation cleanup)
 _monitoring_threads = {}
+
+
+def validate_cli_version(message_body):
+    """
+    Validate CLI version against minimum required version.
+    Raises exception with user-friendly error message if version is too old.
+    """
+    cli_version = message_body.get("version")
+
+    # If no version provided, assume old CLI
+    if not cli_version:
+        raise ValueError(
+            f"Your gpu-dev CLI is outdated and no longer supported. "
+            f"Please upgrade by running: python3 -m pip install --upgrade \"git+https://github.com/pytorch/test-infra.git@wdvr/clouddevservers#subdirectory=cli-tools/gpu-dev-cli\""
+        )
+
+    def parse_version(version_str):
+        """Parse semantic version string into comparable tuple"""
+        try:
+            return tuple(map(int, version_str.split('.')))
+        except (ValueError, AttributeError):
+            return (0, 0, 0)
+
+    cli_ver_tuple = parse_version(cli_version)
+    min_ver_tuple = parse_version(MIN_CLI_VERSION)
+
+    if cli_ver_tuple < min_ver_tuple:
+        raise ValueError(
+            f"Your gpu-dev CLI version {cli_version} is outdated. "
+            f"Minimum required version is {MIN_CLI_VERSION}. "
+            f"Please upgrade by running: python3 -m pip install --upgrade \"git+https://github.com/pytorch/test-infra.git@wdvr/clouddevservers#subdirectory=cli-tools/gpu-dev-cli\""
+        )
+
+    logger.info(f"CLI version {cli_version} validated successfully")
 
 
 def get_k8s_client():
@@ -634,6 +672,27 @@ def handler(event, context):
                 # Determine message type and process accordingly
                 try:
                     message_body = json.loads(record["body"])
+
+                    # Validate CLI version before processing any request
+                    try:
+                        validate_cli_version(message_body)
+                    except ValueError as version_error:
+                        # Handle version validation errors - update reservation status with error
+                        reservation_id = message_body.get("reservation_id")
+                        if reservation_id:
+                            logger.info(f"Updating reservation {reservation_id} with version error")
+                            update_reservation_status(
+                                reservation_id=reservation_id,
+                                status="failed",
+                                detailed_status="CLI version validation failed",
+                                failure_reason=str(version_error)
+                            )
+                            # Delete message after updating status
+                            delete_sqs_message(record)
+                        else:
+                            logger.error(f"Version validation failed but no reservation_id found: {version_error}")
+                        continue
+
                     message_type = message_body.get("type", "reservation")
 
                     if message_type == "cancellation":
@@ -1879,9 +1938,14 @@ def allocate_gpu_resources(reservation_id: str, request: dict[str, Any]) -> None
                         "preparing",
                         "Setting up persistent disk for user data",
                     )
-                    persistent_volume_id, is_new_disk = create_or_find_persistent_disk_in_az(user_id, target_az)
+                    persistent_volume_id, is_new_disk, disk_warning = create_or_find_persistent_disk_in_az(user_id, target_az)
                     logger.info(
                         f"Using persistent disk {persistent_volume_id} in {target_az} for user {user_id} (new_disk={is_new_disk})")
+
+                    # Store warning in database if multiple disks were detected
+                    if disk_warning:
+                        update_reservation_fields(reservation_id, warning=disk_warning)
+                        logger.warning(f"Stored warning for reservation {reservation_id}: {disk_warning}")
 
             except Exception as disk_error:
                 logger.error(f"Failed to set up persistent disk: {disk_error}")
@@ -3661,8 +3725,8 @@ def get_node_instance_id() -> str:
         return None
 
 
-def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -> tuple[str, bool]:
-    """Create or find existing persistent disk for user in specific AZ, returns (volume_id, is_new_disk)"""
+def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -> tuple[str, bool, str]:
+    """Create or find existing persistent disk for user in specific AZ, returns (volume_id, is_new_disk, warning_message)"""
     try:
         # Use EC2 tags to track user disks
         disk_tag_key = "gpu-dev-user"
@@ -3680,21 +3744,57 @@ def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -
         )
 
         volumes = response.get("Volumes", [])
+        warning_message = None
+
+        # BUG FIX: Detect multiple persistent disks and return warning instead of erroring
+        if len(volumes) > 1:
+            volume_ids = [vol["VolumeId"] for vol in volumes]
+            warning_message = f"⚠️ Multiple persistent disks detected ({len(volumes)} disks: {', '.join(volume_ids)}). Using oldest available. Please contact oncall:pytorch_release_engineering to clean up duplicate disks."
+            logger.error(f"❌ DOUBLE PERSISTENT DISK DETECTED for user {user_id} in AZ {availability_zone}: {volume_ids}. Please report to oncall:pytorch_release_engineering")
+            logger.error(f"This should not happen! User {user_id} should only have ONE persistent disk per AZ.")
+
         if volumes:
+            # BUG FIX: Sort by creation time to always use the oldest disk
+            volumes_sorted = sorted(volumes, key=lambda v: v.get("CreateTime", datetime.min))
+
             # Check if any volumes are available (not in-use)
-            available_volumes = [vol for vol in volumes if vol["State"] == "available"]
+            available_volumes = [vol for vol in volumes_sorted if vol["State"] == "available"]
+
             if available_volumes:
-                volume_id = available_volumes[0]["VolumeId"]
-                logger.info(f"Found existing available persistent disk {volume_id} for user {user_id} in {availability_zone}")
-                return volume_id, False  # existing disk
-            else:
-                # All volumes are in-use, log this and create a new one
-                in_use_volumes = [vol for vol in volumes if vol["State"] == "in-use"]
-                if in_use_volumes:
-                    in_use_volume_id = in_use_volumes[0]["VolumeId"]
-                    logger.warning(f"User {user_id} has persistent disk {in_use_volume_id} but it's currently in-use by another reservation. Creating new disk instead.")
+                # BUG FIX: Use the oldest available disk
+                oldest_volume = available_volumes[0]
+                volume_id = oldest_volume["VolumeId"]
+                create_time = oldest_volume.get("CreateTime", "unknown")
+
+                if len(available_volumes) > 1:
+                    logger.warning(f"Multiple available disks found for {user_id}, using oldest: {volume_id} (created {create_time})")
                 else:
-                    logger.warning(f"User {user_id} has persistent disk(s) in unexpected state: {[vol['State'] for vol in volumes]}. Creating new disk.")
+                    logger.info(f"Found existing available persistent disk {volume_id} for user {user_id} in {availability_zone}")
+
+                return volume_id, False, warning_message  # existing disk, with optional warning
+            else:
+                # BUG FIX: All volumes are in-use - this is a race condition bug!
+                # DO NOT create a new disk. Instead, return a warning to be stored in the database.
+                in_use_volumes = [vol for vol in volumes_sorted if vol["State"] == "in-use"]
+
+                if in_use_volumes:
+                    oldest_in_use = in_use_volumes[0]
+                    in_use_volume_id = oldest_in_use["VolumeId"]
+                    all_in_use_ids = [vol["VolumeId"] for vol in in_use_volumes]
+
+                    # Create warning message for database (CLI will display this)
+                    warning_msg = (
+                        f"⚠️ All persistent disks are in-use by other reservations. "
+                        f"Found {len(in_use_volumes)} in-use disk(s): {', '.join(all_in_use_ids)}. "
+                        f"Please contact oncall:pytorch_release_engineering to resolve this issue."
+                    )
+                    logger.error(f"❌ DOUBLE PERSISTENT DISK - ALL IN-USE for user {user_id}: {all_in_use_ids}")
+
+                    # Raise exception to prevent reservation from continuing without persistent disk
+                    raise RuntimeError(warning_msg)
+                else:
+                    logger.warning(f"User {user_id} has persistent disk(s) in unexpected state: {[vol['State'] for vol in volumes]}.")
+                    # Fall through to create new disk for unexpected states
 
         # Create new 1TB gp3 disk in the specified AZ
         logger.info(f"Creating new 1TB persistent disk for user {user_id} in AZ {availability_zone}")
@@ -3726,7 +3826,7 @@ def create_or_find_persistent_disk_in_az(user_id: str, availability_zone: str) -
         waiter.wait(VolumeIds=[volume_id], WaiterConfig={"Delay": 5, "MaxAttempts": 60})
 
         logger.info(f"Created new persistent disk {volume_id} for user {user_id} in {availability_zone}")
-        return volume_id, True  # new disk
+        return volume_id, True, None  # new disk, no warning
 
     except Exception as e:
         logger.error(f"Error creating/finding persistent disk for user {user_id} in AZ {availability_zone}: {str(e)}")

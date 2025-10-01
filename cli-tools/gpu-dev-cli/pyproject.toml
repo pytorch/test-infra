@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "gpu-dev-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "CLI tool for PyTorch GPU developer server reservations"
 authors = ["PyTorch Team"]
 readme = "README.md"
