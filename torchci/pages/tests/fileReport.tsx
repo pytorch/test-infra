@@ -724,7 +724,7 @@ function TestStatus({
   );
 
   useEffect(() => {
-    if (shas.length > 0 && selectedIndex === -1) {
+    if (shas.length > 0 && selectedIndex === 0) {
       setSelectedIndex(shas.length - 1);
     }
   }, [shas, selectedIndex]);
