@@ -3,6 +3,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Callable, List, Optional, Set, Tuple, Union
 
+from .bisection_planner import GapBisectionPlanner
+
 
 class SignalStatus(Enum):
     """signal status enum"""
@@ -198,8 +200,6 @@ class PartitionedCommits:
         """
         if not self.unknown:
             return set()
-
-        from .bisection_planner import GapBisectionPlanner
 
         covered = [bool(c.events) for c in self.unknown]
         if all(covered) or bisection_limit == 0:
