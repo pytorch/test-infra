@@ -38,14 +38,13 @@ runs:
         if [[ -n "${{ inputs.venv }}" ]]; then
           source "${{ inputs.venv }}"
         fi
+        python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
 
         DEVICE_NAME=""
         DEVICE_TYPE=""
 
         if [[ -z "${INPUT_DEVICE_NAME:-}" ]] || [[ -z "${INPUT_DEVICE_TYPE:-}" ]]; then
           echo "Device name or type is not provided, trying to get them"
-          python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
-
           if command -v nvidia-smi; then
             # NB: I'm using PyTorch here to get the device name, however, it needs to
             # install the correct version of PyTorch manually for now. Any PyTorch
