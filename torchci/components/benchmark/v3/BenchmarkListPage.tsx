@@ -1,5 +1,5 @@
 import { Box, Typography } from "@mui/material";
-import { NavCategory, NavItem } from "components/layout/NavBar";
+import { NavCategory, NavItem } from "components/layout/NavBarGroupDropdown";
 import { BenchmarkCategoryGroup } from "./components/benchmarkList/BenchmarkCategoryCard";
 import BenchmarkCategoryCardList from "./components/benchmarkList/BenchmarkCategoryCardList";
 
