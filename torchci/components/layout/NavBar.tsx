@@ -1,9 +1,11 @@
+import { benchmarkNavGroup } from "components/benchmark/v3/BenchmarkListPage";
 import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
 import React, { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
+import { NavBarGroupDropdown } from "./NavBarGroupDropdown";
 
 const NavBarDropdown = ({
   title,
@@ -85,52 +87,7 @@ const NavBarDropdown = ({
 };
 
 function NavBar() {
-  const benchmarksDropdown = [
-    {
-      name: "TorchInductor",
-      href: "/benchmark/compilers",
-    },
-    {
-      name: "Triton",
-      href: "/tritonbench/commit_view",
-    },
-    {
-      name: "PyTorch LLMs",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
-    },
-    {
-      name: "ExecuTorch",
-      href: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
-    },
-    {
-      name: "TorchAO",
-      href: "/benchmark/llms?repoName=pytorch%2Fao",
-    },
-    {
-      name: "TorchAO Micro API",
-      href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
-    },
-    {
-      name: "PT CacheBench",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
-    },
-    {
-      name: "vLLM v1",
-      href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
-    },
-    {
-      name: "SGLang",
-      href: "/benchmark/llms?repoName=sgl-project%2Fsglang",
-    },
-    {
-      name: "Helion",
-      href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
-    },
-    {
-      name: "PyTorch Operator Microbenchmark",
-      href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
-    },
-  ].sort((a, b) => a.name.localeCompare(b.name));
+  const benchmarkDropdown = benchmarkNavGroup;
 
   const devInfraDropdown = [
     {
@@ -220,6 +177,10 @@ function NavBar() {
       ),
       href: "/flambeau",
     },
+    {
+      name: "vLLM CI metrics",
+      href: "/metrics/vllm",
+    },
   ];
 
   return (
@@ -251,6 +212,11 @@ function NavBar() {
               TorchAudio
             </Link>
           </li>
+          <li>
+            <Link prefetch={false} href="/hud/pytorch/helion/main">
+              Helion
+            </Link>
+          </li>
         </ul>
       </div>
       <div
@@ -272,13 +238,13 @@ function NavBar() {
               Requests
             </Link>
           </li>
-          <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <li>
             <Link prefetch={false} href="/kpis">
               KPIs
             </Link>
           </li>
-          <NavBarDropdown title="Benchmarks" items={benchmarksDropdown} />
+          <NavBarGroupDropdown title="Benchmarks" groups={benchmarkDropdown} />
+          <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}

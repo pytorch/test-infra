@@ -1,5 +1,6 @@
 import {
   COMPILERS_DTYPES_V2,
+  DISPLAY_NAMES_TO_ARCH_NAMES,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
 } from "components/benchmark/compilers/common";
 import {
@@ -32,7 +33,11 @@ export function CompilerSearchBarDropdowns() {
       />
       <UMDenseDropdown
         dtype={stagedFilters.deviceName ?? ""}
-        setDType={(val: string) => setStagedFilter("deviceName", val)}
+        setDType={(val: string) => {
+          setStagedFilter("deviceName", val);
+          setStagedFilter("device", DISPLAY_NAMES_TO_DEVICE_NAMES[val]);
+          setStagedFilter("arch", DISPLAY_NAMES_TO_ARCH_NAMES[val]);
+        }}
         dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
         label="Device"
       />

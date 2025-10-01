@@ -15,11 +15,16 @@ export function extractBackendSqlStyle(
 }
 
 export function toQueryArch(device: string, arch: string) {
+  if (arch === undefined) return [];
+  if (!device) return [];
   switch (device) {
     case "rocm":
-      if (arch === "mi300x") return ["mi300x", "mi325x"];
+      if (arch === "mi300x" || arch == "") return ["mi300x", "mi325x"];
       return [arch];
     default:
+      if (arch === "") {
+        return [];
+      }
       return [arch];
   }
 }

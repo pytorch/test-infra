@@ -34,29 +34,17 @@ class RunStateLogger:
 
         # Collect commit order (newest → older) across signals
         commits: List[str] = []
+        commit_times: Dict[str, str] = {}
         seen = set()
         for s in signals:
             for c in s.commits:
                 if c.head_sha not in seen:
                     seen.add(c.head_sha)
                     commits.append(c.head_sha)
+                    commit_times[c.head_sha] = c.timestamp.isoformat()
 
-        # Compute minimal started_at per commit (for timestamp context)
-        commit_times: Dict[str, str] = {}
-        for sha in commits:
-            tmin_iso: str | None = None
-            for s in signals:
-                # find commit in this signal
-                sc = next((cc for cc in s.commits if cc.head_sha == sha), None)
-                if not sc or not sc.events:
-                    continue
-                # events are sorted oldest first
-                t = sc.events[0].started_at
-                ts_iso = t.isoformat()
-                if tmin_iso is None or ts_iso < tmin_iso:
-                    tmin_iso = ts_iso
-            if tmin_iso is not None:
-                commit_times[sha] = tmin_iso
+        # sorting commits by their timestamp
+        commits.sort(key=lambda sha: commit_times[sha], reverse=True)
 
         # Build columns with outcomes, notes, and per-commit events
         cols = []
@@ -65,14 +53,21 @@ class RunStateLogger:
             if isinstance(outcome, AutorevertPattern):
                 oc = "revert"
                 ineligible = None
+                data = {
+                    "workflow_name": outcome.workflow_name,
+                    "suspected_commit": outcome.suspected_commit,
+                    "older_successful_commit": outcome.older_successful_commit,
+                    "newer_failing_commits": list(outcome.newer_failing_commits),
+                }
+                if outcome.job_base_name:
+                    data["job_base_name"] = outcome.job_base_name
+                if outcome.wf_run_id is not None:
+                    data["wf_run_id"] = outcome.wf_run_id
+                if outcome.job_id is not None:
+                    data["job_id"] = outcome.job_id
                 serialized = {
                     "type": "AutorevertPattern",
-                    "data": {
-                        "workflow_name": outcome.workflow_name,
-                        "suspected_commit": outcome.suspected_commit,
-                        "older_successful_commit": outcome.older_successful_commit,
-                        "newer_failing_commits": list(outcome.newer_failing_commits),
-                    },
+                    "data": data,
                 }
             elif isinstance(outcome, RestartCommits):
                 oc = "restart"
@@ -109,6 +104,10 @@ class RunStateLogger:
                     }
                     if e.ended_at:
                         ev["ended_at"] = e.ended_at.isoformat()
+                    if e.job_id is not None:
+                        ev["job_id"] = e.job_id
+                    if e.run_attempt is not None:
+                        ev["run_attempt"] = e.run_attempt
                     evs.append(ev)
                 if evs:
                     cells[c.head_sha] = evs
@@ -119,6 +118,8 @@ class RunStateLogger:
                 "outcome": oc,
                 "cells": cells,
             }
+            if sig.job_base_name:
+                col["job_base_name"] = sig.job_base_name
             if ineligible is not None:
                 col["ineligible"] = ineligible
             cols.append(col)

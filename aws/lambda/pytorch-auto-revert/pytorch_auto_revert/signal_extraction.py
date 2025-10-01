@@ -32,6 +32,7 @@ class TestOutcome:
     failing: bool
     errored: bool
     started_at: datetime
+    job_id: int
 
 
 class SignalExtractor:
@@ -64,10 +65,18 @@ class SignalExtractor:
     # -----------------------------
     def extract(self) -> List[Signal]:
         """Extract Signals for configured workflows within the lookback window."""
+        # Fetch commits first to ensure we include commits without jobs
+        commits = self._datasource.fetch_commits_in_time_range(
+            repo_full_name=self.repo_full_name,
+            lookback_hours=self.lookback_hours,
+        )
+
+        # Fetch jobs for these commits
         jobs = self._datasource.fetch_jobs_for_workflows(
             repo_full_name=self.repo_full_name,
             workflows=self.workflows,
             lookback_hours=self.lookback_hours,
+            head_shas=[sha for sha, _ in commits],
         )
 
         # Select jobs to participate in test-track details fetch
@@ -76,8 +85,8 @@ class SignalExtractor:
             test_track_job_ids, failed_job_ids=failed_job_ids
         )
 
-        test_signals = self._build_test_signals(jobs, test_rows)
-        job_signals = self._build_non_test_signals(jobs)
+        test_signals = self._build_test_signals(jobs, test_rows, commits)
+        job_signals = self._build_non_test_signals(jobs, commits)
         # Deduplicate events within commits across all signals as a final step
         # GitHub-specific behavior like "rerun failed" can reuse job instances for reruns.
         # When that happens, the jobs have identical timestamps by DIFFERENT job ids.
@@ -101,9 +110,18 @@ class SignalExtractor:
                         continue
                     filtered.append(e)
                     prev_key = key
-                new_commits.append(SignalCommit(head_sha=c.head_sha, events=filtered))
+                new_commits.append(
+                    SignalCommit(
+                        head_sha=c.head_sha, timestamp=c.timestamp, events=filtered
+                    )
+                )
             deduped.append(
-                Signal(key=s.key, workflow_name=s.workflow_name, commits=new_commits)
+                Signal(
+                    key=s.key,
+                    workflow_name=s.workflow_name,
+                    commits=new_commits,
+                    job_base_name=s.job_base_name,
+                )
             )
         return deduped
 
@@ -145,6 +163,7 @@ class SignalExtractor:
         self,
         jobs: List[JobRow],
         test_rows: List[TestRow],
+        commits: List[Tuple[Sha, datetime]],
     ) -> List[Signal]:
         """Build per-test Signals across commits, scoped to job base.
 
@@ -155,9 +174,15 @@ class SignalExtractor:
           - If test_run_s3 rows exist → FAILURE if any failing/errored else SUCCESS
           - Else if group pending → PENDING
           - Else → no event (missing)
+
+        Args:
+            jobs: List of job rows from the datasource
+            test_rows: List of test rows from the datasource
+            commits: Ordered list of (sha, timestamp) tuples (newest → older)
         """
 
         jobs_by_id = {j.job_id: j for j in jobs}
+        commit_timestamps = dict(commits)
 
         index_by_commit_job_base_wf_run_attempt: JobAggIndex[
             Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]
@@ -170,11 +195,6 @@ class SignalExtractor:
                 j.wf_run_id,
                 j.run_attempt,
             ),
-        )
-
-        # Preserve newest → older commit order from the datasource
-        commit_shas = index_by_commit_job_base_wf_run_attempt.unique_values(
-            lambda j: j.head_sha
         )
 
         run_ids_attempts = index_by_commit_job_base_wf_run_attempt.group_map_values_by(
@@ -205,10 +225,17 @@ class SignalExtractor:
             started_at = min(
                 (prev.started_at if prev else job.started_at), job.started_at
             )
+            # Use job_id from the first failing test, or current job_id
+            use_job_id = (
+                prev.job_id
+                if prev and (prev.failing or prev.errored)
+                else int(tr.job_id)
+            )
             outcome = TestOutcome(
                 failing=(prev.failing if prev else False) or bool(tr.failing),
                 errored=(prev.errored if prev else False) or bool(tr.errored),
                 started_at=started_at,
+                job_id=use_job_id,
             )
             tests_by_group_attempt[key] = outcome
             if outcome.failing or outcome.errored:
@@ -225,7 +252,7 @@ class SignalExtractor:
             )
 
             # y-axis: commits (newest → older)
-            for commit_sha in commit_shas:
+            for commit_sha, _ in commits:
                 events: List[SignalEvent] = []
 
                 # x-axis: events for the signal
@@ -260,6 +287,7 @@ class SignalExtractor:
                         ),
                         "ended_at": None,
                         "wf_run_id": int(wf_run_id),
+                        "run_attempt": int(run_attempt),
                     }
 
                     if verdict:
@@ -269,6 +297,7 @@ class SignalExtractor:
                                 if (verdict.failing or verdict.errored)
                                 else SignalStatus.SUCCESS,
                                 started_at=verdict.started_at,
+                                job_id=verdict.job_id,
                                 **event_common,
                             )
                         )
@@ -277,6 +306,7 @@ class SignalExtractor:
                             SignalEvent(
                                 status=SignalStatus.PENDING,
                                 started_at=meta.started_at,
+                                job_id=meta.job_id,
                                 **event_common,
                             )
                         )
@@ -286,18 +316,39 @@ class SignalExtractor:
                     has_any_events = True
 
                 # important to always include the commit, even if no events
-                commit_objs.append(SignalCommit(head_sha=commit_sha, events=events))
+                commit_objs.append(
+                    SignalCommit(
+                        head_sha=commit_sha,
+                        timestamp=commit_timestamps[commit_sha],
+                        events=events,
+                    )
+                )
 
             if has_any_events:
                 signals.append(
-                    Signal(key=test_id, workflow_name=wf_name, commits=commit_objs)
+                    Signal(
+                        key=test_id,
+                        workflow_name=wf_name,
+                        commits=commit_objs,
+                        job_base_name=str(job_base_name),
+                    )
                 )
 
         return signals
 
-    def _build_non_test_signals(self, jobs: List[JobRow]) -> List[Signal]:
-        # Build Signals keyed by normalized job base name per workflow.
-        # Aggregate across shards within (wf_run_id, run_attempt) using JobAggIndex.
+    def _build_non_test_signals(
+        self, jobs: List[JobRow], commits: List[Tuple[Sha, datetime]]
+    ) -> List[Signal]:
+        """Build Signals keyed by normalized job base name per workflow.
+
+        Aggregate across shards within (wf_run_id, run_attempt) using JobAggIndex.
+
+        Args:
+            jobs: List of job rows from the datasource
+            commits: Ordered list of (sha, timestamp) tuples (newest → older)
+        """
+
+        commit_timestamps = dict(commits)
 
         index = JobAggIndex.from_rows(
             jobs,
@@ -309,9 +360,6 @@ class SignalExtractor:
                 j.run_attempt,
             ),
         )
-
-        # Preserve commit order as first-seen in the job rows (datasource orders newest→older).
-        commit_shas = index.unique_values(lambda j: j.head_sha)
 
         # Map (sha, workflow, base) -> [attempt_keys]
         groups_index = index.group_keys_by(
@@ -329,7 +377,7 @@ class SignalExtractor:
             # Track failure types across all attempts/commits for this base
             has_relevant_failures = False  # at least one non-test failure observed
 
-            for sha in commit_shas:
+            for sha, _ in commits:
                 attempt_keys: List[
                     Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]
                 ] = groups_index.get((sha, wf_name, base_name), [])
@@ -370,16 +418,27 @@ class SignalExtractor:
                             started_at=meta.started_at,
                             ended_at=None,
                             wf_run_id=int(wf_run_id),
+                            run_attempt=int(run_attempt),
+                            job_id=meta.job_id,
                         )
                     )
 
                 # important to always include the commit, even if no events
-                commit_objs.append(SignalCommit(head_sha=sha, events=events))
+                commit_objs.append(
+                    SignalCommit(
+                        head_sha=sha, timestamp=commit_timestamps[sha], events=events
+                    )
+                )
 
             # Emit job signal when failures were present and failures were NOT exclusively test-caused
             if has_relevant_failures:
                 signals.append(
-                    Signal(key=base_name, workflow_name=wf_name, commits=commit_objs)
+                    Signal(
+                        key=base_name,
+                        workflow_name=wf_name,
+                        commits=commit_objs,
+                        job_base_name=str(base_name),
+                    )
                 )
 
         return signals
