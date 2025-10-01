@@ -18,10 +18,20 @@ def build_gap_signal(unknown_k: int, *, pending_idx: set[int] | None = None):
 
     # Failure side (3 failures to avoid extra side restarts interfering)
     c_fail_newest = SignalCommit(
-        "sha_fail_newest", [ev("job", SignalStatus.FAILURE, t0, 10)]
+        head_sha="sha_fail_newest",
+        timestamp=ts(t0, 0),
+        events=[ev("job", SignalStatus.FAILURE, t0, 10)],
     )
-    c_fail_mid = SignalCommit("sha_fail_mid", [ev("job", SignalStatus.FAILURE, t0, 9)])
-    c_fail_old = SignalCommit("sha_fail_old", [ev("job", SignalStatus.FAILURE, t0, 8)])
+    c_fail_mid = SignalCommit(
+        head_sha="sha_fail_mid",
+        timestamp=ts(t0, 0),
+        events=[ev("job", SignalStatus.FAILURE, t0, 9)],
+    )
+    c_fail_old = SignalCommit(
+        head_sha="sha_fail_old",
+        timestamp=ts(t0, 0),
+        events=[ev("job", SignalStatus.FAILURE, t0, 8)],
+    )
 
     unknown_commits = []
     unknown_shas = []
@@ -32,10 +42,14 @@ def build_gap_signal(unknown_k: int, *, pending_idx: set[int] | None = None):
             events = [ev("job", SignalStatus.PENDING, t0, 7 - i)]
         else:
             events = []
-        unknown_commits.append(SignalCommit(sha, events))
+        unknown_commits.append(
+            SignalCommit(head_sha=sha, timestamp=ts(t0, 0), events=events)
+        )
 
     c_success_base = SignalCommit(
-        "sha_success_base", [ev("job", SignalStatus.SUCCESS, t0, 1)]
+        head_sha="sha_success_base",
+        timestamp=ts(t0, 0),
+        events=[ev("job", SignalStatus.SUCCESS, t0, 1)],
     )
 
     commits = (
