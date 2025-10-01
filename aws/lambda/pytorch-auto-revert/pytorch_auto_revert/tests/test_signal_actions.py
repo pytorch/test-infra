@@ -286,19 +286,53 @@ class TestCommentIssueRevert(unittest.TestCase):
         comment_text = mock_issue.create_comment.call_args[0][0]
 
         # Check that job link is in the comment
-        self.assertIn("**Failed job:**", comment_text)
-        self.assertIn(
-            "https://github.com/pytorch/pytorch/actions/runs/12345/job/67890",
+        self.assertEqual(
             comment_text,
+            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
         )
 
-        # Check that HUD link is in the comment
-        self.assertIn("**PyTorch HUD:**", comment_text)
-        self.assertIn(
-            "https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1", comment_text
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_comment_with_job_without_hud_links(self, mock_gh_factory):
+        """Test that comment includes job link but without HUD link."""
+        # Mock PR and issue
+        mock_pr = Mock()
+        mock_pr.number = 12345
+        mock_pr.get_labels.return_value = []
+
+        mock_issue = Mock()
+        mock_repo = Mock()
+        mock_repo.get_issue.return_value = mock_issue
+        mock_client = Mock()
+        mock_client.get_repo.return_value = mock_repo
+        mock_gh_factory.return_value.client = mock_client
+
+        self.proc._find_pr_by_sha = Mock(
+            return_value=(CommitPRSourceAction.MERGE, mock_pr)
         )
-        # URL encoding: spaces become %20, / stays as /
-        self.assertIn("name_filter=linux-jammy%20/%20test", comment_text)
+
+        sources = [
+            SignalMetadata(
+                workflow_name="trunk",
+                key="test_signal",
+                job_base_name=None,
+                wf_run_id=12345,
+                job_id=67890,
+            )
+        ]
+
+        result = self.proc._comment_issue_pr_revert("abc123", sources, self.ctx)
+
+        self.assertTrue(result)
+
+        # Verify issue comment was created
+        mock_issue.create_comment.assert_called_once()
+        comment_text = mock_issue.create_comment.call_args[0][0]
+
+        # Check that job link is in the comment
+        self.assertEqual(
+            comment_text,
+            "Autorevert detected a possible offender: abc123 from PR #12345.\n\nThe commit is a PR merge\n\nThis PR is attributed to have caused regression in:\n- trunk: [test_signal](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890)\n",
+        )
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
     def test_comment_without_job_info(self, mock_gh_factory):
@@ -336,13 +370,10 @@ class TestCommentIssueRevert(unittest.TestCase):
         mock_issue.create_comment.assert_called_once()
         comment_text = mock_issue.create_comment.call_args[0][0]
 
-        # Job link should not be present
-        self.assertNotIn("**Failed job:**", comment_text)
-
         # HUD link should still be present
-        self.assertIn("**PyTorch HUD:**", comment_text)
         self.assertIn(
-            "https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1", comment_text
+            "- trunk: test_signal ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
+            comment_text,
         )
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
@@ -450,8 +481,14 @@ class TestCommentIssueRevert(unittest.TestCase):
         comment_text = mock_issue.create_comment.call_args[0][0]
 
         # Check workflow grouping
-        self.assertIn("trunk: test_signal_1, test_signal_2", comment_text)
-        self.assertIn("inductor: test_inductor", comment_text)
+        self.assertIn(
+            "- trunk: [test_signal_1](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true)), [test_signal_2](https://github.com/pytorch/pytorch/actions/runs/12345/job/67890) ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20test&mergeEphemeralLF=true))\n",
+            comment_text,
+        )
+        self.assertIn(
+            "- inductor: test_inductor ([\U0001f5d2](https://hud.pytorch.org/hud/pytorch/pytorch/abc123/1?per_page=50&name_filter=linux-jammy%20/%20inductor&mergeEphemeralLF=true))\n",
+            comment_text,
+        )
 
 
 if __name__ == "__main__":
