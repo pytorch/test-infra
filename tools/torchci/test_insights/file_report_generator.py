@@ -2,19 +2,20 @@
 """
 File Report Generator
 
-This script generates comprehensive file reports by comparing test data between
-two commit SHAs. It fetches all test data, calculates diffs for all files, and
-groups results by owner labels from test_owner_labels.json.
+This script generates file reports by comparing test data between commit SHAs.
+It fetches test data, calculates diffs, and groups results by owner labels from
+test_owner_labels.json. It then uploads the results to S3 to be used by HUD.
 
 Usage:
-    python file_report_generator.py --sha1 abc123 --sha2 def456
+    python file_report_generator.py --add-dates <date1> <date2>
+    python file_report_generator.py --add-shas <sha1> <sha2>
+    python file_report_generator.py --remove-sha <sha>
 """
 
 import argparse
 import concurrent.futures
 import gzip
 import json
-import multiprocessing
 import os
 import re
 import time
@@ -32,8 +33,6 @@ def get_temp_dir() -> Path:
     """Create a temporary directory for processing files"""
     temp_dir = Path("/tmp/file_report_generator")
     temp_dir.mkdir(parents=True, exist_ok=True)
-    (temp_dir / "intermediate_ind").mkdir(parents=True, exist_ok=True)
-    (temp_dir / "intermediate_status_changes").mkdir(parents=True, exist_ok=True)
     return temp_dir
 
 
@@ -45,18 +44,9 @@ class FileReportGenerator:
         "https://ossci-metrics.s3.us-east-1.amazonaws.com/ec2_pricing.json.gz"
     )
 
-    def __init__(
-        self, reports_dir: str, test_owners_file: str = "test_owner_labels.json"
-    ):
+    def __init__(self, dry_run: bool = True):
         """Initialize the generator with the test owners file path"""
-        self.test_owners_file = test_owners_file
-        self.base_dir = Path(
-            __file__
-        ).parent.parent.parent.parent  # Navigate to repo root
-        self.test_owners_path = self.base_dir / test_owners_file
-        self.reports_dir = Path(reports_dir)
-        if not self.reports_dir.exists():
-            self.reports_dir.mkdir(parents=True)
+        self.dry_run = dry_run
 
     @lru_cache
     def load_runner_costs(self) -> Dict[str, float]:
@@ -116,15 +106,15 @@ class FileReportGenerator:
             if len(lens) > 1:
                 lens.sort(key=lambda x: x[1], reverse=True)
                 if abs(lens[0][1] - lens[1][1]) * 2 / (lens[0][1] + lens[1][1]) < 0.1:
+                    print(f"Using SHA {lens[0][0]} with {lens[0][1]} entries")
                     return lens[0][0]
         return None
 
-    def find_suitable_shas(self, start_date: str, stop_date: str) -> list[str]:
+    def find_suitable_sha(self, date: str) -> Optional[str]:
         """
-        Auto-select suitable SHAs from PyTorch main branch for a given date window.
+        Auto-select suitable SHA from PyTorch main branch for a given date.
         Usage:
-        - Provide a date range (start and end) to select SHAs within that window.
-        - Returns 1 sha per day
+        - Provide a date to select a SHA from that day
         Criteria:
         - SHA is from main branch
         - Workflow jobs are successful (green)
@@ -135,8 +125,8 @@ class FileReportGenerator:
         print("Searching for suitable SHAs from PyTorch main branch...")
 
         params = {
-            "start_date": start_date + " 00:00:00",
-            "stop_date": stop_date + " 23:59:59",
+            "start_date": date + " 00:00:00",
+            "stop_date": date + " 23:59:59",
         }
 
         # Single query with conditional logic using CASE expressions
@@ -157,25 +147,12 @@ class FileReportGenerator:
         ORDER BY
             min(w.head_commit.'timestamp') DESC
         """
-        print(f"Querying ClickHouse for successful workflow runs...")
+        print(f"Querying ClickHouse for successful shas on {date}")
         candidates = query_clickhouse(query, params)
 
-        print(f"Found {len(candidates)} candidate workflow runs")
+        print(f"Found {len(candidates)} candidate SHAs")
 
-        # Test each candidate SHA
-        group_by_day = {}
-        for candidate in candidates:
-            day = datetime.fromtimestamp(candidate["push_date"], timezone.utc).strftime(
-                "%Y-%m-%d"
-            )
-            if day not in group_by_day:
-                group_by_day[day] = []
-            group_by_day[day].append(candidate)
-
-        with multiprocessing.get_context("spawn").Pool(processes=2) as pool:
-            results = pool.map(self._get_first_suitable_sha, group_by_day.values())
-
-        return [sha for sha in results if sha is not None]
+        return self._get_first_suitable_sha(candidates)
 
     @lru_cache
     def _get_workflow_jobs_for_sha(self, sha: str) -> List[Dict[str, Any]]:
@@ -300,27 +277,24 @@ class FileReportGenerator:
         bucket = "ossci-raw-job-status"
         key = f"additional_info/invoking_file_summary/{workflow_run_id}/{workflow_run_attempt}"
 
-        def reformat(data):
-            data_as_list = []
-            for build, entries in data.items():
-                for config, entries in entries.items():
-                    for test_file, entry in entries.items():
-                        entry["file_name"] = test_file
-                        entry["run_id"] = workflow_run_id
-                        entry["run_attempt"] = workflow_run_attempt
-                        # TODO remove this later
-                        entry["short_job_name"] = f"{build} / test ({config})"
-                        data_as_list.append(entry)
-            return data_as_list
-
         start_time = time.time()
         text_data = self._fetch_from_s3(bucket, key)
         test_data = json.loads(text_data)
 
+        data_as_list = []
+        for build, entries in test_data.items():
+            for config, entries in entries.items():
+                for _, entry in entries.items():
+                    entry["run_id"] = workflow_run_id
+                    entry["run_attempt"] = workflow_run_attempt
+                    # TODO remove this later
+                    entry["short_job_name"] = f"{build} / test ({config})"
+                    data_as_list.append(entry)
+
         print(
-            f"Fetched {len(test_data)} test entries from {key}, took {time.time() - start_time:.2f} seconds"
+            f"Fetched {len(data_as_list)} test entries from {key}, took {time.time() - start_time:.2f} seconds"
         )
-        return reformat(test_data)
+        return data_as_list
 
     def _get_invoking_file_test_data_for_sha(self, sha: str) -> List[Dict[str, Any]]:
         """
@@ -380,13 +354,20 @@ class FileReportGenerator:
             entry["short_job_name"] = (
                 f"{workflow_name} / {entry.get('short_job_name', '')}"
             )
-            entry["_job_info"] = job_name_to_job[entry["short_job_name"]]
+            _job_info = job_name_to_job[entry["short_job_name"]]
+            entry["sha"] = sha
+            entry["push_date"] = self.get_push_date_for_sha(sha)
+            entry["labels"] = self.get_label_for_file(entry["file"])
+            entry["cost"] = (
+                _job_info.get("cost_per_hour", 0.0) / 3600.0 * entry.get("time", 0)
+            )
+            entry["frequency"] = _job_info["frequency"]
 
         return all_test_data
 
-    def get_label_for_file(self, file_name: str) -> List[str]:
+    def get_label_for_file(self, file: str) -> List[str]:
         for row in self.load_test_owners():
-            if row["file"] == file_name:
+            if row["file"] == file:
                 return row["owner_labels"]
         return []
 
@@ -451,12 +432,28 @@ class FileReportGenerator:
 
         return all_test_data
 
+    def _check_status_change_already_exists(self, sha1: str, sha2: str) -> bool:
+        """
+        Check if status changes between two SHAs already exist in S3.
+        """
+        bucket = "ossci-raw-job-status"
+        key = f"additional_info/weekly_file_report/status_changes_{sha1}_{sha2}.json.gz"
+        url = f"https://{bucket}.s3.amazonaws.com/{key}"
+        try:
+            with urllib.request.urlopen(url) as response:
+                if response.status == 200:
+                    print(f"Status changes for {sha1} to {sha2} already exist in S3.")
+                    return True
+        except Exception:
+            pass
+        return False
+
     def get_status_changes(
         self, sha1: str, sha2: str, sha2_push_date: str
     ) -> list[dict[str, Any]]:
         """
         Compare test data between two pre-fetched datasets.
-        Returns a dictionary with file_name as keys and job diffs as values.
+        Returns a dictionary with file as keys and job diffs as values.
         """
 
         tests1 = self._get_status_changes_for_sha(sha1)
@@ -485,8 +482,8 @@ class FileReportGenerator:
             if status is not None:
                 status_changes.append(
                     {
-                        "job_name": key[0],
-                        "file_name": key[1],
+                        "short_job_name": key[0],
+                        "file": key[1],
                         "test_name": key[2],
                         "status": status,
                         "labels": self.get_label_for_file(key[1]),
@@ -498,17 +495,18 @@ class FileReportGenerator:
         # Too large so truncate for now - just keep first 10 of each type
         counts = defaultdict(list)
         for entry in status_changes:
-            counts[(entry["job_name"], entry["file_name"], entry["status"])].append(
+            counts[(entry["short_job_name"], entry["file"], entry["status"])].append(
                 entry
             )
         to_write = []
         for key, entries in counts.items():
             to_write.extend(entries[:10])
 
-        with open(self.reports_dir / f"status_changes_{sha1}_{sha2}.json", "a") as f:
-            for entry in to_write:
-                json.dump(entry, f)
-                f.write("\n")
+        self.upload_to_s3(
+            to_write,
+            "ossci-raw-job-status",
+            f"additional_info/weekly_file_report/status_changes_{sha1}_{sha2}.json.gz",
+        )
 
         return status_changes
 
@@ -518,13 +516,15 @@ class FileReportGenerator:
         data = {
             "sha": sha,
             "push_date": push_date,
-            "invoking_file_test_data": invoking_file_test_data,
         }
-        with open(self.reports_dir / f"data.json", "a") as f:
-            json.dump(data, f)
-            f.write("\n")
+        self.upload_to_s3(
+            invoking_file_test_data,
+            "ossci-raw-job-status",
+            f"additional_info/weekly_file_report/data_{sha}.json.gz",
+        )
         return data
 
+    @lru_cache
     def get_push_date_for_sha(self, sha: str) -> Optional[str]:
         """
         Get the push date for a given SHA from ClickHouse push table.
@@ -543,6 +543,41 @@ class FileReportGenerator:
             return result[0]["pushed_at"]
         return None
 
+    def fetch_existing_metadata(self) -> list[dict[str, Any]]:
+        """Fetch existing metadata from the reports directory"""
+        metadata_str = self._fetch_from_s3(
+            "ossci-raw-job-status",
+            "additional_info/weekly_file_report/commits_metadata.json.gz",
+        )
+        metadata = []
+        for line in metadata_str.splitlines():
+            metadata.append(json.loads(line))
+
+        return metadata
+
+    def upload_to_s3(
+        self, contents: list[dict[str, Any]], bucket: str, key: str
+    ) -> None:
+        """Upload contents to S3 as a gzipped JSON lines file"""
+        compressed_data = gzip.compress(
+            "\n".join(json.dumps(entry) for entry in contents).encode("utf-8")
+        )
+        s3_path = f"s3://{bucket}/{key}"
+        with open("/tmp/upload_temp.gz", "wb") as f:
+            f.write(compressed_data)
+        if not self.dry_run:
+            os.system(
+                f"aws s3 cp /tmp/upload_temp.gz {s3_path} --content-encoding gzip --content-type application/json"
+            )
+        print(f"Uploaded data to {s3_path}")
+
+    def remove_key_from_s3(self, bucket: str, key: str) -> None:
+        """Remove a specific key from S3"""
+        s3_path = f"s3://{bucket}/{key}"
+        if not self.dry_run:
+            os.system(f"aws s3 rm {s3_path}")
+        print(f"Removed {s3_path} from S3")
+
 
 def main():
     """Main function to run the file report generator"""
@@ -555,89 +590,91 @@ Examples:
   python file_report_generator.py --day1 2025-08-15 --day2 2025-08-20
         """,
     )
-
-    parser.add_argument("--start-date", help="Start date for filtering (YYYY-MM-DD)")
-    parser.add_argument("--stop-date", help="Stop date for filtering (YYYY-MM-DD)")
     parser.add_argument(
-        "--shas", nargs="+", help="List of commit SHAs to compare in sequence"
-    )
-    parser.add_argument("--output", help="Output folder to write results to")
-    parser.add_argument(
-        "--test-pricing",
-        action="store_true",
-        help="Test fetching pricing data from S3 and exit",
+        "--add-shas", nargs="+", help="List of commit SHAs to compare in sequence"
     )
     parser.add_argument(
-        "--list-runners",
-        action="store_true",
-        help="List all available runners and their costs, then exit",
+        "--add-dates", nargs="+", help="List of commit SHAs to compare in sequence"
     )
     parser.add_argument(
-        "--test-owners-file",
-        default="test_owner_labels.json",
-        help="Path to the test owners file",
+        "--dry-run", action="store_true", help="Dry run without writing files"
     )
+    parser.add_argument("--remove-sha", help="Remove a specific SHA from the report")
 
     args = parser.parse_args()
 
-    # Generate default output filename if not provided
-    if not args.output:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        reports_dir = os.path.join(os.getcwd(), f"file_reports_{timestamp}")
-        if not os.path.exists(reports_dir):
-            os.makedirs(reports_dir)
-        args.output = str(reports_dir)
+    generator = FileReportGenerator(args.dry_run)
 
-    generator = FileReportGenerator(args.output, args.test_owners_file)
+    existing_metadata = generator.fetch_existing_metadata()
 
-    if args.test_pricing:
-        print("Testing pricing data fetch...")
-        runner_costs = generator.load_runner_costs()
-        print(f"Successfully loaded {len(runner_costs)} runner costs")
-        return
+    _existing_dates = set(
+        datetime.fromtimestamp(entry["push_date"], timezone.utc).strftime("%Y-%m-%d")
+        for entry in existing_metadata
+    )
+    _existing_shas = set(entry["sha"] for entry in existing_metadata)
 
-    if args.list_runners:
-        print("Available runners and costs:")
-        runner_costs = generator.load_runner_costs()
-        for runner, cost in sorted(runner_costs.items()):
-            print(f"  {runner:<50} ${cost:>8.4f}/hour")
-        return
+    if args.remove_sha:
+        for i, entry in enumerate(existing_metadata):
+            if entry["sha"] == args.remove_sha:
+                print(f"Removing SHA {args.remove_sha} from existing metadata")
+                generator.remove_key_from_s3(
+                    "ossci-raw-job-status",
+                    f"additional_info/weekly_file_report/data_{args.remove_sha}.json.gz",
+                )
+                if i > 0:
+                    prev_sha = existing_metadata[i - 1]["sha"]
+                    generator.remove_key_from_s3(
+                        "ossci-raw-job-status",
+                        f"additional_info/weekly_file_report/status_changes_{prev_sha}_{args.remove_sha}.json.gz",
+                    )
+                if i < len(existing_metadata) - 1:
+                    next_sha = existing_metadata[i + 1]["sha"]
+                    generator.remove_key_from_s3(
+                        "ossci-raw-job-status",
+                        f"additional_info/weekly_file_report/status_changes_{args.remove_sha}_{next_sha}.json.gz",
+                    )
+                existing_metadata.pop(i)
+                break
 
-    if (args.start_date and not args.stop_date) or (
-        not args.start_date and args.stop_date
-    ):
-        parser.error(
-            "Must provide both --start-date and --stop-date for auto-selection"
-        )
-    if args.shas and (args.start_date or args.stop_date):
-        parser.error("Cannot mix --shas with --start-date/--stop-date parameters")
-    if args.shas and len(args.shas) < 2:
-        parser.error(
-            "Either provide --shas with at least 2 SHAs, or --start-date and --stop-date for auto-selection"
-        )
+    shas = []
+    for date in args.add_dates or []:
+        if date in _existing_dates:
+            print(f"Date {date} already exists in metadata, skipping")
+            continue
+        sha = generator.find_suitable_sha(date)
+        print(f"Found suitable SHA {sha} for date {date}")
+        shas.append(sha)
 
-    # Handle the start-date/stop-date parameters
-    if args.start_date:
-        args.shas = generator.find_suitable_shas(args.start_date, args.stop_date)
+    for sha in args.add_shas or []:
+        shas.append(sha)
 
-    print(f"Using SHAs: {args.shas}")
+    print(f"Adding SHAs: {shas}")
 
     # Load data to get dates/ordering
-    shas_with_push_date = []
-    for sha in args.shas:
-        data = generator.get_data_for_sha(sha)
-        shas_with_push_date.append({"sha": sha, "push_date": data["push_date"]})
-        del data
+    for sha in shas:
+        sha_data = generator.get_data_for_sha(sha)
+        if sha not in _existing_shas:
+            existing_metadata.append(sha_data)
 
-    shas_with_push_date = sorted(shas_with_push_date, key=lambda x: x["push_date"])
+    existing_metadata = sorted(existing_metadata, key=lambda x: x["push_date"])
 
     print("Calculating diffs for all files and grouping by labels...")
-    for i in range(1, len(shas_with_push_date)):
-        generator.get_status_changes(
-            shas_with_push_date[i - 1]["sha"],
-            shas_with_push_date[i]["sha"],
-            shas_with_push_date[i]["push_date"],
-        )
+    for i in range(1, len(existing_metadata)):
+        if not generator._check_status_change_already_exists(
+            existing_metadata[i - 1]["sha"],
+            existing_metadata[i]["sha"],
+        ):
+            generator.get_status_changes(
+                existing_metadata[i - 1]["sha"],
+                existing_metadata[i]["sha"],
+                existing_metadata[i]["push_date"],
+            )
+
+    generator.upload_to_s3(
+        existing_metadata,
+        "ossci-raw-job-status",
+        "additional_info/weekly_file_report/commits_metadata.json.gz",
+    )
 
 
 if __name__ == "__main__":

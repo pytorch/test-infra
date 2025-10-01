@@ -2,6 +2,8 @@ import {
   Box,
   Button,
   ButtonGroup,
+  MenuItem,
+  Select,
   Stack,
   TextField,
   Tooltip,
@@ -16,10 +18,17 @@ import {
 import LoadingPage from "components/common/LoadingPage";
 import RegexButton from "components/common/RegexButton";
 import { durationDisplay } from "components/common/TimeUtils";
+import dayjs from "dayjs";
+import isoWeek from "dayjs/plugin/isoWeek";
 import ReactECharts from "echarts-for-react";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+
+dayjs.extend(isoWeek);
+
+const S3_LOCATION =
+  "https://ossci-raw-job-status.s3.amazonaws.com/additional_info/weekly_file_report";
 
 function formatTimestamp(ts: number) {
   return new Date(ts * 1000).toLocaleDateString().slice(0, 10);
@@ -53,6 +62,34 @@ function renderHeader(title: string, tooltip: string) {
   );
 }
 
+// Helper to match with optional regex
+function matchField(value: string, filter: string, useRegex: boolean) {
+  if (!filter) return true;
+  if (!value) return false;
+  if (useRegex) {
+    try {
+      return new RegExp(filter).test(value);
+    } catch {
+      return false;
+    }
+  }
+  return value === filter;
+}
+
+// Helper for label (array or string)
+function matchLabel(
+  labels: string[] | string,
+  filter: string,
+  useRegex: boolean
+) {
+  if (!filter) return true;
+  if (!labels) return false;
+  if (Array.isArray(labels)) {
+    return labels.some((l) => matchField(l, filter, useRegex));
+  }
+  return matchField(labels, filter, useRegex);
+}
+
 function Diffs({
   data,
   setFileFilter,
@@ -63,8 +100,8 @@ function Diffs({
   setJobFilter: (v: string) => void;
 }) {
   const groupByOptions = {};
-  // Compute diffs for every row (except the earliest) in each (file_name, job_name) group
-  const groupedDiff = _.groupBy(data, (d) => `${d.file_name}|||${d.job_name}`);
+  // Compute diffs for every row (except the earliest) in each (file, short_job_name) group
+  const groupedDiff = _.groupBy(data, (d) => `${d.file}|||${d.short_job_name}`);
   // Map from id (row) to diff object for every row (except the first in group)
   const rowDiffs: Record<string, any> = {};
   Object.entries(groupedDiff).forEach(([key, arr]) => {
@@ -98,7 +135,7 @@ function Diffs({
       renderCell: (params: any) => formatTimestamp(params.value),
     },
     {
-      field: "file_name",
+      field: "file",
       headerName: "File",
       flex: 4,
       renderCell: (params: any) => (
@@ -114,7 +151,7 @@ function Diffs({
         renderHeader("File", "Double click to filter by this file"),
     },
     {
-      field: "job_name",
+      field: "short_job_name",
       headerName: "Job",
       flex: 4,
       renderHeader: () =>
@@ -314,19 +351,19 @@ function Overview({
   const groupByOptions = {
     file: {
       headerName: "File",
-      field: "file_name",
+      field: "file",
       buttonText: "Group by File",
       onDoubleClick: (value: any) => setFileFilter(value),
       onDoubleClickHelpText: "Double-click to filter by this file",
-      groupByKey: (v: any) => [v.file_name],
+      groupByKey: (v: any) => [v.file],
     },
     job: {
       headerName: "Job",
-      field: "job_name",
+      field: "short_job_name",
       buttonText: "Group by Job",
       onDoubleClick: (value: any) => setJobFilter(value),
       onDoubleClickHelpText: "Double-click to filter by this job",
-      groupByKey: (v: any) => [v.job_name],
+      groupByKey: (v: any) => [v.short_job_name],
     },
     label: {
       headerName: "Label",
@@ -453,8 +490,8 @@ function Overview({
       },
       {
         id: rows[0].id,
-        file_name: rows[0].file_name,
-        job_name: rows[0].job_name,
+        file: rows[0].file,
+        short_job_name: rows[0].short_job_name,
         labels: key,
         count: 0,
         time: 0,
@@ -550,15 +587,15 @@ function Graphs({ data }: { data: any[] }) {
   // Map selector value to field and label
   const groupByOptions = {
     file: {
-      getGroupByField: (d: any) => d.file_name,
+      getGroupByField: (d: any) => d.file,
       groupByButtonText: "Group by File",
     },
     job: {
-      getGroupByField: (d: any) => d.job_name,
+      getGroupByField: (d: any) => d.short_job_name,
       groupByButtonText: "Group by Job",
     },
     filejob: {
-      getGroupByField: (d: any) => `${d.job_name} | ${d.file_name}`,
+      getGroupByField: (d: any) => `${d.short_job_name} | ${d.file}`,
       groupByButtonText: "Group by File + Job",
     },
     total: {
@@ -664,12 +701,54 @@ function Graphs({ data }: { data: any[] }) {
   );
 }
 
-function TestStatus({ data }: { data: { [key: string]: any }[] }) {
+function TestStatus({
+  shas,
+  fileFilter,
+  jobFilter,
+  labelFilter,
+  fileRegex,
+  jobRegex,
+  labelRegex,
+}: {
+  shas: { sha: string; push_date: number }[];
+  fileFilter: string;
+  jobFilter: string;
+  labelFilter: string;
+  fileRegex: boolean;
+  jobRegex: boolean;
+  labelRegex: boolean;
+}) {
+  const options = shas;
+  const [selectedIndex, setSelectedIndex] = useState<number>(
+    shas.length > 0 ? shas.length - 1 : 0
+  );
+
+  useEffect(() => {
+    if (shas.length > 0 && selectedIndex === -1) {
+      setSelectedIndex(shas.length - 1);
+    }
+  }, [shas, selectedIndex]);
+  let data = useData(
+    selectedIndex !== -1
+      ? `${S3_LOCATION}/status_changes_${options[selectedIndex - 1].sha}_${
+          options[selectedIndex].sha
+        }.json.gz`
+      : undefined
+  );
+
+  // Apply the same file/job/label filter to statusChangeData
+  data = data?.filter((row) => {
+    const fileMatch = matchField(row.file, fileFilter, fileRegex);
+    const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
+    const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
+    return fileMatch && jobMatch && labelMatch;
+  });
+
   const columns: any[] = [
     { field: "status", headerName: "Status", flex: 1 },
-    { field: "file_name", headerName: "File", flex: 4 },
+    { field: "file", headerName: "File", flex: 4 },
     { field: "test_name", headerName: "Test", flex: 4 },
-    { field: "job_name", headerName: "Job", flex: 4 },
+    { field: "short_job_name", headerName: "Job", flex: 4 },
     { field: "sha", headerName: "SHA", flex: 1 },
     {
       field: "push_date",
@@ -681,28 +760,90 @@ function TestStatus({ data }: { data: { [key: string]: any }[] }) {
 
   return (
     <Box height={"600px"}>
+      <Select name="compare" value={selectedIndex}>
+        {options.map((option, index) => {
+          if (index === 0)
+            return (
+              <MenuItem key={0} value="">
+                Select Commit Pair
+              </MenuItem>
+            );
+          return (
+            <MenuItem
+              key={index}
+              value={index}
+              onClick={() => setSelectedIndex(index)}
+            >
+              {options[index - 1].sha.slice(0, 7)} (
+              {formatTimestamp(options[index - 1].push_date)}) ➡️{" "}
+              {options[index].sha.slice(0, 7)} (
+              {formatTimestamp(options[index].push_date)})
+            </MenuItem>
+          );
+        })}
+      </Select>
+
       <DataGrid density="compact" rows={[...data]} columns={columns} />
     </Box>
   );
 }
 
 // Custom hook to fetch real data from the local JSON file
-function useData(link: string) {
+function useData(link: string | undefined) {
   const [data, setData] = useState<any[]>([]);
 
   useEffect(() => {
+    if (!link) return;
+
     fetch(link)
-      .then((response) => response.text())
+      .then((response) =>
+        response.ok ? response.text() : Promise.reject("Failed to load")
+      )
       .then((text) => {
         const final = [];
         for (const line of text.split("\n")) {
           if (line.trim()) {
-            final.push(...JSON.parse(line));
+            final.push(JSON.parse(line));
           }
         }
         setData(final.map((item, index) => ({ ...item, id: index })));
       });
   }, [link]);
+  return data;
+}
+
+function useWeeksData(commitMetadata: any[], headShaIndex: number) {
+  const [data, setData] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (headShaIndex == -1 || commitMetadata.length === 0) return;
+
+    const shasToFetch = [];
+    for (let i = headShaIndex; i >= 0 && i > headShaIndex - 7; --i) {
+      shasToFetch.push(commitMetadata[i].sha);
+    }
+
+    Promise.all(
+      shasToFetch.map((sha) =>
+        fetch(`${S3_LOCATION}/data_${sha}.json.gz`)
+          .then((response) =>
+            response.ok ? response.text() : Promise.reject("Failed to load")
+          )
+          .then((text) => {
+            const final = [];
+            for (const line of text.split("\n")) {
+              if (line.trim()) {
+                final.push(JSON.parse(line));
+              }
+            }
+            return final.map((item, index) => ({ ...item, id: index }));
+          })
+      )
+    ).then((allData) => {
+      // Flatten the array of arrays
+      setData(allData.flat());
+    });
+  }, [commitMetadata, headShaIndex]);
   return data;
 }
 
@@ -735,12 +876,21 @@ export default function Page() {
   }, [labelFilter]);
 
   const router = useRouter();
-  let data = useData("/data.json").map((item) => ({
-    // Hopefully get rid of this eventually
+  const commitMetadata = useData(`${S3_LOCATION}/commits_metadata.json.gz`);
+  const [headShaIndex, setHeadShaIndex] = useState<number>(
+    commitMetadata.length - 1
+  );
+
+  let data = useWeeksData(commitMetadata, headShaIndex).map((item, index) => ({
     ...item,
-    file_name: item.file_name.replace(".", "/") + ".py",
+    id: index,
   }));
-  let statusChangeData = useData("/status_changes.json");
+
+  useEffect(() => {
+    if (headShaIndex == -1 && commitMetadata.length > 0) {
+      setHeadShaIndex(commitMetadata.length - 1);
+    }
+  }, [commitMetadata, headShaIndex]);
 
   useEffect(() => {
     if (router.query.label) {
@@ -751,46 +901,11 @@ export default function Page() {
   if (!router.isReady) {
     return <LoadingPage />;
   }
-  // Helper to match with optional regex
-  function matchField(value: string, filter: string, useRegex: boolean) {
-    if (!filter) return true;
-    if (!value) return false;
-    if (useRegex) {
-      try {
-        return new RegExp(filter).test(value);
-      } catch {
-        return false;
-      }
-    }
-    return value === filter;
-  }
-
-  // Helper for label (array or string)
-  function matchLabel(
-    labels: string[] | string,
-    filter: string,
-    useRegex: boolean
-  ) {
-    if (!filter) return true;
-    if (!labels) return false;
-    if (Array.isArray(labels)) {
-      return labels.some((l) => matchField(l, filter, useRegex));
-    }
-    return matchField(labels, filter, useRegex);
-  }
 
   // Filter data by file, job, and label with regex support
   data = data.filter((row) => {
-    const fileMatch = matchField(row.file_name, fileFilter, fileRegex);
-    const jobMatch = matchField(row.job_name, jobFilter, jobRegex);
-    const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
-    return fileMatch && jobMatch && labelMatch;
-  });
-
-  // Apply the same file/job/label filter to statusChangeData
-  statusChangeData = statusChangeData?.filter((row) => {
-    const fileMatch = matchField(row.file_name, fileFilter, fileRegex);
-    const jobMatch = matchField(row.job_name, jobFilter, jobRegex);
+    const fileMatch = matchField(row.file, fileFilter, fileRegex);
+    const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
     const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
     return fileMatch && jobMatch && labelMatch;
   });
@@ -798,6 +913,22 @@ export default function Page() {
   return (
     <Stack spacing={4}>
       <Typography variant="h5">Test Reports</Typography>
+      <Select
+        name="commit"
+        value={headShaIndex}
+        onChange={(e) => {
+          const selectedIndex = e.target.value;
+          setHeadShaIndex(selectedIndex);
+        }}
+      >
+        {commitMetadata.map((commit, index) => (
+          <MenuItem value={index} key={index}>
+            {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+          </MenuItem>
+        ))}
+      </Select>
+
+      <Typography variant="h6">Introduction</Typography>
       <Stack spacing={2}>
         <Typography variant="body1">
           This report provides insights into the test files executed over recent
@@ -923,7 +1054,18 @@ export default function Page() {
           or stopped skipping. This will only show at most 50 entries per commit
           pair due to file size.
         </Typography>
-        <TestStatus data={statusChangeData} />
+        <TestStatus
+          shas={commitMetadata.slice(
+            headShaIndex - 7 >= 0 ? headShaIndex - 7 : 0,
+            headShaIndex + 1
+          )}
+          fileFilter={fileFilter}
+          jobFilter={jobFilter}
+          labelFilter={labelFilter}
+          fileRegex={fileRegex}
+          jobRegex={jobRegex}
+          labelRegex={labelRegex}
+        />
       </Stack>
     </Stack>
   );
