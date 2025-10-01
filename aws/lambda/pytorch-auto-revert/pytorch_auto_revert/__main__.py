@@ -21,7 +21,7 @@ from .testers.restart_checker import workflow_restart_checker
 from .utils import RestartAction, RetryWithBackoff, RevertAction
 
 
-DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor"]
+DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor", "linux-aarch64"]
 DEFAULT_REPO_FULL_NAME = "pytorch/pytorch"
 DEFAULT_HOURS = 16
 DEFAULT_COMMENT_ISSUE_NUMBER = (
