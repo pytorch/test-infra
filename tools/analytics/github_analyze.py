@@ -479,7 +479,7 @@ def commits_missing_in_branch(
             # if Issue is mentioned is release branch, than it was picked already
             if mentioned_in_release:
                 continue
-        print(f'{issue_url};{issue["title"]};{state}')
+        print(f'{issue_url} ;{issue["title"]};{state}')
 
 
 def commits_missing_in_release(
