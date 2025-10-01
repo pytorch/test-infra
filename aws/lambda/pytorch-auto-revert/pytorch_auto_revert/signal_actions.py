@@ -113,7 +113,7 @@ class ActionLogger:
             "    SELECT\n"
             "      count() AS total_restarts,\n"
             "      maxIf(ts, failed = 1) AS last_failure_ts,\n"
-            "      any(failed = 0 AND ts > (now() - toIntervalSecond({pacing_sec:UInt32}))) "
+            "      (countIf(failed = 0 AND ts > (now() - toIntervalSecond({pacing_sec:UInt32}))) > 0) "
             "               AS has_success_within_window\n"
             "    FROM rows\n"
             "  )\n"
