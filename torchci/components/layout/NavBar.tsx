@@ -1,9 +1,11 @@
+import { benchmarkNavGroup } from "components/benchmark/v3/BenchmarkListPage";
 import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
 import React, { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
+import { NavBarGroupDropdown } from "./NavBarGroupDropdown";
 
 const NavBarDropdown = ({
   title,
@@ -85,6 +87,8 @@ const NavBarDropdown = ({
 };
 
 function NavBar() {
+  const benchmarkDropdown = benchmarkNavGroup;
+
   const devInfraDropdown = [
     {
       name: "SLIs",
@@ -235,16 +239,12 @@ function NavBar() {
             </Link>
           </li>
           <li>
-            <Link href="/benchmark/benchmark_list">
-              <span style={{ position: "relative" }}>Benchmarks</span>
-            </Link>
-          </li>
-          <NavBarDropdown title="Metrics" items={metricsDropdown} />
-          <li>
             <Link prefetch={false} href="/kpis">
               KPIs
             </Link>
           </li>
+          <NavBarGroupDropdown title="Benchmarks" groups={benchmarkDropdown} />
+          <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
