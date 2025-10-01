@@ -29,7 +29,7 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: pytorchbot-env
+    environment: promote-env
     container:
       image: pytorch/almalinux-builder:cpu
     steps:
