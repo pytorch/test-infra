@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime, timezone
-from typing import Iterable, List, Tuple
+from typing import Iterable, List, Optional, Tuple
 
 from ..run_state_logger import RunStateLogger
 from ..signal import Signal
@@ -18,6 +18,7 @@ def autorevert_v2(
     repo_full_name: str = "pytorch/pytorch",
     restart_action: RestartAction = RestartAction.RUN,
     revert_action: RevertAction = RevertAction.LOG,
+    bisection_limit: Optional[int] = None,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
     """Run the Signals-based autorevert flow end-to-end.
 
@@ -33,13 +34,15 @@ def autorevert_v2(
     ts = datetime.now(timezone.utc)
 
     logging.info(
-        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s revert_action=%s notify_issue_number=%s",
+        "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s"
+        " revert_action=%s notify_issue_number=%s bisection=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
         restart_action,
         revert_action,
         notify_issue_number,
+        ("unlimited" if bisection_limit is None else f"limit={bisection_limit}"),
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
@@ -52,7 +55,7 @@ def autorevert_v2(
     # Process signals to outcomes
     pairs: List[Tuple[Signal, SignalProcOutcome]] = []
     for s in signals:
-        outcome = s.process_valid_autorevert_pattern()
+        outcome = s.process_valid_autorevert_pattern(bisection_limit=bisection_limit)
         pairs.append((s, outcome))
         logging.info(
             "[v2][signal] wf=%s key=%s outcome=%s", s.workflow_name, s.key, str(outcome)
