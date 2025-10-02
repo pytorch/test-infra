@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Set
 
 from .clickhouse_client_helper import CHCliFactory
-from .utils import RetryWithBackoff
+from .utils import proper_workflow_create_dispatch, RetryWithBackoff
 from .workflow_resolver import WorkflowResolver
 
 

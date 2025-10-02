@@ -3,6 +3,8 @@ import time
 import urllib.parse
 from enum import Enum
 
+import github
+
 
 class RestartAction(Enum):
     """Controls restart behavior.
@@ -141,27 +143,16 @@ def build_pytorch_hud_url(
         f"per_page={num_commits}&name_filter={encoded_name}&mergeEphemeralLF=true"
     )
 
+
 def proper_workflow_create_dispatch(
-    workflow: github.Workflow, ref: github.Branch.Branch | github.Tag.Tag | github.Commit.Commit | str, inputs: Opt[dict] = NotSet
+    workflow: github.Workflow,
+    ref: github.Branch.Branch | github.Tag.Tag | github.Commit.Commit | str,
+    inputs: dict,
 ) -> bool:
     """
-    :calls: `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches <https://docs.github.com/en/rest/reference/actions#create-a-workflow-dispatch-event>`_
+    :calls: `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches
+    <https://docs.github.com/en/rest/reference/actions#create-a-workflow-dispatch-event>`
     """
-    assert (
-        isinstance(ref, github.Branch.Branch)
-        or isinstance(ref, github.Tag.Tag)
-        or isinstance(ref, github.Commit.Commit)
-        or isinstance(ref, str)
-    ), ref
-    assert inputs is NotSet or isinstance(inputs, dict), inputs
-    if isinstance(ref, github.Branch.Branch):
-        ref = ref.name
-    elif isinstance(ref, github.Commit.Commit):
-        ref = ref.sha
-    elif isinstance(ref, github.Tag.Tag):
-        ref = ref.name
-    if inputs is NotSet:
-        inputs = {}
     status, headers, body = workflow._requester.requestJson(
         "POST", f"{workflow.url}/dispatches", input={"ref": ref, "inputs": inputs}
     )
