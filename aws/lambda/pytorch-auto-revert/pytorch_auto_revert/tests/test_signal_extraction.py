@@ -386,6 +386,62 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(test_sig.commits[0].events[0].status, SignalStatus.FAILURE)
         self.assertEqual(test_sig.commits[1].events[0].status, SignalStatus.SUCCESS)
 
+    def test_inject_pending_workflow_event_when_missing_in_signal(self):
+        # Multi-stage workflow: newest commit has a pending workflow run (build stage),
+        # tests not yet scheduled -> no events for that wf_run_id in the test signal.
+        # Older commit has a test failure so the test signal exists.
+        jobs = [
+            # Newest commit: pending build job under wf_run_id=200
+            J(
+                sha="H2",
+                wf="trunk",
+                run=200,
+                job=901,
+                attempt=1,
+                name="linux-build",
+                status="in_progress",
+                conclusion="",
+                started_at=ts(self.t0, 20),
+            ),
+            # Older commit: test job that failed with a concrete test verdict
+            J(
+                sha="H1",
+                wf="trunk",
+                run=190,
+                job=902,
+                attempt=1,
+                name="linux-test",
+                status="completed",
+                conclusion="failure",
+                started_at=ts(self.t0, 10),
+                rule="pytest failure",
+            ),
+        ]
+        tests = [
+            T(
+                job=902,
+                run=190,
+                attempt=1,
+                file="m.py",
+                name="test_synthetic_pending",
+                failing=1,
+            )
+        ]
+
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(
+            signals, "trunk", "m.py::test_synthetic_pending"
+        )
+        self.assertIsNotNone(test_sig)
+        # Expect two commits in newest->older order
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["H2", "H1"])
+
+        # For the newest commit (H2): we should have a synthetic pending event for wf_run_id=200
+        c_new = test_sig.commits[0]
+        self.assertEqual(len(c_new.events), 1)
+        self.assertEqual(c_new.events[0].status, SignalStatus.PENDING)
+        self.assertEqual(c_new.events[0].wf_run_id, 200)
+
 
 if __name__ == "__main__":
     unittest.main()

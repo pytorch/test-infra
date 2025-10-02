@@ -8,7 +8,7 @@ Transforms raw workflow/job/test data into Signal objects used by signal.py.
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .job_agg_index import JobAggIndex, JobMeta, SignalStatus as AggStatus
@@ -92,7 +92,11 @@ class SignalExtractor:
         # When that happens, the jobs have identical timestamps by DIFFERENT job ids.
         # But since they are still the same job logically, we want to deduplicate them
         # for the purposes of signal events.
-        return self._dedup_signal_events(test_signals + job_signals)
+        signals = self._dedup_signal_events(test_signals + job_signals)
+
+        # Inject synthetic PENDING events for workflow runs that are known to be
+        # pending but have no events in a given signal (e.g. multi-stage workflows).
+        return self._inject_pending_workflow_events(signals, jobs)
 
     # -----------------------------
     # Deduplication (GitHub-specific)
@@ -124,6 +128,90 @@ class SignalExtractor:
                 )
             )
         return deduped
+
+    # -----------------------------
+    # Pending workflow synthesis
+    # -----------------------------
+    def _inject_pending_workflow_events(
+        self,
+        signals: List[Signal],
+        jobs: List[JobRow],
+    ) -> List[Signal]:
+        """
+        For each signal/commit, if there exists a pending workflow run and the
+        signal has no event for that wf_run_id, insert a synthetic PENDING event
+        with started_at set slightly in the future (now + 1 minute).
+        """
+        if not signals or not jobs:
+            return signals
+
+        # Simple pass over JobRows to collect pending workflow run ids per (sha, workflow)
+        pending_runs: Dict[Tuple[Sha, WorkflowName], Set[int]] = {}
+        for j in jobs:
+            if j.is_pending:
+                pending_runs.setdefault((j.head_sha, j.workflow_name), set()).add(
+                    int(j.wf_run_id)
+                )
+
+        # Avoid deprecated utcnow(); derive UTC then store naive to match existing code
+        now_plus = (datetime.now(timezone.utc) + timedelta(minutes=1)).replace(
+            tzinfo=None
+        )
+
+        out: List[Signal] = []
+        for s in signals:
+            new_commits: List[SignalCommit] = []
+            for c in s.commits:
+                pending_ids = pending_runs.get(
+                    (Sha(c.head_sha), WorkflowName(s.workflow_name))
+                )
+                if not pending_ids:
+                    new_commits.append(c)
+                    continue
+
+                have_ids = {e.wf_run_id for e in c.events}
+                missing_ids = pending_ids - have_ids
+                if not missing_ids:
+                    new_commits.append(c)
+                    continue
+
+                # Build synthetic pending events for the missing wf_run_ids
+                # set started_at to the future
+                synth_events: List[SignalEvent] = list(c.events)
+                for wf_run_id in missing_ids:
+                    name = self._fmt_event_name(
+                        workflow=s.workflow_name,
+                        kind="synthetic",
+                        identifier=str(s.key),
+                        wf_run_id=WfRunId(wf_run_id),
+                        run_attempt=RunAttempt(0),
+                    )
+                    synth_events.append(
+                        SignalEvent(
+                            name=name,
+                            status=SignalStatus.PENDING,
+                            started_at=now_plus,
+                            ended_at=None,
+                            wf_run_id=int(wf_run_id),
+                            run_attempt=0,
+                            job_id=None,
+                        )
+                    )
+                new_commits.append(
+                    SignalCommit(
+                        head_sha=c.head_sha, timestamp=c.timestamp, events=synth_events
+                    )
+                )
+
+            out.append(
+                Signal(
+                    key=s.key,
+                    workflow_name=s.workflow_name,
+                    commits=new_commits,
+                    job_base_name=s.job_base_name,
+                )
+            )
+        return out
 
     # -----------------------------
     # Phase B — Tests (test_run_s3 only)
