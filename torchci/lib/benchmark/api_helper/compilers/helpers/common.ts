@@ -1,5 +1,3 @@
-import { NextResponse } from "next/server";
-
 export function extractBackendSqlStyle(
   output: string,
   suite: string,
@@ -103,6 +101,6 @@ export function parseTimestampTokenSeconds(
   return ms == null ? null : Math.floor(ms / 1000);
 }
 
-export function badRequest(message: string) {
-  return NextResponse.json({ error: message }, { status: 400 });
+export function badRequest(message: string, res: any) {
+  return res.json({ error: message }, { status: 400 });
 }

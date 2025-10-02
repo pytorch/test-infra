@@ -28,7 +28,7 @@ export default async function handler(
 
   // validate params
   if (!params || !params.report_id) {
-    return badRequest("Missing required params report_id");
+    return badRequest("Missing required params report_id", res);
   }
 
   // list regression summary report for a given type. ex compiler_regression
@@ -39,7 +39,8 @@ export default async function handler(
     // validate last_ts_token only if it is provided
     if (last_ts_token && !last_ts) {
       return badRequest(
-        `invalid input params last_ts_token "${last_ts_token}"`
+        `invalid input params last_ts_token "${last_ts_token}"`,
+        res
       );
     }
 
