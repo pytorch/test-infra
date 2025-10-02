@@ -1,0 +1,86 @@
+name: Upload benchmark results
+
+on:
+  workflow_call:
+    inputs:
+      benchmark-artifact:
+        description: The name of the benchmark artifact to upload
+        required: true
+        type: string
+      benchmark-metadata:
+        description: The benchmark metadata provided by gather-benchmark-metadata GHA
+        required: true
+        type: string
+      runners-info:
+        description: The runners info gathered by gather-runners-info GHA
+        required: true
+        type: string
+      dependencies:
+        description: The list of dependencies (not yet implemented)
+        required: false
+        type: string
+        default: '{}'
+      schema-version:
+        default: 'v3'
+        type: string
+      dry-run:
+        default: true
+        type: boolean
+
+jobs:
+  job:
+    name: Uploading ${{ inputs.benchmark-artifact }}
+    runs-on: linux.2xlarge
+    # Keep this in case we need to use OIDC later on, so the permission is there
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Checkout test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/test-infra
+          ref: main
+          path: test-infra
+
+      - name: Download benchmark artifacts
+        uses: actions/download-artifact@65a9edc5881444af0b9093a5e628f2fe47ea3b2e # v4.1.7
+        with:
+          name: ${{ inputs.benchmark-artifact }}
+          path: ${{ runner.temp }}/benchmark-artifact
+
+      - name: Upload benchmark results
+        shell: bash
+        working-directory: test-infra
+        env:
+          BENCHMARK_RESULTS_DIR: ${{ runner.temp }}/benchmark-artifact
+          DRY_RUN: ${{ inputs.dry-run }}
+          # Additional information about the benchmarks
+          BENCHMARK_METADATA: ${{ inputs.benchmark-metadata }}
+          RUNNERS_INFO: ${{ inputs.runners-info }}
+          DEPENDENCIES: ${{ inputs.dependencies }}
+        run: |
+          set -eux
+
+          if [[ ! -d "${BENCHMARK_RESULTS_DIR}" ]]; then
+            echo "${BENCHMARK_RESULTS_DIR} does not exist, skipping"
+            # We don't want the job to fail if the directory doesn't exist
+            exit 0
+          fi
+
+          python3 -mpip install boto3==1.35.33
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            python3 ".github/scripts/upload_benchmark_results.py" \
+              --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
+              --metadata "${BENCHMARK_METADATA}" \
+              --runners "${RUNNERS_INFO}" \
+              --dependencies "${DEPENDENCIES}" \
+              --dry-run
+          else
+            python3 ".github/scripts/upload_benchmark_results.py" \
+              --benchmark-results-dir "${BENCHMARK_RESULTS_DIR}" \
+              --metadata "${BENCHMARK_METADATA}" \
+              --runners "${RUNNERS_INFO}" \
+              --dependencies "${DEPENDENCIES}"
+          fi

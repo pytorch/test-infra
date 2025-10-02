@@ -1,0 +1,61 @@
+name: Gather runners info
+
+description: Gather the information about the runners
+
+inputs:
+  venv:
+    description: 'Path to virtual environment to activate'
+    required: false
+    default: ''
+
+outputs:
+  runners-info:
+    description: The runners info in JSON format
+    value: ${{ steps.gather-runners-info.outputs.runners }}
+
+runs:
+  using: composite
+  steps:
+    - name: Get device name
+      shell: bash
+      run: |
+        set -eux
+
+        if command -v nvidia-smi; then
+          DEVICE_NAME=cuda
+          nvidia-smi
+        elif command -v rocm-smi; then
+          DEVICE_NAME=rocm
+          rocm-smi
+        else
+          DEVICE_NAME=cpu
+          lscpu
+        fi
+        echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
+
+    - name: Get device type
+      shell: bash
+      run: |
+        set -eux
+
+        if [[ "${DEVICE_NAME}" == "cuda" ]]; then
+          DEVICE_TYPE=$(nvidia-smi -i 0 --query-gpu=name --format=csv,noheader | awk '{print $2}')
+        elif [[ "${DEVICE_NAME}" == "rocm" ]]; then
+          DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
+        elif [[ "${DEVICE_NAME}" == "cpu" ]]; then
+          DEVICE_TYPE=$(lscpu | grep 'Model name' | cut -f 2 -d ":" | awk '{$1=$1}1' | cut -f 2 -d " ")
+        fi
+        echo "DEVICE_TYPE=$DEVICE_TYPE" >> $GITHUB_ENV
+
+    - name: Gather the runners information
+      id: gather-runners-info
+      shell: bash
+      run: |
+        set -eux
+
+        if [[ -n "${{ inputs.venv }}" ]]; then
+          source "${{ inputs.venv }}"
+        fi
+
+        python3 -mpip install psutil==7.0.0 nvidia-ml-py==13.580.82
+        python3 "${GITHUB_ACTION_PATH}/../../scripts/benchmarks/gather_runners_info.py"
