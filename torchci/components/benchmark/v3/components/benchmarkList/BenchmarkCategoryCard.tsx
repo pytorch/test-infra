@@ -126,6 +126,7 @@ function BenchmarkCardItem({
             sx={{ px: 2, pb: 1, pt: 0.5 }}
             direction="row"
             alignItems="center"
+            flexWrap="wrap"
           >
             <Typography variant="subtitle1">Details:</Typography>
             <Typography
@@ -144,7 +145,12 @@ function BenchmarkCardItem({
 
         {it.actions && (
           <Box sx={{ px: 2, pb: 1, pt: 0.5 }}>
-            <Stack direction="row" spacing={1} alignItems="center">
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              flexWrap="wrap"
+            >
               <Typography variant="subtitle1">Pages:</Typography>
               {it.actions.map((a, idx) => {
                 if (!a.href) {
