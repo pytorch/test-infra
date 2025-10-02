@@ -75,3 +75,32 @@ function deepDiff(obj1: any, obj2: any) {
 
   return diffs;
 }
+
+export function parseTimestampToken(
+  token: string | number | null | undefined
+): number | null {
+  if (token == null) return null;
+
+  if (typeof token === "string") {
+    const ms = Date.parse(token.trim()); // parses ISO, RFC2822, etc.
+    return isNaN(ms) ? null : ms; // return epoch ms
+  }
+
+  if (typeof token === "number") {
+    const d = new Date(token);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  }
+
+  return null;
+}
+
+export function parseTimestampTokenSeconds(
+  token: string | number | null | undefined
+): number | null {
+  const ms = parseTimestampToken(token);
+  return ms == null ? null : Math.floor(ms / 1000);
+}
+
+export function badRequest(message: string, res: any) {
+  return res.json({ error: message }, { status: 400 });
+}
