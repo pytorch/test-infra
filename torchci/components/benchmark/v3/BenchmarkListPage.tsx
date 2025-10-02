@@ -12,13 +12,15 @@ export const categories: BenchmarkCategoryGroup[] = [
       {
         name: "CacheBench Benchmark",
         route:
-          "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=TorchCache+Benchmark",
+          "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=+Benchmark",
+        info: "Powered by [code](https://github.com/search?q=repo%3Apytorch%2Fpytorch%20%20TorchCache&type=code)",
       },
       {
         name: "Compiler Inductor Benchmark",
         route: "/benchmark/compilers_regression",
         description:
           "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
+        info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/dynamo#torchcompile-benchmarking)",
         actions: [
           {
             label: "Legacy Page/Playground",
@@ -33,11 +35,13 @@ export const categories: BenchmarkCategoryGroup[] = [
       {
         name: "LLMs Benchmark",
         route: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+        info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/gpt_fast)",
       },
       {
         name: "Operator Microbenchmark",
         route:
           "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
+        info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/operator_benchmark)",
       },
       {
         name: "Triton Benchmark",
@@ -58,6 +62,7 @@ export const categories: BenchmarkCategoryGroup[] = [
         name: "TorchAO Micro API Benchmark",
         route:
           "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
+        info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
       },
     ],
   },
@@ -69,6 +74,8 @@ export const categories: BenchmarkCategoryGroup[] = [
       {
         name: "ExecuTorch Benchmark",
         route: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
+        info: "Powered by [apple-perf](https://github.com/pytorch/executorch/blob/main/.github/workflows/apple-perf.yml) \
+        and [android-perf](https://github.com/pytorch/executorch/blob/main/.github/workflows/android-perf.yml) workflows",
       },
     ],
   },
@@ -80,6 +87,7 @@ export const categories: BenchmarkCategoryGroup[] = [
       {
         name: "VLLM V1 Benchmark",
         route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
+        info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
       },
     ],
   },
@@ -91,6 +99,7 @@ export const categories: BenchmarkCategoryGroup[] = [
       {
         name: "SGLang Benchmark",
         route: "/benchmark/llms?repoName=sgl-project%2Fsglang",
+        info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/sglang-benchmarks/benchmarks)",
       },
     ],
   },
@@ -103,6 +112,7 @@ export const categories: BenchmarkCategoryGroup[] = [
         name: "Helion Benchmark",
         route:
           "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
+        info: "Powered by [code](https://github.com/pytorch/helion/tree/main/benchmarks)",
       },
     ],
   },

@@ -1,3 +1,4 @@
+import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import {
   Card,
   CardContent,
@@ -8,12 +9,14 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
+  Paper,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
 import { Box } from "@mui/system";
 import Link from "next/link";
+import ReactMarkdown from "react-markdown";
 
 // ============================
 // Styles (centralized)
@@ -38,6 +41,7 @@ export interface BenchmarkLinkItem {
   name: string;
   route: string;
   description?: string;
+  info?: string;
   keys?: string[];
   actions?: {
     label: string;
@@ -81,15 +85,30 @@ function BenchmarkCardItem({
       };
 
   return (
-    <ListItem key={it.route} disablePadding>
-      <Box sx={{ width: "100%" }}>
+    <ListItem key={it.route} disablePadding sx={{ mb: 1 }}>
+      <Paper
+        variant="outlined"
+        sx={{
+          width: "100%",
+          borderRadius: 2,
+          overflow: "hidden",
+          borderColor: "divider",
+          "&:hover": {
+            boxShadow: 3,
+            borderColor: "primary.main",
+          },
+        }}
+      >
         <Tooltip title="Go to Main Page" arrow>
           <ListItemButton {...buttonProps}>
             <ListItemText
               primary={
-                <Typography variant="subtitle1">
-                  {highlight(it.name, query)}
-                </Typography>
+                <Stack direction="row" alignItems="center" spacing={1}>
+                  <Typography variant="h6" color="primary">
+                    {highlight(it.name, query)}
+                  </Typography>
+                  <ChevronRightIcon fontSize="small" />
+                </Stack>
               }
               secondary={
                 it.description?.length ? (
@@ -100,50 +119,77 @@ function BenchmarkCardItem({
           </ListItemButton>
         </Tooltip>
 
-        {/* Actions */}
+        {it.info ? (
+          <Stack
+            spacing={1}
+            sx={{ px: 2, pb: 1, pt: 0.5 }}
+            direction="row"
+            alignItems="center"
+          >
+            <Typography variant="subtitle1">Details:</Typography>
+            <Typography
+              variant="subtitle1"
+              color="text.secondary"
+              sx={{
+                "& p": { margin: 0, lineHeight: 1.2 },
+                "& ul, & ol": { margin: 0, paddingLeft: "1.2rem" },
+                "& li": { margin: 0, lineHeight: 1.2 },
+              }}
+            >
+              <MarkdownText text={it.info} />
+            </Typography>
+          </Stack>
+        ) : null}
+
         {it.actions && (
-          <Stack direction="row" spacing={1} sx={{ px: 2, pb: 1, pt: 0.5 }}>
-            {it.actions.map((a, idx) => {
-              if (!a.href) {
-                // non-link action (local click)
+          <Box sx={{ px: 2, pb: 1, pt: 0.5 }}>
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Typography variant="subtitle1">Pages:</Typography>
+              {it.actions.map((a, idx) => {
+                if (!a.href) {
+                  return (
+                    <Chip
+                      key={idx}
+                      clickable
+                      size="small"
+                      color="secondary"
+                      label={a.label}
+                      onClick={a.onClick}
+                    />
+                  );
+                }
+                const linkProps = isExternal(a.href)
+                  ? {
+                      component: "a" as const,
+                      href: a.href,
+                      target: "_blank",
+                      rel: "noopener noreferrer",
+                    }
+                  : {
+                      component: Link as any,
+                      href: a.href,
+                      prefetch: false,
+                    };
                 return (
                   <Chip
+                    {...linkProps}
                     key={idx}
                     clickable
                     size="small"
-                    color="secondary"
-                    label={a.label}
-                    onClick={a.onClick}
+                    color="primary"
+                    label={
+                      <Stack direction="row" alignItems="center" spacing={0.5}>
+                        <span>{a.label}</span>
+                        <ChevronRightIcon fontSize="small" />
+                      </Stack>
+                    }
                   />
                 );
-              }
-              const linkProps = isExternal(a.href)
-                ? {
-                    component: "a" as const,
-                    href: a.href,
-                    target: "_blank",
-                    rel: "noopener noreferrer",
-                  }
-                : {
-                    component: Link as any,
-                    href: a.href,
-                    // optional Next.js tweaks:
-                    prefetch: false,
-                  };
-              return (
-                <Chip
-                  {...linkProps}
-                  key={idx}
-                  clickable
-                  size="small"
-                  color="primary"
-                  label={a.label}
-                />
-              );
-            })}
-          </Stack>
+              })}
+            </Stack>
+          </Box>
         )}
-      </Box>
+      </Paper>
     </ListItem>
   );
 }
@@ -236,3 +282,7 @@ function highlight(text: string, q: string) {
 }
 
 const isExternal = (url: string) => /^https?:\/\//i.test(url);
+
+export function MarkdownText({ text }: { text: string }) {
+  return <ReactMarkdown>{text}</ReactMarkdown>;
+}
