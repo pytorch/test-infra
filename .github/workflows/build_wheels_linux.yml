@@ -320,7 +320,7 @@ jobs:
         continue-on-error: true
         if: ${{ inputs.wheel-upload-path != '' }}
         run: |
-          export PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ inputs.wheel-upload-path }}"
+          echo "PYTORCH_S3_BUCKET_PATH=s3://pytorch/${{ inputs.wheel-upload-path }}" >> "${GITHUB_ENV}"
 
   upload:
     needs: build
