@@ -318,9 +318,9 @@ jobs:
 
       - name: Set Custom wheel upload path
         continue-on-error: true
-        if: ${{ input.wheel-upload-path != ''}}
+        if: ${{ inputs.wheel-upload-path != '' }}
         run: |
-          export PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ input.wheel-upload-path}}"
+          export PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ inputs.wheel-upload-path }}"
 
   upload:
     needs: build
