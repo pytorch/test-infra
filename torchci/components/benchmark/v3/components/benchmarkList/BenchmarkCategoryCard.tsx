@@ -89,6 +89,7 @@ function BenchmarkCardItem({
       <Paper
         variant="outlined"
         sx={{
+          p: 1,
           width: "100%",
           borderRadius: 2,
           overflow: "hidden",
@@ -231,16 +232,11 @@ export function BenchmarkCategoryCard({
                 ...(it.actions ?? []), // keep existing actions if any
               ];
               return (
-                <>
-                  <BenchmarkCardItem
-                    key={it.route}
-                    it={{ ...it, actions }}
-                    query={query}
-                  />
-                  {index < cat.items.length - 1 && (
-                    <Divider key={`divider-${index}`} />
-                  )}
-                </>
+                <BenchmarkCardItem
+                  key={it.route}
+                  it={{ ...it, actions }}
+                  query={query}
+                />
               );
             })}
           </List>
