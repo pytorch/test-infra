@@ -102,3 +102,8 @@ export function parseTimestampTokenSeconds(
   const ms = parseTimestampToken(token);
   return ms == null ? null : Math.floor(ms / 1000);
 }
+
+
+export function badRequest(message: string) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
