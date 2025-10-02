@@ -142,9 +142,7 @@ class WorkflowRestartChecker:
             with attempt:
                 repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
                 workflow = repo.get_workflow(wf_ref.file_name)
-                assert workflow.create_dispatch(
-                    ref=tag_ref, inputs={}
-                ), "Error dispatching workflow"
+                proper_workflow_create_dispatch(workflow, ref=tag_ref, inputs={})
 
         workflow_url = (
             f"https://github.com/{self.repo_owner}/{self.repo_name}"
