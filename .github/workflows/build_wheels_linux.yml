@@ -88,6 +88,10 @@ on:
         required: false
         default: "python -m build --wheel"
         type: string
+      wheel-upload-path:
+        description: Custom wheel upload path
+        required: false
+        type: string
       pip-install-torch-extra-args:
         # NOTE: Why does this exist?
         # Well setuptools / python packaging doesn't actually allow you to specify dependencies
@@ -311,6 +315,12 @@ jobs:
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
+
+      - name: Set Custom wheel upload path
+        continue-on-error: true
+        if: ${{ input.wheel-upload-path != ''}}
+        run: |
+          export PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ input.wheel-upload-path}}"
 
   upload:
     needs: build
