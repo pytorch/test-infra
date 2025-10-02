@@ -15,7 +15,6 @@ import {
   Typography,
 } from "@mui/material";
 import { Box } from "@mui/system";
-import { wrap } from "module";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
@@ -146,7 +145,12 @@ function BenchmarkCardItem({
 
         {it.actions && (
           <Box sx={{ px: 2, pb: 1, pt: 0.5 }}>
-            <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" >
+            <Stack
+              direction="row"
+              spacing={1}
+              alignItems="center"
+              flexWrap="wrap"
+            >
               <Typography variant="subtitle1">Pages:</Typography>
               {it.actions.map((a, idx) => {
                 if (!a.href) {
