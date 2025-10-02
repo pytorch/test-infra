@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Set
 
 from .clickhouse_client_helper import CHCliFactory
-from .utils import RetryWithBackoff
+from .utils import proper_workflow_create_dispatch, RetryWithBackoff
 from .workflow_resolver import WorkflowResolver
 
 
@@ -142,7 +142,7 @@ class WorkflowRestartChecker:
             with attempt:
                 repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
                 workflow = repo.get_workflow(wf_ref.file_name)
-                workflow.create_dispatch(ref=tag_ref, inputs={})
+                proper_workflow_create_dispatch(workflow, ref=tag_ref, inputs={})
 
         workflow_url = (
             f"https://github.com/{self.repo_owner}/{self.repo_name}"

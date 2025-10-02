@@ -3,6 +3,8 @@ import time
 import urllib.parse
 from enum import Enum
 
+import github
+
 
 class RestartAction(Enum):
     """Controls restart behavior.
@@ -140,3 +142,20 @@ def build_pytorch_hud_url(
         f"https://hud.pytorch.org/hud/{repo_full_name}/{top_sha}/1?"
         f"per_page={num_commits}&name_filter={encoded_name}&mergeEphemeralLF=true"
     )
+
+
+def proper_workflow_create_dispatch(
+    workflow: github.Workflow,
+    ref: github.Branch.Branch | github.Tag.Tag | github.Commit.Commit | str,
+    inputs: dict,
+) -> bool:
+    """
+    :calls: `POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches
+    <https://docs.github.com/en/rest/reference/actions#create-a-workflow-dispatch-event>`
+    """
+    status, headers, body = workflow._requester.requestJson(
+        "POST", f"{workflow.url}/dispatches", input={"ref": ref, "inputs": inputs}
+    )
+    if status != 204:
+        raise ValueError(f"Error dispatching workflow: {status}, {headers}, {body}")
+    return True
