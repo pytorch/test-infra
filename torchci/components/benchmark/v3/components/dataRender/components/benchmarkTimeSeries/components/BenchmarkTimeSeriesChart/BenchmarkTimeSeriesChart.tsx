@@ -293,11 +293,11 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
 
   const left =
     selectedSeriesIdx != null && leftIdx != null
-      ? (seriesDatas[selectedSeriesIdx][leftIdx].meta as RawTimeSeriesPoint)
+      ? (seriesDatas[selectedSeriesIdx][leftIdx]?.meta as RawTimeSeriesPoint)
       : null;
   const right =
     selectedSeriesIdx != null && rightIdx != null
-      ? (seriesDatas[selectedSeriesIdx][rightIdx].meta as RawTimeSeriesPoint)
+      ? (seriesDatas[selectedSeriesIdx][rightIdx]?.meta as RawTimeSeriesPoint)
       : null;
 
   function select() {
