@@ -114,10 +114,7 @@ jobs:
 
           pip install awscli==1.32.18
 
-          AWS_CMD="aws s3 cp --dryrun"
-          if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
-            AWS_CMD="aws s3 cp"
-          fi
+          AWS_CMD="aws s3 cp"
 
            # set path to specific wheel-upload-path
           if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
