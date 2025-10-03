@@ -170,7 +170,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       tooltip: { show: false },
       markArea: {
         silent: true,
-        itemStyle: { color: "rgba(255,173,177,0.25)" },
+        itemStyle: { color: "rgba(0, 150, 136, 0.15)" } ,
         data: ma,
       },
     } as echarts.SeriesOption;
