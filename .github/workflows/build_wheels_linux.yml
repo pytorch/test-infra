@@ -74,6 +74,11 @@ on:
         required: false
         type: boolean
         default: true
+      run-smoke-test:
+        description: Set to true if smoke test is needed
+        required: false
+        type: boolean
+        default: true
       build-platform:
         description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
         required: false
@@ -270,6 +275,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
       - name: Smoke Test
+        if: ${{ inputs.run-smoke-test }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
