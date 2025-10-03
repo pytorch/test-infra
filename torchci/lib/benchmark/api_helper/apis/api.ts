@@ -17,25 +17,6 @@ export async function listBenchmarkCommits<T>(
   return res.json();
 }
 
-export async function listBenchmarkRegressionReport<T>(
-  report_id: string,
-  limit: number = 10,
-  response_formats: string[] = ["branch"]
-): Promise<T> {
-  const body = {
-    report_id: report_id,
-    limit: limit,
-    response_formats: response_formats,
-  };
-  const url = "/api/benchmark/list_regression_summary_reports";
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  return res.json();
-}
-
 export async function postBenchmarkTimeSeriesFetcher<T>(
   name: string,
   formats: string[],
@@ -57,5 +38,24 @@ export async function postBenchmarkTimeSeriesFetcher<T>(
     const payload = res.json();
     throw new Error(`Failed to fetch data" ${res.status} ,${payload}`);
   }
+  return res.json();
+}
+
+export async function listBenchmarkRegressionReport<T>(
+  report_id: string,
+  limit: number = 10,
+  response_formats: string[] = ["branch"]
+): Promise<T> {
+  const body = {
+    report_id: report_id,
+    limit: limit,
+    response_formats: response_formats,
+  };
+  const url = "/api/benchmark/list_regression_summary_reports";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
   return res.json();
 }

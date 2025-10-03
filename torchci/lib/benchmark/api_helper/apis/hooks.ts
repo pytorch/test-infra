@@ -1,6 +1,6 @@
-import useSWR, { SWRResponse } from "swr";
+import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import { BundleResult } from "../type";
-import { listBenchmarkCommits, postBenchmarkTimeSeriesFetcher } from "./api";
+import { listBenchmarkCommits, listBenchmarkRegressionReport, postBenchmarkTimeSeriesFetcher } from "./api";
 
 export function useBenchmarkCommitsData(
   benchmarkId: string,
@@ -13,46 +13,70 @@ export function useBenchmarkCommitsData(
     baseParams.branches = [];
   }
 
-  const keys = shouldFetch
-    ? ([benchmarkId, baseParams, formats] as const)
-    : null;
-
-  return useSWR<any, Error>(
-    keys,
-    async ([n, qp, f]) => {
-      return listBenchmarkCommits<any>(
-        n as string,
-        qp as Record<string, any>,
-        f as string[]
-      );
-    },
+  return useApi(
+    listBenchmarkCommits,
+    [benchmarkId, baseParams, formats],
     {
-      revalidateOnFocus: false,
-      keepPreviousData: true,
-      dedupingInterval: 10_000,
-    }
-  );
+        refreshInterval: 60 * 60 * 1000,
+        revalidateOnFocus: false,
+        keepPreviousData: true,
+        dedupingInterval: 10_000,
+    },
+    shouldFetch
+);
 }
 
 // --- Hook wrapper ---
 export function useBenchmarkData(
   benchamrk_name: string,
-  queryParams: Record<string, any> | null
+  queryParams: Record<string, any> | null,
+  formats: string[] = ["time_series", "table"]
 ): SWRResponse<BundleResult, Error> {
   const shouldFetch = !!queryParams;
-  return useSWR<BundleResult, Error>(
-    shouldFetch ? [benchamrk_name, queryParams] : null,
-    async ([n, qp]) => {
-      return postBenchmarkTimeSeriesFetcher<BundleResult>(
-        n as string,
-        ["time_series", "table"],
-        qp as Record<string, any>
-      );
-    },
+   return useApi(
+    postBenchmarkTimeSeriesFetcher<BundleResult>,
+    [benchamrk_name, formats, queryParams],
     {
       revalidateOnFocus: false,
       keepPreviousData: true,
       dedupingInterval: 10_000,
+    },
+    shouldFetch
+ );
+}
+
+export function useBenchmarkRegressionReportData(
+    reportId: string,
+    limit: number = 10,
+): any {
+  return useApi(
+    listBenchmarkRegressionReport,
+    [reportId, limit],
+    {
+        refreshInterval: 12* 60 * 60 * 1000, // refresh every 12 hour
+        revalidateOnFocus: false,
     }
+  );
+}
+
+/**
+ * Generic SWR hook that derives the cache key from the function name + args.
+ * You can pass an `enabled` flag (like react-query) to disable fetching until ready.
+ */
+export function useApi<T>(
+  apiFunc: (...args: any[]) => Promise<T>,
+  args: any[] = [],
+  options?: SWRConfiguration,
+  enabled: boolean = true
+) {
+  // build the key only if enabled
+  const key = enabled
+    ? [apiFunc.name || "anon", ...args]
+    : null;
+
+  return useSWR<T>(
+    key,
+    key ? ([, ...params]) => apiFunc(...params) : null,
+    options
   );
 }
