@@ -46,12 +46,12 @@ export function useBenchmarkData(
 }
 
 export function useBenchmarkRegressionReportData(
-    reportId: string,
+    report_id: string,
     limit: number = 10,
 ): any {
   return useApi(
     listBenchmarkRegressionReport,
-    [reportId, limit],
+    [report_id, limit],
     {
         refreshInterval: 12* 60 * 60 * 1000, // refresh every 12 hour
         revalidateOnFocus: false,
