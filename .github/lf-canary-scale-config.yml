@@ -32,6 +32,36 @@
 #     is_ephemeral: true
 
 runner_types:
+  lf.c.linux.c7i.large:
+    disk_size: 15
+    instance_type: c7i.large
+    is_ephemeral: true
+    os: linux
+  lf.c.linux.c7i.2xlarge:
+    disk_size: 150
+    instance_type: c7i.2xlarge
+    is_ephemeral: true
+    os: linux
+  lf.c.linux.c7i.4xlarge:
+    disk_size: 150
+    instance_type: c7i.4xlarge
+    is_ephemeral: true
+    os: linux
+  lf.c.linux.c7i.8xlarge:
+    disk_size: 200
+    instance_type: c7i.8xlarge
+    is_ephemeral: true
+    os: linux
+  lf.c.linux.c7i.12xlarge:
+    disk_size: 200
+    instance_type: c7i.12xlarge
+    is_ephemeral: true
+    os: linux
+  lf.c.linux.c7i.24xlarge:
+    disk_size: 150
+    instance_type: c7i.24xlarge
+    is_ephemeral: true
+    os: linux
   lf.c.linux.8xlarge.amx:
     disk_size: 200
     instance_type: m7i-flex.8xlarge
@@ -90,16 +120,6 @@ runner_types:
   lf.c.linux.2xlarge:
     disk_size: 150
     instance_type: c5.2xlarge
-    is_ephemeral: true
-    os: linux
-  lf.c.linux.2xlarge.c7i.test.donotuse:
-    disk_size: 150
-    instance_type: c7i.2xlarge
-    is_ephemeral: true
-    os: linux
-  lf.c.linux.2xlarge.c7a.test.donotuse:
-    disk_size: 150
-    instance_type: c7a.2xlarge
     is_ephemeral: true
     os: linux
   lf.c.linux.4xlarge:
