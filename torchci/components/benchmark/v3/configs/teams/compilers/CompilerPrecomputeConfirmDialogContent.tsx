@@ -89,6 +89,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
 
   const onGoToUrl = () => {
     closeDialog();
+    triggerUpdate();
     const url = toBenchmarkLegacyUrl(left, right);
     // open a new tab
     window.open(url, "_blank");
