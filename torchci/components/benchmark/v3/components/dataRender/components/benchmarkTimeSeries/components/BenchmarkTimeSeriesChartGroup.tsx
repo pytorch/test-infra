@@ -1,5 +1,6 @@
 import { Grid, Typography } from "@mui/material";
 import { Box } from "@mui/system";
+import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useMemo } from "react";
 import {
   BenchmarkTimeSeriesInput,
@@ -9,7 +10,6 @@ import {
   passesFilter,
 } from "../helper";
 import BenchmarkTimeSeriesChart from "./BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChart";
-import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 
 type Props = {
   data: any[];
@@ -29,7 +29,6 @@ export default function BenchmarkTimeSeriesChartGroup({
   rcommit,
   onSelect = () => {},
 }: Props) {
-
   const filtered = useMemo(
     () =>
       data.filter((s) =>
@@ -100,8 +99,8 @@ export default function BenchmarkTimeSeriesChartGroup({
                 chartGroup?.chart?.customizedConfirmDialog
               }
               markArea={{
-                start: lcommit?.date?? undefined,
-                end: rcommit?.date?? undefined,
+                start: lcommit?.date ?? undefined,
+                end: rcommit?.date ?? undefined,
               }}
               renderOptions={chartGroup?.chart?.renderOptions}
               defaultSelectMode={defaultSelectMode}

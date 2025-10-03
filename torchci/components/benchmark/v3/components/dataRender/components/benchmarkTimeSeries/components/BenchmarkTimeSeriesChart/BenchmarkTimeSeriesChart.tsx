@@ -4,7 +4,7 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import * as echarts from "echarts";
 import ReactECharts from "echarts-for-react";
-import React, {useMemo, useRef, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   BenchmarkTimeSeriesCharRenderOpiton,
   BenchmarkTimeSeriesInput,
@@ -34,8 +34,8 @@ type Props = {
   defaultSelectMode?: boolean;
   markArea?: {
     start?: string;
-    end?: string
-  }
+    end?: string;
+  };
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onSelect?: (sel: ConfirmPayload) => void;
 };
@@ -51,7 +51,6 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   onSelect = () => {},
 }) => {
   const chartRef = useRef<ReactECharts>(null);
-
 
   // Selection state
   const [selectMode, setSelectMode] = useState<boolean>(defaultSelectMode);
@@ -138,14 +137,19 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
 
   // Build line series first (indices 0..N-1 map to logical timeseries)
   const lineSeries: echarts.SeriesOption[] = useMemo(() => {
-     const ma = markArea?.start && markArea?.end ? [[
+    const ma =
+      markArea?.start && markArea?.end
+        ? [
+            [
               {
                 xAxis: markArea?.start,
               },
               {
                 xAxis: markArea?.end,
-              }
-            ]]: []
+              },
+            ],
+          ]
+        : [];
     const markAreaLine = {
       type: "line",
       name: "__markarea__",
@@ -157,7 +161,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       markArea: {
         silent: true,
         itemStyle: { color: "rgba(255,173,177,0.25)" },
-        data:ma,
+        data: ma,
       },
     } as echarts.SeriesOption;
 
@@ -201,8 +205,16 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
           : {}),
       } as echarts.SeriesOption;
     });
-    return [...lines,markAreaLine]
-  }, [seriesDatas, timeseries, selectedSeriesIdx, leftIdx, rightIdx, markArea?.start, markArea?.end]);
+    return [...lines, markAreaLine];
+  }, [
+    seriesDatas,
+    timeseries,
+    selectedSeriesIdx,
+    leftIdx,
+    rightIdx,
+    markArea?.start,
+    markArea?.end,
+  ]);
 
   // Highlight overlays appended after all lines
   const overlaySeries: echarts.SeriesOption[] = useMemo(() => {
