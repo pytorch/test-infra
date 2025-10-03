@@ -1,14 +1,13 @@
-SELECT DISTINCT
+SELECT
     replaceOne(head_branch, 'refs/heads/', '') AS branch,
     head_sha AS commit,
     workflow_id,
-    toDate(fromUnixTimestamp(timestamp), 'UTC') AS date
+    toStartOfHour(min(fromUnixTimestamp(timestamp))) AS date
 FROM benchmark.oss_ci_benchmark_torchinductor
 PREWHERE
     timestamp >= toUnixTimestamp({startTime: DateTime64(3)})
     AND timestamp < toUnixTimestamp({stopTime:  DateTime64(3)})
 WHERE
-    -- optional branches
     (
         has(
             {branches: Array(String)},
@@ -16,30 +15,19 @@ WHERE
         )
         OR empty({branches: Array(String)})
     )
-    -- optional suites
     AND (
         has({suites: Array(String)}, suite)
         OR empty({suites: Array(String)})
     )
-    -- optional dtype
-    AND (
-        benchmark_dtype = {dtype: String}
-        OR empty({dtype: String})
-    )
-    -- optional mode
-    AND (
-        benchmark_mode = {mode: String}
-        OR empty({mode: String})
-    )
-    -- optional device
-    AND (
-        device = {device: String}
-        OR empty({device: String})
-    )
-    -- optional arch (array param); if empty array, skip filter
+    AND (benchmark_dtype = {dtype: String} OR empty({dtype: String}))
+    AND (benchmark_mode = {mode: String} OR empty({mode: String}))
+    AND (device = {device: String} OR empty({device: String}))
     AND (
         multiSearchAnyCaseInsensitive(arch, {arch: Array(String)})
         OR empty({arch: Array(String)})
     )
-ORDER BY branch, timestamp
+GROUP BY
+    branch, commit, workflow_id
+ORDER BY
+    branch, date
 SETTINGS session_timezone = 'UTC';

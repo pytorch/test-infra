@@ -32,16 +32,25 @@ type Props = {
   customizedConfirmDialog?: { type: string; id?: string };
   renderOptions?: BenchmarkTimeSeriesCharRenderOpiton;
   defaultSelectMode?: boolean;
+  markArea?: {
+    start?: string;
+    end?: string;
+    singleGap?: number;
+  };
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onSelect?: (sel: ConfirmPayload) => void;
 };
 
 const DEFAULT_HEIGHT = 200;
 
+// we want to show the mark area as a single point, default gap is 1 hour
+const DEFAULT_MARK_AREA_SINGLE_GAP = 60 * 60 * 1000;
+
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   timeseries,
   renderOptions,
   customizedConfirmDialog,
+  markArea,
   defaultSelectMode = false,
   onSelect = () => {},
 }) => {
@@ -132,7 +141,41 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
 
   // Build line series first (indices 0..N-1 map to logical timeseries)
   const lineSeries: echarts.SeriesOption[] = useMemo(() => {
-    return seriesDatas.map((data, idx) => {
+    let ma: any = [];
+    if (markArea?.start && markArea?.end) {
+      const a = dayjs(markArea.start).valueOf();
+      const b = dayjs(markArea.end).valueOf();
+      const [l, r] = a <= b ? [a, b] : [b, a];
+      // when left === right, we want to show the mark area as a single point
+      const gap = markArea?.singleGap ?? DEFAULT_MARK_AREA_SINGLE_GAP;
+      const adjustedEnd = l === r ? r + gap : r;
+      ma = [
+        [
+          {
+            xAxis: l,
+          },
+          {
+            xAxis: adjustedEnd,
+          },
+        ],
+      ];
+    }
+    const markAreaLine = {
+      type: "line",
+      name: "__markarea__",
+      data: [],
+      lineStyle: { opacity: 0 },
+      itemStyle: { opacity: 0 },
+      showSymbol: false,
+      tooltip: { show: false },
+      markArea: {
+        silent: true,
+        itemStyle: { color: "rgba(0, 150, 136, 0.06)" },
+        data: ma,
+      },
+    } as echarts.SeriesOption;
+
+    const lines = seriesDatas.map((data, idx) => {
       const isSelected = selectedSeriesIdx === idx;
       const mlData: any[] = [];
 
@@ -172,7 +215,16 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
           : {}),
       } as echarts.SeriesOption;
     });
-  }, [seriesDatas, timeseries, selectedSeriesIdx, leftIdx, rightIdx]);
+    return [...lines, markAreaLine];
+  }, [
+    seriesDatas,
+    timeseries,
+    selectedSeriesIdx,
+    leftIdx,
+    rightIdx,
+    markArea?.start,
+    markArea?.end,
+  ]);
 
   // Highlight overlays appended after all lines
   const overlaySeries: echarts.SeriesOption[] = useMemo(() => {
