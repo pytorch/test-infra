@@ -134,8 +134,10 @@ def get_opts() -> argparse.Namespace:
     )
     workflow_parser.add_argument(
         "--restart-action",
-        type=RestartAction,
-        default=RestartAction.RUN,
+        type=RestartAction.from_str,
+        default=RestartAction.from_str(
+            os.environ.get("RESTART_ACTION", RestartAction.RUN)
+        ),
         choices=list(RestartAction),
         help=(
             "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
@@ -143,8 +145,10 @@ def get_opts() -> argparse.Namespace:
     )
     workflow_parser.add_argument(
         "--revert-action",
-        type=RevertAction,
-        default=RevertAction.LOG,
+        type=RevertAction.from_str,
+        default=RevertAction.from_str(
+            os.environ.get("REVERT_ACTION", RevertAction.LOG)
+        ),
         choices=list(RevertAction),
         help=(
             "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or run-revert."
@@ -315,9 +319,19 @@ def main(*args, **kwargs) -> None:
                 os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
             ),
             repo_full_name=repo_name,
-            restart_action=(RestartAction.LOG if opts.dry_run else RestartAction.RUN),
+            restart_action=(
+                RestartAction.LOG
+                if opts.dry_run
+                else RestartAction.from_str(
+                    os.environ.get("RESTART_ACTION", RestartAction.RUN)
+                )
+            ),
             revert_action=(
-                RevertAction.LOG if opts.dry_run else RevertAction.RUN_NOTIFY
+                RevertAction.LOG
+                if opts.dry_run
+                else RevertAction.from_str(
+                    os.environ.get("REVERT_ACTION", RevertAction.RUN_NOTIFY)
+                )
             ),
             bisection_limit=_bis_limit,
         )
