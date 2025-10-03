@@ -158,7 +158,7 @@ export function SideBarMainSection() {
         </Typography>
         <UMCopyLink
           params={{
-            timeRange: committedTime,
+            time: committedTime,
             filters: committedFilters,
             lbranch: committedLbranch,
             rbranch: committedRbranch,
