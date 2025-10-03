@@ -9,11 +9,14 @@ import {
   passesFilter,
 } from "../helper";
 import BenchmarkTimeSeriesChart from "./BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChart";
+import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 
 type Props = {
   data: any[];
   chartGroup: ChartGroupConfig;
   defaultSelectMode?: boolean;
+  lcommit?: BenchmarkCommitMeta;
+  rcommit?: BenchmarkCommitMeta;
   onSelect?: (payload: any) => void;
 };
 
@@ -22,8 +25,11 @@ export default function BenchmarkTimeSeriesChartGroup({
   data,
   chartGroup,
   defaultSelectMode = false,
+  lcommit,
+  rcommit,
   onSelect = () => {},
 }: Props) {
+
   const filtered = useMemo(
     () =>
       data.filter((s) =>
@@ -93,6 +99,10 @@ export default function BenchmarkTimeSeriesChartGroup({
               customizedConfirmDialog={
                 chartGroup?.chart?.customizedConfirmDialog
               }
+              markArea={{
+                start: lcommit?.date?? undefined,
+                end: rcommit?.date?? undefined,
+              }}
               renderOptions={chartGroup?.chart?.renderOptions}
               defaultSelectMode={defaultSelectMode}
               onSelect={onSelect}

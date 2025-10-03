@@ -28,6 +28,8 @@ export default function BenchmarkChartSection({
   data = [],
   chartSectionConfig,
   onSelect,
+  lcommit,
+  rcommit,
 }: {
   data?: BenchmarkTimeSeriesInput[];
   chartSectionConfig: BenchmarkChartSectionConfig;
@@ -96,6 +98,8 @@ export default function BenchmarkChartSection({
                   onSelect={(payload: any) => {
                     onSelect?.(payload);
                   }}
+                  lcommit={lcommit}
+                  rcommit={rcommit}
                 />
               </Paper>
             </Box>

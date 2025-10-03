@@ -39,6 +39,7 @@ export function FanoutBenchmarkTimeSeriesComparisonTableSection({
         data={data}
         lcommit={lcommit ?? undefined}
         rcommit={rcommit ?? undefined}
+        onChange={onChange}
       />
     </>
   );
