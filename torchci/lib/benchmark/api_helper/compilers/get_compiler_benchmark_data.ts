@@ -1,4 +1,9 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
+import {
+  CompilerQueryType,
+  defaultGetTimeSeriesInputs,
+  defaultListCommitsInputs,
+} from "../type";
 import { emptyTimeSeriesResponse } from "../utils";
 import {
   extractBackendSqlStyle,
@@ -7,11 +12,6 @@ import {
 } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
-import {
-  CompilerQueryType,
-  defaultGetTimeSeriesInputs,
-  defaultListCommitsInputs,
-} from "./type";
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =

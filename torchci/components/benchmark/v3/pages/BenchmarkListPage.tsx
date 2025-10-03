@@ -1,7 +1,7 @@
 import { Box, Typography } from "@mui/material";
 import { NavCategory, NavItem } from "components/layout/NavBarGroupDropdown";
-import { BenchmarkCategoryGroup } from "./components/benchmarkList/BenchmarkCategoryCard";
-import BenchmarkCategoryCardList from "./components/benchmarkList/BenchmarkCategoryCardList";
+import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
+import BenchmarkCategoryCardList from "../components/benchmarkList/BenchmarkCategoryCardList";
 
 export const categories: BenchmarkCategoryGroup[] = [
   {

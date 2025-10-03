@@ -79,6 +79,10 @@ export type ChartGroupConfig = {
   filterByFieldValues?: Record<string, Array<string>>;
   lineKey?: string[];
   renderOptions?: any;
+  // default is true, if set to false, the chart section select mode will be disabled
+  sectionSelectMode?: {
+    [key: string]: boolean;
+  };
   chart?: ChartConfig;
 };
 

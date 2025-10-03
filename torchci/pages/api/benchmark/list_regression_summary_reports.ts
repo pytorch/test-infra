@@ -1,8 +1,8 @@
 import {
   badRequest,
   parseTimestampTokenSeconds,
-} from "lib/benchmark/api_helper/compilers/helpers/common";
-import { readApiGetParams } from "lib/benchmark/api_helper/utils";
+  readApiGetParams,
+} from "lib/benchmark/api_helper/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import { NextApiRequest, NextApiResponse } from "next";
 
