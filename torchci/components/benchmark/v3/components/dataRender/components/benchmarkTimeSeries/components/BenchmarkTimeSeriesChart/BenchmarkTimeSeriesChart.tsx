@@ -35,12 +35,14 @@ type Props = {
   markArea?: {
     start?: string;
     end?: string;
+    singleGap?: number;
   };
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onSelect?: (sel: ConfirmPayload) => void;
 };
 
 const DEFAULT_HEIGHT = 200;
+const DEFAULT_MARK_AREA_SINGLE_GAP = 60 * 60 * 1000;
 
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   timeseries,
@@ -137,19 +139,25 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
 
   // Build line series first (indices 0..N-1 map to logical timeseries)
   const lineSeries: echarts.SeriesOption[] = useMemo(() => {
-    const ma =
-      markArea?.start && markArea?.end
-        ? [
-            [
-              {
-                xAxis: markArea?.start,
-              },
-              {
-                xAxis: markArea?.end,
-              },
-            ],
-          ]
-        : [];
+    let ma: any = [];
+    if (markArea?.start && markArea?.end) {
+      const a = dayjs(markArea?.start).valueOf();
+      const b = dayjs(markArea?.end).valueOf();
+      const [l, r] = a <= b ? [a, b] : [b, a];
+      // when left === right, we want to show the mark area as a single point
+      const gap = markArea?.singleGap ?? DEFAULT_MARK_AREA_SINGLE_GAP;
+      const adjustedEnd = l === r ? r + gap : r;
+      ma = [
+        [
+          {
+            xAxis: l,
+          },
+          {
+            xAxis: adjustedEnd,
+          },
+        ],
+      ];
+    }
     const markAreaLine = {
       type: "line",
       name: "__markarea__",
