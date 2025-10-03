@@ -45,6 +45,7 @@ jobs:
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
       build-platform: python-build-package
+      wheel-upload-path: "test/custom/path/"
       pip-install-torch-extra-args:
         torchvision
         torchao

@@ -68,6 +68,8 @@ export function SideBarMainSection() {
     setStagedLBranch,
     setStagedRBranch,
 
+    lcommit,
+    rcommit,
     committedTime,
     committedFilters,
     committedLbranch,
@@ -87,6 +89,8 @@ export function SideBarMainSection() {
     committedFilters: s.committedFilters,
     committedLbranch: s.committedLbranch,
     committedRbranch: s.committedRbranch,
+    lcommit: s.lcommit,
+    rcommit: s.rcommit,
 
     commitMainOptions: s.commitMainOptions,
     revertMainOptions: s.revertMainOptions,
@@ -158,10 +162,12 @@ export function SideBarMainSection() {
         </Typography>
         <UMCopyLink
           params={{
-            timeRange: committedTime,
+            time: committedTime,
             filters: committedFilters,
             lbranch: committedLbranch,
             rbranch: committedRbranch,
+            rcommit: rcommit,
+            lcommit: lcommit,
           }}
         />
       </Stack>

@@ -6,7 +6,26 @@ from enum import Enum
 import github
 
 
-class RestartAction(Enum):
+class AbstractExecAction:
+    """Abstract base class for execution actions."""
+
+    def __str__(self) -> str:  # pragma: no cover - trivial
+        return self.value
+
+    @property
+    def side_effects(self) -> bool:
+        raise NotImplementedError("Subclasses must implement this method")
+
+    @classmethod
+    def from_str(cls, label: any):
+        lower_label = str(label).lower()
+        for member in cls:
+            if member.value.lower() == lower_label:
+                return member
+        raise ValueError(f"Unknown {cls.__name__} label: {label}")
+
+
+class RestartAction(AbstractExecAction, Enum):
     """Controls restart behavior.
 
     - SKIP: no logging, no side effects
@@ -18,16 +37,13 @@ class RestartAction(Enum):
     LOG = "log"
     RUN = "run"
 
-    def __str__(self) -> str:  # pragma: no cover - trivial
-        return self.value
-
     @property
     def side_effects(self) -> bool:
         """True if this mode performs external side effects (GitHub dispatch)."""
         return self is RestartAction.RUN
 
 
-class RevertAction(Enum):
+class RevertAction(AbstractExecAction, Enum):
     """Controls revert behavior.
 
     - SKIP: no logging, no side effects
@@ -42,9 +58,6 @@ class RevertAction(Enum):
     RUN_LOG = "run-log"
     RUN_NOTIFY = "run-notify"
     RUN_REVERT = "run-revert"
-
-    def __str__(self) -> str:  # pragma: no cover - trivial
-        return self.value
 
     @property
     def side_effects(self) -> bool:

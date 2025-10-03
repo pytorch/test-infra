@@ -93,6 +93,10 @@ on:
         required: false
         default: "python -m build --wheel"
         type: string
+      wheel-upload-path:
+        description: Custom wheel upload path
+        required: false
+        type: string
       pip-install-torch-extra-args:
         # NOTE: Why does this exist?
         # Well setuptools / python packaging doesn't actually allow you to specify dependencies
@@ -331,6 +335,7 @@ jobs:
       architecture: ${{ inputs.architecture }}
       trigger-event: ${{ inputs.trigger-event }}
       upload-to-pypi: ${{ inputs.upload-to-pypi }}
+      wheel-upload-path: ${{ inputs.wheel-upload-path }}
     secrets:
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
