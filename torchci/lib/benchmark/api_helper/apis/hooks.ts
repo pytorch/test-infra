@@ -1,6 +1,10 @@
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import { BundleResult } from "../type";
-import { listBenchmarkCommits, listBenchmarkRegressionReport, postBenchmarkTimeSeriesFetcher } from "./api";
+import {
+  listBenchmarkCommits,
+  listBenchmarkRegressionReport,
+  postBenchmarkTimeSeriesFetcher,
+} from "./api";
 
 export function useBenchmarkCommitsData(
   benchmarkId: string,
@@ -17,13 +21,13 @@ export function useBenchmarkCommitsData(
     listBenchmarkCommits,
     [benchmarkId, baseParams, formats],
     {
-        refreshInterval: 60 * 60 * 1000,
-        revalidateOnFocus: false,
-        keepPreviousData: true,
-        dedupingInterval: 10_000,
+      refreshInterval: 60 * 60 * 1000,
+      revalidateOnFocus: false,
+      keepPreviousData: true,
+      dedupingInterval: 10_000,
     },
     shouldFetch
-);
+  );
 }
 
 // --- Hook wrapper ---
@@ -33,8 +37,8 @@ export function useBenchmarkData(
   formats: string[] = ["time_series", "table"]
 ): SWRResponse<BundleResult, Error> {
   const shouldFetch = !!queryParams;
-   return useApi(
-    postBenchmarkTimeSeriesFetcher<BundleResult>,
+  return useApi<BundleResult>(
+    postBenchmarkTimeSeriesFetcher,
     [benchamrk_name, formats, queryParams],
     {
       revalidateOnFocus: false,
@@ -42,21 +46,17 @@ export function useBenchmarkData(
       dedupingInterval: 10_000,
     },
     shouldFetch
- );
+  );
 }
 
 export function useBenchmarkRegressionReportData(
-    report_id: string,
-    limit: number = 10,
+  report_id: string,
+  limit: number = 10
 ): any {
-  return useApi(
-    listBenchmarkRegressionReport,
-    [report_id, limit],
-    {
-        refreshInterval: 12* 60 * 60 * 1000, // refresh every 12 hour
-        revalidateOnFocus: false,
-    }
-  );
+  return useApi(listBenchmarkRegressionReport, [report_id, limit], {
+    refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hour
+    revalidateOnFocus: false,
+  });
 }
 
 /**
@@ -70,9 +70,7 @@ export function useApi<T>(
   enabled: boolean = true
 ) {
   // build the key only if enabled
-  const key = enabled
-    ? [apiFunc.name || "anon", ...args]
-    : null;
+  const key = enabled ? [apiFunc.name || "anon", ...args] : null;
 
   return useSWR<T>(
     key,
