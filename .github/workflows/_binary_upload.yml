@@ -36,6 +36,11 @@ on:
         description: The comma-separated list of CUDA arch to be uploaded to pypi
         default: ''
         type: string
+      wheel-upload-path:
+        description: Custom wheel upload path
+        required: false
+        type: string
+        default: ''
     secrets:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
@@ -99,6 +104,8 @@ jobs:
       - name: Upload package to pytorch.org
         shell: bash
         working-directory: ${{ inputs.repository }}
+        env:
+          WHEEL_UPLOAD_PATH: ${{ inputs.wheel-upload-path }}
         run: |
           set -ex
 
@@ -110,6 +117,11 @@ jobs:
           AWS_CMD="aws s3 cp --dryrun"
           if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
             AWS_CMD="aws s3 cp"
+          fi
+
+           # set path to specific wheel-upload-path
+          if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
+            PYTORCH_S3_BUCKET_PATH="s3://pytorch/${WHEEL_UPLOAD_PATH}"
           fi
 
           for pkg in dist/*; do
