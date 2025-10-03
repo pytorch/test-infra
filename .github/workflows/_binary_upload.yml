@@ -104,6 +104,8 @@ jobs:
       - name: Upload package to pytorch.org
         shell: bash
         working-directory: ${{ inputs.repository }}
+        env:
+          WHEEL_UPLOAD_PATH: ${{ inputs.wheel-upload-path }}
         run: |
           set -ex
 
@@ -118,8 +120,8 @@ jobs:
           fi
 
            # set path to specific wheel-upload-path
-          if [[ ${{ inputs.wheel-upload-path != '' }} ]]; then
-            PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ inputs.wheel-upload-path }}"
+          if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
+            PYTORCH_S3_BUCKET_PATH="s3://pytorch/${WHEEL_UPLOAD_PATH}"
           fi
 
           for pkg in dist/*; do
