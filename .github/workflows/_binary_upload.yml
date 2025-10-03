@@ -101,14 +101,6 @@ jobs:
           set -ex
           echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
 
-      - name: Set Custom upload path
-        if: ${{ inputs.wheel-upload-path != '' }}
-        shell: bash
-        run: |
-          set -ex
-          export PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ inputs.wheel-upload-path }}"
-          echo "PYTORCH_S3_BUCKET_PATH=s3://pytorch/${{ inputs.wheel-upload-path }}" >> "${GITHUB_ENV}"
-
       - name: Upload package to pytorch.org
         shell: bash
         working-directory: ${{ inputs.repository }}
@@ -123,6 +115,11 @@ jobs:
           AWS_CMD="aws s3 cp --dryrun"
           if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
             AWS_CMD="aws s3 cp"
+          fi
+
+           # set path to specific wheel-upload-path
+          if [[ ${{ inputs.wheel-upload-path != '' }} ]]; then
+            PYTORCH_S3_BUCKET_PATH="s3://pytorch/${{ inputs.wheel-upload-path }}"
           fi
 
           for pkg in dist/*; do
