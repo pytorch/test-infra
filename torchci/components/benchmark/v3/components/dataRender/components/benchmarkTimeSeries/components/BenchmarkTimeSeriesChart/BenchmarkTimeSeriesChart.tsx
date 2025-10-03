@@ -42,6 +42,8 @@ type Props = {
 };
 
 const DEFAULT_HEIGHT = 200;
+
+// we want to show the mark area as a single point, default gap is 1 hour
 const DEFAULT_MARK_AREA_SINGLE_GAP = 60 * 60 * 1000;
 
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
@@ -141,8 +143,8 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   const lineSeries: echarts.SeriesOption[] = useMemo(() => {
     let ma: any = [];
     if (markArea?.start && markArea?.end) {
-      const a = dayjs(markArea?.start).valueOf();
-      const b = dayjs(markArea?.end).valueOf();
+      const a = dayjs(markArea.start).valueOf();
+      const b = dayjs(markArea.end).valueOf();
       const [l, r] = a <= b ? [a, b] : [b, a];
       // when left === right, we want to show the mark area as a single point
       const gap = markArea?.singleGap ?? DEFAULT_MARK_AREA_SINGLE_GAP;
