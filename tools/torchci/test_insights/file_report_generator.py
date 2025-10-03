@@ -24,8 +24,8 @@ Usage:
 import argparse
 import concurrent.futures
 import gzip
+import io
 import json
-import os
 import re
 import time
 import urllib.request
@@ -35,6 +35,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+import boto3  # type: ignore[import]
 from torchci.clickhouse import query_clickhouse
 
 
@@ -114,9 +115,12 @@ class FileReportGenerator:
 
             if len(lens) > 1:
                 lens.sort(key=lambda x: x[1], reverse=True)
-                if abs(lens[0][1] - lens[1][1]) * 2 / (lens[0][1] + lens[1][1]) < 0.1:
-                    print(f"Using SHA {lens[0][0]} with {lens[0][1]} entries")
-                    return lens[0][0]
+                sha1, len1 = lens[0]
+                _, len2 = lens[1]
+
+                if abs(len1 - len2) * 2 / (len1 + len2) < 0.1:
+                    print(f"Using SHA {sha1} with {len1} entries")
+                    return sha1
         return None
 
     def find_suitable_sha(self, date: str) -> Optional[str]:
@@ -275,7 +279,7 @@ class FileReportGenerator:
             return text_data
         except Exception as e:
             print(f"Failed to fetch from s3://{bucket}/{key}: {e}")
-            return ""
+            raise e
 
     def _fetch_invoking_file_summary_from_s3(
         self, workflow_run_id: int, workflow_run_attempt: int
@@ -564,28 +568,43 @@ class FileReportGenerator:
 
         return metadata
 
+    @lru_cache
+    def get_s3_resource(self):
+        s3 = boto3.resource("s3")
+        return s3
+
     def upload_to_s3(
-        self, contents: list[dict[str, Any]], bucket: str, key: str
+        self,
+        contents: list[dict[str, Any]],
+        bucket_name: str,
+        key: str,
     ) -> None:
-        """Upload contents to S3 as a gzipped JSON lines file"""
-        compressed_data = gzip.compress(
-            "\n".join(json.dumps(entry) for entry in contents).encode("utf-8")
+        body = io.StringIO()
+        for doc in contents:
+            json.dump(doc, body)
+            body.write("\n")
+
+        html_url = f"https://{bucket_name}.s3.amazonaws.com/{key}"
+
+        if self.dry_run:
+            print(f"Dry run: would upload data to s3: {html_url}")
+            return
+        print(f"Uploading data to s3: {html_url}")
+        self.get_s3_resource().Object(bucket_name, key).put(
+            Body=gzip.compress(body.getvalue().encode()),
+            ContentEncoding="gzip",
+            ContentType="application/json",
         )
-        s3_path = f"s3://{bucket}/{key}"
-        with open("/tmp/upload_temp.gz", "wb") as f:
-            f.write(compressed_data)
-        if not self.dry_run:
-            os.system(
-                f"aws s3 cp /tmp/upload_temp.gz {s3_path} --content-encoding gzip --content-type application/json"
-            )
-        print(f"Uploaded data to {s3_path}")
 
     def remove_key_from_s3(self, bucket: str, key: str) -> None:
         """Remove a specific key from S3"""
         s3_path = f"s3://{bucket}/{key}"
-        if not self.dry_run:
-            os.system(f"aws s3 rm {s3_path}")
-        print(f"Removed {s3_path} from S3")
+        html_url = f"https://{bucket}.s3.amazonaws.com/{key}"
+        if self.dry_run:
+            print(f"Dry run: would remove from s3: {html_url}")
+            return
+        print(f"Removing from s3: {html_url}")
+        self.get_s3_resource().Object(bucket, key).delete()
 
 
 def main():
