@@ -1,5 +1,5 @@
 import { FanoutComponentProps } from "components/benchmark/v3/configs/utils/fanoutRegistration";
-import BenchmarkChartSection from "../components/benchmarkTimeSeries/BenchmarkChartSection";
+import BenchmarkChartSection from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartSection";
 import BenchmarkTimeSeriesComparisonTableSection from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTableSection";
 import { BenchmarkChartSectionConfig } from "../components/benchmarkTimeSeries/helper";
 

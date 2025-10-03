@@ -2,7 +2,7 @@ import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
-import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
+import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/apis/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useState } from "react";

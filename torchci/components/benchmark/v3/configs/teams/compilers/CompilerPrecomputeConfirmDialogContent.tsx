@@ -9,8 +9,8 @@ import {
 import { TimeSeriesChartDialogContentProps } from "components/benchmark/v3/components/common/SelectionDialog";
 import { NavListItem } from "components/benchmark/v3/components/common/styledComponents";
 import { toToggleSectionId } from "components/benchmark/v3/components/common/ToggleSection";
-import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/BenchmarkChartSection";
-import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChartGroup";
+import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
+import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartSection";
 import { toBenchamrkTimeSeriesComparisonTableId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTableSection";
 /**
  * Customized dialog content for compiler precompute benchmark page.

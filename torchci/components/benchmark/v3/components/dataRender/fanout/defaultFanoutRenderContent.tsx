@@ -4,7 +4,7 @@ import { HighlightStyles } from "components/benchmark/v3/components/common/highl
 import { getConfig } from "components/benchmark/v3/configs/configBook";
 import { getFanoutRenderComponent } from "components/benchmark/v3/configs/utils/fanoutRegistration";
 import LoadingPage from "components/common/LoadingPage";
-import { useBenchmarkData } from "lib/benchmark/api_helper/compilers/type";
+import { useBenchmarkData } from "lib/benchmark/api_helper/apis/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useState } from "react";

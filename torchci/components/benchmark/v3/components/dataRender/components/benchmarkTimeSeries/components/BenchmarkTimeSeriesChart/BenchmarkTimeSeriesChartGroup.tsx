@@ -8,8 +8,8 @@ import {
   getBenchmarkTimeSeriesTitle,
   makeGroupKeyAndLabel,
   passesFilter,
-} from "../helper";
-import BenchmarkTimeSeriesChart from "./BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChart";
+} from "../../helper";
+import BenchmarkTimeSeriesChart from "./BenchmarkTimeSeriesChart";
 
 type Props = {
   data: any[];
