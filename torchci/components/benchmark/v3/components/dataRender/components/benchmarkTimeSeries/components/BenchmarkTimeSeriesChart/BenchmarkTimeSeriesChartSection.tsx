@@ -98,6 +98,7 @@ export default function BenchmarkChartSection({
                   onSelect={(payload: any) => {
                     onSelect?.(payload);
                   }}
+                  enableSelectMode
                   lcommit={lcommit}
                   rcommit={rcommit}
                 />

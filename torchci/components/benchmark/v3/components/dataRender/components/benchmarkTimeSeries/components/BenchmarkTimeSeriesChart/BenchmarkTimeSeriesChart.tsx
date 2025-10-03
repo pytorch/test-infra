@@ -31,12 +31,12 @@ type Props = {
   timeseries: BenchmarkTimeSeriesInput[];
   customizedConfirmDialog?: { type: string; id?: string };
   renderOptions?: BenchmarkTimeSeriesCharRenderOpiton;
-  defaultSelectMode?: boolean;
   markArea?: {
     start?: string;
     end?: string;
     singleGap?: number;
   };
+  enableSelectMode?: boolean;
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onSelect?: (sel: ConfirmPayload) => void;
 };
@@ -47,17 +47,16 @@ const DEFAULT_HEIGHT = 200;
 const DEFAULT_MARK_AREA_SINGLE_GAP = 60 * 60 * 1000;
 
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
+  enableSelectMode = true,
   timeseries,
   renderOptions,
   customizedConfirmDialog,
   markArea,
-  defaultSelectMode = false,
   onSelect = () => {},
 }) => {
   const chartRef = useRef<ReactECharts>(null);
 
   // Selection state
-  const [selectMode, setSelectMode] = useState<boolean>(defaultSelectMode);
   const [selectedSeriesIdx, setSelectedSeriesIdx] = useState<number | null>(
     null
   );
@@ -108,7 +107,6 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   }
 
   function handlePointClick(seriesIndex: number, dataIndex: number) {
-    if (!selectMode) return;
     // Lock to a series on first click
     if (selectedSeriesIdx == null) {
       setSelectedSeriesIdx(seriesIndex);
@@ -275,6 +273,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
 
   const onEvents = {
     click: (p: any) => {
+      if (!enableSelectMode) return;
       if (!p || p.seriesType !== "line") return;
       if (typeof p.seriesIndex !== "number" || typeof p.dataIndex !== "number")
         return;
@@ -310,6 +309,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       left: left!,
       right: right!,
     });
+    resetSelection();
   }
 
   return (
@@ -320,20 +320,17 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       }}
     >
       {/* Selection controls */}
-      <ChartSelectionControl
-        selectMode={selectMode}
-        setSelectMode={(v) => {
-          setSelectMode(v);
-          if (!v) resetSelection();
-        }}
-        left={left}
-        right={right}
-        onClear={resetSelection}
-        onSelect={select}
-        confirmDisabled={!hasBoth}
-        clearDisabled={!left && !right}
-        customizedConfirmDialog={customizedConfirmDialog}
-      />
+      {enableSelectMode ? (
+        <ChartSelectionControl
+          left={left}
+          right={right}
+          onClear={resetSelection}
+          onSelect={select}
+          confirmDisabled={!hasBoth}
+          clearDisabled={!left && !right}
+          customizedConfirmDialog={customizedConfirmDialog}
+        />
+      ) : null}
       {/* Echart controls */}
       <ReactECharts
         ref={chartRef}

@@ -16,8 +16,7 @@ export function BenchmarkRegressionReportPage() {
     20
   );
 
-
-  if (loading){
+  if (loading) {
     return <LoadingPage />;
   }
 
@@ -25,23 +24,20 @@ export function BenchmarkRegressionReportPage() {
     return <div>{error}</div>;
   }
 
-  const reports = data?.reports?? [];
+  const reports = data?.reports ?? [];
   const next_cursor = data?.next_cursor;
-
   console.log(next_cursor);
 
   return (
     <div>
       <h1>Regression Report</h1>
       <div>
-        {reports.map((report:any, index:number) => {
+        {reports.map((report: any, index: number) => {
           return (
             <div key={index}>
               <h2>{report.title}</h2>
               <div>
-                <pre>
-                  {JSON.stringify(report, null, 2)}
-                </pre>
+                <pre>{JSON.stringify(report, null, 2)}</pre>
               </div>
             </div>
           );

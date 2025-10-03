@@ -18,16 +18,17 @@ type Props = {
   lcommit?: BenchmarkCommitMeta;
   rcommit?: BenchmarkCommitMeta;
   onSelect?: (payload: any) => void;
+  enableSelectMode?: boolean;
 };
 
 // ---- Real React component with hooks (internal) ----
 export default function BenchmarkTimeSeriesChartGroup({
   data,
   chartGroup,
-  defaultSelectMode = false,
   lcommit,
   rcommit,
   onSelect = () => {},
+  enableSelectMode = true,
 }: Props) {
   const filtered = useMemo(
     () =>
@@ -72,6 +73,12 @@ export default function BenchmarkTimeSeriesChartGroup({
     );
   }
 
+  const onConfirm = (payload: any) => {
+    if (onSelect) {
+      onSelect(payload);
+    }
+  };
+
   return (
     <Grid container spacing={1}>
       {groups.map((g) => {
@@ -81,6 +88,10 @@ export default function BenchmarkTimeSeriesChartGroup({
           g.labels.join("-"),
           chartGroup?.chart
         );
+
+        console.log(g.labels.join("-"), chartGroup?.sectionSelectMode);
+        const enableSelectMode =
+          chartGroup?.sectionSelectMode?.[g.labels.join("-")] ?? true;
         return (
           <Grid
             key={g.key}
@@ -94,6 +105,7 @@ export default function BenchmarkTimeSeriesChartGroup({
               {title.description}
             </Typography>
             <BenchmarkTimeSeriesChart
+              enableSelectMode={enableSelectMode}
               timeseries={groupSeries}
               customizedConfirmDialog={
                 chartGroup?.chart?.customizedConfirmDialog
@@ -103,8 +115,7 @@ export default function BenchmarkTimeSeriesChartGroup({
                 end: rcommit?.date ?? undefined,
               }}
               renderOptions={chartGroup?.chart?.renderOptions}
-              defaultSelectMode={defaultSelectMode}
-              onSelect={onSelect}
+              onSelect={onConfirm}
             />
           </Grid>
         );

@@ -21,7 +21,9 @@ export async function navigateToDataGrid(
     openToggleSectionById(toggleId);
     await delay(350); // wait for toggle animation
   }
-  return scrollToDataGridView(sectionId, keywords, field);
+  const target = scrollToDataGridView(sectionId, keywords, field);
+  await delay(300); // wait for scroll animation
+  return target;
 }
 
 function scrollToDataGridView(
@@ -31,6 +33,9 @@ function scrollToDataGridView(
 ) {
   const section = document.getElementById(sectionId);
   if (!section) return null;
+
+  let target: HTMLElement | null = section;
+
   const grid = section.querySelector(".MuiDataGrid-root") as HTMLElement | null;
   if (!grid) return null;
 
@@ -42,18 +47,18 @@ function scrollToDataGridView(
   });
 
   if (!match) return null;
+  target = match;
 
   // Scroll to the row
   match.scrollIntoView({ behavior: "smooth", block: "center" });
   // If a specific column (field) is given, focus on that cell
-  let target: HTMLElement | null = match;
   if (field) {
     const cell = match.querySelector<HTMLElement>(
       `[data-field="${CSS.escape(field)}"]`
     );
     if (cell) {
       target = cell;
-      cell.scrollIntoView({ behavior: "smooth", block: "center" });
+      scrollingToElement(cell);
     }
   }
   return target;
@@ -64,7 +69,7 @@ export async function navigateToEchartInGroup(
   chartId: string,
   toggleId?: string // optional toggleId to open
 ): Promise<HTMLElement | null> {
-  const section = document.getElementById(sectionId);
+  const section = getElementById(sectionId);
   if (!section) return null;
 
   let target: HTMLElement | null = section.querySelector<HTMLElement>(
@@ -80,6 +85,20 @@ export async function navigateToEchartInGroup(
     return null;
   }
   // scroll into view
-  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  scrollingToElement(target);
   return target;
+}
+
+// Accss element from DOM by id
+export function getElementById(id: string): HTMLElement | null {
+  return document.getElementById(id);
+}
+
+export async function scrollingToElement(
+  target: HTMLElement | null,
+  delay_ts: number = 200
+) {
+  if (!target) return null;
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+  await delay(delay_ts);
 }

@@ -1,4 +1,4 @@
-import { Button, FormControlLabel, Switch, Typography } from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { SelectionDialog } from "components/benchmark/v3/components/common/SelectionDialog";
 import dayjs from "dayjs";
@@ -6,8 +6,6 @@ import { useState } from "react";
 import { RawTimeSeriesPoint } from "../../helper";
 
 type SelectionControlsProps = {
-  selectMode: boolean;
-  setSelectMode: (v: boolean) => void;
   left: RawTimeSeriesPoint | null;
   right: RawTimeSeriesPoint | null;
   onClear: () => void;
@@ -18,8 +16,6 @@ type SelectionControlsProps = {
 };
 
 export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
-  selectMode,
-  setSelectMode,
   left,
   right,
   onClear,
@@ -41,16 +37,6 @@ export const ChartSelectionControl: React.FC<SelectionControlsProps> = ({
         alignItems="center"
         sx={{ mt: 1, flexWrap: "wrap" }}
       >
-        <FormControlLabel
-          control={
-            <Switch
-              size="small"
-              checked={selectMode}
-              onChange={(e) => setSelectMode(e.target.checked)}
-            />
-          }
-          label="Select mode"
-        />
         <Typography variant="body2" sx={{ ml: 2 }}>
           L:&nbsp;
           {left ? (

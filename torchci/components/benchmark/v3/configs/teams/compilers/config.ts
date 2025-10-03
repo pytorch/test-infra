@@ -79,6 +79,19 @@ const RENDER_MAPPING_BOOK = {
       unit: "x",
     },
   },
+  execution_time: {
+    displayName: "Execution time ",
+    unit: {
+      type: "time",
+      unit: "s",
+    },
+  },
+  dynamo_peak_mem: {
+    displayName: "Dynamo memory usage",
+    unit: {
+      unit: "mb",
+    },
+  },
 };
 
 export const compilerQueryParameterConverter: QueryParameterConverter = (
