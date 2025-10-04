@@ -83,7 +83,7 @@ jobs:
       - name: Configure aws credentials (pytorch account)
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_build_preview_wheels_policy
           aws-region: us-east-1
 
       - name: Nightly or release RC
