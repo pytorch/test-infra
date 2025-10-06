@@ -1,8 +1,122 @@
 import { Paper } from "@mui/material";
+import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import _ from "lodash";
+import {
+  COLOR_ERROR,
+  COLOR_GRAY,
+  COLOR_MIXED_LINE,
+  COLOR_SUCCESS,
+  COLOR_SUCCESS_LINE,
+} from "./constants";
+
+// Helper function to handle build click events
+function handleBuildClick(params: any) {
+  if (params?.seriesType === "scatter") {
+    const buildNumber = params?.data?.build_number;
+    if (buildNumber !== undefined && buildNumber !== null) {
+      const url = `https://buildkite.com/vllm/ci/builds/${buildNumber}/`;
+      if (typeof window !== "undefined") {
+        window.open(url, "_blank");
+      }
+    }
+  }
+}
+
+// Helper function to generate main CI builds scatter series
+function getMainScatterSeries(): any {
+  return {
+    name: "CI builds",
+    type: "scatter",
+    encode: { x: "started_at", y: "duration_hours" },
+    symbolSize: 6,
+    datasetIndex: 0,
+    itemStyle: {
+      color: (params: any) => {
+        const s = params.data?.build_state?.toLowerCase?.();
+        if (s === "failed") return COLOR_ERROR;
+        if (s === "canceled" || s === "cancelled") return COLOR_GRAY;
+        if (s === "passed" || s === "finished" || s === "success")
+          return COLOR_SUCCESS;
+        return COLOR_SUCCESS;
+      },
+    },
+  };
+}
+
+// Helper function to generate line series for daily averages
+function getLineSeries(
+  dailyMeanSuccess: any[],
+  dailyMeanNonCanceled: any[]
+): any[] {
+  return [
+    {
+      name: "Daily mean (success)",
+      type: "line",
+      datasetIndex: 1,
+      smooth: true,
+      encode: { x: "day", y: "value" },
+      lineStyle: { color: COLOR_SUCCESS_LINE, opacity: 0.7, width: 1 },
+      showSymbol: true,
+      symbolSize: 4,
+    },
+    {
+      name: "Daily mean (success+failed)",
+      type: "line",
+      datasetIndex: 2,
+      smooth: true,
+      encode: { x: "day", y: "value" },
+      lineStyle: { color: COLOR_MIXED_LINE, opacity: 0.7, width: 1 },
+      showSymbol: true,
+      symbolSize: 4,
+    },
+  ];
+}
+
+// Helper function to generate scatter series for legend
+function getLegendScatterSeries(): any[] {
+  return [
+    {
+      name: "Success",
+      type: "scatter",
+      data: [],
+      itemStyle: { color: COLOR_SUCCESS },
+      tooltip: { show: false },
+      silent: true,
+    },
+    {
+      name: "Failed",
+      type: "scatter",
+      data: [],
+      itemStyle: { color: COLOR_ERROR },
+      tooltip: { show: false },
+      silent: true,
+    },
+    {
+      name: "Canceled",
+      type: "scatter",
+      data: [],
+      itemStyle: { color: COLOR_GRAY },
+      tooltip: { show: false },
+      silent: true,
+    },
+  ];
+}
+
+// Helper function to format tooltip content
+function formatTooltip(params: any): string {
+  if (params.seriesType === "line") {
+    const rawVal = Array.isArray(params.value)
+      ? params.value[1]
+      : params.data?.value;
+    return `Day: ${params.data.day}<br/>Daily median: ${rawVal} h`;
+  }
+  const d = params.data;
+  const when = d.started_at ? dayjs(d.started_at).format("M/D/YY h:mm A") : "";
+  return `Started: ${when}<br/>Pipeline: ${d.pipeline_name}<br/>Build #: ${d.build_number}<br/>Duration: ${d.duration_hours} h`;
+}
 
 export default function CiDurationsPanel({
   data,
@@ -13,7 +127,7 @@ export default function CiDurationsPanel({
 
   const source = (data || []).map((d: any) => ({
     ...d,
-    started_at: d.started_at ? new Date(d.started_at).toISOString() : null,
+    started_at: d.started_at ? dayjs(d.started_at).toISOString() : null,
     duration_hours: Number(d.duration_hours),
   }));
   const durations = source
@@ -100,80 +214,12 @@ export default function CiDurationsPanel({
     },
     tooltip: {
       trigger: "item",
-      formatter: (p: any) => {
-        if (p.seriesType === "line") {
-          const rawVal = Array.isArray(p.value) ? p.value[1] : p.data?.value;
-          return `Day: ${p.data.day}<br/>Daily median: ${rawVal} h`;
-        }
-        const d = p.data;
-        const when = d.started_at
-          ? new Date(d.started_at).toLocaleString()
-          : "";
-        return `Started: ${when}<br/>Pipeline: ${d.pipeline_name}<br/>Build #: ${d.build_number}<br/>Duration: ${d.duration_hours} h`;
-      },
+      formatter: formatTooltip,
     },
     series: [
-      {
-        name: "CI builds",
-        type: "scatter",
-        encode: { x: "started_at", y: "duration_hours" },
-        symbolSize: 6,
-        datasetIndex: 0,
-        itemStyle: {
-          color: (params: any) => {
-            const s = params.data?.build_state?.toLowerCase?.();
-            if (s === "failed") return "#ee6666"; // red
-            if (s === "canceled" || s === "cancelled") return "#9e9e9e"; // gray
-            if (s === "passed" || s === "finished" || s === "success")
-              return "#3ba272"; // green
-            return "#3ba272";
-          },
-        },
-      },
-      {
-        name: "Daily mean (success)",
-        type: "line",
-        datasetIndex: 1,
-        smooth: true,
-        encode: { x: "day", y: "value" },
-        lineStyle: { color: "#00E676", opacity: 0.7, width: 1 },
-        showSymbol: true,
-        symbolSize: 4,
-      },
-      {
-        name: "Daily mean (success+failed)",
-        type: "line",
-        datasetIndex: 2,
-        smooth: true,
-        encode: { x: "day", y: "value" },
-        lineStyle: { color: "#FF4081", opacity: 0.7, width: 1 },
-        showSymbol: true,
-        symbolSize: 4,
-      },
-      {
-        name: "Success",
-        type: "scatter",
-        data: [],
-        itemStyle: { color: "#3ba272" },
-        tooltip: { show: false },
-        silent: true,
-      },
-      {
-        name: "Failed",
-        type: "scatter",
-        data: [],
-        itemStyle: { color: "#ee6666" },
-        tooltip: { show: false },
-        silent: true,
-      },
-      {
-        name: "Canceled",
-        type: "scatter",
-        data: [],
-        itemStyle: { color: "#9e9e9e" },
-        tooltip: { show: false },
-        silent: true,
-      },
+      getMainScatterSeries(),
+      ...getLineSeries(dailyMeanSuccess, dailyMeanNonCanceled),
+      ...getLegendScatterSeries(),
     ],
   };
 
@@ -184,15 +230,7 @@ export default function CiDurationsPanel({
         style={{ height: "100%", width: "100%" }}
         option={options}
         onEvents={{
-          click: (p: any) => {
-            if (p?.seriesType === "scatter") {
-              const num = p?.data?.build_number;
-              if (num !== undefined && num !== null) {
-                const url = `https://buildkite.com/vllm/ci/builds/${num}/`;
-                if (typeof window !== "undefined") window.open(url, "_blank");
-              }
-            }
-          },
+          click: handleBuildClick,
         }}
       />
     </Paper>

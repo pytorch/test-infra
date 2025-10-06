@@ -2,6 +2,7 @@ import { Paper } from "@mui/material";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
+import { COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING } from "./constants";
 
 export default function MergesPanel({ data }: { data: any }) {
   const { darkMode } = useDarkMode();
@@ -32,7 +33,7 @@ export default function MergesPanel({ data }: { data: any }) {
         },
       },
     ],
-    color: ["#3ba272", "#fc9403", "#ee6666"],
+    color: [COLOR_SUCCESS, COLOR_WARNING, COLOR_ERROR],
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {

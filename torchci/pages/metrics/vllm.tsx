@@ -13,6 +13,52 @@ const ROW_HEIGHT = 375;
 
 // moved MergesPanel and CiDurationsPanel to components
 
+// Helper function to safely extract PR cycle data values
+function getPrCycleValue(
+  data: any[] | undefined,
+  field: string
+): number | null | undefined {
+  if (data === undefined) return undefined;
+  return data?.[0]?.[field] ?? null;
+}
+
+// Helper function to format hour values
+function formatHours(v: number | null | undefined): string {
+  return v === null || v === undefined ? "-" : Number(v).toFixed(2);
+}
+
+// Helper function to format hour values with unit
+function formatHoursWithUnit(v: number | null | undefined): string {
+  return v === null || v === undefined ? "-" : Number(v).toFixed(2) + "h";
+}
+
+// Type for metric configuration
+interface MetricConfig {
+  title: string;
+  value: number | null | undefined;
+  valueRenderer: (v: number | null | undefined) => string;
+  badThreshold: (v: number | null | undefined) => boolean;
+  paperSx?: any;
+}
+
+// Helper component to render a stack of metric panels from config
+function MetricStack({ metrics }: { metrics: MetricConfig[] }) {
+  return (
+    <>
+      {metrics.map((metric, index) => (
+        <ScalarPanelWithValue
+          key={index}
+          title={metric.title}
+          value={metric.value}
+          valueRenderer={metric.valueRenderer}
+          badThreshold={metric.badThreshold}
+          paperSx={metric.paperSx}
+        />
+      ))}
+    </>
+  );
+}
+
 export default function Page() {
   const { darkMode } = useDarkMode();
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
@@ -161,23 +207,23 @@ export default function Page() {
           justifyContent={"stretch"}
         >
           <Stack spacing={1} sx={{ width: "100%", height: ROW_HEIGHT }}>
-            <ScalarPanelWithValue
-              title={"CI P50 (success)"}
-              value={ciSuccP50}
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2) + "h"
-              }
-              badThreshold={(v) => (v ?? 0) > 2}
-              paperSx={{ height: "50%" }}
-            />
-            <ScalarPanelWithValue
-              title={"CI Runtime P90 (success)"}
-              value={ciSuccP90}
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2) + "h"
-              }
-              badThreshold={(v) => (v ?? 0) > 6}
-              paperSx={{ height: "50%" }}
+            <MetricStack
+              metrics={[
+                {
+                  title: "CI P50 (success)",
+                  value: ciSuccP50,
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 2,
+                  paperSx: { height: "50%" },
+                },
+                {
+                  title: "CI Runtime P90 (success)",
+                  value: ciSuccP90,
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 6,
+                  paperSx: { height: "50%" },
+                },
+              ]}
             />
           </Stack>
         </Grid>
@@ -187,23 +233,23 @@ export default function Page() {
           justifyContent={"stretch"}
         >
           <Stack spacing={1} sx={{ width: "100%", height: ROW_HEIGHT }}>
-            <ScalarPanelWithValue
-              title={"CI P50 (success+failed)"}
-              value={ciNCancP50}
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2) + "h"
-              }
-              badThreshold={(v) => (v ?? 0) > 2}
-              paperSx={{ height: "50%" }}
-            />
-            <ScalarPanelWithValue
-              title={"CI Runtime P90 (success+failed)"}
-              value={ciNCancP90}
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2) + "h"
-              }
-              badThreshold={(v) => (v ?? 0) > 6}
-              paperSx={{ height: "50%" }}
+            <MetricStack
+              metrics={[
+                {
+                  title: "CI P50 (success+failed)",
+                  value: ciNCancP50,
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 2,
+                  paperSx: { height: "50%" },
+                },
+                {
+                  title: "CI Runtime P90 (success+failed)",
+                  value: ciNCancP90,
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 6,
+                  paperSx: { height: "50%" },
+                },
+              ]}
             />
           </Stack>
         </Grid>
@@ -217,41 +263,33 @@ export default function Page() {
           justifyContent={"stretch"}
         >
           <Stack spacing={1} sx={{ width: "100%" }}>
-            <ScalarPanelWithValue
-              title={"P50 time to first review (hrs)"}
-              value={
-                prCycleData === undefined
-                  ? undefined
-                  : prCycleData?.[0]?.time_to_first_review_p50 ?? null
-              }
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2)
-              }
-              badThreshold={(v) => (v ?? 0) > 24}
-            />
-            <ScalarPanelWithValue
-              title={"P90 time to first review (hrs)"}
-              value={
-                prCycleData === undefined
-                  ? undefined
-                  : prCycleData?.[0]?.time_to_first_review_p90 ?? null
-              }
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2)
-              }
-              badThreshold={(v) => (v ?? 0) > 72}
-            />
-            <ScalarPanelWithValue
-              title={"P50 time to approval (hrs)"}
-              value={
-                prCycleData === undefined
-                  ? undefined
-                  : prCycleData?.[0]?.time_to_approval_p50 ?? null
-              }
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2)
-              }
-              badThreshold={(v) => (v ?? 0) > 48}
+            <MetricStack
+              metrics={[
+                {
+                  title: "P50 time to first review (hrs)",
+                  value: getPrCycleValue(
+                    prCycleData,
+                    "time_to_first_review_p50"
+                  ),
+                  valueRenderer: formatHours,
+                  badThreshold: (v) => (v ?? 0) > 24,
+                },
+                {
+                  title: "P90 time to first review (hrs)",
+                  value: getPrCycleValue(
+                    prCycleData,
+                    "time_to_first_review_p90"
+                  ),
+                  valueRenderer: formatHours,
+                  badThreshold: (v) => (v ?? 0) > 72,
+                },
+                {
+                  title: "P50 time to approval (hrs)",
+                  value: getPrCycleValue(prCycleData, "time_to_approval_p50"),
+                  valueRenderer: formatHours,
+                  badThreshold: (v) => (v ?? 0) > 48,
+                },
+              ]}
             />
           </Stack>
         </Grid>
@@ -261,41 +299,33 @@ export default function Page() {
           justifyContent={"stretch"}
         >
           <Stack spacing={1} sx={{ width: "100%" }}>
-            <ScalarPanelWithValue
-              title={"P90 time to approval (hrs)"}
-              value={
-                prCycleData === undefined
-                  ? undefined
-                  : prCycleData?.[0]?.time_to_approval_p90 ?? null
-              }
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2)
-              }
-              badThreshold={(v) => (v ?? 0) > 120}
-            />
-            <ScalarPanelWithValue
-              title={"P50 time in merge queue (hrs)"}
-              value={
-                prCycleData === undefined
-                  ? undefined
-                  : prCycleData?.[0]?.time_in_merge_queue_p50 ?? null
-              }
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2)
-              }
-              badThreshold={(v) => (v ?? 0) > 24}
-            />
-            <ScalarPanelWithValue
-              title={"P90 time in merge queue (hrs)"}
-              value={
-                prCycleData === undefined
-                  ? undefined
-                  : prCycleData?.[0]?.time_in_merge_queue_p90 ?? null
-              }
-              valueRenderer={(v) =>
-                v === null || v === undefined ? "-" : Number(v).toFixed(2)
-              }
-              badThreshold={(v) => (v ?? 0) > 72}
+            <MetricStack
+              metrics={[
+                {
+                  title: "P90 time to approval (hrs)",
+                  value: getPrCycleValue(prCycleData, "time_to_approval_p90"),
+                  valueRenderer: formatHours,
+                  badThreshold: (v) => (v ?? 0) > 120,
+                },
+                {
+                  title: "P50 time in merge queue (hrs)",
+                  value: getPrCycleValue(
+                    prCycleData,
+                    "time_in_merge_queue_p50"
+                  ),
+                  valueRenderer: formatHours,
+                  badThreshold: (v) => (v ?? 0) > 24,
+                },
+                {
+                  title: "P90 time in merge queue (hrs)",
+                  value: getPrCycleValue(
+                    prCycleData,
+                    "time_in_merge_queue_p90"
+                  ),
+                  valueRenderer: formatHours,
+                  badThreshold: (v) => (v ?? 0) > 72,
+                },
+              ]}
             />
           </Stack>
         </Grid>

@@ -17,12 +17,15 @@ export function ScalarPanelWithValue({
   badThreshold,
   // Optional styles to apply to the Paper
   paperSx,
+  // Optional styles to apply to the title Typography
+  titleSx,
 }: {
   title: string;
   value: any;
   valueRenderer: (_value: any) => string;
   badThreshold: (_value: any) => boolean;
   paperSx?: any;
+  titleSx?: any;
 }) {
   if (value === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -45,6 +48,7 @@ export function ScalarPanelWithValue({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+            ...(titleSx || {}),
           }}
           noWrap
           title={title}
