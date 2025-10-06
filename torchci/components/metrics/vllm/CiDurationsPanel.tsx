@@ -4,6 +4,7 @@ import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import _ from "lodash";
+import { getReactEChartsProps } from "./chartUtils";
 import {
   COLOR_ERROR,
   COLOR_GRAY,
@@ -226,8 +227,7 @@ export default function CiDurationsPanel({
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
       <ReactECharts
-        theme={darkMode ? "dark-hud" : undefined}
-        style={{ height: "100%", width: "100%" }}
+        {...getReactEChartsProps(darkMode)}
         option={options}
         onEvents={{
           click: handleBuildClick,
