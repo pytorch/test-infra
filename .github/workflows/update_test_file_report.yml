@@ -5,9 +5,12 @@ on:
     # Run every day at 2am UTC
     - cron: '0 2 * * *'
   workflow_dispatch:
+  pull_request:
 
 jobs:
   file-report:
+    permissions:
+      issues: write
     runs-on: linux.2xlarge
     steps:
       - name: Checkout repository
@@ -26,3 +29,9 @@ jobs:
           YESTERDAY=$(date -u -d "yesterday" +%Y-%m-%d)
           python3 tools/torchci/test_insights/file_report_generator.py \
             --add-dates "$YESTERDAY"
+
+      - name: Generate regression notification
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/torchci/test_insights/daily_regression.py
