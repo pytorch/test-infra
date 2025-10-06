@@ -78,6 +78,11 @@ on:
         required: false
         type: boolean
         default: true
+      run-smoke-test:
+        description: Set to true if smoke test is needed
+        required: false
+        type: boolean
+        default: true
       build-platform:
         description: Platform to build wheels, choose from 'python-build-package' or 'setup-py'
         required: false
@@ -96,6 +101,10 @@ on:
         description: Custom wheel upload path
         required: false
         type: string
+      wheel-nightly-policy:
+        description: Custom wheel upload policy for nightly
+        type: string
+        default: ''
       pip-install-torch-extra-args:
         # NOTE: Why does this exist?
         # Well setuptools / python packaging doesn't actually allow you to specify dependencies
@@ -278,6 +287,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
       - name: Smoke Test
+        if: ${{ inputs.run-smoke-test }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
@@ -334,6 +344,7 @@ jobs:
       trigger-event: ${{ inputs.trigger-event }}
       upload-to-pypi: ${{ inputs.upload-to-pypi }}
       wheel-upload-path: ${{ inputs.wheel-upload-path }}
+      wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
     secrets:
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
 
