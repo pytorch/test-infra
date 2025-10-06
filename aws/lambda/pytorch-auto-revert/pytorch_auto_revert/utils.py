@@ -17,7 +17,7 @@ class AbstractExecAction:
         raise NotImplementedError("Subclasses must implement this method")
 
     @classmethod
-    def from_str(cls, label: any):
+    def from_str(cls, label: any) -> "AbstractExecAction":
         lower_label = str(label).lower()
         for member in cls:
             if member.value.lower() == lower_label:

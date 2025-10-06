@@ -21,14 +21,94 @@ from .testers.restart_checker import workflow_restart_checker
 from .utils import RestartAction, RetryWithBackoff, RevertAction
 
 
-DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor", "linux-aarch64"]
-DEFAULT_REPO_FULL_NAME = "pytorch/pytorch"
-DEFAULT_HOURS = 16
-DEFAULT_COMMENT_ISSUE_NUMBER = (
-    163650  # https://github.com/pytorch/pytorch/issues/163650
-)
 # Special constant to indicate --hud-html was passed as a flag (without a value)
 HUD_HTML_NO_VALUE_FLAG = object()
+
+
+class DefaultConfig:
+    def __init__(self):
+        self.bisection_limit = (
+            int(os.environ["BISECTION_LIMIT"])
+            if "BISECTION_LIMIT" in os.environ
+            else None
+        )
+        self.clickhouse_database = os.environ.get("CLICKHOUSE_DATABASE", "default")
+        self.clickhouse_host = os.environ.get("CLICKHOUSE_HOST", "localhost")
+        self.clickhouse_password = os.environ.get("CLICKHOUSE_PASSWORD", "")
+        self.clickhouse_port = int(os.environ.get("CLICKHOUSE_PORT", 8443))
+        self.clickhouse_username = os.environ.get("CLICKHOUSE_USERNAME", "")
+        self.github_access_token = os.environ.get("GITHUB_TOKEN", "")
+        self.github_app_id = os.environ.get("GITHUB_APP_ID", "")
+        self.github_app_secret = os.environ.get("GITHUB_APP_SECRET", "")
+        self.github_installation_id = os.environ.get("GITHUB_INSTALLATION_ID", "")
+        self.hours = int(os.environ.get("HOURS", 16))
+        self.log_level = os.environ.get("LOG_LEVEL", "INFO")
+        self.notify_issue_number = int(
+            os.environ.get("NOTIFY_ISSUE_NUMBER", 163650)
+        )  # https://github.com/pytorch/pytorch/issues/163650
+        self.repo_full_name = os.environ.get("REPO_FULL_NAME", "pytorch/pytorch")
+        self.restart_action = (
+            RestartAction.from_str(os.environ["RESTART_ACTION"])
+            if "RESTART_ACTION" in os.environ
+            else None
+        )
+        self.revert_action = (
+            RevertAction.from_str(os.environ["REVERT_ACTION"])
+            if "REVERT_ACTION" in os.environ
+            else None
+        )
+        self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "")
+        self.workflows = os.environ.get(
+            "WORKFLOWS",
+            ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64"]),
+        ).split(",")
+
+    def to_autorevert_v2_params(
+        self,
+        *,
+        default_restart_action: RestartAction,
+        default_revert_action: RevertAction,
+        dry_run: bool,
+    ) -> dict:
+        """Convert the configuration to a dictionary."""
+        return {
+            "workflows": self.workflows,
+            "repo_full_name": self.repo_full_name,
+            "hours": self.hours,
+            "notify_issue_number": self.notify_issue_number,
+            "restart_action": RestartAction.LOG
+            if dry_run
+            else (self.restart_action or default_restart_action),
+            "revert_action": RevertAction.LOG
+            if dry_run
+            else (self.revert_action or default_revert_action),
+            "bisection_limit": self.bisection_limit,
+        }
+
+
+def validate_actions_dry_run(
+    opts: argparse.Namespace, default_config: DefaultConfig
+) -> None:
+    """Validate the actions to be taken in dry run mode."""
+    if (
+        default_config.restart_action is not None
+        or default_config.revert_action is not None
+    ) and opts.dry_run:
+        logging.error(
+            "Dry run mode: using dry-run flag with environment variables is not allowed."
+        )
+        raise ValueError(
+            "Conflicting options: --dry-run with explicit actions via environment variables"
+        )
+    if (
+        opts.subcommand == "autorevert-checker"
+        and (opts.restart_action is not None or opts.revert_action is not None)
+        and opts.dry_run
+    ):
+        logging.error(
+            "Dry run mode: using dry-run flag with explicit actions is not allowed."
+        )
+        raise ValueError("Conflicting options: --dry-run with explicit actions")
 
 
 def setup_logging(log_level: str) -> None:
@@ -54,45 +134,41 @@ def setup_logging(log_level: str) -> None:
                 handler.setLevel(numeric_level)
 
 
-def get_opts() -> argparse.Namespace:
+def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
 
     # General options and configurations
     parser.add_argument(
         "--log-level",
-        default=os.environ.get("LOG_LEVEL", "INFO"),
+        default=default_config.log_level,
         choices=["NOTSET", "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level for the application.",
     )
-    parser.add_argument(
-        "--clickhouse-host", default=os.environ.get("CLICKHOUSE_HOST", "")
-    )
+    parser.add_argument("--clickhouse-host", default=default_config.clickhouse_host)
     parser.add_argument(
         "--clickhouse-port",
         type=int,
-        default=int(os.environ.get("CLICKHOUSE_PORT", "8443")),
+        default=default_config.clickhouse_port,
     )
     parser.add_argument(
-        "--clickhouse-username", default=os.environ.get("CLICKHOUSE_USERNAME", "")
+        "--clickhouse-username", default=default_config.clickhouse_username
     )
     parser.add_argument(
-        "--clickhouse-password", default=os.environ.get("CLICKHOUSE_PASSWORD", "")
+        "--clickhouse-password", default=default_config.clickhouse_password
     )
     parser.add_argument(
         "--clickhouse-database",
-        default=os.environ.get("CLICKHOUSE_DATABASE", "default"),
+        default=default_config.clickhouse_database,
     )
     parser.add_argument(
-        "--github-access-token", default=os.environ.get("GITHUB_TOKEN", "")
+        "--github-access-token", default=default_config.github_access_token
     )
-    parser.add_argument("--github-app-id", default=os.environ.get("GITHUB_APP_ID", ""))
-    parser.add_argument(
-        "--github-app-secret", default=os.environ.get("GITHUB_APP_SECRET", "")
-    )
+    parser.add_argument("--github-app-id", default=default_config.github_app_id)
+    parser.add_argument("--github-app-secret", default=default_config.github_app_secret)
     parser.add_argument(
         "--github-installation-id",
         type=int,
-        default=int(os.environ.get("GITHUB_INSTALLATION_ID", "0")),
+        default=default_config.github_installation_id,
     )
     parser.add_argument(
         "--dry-run",
@@ -102,7 +178,7 @@ def get_opts() -> argparse.Namespace:
     parser.add_argument(
         "--secret-store-name",
         action="store",
-        default=os.environ.get("SECRET_STORE_NAME", ""),
+        default=default_config.secret_store_name,
         help="Name of the secret in AWS Secrets Manager to fetch GitHub App secret from",
     )
 
@@ -117,41 +193,38 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "workflows",
         nargs="+",
-        default=DEFAULT_WORKFLOWS,
+        default=default_config.workflows,
         help="Workflow name(s) to analyze - single name or comma/space separated"
         + ' list (e.g., "pull" or "pull,trunk,inductor")',
     )
     workflow_parser.add_argument(
         "--hours",
         type=int,
-        default=DEFAULT_HOURS,
-        help=f"Lookback window in hours (default: {DEFAULT_HOURS})",
+        default=default_config.hours,
+        help=f"Lookback window in hours (default: {default_config.hours})",
     )
     workflow_parser.add_argument(
         "--repo-full-name",
-        default=os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME),
+        default=default_config.repo_full_name,
         help="Full repo name to filter by (owner/repo).",
     )
     workflow_parser.add_argument(
         "--restart-action",
         type=RestartAction.from_str,
-        default=RestartAction.from_str(
-            os.environ.get("RESTART_ACTION", RestartAction.RUN)
-        ),
+        default=default_config.restart_action,
         choices=list(RestartAction),
         help=(
-            "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
+            "Restart mode: skip (no logging), log (no side effects), or run (dispatch). Default is run."
         ),
     )
     workflow_parser.add_argument(
         "--revert-action",
         type=RevertAction.from_str,
-        default=RevertAction.from_str(
-            os.environ.get("REVERT_ACTION", RevertAction.LOG)
-        ),
+        default=default_config.revert_action,
         choices=list(RevertAction),
         help=(
-            "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or run-revert."
+            "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or "
+            "run-revert. Default is log."
         ),
     )
     workflow_parser.add_argument(
@@ -166,11 +239,7 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "--bisection-limit",
         type=int,
-        default=(
-            int(os.environ["BISECTION_LIMIT"])
-            if os.environ.get("BISECTION_LIMIT", "").strip()
-            else None
-        ),
+        default=default_config.bisection_limit,
         help=(
             "Max new pending jobs to schedule per signal to cover gaps (None = unlimited)."
         ),
@@ -178,10 +247,8 @@ def get_opts() -> argparse.Namespace:
     workflow_parser.add_argument(
         "--notify-issue-number",
         type=int,
-        default=int(
-            os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
-        ),
-        help=f"Issue number to notify (default: {DEFAULT_COMMENT_ISSUE_NUMBER})",
+        default=default_config.notify_issue_number,
+        help="Issue number to notify",
     )
 
     # workflow-restart-checker subcommand
@@ -265,7 +332,8 @@ def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
 
 def main(*args, **kwargs) -> None:
     load_dotenv()
-    opts = get_opts()
+    default_config = DefaultConfig()
+    opts = get_opts(default_config)
 
     gh_app_secret = ""
     if opts.github_app_secret:
@@ -299,51 +367,39 @@ def main(*args, **kwargs) -> None:
         )
 
     if opts.subcommand is None:
-        repo_name = os.environ.get("REPO_FULL_NAME", DEFAULT_REPO_FULL_NAME)
-
-        if check_autorevert_disabled(repo_name):
+        if check_autorevert_disabled(default_config.repo_full_name):
             logging.error(
                 "Autorevert is disabled via circuit breaker (ci: disable-autorevert issue found). "
                 "Exiting successfully."
             )
             return
 
-        # Read env-driven defaults for the lambda path
-        _bis_env = os.environ.get("BISECTION_LIMIT", "").strip()
-        _bis_limit = int(_bis_env) if _bis_env else None
+        validate_actions_dry_run(opts, default_config)
 
         autorevert_v2(
-            os.environ.get("WORKFLOWS", ",".join(DEFAULT_WORKFLOWS)).split(","),
-            hours=int(os.environ.get("HOURS", DEFAULT_HOURS)),
-            notify_issue_number=int(
-                os.environ.get("NOTIFY_ISSUE_NUMBER", DEFAULT_COMMENT_ISSUE_NUMBER)
-            ),
-            repo_full_name=repo_name,
-            restart_action=(
-                RestartAction.LOG
-                if opts.dry_run
-                else RestartAction.from_str(
-                    os.environ.get("RESTART_ACTION", RestartAction.RUN)
-                )
-            ),
-            revert_action=(
-                RevertAction.LOG
-                if opts.dry_run
-                else RevertAction.from_str(
-                    os.environ.get("REVERT_ACTION", RevertAction.RUN_NOTIFY)
-                )
-            ),
-            bisection_limit=_bis_limit,
+            **default_config.to_autorevert_v2_params(
+                default_restart_action=RestartAction.RUN,
+                default_revert_action=RevertAction.RUN_NOTIFY,
+                dry_run=opts.dry_run,
+            )
         )
     elif opts.subcommand == "autorevert-checker":
-        # New default behavior under the same subcommand
+        validate_actions_dry_run(opts, default_config)
         _, _, state_json = autorevert_v2(
             opts.workflows,
             hours=opts.hours,
             notify_issue_number=opts.notify_issue_number,
             repo_full_name=opts.repo_full_name,
-            restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
-            revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
+            restart_action=(
+                RestartAction.LOG
+                if opts.dry_run
+                else (opts.restart_action or RestartAction.RUN)
+            ),
+            revert_action=(
+                RevertAction.LOG
+                if opts.dry_run
+                else (opts.revert_action or RevertAction.LOG)
+            ),
             bisection_limit=opts.bisection_limit,
         )
         write_hud_html_from_cli(opts.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
