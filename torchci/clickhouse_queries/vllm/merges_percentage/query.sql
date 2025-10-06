@@ -108,13 +108,26 @@ manual_merged_prs AS (
 manual_merged_prs_with_failures AS (
     SELECT
         bucket,
-        count(number) AS manual_merged_with_failures_count
+        count(DISTINCT number) AS manual_merged_with_failures_count
     FROM
         merged_prs
         LEFT JOIN latest_buildkite_jobs ON toString(merged_prs.number) = latest_buildkite_jobs.number
     WHERE
         tupleElement(auto_merge, 'merge_method') = ''
         AND job_state = 'failed'
+    GROUP BY
+        bucket
+),
+manual_merged_prs_pending AS (
+    SELECT
+        bucket,
+        count(DISTINCT number) AS manual_merged_pending_count
+    FROM
+        merged_prs
+        LEFT JOIN latest_buildkite_jobs ON toString(merged_prs.number) = latest_buildkite_jobs.number
+    WHERE
+        tupleElement(auto_merge, 'merge_method') = ''
+        AND job_state IN ('running', 'pending', 'scheduled')
     GROUP BY
         bucket
 ),
@@ -137,7 +150,8 @@ results AS (
         abandon_count,
         auto_merged_count,
         manual_merged_count,
-        manual_merged_with_failures_count
+        manual_merged_with_failures_count,
+        manual_merged_pending_count
     FROM
         total_prs
         LEFT JOIN open_prs ON total_prs.bucket = open_prs.bucket
@@ -145,6 +159,7 @@ results AS (
         LEFT JOIN auto_merged_prs ON total_prs.bucket = auto_merged_prs.bucket
         LEFT JOIN manual_merged_prs ON total_prs.bucket = manual_merged_prs.bucket
         LEFT JOIN manual_merged_prs_with_failures ON total_prs.bucket = manual_merged_prs_with_failures.bucket
+        LEFT JOIN manual_merged_prs_pending ON total_prs.bucket = manual_merged_prs_pending.bucket
 )
 SELECT
     *
