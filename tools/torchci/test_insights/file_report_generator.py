@@ -33,7 +33,7 @@ from collections import defaultdict
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, cast, Dict, List, Optional
 
 import boto3  # type: ignore[import]
 from torchci.clickhouse import query_clickhouse
@@ -607,7 +607,7 @@ class FileReportGenerator:
         self.get_s3_resource().Object(bucket, key).delete()
 
 
-def main():
+def main() -> None:
     """Main function to run the file report generator"""
     parser = argparse.ArgumentParser(
         description="Generate comprehensive file reports grouped by owner labels",
@@ -664,17 +664,20 @@ Examples:
                 existing_metadata.pop(i)
                 break
 
-    shas = []
+    shas: list[str] = []
     for date in args.add_dates or []:
         if date in _existing_dates:
             print(f"Date {date} already exists in metadata, skipping")
             continue
         sha = generator.find_suitable_sha(date)
+        if sha is None:
+            print(f"No suitable SHA found for date {date}, skipping")
+            continue
         print(f"Found suitable SHA {sha} for date {date}")
         shas.append(sha)
 
     for sha in args.add_shas or []:
-        shas.append(sha)
+        shas.append(cast(str, sha))
 
     print(f"Adding SHAs: {shas}")
 
