@@ -50,6 +50,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
     const tableId = toBenchamrkTimeSeriesComparisonTableId(
       `metric=${left.metric}`
     );
+
     const table = getElementById(tableId);
     // if the table is not exist,scroll to the toggle section
     if (!table) {
@@ -57,6 +58,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       triggerUpdate();
       return;
     }
+
     const cell = await navigateToDataGrid(
       tableId,
       [`${left?.compiler}`],

@@ -116,7 +116,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
     [ids, onChange]
   );
 
-  const minWidth = Math.max(200, 50 * ids.length);
+  const minWidth = Math.min(200, 50 * ids.length);
 
   return (
     <Paper sx={{ p: 2, width: "100%", minWidth }}>

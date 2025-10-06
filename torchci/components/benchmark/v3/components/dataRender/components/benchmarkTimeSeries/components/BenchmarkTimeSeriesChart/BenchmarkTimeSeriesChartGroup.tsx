@@ -89,13 +89,13 @@ export default function BenchmarkTimeSeriesChartGroup({
           chartGroup?.chart
         );
 
-        console.log(g.labels.join("-"), chartGroup?.sectionSelectMode);
-        const enableSelectMode =
-          chartGroup?.sectionSelectMode?.[g.labels.join("-")] ?? true;
+        const maxTimeSeries = groupSeries
+          .map((s) => s.data.length)
+          .reduce((a, b) => Math.max(a, b));
         return (
           <Grid
             key={g.key}
-            size={{ xs: 12, md: 12, lg: 6 }}
+            size={{ xs: 12, md: 12, lg: maxTimeSeries > 40 ? 12 : 6 }}
             id={toBenchmarkTimeseriesChartGroupId(g.key)}
           >
             <Typography variant="h6" sx={{ mb: 1.5 }}>
