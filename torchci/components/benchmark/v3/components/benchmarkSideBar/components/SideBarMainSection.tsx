@@ -8,7 +8,7 @@ import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
-import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/compilers/type";
+import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/apis/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";

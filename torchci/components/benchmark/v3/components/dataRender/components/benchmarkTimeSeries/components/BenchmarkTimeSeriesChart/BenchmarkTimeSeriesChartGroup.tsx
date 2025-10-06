@@ -8,8 +8,8 @@ import {
   getBenchmarkTimeSeriesTitle,
   makeGroupKeyAndLabel,
   passesFilter,
-} from "../helper";
-import BenchmarkTimeSeriesChart from "./BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChart";
+} from "../../helper";
+import BenchmarkTimeSeriesChart from "./BenchmarkTimeSeriesChart";
 
 type Props = {
   data: any[];
@@ -18,16 +18,17 @@ type Props = {
   lcommit?: BenchmarkCommitMeta;
   rcommit?: BenchmarkCommitMeta;
   onSelect?: (payload: any) => void;
+  enableSelectMode?: boolean;
 };
 
 // ---- Real React component with hooks (internal) ----
 export default function BenchmarkTimeSeriesChartGroup({
   data,
   chartGroup,
-  defaultSelectMode = false,
   lcommit,
   rcommit,
   onSelect = () => {},
+  enableSelectMode = true,
 }: Props) {
   const filtered = useMemo(
     () =>
@@ -72,6 +73,12 @@ export default function BenchmarkTimeSeriesChartGroup({
     );
   }
 
+  const onConfirm = (payload: any) => {
+    if (onSelect) {
+      onSelect(payload);
+    }
+  };
+
   return (
     <Grid container spacing={1}>
       {groups.map((g) => {
@@ -81,10 +88,14 @@ export default function BenchmarkTimeSeriesChartGroup({
           g.labels.join("-"),
           chartGroup?.chart
         );
+
+        const maxTimeSeries = groupSeries
+          .map((s) => s.data.length)
+          .reduce((a, b) => Math.max(a, b));
         return (
           <Grid
             key={g.key}
-            size={{ xs: 12, md: 12, lg: 6 }}
+            size={{ xs: 12, md: 12, lg: maxTimeSeries > 40 ? 12 : 6 }}
             id={toBenchmarkTimeseriesChartGroupId(g.key)}
           >
             <Typography variant="h6" sx={{ mb: 1.5 }}>
@@ -94,6 +105,7 @@ export default function BenchmarkTimeSeriesChartGroup({
               {title.description}
             </Typography>
             <BenchmarkTimeSeriesChart
+              enableSelectMode={enableSelectMode}
               timeseries={groupSeries}
               customizedConfirmDialog={
                 chartGroup?.chart?.customizedConfirmDialog
@@ -103,8 +115,7 @@ export default function BenchmarkTimeSeriesChartGroup({
                 end: rcommit?.date ?? undefined,
               }}
               renderOptions={chartGroup?.chart?.renderOptions}
-              defaultSelectMode={defaultSelectMode}
-              onSelect={onSelect}
+              onSelect={onConfirm}
             />
           </Grid>
         );

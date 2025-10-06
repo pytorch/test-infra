@@ -30,7 +30,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-  ],
+, "pages/benchmark/regression_reports/[report_id]/regression_report"  ],
   "exclude": [
     "node_modules"
   ]

@@ -7,7 +7,7 @@ import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { DEFAULT_MODE, MODES } from "components/benchmark/ModeAndDTypePicker";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/compilers/type";
+import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/compilers/helpers/general";
 import { BenchmarkUIConfig } from "../../configBook";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
@@ -77,6 +77,19 @@ const RENDER_MAPPING_BOOK = {
     displayName: "compression ratio",
     unit: {
       unit: "x",
+    },
+  },
+  execution_time: {
+    displayName: "Execution time ",
+    unit: {
+      type: "time",
+      unit: "s",
+    },
+  },
+  dynamo_peak_mem: {
+    displayName: "Dynamo memory usage",
+    unit: {
+      unit: "mb",
     },
   },
 };

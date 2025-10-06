@@ -2,13 +2,13 @@ import { Paper, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useMemo } from "react";
-import BenchmarkTimeSeriesChartGroup from "./components/BenchmarkTimeSeriesChartGroup";
 import {
   BenchmarkChartSectionConfig,
   BenchmarkTimeSeriesInput,
   makeGroupKeyAndLabel,
   passesFilter,
-} from "./helper";
+} from "../../helper";
+import BenchmarkTimeSeriesChartGroup from "./BenchmarkTimeSeriesChartGroup";
 
 const styles = {
   container: {
@@ -98,6 +98,7 @@ export default function BenchmarkChartSection({
                   onSelect={(payload: any) => {
                     onSelect?.(payload);
                   }}
+                  enableSelectMode
                   lcommit={lcommit}
                   rcommit={rcommit}
                 />

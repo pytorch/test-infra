@@ -59,8 +59,6 @@ class RunStateLogger:
                     "older_successful_commit": outcome.older_successful_commit,
                     "newer_failing_commits": list(outcome.newer_failing_commits),
                 }
-                if outcome.job_base_name:
-                    data["job_base_name"] = outcome.job_base_name
                 if outcome.wf_run_id is not None:
                     data["wf_run_id"] = outcome.wf_run_id
                 if outcome.job_id is not None:

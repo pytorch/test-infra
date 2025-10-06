@@ -1,5 +1,5 @@
 import { getCompilerBenchmarkData } from "lib/benchmark/api_helper/compilers/get_compiler_benchmark_data";
-import { CompilerQueryType } from "lib/benchmark/api_helper/compilers/type";
+import { CompilerQueryType } from "lib/benchmark/api_helper/type";
 import { readApiGetParams } from "lib/benchmark/api_helper/utils";
 import type { NextApiRequest, NextApiResponse } from "next";
 

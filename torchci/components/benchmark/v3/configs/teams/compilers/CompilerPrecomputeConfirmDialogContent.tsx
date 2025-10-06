@@ -3,14 +3,16 @@ import { Box } from "@mui/system";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "components/benchmark/compilers/common";
 import { highlightUntilClick } from "components/benchmark/v3/components/common/highlight";
 import {
+  getElementById,
   navigateToDataGrid,
   navigateToEchartInGroup,
+  scrollingToElement,
 } from "components/benchmark/v3/components/common/navigate";
 import { TimeSeriesChartDialogContentProps } from "components/benchmark/v3/components/common/SelectionDialog";
 import { NavListItem } from "components/benchmark/v3/components/common/styledComponents";
 import { toToggleSectionId } from "components/benchmark/v3/components/common/ToggleSection";
-import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/BenchmarkChartSection";
-import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChartGroup";
+import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
+import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartSection";
 import { toBenchamrkTimeSeriesComparisonTableId } from "components/benchmark/v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTableSection";
 /**
  * Customized dialog content for compiler precompute benchmark page.
@@ -38,16 +40,36 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   }
   const onGoToTable = async () => {
     closeDialog();
+    const toggleSectonId = toToggleSectionId(2);
+    const elToggle = getElementById(toggleSectonId);
+    if (!elToggle) {
+      console.warn(`can't find the toggle section with id: {${toggleSectonId}`);
+      return;
+    }
+
+    const tableId = toBenchamrkTimeSeriesComparisonTableId(
+      `metric=${left.metric}`
+    );
+
+    const table = getElementById(tableId);
+    // if the table is not exist,scroll to the toggle section
+    if (!table) {
+      scrollingToElement(elToggle);
+      triggerUpdate();
+      return;
+    }
+
     const cell = await navigateToDataGrid(
-      toBenchamrkTimeSeriesComparisonTableId(`metric=${left.metric}`),
+      tableId,
       [`${left?.compiler}`],
       `${left?.suite}`,
-      toToggleSectionId(2)
+      toggleSectonId
     );
+
     if (cell) {
       highlightUntilClick(cell);
-      triggerUpdate();
     }
+    triggerUpdate();
   };
 
   const onGoToChart = async () => {
@@ -62,10 +84,14 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
     if (cell) {
       highlightUntilClick(cell);
       triggerUpdate();
+    } else {
+      triggerUpdate();
     }
   };
 
   const onGoToUrl = () => {
+    closeDialog();
+    triggerUpdate();
     const url = toBenchmarkLegacyUrl(left, right);
     // open a new tab
     window.open(url, "_blank");

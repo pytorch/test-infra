@@ -1,8 +1,9 @@
+import { Box } from "@mui/system";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { BenchmarkDashboardStoreProvider } from "lib/benchmark/store/benchmark_dashboard_provider";
-import BenchmarkSideBar from "./components/benchmarkSideBar/BenchmarkSideBar";
-import { getConfig } from "./configs/configBook";
+import BenchmarkSideBar from "../components/benchmarkSideBar/BenchmarkSideBar";
+import { getConfig } from "../configs/configBook";
 dayjs.extend(utc);
 
 export default function BenchmarkRegressionPage({
@@ -19,12 +20,12 @@ export default function BenchmarkRegressionPage({
 
   return (
     <BenchmarkDashboardStoreProvider key={benchmarkId} initial={initial}>
-      <div style={{ display: "flex" }}>
+      <Box style={{ display: "flex", minWidth: "800px", width: "100%" }}>
         <BenchmarkSideBar />
-        <main style={{ flex: 1 }}>
+        <Box style={{ flex: 1, minWidth: "600px" }}>
           <Comp />
-        </main>
-      </div>
+        </Box>
+      </Box>
     </BenchmarkDashboardStoreProvider>
   );
 }
