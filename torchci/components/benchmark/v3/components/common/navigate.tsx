@@ -22,7 +22,7 @@ export async function navigateToDataGrid(
     await delay(350); // wait for toggle animation
   }
   const target = scrollToDataGridView(sectionId, keywords, field);
-  await delay(300); // wait for scroll animation
+  await delay(800); // wait for scroll animation
   return target;
 }
 
