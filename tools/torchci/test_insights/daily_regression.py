@@ -12,7 +12,7 @@ FILE_REPORT_URL = "https://hud.pytorch.org/tests/fileReport"
 
 CONFIG: list[dict[str, Any]] = [
     {
-        "team": "dev-infra",
+        "team": "pytorch-dev-infra",
         "condition": lambda _: True,
         "link": FILE_REPORT_URL,
     },
@@ -184,6 +184,10 @@ class RegressionNotification:
         now = datetime.datetime.now(datetime.timezone.utc).strftime(
             "%Y-%m-%dT%H:%M:%S.%fZ"
         )
+        body = (
+            f"{regression_str}\n"
+            "This issue is a notification and should close immediately after creation to avoid clutter."
+        )
         return {
             "schema_version": 1,
             "source": "test-infra-test-file-reports",
@@ -194,7 +198,9 @@ class RegressionNotification:
             "priority": "P2",
             "occurred_at": now,
             "teams": [team],
-            "identity": {"alarm_id": f"test-file-reports-daily-regression-{team}"},
+            "identity": {
+                "alarm_id": f"test-file-reports-daily-regression-{team}-{now}"
+            },
             "links": {
                 "dashboard_url": report_url,
             },
