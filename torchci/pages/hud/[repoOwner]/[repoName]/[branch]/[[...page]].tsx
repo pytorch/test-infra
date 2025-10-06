@@ -62,15 +62,26 @@ export function JobCell({
   sha,
   job,
   unstableIssues,
+  isAutorevertSignal,
 }: {
   sha: string;
   job: JobData;
   unstableIssues: IssueData[];
+  isAutorevertSignal?: boolean;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == job.name ? styles.highlight : "";
+  let cellStyle = "";
+  if (pinnedId.name == job.name) {
+    cellStyle = styles.highlight;
+  } else if (isAutorevertSignal) {
+    cellStyle = styles.autorevertSignal;
+  }
+
   return (
-    <td onDoubleClick={() => window.open(job.htmlUrl)}>
+    <td
+      onDoubleClick={() => window.open(job.htmlUrl)}
+      title={isAutorevertSignal ? "This job triggered an autorevert" : undefined}
+    >
       <TooltipTarget
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
@@ -78,7 +89,7 @@ export function JobCell({
         sha={sha as string}
         name={job.name as string}
       >
-        <div className={`${styles.center} ${style}`}>
+        <div className={`${styles.center} ${cellStyle}`}>
           <JobConclusion
             conclusion={job.conclusion}
             failedPreviousRun={job.failedPreviousRun}
@@ -110,7 +121,13 @@ function HudRow({
   const sha = rowData.sha;
 
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.sha == sha ? styles.highlight : "";
+
+  let rowStyle = "";
+  if (pinnedId.sha == sha) {
+    rowStyle = styles.highlight;
+  } else if (rowData.isAutoreverted) {
+    rowStyle = styles.autoreverted;
+  }
 
   function clickCommit(e: React.MouseEvent) {
     if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
@@ -121,7 +138,11 @@ function HudRow({
   }
 
   return (
-    <tr className={style} onClick={(e) => clickCommit(e)}>
+    <tr
+      className={rowStyle}
+      onClick={(e) => clickCommit(e)}
+      title={rowData.isAutoreverted ? "This commit was autoreverted" : undefined}
+    >
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>
@@ -246,12 +267,57 @@ function HudJobCells({
           );
         } else {
           const job = rowData.nameToJobs.get(name);
+          const jobFullName = job?.name || name;
+
+          // Check if this job triggered the autorevert
+          let isAutorevertSignal = false;
+
+          if (rowData.autorevertWorkflows && rowData.autorevertSignals) {
+            // Extract workflow name and job name from full name (format is "Workflow / Job Name")
+            const parts = jobFullName.split(' / ');
+            const jobWorkflow = parts[0];
+            const jobNameOnly = parts.slice(1).join(' / '); // Handle cases with multiple '/'
+
+            // Check if this job's workflow is in the list of workflows that triggered autorevert
+            if (rowData.autorevertWorkflows.includes(jobWorkflow)) {
+              // Check if this specific job is mentioned in the signals
+              isAutorevertSignal = rowData.autorevertSignals.some(signal => {
+                // Signal key is either a test name or a job base name
+                // For jobs like "Lint / lintrunner-noclang / linux-job", the base name
+                // might be "lintrunner-noclang / linux-job" or just "lintrunner-noclang"
+
+                // Normalize for comparison
+                const signalLower = signal.toLowerCase().trim();
+                const jobNameLower = jobNameOnly.toLowerCase().trim();
+
+                // Check exact match first
+                if (signalLower === jobNameLower) {
+                  return true;
+                }
+
+                // Check if the signal matches the job name without shard suffix
+                // (e.g., "lintrunner-noclang" matches "lintrunner-noclang / linux-job")
+                const jobBaseParts = jobNameLower.split(' / ');
+                if (jobBaseParts.length > 1) {
+                  const jobBaseOnly = jobBaseParts[0];
+                  if (signalLower === jobBaseOnly) {
+                    return true;
+                  }
+                }
+
+                // Also try matching if signal is the complete job name
+                return jobNameLower === signalLower;
+              });
+            }
+          }
+
           return (
             <JobCell
               sha={rowData.sha}
               key={name}
               job={job ?? { name: name, conclusion: undefined }}
               unstableIssues={unstableIssues}
+              isAutorevertSignal={isAutorevertSignal}
             />
           );
         }

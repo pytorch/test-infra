@@ -77,6 +77,28 @@ export default async function fetchHud(
     )
   );
 
+  // Check if any of these commits were autoreverted
+  const autorevertedCommits = await queryClickhouseSaved(
+    "autorevert_commits",
+    {
+      repo: `${params.repoOwner}/${params.repoName}`,
+      shas: shas,
+    }
+  );
+
+  // Create a map from sha to autorevert data
+  const autorevertDataBySha = new Map<string, { workflows: string[], signals: string[] }>();
+  autorevertedCommits.forEach((r) => {
+    // Flatten the nested arrays
+    const allWorkflows = r.all_workflows.flat();
+    const allSignals = r.all_source_signal_keys.flat();
+
+    autorevertDataBySha.set(r.commit_sha, {
+      workflows: allWorkflows,
+      signals: allSignals
+    });
+  });
+
   const commitsBySha = _.keyBy(commits, "sha");
 
   if (params.filter_reruns) {
@@ -151,11 +173,15 @@ export default async function fetchHud(
       }
     }
 
+    const autorevertData = autorevertDataBySha.get(commit.sha);
     const row = {
       ...commit,
       jobs: jobs,
       isForcedMerge: forcedMergeShas.has(commit.sha),
       isForcedMergeWithFailures: forcedMergeWithFailuresShas.has(commit.sha),
+      isAutoreverted: autorevertData !== undefined,
+      autorevertWorkflows: autorevertData?.workflows,
+      autorevertSignals: autorevertData?.signals,
     };
     shaGrid.push(row);
   });
