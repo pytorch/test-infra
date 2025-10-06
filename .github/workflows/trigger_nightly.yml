@@ -100,7 +100,7 @@ jobs:
         uses: ./.github/actions/trigger-nightly
         with:
           ref: main
-          repository: pytorch/torchcodec
+          repository: meta-pytorch/torchcodec
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: torchcodec
       - name: Trigger nightly torchvision-extra-decoders build
