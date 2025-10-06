@@ -15,12 +15,14 @@ import {
   GridRenderCellParams,
   GridTreeNodeWithRender,
 } from "@mui/x-data-grid";
+import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
 import RegexButton from "components/common/RegexButton";
 import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import ReactECharts from "echarts-for-react";
+import { encodeParams } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
@@ -857,6 +859,7 @@ export default function Page() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jobInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
+  const [baseUrl, setBaseUrl] = useState<string>("");
 
   // Keep input fields in sync when filters are set programmatically
   useEffect(() => {
@@ -893,10 +896,24 @@ export default function Page() {
   }, [commitMetadata, headShaIndex]);
 
   useEffect(() => {
-    if (router.query.label) {
-      setLabelFilter(router.query.label as string);
-    }
-  }, [router.query.label]);
+    // Sync filters from the router query params in one effect to avoid
+    // repeating similar hooks. Only update when the specific query keys
+    // are present.
+    const q = router.query;
+    if (q.label) setLabelFilter(q.label as string);
+    if (q.job) setJobFilter(q.job as string);
+    if (q.file) setFileFilter(q.file as string);
+
+    if (q.labelRegex !== undefined) setLabelRegex(q.labelRegex === "true");
+    if (q.fileRegex !== undefined) setFileRegex(q.fileRegex === "true");
+    if (q.jobRegex !== undefined) setJobRegex(q.jobRegex === "true");
+
+    setBaseUrl(
+      `${window.location.protocol}//${
+        window.location.host
+      }${router.asPath.replace(/\?.+/, "")}`
+    );
+  }, [router.query]);
 
   if (!router.isReady) {
     return <LoadingPage />;
@@ -912,7 +929,21 @@ export default function Page() {
 
   return (
     <Stack spacing={4}>
-      <Typography variant="h4">Test Reports</Typography>
+      <Stack direction="row" spacing={2}>
+        <Typography variant="h4">Test Reports</Typography>
+        {/* Permalink */}
+        <CopyLink
+          textToCopy={`${baseUrl}?${encodeParams({
+            file: fileFilter,
+            job: jobFilter,
+            label: labelFilter,
+            fileRegex: fileRegex ? "true" : "false",
+            jobRegex: jobRegex ? "true" : "false",
+            labelRegex: labelRegex ? "true" : "false",
+          })}`}
+        />
+      </Stack>
+
       <Stack spacing={2}>
         <Typography variant="body1">
           This provides insights into the test files executed over recent
