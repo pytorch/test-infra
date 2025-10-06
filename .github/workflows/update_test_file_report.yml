@@ -7,13 +7,11 @@ on:
     # Run every tuesday at 3am UTC
     - cron: '0 3 * * 2'
   workflow_dispatch:
-  pull_request:
 
 jobs:
   file-report:
     if: >
       (github.event_name == 'schedule' && github.event.schedule.cron == '0 2 * * *') ||
-      (github.event_name == 'pull_request') ||
       (github.event_name == 'workflow_dispatch')
     permissions:
       issues: write
@@ -51,7 +49,6 @@ jobs:
   weekly-file-report-notification:
     if: >
       (github.event_name == 'schedule' && github.event.schedule.cron == '0 3 * * 2') ||
-      (github.event_name == 'pull_request') ||
       (github.event_name == 'workflow_dispatch')
     permissions:
       issues: write
