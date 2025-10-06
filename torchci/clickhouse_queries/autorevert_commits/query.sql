@@ -5,7 +5,7 @@ SELECT
 FROM misc.autorevert_events_v2
 WHERE repo = {repo: String}
   AND action = 'revert'
-  AND dry_run = 0
+  -- AND dry_run = 0
   AND failed = 0
   AND commit_sha IN {shas: Array(String)}
 GROUP BY commit_sha
