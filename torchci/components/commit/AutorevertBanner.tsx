@@ -1,4 +1,3 @@
-import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 import styles from "./AutorevertBanner.module.css";
 
@@ -86,7 +85,7 @@ export function AutorevertBanner({
       });
     }
 
-    const signalKey = sourceSignalKeys[idx] || '';
+    const signalKey = sourceSignalKeys[idx] || "";
 
     const signal = {
       key: signalKey,
@@ -94,7 +93,9 @@ export function AutorevertBanner({
       job_url: undefined,
       // Try to create a HUD URL using the signal key as a filter
       hud_url: signalKey
-        ? `/hud/${repoOwner}/${repoName}/main?nameFilter=${encodeURIComponent(signalKey)}`
+        ? `/hud/${repoOwner}/${repoName}/main?nameFilter=${encodeURIComponent(
+            signalKey
+          )}`
         : undefined,
     };
 
@@ -123,7 +124,8 @@ export function AutorevertBanner({
           ))}
         </ul>
         <p className={styles.investigateMessage}>
-          You can add the label <code>autorevert: disable</code> to disable autorevert for a specific PR.
+          You can add the label <code>autorevert: disable</code> to disable
+          autorevert for a specific PR.
         </p>
       </div>
     </div>

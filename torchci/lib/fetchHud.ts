@@ -78,16 +78,16 @@ export default async function fetchHud(
   );
 
   // Check if any of these commits were autoreverted
-  const autorevertedCommits = await queryClickhouseSaved(
-    "autorevert_commits",
-    {
-      repo: `${params.repoOwner}/${params.repoName}`,
-      shas: shas,
-    }
-  );
+  const autorevertedCommits = await queryClickhouseSaved("autorevert_commits", {
+    repo: `${params.repoOwner}/${params.repoName}`,
+    shas: shas,
+  });
 
   // Create a map from sha to autorevert data
-  const autorevertDataBySha = new Map<string, { workflows: string[], signals: string[] }>();
+  const autorevertDataBySha = new Map<
+    string,
+    { workflows: string[]; signals: string[] }
+  >();
   autorevertedCommits.forEach((r) => {
     // Flatten the nested arrays
     const allWorkflows = r.all_workflows.flat();
@@ -95,7 +95,7 @@ export default async function fetchHud(
 
     autorevertDataBySha.set(r.commit_sha, {
       workflows: allWorkflows,
-      signals: allSignals
+      signals: allSignals,
     });
   });
 

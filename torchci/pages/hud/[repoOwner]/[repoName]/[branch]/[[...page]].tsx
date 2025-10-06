@@ -80,7 +80,9 @@ export function JobCell({
   return (
     <td
       onDoubleClick={() => window.open(job.htmlUrl)}
-      title={isAutorevertSignal ? "This job triggered an autorevert" : undefined}
+      title={
+        isAutorevertSignal ? "This job triggered an autorevert" : undefined
+      }
     >
       <TooltipTarget
         pinnedId={pinnedId}
@@ -141,7 +143,9 @@ function HudRow({
     <tr
       className={rowStyle}
       onClick={(e) => clickCommit(e)}
-      title={rowData.isAutoreverted ? "This commit was autoreverted" : undefined}
+      title={
+        rowData.isAutoreverted ? "This commit was autoreverted" : undefined
+      }
     >
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
@@ -274,14 +278,14 @@ function HudJobCells({
 
           if (rowData.autorevertWorkflows && rowData.autorevertSignals) {
             // Extract workflow name and job name from full name (format is "Workflow / Job Name")
-            const parts = jobFullName.split(' / ');
+            const parts = jobFullName.split(" / ");
             const jobWorkflow = parts[0];
-            const jobNameOnly = parts.slice(1).join(' / '); // Handle cases with multiple '/'
+            const jobNameOnly = parts.slice(1).join(" / "); // Handle cases with multiple '/'
 
             // Check if this job's workflow is in the list of workflows that triggered autorevert
             if (rowData.autorevertWorkflows.includes(jobWorkflow)) {
               // Check if this specific job is mentioned in the signals
-              isAutorevertSignal = rowData.autorevertSignals.some(signal => {
+              isAutorevertSignal = rowData.autorevertSignals.some((signal) => {
                 // Signal key is either a test name or a job base name
                 // For jobs like "Lint / lintrunner-noclang / linux-job", the base name
                 // might be "lintrunner-noclang / linux-job" or just "lintrunner-noclang"
@@ -297,7 +301,7 @@ function HudJobCells({
 
                 // Check if the signal matches the job name without shard suffix
                 // (e.g., "lintrunner-noclang" matches "lintrunner-noclang / linux-job")
-                const jobBaseParts = jobNameLower.split(' / ');
+                const jobBaseParts = jobNameLower.split(" / ");
                 if (jobBaseParts.length > 1) {
                   const jobBaseOnly = jobBaseParts[0];
                   if (signalLower === jobBaseOnly) {

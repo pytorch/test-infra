@@ -25,7 +25,8 @@ export default async function handler(
 
       results.forEach((row: any) => {
         if (row.workflows) allWorkflows.push(...row.workflows);
-        if (row.source_signal_keys) allSignalKeys.push(...row.source_signal_keys);
+        if (row.source_signal_keys)
+          allSignalKeys.push(...row.source_signal_keys);
       });
 
       const response = {
@@ -45,7 +46,8 @@ export default async function handler(
   } catch (error: any) {
     res.status(500).json({
       error: "Internal server error",
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      details:
+        process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 }
