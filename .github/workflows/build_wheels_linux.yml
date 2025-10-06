@@ -92,6 +92,11 @@ on:
         required: false
         default: "python -m build --wheel"
         type: string
+      run-smoke-test:
+        description: Set to true if smoke test is needed
+        required: false
+        type: boolean
+        default: true
       wheel-upload-path:
         description: Custom wheel upload path
         required: false
@@ -278,6 +283,7 @@ jobs:
           repository: ${{ inputs.repository  }}
           script: ${{ inputs.post-script }}
       - name: Smoke Test
+        if: ${{ inputs.run-smoke-test }}
         shell: bash -l {0}
         env:
           PACKAGE_NAME: ${{ inputs.package-name }}
