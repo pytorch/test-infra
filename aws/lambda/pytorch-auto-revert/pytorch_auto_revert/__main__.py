@@ -95,7 +95,18 @@ def validate_actions_dry_run(
         or default_config.revert_action is not None
     ) and opts.dry_run:
         logging.error(
-            "Dry run mode: restart and revert actions will be downgraded to logging only."
+            "Dry run mode: using dry-run flag with environment variables is not allowed."
+        )
+        raise ValueError(
+            "Conflicting options: --dry-run with explicit actions via environment variables"
+        )
+    if (
+        opts.subcommand == "autorevert-checker"
+        and (opts.restart_action is not None or opts.revert_action is not None)
+        and opts.dry_run
+    ):
+        logging.error(
+            "Dry run mode: using dry-run flag with explicit actions is not allowed."
         )
         raise ValueError("Conflicting options: --dry-run with explicit actions")
 
@@ -200,19 +211,20 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
     workflow_parser.add_argument(
         "--restart-action",
         type=RestartAction.from_str,
-        default=default_config.restart_action or RestartAction.RUN,
+        default=default_config.restart_action,
         choices=list(RestartAction),
         help=(
-            "Restart mode: skip (no logging), log (no side effects), or run (dispatch)."
+            "Restart mode: skip (no logging), log (no side effects), or run (dispatch). Default is run."
         ),
     )
     workflow_parser.add_argument(
         "--revert-action",
         type=RevertAction.from_str,
-        default=default_config.revert_action or RevertAction.LOG,
+        default=default_config.revert_action,
         choices=list(RevertAction),
         help=(
-            "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or run-revert."
+            "Revert mode: skip, log (no side effects), run-log (prod-style logging), run-notify, or "
+            "run-revert. Default is log."
         ),
     )
     workflow_parser.add_argument(
@@ -378,8 +390,16 @@ def main(*args, **kwargs) -> None:
             hours=opts.hours,
             notify_issue_number=opts.notify_issue_number,
             repo_full_name=opts.repo_full_name,
-            restart_action=(RestartAction.LOG if opts.dry_run else opts.restart_action),
-            revert_action=(RevertAction.LOG if opts.dry_run else opts.revert_action),
+            restart_action=(
+                RestartAction.LOG
+                if opts.dry_run
+                else (opts.restart_action or RestartAction.RUN)
+            ),
+            revert_action=(
+                RevertAction.LOG
+                if opts.dry_run
+                else (opts.revert_action or RevertAction.LOG)
+            ),
             bisection_limit=opts.bisection_limit,
         )
         write_hud_html_from_cli(opts.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
