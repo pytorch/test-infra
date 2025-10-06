@@ -85,7 +85,12 @@ def autorevert_v2(
     logging.info("[v2] Executed action groups: %d", executed_count)
 
     # Persist full run state via separate logger
-    state_json = RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
-    logging.info("[v2] State logged")
+    try:
+        state_json = RunStateLogger().insert_state(ctx=run_ctx, pairs=pairs)
+        logging.info("[v2] State logged")
+    except Exception:
+        logging.exception("[v2] State logging failed")  # capture full stack
+        # Keep returning a JSON payload for downstream consumers
+        state_json = "{}"
 
     return signals, pairs, state_json
