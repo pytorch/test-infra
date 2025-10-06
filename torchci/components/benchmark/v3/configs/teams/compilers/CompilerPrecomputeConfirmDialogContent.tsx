@@ -51,7 +51,6 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       `metric=${left.metric}`
     );
 
-
     const table = getElementById(tableId);
     // if the table is not exist,scroll to the toggle section
     if (!table) {
