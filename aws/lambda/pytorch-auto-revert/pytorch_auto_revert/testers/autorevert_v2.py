@@ -46,10 +46,6 @@ def autorevert_v2(
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
-    import sys
-
-    sys.exit(1)
-
     extractor = SignalExtractor(
         workflows=workflows, lookback_hours=hours, repo_full_name=repo_full_name
     )
