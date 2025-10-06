@@ -11,7 +11,7 @@ FILE_REPORT_URL = "https://hud.pytorch.org/tests/fileReport"
 
 CONFIG = [
     {
-        "team": "dev-infra",
+        "team": "pytorch-dev-infra",
         "condition": lambda _: True,
         "link": FILE_REPORT_URL,
     },
@@ -74,9 +74,7 @@ class RegressionNotification:
             if (info["short_job_name"], info["file"]) in relevant_keys
         ]
 
-        def _sum_invoking_file_info(
-            data: list[dict[str, Any]], field: str
-        ) -> dict[str, Any]:
+        def _sum_invoking_file_info(data: list[dict[str, Any]]) -> dict[str, Any]:
             info = {
                 "count": sum(item["count"] for item in data),
                 "cost": sum(item["cost"] for item in data),
@@ -85,12 +83,8 @@ class RegressionNotification:
             }
             return info
 
-        agg_prev_file_info = _sum_invoking_file_info(
-            relevant_prev_invoking_file_info, "prev"
-        )
-        agg_curr_file_info = _sum_invoking_file_info(
-            relevant_curr_invoking_file_info, "curr"
-        )
+        agg_prev_file_info = _sum_invoking_file_info(relevant_prev_invoking_file_info)
+        agg_curr_file_info = _sum_invoking_file_info(relevant_curr_invoking_file_info)
 
         invoking_file_info_diff = {
             "count": {
