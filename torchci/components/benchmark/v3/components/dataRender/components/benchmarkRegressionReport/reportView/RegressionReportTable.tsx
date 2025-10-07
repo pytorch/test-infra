@@ -161,15 +161,15 @@ export default function RegressionReportTable({
           <Typography variant="h6">Details</Typography>
         </Stack>
         {current && (
-          <ReportTimeSereisChartSection item={current} subtitle={"Chart"} />
+          <ReportTimeSereisChartSection item={current} subtitle={"Chart"} enableIndicator={true} />
         )}
       </Drawer>
     </Box>
   );
 }
 
-// Build url for navigation to main page
-function getNavigationRoute(
+// Build url to navigate to main page using report_id
+export function getNavigationRoute(
   report_id: string,
   group_info: any,
   baseline: any,

@@ -102,7 +102,7 @@ export function GroupInfoChips({
   );
 }
 
-export function IndicatorsSection() {
+export function RegressionReportChartIndicatorsSection() {
   return (
     <Box>
       <Typography variant="subtitle1" sx={{ mb: 1 }}>
@@ -150,5 +150,3 @@ function RenderIndicator({
     </Box>
   );
 }
-
-function getRegressionTrackPageUrl(report_id: string) {}

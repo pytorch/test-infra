@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import RegressionReportTable from "./RegressionReportTable";
 import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
+import { RegressionReportChartIndicatorsSection } from "../common";
 const styles = {
   toggleSection: {
     display: "flex",
@@ -56,6 +57,7 @@ export function RegressionReportDetail({
       {/* Conditionally render based on view */}
       {view === "chart" ? (
         <Box>
+          <RegressionReportChartIndicatorsSection />
           <ReportTimeSeriesChartBucketList
             report_id={report_id}
             title={`Regressions (${details.regression.length})`}

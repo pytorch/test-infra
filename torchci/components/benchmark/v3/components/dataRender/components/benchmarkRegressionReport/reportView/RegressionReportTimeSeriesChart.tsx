@@ -10,6 +10,7 @@ import {
   DEFAULT_BASELINE_COLOR,
   DEFAULT_REGRESSION_COLOR,
   GroupInfoChips,
+  RegressionReportChartIndicatorsSection,
 } from "../common";
 
 export function ReportTimeSereisChartSection({
@@ -20,6 +21,7 @@ export function ReportTimeSereisChartSection({
   hideBaseline = false,
   hideChips = false,
   enableSelectMode = false,
+  enableIndicator = false,
 }: {
   item: any;
   subtitle: string;
@@ -28,6 +30,7 @@ export function ReportTimeSereisChartSection({
   hideBaseline?: boolean;
   hideChips?: boolean;
   enableSelectMode?: boolean;
+  enableIndicator?: boolean;
 }) {
   const group_info = item?.group_info ?? {};
   const tsData = toTimeSeriesData(item);
@@ -48,6 +51,13 @@ export function ReportTimeSereisChartSection({
           />
         </Box>
         <Divider />
+          {enableIndicator && (
+            <>
+            <RegressionReportChartIndicatorsSection />
+            <Divider />
+            </>
+            )}
+
         {!hidePolicy && (
           <Box>
             <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
