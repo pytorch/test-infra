@@ -7,11 +7,13 @@ import {
   ScaleUpChronMetrics,
   sendMetricsAtTimeout,
   sendMetricsTimeoutVars,
+  ScaleCycleMetrics,
 } from './scale-runners/metrics';
 import { getDelayWithJitterRetryCount, stochaticRunOvershoot } from './scale-runners/utils';
 import { scaleDown as scaleDownR } from './scale-runners/scale-down';
 import { scaleUpChron as scaleUpChronR } from './scale-runners/scale-up-chron';
 import { sqsSendMessages, sqsDeleteMessageBatch } from './scale-runners/sqs';
+import { scaleCycle as scaleCycleR } from './scale-runners/scale-cycle';
 
 async function sendRetryEvents(evtFailed: Array<[SQSRecord, boolean, number]>, metrics: ScaleUpMetrics) {
   console.error(`Detected ${evtFailed.length} errors when processing messages, will retry relevant messages.`);
@@ -200,5 +202,40 @@ export async function scaleUpChron(event: ScheduledEvent, context: Context, call
   if (callbackOutput !== null) {
     console.error(callbackOutput);
   }
+  callback(callbackOutput);
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function scaleCycle(event: ScheduledEvent, context: Context, callback: any) {
+  // we mantain open connections to redis, so the event pool is only cleaned when the SIGTERM is sent
+  context.callbackWaitsForEmptyEventLoop = false;
+
+  const metrics = new ScaleCycleMetrics();
+  const sndMetricsTimout: sendMetricsTimeoutVars = {
+    metrics: metrics,
+  };
+  sndMetricsTimout.setTimeout = setTimeout(
+    sendMetricsAtTimeout(sndMetricsTimout),
+    (Config.Instance.lambdaTimeout - 10) * 1000,
+  );
+
+  let callbackOutput: string | null = null;
+
+  try {
+    await scaleCycleR(metrics);
+  } catch (e) {
+    console.error(e);
+    callbackOutput = `Failed to scale cycle: ${e}`;
+  } finally {
+    try {
+      clearTimeout(sndMetricsTimout.setTimeout);
+      sndMetricsTimout.metrics = undefined;
+      sndMetricsTimout.setTimeout = undefined;
+      await metrics.sendMetrics();
+    } catch (e) {
+      callbackOutput = `Error sending metrics: ${e}`;
+    }
+  }
+
   callback(callbackOutput);
 }
