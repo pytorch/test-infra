@@ -23,11 +23,11 @@ export default function BenchmarkRegressionPage({
     <BenchmarkDashboardStoreProvider key={benchmarkId} initial={initial}>
       <Box style={{ display: "flex", minWidth: "800px", width: "100%" }}>
         <BenchmarkSideBar />
-        <Box>
+        <Box sx={{ width: "100%" }}>
           {/* horizontal bar */}
           <BenchmarkTopBar config={config} />
           {/* scrollable content */}
-          <Box style={{ flex: 1, minWidth: "600px" }}>
+          <Box style={{ flex: 1, minWidth: "600px", width: "100%" }}>
             <Comp />
           </Box>
         </Box>

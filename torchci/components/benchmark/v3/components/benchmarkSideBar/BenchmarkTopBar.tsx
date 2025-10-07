@@ -3,7 +3,13 @@ import { Stack } from "@mui/system";
 import { BenchmarkUI } from "../../configs/configBook";
 import { BenchmarkReportFeatureSidePanel } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
 
-export function BenchmarkTopBar({ config }: { config: BenchmarkUI }) {
+export function BenchmarkTopBar({
+  config,
+  title = "Benchmark",
+}: {
+  config: BenchmarkUI;
+  title?: string;
+}) {
   const reportFeature =
     config.raw.dataRender?.sideRender?.RegressionReportFeature;
   return (
@@ -26,7 +32,7 @@ export function BenchmarkTopBar({ config }: { config: BenchmarkUI }) {
         spacing={1}
         sx={{ height: "100%" }}
       >
-        <Typography variant="subtitle1">{reportFeature?.title}</Typography>
+        <Typography variant="subtitle1">{title}</Typography>
         <ReportFeature reportFeature={reportFeature} />
       </Stack>
     </Paper>

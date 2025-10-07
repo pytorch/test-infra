@@ -10,11 +10,6 @@ import { useRouter } from "next/router";
 export default function Page() {
   const router = useRouter();
   const { id } = router.query;
-  if (typeof id !== "string") {
-    return (
-      <Alert severity="error">Cannot render report, Invalid id: {id}</Alert>
-    );
-  }
 
   // initial load
   const { data, isLoading, error } = useGetBenchmarkRegressionReportData(

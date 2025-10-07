@@ -92,7 +92,6 @@ export function CommitWorflowSelectSection() {
     // update list
     setLeftList(L);
     setRightList(R);
-    console.log("we have this useEffect", lcommit, rcommit);
 
     if (L.length === 0 || R.length === 0) return;
 
