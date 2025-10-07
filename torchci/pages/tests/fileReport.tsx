@@ -464,44 +464,33 @@ function Overview({
   );
 
   const groupedRows = _.map(groupByTarget, (rows, key) => {
-    // Sum within sha
-    const summedBySha = _.map(_.groupBy(rows, "sha"), (shaRows) => {
-      return _.reduce(
-        shaRows,
-        (acc, row) => {
-          acc.count += row.count || 0;
-          acc.time += row.time || 0;
-          acc.cost += row.cost || 0;
-          acc.skipped += row.skipped || 0;
-          acc.frequency += row.frequency || 0;
-          return acc;
-        },
-        { count: 0, time: 0, cost: 0, skipped: 0, frequency: 0 }
-      );
-    });
-    // the reduce across shas for average
-    return _.reduce(
-      summedBySha,
-      (acc, summed) => {
-        acc.count += summed.count;
-        acc.time += summed.time;
-        acc.cost += summed.cost;
-        acc.skipped += summed.skipped;
-        acc.frequency += summed.frequency;
+    // Sum
+    const summed = _.reduce(
+      rows,
+      (acc, row) => {
+        acc.count += row.count || 0;
+        acc.time += row.time || 0;
+        acc.cost += row.cost || 0;
+        acc.skipped += row.skipped || 0;
+        acc.frequency += row.frequency || 0;
         return acc;
       },
-      {
-        id: rows[0].id,
-        file: rows[0].file,
-        short_job_name: rows[0].short_job_name,
-        labels: key,
-        count: 0,
-        time: 0,
-        cost: 0,
-        skipped: 0,
-        frequency: 0,
-      }
+      { count: 0, time: 0, cost: 0, skipped: 0, frequency: 0 }
     );
+
+    // Average across sha data points
+    const numShas = _.uniq(rows.map((r) => r.sha)).length;
+    return {
+      id: rows[0].id,
+      file: rows[0].file,
+      short_job_name: rows[0].short_job_name,
+      labels: key,
+      count: summed.count / numShas,
+      time: summed.time / numShas,
+      cost: summed.cost / numShas,
+      skipped: summed.skipped / numShas,
+      frequency: summed.frequency / numShas,
+    };
   });
 
   return (
@@ -1069,14 +1058,29 @@ export default function Page() {
       <CommitInfo data={data} />
       <Overview
         data={data}
-        setFileFilter={setFileFilter}
-        setJobFilter={setJobFilter}
-        setLabelFilter={setLabelFilter}
+        setFileFilter={(input) => {
+          setFileFilter(input);
+          setFileRegex(false);
+        }}
+        setJobFilter={(input) => {
+          setJobFilter(input);
+          setJobRegex(false);
+        }}
+        setLabelFilter={(input) => {
+          setLabelFilter(input);
+          setLabelRegex(false);
+        }}
       />
       <Diffs
         data={data}
-        setFileFilter={setFileFilter}
-        setJobFilter={setJobFilter}
+        setFileFilter={(input) => {
+          setFileFilter(input);
+          setFileRegex(false);
+        }}
+        setJobFilter={(input) => {
+          setJobFilter(input);
+          setJobRegex(false);
+        }}
       />
       <Graphs data={data} />
       <Stack spacing={2}>

@@ -209,6 +209,7 @@ class FileReportGenerator:
         where
             j.created_at > now() - interval 8 day
             and j.created_at < now() - interval 1 day
+            and j.conclusion != 'cancelled'
         group by
             name
         """
