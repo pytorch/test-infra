@@ -1,6 +1,7 @@
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import { BundleResult } from "../type";
 import {
+  getBenchmarkRegressionReport,
   listBenchmarkCommits,
   listBenchmarkRegressionReport,
   postBenchmarkTimeSeriesFetcher,
@@ -49,11 +50,18 @@ export function useBenchmarkData(
   );
 }
 
-export function useBenchmarkRegressionReportData(
+export function useListBenchmarkRegressionReportsData(
   report_id: string,
   limit: number = 10
 ): any {
   return useApi(listBenchmarkRegressionReport, [report_id, limit], {
+    refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hour
+    revalidateOnFocus: false,
+  });
+}
+
+export function useGetBenchmarkRegressionReportData(id: string): any {
+  return useApi(getBenchmarkRegressionReport, [id], {
     refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hour
     revalidateOnFocus: false,
   });
