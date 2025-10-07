@@ -88,7 +88,7 @@ export default function RegressionReportList({
               <BenchmarkRegressionBucketCounts report={r} />
               <Stack direction="row" spacing={2} sx={{ mt: 0.5 }}>
                 <Typography variant="caption" color="text.secondary">
-                  Date: {dayjs(r.created_at).format("MMM D, YYYY")}
+                  Date: {dayjs(r.created_at).toLocaleString()}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Id: {r.id}
