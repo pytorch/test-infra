@@ -173,7 +173,8 @@ jobs:
         python3 -m ensurepip --upgrade
         # install Dev Tools and python-devel to test torch.compile
         yum groupinstall -y "Development Tools"
-        yum install -y python-devel
+        yum install -y python3.11 python3.11-devel
+        python3.11 --version
 
         CUDA_VERSION="13.0"
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
@@ -186,5 +187,5 @@ jobs:
           DWN_PYTORCH_ORG="https://download.pytorch.org/whl/cu${CUDA_VERSION_NODOT}"
         fi
 
-        python3 -m pip install torch --progress-bar off --index-url ${DWN_PYTORCH_ORG}
-        python3 .ci/pytorch/smoke_test/smoke_test.py --package torchonly
+        python3.11 -m pip install torch --progress-bar off --index-url ${DWN_PYTORCH_ORG}
+        python3.11 .ci/pytorch/smoke_test/smoke_test.py --package torchonly
