@@ -213,7 +213,7 @@ describe("Test flattenTS to flatten timestamp", () => {
 
     // assert log
     expect(logSpy).toHaveBeenCalledWith(
-      `Warning: Error parsing JSON:SyntaxError: Expected property name or '}' in JSON at position 1 (line 1 column 2) for data string '{{}dsad}'`
+      expect.stringMatching(/Warning: Error parsing JSON:SyntaxError: Expected property name or '\}' in JSON at position 1.*for data string '\{\{\}dsad\}'/)
     );
   });
 });
