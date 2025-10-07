@@ -6,7 +6,9 @@ SELECT
     tupleElement(build, 'started_at') AS build_started_at,
     tupleElement(build, 'state') AS build_state,
     if(
-        lowerUTF8(tupleElement(build, 'state')) IN ('passed', 'finished', 'success'),
+        lowerUTF8(tupleElement(build, 'state')) IN (
+            'passed', 'finished', 'success'
+        ),
         1,
         0
     ) AS is_green
