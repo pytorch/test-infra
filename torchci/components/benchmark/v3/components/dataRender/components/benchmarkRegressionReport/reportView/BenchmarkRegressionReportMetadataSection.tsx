@@ -4,6 +4,7 @@ import {
   RenderRawContent,
   RenderStaticContent,
 } from "components/benchmark/v3/components/common/RawContentDialog";
+import dayjs from "dayjs";
 import {
   BenchmarkRegressionBucketCounts,
   BenchmarkRegressionReport,
@@ -17,9 +18,9 @@ export default function BenchmarkRegressionReportMetadataSection({
 }) {
   return (
     <Box>
-      <BenchmarkRegressionSignalCard data={data} />
+      <BenchmarkRegressionPrimarySignalSection data={data} />
       <Divider sx={{ my: 1 }} />
-      <BenchmarkRegressionReportProfile report={data} />
+      <BenchmarkRegressionReportInformation report={data} />
       <Divider sx={{ my: 1 }} />
       <Stack direction="row" spacing={1}>
         <RenderRawContent
@@ -38,9 +39,9 @@ export default function BenchmarkRegressionReportMetadataSection({
   );
 }
 
-function BenchmarkRegressionSignalCard({ data }: { data: any }) {
+function BenchmarkRegressionPrimarySignalSection({ data }: { data: any }) {
   return (
-    <Box>
+    <Box sx={{ mt: 1 }}>
       <Stack direction="row" alignItems="center" spacing={1}>
         <Typography>
           {" "}
@@ -61,7 +62,7 @@ function BenchmarkRegressionSignalCard({ data }: { data: any }) {
   );
 }
 
-function BenchmarkRegressionReportProfile({
+function BenchmarkRegressionReportInformation({
   report,
 }: {
   report: BenchmarkRegressionReport;
@@ -92,10 +93,10 @@ function BenchmarkRegressionReportProfile({
         </Typography>
         <Typography variant="body2">
           <strong>Created At:</strong>{" "}
-          {new Date(report.created_at).toLocaleString()}
+          {dayjs(report.created_at).toLocaleString()}
         </Typography>
         <Typography variant="body2">
-          <strong>Last Record:</strong> {report.last_record_ts}
+          <strong>Last Record ts:</strong> {report.last_record_ts}
         </Typography>
       </Stack>
     </Box>

@@ -1,18 +1,9 @@
 import CloseIcon from "@mui/icons-material/Close";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { Drawer, IconButton, Tooltip, Typography } from "@mui/material";
+import { Drawer, IconButton, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { getBenchmarkIdFromReportId } from "components/benchmark/v3/configs/configBook";
-import { getBenchmarkFields } from "components/benchmark/v3/configs/utils/urlHandling";
-import { getBenchmarkMainRouteById } from "components/benchmark/v3/pages/BenchmarkListPage";
-import { formUrlWithParams } from "components/uiModules/UMCopyLink";
-import dayjs from "dayjs";
-import {
-  BenchmarkCommitMeta,
-  TimeRange,
-} from "lib/benchmark/store/benchmark_regression_store";
 import { useCallback, useState } from "react";
+import { ReportPageToV3MainPageNavigationButton } from "../common";
 import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
 
 export default function RegressionReportTable({
@@ -83,25 +74,13 @@ export default function RegressionReportTable({
     filterable: false,
     align: "center",
     renderCell: ({ row }) => {
-      const url = getNavigationRoute(
-        report_id,
-        row._raw?.group_info,
-        row._raw?.baseline_point,
-        row._raw?.points[row._raw?.points.length - 1]
-      );
-
       return (
-        <Tooltip title="Navigate to main page">
-          <IconButton
-            onClick={(e) => {
-              e.stopPropagation();
-              console.log("navigate to url", url);
-              window.location.href = url; // full reload navigation to avoid werid nextLink issue
-            }}
-          >
-            <OpenInNewIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
+        <ReportPageToV3MainPageNavigationButton
+          group_info={row._raw?.group_info}
+          report_id={report_id}
+          startCommit={row._raw?.baseline_point}
+          endCommit={row._raw?.points[row._raw?.points.length - 1]}
+        />
       );
     },
   };
@@ -162,64 +141,13 @@ export default function RegressionReportTable({
         </Stack>
         {current && (
           <ReportTimeSereisChartSection
-            item={current}
+            data={current}
             subtitle={"Chart"}
             enableIndicator={true}
+            report_id={report_id}
           />
         )}
       </Drawer>
     </Box>
   );
-}
-
-// Build url to navigate to main page using report_id
-export function getNavigationRoute(
-  report_id: string,
-  group_info: any,
-  baseline: any,
-  latest_data: any
-): string {
-  const id = getBenchmarkIdFromReportId(report_id);
-  if (!id) {
-    return "";
-  }
-  const route = getBenchmarkMainRouteById(id);
-  if (!route) {
-    return "";
-  }
-
-  const time: TimeRange = {
-    start: dayjs(baseline.timestamp).startOf("day"),
-    end: dayjs(latest_data.timestamp).endOf("day"),
-  };
-
-  const fields = getBenchmarkFields(group_info, id);
-
-  const lcommit: BenchmarkCommitMeta = {
-    commit: baseline.commit,
-    branch: baseline.branch,
-    workflow_id: baseline.workflow_id,
-    date: baseline.timestamp,
-  };
-
-  const rcommit: BenchmarkCommitMeta = {
-    commit: latest_data.commit,
-    branch: latest_data.branch,
-    workflow_id: latest_data.workflow_id,
-    date: latest_data.timestamp,
-  };
-  const branch = baseline.branch;
-
-  const params = {
-    rcommit: rcommit,
-    lcommit: lcommit,
-    time: time,
-    filters: fields,
-    lbranch: branch,
-    rbranch: branch,
-  };
-
-  const finalRoute = formUrlWithParams(route, params);
-
-  return finalRoute;
 }

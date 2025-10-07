@@ -44,10 +44,3 @@ export const UMCopyLink = ({
 
   return <CopyLink textToCopy={`${cleanUrl}?${paramsString}`} />;
 };
-
-export function formUrlWithParams(url: string, params: any, excludeKeys = []) {
-  const paramsString = queryObjectToSearchParams(
-    stateToQuery(params, excludeKeys)
-  );
-  return `${url}?${paramsString}`;
-}

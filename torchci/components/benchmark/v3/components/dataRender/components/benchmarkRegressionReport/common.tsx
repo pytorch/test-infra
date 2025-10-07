@@ -1,7 +1,21 @@
 import CircleIcon from "@mui/icons-material/Circle";
-import { Chip, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
+import { getBenchmarkIdFromReportId } from "components/benchmark/v3/configs/configBook";
+import { getBenchmarkFields } from "components/benchmark/v3/configs/utils/urlHandling";
+import { getBenchmarkMainRouteById } from "components/benchmark/v3/pages/BenchmarkListPage";
+import { queryObjectToSearchParams } from "components/uiModules/UMCopyLink";
+import dayjs from "dayjs";
+import {
+  BenchmarkCommitMeta,
+  TimeRange,
+} from "lib/benchmark/store/benchmark_regression_store";
+import { stateToQuery } from "lib/helpers/urlQuery";
 
+/**
+ * Benchmark regression report data model in UI
+ */
 export interface BenchmarkRegressionReport {
   id: string;
   report_id: string;
@@ -19,7 +33,11 @@ export interface BenchmarkRegressionReport {
   policy?: any;
   details?: any;
 }
+//
 
+/**
+ * Color map for regression status
+ */
 export const STATUS_COLOR_MAP: Record<string, string> = {
   no_regression: "#2e7d32", // success.main
   regression: "#d32f2f", // error.main
@@ -27,6 +45,15 @@ export const STATUS_COLOR_MAP: Record<string, string> = {
   insufficient_data: "rgba(0, 0, 0, 0.6)", // text.secondary (grey)
 };
 
+/**
+ * Default colors for baseline and regression indicators for regression report charts.
+ */
+export const DEFAULT_BASELINE_COLOR = "green";
+export const DEFAULT_REGRESSION_COLOR = "red";
+
+/**
+ * Common component to render regression bucket counts from regression report
+ */
 export function BenchmarkRegressionBucketCounts({
   report,
   sx,
@@ -72,9 +99,10 @@ export function BenchmarkRegressionBucketCounts({
   );
 }
 
-export const DEFAULT_BASELINE_COLOR = "green";
-export const DEFAULT_REGRESSION_COLOR = "red";
-
+/**
+ * Common component to render key-value info in list of chips.
+ * main use case is to render group info in benchmark.
+ */
 export function GroupInfoChips({
   info,
   chipSx,
@@ -102,6 +130,10 @@ export function GroupInfoChips({
   );
 }
 
+/**
+ *
+ * Common component to render regression report chart indicators used in regression report charts.
+ */
 export function RegressionReportChartIndicatorsSection() {
   return (
     <Box>
@@ -148,5 +180,143 @@ function RenderIndicator({
         {description}
       </Typography>
     </Box>
+  );
+}
+
+/**
+ *
+ * Build url to navigate to v3 main benchmark page using report_id
+ */
+export function getNavigationRouteByReportId(
+  report_id: string,
+  group_info: any,
+  startCommit: any,
+  endCommit: any
+): string {
+  if (!startCommit || !endCommit) {
+    console.warn(
+      "cannot navigate to v3 main page, missing commit info, currently have:",
+      startCommit,
+      endCommit
+    );
+    return "";
+  }
+
+  const id = getBenchmarkIdFromReportId(report_id);
+  if (!id) {
+    console.warn(
+      "cannot navigate to v3 main page, missing benchmark id using report id: ",
+      report_id
+    );
+    return "";
+  }
+
+  const route = getBenchmarkMainRouteById(id);
+  if (!route) {
+    return "";
+  }
+
+  const time: TimeRange = {
+    start: dayjs(startCommit?.timestamp).startOf("day"),
+    end: dayjs(endCommit?.timestamp).endOf("day"),
+  };
+
+  const fields = getBenchmarkFields(group_info, id);
+
+  const lcommit: BenchmarkCommitMeta = {
+    commit: startCommit?.commit,
+    branch: startCommit?.branch,
+    workflow_id: startCommit?.workflow_id,
+    date: startCommit?.timestamp,
+  };
+
+  const rcommit: BenchmarkCommitMeta = {
+    commit: endCommit.commit,
+    branch: endCommit.branch,
+    workflow_id: endCommit.workflow_id,
+    date: endCommit.timestamp,
+  };
+  const branch = startCommit.branch;
+
+  const params = {
+    rcommit: rcommit,
+    lcommit: lcommit,
+    time: time,
+    filters: fields,
+    lbranch: branch,
+    rbranch: branch,
+  };
+
+  const finalRoute = formUrlWithParams(route, params);
+
+  return finalRoute;
+}
+
+/**
+ * Dynamically build url with params
+ * @param url
+ * @param params
+ * @param excludeKeys
+ * @returns
+ */
+export function formUrlWithParams(url: string, params: any, excludeKeys = []) {
+  const paramsString = queryObjectToSearchParams(
+    stateToQuery(params, excludeKeys)
+  );
+  return `${url}?${paramsString}`;
+}
+
+export function ReportPageToV3MainPageNavigationButton({
+  report_id,
+  group_info,
+  startCommit,
+  endCommit,
+}: {
+  report_id: string;
+  group_info: any;
+  startCommit: any;
+  endCommit: any;
+}) {
+  const id = getBenchmarkIdFromReportId(report_id);
+  if (!id) {
+    console.warn(
+      "cannot navigate to v3 main page, missing benchmark id using report id: ",
+      report_id
+    );
+    return null;
+  }
+  const route = getBenchmarkMainRouteById(id);
+
+  const url = getNavigationRouteByReportId(
+    report_id,
+    group_info,
+    startCommit,
+    endCommit
+  );
+
+  let tooltipContent = `Investigate in main page: ${route}`;
+  let disableButton = false;
+
+  if (!url || !route) {
+    tooltipContent = `Cannot navigate to main page, missing url or route info.
+     Please report this issue to pytorch infra team. You can still view the chart sidepanel in this page.`;
+    disableButton = true;
+  }
+
+  return (
+    <Tooltip title={tooltipContent}>
+      <IconButton
+        onClick={(e) => {
+          if (disableButton) {
+            return;
+          }
+          e.stopPropagation();
+          console.debug("navigate to url", url);
+          window.location.href = url; // full reload navigation to avoid werid nextLink issue
+        }}
+      >
+        <OpenInNewIcon fontSize="small" color="primary" />
+      </IconButton>
+    </Tooltip>
   );
 }

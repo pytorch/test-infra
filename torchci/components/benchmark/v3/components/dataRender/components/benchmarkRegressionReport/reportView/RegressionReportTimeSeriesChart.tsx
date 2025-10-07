@@ -11,30 +11,37 @@ import {
   DEFAULT_REGRESSION_COLOR,
   GroupInfoChips,
   RegressionReportChartIndicatorsSection,
+  ReportPageToV3MainPageNavigationButton,
 } from "../common";
 
 export function ReportTimeSereisChartSection({
-  item,
+  data,
   subtitle = "",
   id,
+  report_id,
   hidePolicy = false,
   hideBaseline = false,
   hideChips = false,
   enableSelectMode = false,
   enableIndicator = false,
+  enableNavigation = true,
 }: {
-  item: any;
+  data: any;
   subtitle: string;
+  report_id: string;
   id?: string;
   hidePolicy?: boolean;
   hideBaseline?: boolean;
   hideChips?: boolean;
   enableSelectMode?: boolean;
   enableIndicator?: boolean;
+  enableNavigation?: boolean;
 }) {
-  const group_info = item?.group_info ?? {};
-  const tsData = toTimeSeriesData(item);
-  const baseline = item?.baseline_point;
+  const group_info = data?.group_info ?? {};
+  const tsData = toTimeSeriesData(data);
+  const baseline = data?.baseline_point;
+  const latestPoint = data?.points[data?.points?.length - 1];
+
   return (
     <Paper id={id} variant="outlined" sx={{ p: 2 }}>
       <Stack spacing={1.25}>
@@ -64,7 +71,7 @@ export function ReportTimeSereisChartSection({
               Policy: how we detect the regression based on baseline point
             </Typography>
             <StaticRenderViewOnlyContent
-              data={item.policy}
+              data={data.policy}
               title=""
               maxDepth={10}
             />
@@ -82,6 +89,19 @@ export function ReportTimeSereisChartSection({
               maxDepth={10}
             />
           </Box>
+        )}
+        {enableNavigation && (
+          <Stack direction="row" alignItems="center">
+            <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
+              Go to the benchmark main page
+            </Typography>
+            <ReportPageToV3MainPageNavigationButton
+              report_id={report_id}
+              group_info={group_info}
+              startCommit={baseline}
+              endCommit={latestPoint}
+            />
+          </Stack>
         )}
       </Stack>
     </Paper>

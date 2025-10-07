@@ -112,9 +112,10 @@ function ReportTimeSeriesChartBucketList({
           return (
             <Grid size={{ xs: 12, lg: 4 }} key={i}>
               <ReportTimeSereisChartSection
-                item={item}
+                data={item}
                 subtitle={`${subtitle}[${i}]`}
                 hideBaseline={true}
+                report_id={report_id}
               />
             </Grid>
           );
