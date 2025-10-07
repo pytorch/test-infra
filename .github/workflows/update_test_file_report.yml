@@ -25,7 +25,6 @@ jobs:
           cd tools/torchci && python3 -mpip install -e .
 
       - name: Run file report generator
-        if: false
         env:
           CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
