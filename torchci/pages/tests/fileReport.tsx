@@ -1058,14 +1058,29 @@ export default function Page() {
       <CommitInfo data={data} />
       <Overview
         data={data}
-        setFileFilter={setFileFilter}
-        setJobFilter={setJobFilter}
-        setLabelFilter={setLabelFilter}
+        setFileFilter={(input) => {
+          setFileFilter(input);
+          setFileRegex(false);
+        }}
+        setJobFilter={(input) => {
+          setJobFilter(input);
+          setJobRegex(false);
+        }}
+        setLabelFilter={(input) => {
+          setLabelFilter(input);
+          setLabelRegex(false);
+        }}
       />
       <Diffs
         data={data}
-        setFileFilter={setFileFilter}
-        setJobFilter={setJobFilter}
+        setFileFilter={(input) => {
+          setFileFilter(input);
+          setFileRegex(false);
+        }}
+        setJobFilter={(input) => {
+          setJobFilter(input);
+          setJobRegex(false);
+        }}
       />
       <Graphs data={data} />
       <Stack spacing={2}>
