@@ -173,11 +173,12 @@ jobs:
         
         # install Dev Tools and python-devel to test torch.compile
         yum groupinstall -y "Development Tools"
+        # We use Python 3.11 not running inside venv
         yum install -y python3.11 python3.11-devel
         python3.11 -m ensurepip --upgrade
         python3.11 --version
 
-        CUDA_VERSION="12.8"
+        CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
         export MATRIX_GPU_ARCH_VERSION="${CUDA_VERSION}"
 
