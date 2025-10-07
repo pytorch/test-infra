@@ -2,3 +2,4 @@ PyGithub
 black
 tqdm
 boto3
+dateparser
