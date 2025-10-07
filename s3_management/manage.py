@@ -333,7 +333,7 @@ PACKAGE_ALLOW_LIST = {
         "Markdown",
         "MarkupSafe",
         "monarch",
-        "opentelemetry-api",
+        "opentelemetry_api",
         "pillow",
         "pip",
         "platformdirs",
