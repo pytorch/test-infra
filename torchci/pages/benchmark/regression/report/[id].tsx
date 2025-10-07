@@ -28,7 +28,11 @@ export default function Page() {
 
   return (
     <Box sx={{ p: 2 }}>
-      <BenchmarkReportFeatureSidePanel type="list" id={report_id} />
+      <BenchmarkReportFeatureSidePanel
+        type="list"
+        id={report_id}
+        buttonText={"report lists"}
+      />
       <BenchmarkRegressionReportMetadataSection data={data} />
       <RegressionReportDetail report={data} />
     </Box>

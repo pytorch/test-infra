@@ -6,7 +6,7 @@ import { BenchmarkRegressionReportWrapper } from "./reportView/RegressionReportV
 export function BenchmarkReportFeatureSidePanel({
   type = "list",
   id = "",
-  buttonText = "Regression Report",
+  buttonText = "Regression Reports",
   onClose = (data: any) => {},
 }: {
   type: "list" | "detail";
