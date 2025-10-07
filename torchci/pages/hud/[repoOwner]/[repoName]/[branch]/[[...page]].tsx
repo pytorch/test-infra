@@ -507,7 +507,7 @@ export default function Hud() {
 }
 
 function useLatestCommitSha(params: HudParams) {
-  const data = useHudData({ ...params, page: 1, per_page: 1 });
+  const { data } = useHudData({ ...params, page: 1, per_page: 1 });
   if (data === undefined) {
     return null;
   }
@@ -544,7 +544,7 @@ function CopyPermanentLink({
 
 function GroupedHudTable({ params }: { params: HudParams }) {
   const router = useRouter();
-  const data = useHudData(params);
+  const { data, isLoading, error } = useHudData(params);
   const { data: unstableIssuesData } = useSWR<IssueLabelApiResponse>(
     `/api/issue/unstable`,
     fetcher,
@@ -646,8 +646,15 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     return true;
   });
 
-  if (data === undefined) {
+  if (isLoading) {
     return <LoadingPage />;
+  }
+  if (error) {
+    return <div>Error loading HUD data: {error.message}</div>;
+  }
+
+  if (data === undefined) {
+    return <div>No data available? Please file an issue</div>;
   }
 
   return (
