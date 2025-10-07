@@ -41,7 +41,6 @@ export function SideBarMainSection() {
     rbranch: s.committedRbranch,
   }));
 
-
   // sync the url with the store
   const { pushUrlFromStore } = useUrlStoreSync(
     router,

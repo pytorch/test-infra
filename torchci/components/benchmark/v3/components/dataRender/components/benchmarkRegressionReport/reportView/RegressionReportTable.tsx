@@ -12,7 +12,6 @@ import {
   BenchmarkCommitMeta,
   TimeRange,
 } from "lib/benchmark/store/benchmark_regression_store";
-import Link from "next/link";
 import { useCallback, useState } from "react";
 import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
 
@@ -96,12 +95,10 @@ export default function RegressionReportTable({
       return (
         <Tooltip title="Navigate to main page">
           <IconButton
-            onClick={
-              (e) => {
-                e.stopPropagation()
-                window.location.href = url;  // full reload navigation
-              }
-            }
+            onClick={(e) => {
+              e.stopPropagation();
+              window.location.href = url; // full reload navigation
+            }}
           >
             <OpenInNewIcon fontSize="small" />
           </IconButton>
