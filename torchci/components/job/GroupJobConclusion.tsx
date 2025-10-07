@@ -1,4 +1,5 @@
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import { isGroupAutorevertSignal } from "lib/autorevertUtils";
 import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import {
   isCancellationSuccessJob,
@@ -6,7 +7,7 @@ import {
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { IssueData, JobData } from "lib/types";
+import { IssueData, JobData, RowData } from "lib/types";
 import {
   MonsterFailuresContext,
   PinnedTooltipContext,
@@ -175,6 +176,7 @@ export default function HudGroupedCell({
   unstableIssues,
   repoOwner,
   repoName,
+  rowData,
 }: {
   sha: string;
   groupName: string;
@@ -185,10 +187,22 @@ export default function HudGroupedCell({
   unstableIssues: IssueData[];
   repoOwner: string;
   repoName: string;
+  rowData?: RowData;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const [monsterFailures] = useContext(MonsterFailuresContext);
-  const style = pinnedId.name == groupName ? hudStyles.highlight : "";
+
+  // Check if this group contains autorevert signals
+  const isAutorevertSignal = rowData
+    ? isGroupAutorevertSignal(jobs, rowData)
+    : false;
+
+  let style = "";
+  if (pinnedId.name == groupName) {
+    style = hudStyles.highlight;
+  } else if (isAutorevertSignal) {
+    style = hudStyles.autorevertSignal;
+  }
 
   const erroredJobs = [];
   const warningOnlyJobs = [];
@@ -240,7 +254,14 @@ export default function HudGroupedCell({
 
   return (
     <>
-      <td className={style}>
+      <td
+        className={style}
+        title={
+          isAutorevertSignal
+            ? "This group contains jobs that triggered an autorevert"
+            : undefined
+        }
+      >
         <TooltipTarget
           sha={sha}
           name={groupName}
@@ -255,6 +276,9 @@ export default function HudGroupedCell({
               queuedJobs={queuedJobs}
               failedPreviousRunJobs={failedPreviousRunJobs}
               sha={sha}
+              isAutorevertSignal={isAutorevertSignal}
+              jobs={jobs}
+              rowData={rowData}
             />
           }
         >
@@ -304,6 +328,9 @@ function GroupTooltip({
   queuedJobs,
   failedPreviousRunJobs,
   sha,
+  isAutorevertSignal,
+  jobs,
+  rowData,
 }: {
   conclusion: GroupedJobStatus;
   groupName: string;
@@ -312,8 +339,14 @@ function GroupTooltip({
   queuedJobs: JobData[];
   failedPreviousRunJobs: JobData[];
   sha?: string;
+  isAutorevertSignal?: boolean;
+  jobs?: JobData[];
+  rowData?: RowData;
 }) {
   const [monsterFailures] = useContext(MonsterFailuresContext);
+
+  // Import isJobAutorevertSignal at the top of this component if needed
+  const { isJobAutorevertSignal } = require("lib/autorevertUtils");
 
   if (conclusion === GroupedJobStatus.Failure) {
     // Show monster icons in the tooltip if monsterFailures is enabled
@@ -355,16 +388,35 @@ function GroupTooltip({
                     : "1 job with this error type:"}
                 </span>
               </div>
-              {group.jobs.map((job: JobData, jobIndex: number) => (
-                <div
-                  key={jobIndex}
-                  style={{ marginLeft: "24px", marginTop: "4px" }}
-                >
-                  <a href={job.htmlUrl} target="_blank" rel="noreferrer">
-                    {job.name}
-                  </a>
-                </div>
-              ))}
+              {group.jobs.map((job: JobData, jobIndex: number) => {
+                const isAutorevert = rowData
+                  ? isJobAutorevertSignal(job, rowData)
+                  : false;
+                return (
+                  <div
+                    key={jobIndex}
+                    style={{ marginLeft: "24px", marginTop: "4px" }}
+                  >
+                    <a
+                      href={job.htmlUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{
+                        fontWeight: isAutorevert ? "bold" : "normal",
+                        color: isAutorevert ? "#d73a49" : undefined,
+                      }}
+                      title={
+                        isAutorevert
+                          ? "This job triggered an autorevert"
+                          : undefined
+                      }
+                    >
+                      {job.name}
+                      {isAutorevert && " ⚠️ (triggered autorevert)"}
+                    </a>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -377,6 +429,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={erroredJobs}
         message={"The following jobs errored out:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.Queued) {
@@ -386,6 +439,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={queuedJobs}
         message={"The following jobs are still in queue:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.Pending) {
@@ -395,6 +449,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={pendingJobs}
         message={"The following jobs are still pending:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.Flaky) {
@@ -404,6 +459,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={failedPreviousRunJobs}
         message={"The following jobs were flaky:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.AllNull) {
@@ -430,26 +486,42 @@ function ToolTip({
   groupName,
   message,
   jobs,
+  rowData,
 }: {
   conclusion: string;
   groupName: string;
   message: string;
   jobs: JobData[];
+  rowData?: RowData;
 }) {
+  // Import isJobAutorevertSignal at the top of this component if needed
+  const { isJobAutorevertSignal } = require("lib/autorevertUtils");
+
   return (
     <div>
       {`[${conclusion}] ${groupName}`}
       <div>{message}</div>
       {jobs.map((job, ind) => {
+        const isAutorevert = rowData
+          ? isJobAutorevertSignal(job, rowData)
+          : false;
         return (
           <a
             key={ind}
             href={job.htmlUrl}
             target="_blank"
             rel="noreferrer"
-            style={{ display: "block" }}
+            style={{
+              display: "block",
+              fontWeight: isAutorevert ? "bold" : "normal",
+              color: isAutorevert ? "#d73a49" : undefined,
+            }}
+            title={
+              isAutorevert ? "This job triggered an autorevert" : undefined
+            }
           >
             {job.name}
+            {isAutorevert && " ⚠️ (triggered autorevert)"}
           </a>
         );
       })}
