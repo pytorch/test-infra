@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { fetcherHandleError } from "./GeneralUtils";
 import {
   formatHudUrlForFetch,
   HudDataAPIResponse,
@@ -7,8 +8,6 @@ import {
   RowData,
 } from "./types";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
 export default function useHudData(params: HudParams): {
   data: RowData[] | undefined;
   isLoading: boolean;
@@ -16,7 +15,7 @@ export default function useHudData(params: HudParams): {
 } {
   let { data, isLoading, error } = useSWR<HudDataAPIResponse>(
     formatHudUrlForFetch("api/hud", { ...params }),
-    fetcher,
+    fetcherHandleError,
     {
       refreshInterval: 60 * 1000, // refresh every minute
       // Refresh even when the user isn't looking, so that switching to the tab

@@ -650,7 +650,11 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     return <LoadingPage />;
   }
   if (error) {
-    return <div>Error loading HUD data: {error.message}</div>;
+    return (
+      <div>
+        Error loading HUD data: {error.message} {error.status} {error.info}
+      </div>
+    );
   }
 
   if (data === undefined) {
