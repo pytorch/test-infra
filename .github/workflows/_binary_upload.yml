@@ -125,7 +125,7 @@ jobs:
 
            # set path to specific wheel-upload-path
           if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
-            PYTORCH_S3_BUCKET_PATH="s3://pytorch/${WHEEL_UPLOAD_PATH}"
+            PYTORCH_S3_BUCKET_PATH="s3://pytorch/${WHEEL_UPLOAD_PATH}/"
           fi
 
           for pkg in dist/*; do
