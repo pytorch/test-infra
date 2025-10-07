@@ -41,7 +41,10 @@ export function useBenchmark(
   )}`;
 
   return useSWR(url, fetcher, {
-    refreshInterval: 60 * 60 * 1000, // refresh every hour
+    refreshInterval: 4 * 60 * 60 * 1000, // refresh every 4 hour
+    onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+      if (retryCount >= 3) return;
+    },
   });
 }
 

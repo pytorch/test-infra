@@ -83,21 +83,20 @@ export default function RegressionReportTable({
     filterable: false,
     align: "center",
     renderCell: ({ row }) => {
-      console.log("row", row);
       const url = getNavigationRoute(
         report_id,
         row._raw?.group_info,
         row._raw?.baseline_point,
         row._raw?.points[row._raw?.points.length - 1]
       );
-      console.log("we are here", url);
 
       return (
         <Tooltip title="Navigate to main page">
           <IconButton
             onClick={(e) => {
               e.stopPropagation();
-              window.location.href = url; // full reload navigation
+              console.log("navigate to url", url);
+              window.location.href = url; // full reload navigation to avoid werid nextLink issue
             }}
           >
             <OpenInNewIcon fontSize="small" />
