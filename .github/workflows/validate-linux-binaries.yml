@@ -175,7 +175,7 @@ jobs:
         yum groupinstall -y "Development Tools"
         yum install -y python-devel
 
-        CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
+        CUDA_VERSION="13.0"
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
         export MATRIX_GPU_ARCH_VERSION="${CUDA_VERSION}"
 
