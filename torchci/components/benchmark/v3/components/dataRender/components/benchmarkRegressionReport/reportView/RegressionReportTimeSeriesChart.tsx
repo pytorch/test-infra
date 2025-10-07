@@ -51,12 +51,12 @@ export function ReportTimeSereisChartSection({
           />
         </Box>
         <Divider />
-          {enableIndicator && (
-            <>
+        {enableIndicator && (
+          <>
             <RegressionReportChartIndicatorsSection />
             <Divider />
-            </>
-            )}
+          </>
+        )}
 
         {!hidePolicy && (
           <Box>

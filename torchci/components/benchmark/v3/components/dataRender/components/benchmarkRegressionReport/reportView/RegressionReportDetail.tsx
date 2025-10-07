@@ -7,9 +7,9 @@ import {
   Typography,
 } from "@mui/material";
 import { useState } from "react";
+import { RegressionReportChartIndicatorsSection } from "../common";
 import RegressionReportTable from "./RegressionReportTable";
 import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
-import { RegressionReportChartIndicatorsSection } from "../common";
 const styles = {
   toggleSection: {
     display: "flex",
