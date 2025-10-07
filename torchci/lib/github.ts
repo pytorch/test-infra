@@ -15,10 +15,19 @@ export async function getOctokit(
     appId: process.env.APP_ID!,
     privateKey,
   });
-  const installation = await app.octokit.request(
-    "GET /repos/{owner}/{repo}/installation",
-    { owner, repo }
-  );
+
+  let installation;
+  try {
+    installation = await app.octokit.request(
+      "GET /repos/{owner}/{repo}/installation",
+      { owner, repo }
+    );
+  } catch (e) {
+    console.error(e);
+    throw new Error(
+      `Failed to get installation for repo ${owner}/${repo}. Is the app installed on this repo?`
+    );
+  }
 
   return new Octokit({
     authStrategy: createAppAuth,

@@ -1,4 +1,5 @@
 import useSWR from "swr";
+import { fetcherHandleError } from "./GeneralUtils";
 import {
   formatHudUrlForFetch,
   HudDataAPIResponse,
@@ -7,12 +8,14 @@ import {
   RowData,
 } from "./types";
 
-const fetcher = (url: string) => fetch(url).then((res) => res.json());
-
-export default function useHudData(params: HudParams): RowData[] | undefined {
-  let { data } = useSWR<HudDataAPIResponse>(
+export default function useHudData(params: HudParams): {
+  data: RowData[] | undefined;
+  isLoading: boolean;
+  error?: any;
+} {
+  let { data, isLoading, error } = useSWR<HudDataAPIResponse>(
     formatHudUrlForFetch("api/hud", { ...params }),
-    fetcher,
+    fetcherHandleError,
     {
       refreshInterval: 60 * 1000, // refresh every minute
       // Refresh even when the user isn't looking, so that switching to the tab
@@ -22,7 +25,7 @@ export default function useHudData(params: HudParams): RowData[] | undefined {
   );
 
   if (data === undefined) {
-    return data;
+    return { data, isLoading, error };
   }
 
   // Add job name info back into the data (it was stripped out as technically it's redundant)
@@ -44,5 +47,5 @@ export default function useHudData(params: HudParams): RowData[] | undefined {
     delete unCondensedRow.jobs;
     return unCondensedRow;
   });
-  return newShaGrid;
+  return { data: newShaGrid, isLoading, error };
 }
