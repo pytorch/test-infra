@@ -16,7 +16,7 @@ jobs:
     environment: pytorchbot-env
     strategy:
       matrix:
-        prefix: ["whl", "whl/test", "whl/nightly", "libtorch", "libtorch/nightly"]
+        prefix: ["whl", "whl/test", "whl/nightly", "libtorch", "libtorch/nightly", "whl/preview/forge"]
       fail-fast: False
     container:
       image: continuumio/miniconda3:23.10.0-1
