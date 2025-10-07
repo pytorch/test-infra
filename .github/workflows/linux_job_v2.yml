@@ -109,6 +109,11 @@ on:
         default: false
         type: boolean
 
+# Needed for ROCm-conditional steps that need to use OIDC
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   job:
     strategy:
