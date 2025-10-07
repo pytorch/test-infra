@@ -197,12 +197,15 @@ export default function HudGroupedCell({
     ? isGroupAutorevertSignal(jobs, rowData)
     : false;
 
-  let style = "";
+  // Build cell style classes
+  const cellClasses = [];
   if (pinnedId.name == groupName) {
-    style = hudStyles.highlight;
-  } else if (isAutorevertSignal) {
-    style = hudStyles.autorevertSignal;
+    cellClasses.push(hudStyles.highlight);
   }
+  if (isAutorevertSignal) {
+    cellClasses.push(hudStyles.autorevertSignal);
+  }
+  const style = cellClasses.join(" ");
 
   const erroredJobs = [];
   const warningOnlyJobs = [];

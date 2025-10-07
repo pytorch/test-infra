@@ -71,12 +71,16 @@ export function JobCell({
   isAutorevertSignal?: boolean;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  let cellStyle = "";
+
+  // Build cell style classes
+  const cellClasses = [];
   if (pinnedId.name == job.name) {
-    cellStyle = styles.highlight;
-  } else if (isAutorevertSignal) {
-    cellStyle = styles.autorevertSignal;
+    cellClasses.push(styles.highlight);
   }
+  if (isAutorevertSignal) {
+    cellClasses.push(styles.autorevertSignal);
+  }
+  const cellStyle = cellClasses.join(" ");
 
   return (
     <td
