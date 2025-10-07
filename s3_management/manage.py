@@ -40,6 +40,7 @@ PREFIXES = [
     "libtorch/nightly",
     "whl/test/variant",
     "whl/variant",
+    "whl/preview/forge",
 ]
 
 # NOTE: This refers to the name on the wheels themselves and not the name of
