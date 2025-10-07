@@ -1,3 +1,4 @@
+import datetime
 import json
 import os
 import urllib.request
@@ -8,52 +9,76 @@ HUD_URL_ROOT = "https://hud.pytorch.org/tests/fileReport"
 CONFIG: list[dict[str, Any]] = [
     {
         "team": "Inductor",
-        "condition": lambda info: info["labels"].includes("module: inductor"),
         "link": f"{HUD_URL_ROOT}?label=module:%20inductor",
     }
 ]
 
-TITLE = "New Test Report is Available for {module_name}"
-REASON = "A new test report has been generated for Team:{team}.  Please go to the following link to view the report: {report_url}"
-LABELS = ["area:alerting", "Pri:P3", "Source:custom"]
-
-
-def generate_notification(
-    module_name: str, team: str, report_url: str
-) -> dict[str, str]:
-    title = TITLE.format(module_name=module_name)
-    reason = REASON.format(team=team, report_url=report_url)
-    return {
-        # "title": title,
-        "body": reason,
-        # "labels": LABELS + [f"Team:{team}"],
-    }
-
-
-# Using a specific issue for the time being while the alerting system is set up
-# to handle custom webhooks
-GITHUB_ISSUE_URL = (
-    "https://api.github.com/repos/pytorch/test-infra/issues/7296/comments"
+TITLE = "New Test Report is Available for {team}"
+REASON = (
+    "A new test report has been generated for Team:{team}.  "
+    "Please go to the following link to view the report: {report_url}.  "
+    "This issue is a notification and should close immediately after creation to avoid clutter."
 )
 
 
-def create_comment(issue: dict[str, str]) -> dict[str, str]:
-    # Create issue in github repo
-    auth = {"Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}"}
-    data = json.dumps(issue).encode()
-    req = urllib.request.Request(
-        GITHUB_ISSUE_URL, data=data, headers=auth, method="POST"
+def generate_alert_json(
+    team: str,
+    report_url: str,
+) -> dict[str, Any]:
+    now = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+    return {
+        "schema_version": 1,
+        "source": "test-infra-test-file-reports",
+        "state": "FIRING",
+        "title": TITLE.format(team=team),
+        "description": REASON.format(team=team, report_url=report_url),
+        "summary": REASON.format(team=team, report_url=report_url),
+        "priority": "P2",
+        "occurred_at": now,
+        "teams": [team],
+        "identity": {"alarm_id": f"test-file-reports-weekly-notification-{team}-{now}"},
+        "links": {
+            "dashboard_url": report_url,
+        },
+    }
+
+
+def send_to_aws_alerting_lambda(alert: dict[str, Any]) -> None:
+    def _send(alert: dict[str, Any]) -> None:
+        data = json.dumps(alert).encode()
+        headers = {
+            "Content-Type": "application/json",
+            "x-test-reports-normalized-signature": os.environ[
+                "TEST_REPORT_AWS_LAMBDA_TOKEN"
+            ],
+        }
+        req = urllib.request.Request(
+            os.environ["AWS_INFRA_ALERTS_LAMBDA_URL"],
+            data=data,
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(req) as f:
+            response = f.read()
+            print(response)
+            return
+
+    _send(alert)
+
+    # Weird but the current setup doesn't handle notification style alerts very
+    # well, so we close it manually immediately
+    close_alert = alert.copy()
+    close_alert["state"] = "RESOLVED"
+    close_alert["occurred_at"] = datetime.datetime.now(datetime.timezone.utc).strftime(
+        "%Y-%m-%dT%H:%M:%S.%fZ"
     )
-    with urllib.request.urlopen(req) as f:
-        response = f.read()
-        print(f"Created issue: {response}")
-    return issue
+    _send(close_alert)
 
 
 if __name__ == "__main__":
     for config in CONFIG:
-        issue = generate_notification(
-            module_name=config["team"], team=config["team"], report_url=config["link"]
+        alert = generate_alert_json(
+            team=config["team"],
+            report_url=config["link"],
         )
-
-        create_comment(issue)
+        send_to_aws_alerting_lambda(alert)

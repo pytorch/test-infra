@@ -1,15 +1,16 @@
+import datetime
 import json
 from collections import defaultdict
 from functools import lru_cache
 from typing import Any
 
 from torchci.test_insights.file_report_generator import FileReportGenerator
-from torchci.test_insights.weekly_notification import create_comment
+from torchci.test_insights.weekly_notification import send_to_aws_alerting_lambda
 
 
 FILE_REPORT_URL = "https://hud.pytorch.org/tests/fileReport"
 
-CONFIG = [
+CONFIG: list[dict[str, Any]] = [
     {
         "team": "pytorch-dev-infra",
         "condition": lambda _: True,
@@ -170,6 +171,35 @@ class RegressionNotification:
             + f"\\# skipped change: {_get_change('skipped', additional_processing=lambda x: round(x, 2))}\n"
         )
 
+    def generate_alert_json(
+        self, team: str, report_url: str, regression_str: str
+    ) -> dict[str, Any]:
+        title = f"Regression Detected in Test Reports for {team}"
+        now = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%dT%H:%M:%S.%fZ"
+        )
+        body = (
+            f"{regression_str}\n"
+            "This issue is a notification and should close immediately after creation to avoid clutter."
+        )
+        return {
+            "schema_version": 1,
+            "source": "test-infra-test-file-reports",
+            "state": "FIRING",
+            "title": title,
+            "description": regression_str,
+            "summary": regression_str,
+            "priority": "P2",
+            "occurred_at": now,
+            "teams": [team],
+            "identity": {
+                "alarm_id": f"test-file-reports-daily-regression-{team}-{now}"
+            },
+            "links": {
+                "dashboard_url": report_url,
+            },
+        }
+
     def determine_regressions(self) -> None:
         """
         Determine regressions in the test data based on the provided filter.
@@ -208,7 +238,6 @@ class RegressionNotification:
             f"additional_info/weekly_file_report/data_{current_sha}.json.gz",
         )
 
-        regressions = []
         for team in CONFIG:
             change = self.gen_regression_for_team(
                 team=team,
@@ -217,19 +246,17 @@ class RegressionNotification:
                 status_changes=status_changes,
             )
             if self.filter_thresholds(change):
-                regressions.append(
-                    {
-                        "team": team["team"],
-                        "regression": change,
-                        "link": team["link"],
-                    }
+                print(f"Regression detected for team: {team['team']}")
+                print(self.format_regression_string(team, change))
+
+                alert = self.generate_alert_json(
+                    team=team["team"],
+                    report_url=team["link"],
+                    regression_str=self.format_regression_string(team, change),
                 )
-                create_comment(
-                    {
-                        # "title": f"Regression detected for {team['team']}",
-                        "body": self.format_regression_string(team, change),
-                    }
-                )
+                send_to_aws_alerting_lambda(alert)
+            else:
+                print(f"No significant regression for team: {team['team']}")
 
 
 if __name__ == "__main__":

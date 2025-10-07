@@ -40,6 +40,8 @@ jobs:
           CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
           CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
+          TEST_REPORT_AWS_LAMBDA_TOKEN: ${{ secrets.TEST_REPORT_AWS_LAMBDA_TOKEN }}
         run: |
           python3 tools/torchci/test_insights/daily_regression.py
 
@@ -60,6 +62,8 @@ jobs:
 
       - name: Run notifier
         env:
-            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
+          TEST_REPORT_AWS_LAMBDA_TOKEN: ${{ secrets.TEST_REPORT_AWS_LAMBDA_TOKEN }}
         run: |
           python3 tools/torchci/test_insights/weekly_notification.py
