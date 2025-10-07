@@ -34,7 +34,6 @@ export const echartRenderingOptions: echarts.EChartsOption = {
   },
   xAxis: {
     type: "time",
-    splitNumber: 3,
     axisLabel: {
       formatter: (v: number) => dayjs.utc(v).format("MM-DD HH:mm"),
     },

@@ -41,7 +41,7 @@ export const categories: BenchmarkCategoryGroup[] = [
           {
             label: "Regression Reports",
             type: "regression_report",
-            href: "/benchmark/regression/compiler_regression",
+            href: "/benchmark/regression/reports/compiler_regression",
           },
           {
             label: "Docs",

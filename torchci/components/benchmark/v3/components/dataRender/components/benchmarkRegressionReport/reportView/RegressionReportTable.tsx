@@ -96,11 +96,12 @@ export default function RegressionReportTable({
       return (
         <Tooltip title="Navigate to main page">
           <IconButton
-            component={Link}
-            href={url}
-            prefetch={false}
-            size="small"
-            onClick={(e) => e.stopPropagation()} // prevent triggering row click
+            onClick={
+              (e) => {
+                e.stopPropagation()
+                window.location.href = url;  // full reload navigation
+              }
+            }
           >
             <OpenInNewIcon fontSize="small" />
           </IconButton>
@@ -210,12 +211,12 @@ function getNavigationRoute(
   const branch = baseline.branch;
 
   const params = {
+    rcommit: rcommit,
+    lcommit: lcommit,
     time: time,
     filters: fields,
     lbranch: branch,
     rbranch: branch,
-    rcommit: rcommit,
-    lcommit: lcommit,
   };
 
   const finalRoute = formUrlWithParams(route, params);
