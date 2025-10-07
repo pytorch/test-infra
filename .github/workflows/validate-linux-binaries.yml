@@ -170,10 +170,11 @@ jobs:
       timeout: 180
       script: |
         set -ex
-        python3 -m ensurepip --upgrade
+        
         # install Dev Tools and python-devel to test torch.compile
         yum groupinstall -y "Development Tools"
         yum install -y python3.11 python3.11-devel
+        python3.11 -m ensurepip --upgrade
         python3.11 --version
 
         CUDA_VERSION="13.0"
