@@ -108,7 +108,7 @@ function ReportTimeSeriesChartBucketList({
       <Grid container spacing={1}>
         {metricItemList.map((item, i) => {
           return (
-            <Grid size={{ xs: 12, lg: 4 }}>
+            <Grid size={{ xs: 12, lg: 4 }} key={i}>
               <ReportTimeSereisChartSection
                 item={item}
                 subtitle={`${subtitle}[${i}]`}
