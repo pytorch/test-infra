@@ -7,8 +7,8 @@ import {
 } from "@mui/material";
 
 import { Typography } from "@mui/material";
-import { RawTimeSeriesPoint } from "../dataRender/components/benchmarkTimeSeries/helper";
 import { resolveComponent } from "../../configs/utils/configComponentRegistration";
+import { RawTimeSeriesPoint } from "../dataRender/components/benchmarkTimeSeries/helper";
 
 export interface TimeSeriesChartDialogContentProps {
   left: RawTimeSeriesPoint | null;
