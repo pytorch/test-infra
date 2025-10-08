@@ -324,8 +324,6 @@ function GroupTooltip({
   queuedJobs,
   failedPreviousRunJobs,
   sha,
-  isAutorevertSignal,
-  jobs,
   rowData,
 }: {
   conclusion: GroupedJobStatus;
@@ -335,8 +333,6 @@ function GroupTooltip({
   queuedJobs: JobData[];
   failedPreviousRunJobs: JobData[];
   sha?: string;
-  isAutorevertSignal?: boolean;
-  jobs?: JobData[];
   rowData?: RowData;
 }) {
   const [monsterFailures] = useContext(MonsterFailuresContext);
@@ -397,10 +393,9 @@ function GroupTooltip({
                       href={job.htmlUrl}
                       target="_blank"
                       rel="noreferrer"
-                      style={{
-                        fontWeight: isAutorevert ? "bold" : "normal",
-                        color: isAutorevert ? "#d73a49" : undefined,
-                      }}
+                      className={
+                        isAutorevert ? styles.autorevert_banner : undefined
+                      }
                     >
                       {job.name}
                       {isAutorevert && " ⚠️ (triggered autorevert)"}
@@ -485,7 +480,6 @@ function ToolTip({
   jobs: JobData[];
   rowData?: RowData;
 }) {
-  // Import isJobAutorevertSignal at the top of this component if needed
   const { isJobAutorevertSignal } = require("lib/autorevertUtils");
 
   return (
@@ -502,11 +496,7 @@ function ToolTip({
             href={job.htmlUrl}
             target="_blank"
             rel="noreferrer"
-            style={{
-              display: "block",
-              fontWeight: isAutorevert ? "bold" : "normal",
-              color: isAutorevert ? "#d73a49" : undefined,
-            }}
+            className={isAutorevert ? styles.autorevert_banner : undefined}
           >
             {job.name}
             {isAutorevert && " ⚠️ (triggered autorevert)"}
