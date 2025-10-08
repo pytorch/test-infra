@@ -12,6 +12,8 @@ import {
 } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
+import dayjs from "dayjs";
+
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
@@ -50,10 +52,8 @@ export async function getCompilerCommits(inputparams: any): Promise<any[]> {
   const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   queryParams["arch"] = arch_list;
 
-  const commit_results = await queryClickhouseSaved(
-    COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-    queryParams
-  );
+  const {data: commit_results, is_sampled }= await getCommitsWithSampling(COMPILER_BENCHMARK_COMMITS_TABLE_NAME,queryParams);
+
   return commit_results;
 }
 
@@ -75,11 +75,9 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
       return [];
     }
 
-    // get commits from clickhouse
-    const commit_results = await queryClickhouseSaved(
-      COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-      queryParams
-    );
+    // get commits from clickhouse, if queryParams has samping config, use it
+    const {data: commit_results}= await getCommitsWithSampling(COMPILER_BENCHMARK_COMMITS_TABLE_NAME,queryParams);
+
     // get unique commits
     const unique_commits = [...new Set(commit_results.map((c) => c.commit))];
     if (unique_commits.length === 0) {
@@ -150,4 +148,54 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     });
   }
   return rows;
+}
+
+function subsampleCommitsByDate(data: any[], maxCount: number|undefined) {
+  if(!maxCount) return {data, is_sampled: false}
+
+  if (data.length <= maxCount) return {
+    data,
+    is_sampled: false
+  }
+  // Sort by date ascending
+  const sorted = [...data].sort((a, b) =>
+    dayjs(a.date).diff(dayjs(b.date))
+  );
+
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  // Subsample the middle points evenly
+  const step = (sorted.length - 2) / (maxCount - 2);
+  const sampled = [first];
+
+  for (let i = 1; i < maxCount - 1; i++) {
+    const idx = Math.round(i * step);
+    sampled.push(sorted[idx]);
+  }
+  sampled.push(last);
+  return{
+    data,
+    is_sampled: true
+  }
+}
+
+async function getCommitsWithSampling(tableName:string, queryParams:any){
+  const commit_results = await queryClickhouseSaved(
+    tableName,
+    queryParams
+  );
+
+  let maxCount = undefined;
+
+  // if subsampling is specified, use it
+  if(queryParams.subsampling){
+    maxCount = queryParams.subsampling.max;
+    return subsampleCommitsByDate(commit_results, maxCount);
+  }
+
+  return {
+    data: commit_results,
+    is_sampled: false
+  }
 }

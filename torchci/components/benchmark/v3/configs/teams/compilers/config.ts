@@ -155,7 +155,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
     },
     query_params: {
       type: "converter",
-      id: "compilerDataRenderConverter",
+      id: "compilerQueryParameterConverter",
     },
   },
   dataRender: {
