@@ -87,7 +87,13 @@ export function JobCell({
       <TooltipTarget
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
-        tooltipContent={<JobTooltip job={job} sha={pinnedId.sha || sha} />}
+        tooltipContent={
+          <JobTooltip
+            job={job}
+            sha={pinnedId.sha || sha}
+            isAutorevertSignal={isAutorevertSignal}
+          />
+        }
         sha={sha as string}
         name={job.name as string}
       >
@@ -271,10 +277,10 @@ function HudJobCells({
             <JobCell
               sha={rowData.sha}
               key={name}
-              job={job ?? { name: name, conclusion: undefined }}
+              job={job ?? { name: name }}
               unstableIssues={unstableIssues}
               isAutorevertSignal={isJobAutorevertSignal(
-                job ?? { name: name },
+                job ?? { name: name, conclusion: undefined },
                 rowData
               )}
             />

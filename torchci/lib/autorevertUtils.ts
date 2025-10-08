@@ -48,13 +48,7 @@ export function isJobAutorevertSignal(
       .toLowerCase()
       .split("/")
       .map((p) => p.trim());
-    const ret = jobNameOnly.every((p, idx) => p == signalLower[idx]);
-
-    if (ret) {
-      console.log(jobNameOnly, rowData.autorevertSignals, job);
-    }
-
-    return ret;
+    return jobNameOnly.every((p, idx) => p == signalLower[idx]);
   });
 }
 

@@ -392,7 +392,9 @@ function GroupTooltip({
                       target="_blank"
                       rel="noreferrer"
                       className={
-                        isAutorevert ? styles.autorevert_banner : undefined
+                        isAutorevert
+                          ? styles.autorevert_tooltip_anchor
+                          : undefined
                       }
                     >
                       {job.name}
@@ -494,7 +496,9 @@ function ToolTip({
             href={job.htmlUrl}
             target="_blank"
             rel="noreferrer"
-            className={isAutorevert ? styles.autorevert_banner : undefined}
+            className={
+              isAutorevert ? styles.autorevert_tooltip_anchor : undefined
+            }
           >
             {job.name}
             {isAutorevert && " ⚠️ (triggered autorevert)"}
