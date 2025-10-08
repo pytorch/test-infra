@@ -271,18 +271,18 @@ function HudJobCells({
             />
           );
         } else {
-          const job = rowData.nameToJobs.get(name);
+          const job = rowData.nameToJobs.get(name) ?? {
+            name: name,
+            conclusion: undefined,
+          };
 
           return (
             <JobCell
               sha={rowData.sha}
               key={name}
-              job={job ?? { name: name }}
+              job={job}
               unstableIssues={unstableIssues}
-              isAutorevertSignal={isJobAutorevertSignal(
-                job ?? { name: name, conclusion: undefined },
-                rowData
-              )}
+              isAutorevertSignal={isJobAutorevertSignal(job, rowData)}
             />
           );
         }

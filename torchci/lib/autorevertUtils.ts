@@ -48,7 +48,7 @@ export function isJobAutorevertSignal(
       .toLowerCase()
       .split("/")
       .map((p) => p.trim());
-    return jobNameOnly.every((p, idx) => p == signalLower[idx]);
+    return jobNameOnly.every((p, idx) => p === signalLower[idx]);
   });
 }
 

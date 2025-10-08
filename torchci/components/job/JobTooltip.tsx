@@ -29,8 +29,7 @@ export default function JobTooltip({
       {`[${job.conclusion}] ${job.name}`}
       {isAutorevertSignal && (
         <div style={{ color: "red", fontWeight: "bold" }}>
-          This job has been identified as introducing regressions and have been
-          flagged for autorevert.
+          Failure in this job has triggered autorevert.
         </div>
       )}
       <div>

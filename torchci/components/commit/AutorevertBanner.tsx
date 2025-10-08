@@ -29,7 +29,7 @@ export function AutorevertBanner({
   repoName: string;
   sha: string;
 }) {
-  const { data: autorevertData, error } = useSWR<AutorevertDetails>(
+  const { data: autorevertData } = useSWR<AutorevertDetails>(
     `/api/autorevert/${repoOwner}/${repoName}/${sha}`,
     async (url) => {
       try {
@@ -86,8 +86,6 @@ export function AutorevertBanner({
 
     const signal = {
       key: signalKey,
-      // Since we don't have job IDs in the table, we can't create direct job links
-      job_url: undefined,
       // Try to create a HUD URL using the signal key as a filter
       hud_url: signalKey
         ? `/hud/${repoOwner}/${repoName}/main?nameFilter=${encodeURIComponent(

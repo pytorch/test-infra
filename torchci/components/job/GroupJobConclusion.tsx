@@ -1,5 +1,8 @@
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
-import { isGroupAutorevertSignal } from "lib/autorevertUtils";
+import {
+  isGroupAutorevertSignal,
+  isJobAutorevertSignal,
+} from "lib/autorevertUtils";
 import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import {
   isCancellationSuccessJob,
@@ -335,9 +338,6 @@ function GroupTooltip({
 }) {
   const [monsterFailures] = useContext(MonsterFailuresContext);
 
-  // Import isJobAutorevertSignal at the top of this component if needed
-  const { isJobAutorevertSignal } = require("lib/autorevertUtils");
-
   if (conclusion === GroupedJobStatus.Failure) {
     // Show monster icons in the tooltip if monsterFailures is enabled
     if (monsterFailures) {
@@ -480,8 +480,6 @@ function ToolTip({
   jobs: JobData[];
   rowData?: RowData;
 }) {
-  const { isJobAutorevertSignal } = require("lib/autorevertUtils");
-
   return (
     <div>
       {`[${conclusion}] ${groupName}`}

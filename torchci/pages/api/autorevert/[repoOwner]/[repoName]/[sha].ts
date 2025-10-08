@@ -33,10 +33,6 @@ export default async function handler(
         commit_sha: results[0].commit_sha,
         workflows: allWorkflows,
         source_signal_keys: allSignalKeys,
-        // These fields don't exist in the table, so we'll use empty arrays
-        job_ids: [],
-        job_base_names: [],
-        wf_run_ids: [],
       };
 
       res.status(200).json(response);
