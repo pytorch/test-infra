@@ -257,9 +257,7 @@ export default function HudGroupedCell({
 
   return (
     <>
-      <td
-        className={style}
-      >
+      <td className={style}>
         <TooltipTarget
           sha={sha}
           name={groupName}

@@ -65,9 +65,6 @@ export function AutorevertBanner({
   // Handle case where arrays might be undefined or have different structure
   const workflows = autorevertData.workflows || [];
   const sourceSignalKeys = autorevertData.source_signal_keys || [];
-  const jobIds = autorevertData.job_ids || [];
-  const wfRunIds = autorevertData.wf_run_ids || [];
-  const jobBaseNames = autorevertData.job_base_names || [];
 
   // If no workflows data, don't show the banner
   if (!workflows.length) {

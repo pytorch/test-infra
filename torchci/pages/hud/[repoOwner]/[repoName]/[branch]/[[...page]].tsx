@@ -83,9 +83,7 @@ export function JobCell({
   const cellStyle = cellClasses.join(" ");
 
   return (
-    <td
-      onDoubleClick={() => window.open(job.htmlUrl)}
-    >
+    <td onDoubleClick={() => window.open(job.htmlUrl)}>
       <TooltipTarget
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
@@ -142,10 +140,7 @@ function HudRow({
   }
 
   return (
-    <tr
-      className={rowStyle}
-      onClick={(e) => clickCommit(e)}
-    >
+    <tr className={rowStyle} onClick={(e) => clickCommit(e)}>
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>
