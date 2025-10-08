@@ -85,20 +85,18 @@ The bot supports these primary commands:
 
 ### CI Integration Bots
 
-8. **triggerCircleCIWorkflows** - CircleCI pipeline integration
-9. **triggerInductorTestsBot** - PyTorch Inductor test triggering
-10. **verifyDisableTestIssueBot** - Test disabling authorization
+8. **verifyDisableTestIssueBot** - Test disabling authorization
 
 ### Security & Review Bots
 
-11. **stripApprovalBot** - Removes approvals on PR reopen
-12. **codevNoWritePermBot** - Notifies about permission requirements
-13. **drciBot** - Dr. CI dashboard integration
+9. **stripApprovalBot** - Removes approvals on PR reopen
+10. **codevNoWritePermBot** - Notifies about permission requirements
+11. **drciBot** - Dr. CI dashboard integration
 
 ### Infrastructure Bots
 
-14. **webhookToDynamo** - Event logging to DynamoDB
-15. **pytorchbotLogger** - Bot action logging
+12. **webhookToDynamo** - Event logging to DynamoDB
+13. **pytorchbotLogger** - Bot action logging
 
 ## Detailed Bot Analysis
 
