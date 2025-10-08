@@ -1,8 +1,11 @@
 import dayjs, { Dayjs } from "dayjs";
 import { TimeRange } from "lib/benchmark/store/benchmark_regression_store";
 import DefaultMetricsDropdowns from "../../components/benchmarkSideBar/components/DefaultSideBarMetricsDropdowns";
-import { NotFoundComponent, resolveComponent } from "../configRegistration";
 import { compilerQueryParameterConverter } from "../teams/compilers/config";
+import {
+  NotFoundComponent,
+  resolveComponent,
+} from "./configComponentRegistration";
 
 export type DataBindingConfig = {
   initial: BenchmarkUiParameters;
