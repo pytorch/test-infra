@@ -62,7 +62,7 @@ function checkRegressionReportNotification(
   }
 
   // get latest report from response
-  const report = resp.reports[2] as BenchmarkRegressionReport;
+  const report = resp.reports[0] as BenchmarkRegressionReport;
   const createdDate = dayjs(report?.created_at);
   const now = dayjs();
 
