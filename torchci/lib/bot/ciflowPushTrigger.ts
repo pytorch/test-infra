@@ -9,7 +9,7 @@ import {
 } from "./utils";
 
 function isCIFlowLabel(label: string): boolean {
-  return label.startsWith("ciflow/") || label.startsWith("ci/");
+  return label.startsWith("ciflow/");
 }
 
 function labelToTag(label: string, prNum: number): string {
@@ -164,15 +164,6 @@ async function handleLabelEvent(
   const valid_labels: Array<string> =
     config !== null ? config["ciflow_push_tags"] : null;
   if (valid_labels == null) {
-    await context.octokit.issues.createComment(
-      context.repo({
-        body:
-          "No ciflow labels are configured for this repo.\n" +
-          "For information on how to enable CIFlow bot see " +
-          "this [wiki]( https://github.com/pytorch/test-infra/wiki/PyTorch-bot#ciflow-bot)",
-        issue_number: payload.pull_request.number,
-      })
-    );
     return;
   }
   const prNum = payload.pull_request.number;
