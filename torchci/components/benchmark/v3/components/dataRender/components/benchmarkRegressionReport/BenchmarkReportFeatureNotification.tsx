@@ -44,9 +44,9 @@ export function BenchmarkReportFeatureNotification({
     <FloatingIcon
       report_id={report_id}
       id={info.id}
-      type={info.type}
+      label={info.label}
       content={info.content}
-      badgeContent={info.badgeContent}
+      render={info.render}
       enable={info.enable}
     />
   );
@@ -62,7 +62,7 @@ function checkRegressionReportNotification(
   }
 
   // get latest report from response
-  const report = resp.reports[0] as BenchmarkRegressionReport;
+  const report = resp.reports[2] as BenchmarkRegressionReport;
   const createdDate = dayjs(report?.created_at);
   const now = dayjs();
 
@@ -76,9 +76,10 @@ function checkRegressionReportNotification(
     // return warning notification color icon
     return {
       ...defaultRes,
-      content: `Warning: we haven't detected the report generated in x days, lastest report is generated at ${createdDate.toLocaleString()}`,
-      type: "warning",
-      badgeContent: "undetected",
+      content: `Warning: we haven't detected the report generated in more than ${durationReportMissingReport} days,
+      lastest report is generated at ${createdDate.toLocaleString()}, please contact dev infra for more details`,
+      render: "warning",
+      label: "outdated",
       enable: true,
     };
   }
@@ -87,10 +88,10 @@ function checkRegressionReportNotification(
     // return regression notification color icon
     return {
       ...defaultRes,
-      type: "error",
+      render: "error",
       enable: true,
-      content: `We found Regression detected in latest report, please click this alert for more details`,
-      badgeContent: "Regression",
+      content: `Potential regression found in latest report, please click this alert for more details`,
+      label: "regression",
       id: report.id,
       report_id,
     };
@@ -99,11 +100,11 @@ function checkRegressionReportNotification(
   if (report.status === "suspicious") {
     return {
       ...defaultRes,
-      type: "warning",
+      render: "warning",
       enable: true,
       id: report.id,
-      badgeContent: "Suspicious",
-      content: `We found Suspicious detected in latest report, please check it for more details`,
+      label: "suspicious",
+      content: ` Suspicious items found in latest report, please check it for more details`,
       report_id,
     };
   }
@@ -114,21 +115,21 @@ function checkRegressionReportNotification(
 export function FloatingIcon({
   report_id,
   id,
-  type = "default",
+  render = "default",
   content = "",
-  badgeContent = "",
+  label = "",
   enable = false,
 }: {
   report_id?: string;
   id?: string;
-  type?: string;
+  render?: string;
   content?: string;
-  badgeContent?: string;
+  label?: string;
   enable?: boolean;
 }) {
   let color = "default";
-  if (type) {
-    color = BenchmarkNotificationColor[type] ?? "default";
+  if (render) {
+    color = BenchmarkNotificationColor[render] ?? "default";
   }
 
   if (!enable) {
@@ -137,17 +138,25 @@ export function FloatingIcon({
 
   return (
     <>
-      <BenchmarkReportFeatureSidePanel
-        id={id}
-        type="detail"
-        buttonComponent={
-          <RegressionNotificationButton
-            color={color}
-            content={content}
-            badgeContent={badgeContent}
-          />
-        }
-      />
+      {label === "outdated" ? (
+        <RegressionNotificationButton
+          color={color}
+          content={content}
+          badgeContent={label}
+        />
+      ) : (
+        <BenchmarkReportFeatureSidePanel
+          id={id}
+          type="detail"
+          buttonComponent={
+            <RegressionNotificationButton
+              color={color}
+              content={content}
+              badgeContent={label}
+            />
+          }
+        />
+      )}
     </>
   );
 }
@@ -156,7 +165,7 @@ function RegressionNotificationButton({
   color,
   content,
   badgeContent = "",
-  onClick,
+  onClick = () => {},
 }: {
   color: string;
   content: string;
@@ -175,7 +184,6 @@ function RegressionNotificationButton({
             },
           }}
           overlap="circular"
-          badgeContent={"!"}
         >
           <IconButton sx={{ color }}>
             <RiNotification2Fill />
