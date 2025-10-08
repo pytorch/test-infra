@@ -130,8 +130,8 @@ class TestRow:
     file: str
     classname: str
     name: str
-    failing: int  # 0/1
-    errored: int  # 0/1
+    failure_runs: int  # count of failed test runs
+    success_runs: int  # count of successful test runs
 
     @property
     def test_id(self) -> TestId:

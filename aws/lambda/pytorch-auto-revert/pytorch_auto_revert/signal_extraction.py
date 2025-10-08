@@ -29,8 +29,8 @@ from .signal_extraction_types import (
 
 @dataclass(frozen=True)
 class TestOutcome:
-    failing: bool
-    errored: bool
+    failure_runs: int  # count of failed test runs
+    success_runs: int  # count of successful test runs
     started_at: datetime
     job_id: int
 
@@ -107,9 +107,11 @@ class SignalExtractor:
             new_commits: List[SignalCommit] = []
             for c in s.commits:
                 filtered: List[SignalEvent] = []
-                prev_key: Optional[Tuple[datetime, int]] = None
+                # Include status in the key so we can retain both a FAILURE and
+                # a SUCCESS emitted at the same (started_at, wf_run_id)
+                prev_key: Optional[Tuple[datetime, int, SignalStatus]] = None
                 for e in c.events:  # already sorted by (started_at, wf_run_id)
-                    key = (e.started_at, e.wf_run_id)
+                    key = (e.started_at, e.wf_run_id, e.status)
                     if key == prev_key:
                         continue
                     filtered.append(e)
@@ -259,7 +261,8 @@ class SignalExtractor:
         which base(s) (by normalized job name) a test appears in. For each commit and (workflow, base),
         we compute attempt metadata (pending/completed, start time). Then, for tests that failed at least once in
         that base, we emit events per commit/attempt:
-          - If test_run_s3 rows exist → FAILURE if any failing/errored else SUCCESS
+          - If test_run_s3 rows exist → emit at most one FAILURE event if any failed runs exist,
+            and at most one SUCCESS event if any successful runs exist (both may be present).
           - Else if group pending → PENDING
           - Else → no event (missing)
 
@@ -290,7 +293,8 @@ class SignalExtractor:
             value_fn=lambda j: (j.wf_run_id, j.run_attempt),
         )
 
-        # Index test_run_s3 rows per (commit, job_base, wf_run, attempt, test_id) and collect base-scoped failing tests
+        # Index test_run_s3 rows per (commit, job_base, wf_run, attempt, test_id)
+        # Store aggregated failure/success counts
         tests_by_group_attempt: Dict[
             Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt, TestId],
             TestOutcome,
@@ -309,24 +313,14 @@ class SignalExtractor:
                 tr.workflow_run_attempt,
                 tr.test_id,
             )
-            prev = tests_by_group_attempt.get(key)
-            started_at = min(
-                (prev.started_at if prev else job.started_at), job.started_at
-            )
-            # Use job_id from the first failing test, or current job_id
-            use_job_id = (
-                prev.job_id
-                if prev and (prev.failing or prev.errored)
-                else int(tr.job_id)
-            )
             outcome = TestOutcome(
-                failing=(prev.failing if prev else False) or bool(tr.failing),
-                errored=(prev.errored if prev else False) or bool(tr.errored),
-                started_at=started_at,
-                job_id=use_job_id,
+                failure_runs=tr.failure_runs,
+                success_runs=tr.success_runs,
+                started_at=job.started_at,
+                job_id=int(tr.job_id),
             )
             tests_by_group_attempt[key] = outcome
-            if outcome.failing or outcome.errored:
+            if outcome.failure_runs > 0:
                 failing_tests_by_job_base_name.add(
                     (job.workflow_name, job_base_name, tr.test_id)
                 )
@@ -354,7 +348,7 @@ class SignalExtractor:
                     if meta.is_cancelled:
                         # canceled attempts are treated as missing
                         continue
-                    verdict = tests_by_group_attempt.get(
+                    outcome = tests_by_group_attempt.get(
                         (
                             commit_sha,
                             wf_name,
@@ -378,17 +372,26 @@ class SignalExtractor:
                         "run_attempt": int(run_attempt),
                     }
 
-                    if verdict:
-                        events.append(
-                            SignalEvent(
-                                status=SignalStatus.FAILURE
-                                if (verdict.failing or verdict.errored)
-                                else SignalStatus.SUCCESS,
-                                started_at=verdict.started_at,
-                                job_id=verdict.job_id,
-                                **event_common,
+                    if outcome:
+                        # Emit at most one FAILURE and one SUCCESS per attempt
+                        if outcome.failure_runs > 0:
+                            events.append(
+                                SignalEvent(
+                                    status=SignalStatus.FAILURE,
+                                    started_at=outcome.started_at,
+                                    job_id=outcome.job_id,
+                                    **event_common,
+                                )
                             )
-                        )
+                        if outcome.success_runs > 0:
+                            events.append(
+                                SignalEvent(
+                                    status=SignalStatus.SUCCESS,
+                                    started_at=outcome.started_at,
+                                    job_id=outcome.job_id,
+                                    **event_common,
+                                )
+                            )
                     elif meta.is_pending:
                         events.append(
                             SignalEvent(
