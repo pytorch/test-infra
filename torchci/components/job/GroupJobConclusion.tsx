@@ -272,8 +272,6 @@ export default function HudGroupedCell({
               queuedJobs={queuedJobs}
               failedPreviousRunJobs={failedPreviousRunJobs}
               sha={sha}
-              isAutorevertSignal={isAutorevertSignal}
-              jobs={jobs}
               rowData={rowData}
             />
           }

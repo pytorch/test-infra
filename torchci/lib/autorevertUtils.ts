@@ -7,55 +7,54 @@ import { JobData, RowData } from "./types";
  * @returns true if the job triggered an autorevert, false otherwise
  */
 export function isJobAutorevertSignal(
-  job: JobData | { name: string },
+  job: JobData | { name: string; conclusion?: string },
   rowData: RowData
 ): boolean {
   if (!rowData.autorevertWorkflows || !rowData.autorevertSignals) {
     return false;
   }
 
+  if (job.conclusion?.toLowerCase() !== "failure") {
+    return false;
+  }
+
+  const lowAutorevertWorkflows = rowData.autorevertWorkflows.map((w) =>
+    w.toLowerCase()
+  );
+
   const jobFullName = job.name;
   if (!jobFullName) {
     return false;
   }
 
-  // Extract workflow name and job name from full name (format is "Workflow / Job Name")
-  const parts = jobFullName.split(" / ");
+  const parts = jobFullName
+    .toLocaleLowerCase()
+    .split("/")
+    .map((p) =>
+      p
+        .trim()
+        .replace(/ \(.*\)$/, "")
+        .trim()
+    );
   const jobWorkflow = parts[0];
-  const jobNameOnly = parts.slice(1).join(" / "); // Handle cases with multiple '/'
+  const jobNameOnly = parts.slice(1);
 
-  // Check if this job's workflow is in the list of workflows that triggered autorevert
-  if (!rowData.autorevertWorkflows.includes(jobWorkflow)) {
+  if (!lowAutorevertWorkflows.includes(jobWorkflow)) {
     return false;
   }
 
-  // Check if this specific job is mentioned in the signals
   return rowData.autorevertSignals.some((signal) => {
-    // Signal key is either a test name or a job base name
-    // For jobs like "Lint / lintrunner-noclang / linux-job", the base name
-    // might be "lintrunner-noclang / linux-job" or just "lintrunner-noclang"
+    const signalLower = signal
+      .toLowerCase()
+      .split("/")
+      .map((p) => p.trim());
+    const ret = jobNameOnly.every((p, idx) => p == signalLower[idx]);
 
-    // Normalize for comparison
-    const signalLower = signal.toLowerCase().trim();
-    const jobNameLower = jobNameOnly.toLowerCase().trim();
-
-    // Check exact match first
-    if (signalLower === jobNameLower) {
-      return true;
+    if (ret) {
+      console.log(jobNameOnly, rowData.autorevertSignals, job);
     }
 
-    // Check if the signal matches the job name without shard suffix
-    // (e.g., "lintrunner-noclang" matches "lintrunner-noclang / linux-job")
-    const jobBaseParts = jobNameLower.split(" / ");
-    if (jobBaseParts.length > 1) {
-      const jobBaseOnly = jobBaseParts[0];
-      if (signalLower === jobBaseOnly) {
-        return true;
-      }
-    }
-
-    // Also try matching if signal is the complete job name
-    return jobNameLower === signalLower;
+    return ret;
   });
 }
 
