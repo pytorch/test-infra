@@ -150,8 +150,8 @@ Format:
 
 ```yaml
 ciflow_push_tags:
-- ciflow/trunk
-- ciflow/foo
+  - ciflow/trunk
+  - ciflow/foo
 ```
 
 ### 5. triggerCircleCIWorkflows.ts
