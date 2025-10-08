@@ -259,11 +259,6 @@ export default function HudGroupedCell({
     <>
       <td
         className={style}
-        title={
-          isAutorevertSignal
-            ? "This group contains jobs that triggered an autorevert"
-            : undefined
-        }
       >
         <TooltipTarget
           sha={sha}
@@ -408,11 +403,6 @@ function GroupTooltip({
                         fontWeight: isAutorevert ? "bold" : "normal",
                         color: isAutorevert ? "#d73a49" : undefined,
                       }}
-                      title={
-                        isAutorevert
-                          ? "This job triggered an autorevert"
-                          : undefined
-                      }
                     >
                       {job.name}
                       {isAutorevert && " ⚠️ (triggered autorevert)"}
@@ -519,9 +509,6 @@ function ToolTip({
               fontWeight: isAutorevert ? "bold" : "normal",
               color: isAutorevert ? "#d73a49" : undefined,
             }}
-            title={
-              isAutorevert ? "This job triggered an autorevert" : undefined
-            }
           >
             {job.name}
             {isAutorevert && " ⚠️ (triggered autorevert)"}

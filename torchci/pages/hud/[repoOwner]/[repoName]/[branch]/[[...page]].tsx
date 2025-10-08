@@ -85,9 +85,6 @@ export function JobCell({
   return (
     <td
       onDoubleClick={() => window.open(job.htmlUrl)}
-      title={
-        isAutorevertSignal ? "This job triggered an autorevert" : undefined
-      }
     >
       <TooltipTarget
         pinnedId={pinnedId}
@@ -148,9 +145,6 @@ function HudRow({
     <tr
       className={rowStyle}
       onClick={(e) => clickCommit(e)}
-      title={
-        rowData.isAutoreverted ? "This commit was autoreverted" : undefined
-      }
     >
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
