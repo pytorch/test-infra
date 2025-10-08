@@ -117,12 +117,13 @@ export default function RegressionReportTable({
       <DataGrid
         rows={rows}
         columns={columns}
-        disableRowSelectionOnClick
+        disableRowSelectionOnClick={enableSidePanel}
         onRowClick={(params) => handleRowClick(params)}
         sx={{
           cursor: "pointer",
           "& .MuiDataGrid-row": {
-            color: (theme) => theme.palette.primary.main,
+            color: (theme) =>
+              enableSidePanel ? theme.palette.primary.main : "default",
           },
           "& .MuiDataGrid-row:hover": {
             backgroundColor: (theme) => theme.palette.action.hover,

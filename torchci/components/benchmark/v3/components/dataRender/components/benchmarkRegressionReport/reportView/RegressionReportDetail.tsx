@@ -22,10 +22,12 @@ const styles = {
 export function RegressionReportDetail({
   report,
   enableTableSidePanel = true,
+  chartSizeSx = { xs: 12, lg: 4 },
 }: {
   report: any | null | undefined;
   showRaw?: boolean;
   enableTableSidePanel?: boolean;
+  chartSizeSx?: any;
 }) {
   const [view, setView] = useState<"chart" | "table">("table");
   if (!report) {
@@ -63,12 +65,14 @@ export function RegressionReportDetail({
             title={`Regressions (${details.regression.length})`}
             subtitle="regression"
             metricItemList={details.regression}
+            sizeSx={chartSizeSx}
           />
           <ReportTimeSeriesChartBucketList
             report_id={report_id}
             title={`Suspicious (${details.suspicious.length})`}
             subtitle="suspicious"
             metricItemList={details.suspicious}
+            sizeSx={chartSizeSx}
           />
         </Box>
       ) : (
@@ -96,11 +100,13 @@ function ReportTimeSeriesChartBucketList({
   metricItemList,
   subtitle = "",
   report_id,
+  sizeSx = { xs: 12, lg: 4 },
 }: {
   title: string;
   subtitle?: string;
   metricItemList: any[];
   report_id: string;
+  sizeSx?: any;
 }) {
   return (
     <Box>
@@ -110,7 +116,7 @@ function ReportTimeSeriesChartBucketList({
       <Grid container spacing={1}>
         {metricItemList.map((item, i) => {
           return (
-            <Grid size={{ xs: 12, lg: 4 }} key={i}>
+            <Grid size={sizeSx} key={i}>
               <ReportTimeSereisChartSection
                 data={item}
                 subtitle={`${subtitle}[${i}]`}

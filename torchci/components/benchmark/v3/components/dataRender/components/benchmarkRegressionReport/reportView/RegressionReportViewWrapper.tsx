@@ -8,9 +8,11 @@ import { RegressionReportDetail } from "./RegressionReportDetail";
 export function BenchmarkRegressionReportWrapper({
   id,
   enableTableSidePanel,
+  chartSizeSx,
 }: {
   id: string;
   enableTableSidePanel?: boolean;
+  chartSizeSx?: any;
 }) {
   // initial load
   const { data, isLoading, error } = useGetBenchmarkRegressionReportData(
@@ -31,6 +33,7 @@ export function BenchmarkRegressionReportWrapper({
       <RegressionReportDetail
         report={data}
         enableTableSidePanel={enableTableSidePanel}
+        chartSizeSx={chartSizeSx}
       />
     </Box>
   );

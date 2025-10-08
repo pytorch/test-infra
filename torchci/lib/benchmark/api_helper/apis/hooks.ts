@@ -52,10 +52,11 @@ export function useBenchmarkData(
 
 export function useListBenchmarkRegressionReportsData(
   report_id: string,
-  limit: number = 10
+  limit: number = 10,
+  refreshInterval: number = 12 * 60 * 60 * 1000 // refresh every 12 hour by default
 ): any {
   return useApi(listBenchmarkRegressionReport, [report_id, limit], {
-    refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hour
+    refreshInterval: refreshInterval, // refresh every 12 hour
     revalidateOnFocus: false,
   });
 }
