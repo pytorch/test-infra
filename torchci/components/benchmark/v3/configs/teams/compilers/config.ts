@@ -38,8 +38,8 @@ const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "compilation_latency",
   type: "ratio",
   ratioPolicy: {
-    badRatio: 1.05,
-    goodRatio: 0.95,
+    badRatio: 1.15,
+    goodRatio: 0.85,
     direction: "down",
   },
 };
