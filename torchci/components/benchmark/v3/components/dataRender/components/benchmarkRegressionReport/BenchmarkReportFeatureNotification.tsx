@@ -22,7 +22,7 @@ export function BenchmarkReportFeatureNotification({
 }) {
   const { data, isLoading, error } = useListBenchmarkRegressionReportsData(
     report_id,
-    3,
+    4,
     refresh_interval
   );
 
@@ -76,8 +76,11 @@ function checkRegressionReportNotification(
     // return warning notification color icon
     return {
       ...defaultRes,
-      content: `Warning: we haven't detected the report generated in more than ${durationReportMissingReport} days,
-      lastest report is generated at ${createdDate.toLocaleString()}, please contact dev infra for more details`,
+      content: `No new regression report detected for ${now.diff(
+        createdDate,
+        "days"
+      )} days. Last generated on ${createdDate.toLocaleString()}.
+      Contact Pytorch Dev Infra if it's not expected.`,
       render: "warning",
       label: "outdated",
       enable: true,
@@ -90,7 +93,7 @@ function checkRegressionReportNotification(
       ...defaultRes,
       render: "error",
       enable: true,
-      content: `Potential regression found in latest report, please click this alert for more details`,
+      content: `Potential regression detected — click for details.`,
       label: "regression",
       id: report.id,
       report_id,
@@ -104,7 +107,7 @@ function checkRegressionReportNotification(
       enable: true,
       id: report.id,
       label: "suspicious",
-      content: ` Suspicious items found in latest report, please check it for more details`,
+      content: `Suspicious items detected in the latest report — click for details.`,
       report_id,
     };
   }
