@@ -1,3 +1,4 @@
+import { AutorevertBanner } from "components/commit/AutorevertBanner";
 import { CommitInfo } from "components/commit/CommitInfo";
 import { useSetTitle } from "components/layout/DynamicTitle";
 import { useRouter } from "next/router";
@@ -24,12 +25,19 @@ export default function Page() {
         {fancyName} Commit: <code>{sha}</code>
       </h1>
       {sha !== undefined && (
-        <CommitInfo
-          repoOwner={repoOwner as string}
-          repoName={repoName as string}
-          sha={sha as string}
-          isCommitPage={true}
-        />
+        <>
+          <AutorevertBanner
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            sha={sha as string}
+          />
+          <CommitInfo
+            repoOwner={repoOwner as string}
+            repoName={repoName as string}
+            sha={sha as string}
+            isCommitPage={true}
+          />
+        </>
       )}
     </div>
   );

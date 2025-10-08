@@ -15,6 +15,7 @@ import JobConclusion from "components/job/JobConclusion";
 import JobFilterInput from "components/job/JobFilterInput";
 import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
+import { isJobAutorevertSignal } from "lib/autorevertUtils";
 import { fetcher } from "lib/GeneralUtils";
 import {
   getGroupingData,
@@ -62,23 +63,41 @@ export function JobCell({
   sha,
   job,
   unstableIssues,
+  isAutorevertSignal,
 }: {
   sha: string;
   job: JobData;
   unstableIssues: IssueData[];
+  isAutorevertSignal?: boolean;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.name == job.name ? styles.highlight : "";
+
+  // Build cell style classes
+  const cellClasses = [];
+  if (pinnedId.name == job.name) {
+    cellClasses.push(styles.highlight);
+  }
+  if (isAutorevertSignal) {
+    cellClasses.push(styles.autorevertSignal);
+  }
+  const cellStyle = cellClasses.join(" ");
+
   return (
     <td onDoubleClick={() => window.open(job.htmlUrl)}>
       <TooltipTarget
         pinnedId={pinnedId}
         setPinnedId={setPinnedId}
-        tooltipContent={<JobTooltip job={job} sha={pinnedId.sha || sha} />}
+        tooltipContent={
+          <JobTooltip
+            job={job}
+            sha={pinnedId.sha || sha}
+            isAutorevertSignal={isAutorevertSignal}
+          />
+        }
         sha={sha as string}
         name={job.name as string}
       >
-        <div className={`${styles.center} ${style}`}>
+        <div className={`${styles.center} ${cellStyle}`}>
           <JobConclusion
             conclusion={job.conclusion}
             failedPreviousRun={job.failedPreviousRun}
@@ -110,7 +129,13 @@ function HudRow({
   const sha = rowData.sha;
 
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
-  const style = pinnedId.sha == sha ? styles.highlight : "";
+
+  let rowStyle = "";
+  if (pinnedId.sha == sha) {
+    rowStyle = styles.highlight;
+  } else if (rowData.isAutoreverted) {
+    rowStyle = styles.autoreverted;
+  }
 
   function clickCommit(e: React.MouseEvent) {
     if (pinnedId.name !== undefined || pinnedId.sha !== undefined) {
@@ -121,7 +146,7 @@ function HudRow({
   }
 
   return (
-    <tr className={style} onClick={(e) => clickCommit(e)}>
+    <tr className={rowStyle} onClick={(e) => clickCommit(e)}>
       <td className={styles.jobMetadata}>
         <LocalTimeHuman timestamp={rowData.time} />
       </td>
@@ -242,16 +267,22 @@ function HudJobCells({
                 numClassified != 0 && numClassified == failedJobs?.length
               }
               unstableIssues={unstableIssues}
+              rowData={rowData}
             />
           );
         } else {
-          const job = rowData.nameToJobs.get(name);
+          const job = rowData.nameToJobs.get(name) ?? {
+            name: name,
+            conclusion: undefined,
+          };
+
           return (
             <JobCell
               sha={rowData.sha}
               key={name}
-              job={job ?? { name: name, conclusion: undefined }}
+              job={job}
               unstableIssues={unstableIssues}
+              isAutorevertSignal={isJobAutorevertSignal(job, rowData)}
             />
           );
         }
