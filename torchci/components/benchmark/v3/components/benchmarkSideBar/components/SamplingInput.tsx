@@ -1,6 +1,6 @@
 import TextField from "@mui/material/TextField";
 import { MIN_SAMPLING_THRESHOLD } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 type MaxSamplingInputProps = {
   value: number;

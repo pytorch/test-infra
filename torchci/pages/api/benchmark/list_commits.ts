@@ -63,9 +63,7 @@ export default async function handler(
 
     console.log(
       "[API]list commits, response data: all_branches ",
-      all_branches.length,
-      " result: ",
-      result
+      all_branches.length
     );
 
     return res.status(200).json({
