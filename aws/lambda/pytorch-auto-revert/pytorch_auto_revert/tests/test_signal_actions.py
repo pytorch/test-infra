@@ -15,6 +15,72 @@ from pytorch_auto_revert.utils import RestartAction, RevertAction
 # flake8: noqa
 
 
+# ------------------------------
+# Test helpers (to avoid duplication)
+# ------------------------------
+
+
+def setup_gh_mocks(
+    mock_gh_factory, *, pr_number: int = 12345, state: str | None = None, labels=None
+):
+    """Set up common GitHub mocks and return (mock_pr, mock_issue).
+
+    - Configures GHClientFactory().client.get_repo().get_issue() to return a mock issue
+    - Creates a mock PR object with provided number/state/labels
+    """
+    if labels is None:
+        labels = []
+
+    mock_pr = Mock()
+    mock_pr.number = pr_number
+    if state is not None:
+        mock_pr.state = state
+    mock_pr.labels = labels
+    mock_pr.get_labels.return_value = labels
+
+    mock_issue = Mock()
+    mock_repo = Mock()
+    mock_repo.get_issue.return_value = mock_issue
+    mock_client = Mock()
+    mock_client.get_repo.return_value = mock_repo
+    mock_gh_factory.return_value.client = mock_client
+
+    return mock_pr, mock_issue
+
+
+def make_ctx(*, revert_action, restart_action=RestartAction.SKIP):
+    return RunContext(
+        ts=datetime.now(timezone.utc),
+        notify_issue_number=123456,
+        repo_full_name="pytorch/pytorch",
+        workflows=["trunk"],
+        lookback_hours=24,
+        revert_action=revert_action,
+        restart_action=restart_action,
+    )
+
+
+def make_source(
+    *,
+    workflow_name: str = "trunk",
+    key: str = "test_signal",
+    job_base_name: str | None = "linux-jammy / test",
+    wf_run_id: int | None = 12345,
+    job_id: int | None = 67890,
+):
+    return SignalMetadata(
+        workflow_name=workflow_name,
+        key=key,
+        job_base_name=job_base_name,
+        wf_run_id=wf_run_id,
+        job_id=job_id,
+    )
+
+
+def set_find_pr_to_merge(proc: SignalActionProcessor, pr):
+    proc._find_pr_by_sha = Mock(return_value=(CommitPRSourceAction.MERGE, pr))
+
+
 class FakeLogger:
     def __init__(self):
         self._recent = []
@@ -251,31 +317,10 @@ class TestCommentIssueRevert(unittest.TestCase):
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
     def test_comment_with_job_and_hud_links(self, mock_gh_factory):
         """Test that comment includes job link and HUD link when available."""
-        # Mock PR and issue
-        mock_pr = Mock()
-        mock_pr.number = 12345
-        mock_pr.get_labels.return_value = []
+        mock_pr, mock_issue = setup_gh_mocks(mock_gh_factory, pr_number=12345)
+        set_find_pr_to_merge(self.proc, mock_pr)
 
-        mock_issue = Mock()
-        mock_repo = Mock()
-        mock_repo.get_issue.return_value = mock_issue
-        mock_client = Mock()
-        mock_client.get_repo.return_value = mock_repo
-        mock_gh_factory.return_value.client = mock_client
-
-        self.proc._find_pr_by_sha = Mock(
-            return_value=(CommitPRSourceAction.MERGE, mock_pr)
-        )
-
-        sources = [
-            SignalMetadata(
-                workflow_name="trunk",
-                key="test_signal",
-                job_base_name="linux-jammy / test",
-                wf_run_id=12345,
-                job_id=67890,
-            )
-        ]
+        sources = [make_source()]
 
         result = self.proc._comment_issue_pr_revert("abc123", sources, self.ctx)
 
@@ -294,31 +339,10 @@ class TestCommentIssueRevert(unittest.TestCase):
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
     def test_comment_with_job_without_hud_links(self, mock_gh_factory):
         """Test that comment includes job link but without HUD link."""
-        # Mock PR and issue
-        mock_pr = Mock()
-        mock_pr.number = 12345
-        mock_pr.get_labels.return_value = []
+        mock_pr, mock_issue = setup_gh_mocks(mock_gh_factory, pr_number=12345)
+        set_find_pr_to_merge(self.proc, mock_pr)
 
-        mock_issue = Mock()
-        mock_repo = Mock()
-        mock_repo.get_issue.return_value = mock_issue
-        mock_client = Mock()
-        mock_client.get_repo.return_value = mock_repo
-        mock_gh_factory.return_value.client = mock_client
-
-        self.proc._find_pr_by_sha = Mock(
-            return_value=(CommitPRSourceAction.MERGE, mock_pr)
-        )
-
-        sources = [
-            SignalMetadata(
-                workflow_name="trunk",
-                key="test_signal",
-                job_base_name=None,
-                wf_run_id=12345,
-                job_id=67890,
-            )
-        ]
+        sources = [make_source(job_base_name=None)]
 
         result = self.proc._comment_issue_pr_revert("abc123", sources, self.ctx)
 
@@ -337,30 +361,10 @@ class TestCommentIssueRevert(unittest.TestCase):
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
     def test_comment_without_job_info(self, mock_gh_factory):
         """Test that comment works without job_id/wf_run_id."""
-        mock_pr = Mock()
-        mock_pr.number = 12345
-        mock_pr.get_labels.return_value = []
+        mock_pr, mock_issue = setup_gh_mocks(mock_gh_factory, pr_number=12345)
+        set_find_pr_to_merge(self.proc, mock_pr)
 
-        mock_issue = Mock()
-        mock_repo = Mock()
-        mock_repo.get_issue.return_value = mock_issue
-        mock_client = Mock()
-        mock_client.get_repo.return_value = mock_repo
-        mock_gh_factory.return_value.client = mock_client
-
-        self.proc._find_pr_by_sha = Mock(
-            return_value=(CommitPRSourceAction.MERGE, mock_pr)
-        )
-
-        sources = [
-            SignalMetadata(
-                workflow_name="trunk",
-                key="test_signal",
-                job_base_name="linux-jammy / test",
-                wf_run_id=None,
-                job_id=None,
-            )
-        ]
+        sources = [make_source(wf_run_id=None, job_id=None)]
 
         result = self.proc._comment_issue_pr_revert("abc123", sources, self.ctx)
 
@@ -381,43 +385,15 @@ class TestCommentIssueRevert(unittest.TestCase):
         """Test that revert is not requested when autorevert is disabled."""
         mock_label = Mock()
         mock_label.name = "autorevert: disable"
-
-        mock_pr = Mock()
-        mock_pr.number = 12345
-        mock_pr.labels = [mock_label]
-        mock_pr.get_labels.return_value = [mock_label]
-
-        mock_issue = Mock()
-        mock_repo = Mock()
-        mock_repo.get_issue.return_value = mock_issue
-        mock_client = Mock()
-        mock_client.get_repo.return_value = mock_repo
-        mock_gh_factory.return_value.client = mock_client
-
-        self.proc._find_pr_by_sha = Mock(
-            return_value=(CommitPRSourceAction.MERGE, mock_pr)
+        mock_pr, mock_issue = setup_gh_mocks(
+            mock_gh_factory, pr_number=12345, labels=[mock_label]
         )
+        set_find_pr_to_merge(self.proc, mock_pr)
 
         # Use RUN_REVERT to test the disable logic
-        ctx = RunContext(
-            ts=datetime.now(timezone.utc),
-            notify_issue_number=123456,
-            repo_full_name="pytorch/pytorch",
-            workflows=["trunk"],
-            lookback_hours=24,
-            revert_action=RevertAction.RUN_REVERT,
-            restart_action=RestartAction.SKIP,
-        )
+        ctx = make_ctx(revert_action=RevertAction.RUN_REVERT)
 
-        sources = [
-            SignalMetadata(
-                workflow_name="trunk",
-                key="test_signal",
-                job_base_name="linux-jammy / test",
-                wf_run_id=12345,
-                job_id=67890,
-            )
-        ]
+        sources = [make_source()]
 
         result = self.proc._comment_issue_pr_revert("abc123", sources, ctx)
 
@@ -431,39 +407,38 @@ class TestCommentIssueRevert(unittest.TestCase):
         mock_issue.create_comment.assert_called_once()
 
     @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
+    def test_comment_pr_open_fallback(self, mock_gh_factory):
+        """When PR is open, do not request revert; just notify."""
+        mock_pr, mock_issue = setup_gh_mocks(
+            mock_gh_factory, pr_number=98765, state="open"
+        )
+        # Find PR by sha returns Merge action type, but PR is open; fallback to notify
+        set_find_pr_to_merge(self.proc, mock_pr)
+
+        # Use RUN_REVERT to ensure the code path would try a revert absent the open-state check
+        ctx = make_ctx(revert_action=RevertAction.RUN_REVERT)
+
+        sources = [make_source()]
+
+        result = self.proc._comment_issue_pr_revert("abc123", sources, ctx)
+
+        # Should not request pytorchbot revert when PR is open
+        mock_pr.create_issue_comment.assert_not_called()
+        # Should still post a notification comment
+        mock_issue.create_comment.assert_called_once()
+        # Return False because RUN_REVERT was requested but we fell back to notify-only
+        self.assertFalse(result)
+
+    @patch("pytorch_auto_revert.signal_actions.GHClientFactory")
     def test_comment_multiple_workflows(self, mock_gh_factory):
         """Test that comment groups signals by workflow."""
-        mock_pr = Mock()
-        mock_pr.number = 12345
-        mock_pr.get_labels.return_value = []
-
-        mock_issue = Mock()
-        mock_repo = Mock()
-        mock_repo.get_issue.return_value = mock_issue
-        mock_client = Mock()
-        mock_client.get_repo.return_value = mock_repo
-        mock_gh_factory.return_value.client = mock_client
-
-        self.proc._find_pr_by_sha = Mock(
-            return_value=(CommitPRSourceAction.MERGE, mock_pr)
-        )
+        mock_pr, mock_issue = setup_gh_mocks(mock_gh_factory, pr_number=12345)
+        set_find_pr_to_merge(self.proc, mock_pr)
 
         sources = [
-            SignalMetadata(
-                workflow_name="trunk",
-                key="test_signal_1",
-                job_base_name="linux-jammy / test",
-                wf_run_id=12345,
-                job_id=67890,
-            ),
-            SignalMetadata(
-                workflow_name="trunk",
-                key="test_signal_2",
-                job_base_name="linux-jammy / test",
-                wf_run_id=12345,
-                job_id=67890,
-            ),
-            SignalMetadata(
+            make_source(key="test_signal_1"),
+            make_source(key="test_signal_2"),
+            make_source(
                 workflow_name="inductor",
                 key="test_inductor",
                 job_base_name="linux-jammy / inductor",
