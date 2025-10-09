@@ -68,13 +68,6 @@ export function useGetBenchmarkRegressionReportData(id: string): any {
   });
 }
 
-export function useGetBenchmarkRegressionReportData(id: string): any {
-  return useApi(getBenchmarkRegressionReport, [id], {
-    refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hour
-    revalidateOnFocus: false,
-  });
-}
-
 /**
  * Generic SWR hook that derives the cache key from the function name + args.
  * You can pass an `enabled` flag (like react-query) to disable fetching until ready.
