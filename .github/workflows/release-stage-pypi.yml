@@ -71,25 +71,25 @@ jobs:
             }
 
             # Init release versions variables
-            source ./release_versions.sh
+            source ../release_versions.sh
 
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
 
             if [[ ${PACKAGE} == 'torchaudio' || ${PACKAGE} == 'torchvision' ]]; then
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${version}"
+              PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging ${PACKAGE}  "${version}"
+              PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging ${PACKAGE}  "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging ${PACKAGE}  "${version}"
+              PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging ${PACKAGE}  "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging ${PACKAGE}  "${version}"
+              PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging ${PACKAGE}  "${!version}"
             fi
 
             if [[ ${PACKAGE} == 'torchao' ]]; then
               # shellcheck disable=SC2086
-              PLATFORM="none-any" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging ${PACKAGE} "${version}"
+              PLATFORM="none-any" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging ${PACKAGE} "${!version}"
               # shellcheck disable=SC2086
-              PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${version}"
+              PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${!version}"
             fi
