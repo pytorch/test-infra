@@ -42,6 +42,7 @@ export function SideBarMainSection() {
     rcommit: s.rcommit,
     lbranch: s.committedLbranch,
     rbranch: s.committedRbranch,
+    maxSampling: s.committedMaxSampling,
   }));
 
   // sync the url with the store
@@ -207,6 +208,7 @@ export function SideBarMainSection() {
             rbranch: committedRbranch,
             rcommit: rcommit,
             lcommit: lcommit,
+            maxSampling: committedMaxSampling,
           }}
         />
       </Stack>

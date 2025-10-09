@@ -58,6 +58,7 @@ export interface BenchmarkDashboardState {
     rcommit?: BenchmarkCommitMeta | null;
     lbranch?: string;
     rbranch?: string;
+    maxSampling?: number;
   }) => void;
 
   hydrateFromUrl: (initial: {
@@ -68,6 +69,7 @@ export interface BenchmarkDashboardState {
     rcommit?: BenchmarkCommitMeta | null;
     lbranch?: string;
     rbranch?: string;
+    maxSampling?: number;
   }) => void;
 
   reset: (initial: {
@@ -167,6 +169,8 @@ export function createDashboardStore(initial: {
       }),
 
     update: (next) => {
+      console.log("update next", next)
+
       set((s) => ({
         // important to keep the benchmarkId as original if not specified
         benchmarkId: next.benchmarkId ?? s.benchmarkId,
@@ -175,11 +179,13 @@ export function createDashboardStore(initial: {
         stagedFilters: next.filters ?? s.stagedFilters,
         stagedLbranch: next.lbranch ?? s.stagedLbranch ?? "",
         stagedRbranch: next.rbranch ?? s.stagedRbranch ?? "",
+        stagedMaxSampling: next.maxSampling ?? s.stagedMaxSampling,
         // committed mirrors staged on first load
         committedTime: next.time ?? s.committedTime,
         committedFilters: next.filters ?? s.committedFilters,
         committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
         committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
+        committedMaxSampling: next.maxSampling ?? s.committedMaxSampling,
         lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
         rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
       }));
@@ -193,6 +199,7 @@ export function createDashboardStore(initial: {
       rbranch,
       lcommit,
       rcommit,
+      maxSampling,
     }) => {
       let timeRange = undefined;
       if (time?.end && time?.start) {
@@ -209,6 +216,7 @@ export function createDashboardStore(initial: {
         rbranch,
         lcommit,
         rcommit,
+        maxSampling,
       });
     },
   }));
