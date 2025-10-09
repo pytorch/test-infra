@@ -13,7 +13,9 @@ import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_pr
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
+import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./BranchDropdown";
+import { MaxSamplingInput } from "./SamplingInput";
 import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
@@ -64,16 +66,19 @@ export function SideBarMainSection() {
     stagedFilters,
     stagedLbranch,
     stagedRbranch,
+    stagedMaxSampling,
     setStagedTime,
     setStagedLBranch,
     setStagedRBranch,
-
+    setStagedMaxSampling,
     lcommit,
     rcommit,
     committedTime,
     committedFilters,
     committedLbranch,
     committedRbranch,
+    committedMaxSampling,
+    enableSamplingSetting,
     commitMainOptions,
     revertMainOptions,
   } = useDashboardSelector((s) => ({
@@ -81,14 +86,20 @@ export function SideBarMainSection() {
     stagedFilters: s.stagedFilters,
     stagedLbranch: s.stagedLbranch,
     stagedRbranch: s.stagedRbranch,
+    stagedMaxSampling: s.stagedMaxSampling,
+
     setStagedTime: s.setStagedTime,
     setStagedLBranch: s.setStagedLbranch,
     setStagedRBranch: s.setStagedRbranch,
+    setStagedMaxSampling: s.setStagedMaxSampling,
 
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
     committedLbranch: s.committedLbranch,
     committedRbranch: s.committedRbranch,
+    committedMaxSampling: s.committedMaxSampling,
+
+    enableSamplingSetting: s.enableSamplingSetting,
     lcommit: s.lcommit,
     rcommit: s.rcommit,
 
@@ -102,6 +113,7 @@ export function SideBarMainSection() {
   const ready =
     !!stagedTime?.start &&
     !!stagedTime?.end &&
+    (enableSamplingSetting ? !!stagedMaxSampling : true) &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
   const params = BenchmarkUIConfigBook.instance
@@ -109,7 +121,9 @@ export function SideBarMainSection() {
     ?.toQueryParams({
       timeRange: stagedTime,
       filters: stagedFilters,
+      maxSampling: stagedMaxSampling,
     } as QueryParameterConverterInputs);
+
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);
   }
@@ -123,6 +137,8 @@ export function SideBarMainSection() {
   } = useBenchmarkCommitsData(benchmarkId, queryParams);
 
   const branches = commitsData?.metadata?.branches ?? [];
+  const is_samplied = commitsData?.metadata?.is_samplied ?? false;
+  const sampling_info = commitsData?.metadata?.sampling_info;
 
   // update staged branches option if they are not in the list
   useEffect(() => {
@@ -142,11 +158,14 @@ export function SideBarMainSection() {
   }, [branches]);
 
   const DropdownComp = dataBinding?.getFilterOptionComponent();
+
+  // indicates if the user has made changes to the options
   const dirty =
     stagedTime.start.valueOf() !== committedTime.start.valueOf() ||
     stagedTime.end.valueOf() !== committedTime.end.valueOf() ||
     stagedLbranch !== committedLbranch ||
     stagedRbranch !== committedRbranch ||
+    stagedMaxSampling !== committedMaxSampling ||
     JSON.stringify(stagedFilters) !== JSON.stringify(committedFilters);
 
   // indicates no branches found based on the time range and options
@@ -154,6 +173,7 @@ export function SideBarMainSection() {
 
   const disableApply = !dirty || noData || isCommitsLoading;
 
+  const showSamplinginfo = is_samplied && !isCommitsLoading;
   return (
     <Stack spacing={2} sx={styles.root}>
       <Stack direction="row" alignItems="center" spacing={0}>
@@ -180,6 +200,22 @@ export function SideBarMainSection() {
         gap={0}
       />
       <Divider />
+      {/* Fetch Settings */}
+      <Typography variant="subtitle2">Fetch Settings</Typography>
+      {enableSamplingSetting && stagedMaxSampling && (
+        <MaxSamplingInput
+          value={stagedMaxSampling}
+          onChange={setStagedMaxSampling}
+        />
+      )}
+      {showSamplinginfo && (
+        <DenseAlert severity="info">
+          {`Data Sampling: subsample from ${sampling_info?.origin ?? 0} to ${
+            sampling_info?.result ?? 0
+          }`}
+        </DenseAlert>
+      )}
+      <Divider />
       {/* Dropdown filters */}
       <Typography variant="subtitle2">Filters</Typography>
       <Stack spacing={1.5}>
@@ -195,6 +231,7 @@ export function SideBarMainSection() {
           branchOptions={branches}
         />
       )}
+      {/* Apply / Revert */}
       <Typography
         variant="body2"
         color="text.secondary"
@@ -203,8 +240,6 @@ export function SideBarMainSection() {
       >
         Click apply to submit your changes
       </Typography>
-
-      {/* Apply / Revert */}
       <Stack direction="row" spacing={1}>
         <UMDenseButtonLight
           variant="outlined"

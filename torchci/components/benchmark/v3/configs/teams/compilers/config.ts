@@ -137,6 +137,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   },
   lbranch: "main",
   rbranch: "main",
+  maxSampling: 110, // max number of job run results to show in the table, this avoid out of memory issue
 };
 
 // main config for the compiler benchmark regression page
@@ -155,7 +156,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
     },
     query_params: {
       type: "converter",
-      id: "compilerDataRenderConverter",
+      id: "compilerQueryParameterConverter",
     },
   },
   dataRender: {
