@@ -62,6 +62,16 @@ runner_types:
     instance_type: c7i.24xlarge
     is_ephemeral: true
     os: linux
+  lf.linux.2xlarge.amx:
+    disk_size: 200
+    instance_type: m7i-flex.2xlarge
+    is_ephemeral: true
+    os: linux
+  lf.linux.4xlarge.amx:
+    disk_size: 200
+    instance_type: m7i-flex.4xlarge
+    is_ephemeral: true
+    os: linux
   lf.linux.8xlarge.amx:
     disk_size: 200
     instance_type: m7i-flex.8xlarge
@@ -70,6 +80,16 @@ runner_types:
   lf.linux.12xlarge:
     disk_size: 200
     instance_type: c5.12xlarge
+    is_ephemeral: true
+    os: linux
+  lf.linux.2xlarge.avx2:
+    disk_size: 200
+    instance_type: m4.2xlarge
+    is_ephemeral: true
+    os: linux
+  lf.linux.4xlarge.avx2:
+    disk_size: 200
+    instance_type: m4.4xlarge
     is_ephemeral: true
     os: linux
   lf.linux.10xlarge.avx2:

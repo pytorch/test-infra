@@ -23,6 +23,7 @@ export type DataRenderOption = {
   type: string;
   api?: any;
   id?: string; // id of the component to render, this is used when type is 'component'
+  sideRender?: { [key: string]: UIRenderConfig }; // this used to render side content, such as regression report access
   renders?: UIRenderConfig[]; // this is used when type is predefined type such as 'default-fanout'
 };
 
@@ -128,4 +129,17 @@ export function getBenchmarkBook(): BenchmarkUIConfigBook {
 
 export function getConfig(id: string): BenchmarkUI {
   return BenchmarkUIConfigBook.instance.getConfigInstance(id);
+}
+
+const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
+  compiler_regression: "compiler_inductor",
+};
+
+/**
+ * A helper function to get benchmark id from report id
+ * @param reportId
+ * @returns
+ */
+export function getBenchmarkIdFromReportId(reportId: string): string {
+  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? "";
 }

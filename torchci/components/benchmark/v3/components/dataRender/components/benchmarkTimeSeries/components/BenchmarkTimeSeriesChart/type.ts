@@ -6,6 +6,10 @@ export type RawTimeSeriesPoint = {
   branch?: string;
   name?: string;
   metric?: string;
+  render_option?: {
+    highlight?: boolean;
+    color?: string;
+  };
 };
 
 export type BenchmarkTimeSeriesInput = {

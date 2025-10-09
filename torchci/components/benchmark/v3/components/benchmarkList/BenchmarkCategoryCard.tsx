@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Box } from "@mui/system";
+import { wrap } from "module";
 import Link from "next/link";
 import ReactMarkdown from "react-markdown";
 
@@ -39,11 +40,13 @@ const styles = {
 // ============================
 export interface BenchmarkLinkItem {
   name: string;
+  id?: string;
   route: string;
   description?: string;
   info?: string;
   keys?: string[];
   actions?: {
+    type?: string;
     label: string;
     onClick?: () => void;
     href?: string;

@@ -90,6 +90,9 @@ export interface Highlight {
 interface RowDataBase extends CommitData {
   isForcedMerge: boolean | false;
   isForcedMergeWithFailures: boolean | false;
+  isAutoreverted: boolean | false;
+  autorevertWorkflows?: string[];
+  autorevertSignals?: string[];
 }
 
 export interface RowData extends RowDataBase {

@@ -304,7 +304,7 @@ describe("Push trigger integration tests", () => {
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
-  test("Unconfigured CIFlow label creates comment", async () => {
+  test("Unconfigured CIFlow label does nothing", async () => {
     const payload = require("./fixtures/push-trigger/pull_request.labeled");
     payload.pull_request.state = "open";
 
@@ -322,14 +322,7 @@ describe("Push trigger integration tests", () => {
           ".github/pytorch-probot.yml"
         )}`
       )
-      .reply(404, { message: "There is nothing here" })
-      .post("/repos/suo/actions-test/issues/5/comments", (body) => {
-        expect(body.body).toContain(
-          "No ciflow labels are configured for this repo."
-        );
-        return true;
-      })
-      .reply(200);
+      .reply(404, { message: "There is nothing here" });
     await probot.receive({ name: "pull_request", id: "123", payload });
   });
 
