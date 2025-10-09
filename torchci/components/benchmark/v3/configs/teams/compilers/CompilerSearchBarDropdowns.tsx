@@ -45,7 +45,7 @@ export function CompilerSearchBarDropdowns() {
         label="Device"
       />
       <UMDenseDropdown
-        dtype={stagedFilters.suite ?? ""}
+        dtype={stagedFilters.suite ?? "all"}
         setDType={(val: string) => setStagedFilter("suite", val)}
         dtypes={["all", ...Object.keys(SUITES)]}
         label="Suite"

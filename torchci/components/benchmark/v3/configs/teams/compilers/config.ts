@@ -102,7 +102,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
   const f = i.filters;
   const suiteList = getSuites(f.suite);
   const compilerList = getCompilers(f.compiler);
-  return {
+  const params = {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
     compilers: compilerList,
@@ -115,6 +115,8 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     stopTime: dayjs.utc(i.timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
     suites: suiteList,
   };
+  console.log("params", params);
+  return params;
 };
 
 function getCompilers(compiler: string | undefined | null) {
@@ -131,6 +133,7 @@ function getCompilers(compiler: string | undefined | null) {
 }
 
 function getSuites(suite: string | undefined | null) {
+  console.log("suite", suite);
   // indicates fetch all suites
   if (!suite) {
     return Object.keys(SUITES);

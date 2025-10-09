@@ -1,4 +1,7 @@
+import DoneIcon from "@mui/icons-material/Done";
+import { IconButton } from "@mui/material";
 import TextField from "@mui/material/TextField";
+import { Stack } from "@mui/system";
 import { MIN_SAMPLING_THRESHOLD } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
 import { useEffect, useState } from "react";
 
@@ -68,19 +71,30 @@ export function MaxSamplingInput({
     }
   };
   return (
-    <TextField
-      size="small"
-      label={label}
-      value={raw}
-      sx={styles.root}
-      onChange={(e) => {
-        setRaw(e.target.value);
-        setError("");
-      }}
-      onBlur={commit}
-      onKeyDown={onKeyDown}
-      error={!!error}
-      helperText={error || info}
-    />
+    <Stack direction="row" spacing={1} alignItems="flex-start" flexGrow={1}>
+      <TextField
+        size="small"
+        label={label}
+        value={raw}
+        sx={styles.root}
+        onChange={(e) => {
+          setRaw(e.target.value);
+          setError("");
+        }}
+        onBlur={commit}
+        onKeyDown={onKeyDown}
+        error={!!error}
+        helperText={error || info}
+      />
+      <IconButton
+        color="primary"
+        size="small"
+        onClick={commit}
+        disabled={raw === String(original) || !!error}
+        aria-label="confirm label"
+      >
+        <DoneIcon />
+      </IconButton>
+    </Stack>
   );
 }

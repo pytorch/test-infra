@@ -4,6 +4,7 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
+import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
@@ -51,7 +52,7 @@ export function SideBarMainSection() {
   );
 
   // make the url in sync with the state of the store
-  // pushUrlFromStore();
+  pushUrlFromStore();
 
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
@@ -110,6 +111,8 @@ export function SideBarMainSection() {
   // trick to record the sig of the branches from previous rendering
   const branchSigRef = useRef<string>("");
 
+  // Ready to fetch commits data
+  // it checks all fields that must exist (null, undefined, empty string)
   const ready =
     !!stagedTime?.start &&
     !!stagedTime?.end &&
@@ -230,6 +233,9 @@ export function SideBarMainSection() {
           setRbranch={setStagedRBranch}
           branchOptions={branches}
         />
+      )}
+      {isCommitsLoading && (
+        <CenteredLoader size={20} minHeight={20} thickness={4} />
       )}
       {/* Apply / Revert */}
       <Typography

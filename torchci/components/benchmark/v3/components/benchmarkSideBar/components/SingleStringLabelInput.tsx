@@ -108,7 +108,12 @@ export function SingleStringLabelInput({
             />
           </>
         ) : (
-          <Stack direction="row" spacing={1} alignItems="center" flexGrow={1}>
+          <Stack
+            direction="row"
+            spacing={1}
+            alignItems="flex-start"
+            flexGrow={1}
+          >
             <TextField
               fullWidth
               sx={styles.root}
@@ -122,6 +127,7 @@ export function SingleStringLabelInput({
             />
             <IconButton
               color="primary"
+              size="small"
               onClick={handleConfirm}
               disabled={!inputValue.trim()}
               aria-label="confirm label"

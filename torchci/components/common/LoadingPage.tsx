@@ -1,4 +1,5 @@
 import { CircularProgress, styled } from "@mui/material";
+import { Box } from "@mui/system";
 
 const LoadingContainer = styled("div")(({}) => ({
   display: "flex",
@@ -8,7 +9,7 @@ const LoadingContainer = styled("div")(({}) => ({
   height: "700px",
 }));
 
-const LoadingItem = styled("div")(({}) => ({
+const LoadingItem = styled(Box)(({}) => ({
   margin: "10px",
 }));
 
