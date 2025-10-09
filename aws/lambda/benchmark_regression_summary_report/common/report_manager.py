@@ -14,55 +14,15 @@ logger = logging.getLogger()
 REPORT_MD_TEMPLATE = """# Benchmark Report {{ id }}
 config_id: `{{ report_id }}`
 
-We have detected **{{ status }}** in benchmark results for `{{ report_id }}` (id: `{{ id }}`).
-(HUD benchmark regression page coming soon...)
+See Page https://hud.pytorch.org/benchmark/regression/report/{{ id }} for more details.
 
-> **Status:** {{ status }} · **Frequency:** {{ frequency }}
+Report Status: **{{ status }}**
 
-## Summary
-| Metric | Value |
-| :-- | --: |
-| Total | {{ summary.total_count | default(0) }} |
-| Regressions | {{ summary.regression_count | default(0) }} |
-| Suspicious | {{ summary.suspicious_count | default(0) }} |
-| No Regression | {{ summary.no_regression_count | default(0) }} |
-| Insufficient Data | {{ summary.insufficient_data_count | default(0) }} |
-
-## Data Windows
-Baseline is a single reference value (e.g., mean, max, min, latest) aggregated from the previous few days,
-used to detect regressions by comparing against metric values in the target window.
-
-### Baseline window (used to calculate baseline value)
-- **Start:** `{{ baseline.start.timestamp | default('') }}` (commit: `{{ baseline.start.commit | default('') }}`)
-- **End:** `{{ baseline.end.timestamp   | default('') }}` (commit: `{{ baseline.end.commit   | default('') }}`)
-
-### Target window (used to compare against baseline value)
-- **Start:** `{{ target.start.timestamp | default('') }}` (commit: `{{ target.start.commit | default('') }}`)
-- **End:** `{{ target.end.timestamp   | default('') }}` (commit: `{{ target.end.commit   | default('') }}`)
-
-{% if regression_items and regression_items|length > 0 %}
-## Regression Glance
-{% if url %}
-Use items below in [HUD]({{ url }}) to see regression.
-{% endif %}
-
-{% set items = regression_items if regression_items|length <= 10 else regression_items[:10] %}
-{% if regression_items|length > 10 %}
-… (showing first 10 only, total {{ regression_items|length }} regressions)
-{% endif %}
-{% for item in items %}
-{% set kv = item.group_info|dictsort %}
-{{ "" }}|{% for k, _ in kv %}{{ k }} |{% endfor %}{{ "\n" -}}
-|{% for _k, _ in kv %}---|{% endfor %}{{ "\n" -}}
-|{% for _k, v in kv %}{{ v }} |{% endfor %}{{ "\n\n" -}}
-{% if item.baseline_point -%}
-- **baseline**: {{ item.baseline_point.value}},
-- **startTime**: {{ item.baseline_point.timestamp }}, **endTime**: {{ target.end.timestamp }}
-- **lcommit**: `{{ item.baseline_point.commit }}`, **rcommit**: `{{ target.end.commit }}`
-{{ "\n" }}
-{%- endif %}
-{% endfor %}
-{% endif %}
+- Total: {{ summary.total_count | default(0) }}
+- Regressions: {{ summary.regression_count | default(0) }}
+- Suspicious: {{ summary.suspicious_count | default(0) }}
+- No Regression: {{ summary.no_regression_count | default(0) }}
+- Insufficient Data: {{ summary.insufficient_data_count | default(0) }}
 """
 
 

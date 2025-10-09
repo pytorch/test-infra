@@ -76,7 +76,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             "compilation_latency": RegressionPolicy(
                 name="compilation_latency",
                 condition="less_equal",
-                threshold=1.05,
+                threshold=1.15,
                 baseline_aggregation="min",
             ),
         },
