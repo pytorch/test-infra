@@ -10,8 +10,10 @@ import {
   UMDenseModePicker,
 } from "components/uiModules/UMDenseComponents";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
-
 export function CompilerSearchBarDropdowns() {
+  const backendFilterInfo =
+    "The displayed data is post-sampling and may not include all entries. For non-continuous data, commit options are based on the sampled set, so use the chart or table interactions to explore complete results";
+
   const { stagedFilters, setStagedFilter } = useDashboardSelector((s) => ({
     stagedFilters: s.stagedFilters,
     setStagedFilter: s.setStagedFilter,
@@ -54,7 +56,7 @@ export function CompilerSearchBarDropdowns() {
         title="Backend"
         value={stagedFilters.compiler}
         helperText="filter backend, e.g. aot_eager"
-        info="The displayed data is post-sampling and may not include all entries. For non-continuous data, commit options are based on the sampled set, so use the chart or table interactions to explore complete results."
+        info={backendFilterInfo}
         onChange={(newLabel) => {
           setStagedFilter("compiler", newLabel ?? "all");
         }}

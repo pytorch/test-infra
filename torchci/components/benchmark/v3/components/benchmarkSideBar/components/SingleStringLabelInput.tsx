@@ -97,12 +97,29 @@ export function SingleStringLabelInput({
     setLabel(value);
   }, [value]);
 
+  const infoTooltip = () => {
+    return (
+      <Tooltip title={info} arrow>
+        <InfoOutlinedIcon
+          fontSize="small"
+          color="action"
+          sx={{
+            opacity: 0.7,
+            cursor: "pointer",
+            "&:hover": { opacity: 1 },
+          }}
+        />
+      </Tooltip>
+    );
+  };
+
   return (
     <Box>
       {/* Input area */}
-      <Stack direction="row" spacing={1} alignItems="center">
+      <Stack direction="row" spacing={1} alignItems="flex-start">
         {label ? (
           <>
+            {info && infoTooltip()}
             <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
               {title}:
             </Typography>
@@ -124,19 +141,7 @@ export function SingleStringLabelInput({
             alignItems="flex-start"
             flexGrow={1}
           >
-            {info && (
-              <Tooltip title={info} arrow>
-                <InfoOutlinedIcon
-                  fontSize="small"
-                  color="action"
-                  sx={{
-                    opacity: 0.7,
-                    cursor: "pointer",
-                    "&:hover": { opacity: 1 },
-                  }}
-                />
-              </Tooltip>
-            )}
+            {info && infoTooltip()}
             <TextField
               fullWidth
               sx={styles.root}
