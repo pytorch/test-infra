@@ -22,6 +22,7 @@ export function DefaultFanoutRenderContent() {
     committedFilters,
     committedLbranch,
     committedRbranch,
+    committedMaxSampling,
     lcommit,
     rcommit,
     setLcommit,
@@ -32,6 +33,7 @@ export function DefaultFanoutRenderContent() {
     committedFilters: s.committedFilters,
     committedLbranch: s.committedLbranch,
     committedRbranch: s.committedRbranch,
+    committedMaxSampling: s.committedMaxSampling,
     lcommit: s.lcommit,
     rcommit: s.rcommit,
     setLcommit: s.setLcommit,
@@ -85,6 +87,7 @@ export function DefaultFanoutRenderContent() {
     timeRange: committedTime,
     branches,
     filters: committedFilters,
+    maxSampling: committedMaxSampling,
   });
   const queryParams: any | null = ready ? params : null;
 

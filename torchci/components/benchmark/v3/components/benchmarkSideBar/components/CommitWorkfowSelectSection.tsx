@@ -22,12 +22,16 @@ export function CommitWorflowSelectSection() {
     rcommit,
     committedLBranch,
     committedRBranch,
+    committedMaxSampling,
+    enableSamplingSetting,
     setLcommit,
     setRcommit,
   } = useDashboardSelector((s) => ({
     benchmarkId: s.benchmarkId,
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
+    committedMaxSampling: s.committedMaxSampling,
+    enableSamplingSetting: s.enableSamplingSetting,
     lcommit: s.lcommit,
     rcommit: s.rcommit,
     committedLBranch: s.committedLbranch,
@@ -53,6 +57,7 @@ export function CommitWorflowSelectSection() {
     committedLBranch.length > 0 &&
     !!committedRBranch &&
     committedRBranch.length > 0 &&
+    (enableSamplingSetting ? committedMaxSampling : true) &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
   // Fetch data
@@ -67,6 +72,7 @@ export function CommitWorflowSelectSection() {
     branches,
     timeRange: committedTime,
     filters: committedFilters,
+    maxSampling: committedMaxSampling,
   } as QueryParameterConverterInputs);
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);

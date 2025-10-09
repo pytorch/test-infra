@@ -1,9 +1,12 @@
 import CloseIcon from "@mui/icons-material/Close";
-import { Drawer, IconButton, Typography } from "@mui/material";
+import { Drawer, IconButton, Tooltip, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useCallback, useState } from "react";
-import { ReportPageToV3MainPageNavigationButton } from "../common";
+import {
+  GroupInfoChips,
+  ReportPageToV3MainPageNavigationButton,
+} from "../common";
 import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
 
 export default function RegressionReportTable({
@@ -55,21 +58,31 @@ export default function RegressionReportTable({
         .map(([k, v]) => `${k}:${v}`)
         .join(" • "); // separator between pairs
       return (
-        <Typography
-          variant="body2"
-          sx={{
-            minWidth: 150,
-          }}
+        <Tooltip
+          title={
+            <>
+              <GroupInfoChips info={info} />
+            </>
+          }
         >
-          {text}
-        </Typography>
+          <Typography
+            variant="body2"
+            sx={{
+              minWidth: 200,
+              whiteSpace: "normal", // allow wrapping
+              wordBreak: "break-word", // break long words if needed
+            }}
+          >
+            {text}
+          </Typography>
+        </Tooltip>
       );
     },
   };
   // Add navigate column
   const navigateCol: GridColDef = {
     field: "__actions",
-    headerName: "main page",
+    headerName: "Main page",
     sortable: false,
     filterable: false,
     align: "center",
@@ -87,22 +100,22 @@ export default function RegressionReportTable({
 
   // Add extra static columns
   const mainCols: GridColDef[] = [
-    { minWidth: 100, ...navigateCol },
+    { minWidth: 50, ...navigateCol },
     {
       field: "baseline_vs_latest",
       headerName: "Compare",
-      minWidth: 110,
+      minWidth: 80,
       flex: 1,
     },
     {
       field: "baseline_commit",
       headerName: "Baseline Commit",
-      minWidth: 110,
+      minWidth: 80,
       flex: 2,
     },
     {
       field: "latest_commit",
-      minWidth: 140,
+      minWidth: 80,
       flex: 3,
       headerName: "Last Regression Commit",
     },
@@ -115,14 +128,16 @@ export default function RegressionReportTable({
         {title}
       </Typography>
       <DataGrid
+        rowHeight={70}
         rows={rows}
         columns={columns}
-        disableRowSelectionOnClick
+        disableRowSelectionOnClick={enableSidePanel}
         onRowClick={(params) => handleRowClick(params)}
         sx={{
           cursor: "pointer",
           "& .MuiDataGrid-row": {
-            color: (theme) => theme.palette.primary.main,
+            color: (theme) =>
+              enableSidePanel ? theme.palette.primary.main : "default",
           },
           "& .MuiDataGrid-row:hover": {
             backgroundColor: (theme) => theme.palette.action.hover,

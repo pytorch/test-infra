@@ -7,6 +7,7 @@ import {
   resolveComponent,
 } from "./configComponentRegistration";
 
+export const MIN_SAMPLING_THRESHOLD = 2;
 export type DataBindingConfig = {
   initial: BenchmarkUiParameters;
   required_filter_fields: readonly string[];
@@ -43,6 +44,7 @@ export type QueryParameterConverterInputs = {
   branches?: string[];
   commits?: string[];
   filters: Record<string, any>;
+  maxSampling?: number;
   [key: string]: any;
 };
 
@@ -146,6 +148,17 @@ export class DataBinding {
   toQueryParams(inputs: QueryParameterConverterInputs): any {
     const conv = this.getConverter();
     if (!conv) return undefined;
-    return conv(inputs);
+    const res = conv(inputs);
+
+    // if maxSampling is set, but not in the convertor result
+    // control the max threshold of workflow data, if it's too large, sample the data to avoid OOM
+    // the maxSampling must be larger than 5
+    if (inputs.maxSampling && !res.sampling) {
+      const sampling = Math.max(2, inputs.maxSampling);
+      res.sampling = {
+        max: sampling,
+      };
+    }
+    return res;
   }
 }

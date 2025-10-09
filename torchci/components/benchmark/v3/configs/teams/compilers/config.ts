@@ -38,8 +38,8 @@ const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "compilation_latency",
   type: "ratio",
   ratioPolicy: {
-    badRatio: 1.05,
-    goodRatio: 0.9,
+    badRatio: 1.15,
+    goodRatio: 0.85,
     direction: "down",
   },
 };
@@ -137,6 +137,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   },
   lbranch: "main",
   rbranch: "main",
+  maxSampling: 110, // max number of job run results to show in the table, this avoid out of memory issue
 };
 
 // main config for the compiler benchmark regression page

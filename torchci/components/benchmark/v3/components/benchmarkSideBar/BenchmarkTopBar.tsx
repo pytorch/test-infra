@@ -1,6 +1,7 @@
 import { Paper, Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BenchmarkUI } from "../../configs/configBook";
+import { BenchmarkReportFeatureNotification } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureNotification";
 import { BenchmarkReportFeatureSidePanel } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
 
 export function BenchmarkTopBar({
@@ -44,7 +45,12 @@ function ReportFeature({ reportFeature }: { reportFeature: any }) {
     return null;
   }
   const config = reportFeature?.config;
+  const report_id = config?.report_id;
+
   return (
-    <BenchmarkReportFeatureSidePanel id={config?.report_id} type={"list"} />
+    <>
+      <BenchmarkReportFeatureSidePanel id={report_id} type={"list"} />
+      <BenchmarkReportFeatureNotification report_id={report_id} />
+    </>
   );
 }
