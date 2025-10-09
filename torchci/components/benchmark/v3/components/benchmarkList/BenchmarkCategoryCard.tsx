@@ -39,11 +39,13 @@ const styles = {
 // ============================
 export interface BenchmarkLinkItem {
   name: string;
+  id?: string;
   route: string;
   description?: string;
   info?: string;
   keys?: string[];
   actions?: {
+    type?: string;
     label: string;
     onClick?: () => void;
     href?: string;

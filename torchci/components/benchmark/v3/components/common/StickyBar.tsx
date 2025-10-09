@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 export type StickyBarProps = {
   children: React.ReactNode;
   height?: number;
-  offset: number;
+  offset?: number;
   zIndex?: number;
   onMount?: (h: number) => void;
   onUnmount?: (h: number) => void;

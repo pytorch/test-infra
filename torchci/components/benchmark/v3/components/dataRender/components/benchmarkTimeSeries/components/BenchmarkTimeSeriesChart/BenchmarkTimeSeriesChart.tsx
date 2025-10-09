@@ -42,9 +42,9 @@ type Props = {
 };
 
 const DEFAULT_HEIGHT = 200;
-
 // we want to show the mark area as a single point, default gap is 1 hour
 const DEFAULT_MARK_AREA_SINGLE_GAP = 60 * 60 * 1000;
+const NORMAL_DOT_SIZE = 4;
 
 const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   enableSelectMode = true,
@@ -194,12 +194,14 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
           lineStyle: { type: "solid", width: 2 },
         });
       }
-
       return {
         name: timeseries[idx]?.legend_name ?? `Series ${idx + 1}`,
         type: "line",
         showSymbol: true,
-        symbolSize: 4,
+        symbolSize: (_: any, params: any) => {
+          const s = params?.data?.meta?.renderOptions?.size;
+          return s ? s : NORMAL_DOT_SIZE;
+        },
         data,
         silent: !!isOther,
         lineStyle: {
@@ -207,6 +209,10 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         },
         itemStyle: {
           opacity: baseOpacity, // dot transparency
+          color: (params: any) => {
+            const color = params?.data?.meta?.renderOptions?.color;
+            return color ? color : params?.color;
+          },
         },
         ...(mlData.length
           ? { markLine: { data: mlData, symbol: "none" } }
@@ -238,7 +244,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
         type: "effectScatter",
         z: 5,
         rippleEffect: { scale: 2.1 },
-        symbolSize: 4,
+        symbolSize: NORMAL_DOT_SIZE,
         data: sel,
       } as echarts.SeriesOption,
     ];

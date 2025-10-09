@@ -38,7 +38,7 @@ const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "compilation_latency",
   type: "ratio",
   ratioPolicy: {
-    badRatio: 1.1,
+    badRatio: 1.05,
     goodRatio: 0.9,
     direction: "down",
   },
@@ -160,6 +160,15 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     type: "fanout",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: "compiler_regression",
+        },
+      },
+    },
     renders: [
       {
         type: "FanoutBenchmarkTimeSeriesChartSection",
