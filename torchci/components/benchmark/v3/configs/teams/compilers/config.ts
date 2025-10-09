@@ -8,13 +8,13 @@ import { DEFAULT_MODE, MODES } from "components/benchmark/ModeAndDTypePicker";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/compilers/helpers/general";
+import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../compilers/common";
 import { BenchmarkUIConfig } from "../../configBook";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
-import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../compilers/common";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -98,13 +98,14 @@ const RENDER_MAPPING_BOOK = {
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
 ) => {
-  console.log("compilerQueryParameterConverter", inputs);
   const i = inputs;
   const f = i.filters;
+  const suiteList = getSuites(f.suite);
+  const compilerList = getCompilers(f.compiler);
   return {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
-    compilers: f.compiler? [DISPLAY_NAMES_TO_COMPILER_NAMES[f.compiler]]:[],
+    compilers: compilerList,
     arch: DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName],
     device: DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName],
     dtype: f.dtype === "none" ? "" : f.dtype,
@@ -112,9 +113,30 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     mode: f.mode,
     startTime: dayjs.utc(i.timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
     stopTime: dayjs.utc(i.timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
-    suites: f.suite ? [f.suite]:Object.keys(SUITES),
+    suites: suiteList,
   };
 };
+
+function getCompilers(compiler: string | undefined | null) {
+  // indicates fetch all compilers
+  if (!compiler) {
+    return [];
+  }
+  if (compiler == "all") {
+    return [];
+  }
+  return DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]
+    ? [DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]]
+    : compiler;
+}
+
+function getSuites(suite: string | undefined | null) {
+  // indicates fetch all suites
+  if (!suite) {
+    return Object.keys(SUITES);
+  }
+  return suite == "all" ? Object.keys(SUITES) : [suite];
+}
 
 export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
 
