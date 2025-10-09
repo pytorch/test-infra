@@ -34,9 +34,9 @@ WHERE
         has({models: Array(String)}, model_name)
         OR empty({models: Array(String) })
     )
-    AND benchmark_dtype = {dtype: String}
-    AND benchmark_mode = {mode: String}
-    AND device = {device: String}
+    AND (benchmark_dtype = {dtype: String} OR empty({dtype: String}))
+    AND (benchmark_mode = {mode: String} OR empty({mode: String}))
+    AND (device = {device: String} OR empty({device: String}))
     AND (
         multiSearchAnyCaseInsensitive(arch, {arch: Array(String)})
         OR empty({arch: Array(String)})

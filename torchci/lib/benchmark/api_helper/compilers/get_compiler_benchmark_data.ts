@@ -1,5 +1,6 @@
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
+  CommitResult,
   CompilerQueryType,
   defaultGetTimeSeriesInputs,
   defaultListCommitsInputs,
@@ -40,7 +41,8 @@ export async function getCompilerBenchmarkData(
   }
 }
 
-export async function getCompilerCommits(inputparams: any): Promise<any[]> {
+
+export async function getCompilerCommits(inputparams: any): Promise<CommitResult> {
   if (!inputparams.startTime || !inputparams.stopTime) {
     throw new Error("no start/end time provided in request");
   }
@@ -51,10 +53,7 @@ export async function getCompilerCommits(inputparams: any): Promise<any[]> {
 
   const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   queryParams["arch"] = arch_list;
-
-  const {data: commit_results, is_sampled }= await getCommitsWithSampling(COMPILER_BENCHMARK_COMMITS_TABLE_NAME,queryParams);
-
-  return commit_results;
+  return await getCommitsWithSampling(COMPILER_BENCHMARK_COMMITS_TABLE_NAME,queryParams);
 }
 
 async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
@@ -111,7 +110,7 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     return [];
   }
 
-  console.log("rows from clickhouse", rows[0]);
+  console.log("rows from clickhouse", rows[0],"total length", rows.length);
 
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
   // TODO(elainewy): we should add this as a column in the database for less runtime logics.
@@ -157,6 +156,7 @@ function subsampleCommitsByDate(data: any[], maxCount: number|undefined) {
     data,
     is_sampled: false
   }
+
   // Sort by date ascending
   const sorted = [...data].sort((a, b) =>
     dayjs(a.date).diff(dayjs(b.date))
@@ -174,24 +174,31 @@ function subsampleCommitsByDate(data: any[], maxCount: number|undefined) {
     sampled.push(sorted[idx]);
   }
   sampled.push(last);
+
+  const sampling_info = {
+    origin: data.length,
+    result: sampled.length,
+  }
   return{
-    data,
-    is_sampled: true
+    data:sampled,
+    origin: data,
+    is_sampled: true,
+    sampling_info
   }
 }
 
-async function getCommitsWithSampling(tableName:string, queryParams:any){
+async function getCommitsWithSampling(tableName:string, queryParams:any): Promise<CommitResult>{
   const commit_results = await queryClickhouseSaved(
     tableName,
     queryParams
   );
-
   let maxCount = undefined;
 
   // if subsampling is specified, use it
-  if(queryParams.subsampling){
-    maxCount = queryParams.subsampling.max;
-    return subsampleCommitsByDate(commit_results, maxCount);
+  if(queryParams.sampling){
+    maxCount = queryParams.sampling.max;
+    const res =  subsampleCommitsByDate(commit_results, maxCount);
+    return res;
   }
 
   return {

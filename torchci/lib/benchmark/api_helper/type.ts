@@ -71,3 +71,15 @@ export interface BundleResult {
     total_raw_rows: number;
   };
 }
+
+export interface CommitSamplingInfo {
+  origin?: number,
+  result?: number
+}
+
+export interface CommitResult{
+  data: any[],
+  origin?: any[],
+  is_sampled?: boolean,
+  sampling_info?:CommitSamplingInfo
+}

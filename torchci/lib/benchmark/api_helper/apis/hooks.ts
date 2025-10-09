@@ -17,6 +17,7 @@ export function useBenchmarkCommitsData(
     baseParams.branches = [];
   }
 
+
   return useApi(
     listBenchmarkCommits,
     [benchmarkId, baseParams, formats],

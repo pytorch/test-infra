@@ -1,6 +1,7 @@
 import { Alert } from "@mui/material";
 import { Box } from "@mui/system";
 import { UMDenseDropdown } from "components/uiModules/UMDenseComponents";
+import { DenseAlert } from "../../common/styledComponents";
 
 type BranchDropdownsProps = {
   type: string;
@@ -11,25 +12,6 @@ type BranchDropdownsProps = {
   branchOptions?: string[];
 };
 
-const styles = {
-  missingBranch: {
-    width: 1,
-    wordBreak: "break-word",
-    whiteSpace: "normal",
-    padding: 0.2,
-    // ↓ shrink the text inside the Alert
-    "& .MuiAlert-message": {
-      fontSize: "0.7rem", // ~13px
-      lineHeight: 1.4,
-    },
-
-    // (optional) shrink the icon to match the smaller text
-    "& .MuiAlert-icon": {
-      padding: 0.8, // tighten spacing
-      "& svg": { fontSize: 20 },
-    },
-  },
-};
 
 /**
  *
@@ -70,9 +52,9 @@ export function BranchDropdowns({
   return (
     <SectionShell>
       {empty ? (
-        <Alert severity="warning" sx={styles.missingBranch}>
-          No branch is found, please select other features.
-        </Alert>
+        <DenseAlert severity="warning">
+           No branch is found, please select other features.
+        </DenseAlert>
       ) : type === "comparison" ? (
         <>
           <UMDenseDropdown

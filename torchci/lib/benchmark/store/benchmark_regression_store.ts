@@ -24,12 +24,20 @@ export interface BenchmarkDashboardState {
   committedLbranch: string;
   committedRbranch: string;
 
+  enableSamplingSetting?: boolean;
+  // max sampling threshold, if null, no limit.
+  // otherwise, we subsampling data in backend to fit the limit during the data
+  committedMaxSampling?: number;
+  // TODO(elainewy): may allow user to set a different max sampling threshold based on their needs.
+  stagedMaxSampling?: number;
+
   // may key to track of the benchamrk
   benchmarkId: string;
 
   lcommit: BenchmarkCommitMeta | null;
   rcommit: BenchmarkCommitMeta | null;
 
+  setStagedMaxSampling: (c: number) => void;
   setStagedTime: (t: TimeRange) => void;
   setStagedLbranch: (c: string) => void;
   setStagedRbranch: (c: string) => void;
@@ -81,9 +89,20 @@ export function createDashboardStore(initial: {
   rbranch: string;
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
+  maxSampling?: number;
 }) {
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
     benchmarkId: initial.benchmarkId, // <-- fixed name
+
+  // set only with initial config 
+  enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
+  // max sampling threshold, if null, no limit.
+  // otherwise, we subsampling data in backend to fit the limit during the data
+  // the min sampling threshold is 10
+  committedMaxSampling:initial.maxSampling,
+
+  // todo(elainewy): may allow user to set a different max sampling threshold based on their needs
+  stagedMaxSampling: initial.maxSampling,
 
     // staged
     stagedTime: initial.time,
@@ -102,6 +121,7 @@ export function createDashboardStore(initial: {
     rcommit: initial.rcommit ?? null,
 
     // actions...
+    setStagedMaxSampling: (c) => set({ stagedMaxSampling: c }),
     setStagedLbranch: (c) => set({ stagedLbranch: c }),
     setStagedRbranch: (c) => set({ stagedRbranch: c }),
     setStagedTime: (t) => set({ stagedTime: t }),
@@ -116,6 +136,7 @@ export function createDashboardStore(initial: {
         committedFilters: get().stagedFilters,
         committedLbranch: get().stagedLbranch,
         committedRbranch: get().stagedRbranch,
+        committedMaxSampling: get().stagedMaxSampling,
       }),
 
     revertMainOptions: () =>
@@ -124,6 +145,7 @@ export function createDashboardStore(initial: {
         stagedFilters: get().committedFilters,
         stagedLbranch: get().committedLbranch,
         stagedRbranch: get().committedRbranch,
+        stagedMaxSampling: get().committedMaxSampling,
       }),
 
     setLcommit: (commit) => set({ lcommit: commit }),

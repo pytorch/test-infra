@@ -1,4 +1,5 @@
 import { getCompilerCommits } from "lib/benchmark/api_helper/compilers/get_compiler_benchmark_data";
+import { CommitResult } from "lib/benchmark/api_helper/type";
 import {
   groupByBenchmarkData,
   readApiGetParams,
@@ -30,26 +31,43 @@ export default async function handler(
   // get time series data
   try {
     const { name, query_params, response_formats } = params;
-    const data = await getBenmarkCommits(name, query_params);
-    if (!data) {
+    const db = await getBenmarkCommits(name, query_params);
+    if (!db) {
       console.error("No data found for", name);
       return res.status(404).json({ data: {} });
     }
 
-    const unique_branches = [...new Set(data.map((c) => c.branch))];
+    // get all unique branches within the time range,
+    // if data is sampled, we get all branches from origin
+    // otherwise we list all branches from data
+    let all_branches: string[] = [];
+
+    if (db.is_sampled) {
+      all_branches = [...new Set(db.origin?.map((c) => c.branch))];
+    } else {
+      all_branches = [...new Set(db.data.map((c) => c.branch))];
+    }
+
     const formats: string[] =
       response_formats && response_formats.length != 0
         ? response_formats
         : ["raw"];
-    // format data based on requested response formats
+
+    // format data based on requested response formats, for instance if format is "branch",
+    //  we group the data by branch and return the data for each branch
     let result: any = {};
     formats.forEach((format) => {
-      const f = getFormat(data, format);
+      const f = getFormat(db.data, format);
       result[format] = f;
     });
+
+    console.log("[API]list commits, response data: all_branches ", all_branches.length, " result: ",result);
+
     return res.status(200).json({
       metadata: {
-        branches: unique_branches,
+        branches: all_branches,
+        is_samplied: db.is_sampled,
+        sampling_info: db.sampling_info,
       },
       data: result,
     });
@@ -59,7 +77,7 @@ export default async function handler(
   }
 }
 
-async function getBenmarkCommits(request_name: string, query_params: any) {
+async function getBenmarkCommits(request_name: string, query_params: any): Promise<CommitResult> {
   switch (request_name) {
     case "compiler":
     case "compiler_precompute":
