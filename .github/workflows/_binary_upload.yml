@@ -41,6 +41,10 @@ on:
         required: false
         type: string
         default: ''
+      wheel-nightly-policy:
+        description: Custom wheel upload policy for nightly
+        type: string
+        default: ''
     secrets:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
@@ -84,7 +88,7 @@ jobs:
         if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) }}
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_nightly_build_wheels
+          role-to-assume: arn:aws:iam::749337293305:role/${{ (inputs.wheel-nightly-policy != '' && inputs.wheel-nightly-policy) || 'gha_workflow_nightly_build_wheels'}}
           aws-region: us-east-1
 
       - name: Configure aws credentials (pytorch account)

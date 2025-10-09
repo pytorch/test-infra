@@ -15,12 +15,14 @@ import {
   GridRenderCellParams,
   GridTreeNodeWithRender,
 } from "@mui/x-data-grid";
+import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
 import RegexButton from "components/common/RegexButton";
 import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import ReactECharts from "echarts-for-react";
+import { encodeParams } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
@@ -462,44 +464,33 @@ function Overview({
   );
 
   const groupedRows = _.map(groupByTarget, (rows, key) => {
-    // Sum within sha
-    const summedBySha = _.map(_.groupBy(rows, "sha"), (shaRows) => {
-      return _.reduce(
-        shaRows,
-        (acc, row) => {
-          acc.count += row.count || 0;
-          acc.time += row.time || 0;
-          acc.cost += row.cost || 0;
-          acc.skipped += row.skipped || 0;
-          acc.frequency += row.frequency || 0;
-          return acc;
-        },
-        { count: 0, time: 0, cost: 0, skipped: 0, frequency: 0 }
-      );
-    });
-    // the reduce across shas for average
-    return _.reduce(
-      summedBySha,
-      (acc, summed) => {
-        acc.count += summed.count;
-        acc.time += summed.time;
-        acc.cost += summed.cost;
-        acc.skipped += summed.skipped;
-        acc.frequency += summed.frequency;
+    // Sum
+    const summed = _.reduce(
+      rows,
+      (acc, row) => {
+        acc.count += row.count || 0;
+        acc.time += row.time || 0;
+        acc.cost += row.cost || 0;
+        acc.skipped += row.skipped || 0;
+        acc.frequency += row.frequency || 0;
         return acc;
       },
-      {
-        id: rows[0].id,
-        file: rows[0].file,
-        short_job_name: rows[0].short_job_name,
-        labels: key,
-        count: 0,
-        time: 0,
-        cost: 0,
-        skipped: 0,
-        frequency: 0,
-      }
+      { count: 0, time: 0, cost: 0, skipped: 0, frequency: 0 }
     );
+
+    // Average across sha data points
+    const numShas = _.uniq(rows.map((r) => r.sha)).length;
+    return {
+      id: rows[0].id,
+      file: rows[0].file,
+      short_job_name: rows[0].short_job_name,
+      labels: key,
+      count: summed.count / numShas,
+      time: summed.time / numShas,
+      cost: summed.cost / numShas,
+      skipped: summed.skipped / numShas,
+      frequency: summed.frequency / numShas,
+    };
   });
 
   return (
@@ -857,6 +848,7 @@ export default function Page() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const jobInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
+  const [baseUrl, setBaseUrl] = useState<string>("");
 
   // Keep input fields in sync when filters are set programmatically
   useEffect(() => {
@@ -893,10 +885,24 @@ export default function Page() {
   }, [commitMetadata, headShaIndex]);
 
   useEffect(() => {
-    if (router.query.label) {
-      setLabelFilter(router.query.label as string);
-    }
-  }, [router.query.label]);
+    // Sync filters from the router query params in one effect to avoid
+    // repeating similar hooks. Only update when the specific query keys
+    // are present.
+    const q = router.query;
+    if (q.label) setLabelFilter(q.label as string);
+    if (q.job) setJobFilter(q.job as string);
+    if (q.file) setFileFilter(q.file as string);
+
+    if (q.labelRegex !== undefined) setLabelRegex(q.labelRegex === "true");
+    if (q.fileRegex !== undefined) setFileRegex(q.fileRegex === "true");
+    if (q.jobRegex !== undefined) setJobRegex(q.jobRegex === "true");
+
+    setBaseUrl(
+      `${window.location.protocol}//${
+        window.location.host
+      }${router.asPath.replace(/\?.+/, "")}`
+    );
+  }, [router.query]);
 
   if (!router.isReady) {
     return <LoadingPage />;
@@ -912,7 +918,21 @@ export default function Page() {
 
   return (
     <Stack spacing={4}>
-      <Typography variant="h4">Test Reports</Typography>
+      <Stack direction="row" spacing={2}>
+        <Typography variant="h4">Test Reports</Typography>
+        {/* Permalink */}
+        <CopyLink
+          textToCopy={`${baseUrl}?${encodeParams({
+            file: fileFilter,
+            job: jobFilter,
+            label: labelFilter,
+            fileRegex: fileRegex ? "true" : "false",
+            jobRegex: jobRegex ? "true" : "false",
+            labelRegex: labelRegex ? "true" : "false",
+          })}`}
+        />
+      </Stack>
+
       <Stack spacing={2}>
         <Typography variant="body1">
           This provides insights into the test files executed over recent
@@ -1038,14 +1058,29 @@ export default function Page() {
       <CommitInfo data={data} />
       <Overview
         data={data}
-        setFileFilter={setFileFilter}
-        setJobFilter={setJobFilter}
-        setLabelFilter={setLabelFilter}
+        setFileFilter={(input) => {
+          setFileFilter(input);
+          setFileRegex(false);
+        }}
+        setJobFilter={(input) => {
+          setJobFilter(input);
+          setJobRegex(false);
+        }}
+        setLabelFilter={(input) => {
+          setLabelFilter(input);
+          setLabelRegex(false);
+        }}
       />
       <Diffs
         data={data}
-        setFileFilter={setFileFilter}
-        setJobFilter={setJobFilter}
+        setFileFilter={(input) => {
+          setFileFilter(input);
+          setFileRegex(false);
+        }}
+        setJobFilter={(input) => {
+          setJobFilter(input);
+          setJobRegex(false);
+        }}
       />
       <Graphs data={data} />
       <Stack spacing={2}>

@@ -100,22 +100,38 @@ export default function RegressionReportTable({
 
   // Add extra static columns
   const mainCols: GridColDef[] = [
+<<<<<<< HEAD
     { minWidth: 50, ...navigateCol },
     {
       field: "baseline_vs_latest",
       headerName: "Compare",
       minWidth: 80,
+=======
+    { minWidth: 100, ...navigateCol },
+    {
+      field: "baseline_vs_latest",
+      headerName: "Compare",
+      minWidth: 110,
+>>>>>>> main
       flex: 1,
     },
     {
       field: "baseline_commit",
       headerName: "Baseline Commit",
+<<<<<<< HEAD
       minWidth: 80,
+=======
+      minWidth: 110,
+>>>>>>> main
       flex: 2,
     },
     {
       field: "latest_commit",
+<<<<<<< HEAD
       minWidth: 80,
+=======
+      minWidth: 140,
+>>>>>>> main
       flex: 3,
       headerName: "Last Regression Commit",
     },
@@ -128,16 +144,26 @@ export default function RegressionReportTable({
         {title}
       </Typography>
       <DataGrid
+<<<<<<< HEAD
         rowHeight={70}
         rows={rows}
         columns={columns}
         disableRowSelectionOnClick={enableSidePanel}
+=======
+        rows={rows}
+        columns={columns}
+        disableRowSelectionOnClick
+>>>>>>> main
         onRowClick={(params) => handleRowClick(params)}
         sx={{
           cursor: "pointer",
           "& .MuiDataGrid-row": {
+<<<<<<< HEAD
             color: (theme) =>
               enableSidePanel ? theme.palette.primary.main : "default",
+=======
+            color: (theme) => theme.palette.primary.main,
+>>>>>>> main
           },
           "& .MuiDataGrid-row:hover": {
             backgroundColor: (theme) => theme.palette.action.hover,

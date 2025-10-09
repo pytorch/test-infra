@@ -132,6 +132,15 @@
   background-color: var(--forced-merge-failure-bg);
 }
 
+.autoreverted {
+  background-color: var(--autoreverted-bg);
+}
+
+.autorevertSignal {
+  background-color: var(--autoreverted-signal-bg);
+  border: 2px solid var(--autoreverted-signal-border);
+}
+
 .selectedRow {
   background-color: var(--selected-row-bg);
   font-weight: bold;
