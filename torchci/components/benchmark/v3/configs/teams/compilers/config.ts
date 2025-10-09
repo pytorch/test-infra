@@ -129,7 +129,7 @@ function getCompilers(compiler: string | undefined | null) {
   }
   return DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]
     ? [DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]]
-    : compiler;
+    : [compiler];
 }
 
 function getSuites(suite: string | undefined | null) {

@@ -51,9 +51,9 @@ export function CompilerSearchBarDropdowns() {
         label="Suite"
       />
       <SingleStringLabelInput
-        title="Config"
+        title="Backend"
         value={stagedFilters.compiler}
-        helperText="Filter by compiler config"
+        helperText="filter backend, etc aot_inductor"
         onChange={(newLabel) => {
           setStagedFilter("compiler", newLabel ?? "all");
         }}
