@@ -45,6 +45,11 @@ export const STATUS_COLOR_MAP: Record<string, string> = {
   insufficient_data: "rgba(0, 0, 0, 0.6)", // text.secondary (grey)
 };
 
+export const BenchmarkNotificationColor: Record<string, string> = {
+  warning: "#ed6c02", // warning.main
+  error: "#d32f2f", // error.main
+};
+
 /**
  * Default colors for baseline and regression indicators for regression report charts.
  */
