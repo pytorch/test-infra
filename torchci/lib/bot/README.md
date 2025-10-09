@@ -1,5 +1,43 @@
 # PyTorch Bot Architecture Analysis
 
+- [PyTorch Bot Architecture Analysis](#pytorch-bot-architecture-analysis)
+  - [Overview](#overview)
+  - [Core Architecture](#core-architecture)
+    - [Entry Points](#entry-points)
+    - [Command System](#command-system)
+    - [Permission System (`lib/bot/utils.ts:248`)](#permission-system-libbotutilsts248)
+  - [Bot Modules](#bot-modules)
+    - [Core Command Bots](#core-command-bots)
+    - [Automation Bots](#automation-bots)
+    - [CI Integration Bots](#ci-integration-bots)
+    - [Security \& Review Bots](#security--review-bots)
+    - [Infrastructure Bots](#infrastructure-bots)
+  - [Detailed Bot Analysis](#detailed-bot-analysis)
+    - [1. autoLabelBot.ts](#1-autolabelbotts)
+    - [2. autoCcBot.ts](#2-autoccbotts)
+    - [3. retryBot.ts](#3-retrybotts)
+    - [4. ciflowPushTrigger.ts](#4-ciflowpushtriggerts)
+      - [Configuration (ciflow_push_tags)](#configuration-ciflow_push_tags)
+    - [5. cancelWorkflowsOnCloseBot.ts](#5-cancelworkflowsonclosebotts)
+    - [6. verifyDisableTestIssueBot.ts](#6-verifydisabletestissuebotts)
+    - [7. stripApprovalBot.ts](#7-stripapprovalbotts)
+    - [8. codevNoWritePermBot.ts](#8-codevnowritepermbotts)
+    - [9. drciBot.ts](#9-drcibotts)
+    - [10. webhookToDynamo.ts](#10-webhooktodynamots)
+  - [External Integrations](#external-integrations)
+    - [Data Storage](#data-storage)
+    - [CI Systems](#ci-systems)
+    - [Configuration Management](#configuration-management)
+  - [Key Features](#key-features)
+    - [Intelligent Merge System](#intelligent-merge-system)
+    - [Smart Retry Logic (`retryBot.ts`)](#smart-retry-logic-retrybotts)
+    - [Permission-based Security](#permission-based-security)
+    - [Auto-labeling Intelligence](#auto-labeling-intelligence)
+  - [Data Flow](#data-flow)
+  - [Integration Architecture](#integration-architecture)
+  - [Deployment Context](#deployment-context)
+  - [Configuration Files](#configuration-files)
+
 ## Overview
 
 The PyTorch bot is a GitHub webhook automation system built with **Probot** that manages CI/CD workflows, code reviews, and development operations for the PyTorch ecosystem. It's deployed as a Next.js application on Vercel and integrates with multiple external services.
@@ -47,20 +85,18 @@ The bot supports these primary commands:
 
 ### CI Integration Bots
 
-8. **triggerCircleCIWorkflows** - CircleCI pipeline integration
-9. **triggerInductorTestsBot** - PyTorch Inductor test triggering
-10. **verifyDisableTestIssueBot** - Test disabling authorization
+8. **verifyDisableTestIssueBot** - Test disabling authorization
 
 ### Security & Review Bots
 
-11. **stripApprovalBot** - Removes approvals on PR reopen
-12. **codevNoWritePermBot** - Notifies about permission requirements
-13. **drciBot** - Dr. CI dashboard integration
+9. **stripApprovalBot** - Removes approvals on PR reopen
+10. **codevNoWritePermBot** - Notifies about permission requirements
+11. **drciBot** - Dr. CI dashboard integration
 
 ### Infrastructure Bots
 
-14. **webhookToDynamo** - Event logging to DynamoDB
-15. **pytorchbotLogger** - Bot action logging
+12. **webhookToDynamo** - Event logging to DynamoDB
+13. **pytorchbotLogger** - Bot action logging
 
 ## Detailed Bot Analysis
 
@@ -154,44 +190,7 @@ ciflow_push_tags:
   - ciflow/foo
 ```
 
-### 5. triggerCircleCIWorkflows.ts
-
-**Primary Purpose:** Integrates with CircleCI by triggering workflows based on GitHub events and labels.
-
-**Key Features:**
-
-- **Label-to-parameter mapping**: Converts GitHub labels to CircleCI pipeline parameters
-- **Branch/tag filtering**: Different behavior for push events vs. pull requests
-- **Configuration-driven**: Uses YAML config to define label-to-parameter mappings
-- **Fork handling**: Special handling for PRs from forked repositories
-- **Default parameters**: Supports default parameter values for workflows
-
-**GitHub Webhooks:**
-
-- `pull_request.labeled`, `pull_request.synchronize`
-- `push`
-
-**Special Logic:** Translates GitHub repository state into CircleCI pipeline parameters using configurable mappings
-
-### 6. triggerInductorTestsBot.ts
-
-**Primary Purpose:** Allows authorized users to trigger PyTorch Inductor tests via comment commands.
-
-**Key Features:**
-
-- **Comment-based triggering**: Responds to `@pytorch run pytorch tests` comments
-- **User authorization**: Restricts access to pre-approved users and repositories
-- **Cross-repository workflow**: Triggers workflows in pytorch/pytorch-integration-testing
-- **Commit handling**: Uses appropriate commit SHAs for different repositories
-- **Error handling**: Provides feedback on success/failure of test triggering
-
-**GitHub Webhooks:**
-
-- `issue_comment.created`
-
-**Special Logic:** Security-focused with explicit allowlists for users and repositories
-
-### 7. cancelWorkflowsOnCloseBot.ts
+### 5. cancelWorkflowsOnCloseBot.ts
 
 **Primary Purpose:** Cancels running GitHub Actions workflows when PRs are closed to save compute resources.
 
@@ -209,7 +208,7 @@ ciflow_push_tags:
 
 **Special Logic:** Prevents unnecessary resource usage by canceling workflows for closed/abandoned PRs
 
-### 8. verifyDisableTestIssueBot.ts
+### 6. verifyDisableTestIssueBot.ts
 
 **Primary Purpose:** Validates and processes issues that request disabling or marking tests as unstable.
 
@@ -227,7 +226,7 @@ ciflow_push_tags:
 
 **Special Logic:** Critical security component that ensures only authorized users can disable CI tests
 
-### 9. stripApprovalBot.ts
+### 7. stripApprovalBot.ts
 
 **Primary Purpose:** Removes PR approvals when PRs are reopened to ensure fresh review.
 
@@ -244,7 +243,7 @@ ciflow_push_tags:
 
 **Special Logic:** Maintains code review integrity by requiring fresh approvals after PR reopening
 
-### 10. codevNoWritePermBot.ts
+### 8. codevNoWritePermBot.ts
 
 **Primary Purpose:** Notifies Phabricator/Codev users when they need GitHub write permissions for CI.
 
@@ -261,7 +260,7 @@ ciflow_push_tags:
 
 **Special Logic:** Bridges the gap between internal Facebook/Meta development workflow and external GitHub CI requirements
 
-### 11. drciBot.ts
+### 9. drciBot.ts
 
 **Primary Purpose:** Manages Dr. CI (Diagnostic CI) comments that provide comprehensive PR status information.
 
@@ -278,7 +277,7 @@ ciflow_push_tags:
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
 
-### 12. webhookToDynamo.ts
+### 10. webhookToDynamo.ts
 
 **Primary Purpose:** Logs GitHub webhook events to DynamoDB tables for analytics and auditing.
 
