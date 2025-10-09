@@ -8,6 +8,7 @@ import {
   UMDenseModePicker,
 } from "components/uiModules/UMDenseComponents";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
 
 export function CompilerSearchBarDropdowns() {
   const { stagedFilters, setStagedFilter } = useDashboardSelector((s) => ({
@@ -40,6 +41,12 @@ export function CompilerSearchBarDropdowns() {
         }}
         dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
         label="Device"
+      />
+      <UMDenseDropdown
+        dtype={stagedFilters.suite ?? ""}
+        setDType={(val: string) => setStagedFilter("suite", val)}
+        dtypes={["all",...SUITES]}
+        label="Suite"
       />
     </>
   );

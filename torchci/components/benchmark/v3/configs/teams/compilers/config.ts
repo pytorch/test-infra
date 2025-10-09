@@ -14,6 +14,7 @@ import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
+import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../compilers/common";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -97,12 +98,13 @@ const RENDER_MAPPING_BOOK = {
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
 ) => {
+  console.log("compilerQueryParameterConverter", inputs);
   const i = inputs;
   const f = i.filters;
   return {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
-    compilers: [],
+    compilers: f.compiler? [DISPLAY_NAMES_TO_COMPILER_NAMES[f.compiler]]:[],
     arch: DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName],
     device: DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName],
     dtype: f.dtype === "none" ? "" : f.dtype,
@@ -110,7 +112,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     mode: f.mode,
     startTime: dayjs.utc(i.timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
     stopTime: dayjs.utc(i.timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
-    suites: f.suite ?? Object.keys(SUITES),
+    suites: f.suite ? [f.suite]:Object.keys(SUITES),
   };
 };
 
