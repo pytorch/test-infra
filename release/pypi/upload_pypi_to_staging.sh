@@ -23,6 +23,7 @@ ARCH=${ARCH:-cpu}
 
 # This extract links to packages from the index.html
 # We strip all extra characters including final sha256 char
+echo "Retrieving packages for promotion for ${PACKAGE_NAME} ${PACKAGE_VERSION}"
 pkgs_to_promote=$(\
     curl -fsSL "https://download.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
         | grep "${PACKAGE_NAME}-${PACKAGE_VERSION}${VERSION_SUFFIX}-" \
@@ -30,6 +31,7 @@ pkgs_to_promote=$(\
         | cut -d '"' -f2 \
         | cut -d "#" -f1
 )
+echo "Found ${pkgs_to_promote}"
 
 tmp_dir="$(mktemp -d)"
 output_tmp_dir="$(mktemp -d)"
@@ -52,6 +54,7 @@ for pkg in ${pkgs_to_promote}; do
         set -x
         curl -fSL -o "${orig_pkg}" "https://download.pytorch.org${pkg}"
     )
+
 
     if [[ -n "${VERSION_SUFFIX}" ]]; then
         OUTPUT_DIR="${output_tmp_dir}" python "${DIR}/prep_binary_for_pypi.py" "${orig_pkg}" --output-dir .
