@@ -119,6 +119,11 @@ export function SideBarMainSection() {
     revertMainOptions: s.revertMainOptions,
   }));
 
+  useEffect(() => {
+    if (!hydrated) return;
+    pushUrlFromStore();
+  }, [lcommit, rcommit]);
+
   // trick to record the sig of the branches from previous rendering
   const branchSigRef = useRef<string>("");
 
