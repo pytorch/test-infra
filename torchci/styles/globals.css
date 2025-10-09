@@ -20,6 +20,9 @@
   /* HUD specific colors */
   --forced-merge-bg: lightyellow;
   --forced-merge-failure-bg: #ffe0b3;
+  --autoreverted-bg: #e8e8e8;
+  --autoreverted-signal-bg: #ffedcc;
+  --autoreverted-signal-border: #ffc466;
   --selected-row-bg: lightblue;
   --highlight-bg: #ffa;
   --commit-message-bg: whitesmoke;
@@ -84,6 +87,9 @@
   /* HUD specific colors - dark mode variants */
   --forced-merge-bg: #7e7000;
   --forced-merge-failure-bg: #a06200;
+  --autoreverted-bg: #3a3a3a;
+  --autoreverted-signal-bg: #665a22;
+  --autoreverted-signal-border: #aa8a44;
   --selected-row-bg: #164863;
   --highlight-bg: #555500;
   --commit-message-bg: #2a2a2a;

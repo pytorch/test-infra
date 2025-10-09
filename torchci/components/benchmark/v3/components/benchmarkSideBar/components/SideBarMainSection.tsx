@@ -49,7 +49,7 @@ export function SideBarMainSection() {
   );
 
   // make the url in sync with the state of the store
-  pushUrlFromStore();
+  // pushUrlFromStore();
 
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);

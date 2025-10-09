@@ -4,10 +4,17 @@ on:
   schedule:
     # Run every day at 2am UTC
     - cron: '0 2 * * *'
+    # Run every tuesday at 3am UTC
+    - cron: '0 3 * * 2'
   workflow_dispatch:
 
 jobs:
   file-report:
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *') ||
+      (github.event_name == 'workflow_dispatch')
+    permissions:
+      issues: write
     runs-on: linux.2xlarge
     steps:
       - name: Checkout repository
@@ -26,3 +33,37 @@ jobs:
           YESTERDAY=$(date -u -d "yesterday" +%Y-%m-%d)
           python3 tools/torchci/test_insights/file_report_generator.py \
             --add-dates "$YESTERDAY"
+
+      - name: Generate regression notification
+        env:
+          CLICKHOUSE_ENDPOINT: ${{ secrets.CLICKHOUSE_HUD_USER_URL }}
+          CLICKHOUSE_USERNAME: ${{ secrets.CLICKHOUSE_HUD_USER_USERNAME }}
+          CLICKHOUSE_PASSWORD: ${{ secrets.CLICKHOUSE_HUD_USER_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
+          TEST_REPORT_AWS_LAMBDA_TOKEN: ${{ secrets.TEST_REPORT_AWS_LAMBDA_TOKEN }}
+        run: |
+          python3 tools/torchci/test_insights/daily_regression.py
+
+  weekly-file-report-notification:
+    if: >
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * 2') ||
+      (github.event_name == 'workflow_dispatch')
+    permissions:
+      issues: write
+    runs-on: linux.2xlarge
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Install dependencies
+        run: |
+          python3 -mpip install -r tools/torchci/requirements.txt
+          cd tools/torchci && python3 -mpip install -e .
+
+      - name: Run notifier
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
+          TEST_REPORT_AWS_LAMBDA_TOKEN: ${{ secrets.TEST_REPORT_AWS_LAMBDA_TOKEN }}
+        run: |
+          python3 tools/torchci/test_insights/weekly_notification.py

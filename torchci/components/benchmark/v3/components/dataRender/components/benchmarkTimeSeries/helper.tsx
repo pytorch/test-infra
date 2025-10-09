@@ -109,7 +109,11 @@ export type RawTimeSeriesPoint = {
   workflow_id: string;
   commit: string;
   branch: string;
-  [key: string]: string | number;
+  renderOptions?: {
+    size?: number;
+    color?: string;
+  };
+  [key: string]: any;
 };
 
 /** Input structure: multiple lines, each with group_info and data points. */

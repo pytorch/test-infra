@@ -140,6 +140,20 @@ The bot supports these primary commands:
 
 **Special Logic:** Creates tags in format `ciflow/label/PR_NUMBER` to trigger downstream CI systems
 
+#### Configuration (ciflow_push_tags)
+
+Purpose: define which ciflow labels are allowed to create/update Git tags that trigger downstream CI systems. The `ciflowPushTrigger` bot reads this key from the repository configuration to validate labels and decide whether to push tags.
+
+The config option should be put in the repository's `.github/pytorch-probot.yml` file. If not present in the repository, the bot will look for `.github/pytorch-probot.yml` in the owner's github repository (org/owner-level defaults).
+
+Format:
+
+```yaml
+ciflow_push_tags:
+  - ciflow/trunk
+  - ciflow/foo
+```
+
 ### 5. triggerCircleCIWorkflows.ts
 
 **Primary Purpose:** Integrates with CircleCI by triggering workflows based on GitHub events and labels.

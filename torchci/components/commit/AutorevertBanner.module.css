@@ -1,0 +1,52 @@
+.autorevertBanner {
+  background-color: var(--sev-banner-bg);
+  border: 2px solid var(--autoreverted-signal-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 16px 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bannerHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 1.1em;
+}
+
+.warningIcon {
+  font-size: 1.2em;
+}
+
+.bannerContent {
+  color: var(--text-color);
+}
+
+.bannerContent p {
+  margin: 8px 0;
+}
+
+.workflowList {
+  margin: 12px 0;
+  padding-left: 24px;
+}
+
+.workflowList li {
+  margin: 6px 0;
+  list-style-type: disc;
+}
+
+.workflowList a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+.workflowList a:hover {
+  text-decoration: underline;
+}
+
+.investigateMessage {
+  font-style: italic;
+  margin-top: 12px;
+}

@@ -1,4 +1,8 @@
 import TooltipTarget from "components/common/tooltipTarget/TooltipTarget";
+import {
+  isGroupAutorevertSignal,
+  isJobAutorevertSignal,
+} from "lib/autorevertUtils";
 import { getGroupConclusionChar } from "lib/JobClassifierUtil";
 import {
   isCancellationSuccessJob,
@@ -6,7 +10,7 @@ import {
   isRerunDisabledTestsJob,
   isUnstableJob,
 } from "lib/jobUtils";
-import { IssueData, JobData } from "lib/types";
+import { IssueData, JobData, RowData } from "lib/types";
 import {
   MonsterFailuresContext,
   PinnedTooltipContext,
@@ -175,6 +179,7 @@ export default function HudGroupedCell({
   unstableIssues,
   repoOwner,
   repoName,
+  rowData,
 }: {
   sha: string;
   groupName: string;
@@ -185,10 +190,25 @@ export default function HudGroupedCell({
   unstableIssues: IssueData[];
   repoOwner: string;
   repoName: string;
+  rowData?: RowData;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
   const [monsterFailures] = useContext(MonsterFailuresContext);
-  const style = pinnedId.name == groupName ? hudStyles.highlight : "";
+
+  // Check if this group contains autorevert signals
+  const isAutorevertSignal = rowData
+    ? isGroupAutorevertSignal(jobs, rowData)
+    : false;
+
+  // Build cell style classes
+  const cellClasses = [];
+  if (pinnedId.name == groupName) {
+    cellClasses.push(hudStyles.highlight);
+  }
+  if (isAutorevertSignal) {
+    cellClasses.push(hudStyles.autorevertSignal);
+  }
+  const style = cellClasses.join(" ");
 
   const erroredJobs = [];
   const warningOnlyJobs = [];
@@ -255,6 +275,7 @@ export default function HudGroupedCell({
               queuedJobs={queuedJobs}
               failedPreviousRunJobs={failedPreviousRunJobs}
               sha={sha}
+              rowData={rowData}
             />
           }
         >
@@ -304,6 +325,7 @@ function GroupTooltip({
   queuedJobs,
   failedPreviousRunJobs,
   sha,
+  rowData,
 }: {
   conclusion: GroupedJobStatus;
   groupName: string;
@@ -312,6 +334,7 @@ function GroupTooltip({
   queuedJobs: JobData[];
   failedPreviousRunJobs: JobData[];
   sha?: string;
+  rowData?: RowData;
 }) {
   const [monsterFailures] = useContext(MonsterFailuresContext);
 
@@ -355,16 +378,31 @@ function GroupTooltip({
                     : "1 job with this error type:"}
                 </span>
               </div>
-              {group.jobs.map((job: JobData, jobIndex: number) => (
-                <div
-                  key={jobIndex}
-                  style={{ marginLeft: "24px", marginTop: "4px" }}
-                >
-                  <a href={job.htmlUrl} target="_blank" rel="noreferrer">
-                    {job.name}
-                  </a>
-                </div>
-              ))}
+              {group.jobs.map((job: JobData, jobIndex: number) => {
+                const isAutorevert = rowData
+                  ? isJobAutorevertSignal(job, rowData)
+                  : false;
+                return (
+                  <div
+                    key={jobIndex}
+                    style={{ marginLeft: "24px", marginTop: "4px" }}
+                  >
+                    <a
+                      href={job.htmlUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={
+                        isAutorevert
+                          ? styles.autorevert_tooltip_anchor
+                          : undefined
+                      }
+                    >
+                      {job.name}
+                      {isAutorevert && " ⚠️ (triggered autorevert)"}
+                    </a>
+                  </div>
+                );
+              })}
             </div>
           ))}
         </div>
@@ -377,6 +415,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={erroredJobs}
         message={"The following jobs errored out:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.Queued) {
@@ -386,6 +425,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={queuedJobs}
         message={"The following jobs are still in queue:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.Pending) {
@@ -395,6 +435,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={pendingJobs}
         message={"The following jobs are still pending:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.Flaky) {
@@ -404,6 +445,7 @@ function GroupTooltip({
         groupName={groupName}
         jobs={failedPreviousRunJobs}
         message={"The following jobs were flaky:"}
+        rowData={rowData}
       />
     );
   } else if (conclusion === GroupedJobStatus.AllNull) {
@@ -430,26 +472,34 @@ function ToolTip({
   groupName,
   message,
   jobs,
+  rowData,
 }: {
   conclusion: string;
   groupName: string;
   message: string;
   jobs: JobData[];
+  rowData?: RowData;
 }) {
   return (
     <div>
       {`[${conclusion}] ${groupName}`}
       <div>{message}</div>
       {jobs.map((job, ind) => {
+        const isAutorevert = rowData
+          ? isJobAutorevertSignal(job, rowData)
+          : false;
         return (
           <a
             key={ind}
             href={job.htmlUrl}
             target="_blank"
             rel="noreferrer"
-            style={{ display: "block" }}
+            className={
+              isAutorevert ? styles.autorevert_tooltip_anchor : undefined
+            }
           >
             {job.name}
+            {isAutorevert && " ⚠️ (triggered autorevert)"}
           </a>
         );
       })}

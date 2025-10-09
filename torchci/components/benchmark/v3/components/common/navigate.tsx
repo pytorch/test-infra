@@ -21,12 +21,11 @@ export async function navigateToDataGrid(
     openToggleSectionById(toggleId);
     await delay(350); // wait for toggle animation
   }
-  const target = scrollToDataGridView(sectionId, keywords, field);
-  await delay(300); // wait for scroll animation
+  const target = await scrollToDataGridView(sectionId, keywords, field);
   return target;
 }
 
-function scrollToDataGridView(
+async function scrollToDataGridView(
   sectionId: string,
   keywords: string[],
   field?: string
@@ -58,7 +57,7 @@ function scrollToDataGridView(
     );
     if (cell) {
       target = cell;
-      scrollingToElement(cell);
+      await scrollingToElement(cell);
     }
   }
   return target;
@@ -85,7 +84,7 @@ export async function navigateToEchartInGroup(
     return null;
   }
   // scroll into view
-  scrollingToElement(target);
+  await scrollingToElement(target);
   return target;
 }
 
@@ -94,11 +93,35 @@ export function getElementById(id: string): HTMLElement | null {
   return document.getElementById(id);
 }
 
-export async function scrollingToElement(
-  target: HTMLElement | null,
-  delay_ts: number = 200
-) {
+export async function scrollingToElement(target: HTMLElement | null) {
   if (!target) return null;
   target.scrollIntoView({ behavior: "smooth", block: "center" });
-  await delay(delay_ts);
+  await waitUntilElementVisible(target);
+}
+
+// Wait until element is visible in the viewport (with timeout)
+export async function waitUntilElementVisible(
+  el: HTMLElement | null,
+  timeout = 1500
+): Promise<void> {
+  if (!el) {
+    return;
+  }
+  const start = performance.now();
+  return new Promise((resolve) => {
+    const check = () => {
+      const rect = el.getBoundingClientRect();
+      const inView =
+        rect.top >= 0 &&
+        rect.bottom <=
+          (window.innerHeight || document.documentElement.clientHeight);
+
+      if (inView || performance.now() - start > timeout) {
+        resolve();
+      } else {
+        requestAnimationFrame(check);
+      }
+    };
+    requestAnimationFrame(check);
+  });
 }

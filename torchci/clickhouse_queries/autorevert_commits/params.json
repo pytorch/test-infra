@@ -1,0 +1,12 @@
+{
+  "params": {
+    "repo": "String",
+    "shas": "Array(String)"
+  },
+  "tests": [
+    {
+      "repo": "pytorch/pytorch",
+      "shas": ["abc123", "def456"]
+    }
+  ]
+}
