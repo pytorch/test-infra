@@ -1,5 +1,6 @@
 import TextField from "@mui/material/TextField";
-import { useEffect, useState } from "react";
+import { MIN_SAMPLING_THRESHOLD } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
+import { useEffect, useRef, useState } from "react";
 
 type MaxSamplingInputProps = {
   value: number;
@@ -8,6 +9,7 @@ type MaxSamplingInputProps = {
   max?: number; // default 500
   label?: string; // default "Max sampling"
   enableInput?: boolean; // default false
+  info?: string;
 };
 
 const styles = {
@@ -23,22 +25,21 @@ const styles = {
         lineHeight: 1.2,
       },
     },
-    "& .MuiFormHelperText-root": { display: "none" }, // no helperText space
   },
 };
 
 export function MaxSamplingInput({
   value,
   onChange,
-  min = 5,
-  max = 500,
-  label = "Max data sampling",
-  enableInput = false,
+  min = MIN_SAMPLING_THRESHOLD,
+  max = 50000,
+  label = "Max sampling",
+  info = "Max benchmark results to return. use lower values to avoid OOM issues",
 }: MaxSamplingInputProps) {
   // raw from user input
   const [raw, setRaw] = useState<string>(String(value));
+  const original = value;
   const [error, setError] = useState<string>("");
-  const [enable, setEnable] = useState<boolean>(enableInput);
 
   useEffect(() => {
     setRaw(String(value));
@@ -54,6 +55,7 @@ export function MaxSamplingInput({
     setError(clamped !== n ? `Must be between ${min} and ${max}` : "");
     if (clamped !== n) {
       setError(`Must be between ${min} and ${max}`);
+      setRaw(String(original));
       return;
     }
     onChange(clamped);
@@ -78,7 +80,7 @@ export function MaxSamplingInput({
       onBlur={commit}
       onKeyDown={onKeyDown}
       error={!!error}
-      helperText={error || " "}
+      helperText={error || info}
     />
   );
 }

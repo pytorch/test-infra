@@ -4,6 +4,7 @@ import DefaultMetricsDropdowns from "../../components/benchmarkSideBar/component
 import { NotFoundComponent, resolveComponent } from "../configRegistration";
 import { compilerQueryParameterConverter } from "../teams/compilers/config";
 
+export const MIN_SAMPLING_THRESHOLD = 2;
 export type DataBindingConfig = {
   initial: BenchmarkUiParameters;
   required_filter_fields: readonly string[];
@@ -150,7 +151,7 @@ export class DataBinding {
     // control the max threshold of workflow data, if it's too large, sample the data to avoid OOM
     // the maxSampling must be larger than 5
     if (inputs.maxSampling && !res.sampling) {
-      const sampling = Math.max(5, inputs.maxSampling);
+      const sampling = Math.max(2, inputs.maxSampling);
       res.sampling = {
         max: sampling,
       };
