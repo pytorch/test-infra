@@ -310,13 +310,13 @@ export function ReportPageToV3MainPageNavigationButton({
   return (
     <Tooltip title={tooltipContent}>
       <IconButton
+        component="a"
+        href={url}
         onClick={(e) => {
           if (disableButton) {
             return;
           }
           e.stopPropagation();
-            console.log("navigate to url", url);
-          window.location.href = url; // full reload navigation to avoid werid nextLink issue
         }}
       >
         <OpenInNewIcon fontSize="small" color="primary" />
