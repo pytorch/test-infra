@@ -28,6 +28,7 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    environment: pytorchbot-env
     container:
       image: pytorch/almalinux-builder:cpu
     steps:
@@ -45,8 +46,6 @@ jobs:
         run: |
             set -ex
             cd release/pypi
-            # Install requirements
-            pip install auditwheel awscli
 
             # Default Version to promote
             CUDA_ARCH="cu128"
@@ -55,7 +54,7 @@ jobs:
             MACOS_ARM64="macosx_.*_arm64"
 
             # Install requirements
-            pip install awscli==1.32.18
+            pip install awscli==1.32.18 auditwheel==6.4.2
 
             pwd
             upload_pypi_to_staging() {
@@ -77,14 +76,20 @@ jobs:
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
 
-            if [[ ${PACKAGE} == "torchaudio" || ${PACKAGE} == "torchvision" ]]; then
+            if [[ ${PACKAGE} == 'torchaudio' || ${PACKAGE} == 'torchvision' ]]; then
+              # shellcheck disable=SC2086
               PLATFORM="manylinux_2_28_x86_64"  VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${version}"
+              # shellcheck disable=SC2086
               PLATFORM="manylinux_2_28_aarch64" VERSION_SUFFIX=""                                     upload_pypi_to_staging ${PACKAGE}  "${version}"
+              # shellcheck disable=SC2086
               PLATFORM="win_amd64"              VERSION_SUFFIX="${CPU_VERSION_SUFFIX}"                upload_pypi_to_staging ${PACKAGE}  "${version}"
+              # shellcheck disable=SC2086
               PLATFORM="${MACOS_ARM64}"         VERSION_SUFFIX=""                                     upload_pypi_to_staging ${PACKAGE}  "${version}"
             fi
 
-            if [[ ${PACKAGE} == "torchao" ]]; then
+            if [[ ${PACKAGE} == 'torchao' ]]; then
+              # shellcheck disable=SC2086
               PLATFORM="none-any" VERSION_SUFFIX="${CPU_VERSION_SUFFIX}" upload_pypi_to_staging ${PACKAGE} "${version}"
+              # shellcheck disable=SC2086
               PLATFORM="manylinux_2_28_x86_64" VERSION_SUFFIX="${LINUX_VERSION_SUFFIX}" ARCH="${CUDA_ARCH}" upload_pypi_to_staging ${PACKAGE} "${version}"
             fi
