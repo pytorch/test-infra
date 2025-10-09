@@ -1,3 +1,4 @@
+import dayjs from "dayjs";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   CommitResult,
@@ -13,7 +14,6 @@ import {
 } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
-import dayjs from "dayjs";
 
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
@@ -41,8 +41,9 @@ export async function getCompilerBenchmarkData(
   }
 }
 
-
-export async function getCompilerCommits(inputparams: any): Promise<CommitResult> {
+export async function getCompilerCommits(
+  inputparams: any
+): Promise<CommitResult> {
   if (!inputparams.startTime || !inputparams.stopTime) {
     throw new Error("no start/end time provided in request");
   }
@@ -53,7 +54,10 @@ export async function getCompilerCommits(inputparams: any): Promise<CommitResult
 
   const arch_list = toQueryArch(inputparams.device, inputparams.arch);
   queryParams["arch"] = arch_list;
-  return await getCommitsWithSampling(COMPILER_BENCHMARK_COMMITS_TABLE_NAME,queryParams);
+  return await getCommitsWithSampling(
+    COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+    queryParams
+  );
 }
 
 async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
@@ -75,7 +79,10 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     }
 
     // get commits from clickhouse, if queryParams has samping config, use it
-    const {data: commit_results}= await getCommitsWithSampling(COMPILER_BENCHMARK_COMMITS_TABLE_NAME,queryParams);
+    const { data: commit_results } = await getCommitsWithSampling(
+      COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+      queryParams
+    );
 
     // get unique commits
     const unique_commits = [...new Set(commit_results.map((c) => c.commit))];
@@ -110,7 +117,7 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     return [];
   }
 
-  console.log("rows from clickhouse", rows[0],"total length", rows.length);
+  console.log("rows from clickhouse", rows[0], "total length", rows.length);
 
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
   // TODO(elainewy): we should add this as a column in the database for less runtime logics.
@@ -149,18 +156,17 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
   return rows;
 }
 
-function subsampleCommitsByDate(data: any[], maxCount: number|undefined) {
-  if(!maxCount) return {data, is_sampled: false}
+function subsampleCommitsByDate(data: any[], maxCount: number | undefined) {
+  if (!maxCount) return { data, is_sampled: false };
 
-  if (data.length <= maxCount) return {
-    data,
-    is_sampled: false
-  }
+  if (data.length <= maxCount)
+    return {
+      data,
+      is_sampled: false,
+    };
 
   // Sort by date ascending
-  const sorted = [...data].sort((a, b) =>
-    dayjs(a.date).diff(dayjs(b.date))
-  );
+  const sorted = [...data].sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
 
   const first = sorted[0];
   const last = sorted[sorted.length - 1];
@@ -178,31 +184,31 @@ function subsampleCommitsByDate(data: any[], maxCount: number|undefined) {
   const sampling_info = {
     origin: data.length,
     result: sampled.length,
-  }
-  return{
-    data:sampled,
+  };
+  return {
+    data: sampled,
     origin: data,
     is_sampled: true,
-    sampling_info
-  }
+    sampling_info,
+  };
 }
 
-async function getCommitsWithSampling(tableName:string, queryParams:any): Promise<CommitResult>{
-  const commit_results = await queryClickhouseSaved(
-    tableName,
-    queryParams
-  );
+async function getCommitsWithSampling(
+  tableName: string,
+  queryParams: any
+): Promise<CommitResult> {
+  const commit_results = await queryClickhouseSaved(tableName, queryParams);
   let maxCount = undefined;
 
   // if subsampling is specified, use it
-  if(queryParams.sampling){
+  if (queryParams.sampling) {
     maxCount = queryParams.sampling.max;
-    const res =  subsampleCommitsByDate(commit_results, maxCount);
+    const res = subsampleCommitsByDate(commit_results, maxCount);
     return res;
   }
 
   return {
     data: commit_results,
-    is_sampled: false
-  }
+    is_sampled: false,
+  };
 }

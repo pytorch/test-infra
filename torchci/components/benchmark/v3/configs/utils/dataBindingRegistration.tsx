@@ -149,12 +149,12 @@ export class DataBinding {
     // if maxSampling is set, but not in the convertor result
     // control the max threshold of workflow data, if it's too large, sample the data to avoid OOM
     // the maxSampling must be larger than 5
-    if (inputs.maxSampling && !res.sampling){
-      const sampling = Math.max(5, inputs.maxSampling)
+    if (inputs.maxSampling && !res.sampling) {
+      const sampling = Math.max(5, inputs.maxSampling);
       res.sampling = {
-        max: sampling
-      }
+        max: sampling,
+      };
     }
-    return res
+    return res;
   }
 }

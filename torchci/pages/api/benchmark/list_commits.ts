@@ -61,7 +61,12 @@ export default async function handler(
       result[format] = f;
     });
 
-    console.log("[API]list commits, response data: all_branches ", all_branches.length, " result: ",result);
+    console.log(
+      "[API]list commits, response data: all_branches ",
+      all_branches.length,
+      " result: ",
+      result
+    );
 
     return res.status(200).json({
       metadata: {
@@ -77,7 +82,10 @@ export default async function handler(
   }
 }
 
-async function getBenmarkCommits(request_name: string, query_params: any): Promise<CommitResult> {
+async function getBenmarkCommits(
+  request_name: string,
+  query_params: any
+): Promise<CommitResult> {
   switch (request_name) {
     case "compiler":
     case "compiler_precompute":

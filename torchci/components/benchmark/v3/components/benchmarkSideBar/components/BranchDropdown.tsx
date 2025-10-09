@@ -1,4 +1,3 @@
-import { Alert } from "@mui/material";
 import { Box } from "@mui/system";
 import { UMDenseDropdown } from "components/uiModules/UMDenseComponents";
 import { DenseAlert } from "../../common/styledComponents";
@@ -11,7 +10,6 @@ type BranchDropdownsProps = {
   setRbranch: (val: string) => void;
   branchOptions?: string[];
 };
-
 
 /**
  *
@@ -53,7 +51,7 @@ export function BranchDropdowns({
     <SectionShell>
       {empty ? (
         <DenseAlert severity="warning">
-           No branch is found, please select other features.
+          No branch is found, please select other features.
         </DenseAlert>
       ) : type === "comparison" ? (
         <>

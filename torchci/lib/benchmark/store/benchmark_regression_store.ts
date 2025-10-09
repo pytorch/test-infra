@@ -94,15 +94,15 @@ export function createDashboardStore(initial: {
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
     benchmarkId: initial.benchmarkId, // <-- fixed name
 
-  // set only with initial config 
-  enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
-  // max sampling threshold, if null, no limit.
-  // otherwise, we subsampling data in backend to fit the limit during the data
-  // the min sampling threshold is 10
-  committedMaxSampling:initial.maxSampling,
+    // set only with initial config
+    enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
+    // max sampling threshold, if null, no limit.
+    // otherwise, we subsampling data in backend to fit the limit during the data
+    // the min sampling threshold is 10
+    committedMaxSampling: initial.maxSampling,
 
-  // todo(elainewy): may allow user to set a different max sampling threshold based on their needs
-  stagedMaxSampling: initial.maxSampling,
+    // todo(elainewy): may allow user to set a different max sampling threshold based on their needs
+    stagedMaxSampling: initial.maxSampling,
 
     // staged
     stagedTime: initial.time,

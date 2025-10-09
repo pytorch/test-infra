@@ -73,13 +73,13 @@ export interface BundleResult {
 }
 
 export interface CommitSamplingInfo {
-  origin?: number,
-  result?: number
+  origin?: number;
+  result?: number;
 }
 
-export interface CommitResult{
-  data: any[],
-  origin?: any[],
-  is_sampled?: boolean,
-  sampling_info?:CommitSamplingInfo
+export interface CommitResult {
+  data: any[];
+  origin?: any[];
+  is_sampled?: boolean;
+  sampling_info?: CommitSamplingInfo;
 }

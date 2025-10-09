@@ -13,11 +13,10 @@ import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_pr
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
-import { BranchDropdowns } from "./BranchDropdown";
-import { useUrlStoreSync } from "./useUrlSync";
-import { Alert } from "@mui/material";
-import { MaxSamplingInput } from "./SamplingInput";
 import { DenseAlert } from "../../common/styledComponents";
+import { BranchDropdowns } from "./BranchDropdown";
+import { MaxSamplingInput } from "./SamplingInput";
+import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
   root: {
@@ -203,10 +202,17 @@ export function SideBarMainSection() {
       <Divider />
       {/* Fetch Settings */}
       <Typography variant="subtitle2">Fetch Settings</Typography>
-      {enableSamplingSetting && stagedMaxSampling && <MaxSamplingInput value={stagedMaxSampling} onChange={setStagedMaxSampling} />}
-       {showSamplinginfo &&(
+      {enableSamplingSetting && stagedMaxSampling && (
+        <MaxSamplingInput
+          value={stagedMaxSampling}
+          onChange={setStagedMaxSampling}
+        />
+      )}
+      {showSamplinginfo && (
         <DenseAlert severity="info">
-          {`Data Sampling: subsample from ${sampling_info?.origin ?? 0} to ${sampling_info?.result ?? 0}`}
+          {`Data Sampling: subsample from ${sampling_info?.origin ?? 0} to ${
+            sampling_info?.result ?? 0
+          }`}
         </DenseAlert>
       )}
       <Divider />
