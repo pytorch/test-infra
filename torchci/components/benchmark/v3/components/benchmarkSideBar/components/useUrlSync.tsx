@@ -4,7 +4,7 @@ import {
   stateToQuery,
 } from "lib/helpers/urlQuery";
 import { NextRouter } from "next/router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 // -------- Hook --------
 
@@ -23,6 +23,7 @@ export function useUrlStoreSync<T extends Record<string, any>>(
   const isApplyingUrlRef = useRef(false);
   const didInitRef = useRef(false);
   const lastPushedSigRef = useRef<string>("");
+  const [hydrated, setHydrated] = useState(false); // 👈 expose this
 
   // URL -> Store (init once when router is ready)
   useEffect(() => {
@@ -37,6 +38,7 @@ export function useUrlStoreSync<T extends Record<string, any>>(
       // release in next tick to avoid immediate store->url bounce
       setTimeout(() => {
         isApplyingUrlRef.current = false;
+        setHydrated(true);
       }, 0);
     }
   }, [router.isReady]); // only depends on readiness
@@ -69,5 +71,5 @@ export function useUrlStoreSync<T extends Record<string, any>>(
       });
   };
 
-  return { pushUrlFromStore };
+  return { pushUrlFromStore, hydrated };
 }

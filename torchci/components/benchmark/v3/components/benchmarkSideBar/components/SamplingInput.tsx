@@ -37,7 +37,7 @@ export function MaxSamplingInput({
   min = MIN_SAMPLING_THRESHOLD,
   max = 50000,
   label = "Max sampling",
-  info = "Max benchmark results to return. use lower values to avoid OOM issues",
+  info = "Max benchmark results to return. Use lower values to avoid OOM issues",
 }: MaxSamplingInputProps) {
   // raw from user input
   const [raw, setRaw] = useState<string>(String(value));

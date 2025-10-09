@@ -53,7 +53,8 @@ export function CompilerSearchBarDropdowns() {
       <SingleStringLabelInput
         title="Backend"
         value={stagedFilters.compiler}
-        helperText="filter backend, etc aot_inductor"
+        helperText="filter backend, e.g. aot_eager"
+        info="The displayed data is post-sampling and may not include all entries. For non-continuous data, commit options are based on the sampled set, so use the chart or table interactions to explore complete results."
         onChange={(newLabel) => {
           setStagedFilter("compiler", newLabel ?? "all");
         }}

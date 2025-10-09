@@ -138,6 +138,10 @@ export function CommitWorflowSelectSection() {
   return (
     <Stack spacing={1.5}>
       <Typography variant="subtitle2">Commits</Typography>
+      <Typography variant="caption">
+        {" "}
+        Options are based on all commits within the time range{" "}
+      </Typography>
       <UMDenseCommitDropdown
         label={"lbl-left"}
         branchName={committedLBranch}

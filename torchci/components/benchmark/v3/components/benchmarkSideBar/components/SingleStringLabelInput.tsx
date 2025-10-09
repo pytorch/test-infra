@@ -1,5 +1,13 @@
 import DoneIcon from "@mui/icons-material/Done";
-import { Chip, IconButton, Stack, TextField, Typography } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import {
+  Chip,
+  IconButton,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { Box } from "@mui/system";
 import { useEffect, useState } from "react";
 
@@ -8,6 +16,7 @@ export interface SingleLabelInputProps {
   value: string;
   onChange?: (newLabel?: string) => void;
   helperText?: string;
+  info?: string;
 }
 const styles = {
   root: {
@@ -56,6 +65,7 @@ export function SingleStringLabelInput({
   title = "Label",
   value = "",
   helperText = "",
+  info = "",
   onChange,
 }: SingleLabelInputProps) {
   const [inputValue, setInputValue] = useState(value ?? "");
@@ -114,6 +124,19 @@ export function SingleStringLabelInput({
             alignItems="flex-start"
             flexGrow={1}
           >
+            {info && (
+              <Tooltip title={info} arrow>
+                <InfoOutlinedIcon
+                  fontSize="small"
+                  color="action"
+                  sx={{
+                    opacity: 0.7,
+                    cursor: "pointer",
+                    "&:hover": { opacity: 1 },
+                  }}
+                />
+              </Tooltip>
+            )}
             <TextField
               fullWidth
               sx={styles.root}

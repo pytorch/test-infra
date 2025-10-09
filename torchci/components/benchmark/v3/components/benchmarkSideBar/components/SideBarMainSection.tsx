@@ -18,6 +18,7 @@ import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./BranchDropdown";
 import { MaxSamplingInput } from "./SamplingInput";
 import { useUrlStoreSync } from "./useUrlSync";
+import { on } from "events";
 
 const styles = {
   root: {
@@ -45,14 +46,27 @@ export function SideBarMainSection() {
   }));
 
   // sync the url with the store
-  const { pushUrlFromStore } = useUrlStoreSync(
+  const { pushUrlFromStore, hydrated } = useUrlStoreSync(
     router,
     committedState,
     hydrateFromUrl
   );
 
+  useEffect(() => {
+    if (!hydrated) return;
+    // safe to run default-derivation effects now
+  }, [hydrated]);
+
+
+  const onConfirm = () => {
+    if (!hydrated) return; 
+    commitMainOptions();
+    pushUrlFromStore();
+ };
+
+
   // make the url in sync with the state of the store
-  pushUrlFromStore();
+  // pushUrlFromStore();
 
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
@@ -257,7 +271,7 @@ export function SideBarMainSection() {
         <UMDenseButtonLight
           variant="contained"
           disabled={disableApply}
-          onClick={commitMainOptions}
+          onClick={onConfirm}
         >
           Apply
         </UMDenseButtonLight>
