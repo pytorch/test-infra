@@ -3,6 +3,17 @@ import { NavCategory, NavItem } from "components/layout/NavBarGroupDropdown";
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
 import BenchmarkCategoryCardList from "../components/benchmarkList/BenchmarkCategoryCardList";
 
+export function getBenchmarkMainRouteById(id: string): string | undefined {
+  for (const category of categories) {
+    for (const item of category.items) {
+      if (item.id === id) {
+        return item.route;
+      }
+    }
+  }
+  return undefined;
+}
+
 export const categories: BenchmarkCategoryGroup[] = [
   {
     title: "PyTorch Benchmarks",
@@ -17,6 +28,7 @@ export const categories: BenchmarkCategoryGroup[] = [
       },
       {
         name: "Compiler Inductor Benchmark",
+        id: "compiler_inductor",
         route: "/benchmark/compilers_regression",
         description:
           "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
@@ -25,6 +37,11 @@ export const categories: BenchmarkCategoryGroup[] = [
           {
             label: "Legacy Page/Playground",
             href: "/benchmark/compilers",
+          },
+          {
+            label: "Regression Reports",
+            type: "regression_report",
+            href: "/benchmark/regression/reports/compiler_regression",
           },
           {
             label: "Docs",

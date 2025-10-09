@@ -118,23 +118,23 @@ function buildQuery({
   return { query, params };
 }
 
-function toApiFormat(dbResult: any[]) {
-  const items = mapReportField(dbResult, "report");
-  const next_cursor = items.length
-    ? items[items.length - 1].last_record_ts
-    : null;
-  const miniReports = [];
+export function toMiniReport(dbResult: any[]): any[] {
+  if (!dbResult || !dbResult.length) return [];
 
+  const items = mapReportField(dbResult, "report");
+  const miniReports: any[] = [];
   for (const item of items) {
     const { report, ...rest } = item;
 
     const otherFields = rest;
 
     if (!report) {
-      return {
+      miniReports.push({
         ...otherFields,
-      };
+      });
+      continue;
     }
+
     const policy = report.policy;
     const r = report?.report;
     const startInfo = r?.baseline_meta_data?.start;
@@ -148,7 +148,14 @@ function toApiFormat(dbResult: any[]) {
       details: buckets,
     });
   }
+  return miniReports;
+}
 
+function toApiFormat(dbResult: any[]) {
+  const next_cursor = dbResult.length
+    ? dbResult[dbResult.length - 1].last_record_ts
+    : null;
+  const miniReports = toMiniReport(dbResult);
   return {
     reports: miniReports,
     next_cursor,

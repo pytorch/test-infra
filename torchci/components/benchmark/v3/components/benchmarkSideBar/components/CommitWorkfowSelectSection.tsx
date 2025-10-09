@@ -87,15 +87,6 @@ export function CommitWorflowSelectSection() {
   );
 
   useEffect(() => {
-    if (!ready) {
-      setLeftList([]);
-      setRightList([]);
-      setLcommit(null);
-      setRcommit(null);
-    }
-  }, [ready, setLcommit, setRcommit]);
-
-  useEffect(() => {
     if (isLoading || !data) return;
 
     const groups = data?.data?.branch ?? [];
@@ -108,14 +99,6 @@ export function CommitWorflowSelectSection() {
     setLeftList(L);
     setRightList(R);
 
-    // update auto
-    if (L.length === 0) {
-      if (lcommit) setLcommit(null);
-    }
-    if (R.length === 0) {
-      setAutoRightSha(null);
-      if (rcommit) setRcommit(null);
-    }
     if (L.length === 0 || R.length === 0) return;
 
     // check if user has selected a commit that is not in the list

@@ -179,9 +179,9 @@ export function createDashboardStore(initial: {
         committedTime: next.time ?? s.committedTime,
         committedFilters: next.filters ?? s.committedFilters,
         committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
-        committedRbranch: next.lbranch ?? s.committedRbranch ?? "",
-        lcommit: next.lcommit ?? null,
-        rcommit: next.rcommit ?? null,
+        committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
+        lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
+        rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
       }));
     },
 

@@ -161,6 +161,15 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     type: "fanout",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: "compiler_regression",
+        },
+      },
+    },
     renders: [
       {
         type: "FanoutBenchmarkTimeSeriesChartSection",

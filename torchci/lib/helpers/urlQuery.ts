@@ -91,21 +91,32 @@ export function sameQuery(a: Record<string, any>, b: Record<string, any>) {
 }
 
 /** Convert query object -> nested state */
-export function queryToState(query: Record<string, any>): Record<string, any> {
-  const result: any = {};
+export function queryToState(
+  query: Record<string, unknown>
+): Record<string, unknown> {
+  const result: Record<string, any> = {};
 
-  for (const [rawKey, value] of Object.entries(query ?? {})) {
+  for (const [rawKey, rawValue] of Object.entries(query ?? {})) {
+    if (rawValue == null) continue; // skip null/undefined
     const parts = rawKey.split(".");
-    let cur = result;
+    let cur: any = result;
 
     for (let i = 0; i < parts.length; i++) {
-      const p = parts[i];
-      if (i === parts.length - 1) {
-        const arr = Array.isArray(value) ? value : [value];
-        cur[p] = arr.length > 1 ? arr.map(String) : String(arr[0]);
+      const key = parts[i];
+
+      const isLeaf = i === parts.length - 1;
+      if (isLeaf) {
+        const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+        // Normalize to string(s)
+        cur[key] =
+          values.length > 1 ? values.map(String) : String(values[0] as any);
       } else {
-        cur[p] = cur[p] || {};
-        cur = cur[p];
+        // Ensure the intermediate node is a plain object
+        const v = cur[key];
+        if (typeof v !== "object" || v === null || Array.isArray(v)) {
+          cur[key] = {};
+        }
+        cur = cur[key];
       }
     }
   }

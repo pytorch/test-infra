@@ -1,4 +1,4 @@
-import { Divider, Typography } from "@mui/material";
+import { Alert, Divider, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { HighlightStyles } from "components/benchmark/v3/components/common/highlight";
 import { getConfig } from "components/benchmark/v3/configs/configBook";
@@ -100,8 +100,9 @@ export function DefaultFanoutRenderContent() {
   if (isLoading) {
     return <LoadingPage />;
   }
+
   if (error) {
-    return <div>Error: {error.message}</div>;
+    return <Alert severity="error">{error.message}</Alert>;
   }
 
   if (!dataRender?.renders) {

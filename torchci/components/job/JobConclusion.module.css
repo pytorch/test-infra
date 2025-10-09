@@ -106,3 +106,8 @@
   border-left: 1px solid var(--color-failure);
   border-right: 1px solid var(--color-failure);
 }
+
+.autorevert_tooltip_anchor {
+  font-weight: bold;
+  color: #d73a49;
+}
