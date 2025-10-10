@@ -31,14 +31,20 @@ SELECT
     workflow.head_branch AS head_branch,
     workflow.event AS event,
     CASE
-        WHEN workflow.head_branch LIKE 'trunk/%' AND workflow.event = 'workflow_dispatch' THEN 'autorevert'
+        WHEN
+            workflow.head_branch LIKE 'trunk/%'
+            AND workflow.event = 'workflow_dispatch'
+            THEN 'autorevert'
         WHEN workflow.head_branch LIKE 'ciflow/%' THEN 'ciflow'
-        WHEN workflow.head_branch = 'main' OR workflow.event = 'push' THEN 'main'
+        WHEN
+            workflow.head_branch = 'main' OR workflow.event = 'push'
+            THEN 'main'
         ELSE 'other'
     END AS source_type,
     CASE
-        WHEN workflow.head_branch LIKE 'ciflow/trunk/%' THEN
-            replaceRegexpOne(workflow.head_branch, '^ciflow/trunk/', '')
+        WHEN workflow.head_branch LIKE 'ciflow/trunk/%'
+            THEN
+                replaceRegexpOne(workflow.head_branch, '^ciflow/trunk/', '')
         WHEN workflow.head_branch LIKE 'ciflow/%' THEN
             replaceRegexpOne(workflow.head_branch, '^ciflow/[^/]+/', '')
     END AS ciflow_id
