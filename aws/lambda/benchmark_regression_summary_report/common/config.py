@@ -51,7 +51,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
         range=RangeConfig(
-            baseline=DayRangeWindow(value=8),
+            baseline=DayRangeWindow(value=6),
             comparison=DayRangeWindow(value=4),
         ),
         metrics={
