@@ -166,7 +166,7 @@ class FileReportGenerator:
             AND w.head_commit.'timestamp' <= {stop_date: DateTime}
         GROUP BY
             w.head_sha, w.head_commit.'timestamp'
-        HAVING count(*) >= 4
+        HAVING count(distinct w.name) = 4
         ORDER BY
             min(w.head_commit.'timestamp') DESC
         """
@@ -181,16 +181,30 @@ class FileReportGenerator:
     def _get_workflow_jobs_for_sha(self, sha: str) -> List[Dict[str, Any]]:
         """Get workflow runs for a specific SHA using ClickHouse."""
         query = """
-        SELECT DISTINCT
-            j.id as job_id,
+        with workflow_ids as (
+            SELECT
+                w.id,
+            FROM
+                default .workflow_run w
+            WHERE
+                w.head_branch = 'main'
+                AND w.repository.full_name = 'pytorch/pytorch'
+                AND w.name in ('pull', 'trunk', 'inductor', 'slow')
+                AND w.conclusion = 'success'
+                AND w.head_sha = {sha: String}
+        )
+        SELECT
+            DISTINCT j.id as job_id,
             j.name as job_name,
             j.labels as job_labels,
             j.run_id as workflow_id,
             j.run_attempt,
-            j.workflow_name as workflow_name
-        FROM default.workflow_job j
-        WHERE j.head_sha = {sha: String}
-            AND j.workflow_name in ('pull', 'trunk', 'inductor', 'slow')
+            j.workflow_name as workflow_name,
+            j.conclusion
+        FROM
+            default .workflow_job j
+        WHERE
+            j.run_id in (select id from workflow_ids)
         """
 
         params = {"sha": sha}
