@@ -63,8 +63,11 @@ function checkRegressionReportNotification(
 
   // get latest report from response
   const report = resp.reports[0] as BenchmarkRegressionReport;
+
+  // check if report is outdated
   const createdDate = dayjs(report?.created_at);
   const now = dayjs();
+  const checkTime = now.subtract(durationReportMissingReport, "day").endOf("day")
 
   const defaultRes = {
     enable: false,
@@ -72,7 +75,7 @@ function checkRegressionReportNotification(
     report_id,
   };
   // check if missing generated report for past x days, if so pop up warning icon
-  if (createdDate.isBefore(now.subtract(durationReportMissingReport, "day"))) {
+  if (createdDate.isBefore(checkTime)) {
     // return warning notification color icon
     return {
       ...defaultRes,
