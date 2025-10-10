@@ -85,8 +85,8 @@ name = 'Bazel build failure'
 pattern = '^FAILED: Build did NOT complete successfully'
 
 [[rule]]
-name = 'Test failed consistently'
-pattern = '''^The following tests failed consistently: \['(.*)'\]$'''
+name = 'Python unittest failure'
+pattern = '^\[FAILED CONSISTENTLY\] (.*)$'
 
 [[rule]]
 name = 'Python unittest failure'
@@ -107,6 +107,10 @@ pattern = 'ERROR(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 [[rule]]
 name = 'pytest test error'
 pattern = '^ERROR (?:\[.*s\] )?(\S*.py::\S*::test_\S*)'
+
+[[rule]]
+name = 'Fallback for other test failure rules'
+pattern = '^The following tests failed consistently: \[(.*)\]$'
 
 [[rule]]
 name = 'xla cpp test failure'
