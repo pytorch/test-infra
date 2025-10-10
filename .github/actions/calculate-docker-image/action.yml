@@ -99,6 +99,34 @@ runs:
           echo "custom-tag-prefix=${CUSTOM_TAG_PREFIX}" >> "${GITHUB_OUTPUT}"
         fi
 
+    - name: Login to ECR
+      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
+      env:
+        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
+      run: |
+        set -x
+        set +e
+
+        login() {
+          python3 -mpip install awscli==1.42.49
+          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
+        }
+
+        retry () {
+          $*  || (sleep 1 && $*) || (sleep 2 && $*)
+        }
+
+        retry login "${DOCKER_REGISTRY}"
+
+    - name: Login to Docker Hub
+      shell: bash
+      run: |
+        set -eux
+        # It's ok if this steps fails, it would then be an anonymous user like what we used to have
+        aws secretsmanager get-secret-value --secret-id docker_hub_readonly_token | jq --raw-output '.SecretString' | jq -r .docker_hub_readonly_token | docker login --username pytorchbot --password-stdin || true
+
     - name: Check if image should be built
       id: check-image
       shell: bash
@@ -114,16 +142,6 @@ runs:
       run: |
         set +e
         set -x
-
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
 
         START_TIME=$(date +%s)
         # Wait up to 120 minutes
@@ -175,33 +193,6 @@ runs:
         fi
 
         echo "rebuild=true" >> "${GITHUB_OUTPUT}"
-
-    - name: Login to ECR
-      if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
-      shell: bash
-      working-directory: ${{ inputs.working-directory }}/${{ inputs.docker-build-dir }}
-      env:
-        DOCKER_REGISTRY: ${{ inputs.docker-registry }}
-      run: |
-        set -x
-        set +e
-
-        login() {
-          aws ecr get-login-password --region us-east-1 | docker login -u AWS --password-stdin "$1"
-        }
-
-        retry () {
-          $*  || (sleep 1 && $*) || (sleep 2 && $*)
-        }
-
-        retry login "${DOCKER_REGISTRY}"
-
-    - name: Login to Docker Hub
-      shell: bash
-      run: |
-        set -eux
-        # It's ok if this steps fails, it would then be an anonymous user like what we used to have
-        aws secretsmanager get-secret-value --secret-id docker_hub_readonly_token | jq --raw-output '.SecretString' | jq -r .docker_hub_readonly_token | docker login --username pytorchbot --password-stdin || true
 
     - name: Build docker image
       if: ${{ steps.calculate-image.outputs.skip != 'true' && (inputs.always-rebuild || steps.check-image.outputs.rebuild) }}
