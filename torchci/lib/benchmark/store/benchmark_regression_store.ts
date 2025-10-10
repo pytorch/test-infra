@@ -169,7 +169,7 @@ export function createDashboardStore(initial: {
       }),
 
     update: (next) => {
-      console.log("update next", next)
+      console.log("update next", next);
 
       set((s) => ({
         // important to keep the benchmarkId as original if not specified
