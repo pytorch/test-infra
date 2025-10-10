@@ -169,8 +169,6 @@ export function createDashboardStore(initial: {
       }),
 
     update: (next) => {
-      console.log("update next", next);
-
       set((s) => ({
         // important to keep the benchmarkId as original if not specified
         benchmarkId: next.benchmarkId ?? s.benchmarkId,

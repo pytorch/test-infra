@@ -54,13 +54,12 @@ export function SideBarMainSection() {
 
   useEffect(() => {
     if (!hydrated) return;
-    // safe to run default-derivation effects now
-  }, [hydrated]);
+    pushUrlFromStore();
+  }, [hydrated, committedState]);
 
   const onConfirm = () => {
     if (!hydrated) return;
     commitMainOptions();
-    pushUrlFromStore();
   };
 
   // make the url in sync with the state of the store
