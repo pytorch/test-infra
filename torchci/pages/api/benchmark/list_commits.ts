@@ -94,6 +94,7 @@ async function getBenmarkCommits(
 }
 
 function getFormat(data: any, format: string = "raw") {
+  console.log("[API]list commits, format data elaine: ", data.length);
   switch (format) {
     case "branch":
       const branchgroup = groupByBenchmarkData(data, ["branch"], []);
