@@ -40,7 +40,7 @@ export function BenchmarkReportFeatureSidePanel({
       },
     })
   ) : (
-    <UMDenseButtonLight sx={buttonSx} onClick={handleOpen}>
+    <UMDenseButtonLight sx={buttonSx} onClick={handleOpen} variant="outlined">
       {buttonText}
     </UMDenseButtonLight>
   );

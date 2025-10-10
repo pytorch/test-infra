@@ -58,7 +58,6 @@ function ReportFeature({ reportFeature }: { reportFeature: any }) {
 
   return (
     <>
-      <Typography variant="subtitle1">Regression: </Typography>
       <BenchmarkReportFeatureSidePanel id={report_id} type={"list"} />
       <BenchmarkReportFeatureNotification report_id={report_id} />
     </>

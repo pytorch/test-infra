@@ -14,7 +14,7 @@ const CHECK_EVERY_FOUR_HOUR = 4 * 60 * 60 * 1000;
 export function BenchmarkReportFeatureNotification({
   report_id,
   refresh_interval = CHECK_EVERY_FOUR_HOUR,
-  durationReportMissingReport = 3,
+  durationReportMissingReport = 4,
 }: {
   report_id: string;
   refresh_interval?: number;
@@ -140,7 +140,7 @@ export function FloatingIcon({
   }
 
   return (
-    <>
+    <Box sx={{ minWidth: 65 }}>
       {label === "outdated" ? (
         <RegressionNotificationButton
           color={color}
@@ -160,7 +160,7 @@ export function FloatingIcon({
           }
         />
       )}
-    </>
+    </Box>
   );
 }
 

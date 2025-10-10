@@ -135,7 +135,7 @@ export function CommitWorflowSelectSection() {
 
   return (
     <Stack spacing={1.5} direction={"row"} alignItems={"center"}>
-      <Typography variant="subtitle2" noWrap>
+      <Typography variant="subtitle2" sx={{ minWidth: 100 }}>
         Commit Range:
       </Typography>
       <UMDenseCommitDropdown
