@@ -12,12 +12,12 @@ import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/apis/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./BranchDropdown";
-import { MaxSamplingInput } from "./SamplingInput";
 import { useUrlStoreSync } from "./useUrlSync";
+import { SamplingSetting } from "./SamplingSetting";
 
 const styles = {
   root: {
@@ -59,6 +59,7 @@ export function SideBarMainSection() {
 
   const onConfirm = () => {
     if (!hydrated) return;
+    setSamplingDirty(false);
     commitMainOptions();
   };
 
@@ -82,6 +83,7 @@ export function SideBarMainSection() {
     setStagedTime,
     setStagedLBranch,
     setStagedRBranch,
+    setEnableSamplingSetting,
     setStagedMaxSampling,
     lcommit,
     rcommit,
@@ -104,6 +106,7 @@ export function SideBarMainSection() {
     setStagedLBranch: s.setStagedLbranch,
     setStagedRBranch: s.setStagedRbranch,
     setStagedMaxSampling: s.setStagedMaxSampling,
+    setEnableSamplingSetting: s.setEnableSamplingSetting,
 
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -118,6 +121,15 @@ export function SideBarMainSection() {
     commitMainOptions: s.commitMainOptions,
     revertMainOptions: s.revertMainOptions,
   }));
+
+  const [samplingDirty, setSamplingDirty] = useState(false);
+  const prevEnableRef = useRef(enableSamplingSetting);
+  useEffect(() => {
+  if (enableSamplingSetting !== prevEnableRef.current) {
+    setSamplingDirty(true); // mark dirty when toggled
+    prevEnableRef.current = enableSamplingSetting;
+  }
+}, [enableSamplingSetting]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -140,15 +152,15 @@ export function SideBarMainSection() {
     ?.toQueryParams({
       timeRange: stagedTime,
       filters: stagedFilters,
-      maxSampling: stagedMaxSampling,
+      maxSampling: enableSamplingSetting? stagedMaxSampling: undefined,
     } as QueryParameterConverterInputs);
 
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);
   }
 
+  // fetch commits list for bracnhes and estimated runs
   const queryParams: any | null = ready ? params : null;
-
   const {
     data: commitsData,
     isLoading: isCommitsLoading,
@@ -176,6 +188,7 @@ export function SideBarMainSection() {
     }
   }, [branches]);
 
+
   const DropdownComp = dataBinding?.getFilterOptionComponent();
 
   // indicates if the user has made changes to the options
@@ -185,14 +198,14 @@ export function SideBarMainSection() {
     stagedLbranch !== committedLbranch ||
     stagedRbranch !== committedRbranch ||
     stagedMaxSampling !== committedMaxSampling ||
+    samplingDirty ||
     JSON.stringify(stagedFilters) !== JSON.stringify(committedFilters);
 
   // indicates no branches found based on the time range and options
   const noData = branches && branches.length === 0;
-
   const disableApply = !dirty || noData || isCommitsLoading;
-
   const showSamplinginfo = is_samplied && !isCommitsLoading;
+
   return (
     <Stack spacing={2} sx={styles.root}>
       <Stack direction="row" alignItems="center" spacing={0}>
@@ -219,15 +232,15 @@ export function SideBarMainSection() {
         end={stagedTime.end}
         gap={0}
       />
-      <Divider />
       {/* Fetch Settings */}
+       <Divider />
       <Typography variant="subtitle2">Fetch Settings</Typography>
-      {enableSamplingSetting && stagedMaxSampling && (
-        <MaxSamplingInput
-          value={stagedMaxSampling}
-          onChange={setStagedMaxSampling}
-        />
-      )}
+      <SamplingSetting
+        enableSamplingSetting={enableSamplingSetting?? false}
+        setEnableSamplingSetting={setEnableSamplingSetting}
+        setMaxSampling={setStagedMaxSampling}
+        maxSamplingValue={stagedMaxSampling??0}
+      />
       {showSamplinginfo && (
         <DenseAlert severity="info">
           {`Data Sampling: subsample from ${sampling_info?.origin ?? 0} to ${

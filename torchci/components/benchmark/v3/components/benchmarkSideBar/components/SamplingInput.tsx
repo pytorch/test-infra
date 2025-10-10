@@ -13,6 +13,7 @@ type MaxSamplingInputProps = {
   label?: string; // default "Max sampling"
   enableInput?: boolean; // default false
   info?: string;
+  disabled?: boolean;
 };
 
 const styles = {
@@ -35,9 +36,10 @@ export function MaxSamplingInput({
   value,
   onChange,
   min = MIN_SAMPLING_THRESHOLD,
-  max = 50000,
+  max = 100000,
   label = "Max sampling",
   info = "Max benchmark results to return. Use lower values to avoid OOM issues",
+  disabled = false,
 }: MaxSamplingInputProps) {
   // raw from user input
   const [raw, setRaw] = useState<string>(String(value));
@@ -73,6 +75,7 @@ export function MaxSamplingInput({
   return (
     <Stack direction="row" spacing={1} alignItems="flex-start" flexGrow={1}>
       <TextField
+        disabled={disabled}
         size="small"
         label={label}
         value={raw}
@@ -90,7 +93,7 @@ export function MaxSamplingInput({
         color="primary"
         size="small"
         onClick={commit}
-        disabled={raw === String(original) || !!error}
+        disabled={disabled || (raw === String(original) || !!error)}
         aria-label="confirm label"
       >
         <DoneIcon />

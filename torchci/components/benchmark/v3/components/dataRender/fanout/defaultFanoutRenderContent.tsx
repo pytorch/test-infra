@@ -7,7 +7,7 @@ import LoadingPage from "components/common/LoadingPage";
 import { useBenchmarkData } from "lib/benchmark/api_helper/apis/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ToggleSection, toToggleSectionId } from "../../common/ToggleSection";
 
 /**
@@ -87,7 +87,7 @@ export function DefaultFanoutRenderContent() {
     timeRange: committedTime,
     branches,
     filters: committedFilters,
-    maxSampling: committedMaxSampling,
+    maxSampling: committedMaxSampling
   });
   const queryParams: any | null = ready ? params : null;
 

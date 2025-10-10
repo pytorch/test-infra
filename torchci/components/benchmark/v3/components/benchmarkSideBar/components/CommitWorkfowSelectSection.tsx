@@ -72,7 +72,7 @@ export function CommitWorflowSelectSection() {
     branches,
     timeRange: committedTime,
     filters: committedFilters,
-    maxSampling: committedMaxSampling,
+    maxSampling: enableSamplingSetting?committedMaxSampling: undefined,
   } as QueryParameterConverterInputs);
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);
