@@ -1,7 +1,6 @@
 import { FormControlLabel, Switch, Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { MaxSamplingInput } from "./SamplingInput";
-import { useEffect } from "react";
 
 const DEFAULT_MAX_SAMPLING = 1000;
 
@@ -18,7 +17,6 @@ export function SamplingSetting({
   maxSamplingValue,
   setMaxSampling,
 }: SamplingSettingProps) {
-
   return (
     <Stack spacing={1}>
       {/* Toggle row */}
@@ -26,7 +24,7 @@ export function SamplingSetting({
         control={
           <Switch
             size="small"
-            checked={enableSamplingSetting?? false}
+            checked={enableSamplingSetting ?? false}
             onChange={(e) => setEnableSamplingSetting(e.target.checked)}
           />
         }

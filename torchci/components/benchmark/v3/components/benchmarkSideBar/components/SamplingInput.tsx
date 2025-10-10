@@ -93,7 +93,7 @@ export function MaxSamplingInput({
         color="primary"
         size="small"
         onClick={commit}
-        disabled={disabled || (raw === String(original) || !!error)}
+        disabled={disabled || raw === String(original) || !!error}
         aria-label="confirm label"
       >
         <DoneIcon />

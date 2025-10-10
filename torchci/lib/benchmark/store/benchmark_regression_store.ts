@@ -1,5 +1,4 @@
 // benchmark_regression_store.ts
-import { MaxSamplingInput } from "components/benchmark/v3/components/benchmarkSideBar/components/SamplingInput";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
@@ -28,10 +27,6 @@ export interface BenchmarkDashboardState {
   committedLbranch: string;
   committedRbranch: string;
 
-  // for some benchmark solution, we have dissync between the workflow list from listCommits api
-  // and fetch data api. This is due to some post-db filter logics.
-  renderWorkflowIdList?: string[]
-
   enableSamplingSetting?: boolean;
   // max sampling threshold, if null, no limit.
   // otherwise, we subsampling data in backend to fit the limit during the data
@@ -56,11 +51,10 @@ export interface BenchmarkDashboardState {
   commitMainOptions: () => void;
   revertMainOptions: () => void;
 
-  setEnableSamplingSetting: (enable:boolean) => void;
+  setEnableSamplingSetting: (enable: boolean) => void;
 
   setLcommit: (commit: BenchmarkCommitMeta | null) => void;
   setRcommit: (commit: BenchmarkCommitMeta | null) => void;
-  setRenderWorkflowIdList: (list: string[]) => void;
 
   update: (initial: {
     time?: TimeRange;
@@ -129,9 +123,9 @@ export function createDashboardStore(initial: {
       set((s) => {
         if (!s.enableSamplingSetting) return s;
         return {
-          stagedMaxSampling: c
-        }
-      })
+          stagedMaxSampling: c,
+        };
+      });
     },
 
     setStagedLbranch: (c) => set({ stagedLbranch: c }),
@@ -142,28 +136,28 @@ export function createDashboardStore(initial: {
     setStagedFilters: (filters) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, ...filters } })),
 
-    commitMainOptions: () =>{
+    commitMainOptions: () => {
       set((s) => {
-      let newState:any ={
-        committedTime: s.stagedTime,
-        committedFilters: s.stagedFilters,
-        committedLbranch: s.stagedLbranch,
-        committedRbranch: s.stagedRbranch,
-      }
+        let newState: any = {
+          committedTime: s.stagedTime,
+          committedFilters: s.stagedFilters,
+          committedLbranch: s.stagedLbranch,
+          committedRbranch: s.stagedRbranch,
+        };
 
-      // set maxSampling
-      let maxSampling = s.stagedMaxSampling
-      // reset to undefine if the feature is disabled
-      if(!s.enableSamplingSetting){
-        maxSampling = undefined
-      }
-      newState = {
+        // set maxSampling
+        let maxSampling = s.stagedMaxSampling;
+        // reset to undefine if the feature is disabled
+        if (!s.enableSamplingSetting) {
+          maxSampling = undefined;
+        }
+        newState = {
           ...newState,
           committedMaxSampling: maxSampling,
-          stagedMaxSampling: maxSampling
-      }
-      return newState
-      })
+          stagedMaxSampling: maxSampling,
+        };
+        return newState;
+      });
     },
 
     revertMainOptions: () =>
@@ -175,45 +169,45 @@ export function createDashboardStore(initial: {
         stagedMaxSampling: get().committedMaxSampling,
       }),
 
-    setEnableSamplingSetting: (enable) => set({enableSamplingSetting: enable}),
+    setEnableSamplingSetting: (enable) =>
+      set({ enableSamplingSetting: enable }),
     setLcommit: (commit) => set({ lcommit: commit }),
     setRcommit: (commit) => set({ rcommit: commit }),
-    setRenderWorkflowIdList: (list)=> set({renderWorkflowIdList:list}),
 
     update: (next) => {
       set((s) => {
-      let newState: any = {
-        // important to keep the benchmarkId as original if not specified
-        benchmarkId: next.benchmarkId ?? s.benchmarkId,
-        // staged
-        stagedTime: next.time ?? s.stagedTime,
-        stagedFilters: next.filters ?? s.stagedFilters,
-        stagedLbranch: next.lbranch ?? s.stagedLbranch ?? "",
-        stagedRbranch: next.rbranch ?? s.stagedRbranch ?? "",
-        // committed mirrors staged on first load
-        committedTime: next.time ?? s.committedTime,
-        committedFilters: next.filters ?? s.committedFilters,
-        committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
-        committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
+        let newState: any = {
+          // important to keep the benchmarkId as original if not specified
+          benchmarkId: next.benchmarkId ?? s.benchmarkId,
+          // staged
+          stagedTime: next.time ?? s.stagedTime,
+          stagedFilters: next.filters ?? s.stagedFilters,
+          stagedLbranch: next.lbranch ?? s.stagedLbranch ?? "",
+          stagedRbranch: next.rbranch ?? s.stagedRbranch ?? "",
+          // committed mirrors staged on first load
+          committedTime: next.time ?? s.committedTime,
+          committedFilters: next.filters ?? s.committedFilters,
+          committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
+          committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
 
-        lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
-        rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
-      }
+          lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
+          rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
+        };
 
-      // set maxSampling
-      let nextMaxSampling = next.maxSampling ?? s.committedMaxSampling
-      // reset to undefine if the feature is disabled
-      if(!s.enableSamplingSetting){
-        nextMaxSampling = undefined
-      }
-
-      newState = {
-          ...newState,
-          committedMaxSampling:nextMaxSampling,
-          stagedMaxSampling: nextMaxSampling
+        // set maxSampling
+        let nextMaxSampling = next.maxSampling ?? s.committedMaxSampling;
+        // reset to undefine if the feature is disabled
+        if (!s.enableSamplingSetting) {
+          nextMaxSampling = undefined;
         }
-      return newState;
-    });
+
+        newState = {
+          ...newState,
+          committedMaxSampling: nextMaxSampling,
+          stagedMaxSampling: nextMaxSampling,
+        };
+        return newState;
+      });
     },
 
     hydrateFromUrl: ({
@@ -246,6 +240,3 @@ export function createDashboardStore(initial: {
     },
   }));
 }
-
-
-function getMaxSampling()

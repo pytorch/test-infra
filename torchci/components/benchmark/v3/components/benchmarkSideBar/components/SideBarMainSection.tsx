@@ -16,8 +16,8 @@ import { useEffect, useRef, useState } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./BranchDropdown";
-import { useUrlStoreSync } from "./useUrlSync";
 import { SamplingSetting } from "./SamplingSetting";
+import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
   root: {
@@ -125,11 +125,11 @@ export function SideBarMainSection() {
   const [samplingDirty, setSamplingDirty] = useState(false);
   const prevEnableRef = useRef(enableSamplingSetting);
   useEffect(() => {
-  if (enableSamplingSetting !== prevEnableRef.current) {
-    setSamplingDirty(true); // mark dirty when toggled
-    prevEnableRef.current = enableSamplingSetting;
-  }
-}, [enableSamplingSetting]);
+    if (enableSamplingSetting !== prevEnableRef.current) {
+      setSamplingDirty(true); // mark dirty when toggled
+      prevEnableRef.current = enableSamplingSetting;
+    }
+  }, [enableSamplingSetting]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -152,7 +152,7 @@ export function SideBarMainSection() {
     ?.toQueryParams({
       timeRange: stagedTime,
       filters: stagedFilters,
-      maxSampling: enableSamplingSetting? stagedMaxSampling: undefined,
+      maxSampling: enableSamplingSetting ? stagedMaxSampling : undefined,
     } as QueryParameterConverterInputs);
 
   if (!params) {
@@ -187,7 +187,6 @@ export function SideBarMainSection() {
       setStagedRBranch(branches[branches.length - 1] ?? null);
     }
   }, [branches]);
-
 
   const DropdownComp = dataBinding?.getFilterOptionComponent();
 
@@ -233,13 +232,13 @@ export function SideBarMainSection() {
         gap={0}
       />
       {/* Fetch Settings */}
-       <Divider />
+      <Divider />
       <Typography variant="subtitle2">Fetch Settings</Typography>
       <SamplingSetting
-        enableSamplingSetting={enableSamplingSetting?? false}
+        enableSamplingSetting={enableSamplingSetting ?? false}
         setEnableSamplingSetting={setEnableSamplingSetting}
         setMaxSampling={setStagedMaxSampling}
-        maxSamplingValue={stagedMaxSampling??0}
+        maxSamplingValue={stagedMaxSampling ?? 0}
       />
       {showSamplinginfo && (
         <DenseAlert severity="info">
