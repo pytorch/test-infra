@@ -9,12 +9,12 @@ import {
   BenchmarkRegressionReport,
 } from "./common";
 
-const CHECK_EVERY_FOUR_HOUR = 4 * 60 * 60 * 1000;
+const CHECK_EVERY_TWO_HOUR = 2 * 60 * 60 * 1000;
 
 export function BenchmarkReportFeatureNotification({
   report_id,
-  refresh_interval = CHECK_EVERY_FOUR_HOUR,
-  durationReportMissingReport = 4,
+  refresh_interval = CHECK_EVERY_TWO_HOUR,
+  durationReportMissingReport = 3,
 }: {
   report_id: string;
   refresh_interval?: number;
