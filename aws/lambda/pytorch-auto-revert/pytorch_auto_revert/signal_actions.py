@@ -576,6 +576,22 @@ class SignalActionProcessor:
             and action_type == CommitPRSourceAction.MERGE
         )
 
+        # If the PR is still open, do not request a bot revert.
+        # This covers cases where the commit belongs to an open PR
+        # (not yet merged) or the PR has already been reverted and is open.
+        # In such cases, fall back to posting a notification comment only.
+        if should_do_revert_on_pr:
+            pr_state = getattr(pr, "state", None)
+            if pr_state == "open":
+                logging.info(
+                    "[v2][action] (%s, %s) revert for sha %s: PR #%s is open, will just notify",
+                    ctx.revert_action,
+                    action_type,
+                    commit_sha[:8],
+                    pr.number,
+                )
+                should_do_revert_on_pr = False
+
         if should_do_revert_on_pr:
             # check if label 'autorevert: disable' is on the `pr`
             labels = []
