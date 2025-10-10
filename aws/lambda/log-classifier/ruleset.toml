@@ -86,7 +86,7 @@ pattern = '^FAILED: Build did NOT complete successfully'
 
 [[rule]]
 name = 'Python unittest failure'
-pattern = '^\[FAILED CONSISTENTLY\] (.*)$'
+pattern = '^FAILED CONSISTENTLY: (.*)$'
 
 [[rule]]
 name = 'Python unittest failure'
