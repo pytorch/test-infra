@@ -92,7 +92,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
       <Box sx={{ p: 0.5 }}>
         <strong>WorkflowId: {wf.workflow_id}</strong>
         <div>Commit: {shortSha(wf.commit)}</div>
-        <div>timestamp:{wf.date}</div>
+        <div>time:{wf.date}</div>
       </Box>
     );
   }
