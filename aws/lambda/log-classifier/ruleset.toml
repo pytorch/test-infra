@@ -86,6 +86,10 @@ pattern = '^FAILED: Build did NOT complete successfully'
 
 [[rule]]
 name = 'Python unittest failure'
+pattern = '^FAILED CONSISTENTLY: (.*)$'
+
+[[rule]]
+name = 'Python unittest failure'
 pattern = 'FAIL(?: \[.*\])?: (test.*) \((?:__main__\.)?(.*)\)'
 
 [[rule]]
