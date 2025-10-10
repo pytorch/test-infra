@@ -10,10 +10,18 @@ type GridRowModel = {
 };
 
 // used when find unique rows
-const EXCLUDE_KEYS = ["workflow_id", "commit", "branch"];
+const TO_ROW_EXCLUDE_KEYS = [
+  "workflow_id",
+  "commit",
+  "branch",
+  "granularity_bucket",
+  "timestamp",
+  "date",
+];
+
 function getGroupKeyAndLabel(gi: any) {
   const keys = Object.keys(gi ?? {})
-    .filter((k) => !EXCLUDE_KEYS.includes(k))
+    .filter((k) => !TO_ROW_EXCLUDE_KEYS.includes(k))
     .sort();
   const key = keys.map((k) => `${k}=${String(gi?.[k])}`).join("|");
   const label = keys.map((k) => String(gi?.[k])).join(" · ");

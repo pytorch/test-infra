@@ -37,6 +37,7 @@ export default function BenchmarkTimeSeriesChartGroup({
       ),
     [data, chartGroup.filterByFieldValues]
   );
+
   const groups = useMemo(() => {
     const m = new Map<
       string,

@@ -1,4 +1,5 @@
 import { BenchmarkComparisonPolicyConfig } from "components/benchmark/v3/configs/helpers/RegressionPolicy";
+import dayjs from "dayjs";
 
 export const DEFAULT_TARGET_FILED = "metric";
 
@@ -180,21 +181,18 @@ export function toSortedWorkflowIdMap(data: any[]) {
         "[toSortedWorkflowIdMap]workflow_id is missing when try to form the workflowIdMap "
       );
     }
+
     const id = String(d.group_info.workflow_id);
     workflowIdMap.set(id, {
       workflow_id: id,
       label: id,
       commit: d.group_info.commit,
       branch: d.group_info.branch,
+      date: d.group_info.granularity_bucket,
     });
   }
-  // Sort by numeric if all ids are numbers, else lexicographically
   return Array.from(workflowIdMap.values()).sort((a, b) => {
-    const na = /^\d+$/.test(a.workflow_id) ? Number(a.workflow_id) : NaN;
-    const nb = /^\d+$/.test(b.workflow_id) ? Number(b.workflow_id) : NaN;
-    return Number.isNaN(na) || Number.isNaN(nb)
-      ? a.workflow_id.localeCompare(b.workflow_id)
-      : na - nb;
+    return dayjs(a.date).unix() - dayjs(b.date).unix();
   });
 }
 

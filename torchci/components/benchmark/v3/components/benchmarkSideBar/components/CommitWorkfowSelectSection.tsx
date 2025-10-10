@@ -42,8 +42,6 @@ export function CommitWorflowSelectSection() {
 
   const [leftList, setLeftList] = useState<BenchmarkCommitMeta[]>([]);
   const [rightList, setRightList] = useState<BenchmarkCommitMeta[]>([]);
-  const [autoLeftSha, setAutoLeftSha] = useState<string | null>(null);
-  const [autoRightSha, setAutoRightSha] = useState<string | null>(null);
 
   const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
   const dataBinding =
@@ -136,11 +134,9 @@ export function CommitWorflowSelectSection() {
   if (isLoading || !data) return null;
 
   return (
-    <Stack spacing={1.5}>
-      <Typography variant="subtitle2">Commits</Typography>
-      <Typography variant="caption">
-        {" "}
-        Options are based on all commits within the time range{" "}
+    <Stack spacing={1.5} direction={"row"} alignItems={"center"}>
+      <Typography variant="subtitle2" noWrap>
+        Commit Range:
       </Typography>
       <UMDenseCommitDropdown
         label={"lbl-left"}

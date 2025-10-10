@@ -106,10 +106,16 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     console.log("commits provided in request", queryParams.commits);
   }
 
-  let rows = await queryClickhouseSaved(
-    COMPILER_BENCHMARK_TABLE_NAME,
-    queryParams
-  );
+  let rows = [];
+  try {
+    rows = await queryClickhouseSaved(
+      COMPILER_BENCHMARK_TABLE_NAME,
+      queryParams
+    );
+  } catch (err: any) {
+    throw Error("(clickhouse query issue) ", err.message);
+  }
+
   const end = Date.now();
   console.log("time to get compiler timeseris data", end - start);
 
