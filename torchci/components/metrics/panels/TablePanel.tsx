@@ -68,7 +68,7 @@ export function TablePanelWithData({
   disableAutoPageSize,
   customStyle,
 }: {
-  title: string;
+  title: string | React.ReactNode;
   data: any;
   columns: GridColDef[];
   dataGridProps: any;
