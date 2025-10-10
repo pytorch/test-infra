@@ -67,7 +67,9 @@ function checkRegressionReportNotification(
   // check if report is outdated
   const createdDate = dayjs(report?.created_at);
   const now = dayjs();
-  const checkTime = now.subtract(durationReportMissingReport, "day").endOf("day")
+  const checkTime = now
+    .subtract(durationReportMissingReport, "day")
+    .endOf("day");
 
   const defaultRes = {
     enable: false,
