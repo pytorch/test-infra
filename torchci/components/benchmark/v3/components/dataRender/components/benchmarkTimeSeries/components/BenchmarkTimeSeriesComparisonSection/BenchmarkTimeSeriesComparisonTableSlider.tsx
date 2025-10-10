@@ -1,5 +1,5 @@
 import styled from "@emotion/styled";
-import { Box, Chip, Paper, Slider, Stack, Typography } from "@mui/material";
+import { Box, Chip, Slider, Stack, Typography } from "@mui/material";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { shortSha } from "../../helper";
 
@@ -20,16 +20,11 @@ const BenchmarkSlider = styled(Slider)(({ theme }) => ({
   },
 }));
 
-const fmtTs = (ts?: string) => {
-  if (!ts) return "—";
-  const d = new Date(ts);
-  return isNaN(d.getTime()) ? ts : d.toLocaleString();
-};
 export function BenchmarkTimeSeriesComparisonTableSlider({
   workflows,
   onChange,
-  lWorkflowId, // 👈 new
-  rWorkflowId, // 👈 new
+  lWorkflowId,
+  rWorkflowId,
 }: {
   workflows: WorkflowMetaInfo[];
   onChange: (next: [string, string]) => void;
@@ -97,7 +92,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
       <Box sx={{ p: 0.5 }}>
         <strong>WorkflowId: {wf.workflow_id}</strong>
         <div>Commit: {shortSha(wf.commit)}</div>
-        <div>{fmtTs(wf.ts)}</div>
+        <div>time:{wf.date}</div>
       </Box>
     );
   }
@@ -119,7 +114,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
   const minWidth = Math.min(200, 50 * ids.length);
 
   return (
-    <Paper sx={{ p: 2, width: "100%", minWidth }}>
+    <Box sx={{ p: 2, width: "100%", minWidth }}>
       <Typography variant="subtitle1" gutterBottom>
         Select L / R Data
       </Typography>
@@ -139,6 +134,6 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
         </Box>
         <Chip label={`R: ${rangeLabelFormat(range[1])}`} />
       </Stack>
-    </Paper>
+    </Box>
   );
 }

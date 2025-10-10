@@ -14,6 +14,9 @@ export type BenchmarkCommitMeta = {
   index?: number;
 };
 
+/**
+ * Data model for BenchmarkDashboardState
+ */
 export interface BenchmarkDashboardState {
   stagedTime: TimeRange;
   stagedFilters: Record<string, string>;
@@ -28,6 +31,7 @@ export interface BenchmarkDashboardState {
   // max sampling threshold, if null, no limit.
   // otherwise, we subsampling data in backend to fit the limit during the data
   committedMaxSampling?: number;
+
   // TODO(elainewy): may allow user to set a different max sampling threshold based on their needs.
   stagedMaxSampling?: number;
 
@@ -47,6 +51,8 @@ export interface BenchmarkDashboardState {
   commitMainOptions: () => void;
   revertMainOptions: () => void;
 
+  setEnableSamplingSetting: (enable: boolean) => void;
+
   setLcommit: (commit: BenchmarkCommitMeta | null) => void;
   setRcommit: (commit: BenchmarkCommitMeta | null) => void;
 
@@ -58,6 +64,7 @@ export interface BenchmarkDashboardState {
     rcommit?: BenchmarkCommitMeta | null;
     lbranch?: string;
     rbranch?: string;
+    maxSampling?: number;
   }) => void;
 
   hydrateFromUrl: (initial: {
@@ -68,16 +75,7 @@ export interface BenchmarkDashboardState {
     rcommit?: BenchmarkCommitMeta | null;
     lbranch?: string;
     rbranch?: string;
-  }) => void;
-
-  reset: (initial: {
-    time: TimeRange;
-    benchmarkId: string;
-    filters: Record<string, string>;
-    lcommit?: BenchmarkCommitMeta | null;
-    rcommit?: BenchmarkCommitMeta | null;
-    lbranch?: string;
-    rbranch?: string;
+    maxSampling?: number;
   }) => void;
 }
 
@@ -121,7 +119,15 @@ export function createDashboardStore(initial: {
     rcommit: initial.rcommit ?? null,
 
     // actions...
-    setStagedMaxSampling: (c) => set({ stagedMaxSampling: c }),
+    setStagedMaxSampling: (c) => {
+      set((s) => {
+        if (!s.enableSamplingSetting) return s;
+        return {
+          stagedMaxSampling: c,
+        };
+      });
+    },
+
     setStagedLbranch: (c) => set({ stagedLbranch: c }),
     setStagedRbranch: (c) => set({ stagedRbranch: c }),
     setStagedTime: (t) => set({ stagedTime: t }),
@@ -130,14 +136,29 @@ export function createDashboardStore(initial: {
     setStagedFilters: (filters) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, ...filters } })),
 
-    commitMainOptions: () =>
-      set({
-        committedTime: get().stagedTime,
-        committedFilters: get().stagedFilters,
-        committedLbranch: get().stagedLbranch,
-        committedRbranch: get().stagedRbranch,
-        committedMaxSampling: get().stagedMaxSampling,
-      }),
+    commitMainOptions: () => {
+      set((s) => {
+        let newState: any = {
+          committedTime: s.stagedTime,
+          committedFilters: s.stagedFilters,
+          committedLbranch: s.stagedLbranch,
+          committedRbranch: s.stagedRbranch,
+        };
+
+        // set maxSampling
+        let maxSampling = s.stagedMaxSampling;
+        // reset to undefine if the feature is disabled
+        if (!s.enableSamplingSetting) {
+          maxSampling = undefined;
+        }
+        newState = {
+          ...newState,
+          committedMaxSampling: maxSampling,
+          stagedMaxSampling: maxSampling,
+        };
+        return newState;
+      });
+    },
 
     revertMainOptions: () =>
       set({
@@ -148,41 +169,45 @@ export function createDashboardStore(initial: {
         stagedMaxSampling: get().committedMaxSampling,
       }),
 
+    setEnableSamplingSetting: (enable) =>
+      set({ enableSamplingSetting: enable }),
     setLcommit: (commit) => set({ lcommit: commit }),
     setRcommit: (commit) => set({ rcommit: commit }),
 
-    reset: (next) =>
-      set({
-        stagedTime: next.time,
-        committedTime: next.time,
-        stagedFilters: next.filters,
-        committedFilters: next.filters,
-        stagedLbranch: next.lbranch ?? "",
-        stagedRbranch: next.rbranch ?? "",
-        committedLbranch: next.lbranch ?? "",
-        committedRbranch: next.rbranch ?? "",
-        lcommit: next.lcommit ?? null,
-        rcommit: next.rcommit ?? null,
-        // (optional) benchmarkId: next.benchmarkId,
-      }),
-
     update: (next) => {
-      set((s) => ({
-        // important to keep the benchmarkId as original if not specified
-        benchmarkId: next.benchmarkId ?? s.benchmarkId,
-        // staged
-        stagedTime: next.time ?? s.stagedTime,
-        stagedFilters: next.filters ?? s.stagedFilters,
-        stagedLbranch: next.lbranch ?? s.stagedLbranch ?? "",
-        stagedRbranch: next.rbranch ?? s.stagedRbranch ?? "",
-        // committed mirrors staged on first load
-        committedTime: next.time ?? s.committedTime,
-        committedFilters: next.filters ?? s.committedFilters,
-        committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
-        committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
-        lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
-        rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
-      }));
+      set((s) => {
+        let newState: any = {
+          // important to keep the benchmarkId as original if not specified
+          benchmarkId: next.benchmarkId ?? s.benchmarkId,
+          // staged
+          stagedTime: next.time ?? s.stagedTime,
+          stagedFilters: next.filters ?? s.stagedFilters,
+          stagedLbranch: next.lbranch ?? s.stagedLbranch ?? "",
+          stagedRbranch: next.rbranch ?? s.stagedRbranch ?? "",
+          // committed mirrors staged on first load
+          committedTime: next.time ?? s.committedTime,
+          committedFilters: next.filters ?? s.committedFilters,
+          committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
+          committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
+
+          lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
+          rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
+        };
+
+        // set maxSampling
+        let nextMaxSampling = next.maxSampling ?? s.committedMaxSampling;
+        // reset to undefine if the feature is disabled
+        if (!s.enableSamplingSetting) {
+          nextMaxSampling = undefined;
+        }
+
+        newState = {
+          ...newState,
+          committedMaxSampling: nextMaxSampling,
+          stagedMaxSampling: nextMaxSampling,
+        };
+        return newState;
+      });
     },
 
     hydrateFromUrl: ({
@@ -193,6 +218,7 @@ export function createDashboardStore(initial: {
       rbranch,
       lcommit,
       rcommit,
+      maxSampling,
     }) => {
       let timeRange = undefined;
       if (time?.end && time?.start) {
@@ -209,6 +235,7 @@ export function createDashboardStore(initial: {
         rbranch,
         lcommit,
         rcommit,
+        maxSampling,
       });
     },
   }));

@@ -12,6 +12,7 @@ export type StickyBarProps = {
   align?: "left" | "center" | "right";
   /** Should children keep their natural width ("fit") or stretch ("full") */
   contentMode?: "fit" | "full";
+  rootMargin?: string;
 };
 
 export const StickyBar: React.FC<StickyBarProps> = ({
@@ -23,6 +24,7 @@ export const StickyBar: React.FC<StickyBarProps> = ({
   onUnmount,
   align = "left",
   contentMode = "fit",
+  rootMargin = "-100px 0px 0px 0px", //trigger when element is 100px from top
 }) => {
   const ref = useRef<HTMLDivElement>(null);
   const [isSticky, setIsSticky] = useState(false);
@@ -34,14 +36,16 @@ export const StickyBar: React.FC<StickyBarProps> = ({
   }, [height, onMount, onUnmount]);
 
   useEffect(() => {
+    // watches when an element enters or leaves the viewport
     const observer = new IntersectionObserver(
       ([entry]) => {
-        // < 0.99
-        setIsSticky(entry.intersectionRatio < 0.99);
+        // When the top of the element goes above the threshold
+        setIsSticky(!entry.isIntersecting);
       },
       {
-        threshold: Array.from({ length: 101 }, (_, i) => i / 100),
-        // 0,0.01,0.02,...,1，
+        root: null, // viewport
+        threshold: 0,
+        rootMargin: rootMargin, // trigger when element is 100px from top
       }
     );
 

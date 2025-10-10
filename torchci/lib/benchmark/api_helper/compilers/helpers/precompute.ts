@@ -36,6 +36,7 @@ const COMPILER_PRECOMPUTE_TABLE_GROUP_KEY = [
   "workflow_id",
   "commit",
   "branch",
+  "granularity_bucket",
   "metric",
   "compiler",
 ];

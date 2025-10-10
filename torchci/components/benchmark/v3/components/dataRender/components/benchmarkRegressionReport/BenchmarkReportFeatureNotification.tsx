@@ -9,11 +9,11 @@ import {
   BenchmarkRegressionReport,
 } from "./common";
 
-const CHECK_EVERY_FOUR_HOUR = 4 * 60 * 60 * 1000;
+const CHECK_EVERY_TWO_HOUR = 2 * 60 * 60 * 1000;
 
 export function BenchmarkReportFeatureNotification({
   report_id,
-  refresh_interval = CHECK_EVERY_FOUR_HOUR,
+  refresh_interval = CHECK_EVERY_TWO_HOUR,
   durationReportMissingReport = 3,
 }: {
   report_id: string;
@@ -63,8 +63,13 @@ function checkRegressionReportNotification(
 
   // get latest report from response
   const report = resp.reports[0] as BenchmarkRegressionReport;
+
+  // check if report is outdated
   const createdDate = dayjs(report?.created_at);
   const now = dayjs();
+  const checkTime = now
+    .subtract(durationReportMissingReport, "day")
+    .endOf("day");
 
   const defaultRes = {
     enable: false,
@@ -72,7 +77,7 @@ function checkRegressionReportNotification(
     report_id,
   };
   // check if missing generated report for past x days, if so pop up warning icon
-  if (createdDate.isBefore(now.subtract(durationReportMissingReport, "day"))) {
+  if (createdDate.isBefore(checkTime)) {
     // return warning notification color icon
     return {
       ...defaultRes,
@@ -140,7 +145,7 @@ export function FloatingIcon({
   }
 
   return (
-    <>
+    <Box sx={{ minWidth: 65 }}>
       {label === "outdated" ? (
         <RegressionNotificationButton
           color={color}
@@ -160,7 +165,7 @@ export function FloatingIcon({
           }
         />
       )}
-    </>
+    </Box>
   );
 }
 

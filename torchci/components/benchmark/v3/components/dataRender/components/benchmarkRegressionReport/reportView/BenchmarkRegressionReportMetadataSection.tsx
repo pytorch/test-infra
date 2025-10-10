@@ -89,7 +89,7 @@ function BenchmarkRegressionReportInformation({
         </Typography>
         <Typography variant="body2">
           <strong>Last Record Commit:</strong>{" "}
-          <code>{report.last_record_commit.slice(0, 10)}</code>
+          <code>{report.last_record_commit?.slice(0, 10)}</code>
         </Typography>
         <Typography variant="body2">
           <strong>Created At:</strong>{" "}

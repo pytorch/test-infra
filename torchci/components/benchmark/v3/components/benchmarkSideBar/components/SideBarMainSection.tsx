@@ -4,6 +4,7 @@ import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
 import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
+import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
@@ -11,11 +12,11 @@ import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/apis/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./BranchDropdown";
-import { MaxSamplingInput } from "./SamplingInput";
+import { SamplingSetting } from "./SamplingSetting";
 import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
@@ -41,14 +42,26 @@ export function SideBarMainSection() {
     rcommit: s.rcommit,
     lbranch: s.committedLbranch,
     rbranch: s.committedRbranch,
+    maxSampling: s.committedMaxSampling,
   }));
 
   // sync the url with the store
-  const { pushUrlFromStore } = useUrlStoreSync(
+  const { pushUrlFromStore, hydrated } = useUrlStoreSync(
     router,
     committedState,
     hydrateFromUrl
   );
+
+  useEffect(() => {
+    if (!hydrated) return;
+    pushUrlFromStore();
+  }, [hydrated, committedState]);
+
+  const onConfirm = () => {
+    if (!hydrated) return;
+    setSamplingDirty(false);
+    commitMainOptions();
+  };
 
   // make the url in sync with the state of the store
   // pushUrlFromStore();
@@ -70,6 +83,7 @@ export function SideBarMainSection() {
     setStagedTime,
     setStagedLBranch,
     setStagedRBranch,
+    setEnableSamplingSetting,
     setStagedMaxSampling,
     lcommit,
     rcommit,
@@ -92,6 +106,7 @@ export function SideBarMainSection() {
     setStagedLBranch: s.setStagedLbranch,
     setStagedRBranch: s.setStagedRbranch,
     setStagedMaxSampling: s.setStagedMaxSampling,
+    setEnableSamplingSetting: s.setEnableSamplingSetting,
 
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -107,9 +122,25 @@ export function SideBarMainSection() {
     revertMainOptions: s.revertMainOptions,
   }));
 
+  const [samplingDirty, setSamplingDirty] = useState(false);
+  const prevEnableRef = useRef(enableSamplingSetting);
+  useEffect(() => {
+    if (enableSamplingSetting !== prevEnableRef.current) {
+      setSamplingDirty(true); // mark dirty when toggled
+      prevEnableRef.current = enableSamplingSetting;
+    }
+  }, [enableSamplingSetting]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    pushUrlFromStore();
+  }, [lcommit, rcommit]);
+
   // trick to record the sig of the branches from previous rendering
   const branchSigRef = useRef<string>("");
 
+  // Ready to fetch commits data
+  // it checks all fields that must exist (null, undefined, empty string)
   const ready =
     !!stagedTime?.start &&
     !!stagedTime?.end &&
@@ -121,15 +152,15 @@ export function SideBarMainSection() {
     ?.toQueryParams({
       timeRange: stagedTime,
       filters: stagedFilters,
-      maxSampling: stagedMaxSampling,
+      maxSampling: enableSamplingSetting ? stagedMaxSampling : undefined,
     } as QueryParameterConverterInputs);
 
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);
   }
 
+  // fetch commits list for bracnhes and estimated runs
   const queryParams: any | null = ready ? params : null;
-
   const {
     data: commitsData,
     isLoading: isCommitsLoading,
@@ -166,14 +197,14 @@ export function SideBarMainSection() {
     stagedLbranch !== committedLbranch ||
     stagedRbranch !== committedRbranch ||
     stagedMaxSampling !== committedMaxSampling ||
+    samplingDirty ||
     JSON.stringify(stagedFilters) !== JSON.stringify(committedFilters);
 
   // indicates no branches found based on the time range and options
   const noData = branches && branches.length === 0;
-
   const disableApply = !dirty || noData || isCommitsLoading;
-
   const showSamplinginfo = is_samplied && !isCommitsLoading;
+
   return (
     <Stack spacing={2} sx={styles.root}>
       <Stack direction="row" alignItems="center" spacing={0}>
@@ -188,6 +219,7 @@ export function SideBarMainSection() {
             rbranch: committedRbranch,
             rcommit: rcommit,
             lcommit: lcommit,
+            maxSampling: committedMaxSampling,
           }}
         />
       </Stack>
@@ -199,15 +231,15 @@ export function SideBarMainSection() {
         end={stagedTime.end}
         gap={0}
       />
-      <Divider />
       {/* Fetch Settings */}
+      <Divider />
       <Typography variant="subtitle2">Fetch Settings</Typography>
-      {enableSamplingSetting && stagedMaxSampling && (
-        <MaxSamplingInput
-          value={stagedMaxSampling}
-          onChange={setStagedMaxSampling}
-        />
-      )}
+      <SamplingSetting
+        enableSamplingSetting={enableSamplingSetting ?? false}
+        setEnableSamplingSetting={setEnableSamplingSetting}
+        setMaxSampling={setStagedMaxSampling}
+        maxSamplingValue={stagedMaxSampling ?? 0}
+      />
       {showSamplinginfo && (
         <DenseAlert severity="info">
           {`Data Sampling: subsample from ${sampling_info?.origin ?? 0} to ${
@@ -231,6 +263,9 @@ export function SideBarMainSection() {
           branchOptions={branches}
         />
       )}
+      {isCommitsLoading && (
+        <CenteredLoader size={20} minHeight={20} thickness={4} />
+      )}
       {/* Apply / Revert */}
       <Typography
         variant="body2"
@@ -251,7 +286,7 @@ export function SideBarMainSection() {
         <UMDenseButtonLight
           variant="contained"
           disabled={disableApply}
-          onClick={commitMainOptions}
+          onClick={onConfirm}
         >
           Apply
         </UMDenseButtonLight>

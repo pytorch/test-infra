@@ -1,6 +1,7 @@
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { Button, Drawer, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
+import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import Link from "next/link";
 import { cloneElement, useState } from "react";
 import { BenchmarkRegressionReportListWrapper } from "./listView/BenchmarkRegressionReportListWrapper";
@@ -39,9 +40,9 @@ export function BenchmarkReportFeatureSidePanel({
       },
     })
   ) : (
-    <Button variant="outlined" size="small" sx={buttonSx} onClick={handleOpen}>
+    <UMDenseButtonLight sx={buttonSx} onClick={handleOpen} variant="outlined">
       {buttonText}
-    </Button>
+    </UMDenseButtonLight>
   );
   return (
     <>

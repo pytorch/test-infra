@@ -2,7 +2,6 @@ import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import { Box, Divider, IconButton, Typography } from "@mui/material";
 import { useEffect, useRef, useState } from "react";
-import { CommitWorflowSelectSection } from "./components/CommitWorkfowSelectSection";
 import { SideBarMainSection } from "./components/SideBarMainSection";
 
 const SIDEBAR_WIDTH = 300; // expanded width
@@ -137,7 +136,6 @@ export default function BenchmarkSideBar() {
           <Box sx={styles.content(contentVisible)}>
             <SideBarMainSection />
             <Divider />
-            <CommitWorflowSelectSection />
           </Box>
         ) : (
           <Box sx={styles.collapsedPlaceholder} />

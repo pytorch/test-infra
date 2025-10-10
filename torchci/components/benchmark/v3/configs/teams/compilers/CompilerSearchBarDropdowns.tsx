@@ -3,17 +3,22 @@ import {
   DISPLAY_NAMES_TO_ARCH_NAMES,
   DISPLAY_NAMES_TO_DEVICE_NAMES,
 } from "components/benchmark/compilers/common";
+import { SUITES } from "components/benchmark/compilers/SuitePicker";
+import { SingleStringLabelInput } from "components/benchmark/v3/components/benchmarkSideBar/components/SingleStringLabelInput";
 import {
   UMDenseDropdown,
   UMDenseModePicker,
 } from "components/uiModules/UMDenseComponents";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
-
 export function CompilerSearchBarDropdowns() {
+  const backendFilterInfo =
+    "The displayed data is post-sampling and may not include all entries. For non-continuous data, commit options are based on the sampled set, so use the chart or table interactions to explore complete results";
+
   const { stagedFilters, setStagedFilter } = useDashboardSelector((s) => ({
     stagedFilters: s.stagedFilters,
     setStagedFilter: s.setStagedFilter,
   }));
+
   return (
     <>
       <UMDenseModePicker
@@ -40,6 +45,21 @@ export function CompilerSearchBarDropdowns() {
         }}
         dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
         label="Device"
+      />
+      <UMDenseDropdown
+        dtype={stagedFilters.suite ?? "all"}
+        setDType={(val: string) => setStagedFilter("suite", val)}
+        dtypes={["all", ...Object.keys(SUITES)]}
+        label="Suite"
+      />
+      <SingleStringLabelInput
+        title="Backend"
+        value={stagedFilters.compiler}
+        helperText="filter backend, e.g. aot_eager"
+        info={backendFilterInfo}
+        onChange={(newLabel) => {
+          setStagedFilter("compiler", newLabel ?? "all");
+        }}
       />
     </>
   );

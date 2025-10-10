@@ -1,6 +1,8 @@
 import { Paper } from "@mui/material";
-import { Box, Grid } from "@mui/system";
+import { Box, Grid, Stack } from "@mui/system";
 import { StickyBar } from "components/benchmark/v3/components/common/StickyBar";
+import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
+import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useMemo, useState } from "react";
 import {
@@ -37,8 +39,13 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
   rcommit?: BenchmarkCommitMeta;
   onChange?: (payload: any) => void;
 }) {
+  const { setLcommit, setRcommit } = useDashboardSelector((s) => ({
+    setLcommit: s.setLcommit,
+    setRcommit: s.setRcommit,
+  }));
+
   // Sticky bar offset
-  const [barOffset, setBarOffset] = useState(-20);
+  const [barOffset, setBarOffset] = useState(70);
   const handleMount = (h: number) => setBarOffset((prev) => prev + h);
   const handleUnmount = (h: number) => setBarOffset((prev) => prev - h);
 
@@ -89,6 +96,14 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
     return <></>;
   }
 
+  const onClickUpdate = () => {
+    const lInfo = workflowInfos.find((w) => w.workflow_id === lWorkflowId);
+    const rInfo = workflowInfos.find((w) => w.workflow_id === rWorkflowId);
+    if (!lInfo || !rInfo) return;
+    setLcommit(lInfo);
+    setRcommit(rInfo);
+  };
+
   return (
     <>
       <Box sx={{ m: 1 }} key={"benchmark_time_series_comparison_section"}>
@@ -99,13 +114,26 @@ export default function BenchmarkTimeSeriesComparisonTableSection({
           contentMode="full"
           onMount={handleMount}
           onUnmount={handleUnmount}
+          rootMargin="-200px 0px 0px 0px"
         >
-          <BenchmarkTimeSeriesComparisonTableSlider
-            workflows={workflowInfos}
-            onChange={onSliderChange}
-            lWorkflowId={lWorkflowId}
-            rWorkflowId={rWorkflowId}
-          />
+          <Paper sx={{ p: 2, width: "100%" }}>
+            <Stack
+              spacing={2}
+              direction="row"
+              sx={{ width: "100%" }}
+              alignItems={"flex-start"}
+            >
+              <BenchmarkTimeSeriesComparisonTableSlider
+                workflows={workflowInfos}
+                onChange={onSliderChange}
+                lWorkflowId={lWorkflowId}
+                rWorkflowId={rWorkflowId}
+              />
+              <UMDenseButtonLight onClick={onClickUpdate}>
+                Update
+              </UMDenseButtonLight>
+            </Stack>
+          </Paper>
         </StickyBar>
         <Grid container sx={{ m: 1 }}>
           {Array.from(groupMap.entries()).map(([key, tableData]) => {

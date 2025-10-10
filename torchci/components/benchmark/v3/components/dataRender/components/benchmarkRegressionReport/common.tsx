@@ -307,17 +307,16 @@ export function ReportPageToV3MainPageNavigationButton({
      Please report this issue to pytorch infra team. You can still view the chart sidepanel in this page.`;
     disableButton = true;
   }
-
   return (
     <Tooltip title={tooltipContent}>
       <IconButton
+        component="a"
+        href={url}
         onClick={(e) => {
           if (disableButton) {
             return;
           }
           e.stopPropagation();
-          console.debug("navigate to url", url);
-          window.location.href = url; // full reload navigation to avoid werid nextLink issue
         }}
       >
         <OpenInNewIcon fontSize="small" color="primary" />

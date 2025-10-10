@@ -78,8 +78,9 @@ export function readApiGetParams(req: NextApiRequest): Params {
 
 /**
  * Group benchmark data by `keys`, and inside each group further subgroup by `subGroupKeys`.
+ * It wil group distinct combo od keys into a single group.
  * @param data - benchmark data
- * @param keys - keys to group by
+ * @param keys - keys to group by,
  * @param subGroupKeys - keys to subgroup by (optional): if not provided, a single subgroup will be created with "_ALL_" data
  */
 export function groupByBenchmarkData<T>(

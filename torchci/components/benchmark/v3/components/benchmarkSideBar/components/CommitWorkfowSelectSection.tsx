@@ -42,8 +42,6 @@ export function CommitWorflowSelectSection() {
 
   const [leftList, setLeftList] = useState<BenchmarkCommitMeta[]>([]);
   const [rightList, setRightList] = useState<BenchmarkCommitMeta[]>([]);
-  const [autoLeftSha, setAutoLeftSha] = useState<string | null>(null);
-  const [autoRightSha, setAutoRightSha] = useState<string | null>(null);
 
   const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
   const dataBinding =
@@ -72,7 +70,7 @@ export function CommitWorflowSelectSection() {
     branches,
     timeRange: committedTime,
     filters: committedFilters,
-    maxSampling: committedMaxSampling,
+    maxSampling: enableSamplingSetting ? committedMaxSampling : undefined,
   } as QueryParameterConverterInputs);
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);
@@ -136,8 +134,10 @@ export function CommitWorflowSelectSection() {
   if (isLoading || !data) return null;
 
   return (
-    <Stack spacing={1.5}>
-      <Typography variant="subtitle2">Commits</Typography>
+    <Stack spacing={1.5} direction={"row"} alignItems={"center"}>
+      <Typography variant="subtitle2" sx={{ minWidth: 100 }}>
+        Commit Range:
+      </Typography>
       <UMDenseCommitDropdown
         label={"lbl-left"}
         branchName={committedLBranch}

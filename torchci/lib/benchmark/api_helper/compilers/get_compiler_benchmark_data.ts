@@ -79,6 +79,11 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     }
 
     // get commits from clickhouse, if queryParams has samping config, use it
+    // TODO(ELAINEWY): when use sampled commits to fetch list of commits for data fetching,
+    // the result may contain more data than we expected. this is bc sometimes one commit
+    // can have multiple workflowid associated with it. we need to revisit this later.
+    // maybe we can use the workflowid to search for data instead of commit.
+    // if there is situation like this
     const { data: commit_results } = await getCommitsWithSampling(
       COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
       queryParams
@@ -106,10 +111,16 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     console.log("commits provided in request", queryParams.commits);
   }
 
-  let rows = await queryClickhouseSaved(
-    COMPILER_BENCHMARK_TABLE_NAME,
-    queryParams
-  );
+  let rows = [];
+  try {
+    rows = await queryClickhouseSaved(
+      COMPILER_BENCHMARK_TABLE_NAME,
+      queryParams
+    );
+  } catch (err: any) {
+    throw Error("(clickhouse query issue) ", err.message);
+  }
+
   const end = Date.now();
   console.log("time to get compiler timeseris data", end - start);
 
