@@ -26,7 +26,28 @@ SELECT
             job.labels[2],
             job.labels[1]
         )
-    ) AS machine_type
+    ) AS machine_type,
+    workflow.head_sha AS head_sha,
+    workflow.head_branch AS head_branch,
+    workflow.event AS event,
+    CASE
+        WHEN
+            workflow.head_branch LIKE 'trunk/%'
+            AND workflow.event = 'workflow_dispatch'
+            THEN 'autorevert'
+        WHEN workflow.head_branch LIKE 'ciflow/%' THEN 'ciflow'
+        WHEN
+            workflow.head_branch = 'main' OR workflow.event = 'push'
+            THEN 'main'
+        ELSE 'other'
+    END AS source_type,
+    CASE
+        WHEN workflow.head_branch LIKE 'ciflow/trunk/%'
+            THEN
+                replaceRegexpOne(workflow.head_branch, '^ciflow/trunk/', '')
+        WHEN workflow.head_branch LIKE 'ciflow/%' THEN
+            replaceRegexpOne(workflow.head_branch, '^ciflow/[^/]+/', '')
+    END AS ciflow_id
 FROM
     default.workflow_job job FINAL
 JOIN default.workflow_run workflow FINAL ON workflow.id = job.run_id

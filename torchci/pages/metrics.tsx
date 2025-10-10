@@ -14,6 +14,7 @@ import { GridRenderCellParams } from "@mui/x-data-grid";
 import { DateTimePicker, LocalizationProvider } from "@mui/x-date-pickers";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { durationDisplay } from "components/common/TimeUtils";
+import QueuedJobsTable from "components/metrics/panels/QueuedJobsTable";
 import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
@@ -460,6 +461,9 @@ export default function Page() {
 
   const [ttsPercentile, setTtsPercentile] = useState<number>(0.5);
   const [experimentName, setExperimentName] = useState<string>("ephemeral");
+  const [machineTypeFilter, setMachineTypeFilter] = useState<string | null>(
+    null
+  );
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
@@ -840,6 +844,9 @@ export default function Page() {
                   sortModel: [{ field: "avg_queue_s", sort: "desc" }],
                 },
               },
+              onRowClick: (params: any) => {
+                setMachineTypeFilter(params.row.machine_type);
+              },
               sx: {
                 "& .queue-time-yellow": {
                   backgroundColor: "#B8860B", // Dark goldenrod
@@ -849,41 +856,18 @@ export default function Page() {
                   backgroundColor: "#B22222", // Fire brick red
                   color: "white",
                 },
+                "& .MuiDataGrid-row": {
+                  cursor: "pointer",
+                },
               },
             }}
           />
         </Grid>
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
-          <TablePanel
-            title={"Jobs in Queue"}
-            queryName={"queued_jobs"}
-            queryParams={{}}
-            columns={[
-              {
-                field: "queue_s",
-                headerName: "Time in Queue",
-                flex: 1,
-                valueFormatter: (params: number) => durationDisplay(params),
-              },
-              { field: "machine_type", headerName: "Machine Type", flex: 1 },
-              {
-                field: "name",
-                headerName: "Job Name",
-                flex: 4,
-                renderCell: (params: GridRenderCellParams<any, string>) => (
-                  <a href={params.row.html_url}>{params.value}</a>
-                ),
-              },
-              { field: "html_url" },
-            ]}
-            dataGridProps={{
-              columnVisibilityModel: {
-                // Hide this column, since we turn it into a link
-                html_url: false,
-              },
-              getRowId: (el: any) => el.html_url,
-            }}
+          <QueuedJobsTable
+            machineTypeFilter={machineTypeFilter}
+            onClearFilter={() => setMachineTypeFilter(null)}
           />
         </Grid>
 
