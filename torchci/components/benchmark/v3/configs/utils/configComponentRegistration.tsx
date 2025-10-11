@@ -1,17 +1,10 @@
 import React from "react";
-import { CompilerPrecomputeConfirmDialogContent } from "./teams/compilers/CompilerPrecomputeConfirmDialogContent";
-import { CompilerSearchBarDropdowns } from "./teams/compilers/CompilerSearchBarDropdowns";
-import { compilerQueryParameterConverter } from "./teams/compilers/config";
-import { QueryParameterConverter } from "./utils/dataBindingRegistration";
+import { CompilerPrecomputeConfirmDialogContent } from "../teams/compilers/CompilerPrecomputeConfirmDialogContent";
+import { CompilerSearchBarDropdowns } from "../teams/compilers/CompilerSearchBarDropdowns";
 
 export const COMPONENT_REGISTRY: Record<string, React.ComponentType<any>> = {
   CompilerSearchBarDropdowns,
   CompilerPrecomputeConfirmDialogContent,
-};
-
-// register converters for data params, this is
-export const CONVERTER_REGISTRY: Record<string, QueryParameterConverter> = {
-  compilerQueryParameterConverter,
 };
 
 export function resolveComponent(

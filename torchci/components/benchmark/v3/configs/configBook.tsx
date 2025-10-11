@@ -1,9 +1,12 @@
 import { DefaultFanoutRenderContent } from "../components/dataRender/fanout/defaultFanoutRenderContent";
-import { NotFoundComponent, resolveComponent } from "./configRegistration";
 import {
   CompilerPrecomputeBenchmarkUIConfig,
   COMPILTER_PRECOMPUTE_BENCHMARK_ID,
 } from "./teams/compilers/config";
+import {
+  NotFoundComponent,
+  resolveComponent,
+} from "./utils/configComponentRegistration";
 import {
   DataBinding,
   DataBindingConfig,
