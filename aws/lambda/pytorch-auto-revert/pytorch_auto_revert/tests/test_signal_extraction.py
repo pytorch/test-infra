@@ -93,8 +93,8 @@ def T(
     attempt: int,
     file: str,
     name: str,
-    failing: int,
-    errored: int = 0,
+    failure_runs: int,
+    success_runs: int = 0,
 ):
     return TestRow(
         job_id=JobId(job),
@@ -103,8 +103,8 @@ def T(
         file=file,
         classname="",
         name=name,
-        failing=failing,
-        errored=errored,
+        failure_runs=failure_runs,
+        success_runs=success_runs,
     )
 
 
@@ -197,7 +197,17 @@ class TestSignalExtraction(unittest.TestCase):
                 rule="pytest failure",
             )
         ]
-        tests = [T(job=20, run=400, attempt=1, file="f.py", name="test_a", failing=1)]
+        tests = [
+            T(
+                job=20,
+                run=400,
+                attempt=1,
+                file="f.py",
+                name="test_a",
+                failure_runs=1,
+                success_runs=0,
+            )
+        ]
         signals = self._extract(jobs, tests)
         # test signal present with FAILURE
         test_sig = self._find_test_signal(signals, "trunk", "f.py::test_a")
@@ -259,8 +269,24 @@ class TestSignalExtraction(unittest.TestCase):
             ),
         ]
         tests_a = [
-            T(job=40, run=600, attempt=1, file="f.py", name="test_x", failing=1),
-            T(job=41, run=610, attempt=1, file="f.py", name="test_x", failing=1),
+            T(
+                job=40,
+                run=600,
+                attempt=1,
+                file="f.py",
+                name="test_x",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=41,
+                run=610,
+                attempt=1,
+                file="f.py",
+                name="test_x",
+                failure_runs=1,
+                success_runs=0,
+            ),
         ]
         signals_a = self._extract(jobs_a, tests_a)
         self.assertIsNone(
@@ -374,8 +400,24 @@ class TestSignalExtraction(unittest.TestCase):
             ),
         ]
         tests = [
-            T(job=60, run=800, attempt=1, file="g.py", name="test_y", failing=1),
-            T(job=61, run=810, attempt=1, file="g.py", name="test_y", failing=0),
+            T(
+                job=60,
+                run=800,
+                attempt=1,
+                file="g.py",
+                name="test_y",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=61,
+                run=810,
+                attempt=1,
+                file="g.py",
+                name="test_y",
+                failure_runs=0,
+                success_runs=1,
+            ),
         ]
         signals = self._extract(jobs, tests)
         test_sig = self._find_test_signal(signals, "trunk", "g.py::test_y")
@@ -424,7 +466,8 @@ class TestSignalExtraction(unittest.TestCase):
                 attempt=1,
                 file="m.py",
                 name="test_synthetic_pending",
-                failing=1,
+                failure_runs=1,
+                success_runs=0,
             )
         ]
 

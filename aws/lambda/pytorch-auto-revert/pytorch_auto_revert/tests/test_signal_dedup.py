@@ -13,8 +13,9 @@ class TestSignalDedup(unittest.TestCase):
     def setUp(self) -> None:
         self.t0 = datetime(2025, 8, 20, 12, 0, 0)
 
-    def test_dedup_removes_adjacent_duplicates(self):
-        # Two events with identical (started_at, wf_run_id) within a single commit
+    def test_dedup_keeps_both_statuses(self):
+        # Two events with identical (started_at, wf_run_id) but different statuses
+        # should both be retained after dedup (we dedup by (started_at, wf_run_id, status)).
         e1 = SignalEvent(
             name="job-a",
             status=SignalStatus.FAILURE,
@@ -33,10 +34,10 @@ class TestSignalDedup(unittest.TestCase):
         ex = SignalExtractor(workflows=["wf"], lookback_hours=24)
         out = ex._dedup_signal_events([s])
         self.assertEqual(len(out), 1)
-        self.assertEqual(len(out[0].commits[0].events), 1)
-        # keeps the first encountered event for that pair
-        self.assertEqual(out[0].commits[0].events[0].name, "job-a")
-        self.assertEqual(out[0].commits[0].events[0].status, SignalStatus.FAILURE)
+        # Both events survive because status differs
+        self.assertEqual(len(out[0].commits[0].events), 2)
+        statuses = {e.status for e in out[0].commits[0].events}
+        self.assertEqual(statuses, {SignalStatus.FAILURE, SignalStatus.SUCCESS})
 
     def test_dedup_keeps_non_duplicates(self):
         e1 = SignalEvent(
@@ -67,7 +68,7 @@ class TestSignalDedup(unittest.TestCase):
         self.assertEqual(len(out[0].commits[0].events), 3)
 
     def test_dedup_applies_per_commit(self):
-        # Duplicates in different commits are not cross-deduped
+        # Dedup applies per commit: each commit retains at most one event per status
         e1 = SignalEvent(
             name="job-a",
             status=SignalStatus.FAILURE,
@@ -86,8 +87,8 @@ class TestSignalDedup(unittest.TestCase):
 
         ex = SignalExtractor(workflows=["wf"], lookback_hours=24)
         out = ex._dedup_signal_events([s])
-        # Both commits should each have one event after dedup
-        self.assertEqual([len(c.events) for c in out[0].commits], [1, 1])
+        # Both commits should each have two events (one per status) after dedup
+        self.assertEqual([len(c.events) for c in out[0].commits], [2, 2])
 
 
 if __name__ == "__main__":
