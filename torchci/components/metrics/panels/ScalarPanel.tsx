@@ -15,11 +15,17 @@ export function ScalarPanelWithValue({
   valueRenderer,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
+  // Optional styles to apply to the Paper
+  paperSx,
+  // Optional styles to apply to the title Typography
+  titleSx,
 }: {
   title: string;
   value: any;
   valueRenderer: (_value: any) => string;
   badThreshold: (_value: any) => boolean;
+  paperSx?: any;
+  titleSx?: any;
 }) {
   if (value === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
@@ -28,14 +34,25 @@ export function ScalarPanelWithValue({
   let fontColor = badThreshold(value) ? "#ee6666" : "inherit";
 
   return (
-    <Paper sx={{ p: 2 }} elevation={3}>
+    <Paper sx={{ p: 2, ...(paperSx || {}) }} elevation={3}>
       <Box
         sx={{
           display: "flex",
           flexDirection: "column",
         }}
       >
-        <Typography sx={{ fontSize: "1rem", fontWeight: "bold" }}>
+        <Typography
+          sx={{
+            fontSize: "1rem",
+            fontWeight: "bold",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            ...(titleSx || {}),
+          }}
+          noWrap
+          title={title}
+        >
           {title}
         </Typography>
         <Typography
