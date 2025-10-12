@@ -184,6 +184,21 @@ export default function LLMsGraphPanelBase({
       "actual",
       false
     );
+
+    // Apply dashed line style for SGLang in the comparison dashboard
+    // to easily distinguish it from the vLLM series
+    graphSeries[metric] = graphSeries[metric].map((series: any) => {
+      if (series.name && series.name.toLowerCase().includes("sglang")) {
+        return {
+          ...series,
+          lineStyle: {
+            type: "dashed",
+            width: 2,
+          },
+        };
+      }
+      return series;
+    });
   });
 
   const maxLengthMetric = metricNames.reduce(
@@ -219,7 +234,7 @@ export default function LLMsGraphPanelBase({
                       scale: true,
                     },
                     label: {
-                      show: true,
+                      show: !isCompare, // Hide labels in comparison mode
                       align: "left",
                       formatter: (r: any) => {
                         return r.value[1];
@@ -384,9 +399,9 @@ const MetricTable = ({
                   <TableCell sx={{ py: 0.25 }}>
                     <code>
                       <Link
-                        component="button"
+                        href={`${repoUrl}/commit/${commit}`}
+                        target="_blank"
                         underline="hover"
-                        onClick={() => navigator.clipboard.writeText(commit)}
                         sx={{ cursor: "pointer", fontSize: "0.75rem" }}
                       >
                         {commit}
