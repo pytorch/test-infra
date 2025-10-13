@@ -51,7 +51,7 @@ jobs:
             pip install awscli==1.32.18
 
             # Init release versions variables
-            source release/pypi/release_versions.sh
+            source ./release/release_versions.sh
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
             mkdir dist/
