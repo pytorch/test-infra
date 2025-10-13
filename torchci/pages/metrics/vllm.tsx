@@ -2,7 +2,6 @@ import { Box, Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import { ScalarPanelWithValue } from "components/metrics/panels/ScalarPanel";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
-import ForceMergeBreakdownPanel from "components/metrics/vllm/ForceMergeBreakdownPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
 import ReliabilityPanel from "components/metrics/vllm/ReliabilityPanel";
@@ -224,10 +223,6 @@ export default function Page() {
     data === undefined || data.length === 0
       ? 0
       : _.sumBy(data, "manual_merged_with_failures_count");
-  const manualMergedPending =
-    data === undefined || data.length === 0
-      ? 0
-      : _.sumBy(data, "manual_merged_pending_count");
   const manualMerged =
     data === undefined || data.length === 0
       ? 0
@@ -238,18 +233,10 @@ export default function Page() {
       : _.sumBy(data, "auto_merged_count");
   const total = manualMergedFailures + manualMerged + autoMerged;
 
-  // Show their percentages instead the absolute count
+  // Show their percentages instead of absolute counts
   const manualMergedFailuresPct =
     total === 0 ? 0 : manualMergedFailures / total;
   const manualMergedPct = total == 0 ? 0 : manualMerged / total;
-
-  // Force merge breakdown percentages
-  // Total force merges = failures + pending (the two reasons for force merge)
-  const totalForceMerges = manualMergedFailures + manualMergedPending;
-  const forceMergeDueToFailurePct =
-    totalForceMerges === 0 ? 0 : manualMergedFailures / totalForceMerges;
-  const forceMergeDueToImpatiencePct =
-    totalForceMerges === 0 ? 0 : manualMergedPending / totalForceMerges;
 
   // Compute overall reliability metrics
   const reliabilityPoints = (reliabilityData || []) as any[];
@@ -337,27 +324,10 @@ export default function Page() {
               badThreshold: (v) => (v ?? 0) > 0.2,
             },
             {
-              title: "% force merge: CI failure",
-              value: forceMergeDueToFailurePct,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 0) > 0.5,
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          metrics={[
-            {
               title: "% manual merges",
               value: manualMergedPct,
               valueRenderer: formatPercentage,
               badThreshold: (v) => (v ?? 0) > 0.5,
-            },
-            {
-              title: "% force merge: impatience",
-              value: forceMergeDueToImpatiencePct,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 0) > 0.3,
             },
           ]}
         />
@@ -508,11 +478,8 @@ export default function Page() {
         </Typography>
       </Divider>
       <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <MergesPanel data={data} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <ForceMergeBreakdownPanel data={data} />
         </Grid>
       </DashboardRow>
     </div>
