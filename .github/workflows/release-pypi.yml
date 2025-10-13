@@ -30,7 +30,7 @@ jobs:
   trigger:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    environment: promote-env
+    environment: pytorchbot-env
     container:
       image: pytorch/almalinux-builder:cpu
     steps:
@@ -38,7 +38,7 @@ jobs:
       - name: Configure aws credentials (pytorch account)
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_promote_wheels
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_stage_wheels
           aws-region: us-east-1
       - name: Copy staged binaries
         shell: bash
