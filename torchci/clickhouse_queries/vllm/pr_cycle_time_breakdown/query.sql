@@ -34,6 +34,9 @@ ready_events AS (
     FROM default.pull_label_event ple
     WHERE
         ple.repo_name = {repo: String }
+        AND ple.pr_number IN (
+            SELECT pr_number FROM prs
+        )
     GROUP BY ple.pr_number
 ),
 
@@ -50,6 +53,11 @@ reviews_raw AS (
     WHERE
         dynamoKey LIKE concat({repo: String }, '%')
         AND review.'submitted_at' IS NOT NULL
+        AND toUInt32(
+            extractGroups(review.'pull_request_url', 'pulls/([0-9]+)')[1]
+        ) IN (
+            SELECT pr_number FROM prs
+        )
 ),
 
 -- Filter to human reviews and exclude dismissed ones and bot reviewers
