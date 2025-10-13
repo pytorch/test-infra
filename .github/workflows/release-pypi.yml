@@ -31,8 +31,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: pytorchbot-env
-    container:
-      image: pytorch/almalinux-builder:cpu
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Configure aws credentials (pytorch account)
@@ -40,6 +38,14 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_stage_wheels
           aws-region: us-east-1
+      - name: Install AWS CLI v2
+        run: |
+          curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+          unzip -q /tmp/awscliv2.zip -d /tmp
+          sudo /tmp/aws/install --update
+          rm -rf /tmp/aws/ /tmp/awscliv2.zip
+      - name: Verify AWS CLI installation
+        run: aws --version
       - name: Copy staged binaries
         shell: bash
         env:
@@ -47,8 +53,6 @@ jobs:
           DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
         run: |
             set -ex
-            # Install requirements
-            pip install awscli==1.32.18
 
             # Init release versions variables
             source ./release/release_versions.sh
@@ -57,7 +61,10 @@ jobs:
             mkdir dist/
             # shellcheck disable=SC2086
             aws s3 sync "s3://pytorch-backup/${PACKAGE}-${!version}-pypi-staging/" dist/ --debug
-
+      - name: Display structure of downloaded files
+        run: ls -R dist/
       - name: Publish package to PyPI
         if: ${{ inputs.dryrun == 'disabled' }}
         uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          verbose: true
