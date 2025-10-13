@@ -317,8 +317,6 @@ const MetricTable = ({
   WORKFLOW_ID_TO_COMMIT: Record<string, string>;
   repo: string;
 }) => {
-  const repoUrl = "https://github.com/" + repo;
-
   const exportToCSV = () => {
     const baseData = chartData[availableMetric] ?? [];
     const rows = baseData.map((entry, index) => {
@@ -391,6 +389,9 @@ const MetricTable = ({
           <TableBody>
             {chartData[availableMetric].map((entry: any, index: number) => {
               const commit = WORKFLOW_ID_TO_COMMIT[entry.workflow_id];
+              // Get the source repository from the entry's extra field or use the default repo
+              const sourceRepo = entry?.extra?.["source_repo"] || repo;
+              const repoUrl = `https://github.com/${sourceRepo}`;
               return (
                 <TableRow key={index}>
                   <TableCell>
