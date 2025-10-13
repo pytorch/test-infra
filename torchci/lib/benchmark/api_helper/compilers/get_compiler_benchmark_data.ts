@@ -118,7 +118,7 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
       queryParams
     );
   } catch (err: any) {
-    throw Error("(clickhouse query issue) ", err.message);
+    throw Error(`(clickhouse query issue) ${err.message}`);
   }
 
   const end = Date.now();
