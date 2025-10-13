@@ -186,7 +186,10 @@ export default function CiDurationsPanel({
   }
 
   const options: EChartsOption = {
-    title: { text: "CI run duration (hours)", subtext: "Buildkite builds" },
+    title: {
+      text: "CI run duration (hours) - Main Branch",
+      subtext: "Buildkite builds",
+    },
     legend: {
       top: 24,
       data: [

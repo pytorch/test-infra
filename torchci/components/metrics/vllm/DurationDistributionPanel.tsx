@@ -124,7 +124,7 @@ export default function DurationDistributionPanel({
 
   const options: EChartsOption = {
     title: getChartTitle(
-      "CI Duration Distribution",
+      "CI Duration Distribution (Main Branch)",
       "Histogram by build outcome"
     ),
     legend: {

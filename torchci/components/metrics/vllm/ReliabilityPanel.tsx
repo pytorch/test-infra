@@ -79,7 +79,7 @@ export default function ReliabilityPanel({
 
   const options: EChartsOption = {
     title: {
-      text: "CI Build Counts",
+      text: "CI Build Counts (Main Branch)",
       subtext: "Daily build breakdown",
     },
     legend: {

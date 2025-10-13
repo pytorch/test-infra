@@ -1,6 +1,7 @@
--- vLLM per-job reliability metrics
+-- vLLM per-job reliability metrics (main branch only)
 -- Computes success rate for each individual job in the CI pipeline
 -- Shows which jobs are most/least reliable
+-- Only tracks main branch to exclude work-in-progress PR noise
 
 WITH jobs AS (
     SELECT
@@ -15,6 +16,7 @@ WITH jobs AS (
     WHERE
         tupleElement(pipeline, 'repository') = {repo: String }
         AND tupleElement(pipeline, 'name') = {pipelineName: String }
+        AND tupleElement(build, 'branch') = 'main'
         AND tupleElement(job, 'finished_at') IS NOT NULL
         AND tupleElement(job, 'finished_at') >= {startTime: DateTime64(3) }
         AND tupleElement(job, 'finished_at') < {stopTime: DateTime64(3) }

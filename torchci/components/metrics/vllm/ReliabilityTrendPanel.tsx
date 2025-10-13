@@ -85,7 +85,7 @@ export default function ReliabilityTrendPanel({
 
   const options: EChartsOption = {
     title: {
-      text: "CI Reliability Trends",
+      text: "CI Reliability Trends (Main Branch)",
       subtext: "Daily success rate over time",
     },
     legend: {

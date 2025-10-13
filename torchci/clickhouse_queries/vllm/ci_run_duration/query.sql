@@ -1,5 +1,6 @@
--- vLLM CI run durations (Buildkite builds)
+-- vLLM CI run durations (main branch only)
 -- Lists per-build durations based on build.started_at and build.finished_at
+-- Only tracks main branch to exclude work-in-progress PR noise
 
 WITH b AS (
     SELECT
@@ -13,6 +14,7 @@ WITH b AS (
     WHERE
         tupleElement(pipeline, 'repository') = {repo: String }
         AND tupleElement(pipeline, 'name') = {pipelineName: String }
+        AND tupleElement(build, 'branch') = 'main'
         AND tupleElement(build, 'started_at') IS NOT NULL
         AND tupleElement(build, 'finished_at') IS NOT NULL
         AND tupleElement(build, 'started_at') >= {startTime: DateTime64(3) }

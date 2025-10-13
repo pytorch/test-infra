@@ -111,7 +111,7 @@ export default function JobReliabilityPanel({
 
   const options: EChartsOption = {
     title: {
-      text: "Per-Job Reliability Breakdown",
+      text: "Per-Job Reliability Breakdown (Main Branch)",
       subtext:
         "Sorted by total failure rate (hard + soft, worst first, min 3 runs)",
     },

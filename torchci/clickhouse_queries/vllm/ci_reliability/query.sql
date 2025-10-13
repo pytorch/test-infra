@@ -1,7 +1,8 @@
--- vLLM CI reliability metrics
+-- vLLM CI reliability metrics (main branch only)
 -- Computes CI success rate, failure rate over time for Buildkite builds
 -- Daily breakdown of build states (passed, failed, canceled)
 -- Accounts for soft failures: builds with only soft failures count as successful
+-- Only tracks main branch to exclude work-in-progress PR noise
 
 WITH build_jobs AS (
     SELECT
@@ -24,6 +25,7 @@ WITH build_jobs AS (
     WHERE
         tupleElement(pipeline, 'repository') = {repo: String }
         AND tupleElement(pipeline, 'name') = {pipelineName: String }
+        AND tupleElement(build, 'branch') = 'main'
         AND tupleElement(build, 'started_at') IS NOT NULL
         AND tupleElement(build, 'started_at') >= {startTime: DateTime64(3) }
         AND tupleElement(build, 'started_at') < {stopTime: DateTime64(3) }
