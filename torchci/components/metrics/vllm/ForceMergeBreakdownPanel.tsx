@@ -64,7 +64,7 @@ export default function ForceMergeBreakdownPanel({
   const pieData = [
     {
       value: manualMergedFailures,
-      name: "CI Failure (failing checks)",
+      name: "Hard Failures (failing checks)",
       itemStyle: { color: COLOR_ERROR },
     },
     {

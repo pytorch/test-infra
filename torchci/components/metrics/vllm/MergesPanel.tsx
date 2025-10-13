@@ -16,8 +16,9 @@ function formatMergesTooltip(params: any): string {
   const manualMergedPct = ((manualMerged / total) * 100).toFixed(1) + "%";
   const autoMergedPct = ((autoMerged / total) * 100).toFixed(1) + "%";
   return (
-    `Force merges (red): ${manualMergedFailures} (${manualMergedFailuresPct})` +
-    `<br/>Manual merges (orange): ${manualMerged} (${manualMergedPct})` +
+    `Force merges (red): ${manualMergedFailures} (${manualMergedFailuresPct})<br/>` +
+    `<span style="font-size:10px;color:#999">(with hard failures, soft failures excluded)</span><br/>` +
+    `Manual merges (orange): ${manualMerged} (${manualMergedPct})` +
     `<br/>Auto merges (green): ${autoMerged} (${autoMergedPct})` +
     `<br/>Total: ${total}`
   );

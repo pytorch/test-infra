@@ -66,6 +66,7 @@ buildkite_jobs AS (
         tupleElement(vllm.vllm_buildkite_jobs.build, 'pull_request').id AS number,
         tupleElement(vllm.vllm_buildkite_jobs.job, 'name') AS job_name,
         tupleElement(vllm.vllm_buildkite_jobs.job, 'state') AS job_state,
+        tupleElement(vllm.vllm_buildkite_jobs.job, 'soft_failed') AS soft_failed,
         tupleElement(vllm.vllm_buildkite_jobs.job, 'created_at') AS job_created_at,
         -- Row 1 is the latest run of the job
         ROW_NUMBER() OVER (
@@ -83,8 +84,6 @@ buildkite_jobs AS (
             FROM
                 merged_prs
         )
-        -- Don't care for soft_failed jobs
-        AND tupleElement(vllm.vllm_buildkite_jobs.job, 'soft_failed') = 'false'
 ),
 latest_buildkite_jobs AS (
     SELECT
@@ -114,7 +113,9 @@ manual_merged_prs_with_failures AS (
         LEFT JOIN latest_buildkite_jobs ON toString(merged_prs.number) = latest_buildkite_jobs.number
     WHERE
         tupleElement(auto_merge, 'merge_method') = ''
+        -- Only count hard failures (not soft failures)
         AND job_state = 'failed'
+        AND soft_failed = false
     GROUP BY
         bucket
 ),

@@ -18,23 +18,31 @@ WITH jobs AS (
         AND tupleElement(job, 'finished_at') IS NOT NULL
         AND tupleElement(job, 'finished_at') >= {startTime: DateTime64(3) }
         AND tupleElement(job, 'finished_at') < {stopTime: DateTime64(3) }
-        -- Exclude soft-failed jobs from reliability calculation
-        AND tupleElement(job, 'soft_failed') = 'false'
 ),
 
 job_stats AS (
     SELECT
         job_name,
-        countIf(lowerUTF8(job_state) IN ('passed', 'finished', 'success'))
-            AS passed_count,
-        countIf(lowerUTF8(job_state) = 'failed') AS failed_count,
+        -- Count clean successes: passed jobs only
+        countIf(
+            lowerUTF8(job_state) IN ('passed', 'finished', 'success')
+        ) AS passed_count,
+        -- Count soft failures: failed but soft_failed=true (flaky tests)
+        countIf(
+            lowerUTF8(job_state) = 'failed' AND soft_failed = true
+        ) AS soft_failed_count,
+        -- Count hard failures: failed jobs with soft_failed=false
+        countIf(
+            lowerUTF8(job_state) = 'failed' AND soft_failed = false
+        ) AS failed_count,
         countIf(lowerUTF8(job_state) IN ('canceled', 'cancelled'))
             AS canceled_count,
-        passed_count + failed_count + canceled_count AS total_count,
-        passed_count + failed_count AS non_canceled_count,
+        passed_count + soft_failed_count + failed_count + canceled_count AS total_count,
+        passed_count + soft_failed_count + failed_count AS non_canceled_count,
+        -- Success rate = (clean passes + soft failures) / (all non-canceled)
         if(
             non_canceled_count > 0,
-            round(passed_count / non_canceled_count, 4),
+            round((passed_count + soft_failed_count) / non_canceled_count, 4),
             NULL
         ) AS success_rate
     FROM jobs
@@ -45,6 +53,7 @@ job_stats AS (
 SELECT
     job_name,
     passed_count,
+    soft_failed_count,
     failed_count,
     canceled_count,
     total_count,

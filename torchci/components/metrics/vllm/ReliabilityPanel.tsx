@@ -62,8 +62,8 @@ function formatReliabilityTooltip(params: any): string {
   return (
     `<b>${data.granularity_bucket}</b><br/>` +
     `Success Rate: <b>${successRate}</b><br/>` +
-    `Passed: ${passed}<br/>` +
-    `Failed: ${failed}<br/>` +
+    `Passed: ${passed} (incl. soft failures)<br/>` +
+    `Failed: ${failed} (hard failures only)<br/>` +
     `Canceled: ${canceled}<br/>` +
     `Non-canceled: ${nonCanceled}<br/>` +
     `Total: ${total}`

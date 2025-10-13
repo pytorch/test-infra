@@ -7,39 +7,47 @@ import {
   COLOR_BG_DARK,
   COLOR_BORDER_LIGHT,
   COLOR_ERROR,
+  COLOR_GRAY,
   COLOR_SUCCESS,
   COLOR_WARNING,
 } from "./constants";
 
-// Helper function to format success rate label
-function formatSuccessRateLabel(params: any): string {
-  const rate = params.value * 100;
-  return rate.toFixed(1) + "%";
-}
-
-// Helper function to format job reliability tooltip
+// Helper function to format stacked bar tooltip
 function formatJobReliabilityTooltip(params: any, sortedData: any[]): string {
-  const param = params[0];
-  const jobData = sortedData[param.dataIndex];
+  if (!params || params.length === 0) return "";
+
+  // Get the job index from the first param
+  const jobIndex = params[0].dataIndex;
+  const jobData = sortedData[jobIndex];
   if (!jobData) return "";
 
+  const passed = jobData.passed_count || 0;
+  const softFailed = jobData.soft_failed_count || 0;
+  const failed = jobData.failed_count || 0;
+  const canceled = jobData.canceled_count || 0;
+  const total = passed + softFailed + failed + canceled;
   const successRate = jobData.success_rate
     ? (jobData.success_rate * 100).toFixed(1) + "%"
     : "N/A";
-  const passed = jobData.passed_count || 0;
-  const failed = jobData.failed_count || 0;
-  const canceled = jobData.canceled_count || 0;
-  const total = jobData.total_count || 0;
-  const nonCanceled = jobData.non_canceled_count || 0;
 
   return (
     `<b>${jobData.job_name}</b><br/>` +
     `Success Rate: <b>${successRate}</b><br/>` +
-    `Passed: ${passed}<br/>` +
-    `Failed: ${failed}<br/>` +
-    `Canceled: ${canceled}<br/>` +
-    `Non-canceled: ${nonCanceled}<br/>` +
-    `Total: ${total}`
+    `<br/>` +
+    `✅ Passed: ${passed} (${
+      total > 0 ? ((passed / total) * 100).toFixed(1) : 0
+    }%)<br/>` +
+    `⚠️  Soft Failures: ${softFailed} (${
+      total > 0 ? ((softFailed / total) * 100).toFixed(1) : 0
+    }%)<br/>` +
+    `❌ Hard Failures: ${failed} (${
+      total > 0 ? ((failed / total) * 100).toFixed(1) : 0
+    }%)<br/>` +
+    `⏸️  Canceled: ${canceled} (${
+      total > 0 ? ((canceled / total) * 100).toFixed(1) : 0
+    }%)<br/>` +
+    `<br/>` +
+    `Total Runs: ${total}`
   );
 }
 
@@ -50,30 +58,69 @@ export default function JobReliabilityPanel({
 }) {
   const { darkMode } = useDarkMode();
 
-  // Sort by success rate (worst first) and prepare data
+  // Sort by total failure rate (hard + soft failures, highest first)
   const sortedData = [...(data || [])].sort((a, b) => {
-    const rateA = a.success_rate ?? 0;
-    const rateB = b.success_rate ?? 0;
-    return rateA - rateB;
+    const hardFailedA = a.failed_count || 0;
+    const softFailedA = a.soft_failed_count || 0;
+    const nonCanceledA = a.non_canceled_count || 1;
+    const totalFailureRateA = (hardFailedA + softFailedA) / nonCanceledA;
+
+    const hardFailedB = b.failed_count || 0;
+    const softFailedB = b.soft_failed_count || 0;
+    const nonCanceledB = b.non_canceled_count || 1;
+    const totalFailureRateB = (hardFailedB + softFailedB) / nonCanceledB;
+
+    return totalFailureRateB - totalFailureRateA; // Descending (worst first)
   });
 
   const jobNames = sortedData.map((d) => d.job_name);
-  const successRates = sortedData.map((d) => d.success_rate ?? 0);
 
-  // Color code by reliability: red (<70%), yellow (70-90%), green (>90%)
-  const itemColors = successRates.map((rate) => {
-    if (rate < 0.7) return COLOR_ERROR;
-    if (rate < 0.9) return COLOR_WARNING;
-    return COLOR_SUCCESS;
+  // Calculate percentages for normalized stacked bars (0-100%)
+  const passedPercents = sortedData.map((d) => {
+    const total =
+      (d.passed_count || 0) +
+      (d.soft_failed_count || 0) +
+      (d.failed_count || 0) +
+      (d.canceled_count || 0);
+    return total > 0 ? ((d.passed_count || 0) / total) * 100 : 0;
+  });
+  const softFailedPercents = sortedData.map((d) => {
+    const total =
+      (d.passed_count || 0) +
+      (d.soft_failed_count || 0) +
+      (d.failed_count || 0) +
+      (d.canceled_count || 0);
+    return total > 0 ? ((d.soft_failed_count || 0) / total) * 100 : 0;
+  });
+  const hardFailedPercents = sortedData.map((d) => {
+    const total =
+      (d.passed_count || 0) +
+      (d.soft_failed_count || 0) +
+      (d.failed_count || 0) +
+      (d.canceled_count || 0);
+    return total > 0 ? ((d.failed_count || 0) / total) * 100 : 0;
+  });
+  const canceledPercents = sortedData.map((d) => {
+    const total =
+      (d.passed_count || 0) +
+      (d.soft_failed_count || 0) +
+      (d.failed_count || 0) +
+      (d.canceled_count || 0);
+    return total > 0 ? ((d.canceled_count || 0) / total) * 100 : 0;
   });
 
   const options: EChartsOption = {
     title: {
-      text: "Per-Job Reliability",
-      subtext: "Success rate by job (min 3 runs)",
+      text: "Per-Job Reliability Breakdown",
+      subtext:
+        "Sorted by total failure rate (hard + soft, worst first, min 3 runs)",
+    },
+    legend: {
+      top: 40,
+      data: ["Passed", "Soft Failures", "Hard Failures", "Canceled"],
     },
     grid: {
-      top: 60,
+      top: 80,
       right: 60,
       bottom: 24,
       left: 40,
@@ -81,11 +128,11 @@ export default function JobReliabilityPanel({
     },
     xAxis: {
       type: "value",
-      name: "Success Rate",
+      name: "Percentage",
       min: 0,
-      max: 1,
+      max: 100,
       axisLabel: {
-        formatter: (value: number) => (value * 100).toFixed(0) + "%",
+        formatter: (value: number) => value.toFixed(0) + "%",
       },
     },
     yAxis: {
@@ -95,22 +142,40 @@ export default function JobReliabilityPanel({
         interval: 0,
         fontSize: 10,
       },
-      inverse: false, // Worst jobs at bottom
+      inverse: true, // Worst jobs at top
     },
     series: [
       {
-        name: "Success Rate",
+        name: "Passed",
         type: "bar",
-        data: successRates.map((rate, idx) => ({
-          value: rate,
-          itemStyle: { color: itemColors[idx] },
-        })),
-        label: {
-          show: true,
-          position: "right",
-          formatter: formatSuccessRateLabel,
-          fontSize: 9,
-        },
+        stack: "total",
+        data: passedPercents,
+        itemStyle: { color: COLOR_SUCCESS },
+        emphasis: { focus: "series" },
+      },
+      {
+        name: "Soft Failures",
+        type: "bar",
+        stack: "total",
+        data: softFailedPercents,
+        itemStyle: { color: COLOR_WARNING },
+        emphasis: { focus: "series" },
+      },
+      {
+        name: "Hard Failures",
+        type: "bar",
+        stack: "total",
+        data: hardFailedPercents,
+        itemStyle: { color: COLOR_ERROR },
+        emphasis: { focus: "series" },
+      },
+      {
+        name: "Canceled",
+        type: "bar",
+        stack: "total",
+        data: canceledPercents,
+        itemStyle: { color: COLOR_GRAY },
+        emphasis: { focus: "series" },
       },
     ],
     tooltip: {
