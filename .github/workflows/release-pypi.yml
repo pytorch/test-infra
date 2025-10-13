@@ -47,22 +47,15 @@ jobs:
           DRY_RUN: ${{ inputs.dryrun || 'enabled' }}
         run: |
             set -ex
-
-            # Default Version to promote
-            CUDA_ARCH="cu128"
-            LINUX_VERSION_SUFFIX="%2B${CUDA_ARCH}"
-            CPU_VERSION_SUFFIX="%2Bcpu"
-            MACOS_ARM64="macosx_.*_arm64"
-
             # Install requirements
             pip install awscli==1.32.18
-
 
             # Init release versions variables
             source release/pypi/release_versions.sh
             # shellcheck disable=SC2086
             version="${PACKAGE^^}_VERSION"
             mkdir dist/
+            # shellcheck disable=SC2086
             aws s3 sync "s3://pytorch-backup/${PACKAGE}-${!version}-pypi-staging/" dist/ --debug
 
       - name: Publish package to PyPI
