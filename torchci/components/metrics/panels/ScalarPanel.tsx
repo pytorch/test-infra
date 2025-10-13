@@ -2,7 +2,9 @@
  * A metrics panel that shows a single scalar value.
  */
 
-import { Box, Paper, Skeleton, Typography } from "@mui/material";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { Box, Paper, Skeleton, Tooltip, Typography } from "@mui/material";
+import { COLOR_HELP_ICON } from "components/metrics/vllm/constants";
 import { fetcher } from "lib/GeneralUtils";
 import useSWR from "swr";
 
@@ -15,6 +17,8 @@ export function ScalarPanelWithValue({
   valueRenderer,
   // Callback to decide whether the scalar value is "bad" and should be displayed red.
   badThreshold,
+  // Optional tooltip description
+  tooltip,
   // Optional styles to apply to the Paper
   paperSx,
   // Optional styles to apply to the title Typography
@@ -24,6 +28,7 @@ export function ScalarPanelWithValue({
   value: any;
   valueRenderer: (_value: any) => string;
   badThreshold: (_value: any) => boolean;
+  tooltip?: string;
   paperSx?: any;
   titleSx?: any;
 }) {
@@ -41,20 +46,34 @@ export function ScalarPanelWithValue({
           flexDirection: "column",
         }}
       >
-        <Typography
-          sx={{
-            fontSize: "1rem",
-            fontWeight: "bold",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            ...(titleSx || {}),
-          }}
-          noWrap
-          title={title}
-        >
-          {title}
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <Typography
+            sx={{
+              fontSize: "1rem",
+              fontWeight: "bold",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              flex: 1,
+              ...(titleSx || {}),
+            }}
+            noWrap
+            title={title}
+          >
+            {title}
+          </Typography>
+          {tooltip && (
+            <Tooltip title={tooltip} arrow placement="top">
+              <HelpOutlineIcon
+                sx={{
+                  fontSize: "1rem",
+                  color: COLOR_HELP_ICON,
+                  cursor: "help",
+                }}
+              />
+            </Tooltip>
+          )}
+        </Box>
         <Typography
           sx={{
             fontSize: "4rem",

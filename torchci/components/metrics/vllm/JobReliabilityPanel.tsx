@@ -1,8 +1,6 @@
-import { Paper } from "@mui/material";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
-import { getReactEChartsProps } from "./chartUtils";
+import { ChartPaper } from "./chartUtils";
 import {
   COLOR_BG_DARK,
   COLOR_BORDER_LIGHT,
@@ -205,8 +203,10 @@ export default function JobReliabilityPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts {...getReactEChartsProps(darkMode)} option={options} />
-    </Paper>
+    <ChartPaper
+      tooltip="Per-job reliability breakdown for main branch CI. Each horizontal bar shows: Green = clean passes, Orange = soft failures (flaky tests), Red = hard test failures. Sorted by total failure rate (worst jobs at top)."
+      option={options}
+      darkMode={darkMode}
+    />
   );
 }

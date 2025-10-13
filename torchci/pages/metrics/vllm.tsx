@@ -54,6 +54,7 @@ interface MetricConfig {
   value: number | null | undefined;
   valueRenderer: (v: number | null | undefined) => string;
   badThreshold: (v: number | null | undefined) => boolean;
+  tooltip?: string;
   paperSx?: any;
 }
 
@@ -68,6 +69,7 @@ function MetricStack({ metrics }: { metrics: MetricConfig[] }) {
           value={metric.value}
           valueRenderer={metric.valueRenderer}
           badThreshold={metric.badThreshold}
+          tooltip={metric.tooltip}
           paperSx={metric.paperSx}
         />
       ))}
@@ -231,12 +233,15 @@ export default function Page() {
     data === undefined || data.length === 0
       ? 0
       : _.sumBy(data, "auto_merged_count");
-  const total = manualMergedFailures + manualMerged + autoMerged;
+
+  // Total merged PRs = manual (includes force) + auto
+  // Note: manual_merged_count INCLUDES manual_merged_with_failures_count
+  const totalMerged = manualMerged + autoMerged;
 
   // Show their percentages instead of absolute counts
   const manualMergedFailuresPct =
-    total === 0 ? 0 : manualMergedFailures / total;
-  const manualMergedPct = total == 0 ? 0 : manualMerged / total;
+    totalMerged === 0 ? 0 : manualMergedFailures / totalMerged;
+  const manualMergedPct = totalMerged === 0 ? 0 : manualMerged / totalMerged;
 
   // Compute overall reliability metrics
   const reliabilityPoints = (reliabilityData || []) as any[];
@@ -322,12 +327,16 @@ export default function Page() {
               value: manualMergedFailuresPct,
               valueRenderer: formatPercentage,
               badThreshold: (v) => (v ?? 0) > 0.2,
+              tooltip:
+                "Percentage of merged PRs that had hard-failing tests at merge time. These were manually merged (GitHub auto-merge disabled) despite CI failures. High values indicate tests being bypassed.",
             },
             {
               title: "% manual merges",
               value: manualMergedPct,
               valueRenderer: formatPercentage,
               badThreshold: (v) => (v ?? 0) > 0.5,
+              tooltip:
+                "Percentage of merged PRs where a human clicked 'Merge' button instead of using GitHub auto-merge. Includes both clean manual merges AND force merges. High values may indicate slow merge queues or low CI trust.",
             },
           ]}
         />
@@ -339,12 +348,16 @@ export default function Page() {
               value: overallSuccessRate,
               valueRenderer: formatPercentage,
               badThreshold: (v) => (v ?? 1) < 0.85,
+              tooltip:
+                "Percentage of main branch builds with zero hard test failures. Builds with only soft failures (flaky tests) count as passed. Canceled builds excluded from calculation.",
             },
             {
               title: "Main branch health %",
               value: trunkHealthPct,
               valueRenderer: formatPercentage,
               badThreshold: (v) => (v ?? 1) < 0.9,
+              tooltip:
+                "Percentage of days where main branch ended green (most recent build of the day passed). Lower values mean trunk is frequently broken.",
             },
           ]}
         />
@@ -356,12 +369,16 @@ export default function Page() {
               value: avgRecoveryTime,
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 12,
+              tooltip:
+                "Average time to fix main branch when it breaks. Measures from first failed CI run (trunk breaks) to first successful CI run (trunk recovers). Lower is better.",
             },
             {
               title: "Total Failed Builds",
               value: reliabilityData === undefined ? undefined : totalFailed,
               valueRenderer: formatCount,
               badThreshold: (v) => (v ?? 0) > 10,
+              tooltip:
+                "Count of main branch CI runs with hard test failures (soft failures excluded) in selected time period.",
             },
           ]}
         />
@@ -373,12 +390,16 @@ export default function Page() {
               value: ciSuccP50,
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 2,
+              tooltip:
+                "Median (P50) CI runtime for successful main branch runs. Half of successful CI runs complete faster than this. Measures how long developers wait for green checkmark.",
             },
             {
               title: "CI Time to green P90",
               value: ciSuccP90,
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 6,
+              tooltip:
+                "90th percentile (P90) CI runtime for successful main branch runs. 90% of successful CI runs complete faster than this.",
             },
           ]}
         />
@@ -390,6 +411,8 @@ export default function Page() {
               value: getPrCycleValue(prCycleData, "time_to_first_review_p50"),
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 24,
+              tooltip:
+                "Median time from PR ready (labeled 'ready' or created) to first human review comment. Excludes bot reviews.",
             },
           ]}
         />
@@ -401,6 +424,8 @@ export default function Page() {
               value: getPrCycleValue(prCycleData, "time_to_approval_p50"),
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 48,
+              tooltip:
+                "Median time from first human review to first approval from a maintainer (MEMBER/OWNER/COLLABORATOR).",
             },
           ]}
         />
@@ -412,6 +437,8 @@ export default function Page() {
               value: getPrCycleValue(prCycleData, "time_in_merge_queue_p50"),
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 24,
+              tooltip:
+                "Median time from first approval to actual merge. Measures how long PRs wait in the merge queue after approval.",
             },
           ]}
         />
@@ -423,6 +450,8 @@ export default function Page() {
               value: getPrCycleValue(prCycleData, "time_in_merge_queue_p90"),
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 72,
+              tooltip:
+                "90th percentile time from approval to merge. 90% of PRs merge faster than this after approval.",
             },
           ]}
         />
@@ -447,7 +476,11 @@ export default function Page() {
           <TrunkHealthPanel data={trunkHealthData} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <TrunkRecoveryPanel data={trunkRecoveryData} />
+          <TrunkRecoveryPanel
+            data={trunkRecoveryData}
+            startTime={startTime.toDate()}
+            stopTime={stopTime.toDate()}
+          />
         </Grid>
       </DashboardRow>
       <DashboardRow spacing={2}>

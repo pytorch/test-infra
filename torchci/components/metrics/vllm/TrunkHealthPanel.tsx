@@ -1,13 +1,7 @@
-import { Paper } from "@mui/material";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
-import {
-  getChartTitle,
-  getReactEChartsProps,
-  GRID_LEFT_WIDE,
-} from "./chartUtils";
+import { ChartPaper, getChartTitle, GRID_LEFT_WIDE } from "./chartUtils";
 import { COLOR_BORDER_DARK, COLOR_ERROR, COLOR_SUCCESS } from "./constants";
 
 // Helper function to handle heatmap cell click
@@ -125,14 +119,13 @@ export default function TrunkHealthPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
-        {...getReactEChartsProps(darkMode)}
-        option={options}
-        onEvents={{
-          click: handleTrunkHealthClick,
-        }}
-      />
-    </Paper>
+    <ChartPaper
+      tooltip="Hourly heatmap of main branch CI health. Green cells = CI passed, Red cells = CI failed. Each cell is one CI run; click to view details in Buildkite."
+      option={options}
+      onEvents={{
+        click: handleTrunkHealthClick,
+      }}
+      darkMode={darkMode}
+    />
   );
 }

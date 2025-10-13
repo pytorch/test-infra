@@ -1,12 +1,6 @@
-import { Paper } from "@mui/material";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
-import {
-  getChartTitle,
-  getReactEChartsProps,
-  GRID_DEFAULT,
-} from "./chartUtils";
+import { ChartPaper, getChartTitle, GRID_DEFAULT } from "./chartUtils";
 import { COLOR_ERROR, COLOR_GRAY, COLOR_SUCCESS } from "./constants";
 
 // Helper function to create histogram bins
@@ -158,8 +152,10 @@ export default function DurationDistributionPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts {...getReactEChartsProps(darkMode)} option={options} />
-    </Paper>
+    <ChartPaper
+      tooltip="Histogram showing distribution of main branch CI runtimes (how long builds take to complete). Green = successful builds, Red = failed builds, Gray = canceled builds."
+      option={options}
+      darkMode={darkMode}
+    />
   );
 }

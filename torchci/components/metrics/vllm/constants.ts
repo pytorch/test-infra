@@ -7,6 +7,7 @@ export const COLOR_WARNING = "#fc9403"; // Orange - for warnings/manual actions
 export const COLOR_GRAY = "#9e9e9e"; // Gray - for canceled/neutral states
 export const COLOR_SUCCESS_LINE = "#00E676"; // Bright green - for success trend lines
 export const COLOR_MIXED_LINE = "#FF4081"; // Pink - for mixed success+failed trend lines
+export const COLOR_HELP_ICON = "#00ff00"; // Neon green - for help/info icons
 
 // UI element colors (light mode)
 export const COLOR_CROSSHAIR_LIGHT = "#000000";

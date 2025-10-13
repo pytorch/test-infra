@@ -1,10 +1,8 @@
-import { Paper } from "@mui/material";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import _ from "lodash";
-import { getReactEChartsProps } from "./chartUtils";
+import { ChartPaper } from "./chartUtils";
 import {
   COLOR_ERROR,
   COLOR_GRAY,
@@ -228,14 +226,13 @@ export default function CiDurationsPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts
-        {...getReactEChartsProps(darkMode)}
-        option={options}
-        onEvents={{
-          click: handleBuildClick,
-        }}
-      />
-    </Paper>
+    <ChartPaper
+      tooltip="Main branch CI runtimes over time. Green line = mean runtime for successful builds, Pink line = mean including failures. Scatter points = individual builds (click to view in Buildkite)."
+      option={options}
+      onEvents={{
+        click: handleBuildClick,
+      }}
+      darkMode={darkMode}
+    />
   );
 }

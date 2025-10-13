@@ -1,10 +1,8 @@
-import { Paper } from "@mui/material";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import {
+  ChartPaper,
   getCrosshairTooltipConfig,
-  getReactEChartsProps,
   GRID_DEFAULT,
 } from "./chartUtils";
 import { COLOR_ERROR, COLOR_GRAY, COLOR_SUCCESS } from "./constants";
@@ -102,8 +100,10 @@ export default function ReliabilityPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts {...getReactEChartsProps(darkMode)} option={options} />
-    </Paper>
+    <ChartPaper
+      tooltip="Daily counts of main branch builds by outcome. Green = builds with zero hard failures (soft failures OK), Red = builds with ≥1 hard test failure, Gray = canceled builds."
+      option={options}
+      darkMode={darkMode}
+    />
   );
 }

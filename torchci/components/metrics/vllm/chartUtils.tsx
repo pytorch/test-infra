@@ -1,9 +1,14 @@
 // Shared utility functions and configurations for vLLM chart components
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import { Paper, Tooltip } from "@mui/material";
+import ReactECharts from "echarts-for-react";
+import React from "react";
 import {
   COLOR_BG_DARK,
   COLOR_BG_LIGHT,
   COLOR_CROSSHAIR_DARK,
   COLOR_CROSSHAIR_LIGHT,
+  COLOR_HELP_ICON,
   COLOR_TEXT_DARK,
   COLOR_TEXT_LIGHT,
 } from "./constants";
@@ -57,4 +62,42 @@ export function getReactEChartsProps(darkMode: boolean) {
     theme: darkMode ? "dark-hud" : undefined,
     style: { height: "100%", width: "100%" },
   };
+}
+
+// Reusable chart wrapper with optional help tooltip
+export function ChartPaper({
+  tooltip,
+  option,
+  onEvents,
+  darkMode,
+}: {
+  tooltip?: string;
+  option: any;
+  onEvents?: any;
+  darkMode: boolean;
+}): React.ReactElement {
+  return (
+    <Paper sx={{ p: 2, height: "100%", position: "relative" }} elevation={3}>
+      {tooltip && (
+        <Tooltip title={tooltip} arrow placement="top">
+          <HelpOutlineIcon
+            sx={{
+              position: "absolute",
+              top: 16,
+              right: 16,
+              fontSize: "1.2rem",
+              color: COLOR_HELP_ICON,
+              cursor: "help",
+              zIndex: 1,
+            }}
+          />
+        </Tooltip>
+      )}
+      <ReactECharts
+        {...getReactEChartsProps(darkMode)}
+        option={option}
+        onEvents={onEvents}
+      />
+    </Paper>
+  );
 }

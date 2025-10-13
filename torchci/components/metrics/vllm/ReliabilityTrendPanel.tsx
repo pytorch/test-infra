@@ -1,10 +1,8 @@
-import { Paper } from "@mui/material";
 import { EChartsOption } from "echarts";
-import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import {
+  ChartPaper,
   getCrosshairTooltipConfig,
-  getReactEChartsProps,
   GRID_DEFAULT,
 } from "./chartUtils";
 import { COLOR_ERROR, COLOR_GRAY, COLOR_SUCCESS } from "./constants";
@@ -108,8 +106,10 @@ export default function ReliabilityTrendPanel({
   };
 
   return (
-    <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-      <ReactECharts {...getReactEChartsProps(darkMode)} option={options} />
-    </Paper>
+    <ChartPaper
+      tooltip="Daily success rate line chart for main branch. Shows percentage of builds with zero hard failures. Builds with only soft failures (flaky tests) count as passed."
+      option={options}
+      darkMode={darkMode}
+    />
   );
 }
