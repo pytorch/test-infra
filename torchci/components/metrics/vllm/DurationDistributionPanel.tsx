@@ -125,13 +125,13 @@ export default function DurationDistributionPanel({
       top: 24,
       data: ["Success", "Failed", "Canceled"],
     },
-    grid: GRID_DEFAULT,
+    grid: { ...GRID_DEFAULT, bottom: 100 },
     xAxis: {
       type: "category",
       data: categories,
       name: "Duration Range",
       nameLocation: "middle",
-      nameGap: 40,
+      nameGap: 60,
       axisLabel: {
         rotate: 45,
         fontSize: 10,
@@ -149,11 +149,28 @@ export default function DurationDistributionPanel({
       axisPointer: { type: "shadow" },
       formatter: formatDistributionTooltip,
     },
+    dataZoom: [
+      {
+        type: "slider",
+        show: true,
+        xAxisIndex: 0,
+        bottom: 0,
+        start: 0,
+        end: 100,
+        height: 25,
+      },
+      {
+        type: "inside",
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+      },
+    ],
   };
 
   return (
     <ChartPaper
-      tooltip="Histogram showing distribution of main branch CI runtimes (how long builds take to complete). Green = successful builds, Red = failed builds, Gray = canceled builds."
+      tooltip="Histogram showing distribution of main branch CI runtimes (how long builds take to complete). Green = successful builds, Red = failed builds, Gray = canceled builds. Use slider or scroll to zoom."
       option={options}
       darkMode={darkMode}
     />

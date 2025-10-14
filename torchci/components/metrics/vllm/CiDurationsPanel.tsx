@@ -199,7 +199,7 @@ export default function CiDurationsPanel({
       ],
       selectedMode: false,
     },
-    grid: { top: 60, right: 8, bottom: 24, left: 64 },
+    grid: { top: 60, right: 8, bottom: 80, left: 64 },
     dataset: [
       { source },
       { source: dailyMeanSuccess },
@@ -223,11 +223,28 @@ export default function CiDurationsPanel({
       ...getLineSeries(dailyMeanSuccess, dailyMeanNonCanceled),
       ...getLegendScatterSeries(),
     ],
+    dataZoom: [
+      {
+        type: "slider",
+        show: true,
+        xAxisIndex: 0,
+        bottom: 0,
+        start: 0,
+        end: 100,
+        height: 25,
+      },
+      {
+        type: "inside",
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+      },
+    ],
   };
 
   return (
     <ChartPaper
-      tooltip="Main branch CI runtimes over time. Green line = mean runtime for successful builds, Pink line = mean including failures. Scatter points = individual builds (click to view in Buildkite)."
+      tooltip="Main branch CI runtimes over time. Green line = mean runtime for successful builds, Pink line = mean including failures. Scatter points = individual builds (click to view in Buildkite). Use slider or scroll to zoom."
       option={options}
       onEvents={{
         click: handleBuildClick,
