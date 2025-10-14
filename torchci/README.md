@@ -143,7 +143,3 @@ If you ever need to modify the deployment settings like the oauth callbacks, dom
 2. [Environment Variables](https://vercel.com/fbopensource/torchci/settings/environment-variables)
 3. [OAuth Project](https://github.com/settings/applications/1973779) / [OAuth Project Local](https://github.com/settings/applications/1976306)
 4. [Domain Management](https://vercel.com/fbopensource/torchci/settings/domains)
-
-Page maintainers: @pytorch/pytorch-dev-infra
-<br>
-Last verified: 2025-09-10
