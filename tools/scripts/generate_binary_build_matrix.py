@@ -297,7 +297,9 @@ def get_wheel_install_command(
         whl_install_command = ""
         if os == WINDOWS_ARM64:
             # winarm64 has only nightly torch package for now
-            whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
+            whl_install_command = (
+                f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL_WHL_WIN_ARM64}"  # noqa: E501
+            )
         elif channel == "nightly":
             whl_install_command = f"{WHL_INSTALL_BASE} --pre {PACKAGES_TO_INSTALL}"
         else:
