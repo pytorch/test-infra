@@ -171,7 +171,10 @@ export abstract class ExecutableQueryBase implements BuildableQuery {
     return inputs;
   }
 
-  /** Build SQL and execute via provided executor. */
+  /** Build SQL and execute via provided executor.
+   * by default, queryClickhouse is used. and it calls toQueryParams() to get processed params.
+   *
+  */
   async applyQuery(
     inputs: any,
     executor: QueryExecutor = queryClickhouse

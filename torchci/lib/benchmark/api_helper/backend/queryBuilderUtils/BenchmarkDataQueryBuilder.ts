@@ -51,6 +51,8 @@ export const DEFAULT_BENCHMARK_GROUP_MAP = {
  *  - toFormat(): to format the data to the desired format
  */
 export class BenchmarkDataQuery extends ExecutableQueryBase {
+  private _EXTRA_KEY_FIELD_NAME = "extra_key";
+  private _METADATA_INFO_FIELD_NAME = "metadata_info";
   private _inner_query_builder: QueryBuilder;
   private _main_query_builder: QueryBuilder;
   private _format_config: { [key: string]: BenchmarkGroupConfig } = deepClone(
@@ -70,7 +72,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     ]);
 
     const metadata_info_select = toQueryMapResult(
-      "metadata_info",
+      this._METADATA_INFO_FIELD_NAME,
       this._required_metadata_info_statements
     );
 
@@ -80,7 +82,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         select_exists: true,
         where_exists: true,
         // default select statement for customized query
-        select: [["map()", "extra"], metadata_info_select],
+        select: [["map()", this._EXTRA_KEY_FIELD_NAME], metadata_info_select],
         prewhere: [
           "o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })",
           "o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })",
@@ -171,7 +173,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             device,
             arch,
             granularity_bucket,
-            extra,
+            extra_key,
             metadata_info
             {{SELECT}}
         FROM {{TABLE}}
@@ -207,7 +209,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   addExtraInfos(extraInfoMapStatements: Map<string, string>) {
     // store the extra keys for later use
     this._extra_keys = new Set<string>(extraInfoMapStatements.keys());
-    const mapSelectItem = toQueryMapResult("extra", extraInfoMapStatements);
+    const mapSelectItem = toQueryMapResult(this._EXTRA_KEY_FIELD_NAME, extraInfoMapStatements);
     this._inner_query_builder.addSelect([mapSelectItem]);
   }
 
@@ -217,7 +219,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
    */
   addMetadataInfos(metadataInfoMapStatements: Map<string, string>) {
     const mapSelectItem = toQueryMapResult(
-      "metadata_info",
+      this._METADATA_INFO_FIELD_NAME,
       metadataInfoMapStatements,
       this._required_metadata_info_statements
     );
@@ -332,8 +334,7 @@ function toQueryMapResult(
 /**
  * Main function to get the query builder for a specific benchmark data
  * if id not found, return default query builder
- * @param name
- * @returns
+ * 
  */
 export function getBenchmarkDataFetcher(name: string) {
   const MAP: Record<string, any> = {
@@ -353,6 +354,8 @@ export class PytorchOperatorMicroBenchmarkDataFetcher extends ExecutableQueryBas
   constructor() {
     super();
     this._data_query = new BenchmarkDataQuery();
+
+    // add extra info to the query
     this._data_query.addExtraInfos(
       new Map([
         [
