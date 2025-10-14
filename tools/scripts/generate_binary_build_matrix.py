@@ -24,12 +24,12 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "release": ["3.9", "3.10", "3.11", "3.12", "3.13", "3.13t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "13.0"],
     "test": ["12.6", "12.8", "13.0"],
-    "release": ["12.6", "12.8", "12.9"],
+    "release": ["12.6", "12.8", "13.0"],
 }
 
 ROCM_ARCHES_DICT = {
@@ -78,7 +78,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.10.0"
 CURRENT_CANDIDATE_VERSION = "2.9.0"
-CURRENT_STABLE_VERSION = "2.8.0"
+CURRENT_STABLE_VERSION = "2.9.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
