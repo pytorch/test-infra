@@ -42,11 +42,13 @@ export const DEFAULT_BENCHMARK_GROUP_MAP = {
   },
 };
 
+
 /**
- * Query to get benchmark data from the benchmark table
+ * QueryBuilder to get benchmark data from the benchmark table
  * for repo/benchmark specific data use:
- *  - addInnerExtraInfo(): if the field is also in the extra column as unique key
- *  - addInnerMetadataInfo(): if it's only metadata info and does not act as unique key
+ *  - addExtraInfo(): if the field is also in the extra column as unique key
+ *  - addMetadataInfo(): if it's only metadata info and does not act as unique key
+ *  - toFormat(): to format the data to the desired format
  */
 export class BenchmarkDataQuery extends ExecutableQueryBase {
   private _inner_query_builder: QueryBuilder;
@@ -248,6 +250,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     return toBenchmarkTimeSeriesReponseFormat(rawData, config, formats);
   }
 
+  getFormatConfig() {
+    return deepClone(this._format_config);
+  }
+
   build() {
     const inner = this._inner_query_builder.build();
     const primary = this._main_query_builder.build();
@@ -336,10 +342,10 @@ export class PytorchOperatorMicroBenchmarkDataQuery extends ExecutableQueryBase 
       ])
     );
   }
-
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     return this._data_query.toQueryParams(inputs, id);
   }
+
   build() {
     return this._data_query.build();
   }
