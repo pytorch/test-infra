@@ -10,6 +10,7 @@ import TimeToSignalTrendPanel from "components/metrics/vllm/TimeToSignalTrendPan
 import TrunkHealthPanel from "components/metrics/vllm/TrunkHealthPanel";
 import TrunkHealthTrendPanel from "components/metrics/vllm/TrunkHealthTrendPanel";
 import TrunkRecoveryPanel from "components/metrics/vllm/TrunkRecoveryPanel";
+import UnreliableJobsTable from "components/metrics/vllm/UnreliableJobsTable";
 import {
   VllmDualScalarPanel,
   VllmScalarPanel,
@@ -815,8 +816,11 @@ export default function Page() {
         </Grid>
       </DashboardRow>
       <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 12 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <JobReliabilityPanel data={jobReliabilityData} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <UnreliableJobsTable data={jobReliabilityData} />
         </Grid>
       </DashboardRow>
 

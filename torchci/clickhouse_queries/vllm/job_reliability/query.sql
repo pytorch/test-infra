@@ -41,10 +41,11 @@ job_stats AS (
             AS canceled_count,
         passed_count + soft_failed_count + failed_count + canceled_count AS total_count,
         passed_count + soft_failed_count + failed_count AS non_canceled_count,
-        -- Success rate = (clean passes + soft failures) / (all non-canceled)
+        -- Success rate = ONLY clean passes / (all non-canceled)
+        -- This shows true reliability (soft failures don't count as success for job reliability)
         if(
             non_canceled_count > 0,
-            round((passed_count + soft_failed_count) / non_canceled_count, 4),
+            round(passed_count / non_canceled_count, 4),
             NULL
         ) AS success_rate
     FROM jobs

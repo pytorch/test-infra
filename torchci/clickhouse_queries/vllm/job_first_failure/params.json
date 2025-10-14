@@ -1,0 +1,17 @@
+{
+  "params": {
+    "repo": "String",
+    "pipelineName": "String",
+    "jobNames": "Array(String)",
+    "lookbackDays": "UInt32"
+  },
+  "tests": [
+    {
+      "repo": "https://github.com/vllm-project/vllm.git",
+      "pipelineName": "CI",
+      "jobNames": ["Basic Correctness Test", "Neuron Test", "TPU V1 Test"],
+      "lookbackDays": 60
+    }
+  ]
+}
+
