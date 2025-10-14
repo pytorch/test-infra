@@ -3,9 +3,9 @@ export enum CompilerQueryType {
   GENERAL = "general",
 }
 
-export const defaultGetTimeSeriesInputs: any = {
+export const defaultCompilerGetTimeSeriesInputs: any = {
   models: [],
-  commits: [],
+  workflows:[],
   compilers: [],
   branches: [],
   device: "",
@@ -17,6 +17,25 @@ export const defaultGetTimeSeriesInputs: any = {
   stopTime: "",
   suites: [],
 };
+
+
+/**
+ * The default input for compiler get benchmark data,
+ * must have worklfowid/commitId and branch
+ */
+export const defaultCompilerGetBenchmarkDataInputs: any = {
+  models: [],
+  compilers: [],
+  device: "",
+  arch: "",
+  dtype: "",
+  mode: "",
+  granularity: "hour",
+  startTime: "",
+  stopTime: "",
+  suites: [],
+};
+
 
 export const defaultListCommitsInputs: any = {
   branches: [],

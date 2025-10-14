@@ -5,7 +5,7 @@ import {
   DEFAULT_MODE_NAME,
 } from "lib/benchmark/llms/common";
 import ld from "lodash";
-import { BenchmarkMetadataItem, BenchmarkMetadataType } from "../type";
+import { BenchmarkMetadataItem, BenchmarkMetadataType } from "./common/type";
 import { BenchmarkMetadataQuery } from "./queryBuilderUtils/defaultListMetadataQueryBuilder";
 export async function listBenchmarkMetadata(queryParams: any, id: string) {
   // fetch metadata from db

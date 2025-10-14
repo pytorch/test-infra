@@ -1,5 +1,5 @@
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
-import { BundleResult } from "../type";
+import { BundleResult } from "../backend/common/type";
 import {
   getBenchmarkRegressionReport,
   listBenchmarkCommits,

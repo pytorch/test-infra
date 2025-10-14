@@ -13,7 +13,7 @@ import {
   to_time_series_data,
   toTimeSeriesResponse,
   toWorkflowIdMap,
-} from "../../utils";
+} from "../../common/utils";
 import { toApiArch } from "./common";
 
 const COMPILER_PRECOMPUTE_TS_GROUP_KEY = [

@@ -1,5 +1,5 @@
-import { getBenmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/get_time_series_api";
-import { readApiGetParams } from "lib/benchmark/api_helper/utils";
+import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import { getBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/get_time_series";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 /**
@@ -49,7 +49,7 @@ export default async function handler(
         ? response_formats
         : ["time_series"];
 
-    const data = await getBenmarkTimeSeriesData(name, query_params, formats);
+    const data = await getBenchmarkTimeSeriesData(name, query_params, formats);
     return res.status(200).json({ data });
   } catch (err: any) {
     console.error("API error:", err.message);

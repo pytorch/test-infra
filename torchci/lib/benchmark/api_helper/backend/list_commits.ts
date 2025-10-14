@@ -1,6 +1,6 @@
-import { getCompilerCommits } from "../compilers/get_compiler_benchmark_data";
-import { CommitResult, defaultListCommitsInputs } from "../type";
-import { getCommitsWithSampling, groupByBenchmarkData } from "../utils";
+import { getCompilerCommits } from "./compilers/compiler_benchmark_data";
+import { CommitResult, defaultListCommitsInputs } from "./common/type";
+import { getCommitsWithSampling, groupByBenchmarkData } from "./common/utils";
 
 const BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME =
   "benchmark_v3/list_commit_query";

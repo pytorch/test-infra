@@ -1,4 +1,4 @@
-import { badRequest, readApiGetParams } from "lib/benchmark/api_helper/utils";
+import { badRequest, readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import { NextApiRequest, NextApiResponse } from "next";
 import { toMiniReport } from "./list_regression_summary_reports";

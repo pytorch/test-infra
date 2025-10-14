@@ -7,7 +7,7 @@ import { SUITES } from "components/benchmark/compilers/SuitePicker";
 import { DEFAULT_MODE, MODES } from "components/benchmark/ModeAndDTypePicker";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/compilers/helpers/type";
+import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/backend/compilers/helpers/type";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../compilers/common";
 import { BenchmarkUIConfig } from "../../configBook";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
