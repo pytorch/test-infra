@@ -4,8 +4,10 @@ import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPan
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
+import MostRetriedJobsTable from "components/metrics/vllm/MostRetriedJobsTable";
 import ReliabilityPanel from "components/metrics/vllm/ReliabilityPanel";
 import ReliabilityTrendPanel from "components/metrics/vllm/ReliabilityTrendPanel";
+import RetryTrendPanel from "components/metrics/vllm/RetryTrendPanel";
 import TimeToSignalTrendPanel from "components/metrics/vllm/TimeToSignalTrendPanel";
 import TrunkHealthPanel from "components/metrics/vllm/TrunkHealthPanel";
 import TrunkHealthTrendPanel from "components/metrics/vllm/TrunkHealthTrendPanel";
@@ -313,6 +315,23 @@ export default function Page() {
     }
   );
 
+  const { data: retryData } = useClickHouseAPIImmutable("vllm/rebuild_rate", {
+    ...timeParams,
+    granularity: "day",
+    repo: "https://github.com/vllm-project/vllm.git",
+    pipelineName: "CI",
+  });
+
+  const { data: jobRetryStatsData } = useClickHouseAPIImmutable(
+    "vllm/job_retry_stats",
+    {
+      ...timeParams,
+      repo: "https://github.com/vllm-project/vllm.git",
+      pipelineName: "CI",
+      minRuns: 5,
+    }
+  );
+
   const { data: jobReliabilityData } = useClickHouseAPIImmutable(
     "vllm/job_reliability",
     {
@@ -410,6 +429,17 @@ export default function Page() {
       : totalNonCanceled === 0
       ? null
       : totalPassed / totalNonCanceled;
+
+  // Compute retry rate
+  const retryPoints = (retryData || []) as any[];
+  const totalJobs = _.sumBy(retryPoints, "total_jobs");
+  const totalRetries = _.sumBy(retryPoints, "retried_count");
+  const overallRetryRate =
+    retryData === undefined
+      ? undefined
+      : totalJobs === 0
+      ? null
+      : totalRetries / totalJobs;
 
   // Compute trunk health metrics
   // Data now contains individual builds, group by day to get daily status
@@ -764,6 +794,21 @@ export default function Page() {
             },
           ]}
         />
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "% Jobs Retried",
+              value: overallRetryRate,
+              valueRenderer: formatPercentage,
+              badThreshold: (v) => (v ?? 0) > 0.01,
+              tooltip:
+                "Percentage of jobs that were manually or automatically retried. Low values (<1%) indicate stable infrastructure. High values may indicate flaky tests or infrastructure issues.",
+              delta: null, // TODO: Add delta when we have previous retry data
+            },
+          ]}
+        />
       </DashboardRow>
       <DashboardRow spacing={2}>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
@@ -779,6 +824,14 @@ export default function Page() {
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <CommitsOnRedTrendPanel data={dailyTrunkHealthData} />
+        </Grid>
+      </DashboardRow>
+      <DashboardRow spacing={2}>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <RetryTrendPanel data={retryData} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <MostRetriedJobsTable data={jobRetryStatsData} />
         </Grid>
       </DashboardRow>
       <Divider sx={{ mt: 4, mb: 2 }}>
