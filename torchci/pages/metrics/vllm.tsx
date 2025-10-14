@@ -1,11 +1,14 @@
 import { Box, Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
+import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
 import ReliabilityPanel from "components/metrics/vllm/ReliabilityPanel";
 import ReliabilityTrendPanel from "components/metrics/vllm/ReliabilityTrendPanel";
+import TimeToSignalTrendPanel from "components/metrics/vllm/TimeToSignalTrendPanel";
 import TrunkHealthPanel from "components/metrics/vllm/TrunkHealthPanel";
+import TrunkHealthTrendPanel from "components/metrics/vllm/TrunkHealthTrendPanel";
 import TrunkRecoveryPanel from "components/metrics/vllm/TrunkRecoveryPanel";
 import {
   VllmDualScalarPanel,
@@ -428,6 +431,20 @@ export default function Page() {
       ? null
       : greenDays / totalDays;
 
+  // Process trunk health data for daily trend chart
+  const dailyTrunkHealthData = Object.entries(buildsByDay)
+    .map(([day, builds]) => {
+      const greenBuilds = builds.filter((b: any) => b.is_green === 1).length;
+      const redBuilds = builds.length - greenBuilds;
+      return {
+        day,
+        green_count: greenBuilds,
+        red_count: redBuilds,
+        total_count: builds.length,
+      };
+    })
+    .sort((a, b) => a.day.localeCompare(b.day));
+
   // Calculate % commits on red (opposite of trunk health)
   const commitsOnRedPct =
     trunkHealthPct === undefined
@@ -755,6 +772,14 @@ export default function Page() {
           <ReliabilityTrendPanel data={reliabilityData} />
         </Grid>
       </DashboardRow>
+      <DashboardRow spacing={2}>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <TrunkHealthTrendPanel data={dailyTrunkHealthData} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <CommitsOnRedTrendPanel data={dailyTrunkHealthData} />
+        </Grid>
+      </DashboardRow>
       <Divider sx={{ mt: 4, mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: "bold" }}>
           Trunk Health
@@ -807,6 +832,11 @@ export default function Page() {
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <CiDurationsPanel data={ciDurations} />
+        </Grid>
+      </DashboardRow>
+      <DashboardRow spacing={2}>
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+          <TimeToSignalTrendPanel data={ciDurations} />
         </Grid>
       </DashboardRow>
 

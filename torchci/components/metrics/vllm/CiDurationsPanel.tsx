@@ -114,7 +114,12 @@ function formatTooltip(params: any): string {
   }
   const d = params.data;
   const when = d.started_at ? dayjs(d.started_at).format("M/D/YY h:mm A") : "";
-  return `Started: ${when}<br/>Pipeline: ${d.pipeline_name}<br/>Build #: ${d.build_number}<br/>Duration: ${d.duration_hours} h`;
+  const duration = d.duration_hours_raw || d.duration_hours;
+  const durationStr =
+    duration >= 10
+      ? `${duration.toFixed(2)}h (shown at 10h cap)`
+      : `${duration.toFixed(2)}h`;
+  return `Started: ${when}<br/>Pipeline: ${d.pipeline_name}<br/>Build #: ${d.build_number}<br/>Duration: ${durationStr}`;
 }
 
 export default function CiDurationsPanel({
@@ -127,7 +132,8 @@ export default function CiDurationsPanel({
   const source = (data || []).map((d: any) => ({
     ...d,
     started_at: d.started_at ? dayjs(d.started_at).toISOString() : null,
-    duration_hours: Number(d.duration_hours),
+    duration_hours: Math.min(Number(d.duration_hours) || 0, 10), // Cap at 10h for visualization
+    duration_hours_raw: Number(d.duration_hours), // Keep raw value for tooltip
   }));
   const durations = source
     .map((s) => s.duration_hours)
@@ -212,7 +218,14 @@ export default function CiDurationsPanel({
       nameLocation: "middle",
       nameGap: 42,
       nameRotate: 90,
-      axisLabel: { margin: 8 },
+      max: 10,
+      axisLabel: {
+        margin: 8,
+        formatter: (value: number) => {
+          if (value >= 10) return "10+";
+          return value.toString();
+        },
+      },
     },
     tooltip: {
       trigger: "item",

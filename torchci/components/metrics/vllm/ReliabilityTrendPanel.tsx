@@ -5,7 +5,7 @@ import {
   getCrosshairTooltipConfig,
   GRID_DEFAULT,
 } from "./chartUtils";
-import { COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING } from "./constants";
+import { COLOR_SUCCESS } from "./constants";
 
 // Helper function to generate area series for reliability trends
 function getReliabilityAreaSeries(): any[] {
@@ -30,13 +30,6 @@ function getReliabilityAreaSeries(): any[] {
             { offset: 1, color: "rgba(59, 162, 114, 0.05)" },
           ],
         },
-      },
-      markLine: {
-        silent: true,
-        symbol: "none",
-        lineStyle: { color: COLOR_WARNING, type: "dashed", width: 2 },
-        label: { show: true, formatter: "Target: {c}%" },
-        data: [{ yAxis: 85, name: "Target" }],
       },
     },
   ];

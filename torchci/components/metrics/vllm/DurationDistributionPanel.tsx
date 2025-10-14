@@ -3,15 +3,15 @@ import { useDarkMode } from "lib/DarkModeContext";
 import { ChartPaper, getChartTitle, GRID_DEFAULT } from "./chartUtils";
 import { COLOR_ERROR, COLOR_GRAY, COLOR_SUCCESS } from "./constants";
 
-// Helper function to create histogram bins
+// Helper function to create histogram bins (capped at 10h)
 function createHistogramBins(
   durations: number[],
-  binSize: number = 0.5
+  binSize: number = 0.5,
+  maxBin: number = 10
 ): { range: string; count: number; midpoint: number }[] {
   if (durations.length === 0) return [];
 
-  const maxDuration = Math.max(...durations);
-  const numBins = Math.ceil(maxDuration / binSize);
+  const numBins = Math.ceil(maxBin / binSize);
   const bins: { range: string; count: number; midpoint: number }[] = [];
 
   for (let i = 0; i < numBins; i++) {
@@ -25,6 +25,16 @@ function createHistogramBins(
     });
   }
 
+  // Add a special bin for outliers (10h+)
+  const outlierCount = durations.filter((d) => d >= maxBin).length;
+  if (outlierCount > 0) {
+    bins.push({
+      range: `${maxBin.toFixed(1)}+h`,
+      count: outlierCount,
+      midpoint: maxBin + binSize / 2,
+    });
+  }
+
   return bins;
 }
 
@@ -33,7 +43,12 @@ function formatDistributionTooltip(params: any): string {
   if (!Array.isArray(params)) params = [params];
 
   const range = params[0]?.name || "";
-  let result = `<b>Duration: ${range}</b><br/>`;
+  const isOutlier = range.includes("+");
+  let result = `<b>Duration: ${range}</b>`;
+  if (isOutlier) {
+    result += ` <span style="font-size:0.9em;color:#999">(all builds ≥10h)</span>`;
+  }
+  result += `<br/>`;
 
   params.forEach((p: any) => {
     if (p.value !== undefined && p.value > 0) {
