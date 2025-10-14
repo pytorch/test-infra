@@ -315,6 +315,9 @@ function toQueryMapResult(
   return [sqlExpr, resultName];
 }
 
+/**
+ * Builder to get PytorchOperatorMicroBenchmark
+ */
 export class PytorchOperatorMicroBenchmarkDataQuery extends ExecutableQueryBase {
   private _data_query: BenchmarkDataQuery;
   constructor() {
@@ -333,6 +336,7 @@ export class PytorchOperatorMicroBenchmarkDataQuery extends ExecutableQueryBase 
       ])
     );
   }
+
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     return this._data_query.toQueryParams(inputs, id);
   }
