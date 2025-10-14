@@ -1,5 +1,4 @@
 import { Box, Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
-import { ScalarPanelWithValue } from "components/metrics/panels/ScalarPanel";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
@@ -8,6 +7,10 @@ import ReliabilityPanel from "components/metrics/vllm/ReliabilityPanel";
 import ReliabilityTrendPanel from "components/metrics/vllm/ReliabilityTrendPanel";
 import TrunkHealthPanel from "components/metrics/vllm/TrunkHealthPanel";
 import TrunkRecoveryPanel from "components/metrics/vllm/TrunkRecoveryPanel";
+import {
+  VllmDualScalarPanel,
+  VllmScalarPanel,
+} from "components/metrics/vllm/VllmScalarPanel";
 import dayjs from "dayjs";
 import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
@@ -16,6 +19,7 @@ import React, { useState } from "react";
 import { TimeRangePicker } from "../metrics";
 
 const ROW_HEIGHT = 375;
+const METRIC_CARD_HEIGHT = 200; // Height for key metric cards (reduced by ~20% from default)
 
 // moved MergesPanel and CiDurationsPanel to components
 
@@ -48,7 +52,7 @@ function formatCount(v: number | null | undefined): string {
   return v === null || v === undefined ? "-" : v.toString();
 }
 
-// Type for metric configuration
+// Type for metric configuration (supports both single and dual values)
 interface MetricConfig {
   title: string;
   value: number | null | undefined;
@@ -56,23 +60,53 @@ interface MetricConfig {
   badThreshold: (v: number | null | undefined) => boolean;
   tooltip?: string;
   paperSx?: any;
+  // Optional: for dual-value metrics (P50/P90 pairs)
+  value2?: number | null | undefined;
+  badThreshold2?: (v: number | null | undefined) => boolean;
+  label1?: string;
+  label2?: string;
 }
 
 // Helper component to render a stack of metric panels from config
-function MetricStack({ metrics }: { metrics: MetricConfig[] }) {
+function MetricStack({
+  metrics,
+  height,
+}: {
+  metrics: MetricConfig[];
+  height?: number | string;
+}) {
   return (
     <>
-      {metrics.map((metric, index) => (
-        <ScalarPanelWithValue
-          key={index}
-          title={metric.title}
-          value={metric.value}
-          valueRenderer={metric.valueRenderer}
-          badThreshold={metric.badThreshold}
-          tooltip={metric.tooltip}
-          paperSx={metric.paperSx}
-        />
-      ))}
+      {metrics.map((metric, index) => {
+        // Render dual-value panel if value2 is provided
+        if (metric.value2 !== undefined && metric.badThreshold2) {
+          return (
+            <VllmDualScalarPanel
+              key={index}
+              title={metric.title}
+              value1={metric.value}
+              value2={metric.value2}
+              label1={metric.label1}
+              label2={metric.label2}
+              valueRenderer={metric.valueRenderer}
+              badThreshold1={metric.badThreshold}
+              badThreshold2={metric.badThreshold2}
+              tooltip={metric.tooltip}
+            />
+          );
+        }
+        // Render single-value panel
+        return (
+          <VllmScalarPanel
+            key={index}
+            title={metric.title}
+            value={metric.value}
+            valueRenderer={metric.valueRenderer}
+            badThreshold={metric.badThreshold}
+            tooltip={metric.tooltip}
+          />
+        );
+      })}
     </>
   );
 }
@@ -90,7 +124,7 @@ function MetricColumn({
   return (
     <Grid container size={size} justifyContent={"stretch"}>
       <Stack spacing={1} sx={{ width: "100%", height: height || "auto" }}>
-        <MetricStack metrics={metrics} />
+        <MetricStack metrics={metrics} height={height} />
       </Stack>
     </Grid>
   );
@@ -277,6 +311,14 @@ export default function Page() {
       ? null
       : greenDays / totalDays;
 
+  // Calculate % commits on red (opposite of trunk health)
+  const commitsOnRedPct =
+    trunkHealthPct === undefined
+      ? undefined
+      : trunkHealthPct === null
+      ? null
+      : 1 - trunkHealthPct;
+
   // Compute average recovery time
   const recoveryTimes = (trunkRecoveryData || []) as any[];
   const avgRecoveryTime =
@@ -319,40 +361,13 @@ export default function Page() {
         </Typography>
       </Divider>
       <DashboardRow spacing={2}>
+        {/* Reliability Metrics */}
         <MetricColumn
           size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
           metrics={[
             {
-              title: "% force merges (all)",
-              value: manualMergedFailuresPct,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 0) > 0.2,
-              tooltip:
-                "Percentage of merged PRs that had hard-failing tests at merge time. These were manually merged (GitHub auto-merge disabled) despite CI failures. High values indicate tests being bypassed.",
-            },
-            {
-              title: "% manual merges",
-              value: manualMergedPct,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 0) > 0.5,
-              tooltip:
-                "Percentage of merged PRs where a human clicked 'Merge' button instead of using GitHub auto-merge. Includes both clean manual merges AND force merges. High values may indicate slow merge queues or low CI trust.",
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          metrics={[
-            {
-              title: "Overall Success Rate",
-              value: overallSuccessRate,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 1) < 0.85,
-              tooltip:
-                "Percentage of main branch builds with zero hard test failures. Builds with only soft failures (flaky tests) count as passed. Canceled builds excluded from calculation.",
-            },
-            {
-              title: "Main branch health %",
+              title: "Trunk health %",
               value: trunkHealthPct,
               valueRenderer: formatPercentage,
               badThreshold: (v) => (v ?? 1) < 0.9,
@@ -363,95 +378,66 @@ export default function Page() {
         />
         <MetricColumn
           size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
           metrics={[
             {
-              title: "Avg recovery time",
-              value: avgRecoveryTime,
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 12,
+              title: "% commits on red",
+              value: commitsOnRedPct,
+              valueRenderer: formatPercentage,
+              badThreshold: (v) => (v ?? 0) > 0.1,
               tooltip:
-                "Average time to fix main branch when it breaks. Measures from first failed CI run (trunk breaks) to first successful CI run (trunk recovers). Lower is better.",
-            },
-            {
-              title: "Total Failed Builds",
-              value: reliabilityData === undefined ? undefined : totalFailed,
-              valueRenderer: formatCount,
-              badThreshold: (v) => (v ?? 0) > 10,
-              tooltip:
-                "Count of main branch CI runs with hard test failures (soft failures excluded) in selected time period.",
+                "Percentage of days where main branch ended red (most recent build of the day failed). High values mean developers are committing to a broken trunk.",
             },
           ]}
         />
         <MetricColumn
           size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
           metrics={[
             {
-              title: "CI Time to green P50",
+              title: "% force merges",
+              value: manualMergedFailuresPct,
+              valueRenderer: formatPercentage,
+              badThreshold: (v) => (v ?? 0) > 0.2,
+              tooltip:
+                "Percentage of merged PRs that had hard-failing tests at merge time. These were manually merged (GitHub auto-merge disabled) despite CI failures. High values indicate tests being bypassed.",
+            },
+          ]}
+        />
+        {/* Latency Metrics */}
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "Time to signal",
               value: ciSuccP50,
+              value2: ciSuccP90,
+              label1: "P50",
+              label2: "P90",
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 2,
+              badThreshold2: (v) => (v ?? 0) > 6,
               tooltip:
-                "Median (P50) CI runtime for successful main branch runs. Half of successful CI runs complete faster than this. Measures how long developers wait for green checkmark.",
-            },
-            {
-              title: "CI Time to green P90",
-              value: ciSuccP90,
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 6,
-              tooltip:
-                "90th percentile (P90) CI runtime for successful main branch runs. 90% of successful CI runs complete faster than this.",
+                "CI runtime for successful main branch runs. P50 = median (half complete faster), P90 = 90th percentile (90% complete faster). Measures how long developers wait for green checkmark.",
             },
           ]}
         />
         <MetricColumn
           size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
           metrics={[
             {
-              title: "P50 time to first review",
-              value: getPrCycleValue(prCycleData, "time_to_first_review_p50"),
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 24,
-              tooltip:
-                "Median time from PR ready (labeled 'ready' or created) to first human review comment. Excludes bot reviews.",
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          metrics={[
-            {
-              title: "P50 time to approval",
-              value: getPrCycleValue(prCycleData, "time_to_approval_p50"),
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 48,
-              tooltip:
-                "Median time from first human review to first approval from a maintainer (MEMBER/OWNER/COLLABORATOR).",
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          metrics={[
-            {
-              title: "P50 merge queue time",
+              title: "Approval to merge",
               value: getPrCycleValue(prCycleData, "time_in_merge_queue_p50"),
+              value2: getPrCycleValue(prCycleData, "time_in_merge_queue_p90"),
+              label1: "P50",
+              label2: "P90",
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 24,
+              badThreshold2: (v) => (v ?? 0) > 72,
               tooltip:
-                "Median time from first approval to actual merge. Measures how long PRs wait in the merge queue after approval.",
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          metrics={[
-            {
-              title: "P90 merge queue time",
-              value: getPrCycleValue(prCycleData, "time_in_merge_queue_p90"),
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 72,
-              tooltip:
-                "90th percentile time from approval to merge. 90% of PRs merge faster than this after approval.",
+                "Time from first approval to actual merge. P50 = median, P90 = 90th percentile. Measures how long PRs wait in merge queue after approval.",
             },
           ]}
         />
@@ -464,12 +450,63 @@ export default function Page() {
         </Typography>
       </Divider>
       <DashboardRow spacing={2}>
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "Overall Success Rate",
+              value: overallSuccessRate,
+              valueRenderer: formatPercentage,
+              badThreshold: (v) => (v ?? 1) < 0.85,
+              tooltip:
+                "Percentage of main branch builds with zero hard test failures. Builds with only soft failures (flaky tests) count as passed. Canceled builds excluded from calculation.",
+            },
+          ]}
+        />
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "Total Failed Builds",
+              value: reliabilityData === undefined ? undefined : totalFailed,
+              valueRenderer: formatCount,
+              badThreshold: (v) => (v ?? 0) > 10,
+              tooltip:
+                "Count of main branch CI runs with hard test failures (soft failures excluded) in selected time period.",
+            },
+          ]}
+        />
+      </DashboardRow>
+      <DashboardRow spacing={2}>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <ReliabilityPanel data={reliabilityData} />
         </Grid>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <ReliabilityTrendPanel data={reliabilityData} />
         </Grid>
+      </DashboardRow>
+      <Divider sx={{ mt: 4, mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+          Trunk Health
+        </Typography>
+      </Divider>
+      <DashboardRow spacing={2}>
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "Avg recovery time",
+              value: avgRecoveryTime,
+              valueRenderer: formatHoursWithUnit,
+              badThreshold: (v) => (v ?? 0) > 12,
+              tooltip:
+                "Average time to fix main branch when it breaks. Measures from first failed CI run (trunk breaks) to first successful CI run (trunk recovers). Lower is better.",
+            },
+          ]}
+        />
       </DashboardRow>
       <DashboardRow spacing={2}>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
@@ -510,6 +547,58 @@ export default function Page() {
           PR Cycle Metrics
         </Typography>
       </Divider>
+      <DashboardRow spacing={2}>
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "% manual merges",
+              value: manualMergedPct,
+              valueRenderer: formatPercentage,
+              badThreshold: (v) => (v ?? 0) > 0.5,
+              tooltip:
+                "Percentage of merged PRs where a human clicked 'Merge' button instead of using GitHub auto-merge. Includes both clean manual merges AND force merges. High values may indicate slow merge queues or low CI trust.",
+            },
+          ]}
+        />
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "Time to first review",
+              value: getPrCycleValue(prCycleData, "time_to_first_review_p50"),
+              value2: getPrCycleValue(prCycleData, "time_to_first_review_p90"),
+              label1: "P50",
+              label2: "P90",
+              valueRenderer: formatHoursWithUnit,
+              badThreshold: (v) => (v ?? 0) > 24,
+              badThreshold2: (v) => (v ?? 0) > 72,
+              tooltip:
+                "Time from PR ready (labeled 'ready' or created) to first human review comment. P50 = median, P90 = 90th percentile. Excludes bot reviews.",
+            },
+          ]}
+        />
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
+              title: "Time to approval",
+              value: getPrCycleValue(prCycleData, "time_to_approval_p50"),
+              value2: getPrCycleValue(prCycleData, "time_to_approval_p90"),
+              label1: "P50",
+              label2: "P90",
+              valueRenderer: formatHoursWithUnit,
+              badThreshold: (v) => (v ?? 0) > 48,
+              badThreshold2: (v) => (v ?? 0) > 120,
+              tooltip:
+                "Time from first human review to first approval from a maintainer (MEMBER/OWNER/COLLABORATOR). P50 = median, P90 = 90th percentile.",
+            },
+          ]}
+        />
+      </DashboardRow>
       <DashboardRow spacing={2}>
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <MergesPanel data={data} />

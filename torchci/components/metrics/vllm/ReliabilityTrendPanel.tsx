@@ -5,45 +5,38 @@ import {
   getCrosshairTooltipConfig,
   GRID_DEFAULT,
 } from "./chartUtils";
-import { COLOR_ERROR, COLOR_GRAY, COLOR_SUCCESS } from "./constants";
+import { COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING } from "./constants";
 
-// Helper function to generate line series for reliability trends
-function getReliabilityLineSeries(): any[] {
+// Helper function to generate area series for reliability trends
+function getReliabilityAreaSeries(): any[] {
   return [
     {
-      name: "Passed",
+      name: "Success Rate",
       type: "line",
-      encode: { x: "granularity_bucket", y: "passed_count" },
+      encode: { x: "granularity_bucket", y: "success_rate_pct" },
       smooth: true,
-      lineStyle: { color: COLOR_SUCCESS, width: 2 },
+      lineStyle: { color: COLOR_SUCCESS, width: 3 },
       itemStyle: { color: COLOR_SUCCESS },
-      symbolSize: 6,
-      emphasis: {
-        focus: "series",
+      symbolSize: 8,
+      areaStyle: {
+        color: {
+          type: "linear",
+          x: 0,
+          y: 0,
+          x2: 0,
+          y2: 1,
+          colorStops: [
+            { offset: 0, color: "rgba(59, 162, 114, 0.3)" },
+            { offset: 1, color: "rgba(59, 162, 114, 0.05)" },
+          ],
+        },
       },
-    },
-    {
-      name: "Failed",
-      type: "line",
-      encode: { x: "granularity_bucket", y: "failed_count" },
-      smooth: true,
-      lineStyle: { color: COLOR_ERROR, width: 2 },
-      itemStyle: { color: COLOR_ERROR },
-      symbolSize: 6,
-      emphasis: {
-        focus: "series",
-      },
-    },
-    {
-      name: "Canceled",
-      type: "line",
-      encode: { x: "granularity_bucket", y: "canceled_count" },
-      smooth: true,
-      lineStyle: { color: COLOR_GRAY, width: 2 },
-      itemStyle: { color: COLOR_GRAY },
-      symbolSize: 6,
-      emphasis: {
-        focus: "series",
+      markLine: {
+        silent: true,
+        symbol: "none",
+        lineStyle: { color: COLOR_WARNING, type: "dashed", width: 2 },
+        label: { show: true, formatter: "Target: {c}%" },
+        data: [{ yAxis: 85, name: "Target" }],
       },
     },
   ];
@@ -57,20 +50,16 @@ function formatReliabilityTrendTooltip(params: any): string {
   const passed = data.passed_count || 0;
   const failed = data.failed_count || 0;
   const canceled = data.canceled_count || 0;
-  const total = data.total_count || 0;
-  const nonCanceled = data.non_canceled_count || 0;
   const successRate = data.success_rate
     ? (data.success_rate * 100).toFixed(1) + "%"
     : "N/A";
 
   return (
-    `<b>${data.granularity_bucket}</b><br/>` +
-    `Passed: ${passed} (incl. soft failures)<br/>` +
-    `Failed: ${failed} (hard failures only)<br/>` +
-    `Canceled: ${canceled}<br/>` +
-    `Non-canceled: ${nonCanceled}<br/>` +
-    `Total: ${total}<br/>` +
-    `Success Rate: <b>${successRate}</b>`
+    `<b>${data.granularity_bucket}</b><br/><br/>` +
+    `<b style="font-size:1.2em">Success Rate: ${successRate}</b><br/><br/>` +
+    `✅ Passed: ${passed} builds<br/>` +
+    `❌ Failed: ${failed} builds (hard failures)<br/>` +
+    `⏸️  Canceled: ${canceled} builds`
   );
 }
 
@@ -81,33 +70,41 @@ export default function ReliabilityTrendPanel({
 }) {
   const { darkMode } = useDarkMode();
 
+  // Add computed percentage field to data
+  const processedData = (data || []).map((d: any) => ({
+    ...d,
+    success_rate_pct: d.success_rate ? d.success_rate * 100 : 0,
+  }));
+
   const options: EChartsOption = {
     title: {
-      text: "CI Reliability Trends (Main Branch)",
-      subtext: "Daily success rate over time",
+      text: "CI Success Rate Trend (Main Branch)",
+      subtext: "Daily success rate percentage",
     },
     legend: {
       top: 24,
-      data: ["Passed", "Failed", "Canceled"],
+      data: ["Success Rate"],
     },
     grid: { ...GRID_DEFAULT, bottom: 24 },
-    dataset: { source: data || [] },
+    dataset: { source: processedData },
     xAxis: { type: "category" },
     yAxis: {
       type: "value",
-      name: "Count",
+      name: "Success Rate (%)",
       position: "left",
+      min: 0,
+      max: 100,
       axisLabel: {
-        formatter: "{value}",
+        formatter: "{value}%",
       },
     },
-    series: getReliabilityLineSeries(),
+    series: getReliabilityAreaSeries(),
     tooltip: getCrosshairTooltipConfig(darkMode, formatReliabilityTrendTooltip),
   };
 
   return (
     <ChartPaper
-      tooltip="Daily success rate line chart for main branch. Shows percentage of builds with zero hard failures. Builds with only soft failures (flaky tests) count as passed."
+      tooltip="Daily success rate trend for main branch CI. Shows percentage of builds with zero hard failures (soft failures count as success). Orange dashed line shows 85% target."
       option={options}
       darkMode={darkMode}
     />
