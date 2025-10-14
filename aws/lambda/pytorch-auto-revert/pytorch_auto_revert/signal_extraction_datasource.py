@@ -267,7 +267,8 @@ class SignalExtractionDatasource:
 
         query = (
             "SELECT repo, workflows, state FROM misc.autorevert_state "
-            "WHERE ts = parseDateTimeBestEffort({ts:String})"
+            "WHERE ts <= parseDateTimeBestEffort({ts:String}) "
+            "LIMIT 1"
         )
         params: Dict[str, Any] = {"ts": ts}
         if repo_full_name:
