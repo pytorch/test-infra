@@ -1,0 +1,40 @@
+.draggingSource {
+  opacity: 0.3;
+}
+
+.dropTarget {
+  background-color: #e8f0fe;
+}
+
+.expandIconWrapper.isOpen {
+  transform: rotate(90deg);
+}
+
+.expandIconWrapper {
+  align-items: center;
+  font-size: 0;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  transform: rotate(0deg);
+  margin: 0;
+  padding: 0;
+}
+
+.node {
+  height: 32px;
+  padding-inline-end: 8px;
+}
+.root {
+  list-style: none;
+}
+.root ul {
+  list-style: none;
+}
+.labelGridItem {
+  padding-inline-start: 8px;
+}
+
+.root li:hover {
+  background-color: #f0f0f0;
+}

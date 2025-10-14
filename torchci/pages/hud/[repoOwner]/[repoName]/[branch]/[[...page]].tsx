@@ -1,3 +1,4 @@
+import { Button } from "@mui/material";
 import CheckBoxSelector from "components/common/CheckBoxSelector";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
@@ -10,6 +11,8 @@ import {
   GroupHudTableHeader,
   passesGroupFilter,
 } from "components/hud/GroupHudTableHeaders";
+import { getGroupingData } from "components/HudGroupingSettings/hudGroupingSettings";
+import SettingsModal from "components/HudGroupingSettings/MainPageSettings";
 import HudGroupedCell from "components/job/GroupJobConclusion";
 import JobConclusion from "components/job/JobConclusion";
 import JobFilterInput from "components/job/JobFilterInput";
@@ -17,12 +20,7 @@ import JobTooltip from "components/job/JobTooltip";
 import SettingsPanel from "components/SettingsPanel";
 import { isJobAutorevertSignal } from "lib/autorevertUtils";
 import { fetcher } from "lib/GeneralUtils";
-import {
-  getGroupingData,
-  groups,
-  isUnstableGroup,
-  sortGroupNamesForHUD,
-} from "lib/JobClassifierUtil";
+import { isUnstableGroup, sortGroupNamesForHUD } from "lib/JobClassifierUtil";
 import {
   isFailedJob,
   isRerunDisabledTestsJob,
@@ -220,9 +218,10 @@ function HudJobCells({
   unstableIssues: IssueData[];
   params: HudParams;
 }) {
-  let groupNames = groups.map((group) => group.name).concat("other");
   const { expandedGroups, setExpandedGroups, groupNameMapping } =
     useContext(GroupingContext);
+  const groupNames = Array.from(groupNameMapping.keys());
+
   return (
     <>
       {names.map((name) => {
@@ -320,6 +319,7 @@ function FiltersAndSettings({}: {}) {
   const { jobFilter, handleSubmit } = useTableFilter(params);
   const [mergeEphemeralLF, setMergeEphemeralLF] = useContext(MergeLFContext);
   const [settingsPanelOpen, setSettingsPanelOpen] = useState(false);
+  const [groupingSettingsOpen, setGroupingSettingsOpen] = useState(false);
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns, setHideGreenColumns] =
     useHideGreenColumnsPreference();
@@ -374,6 +374,13 @@ function FiltersAndSettings({}: {}) {
         }}
         isOpen={settingsPanelOpen}
         onToggle={() => setSettingsPanelOpen(!settingsPanelOpen)}
+      />
+      <Button onClick={() => setGroupingSettingsOpen(true)}>Groupings</Button>
+      <SettingsModal
+        repositoryFullName={`${params.repoOwner}/${params.repoName}`}
+        branchName={params.branch}
+        visible={groupingSettingsOpen}
+        handleClose={() => setGroupingSettingsOpen(false)}
       />
     </div>
   );
@@ -592,13 +599,20 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   const [hideGreenColumns] = useHideGreenColumnsPreference();
   const [useGrouping] = useGroupingPreference(params.nameFilter);
 
-  const { shaGrid, groupNameMapping, jobsWithFailures, groupsWithFailures } =
-    getGroupingData(
-      data ?? [],
-      jobNames,
-      (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-      unstableIssuesData ?? []
-    );
+  const {
+    shaGrid,
+    groupNameMapping,
+    jobsWithFailures,
+    groupsWithFailures,
+    groupSettings,
+  } = getGroupingData(
+    `${params.repoOwner}/${params.repoName}`,
+    params.branch,
+    data ?? [],
+    jobNames,
+    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+    unstableIssuesData ?? []
+  );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
@@ -611,7 +625,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
   }, [router, useGrouping]);
 
   const groupNames = Array.from(groupNameMapping.keys());
-  let names = sortGroupNamesForHUD(groupNames);
+  let names = sortGroupNamesForHUD(groupNames, groupSettings);
 
   if (useGrouping) {
     expandedGroups.forEach((group) => {
@@ -629,7 +643,7 @@ function GroupedHudTable({ params }: { params: HudParams }) {
     }
   } else {
     names = [...jobNames];
-    groups.forEach((group) => {
+    groupSettings.forEach((group) => {
       if (
         groupNames.includes(group.name) &&
         (group.persistent ||
