@@ -45,7 +45,6 @@ export default function CommitsOnRedTrendPanel({
     dataset: { source: processedData },
     xAxis: {
       type: "category",
-      encode: { x: "day" },
     },
     yAxis: {
       type: "value",

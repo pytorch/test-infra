@@ -27,7 +27,7 @@ daily_stats AS (
     SELECT
         bucket,
         count() AS total_jobs,
-        countIf(was_retried = true) AS retried_count,
+        countIf(was_retried = TRUE) AS retried_count,
         if(
             total_jobs > 0,
             round(retried_count / total_jobs, 4),
@@ -44,4 +44,3 @@ SELECT
     retry_rate
 FROM daily_stats
 ORDER BY granularity_bucket ASC
-

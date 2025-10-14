@@ -45,7 +45,6 @@ export default function TrunkHealthTrendPanel({
     dataset: { source: processedData },
     xAxis: {
       type: "category",
-      encode: { x: "day" },
     },
     yAxis: {
       type: "value",

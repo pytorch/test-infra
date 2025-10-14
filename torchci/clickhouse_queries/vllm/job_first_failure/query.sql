@@ -76,4 +76,3 @@ SELECT
 FROM most_recent_any_failure a
 LEFT JOIN first_break_per_job b ON a.job_name = b.job_name AND b.rn = 1
 ORDER BY a.recent_failed_at DESC
-

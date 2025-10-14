@@ -31,15 +31,18 @@ job_stats AS (
         ) AS passed_count,
         -- Count soft failures: failed but soft_failed=true (flaky tests)
         countIf(
-            lowerUTF8(job_state) = 'failed' AND soft_failed = true
+            lowerUTF8(job_state) = 'failed' AND soft_failed = TRUE
         ) AS soft_failed_count,
         -- Count hard failures: failed jobs with soft_failed=false
         countIf(
-            lowerUTF8(job_state) = 'failed' AND soft_failed = false
+            lowerUTF8(job_state) = 'failed' AND soft_failed = FALSE
         ) AS failed_count,
         countIf(lowerUTF8(job_state) IN ('canceled', 'cancelled'))
             AS canceled_count,
-        passed_count + soft_failed_count + failed_count + canceled_count AS total_count,
+        passed_count
+        + soft_failed_count
+        + failed_count
+        + canceled_count AS total_count,
         passed_count + soft_failed_count + failed_count AS non_canceled_count,
         -- Success rate = ONLY clean passes / (all non-canceled)
         -- This shows true reliability (soft failures don't count as success for job reliability)

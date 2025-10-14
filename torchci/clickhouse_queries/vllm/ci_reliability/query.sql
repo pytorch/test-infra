@@ -41,11 +41,18 @@ builds AS (
         any(build_state) AS build_state,
         any(bucket) AS bucket,
         -- Count hard failures: job.state='failed' AND soft_failed=false
-        countIf(lowerUTF8(job_state) = 'failed' AND soft_failed = false) AS hard_failures,
+        countIf(lowerUTF8(job_state) = 'failed' AND soft_failed = FALSE)
+            AS hard_failures,
         -- A build is successful if it has no hard failures
         -- (even if it has soft failures)
-        if(hard_failures = 0 AND lowerUTF8(build_state) NOT IN ('canceled', 'cancelled'), 1, 0) AS is_success,
-        if(lowerUTF8(build_state) IN ('canceled', 'cancelled'), 1, 0) AS is_canceled
+        if(
+            hard_failures = 0
+            AND lowerUTF8(build_state) NOT IN ('canceled', 'cancelled'),
+            1,
+            0
+        ) AS is_success,
+        if(lowerUTF8(build_state) IN ('canceled', 'cancelled'), 1, 0)
+            AS is_canceled
     FROM build_jobs
     GROUP BY
         repository,

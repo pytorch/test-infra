@@ -20,16 +20,8 @@ export default function UnreliableJobsTable({
 }: {
   data: any[] | undefined;
 }) {
-  if (!data || data.length === 0) {
-    return (
-      <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
-        <Typography>No data available</Typography>
-      </Paper>
-    );
-  }
-
   // Filter to jobs with failures and sort by failure rate
-  const unreliableJobs = data
+  const unreliableJobs = (data || [])
     .filter((job) => {
       const failureRate =
         (job.failed_count + job.soft_failed_count) /
@@ -45,7 +37,7 @@ export default function UnreliableJobsTable({
     })
     .slice(0, 100); // Top 100 most unreliable
 
-  // Fetch first failure data for these jobs
+  // Fetch first failure data for these jobs (must be before any early returns)
   const jobNames = unreliableJobs.map((j) => j.job_name);
   const { data: firstFailureData } = useClickHouseAPIImmutable(
     "vllm/job_first_failure",
@@ -54,7 +46,8 @@ export default function UnreliableJobsTable({
       pipelineName: "CI",
       jobNames: jobNames,
       lookbackDays: 60, // Look back 60 days to find historical break points
-    }
+    },
+    jobNames.length > 0 // Only fetch if we have jobs
   );
 
   // Create a map of job name to first failure info
@@ -62,6 +55,15 @@ export default function UnreliableJobsTable({
   (firstFailureData || []).forEach((f: any) => {
     firstFailureMap.set(f.job_name, f);
   });
+
+  // Early return if no unreliable jobs (after hooks are called)
+  if (unreliableJobs.length === 0) {
+    return (
+      <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
+        <Typography>No unreliable jobs found</Typography>
+      </Paper>
+    );
+  }
 
   return (
     <Paper sx={{ p: 2, height: "100%", overflow: "auto" }} elevation={3}>

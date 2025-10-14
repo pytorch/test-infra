@@ -78,7 +78,6 @@ export default function TimeToSignalTrendPanel({
     dataset: { source: dailyData },
     xAxis: {
       type: "category",
-      encode: { x: "day" },
     },
     yAxis: {
       type: "value",

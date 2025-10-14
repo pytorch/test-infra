@@ -30,8 +30,16 @@ build_with_prev AS (
         build_number,
         build_started_at,
         is_success,
-        lagInFrame(is_success) OVER (ORDER BY build_started_at) AS prev_is_success,
-        lagInFrame(build_started_at) OVER (ORDER BY build_started_at) AS prev_build_time
+        lagInFrame(is_success)
+            OVER (
+                ORDER BY build_started_at
+            )
+            AS prev_is_success,
+        lagInFrame(build_started_at)
+            OVER (
+                ORDER BY build_started_at
+            )
+            AS prev_build_time
     FROM main_builds
     WHERE is_success IN (0, 1)
 ),
@@ -60,8 +68,16 @@ events_with_prev AS (
         build_number,
         build_started_at,
         event_type,
-        lagInFrame(build_started_at) OVER (ORDER BY build_started_at) AS prev_event_time,
-        lagInFrame(event_type) OVER (ORDER BY build_started_at) AS prev_event_type
+        lagInFrame(build_started_at)
+            OVER (
+                ORDER BY build_started_at
+            )
+            AS prev_event_time,
+        lagInFrame(event_type)
+            OVER (
+                ORDER BY build_started_at
+            )
+            AS prev_event_type
     FROM state_transitions
 ),
 
@@ -70,7 +86,8 @@ recovery_pairs AS (
     SELECT
         prev_event_time AS break_time,
         build_started_at AS recovery_time,
-        dateDiff('minute', prev_event_time, build_started_at) / 60.0 AS recovery_hours
+        dateDiff('minute', prev_event_time, build_started_at)
+        / 60.0 AS recovery_hours
     FROM events_with_prev
     WHERE
         event_type = 'recovery'
