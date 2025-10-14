@@ -14,8 +14,8 @@ function formatRecoveryTooltip(params: any): string {
 
   return (
     `<b>Trunk Breakage</b><br/>` +
-    `When: ${breakTime}<br/>` +
-    `Recovery time: <b>${hours.toFixed(1)} hours</b>`
+    `Broke at: ${breakTime}<br/>` +
+    `Stayed broken for: <b>${hours.toFixed(1)} hours</b>`
   );
 }
 
@@ -63,15 +63,15 @@ export default function TrunkRecoveryPanel({
 
   const options: EChartsOption = {
     title: getChartTitle(
-      "Main Branch Recovery Time",
+      "Trunk Breakage Duration",
       hasRecentData
-        ? "Time to fix over time"
-        : "Time to fix over time (⚠️ No recent recoveries)"
+        ? "How long trunk stayed broken before fix"
+        : "How long trunk stayed broken (⚠️ No recent fixes)"
     ),
     grid: GRID_DEFAULT,
     xAxis: {
       type: "time",
-      name: "When Main Broke",
+      name: "When Trunk Broke",
       nameLocation: "middle",
       nameGap: 40,
       min: startTime,
@@ -83,7 +83,7 @@ export default function TrunkRecoveryPanel({
     },
     yAxis: {
       type: "value",
-      name: "Recovery Time (hours)",
+      name: "Hours Broken",
       nameLocation: "middle",
       nameGap: 40,
       min: 0,
@@ -99,8 +99,8 @@ export default function TrunkRecoveryPanel({
     <ChartPaper
       tooltip={
         hasRecentData
-          ? "Scatter plot of trunk recovery times. Each point shows how long it took to fix main branch after it broke (from first failed CI run to first successful CI run). Lower points = faster recovery."
-          : "Scatter plot of trunk recovery times. Shows completed recovery cycles only. ⚠️ Warning: If no points appear in recent days, trunk may be currently broken without recovery."
+          ? "Scatter plot showing how long trunk stayed broken each time it broke. Each point = one break→fix cycle. Y-axis = total hours from when trunk broke until it was fixed. Lower points = faster fixes."
+          : "Scatter plot showing trunk breakage duration. Shows completed fix cycles only. ⚠️ Warning: If no points appear in recent days, trunk may be currently broken without a fix."
       }
       option={options}
       darkMode={darkMode}

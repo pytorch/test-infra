@@ -845,12 +845,12 @@ export default function Page() {
           height={METRIC_CARD_HEIGHT}
           metrics={[
             {
-              title: "Avg recovery time",
+              title: "Avg breakage duration",
               value: avgRecoveryTime,
               valueRenderer: formatHoursWithUnit,
               badThreshold: (v) => (v ?? 0) > 12,
               tooltip:
-                "Average time to fix main branch when it breaks. Measures from first failed CI run (trunk breaks) to first successful CI run (trunk recovers). Lower is better.",
+                "Average time trunk stays broken before being fixed. Measured from when trunk first breaks (success→failure) to when it's fixed (failure→success). Includes nights, weekends, and investigation time. Lower is better.",
               delta: null, // TODO: Calculate when we have previous recovery data
             },
           ]}
