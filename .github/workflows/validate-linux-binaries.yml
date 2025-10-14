@@ -176,8 +176,10 @@ jobs:
         # We use Python 3.11 not running inside venv
         yum install -y python3.11 python3.11-devel
         python3.11 -m ensurepip --upgrade
-        python3.11 --version
-
+        python3.11 pip --version
+        python3.11 -m pip install --upgrade pip
+        python3.11 pip --version
+        
         CUDA_VERSION=$(python3 ../../test-infra/tools/scripts/get_stable_cuda_version.py --channel ${{ inputs.channel }})
         CUDA_VERSION_NODOT=$(echo $CUDA_VERSION | tr -d '.')
         export MATRIX_GPU_ARCH_VERSION="${CUDA_VERSION}"
