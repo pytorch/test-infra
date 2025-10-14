@@ -139,6 +139,8 @@ const MainPage = ({
     );
   }, [router.query]);
   const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
+
+  console.log("elainewy query params", queryParams);
   const { data, error, isLoading } = useBenchmarkPropsData(queryParams);
 
   // an error occured while fetching the benchmark props data

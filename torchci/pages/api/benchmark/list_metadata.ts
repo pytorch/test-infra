@@ -1,4 +1,4 @@
-import { listBenchmarkCommits } from "lib/benchmark/api_helper/list_commits";
+import { listBenchmarkMetadata } from "lib/benchmark/api_helper/backend/list_metadata_api";
 import { readApiGetParams } from "lib/benchmark/api_helper/utils";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -10,30 +10,25 @@ export default async function handler(
     res.setHeader("Allow", "GET, POST");
     return res.status(405).json({ error: "Only GET and POST allowed" });
   }
-
   const params = readApiGetParams(req);
-  console.log("[API]list commits, received request:", params);
 
   // validate params
   if (
     !params ||
+    !params.id ||
     !params.query_params ||
     Object.keys(params.query_params).length == 0 ||
     Object.keys(params).length === 0
   ) {
-    return res.status(400).json({ error: "Missing parameters" });
+    return res.status(400).json({ error: "Missing required parameters" });
   }
-  const { name, query_params, response_formats } = params;
+
+  console.log("[API] LIST_METRICS recieved params: ", params.query_params);
 
   try {
-    const result = await listBenchmarkCommits(
-      name,
-      query_params,
-      response_formats
-    );
-    return res.status(200).json(result);
+    const groups = listBenchmarkMetadata(params.query_params, params.id);
+    return res.status(200).json(groups);
   } catch (err: any) {
-    console.error("API error:", err.message);
-    return res.status(400).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 }

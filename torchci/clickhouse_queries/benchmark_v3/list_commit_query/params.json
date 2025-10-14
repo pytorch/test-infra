@@ -1,13 +1,14 @@
 {
   "params": {
-    "branches": "Array(String)",
+    "repo": "String",
+    "benchmarkNames": "Array<String>",
+    "branches": "Array<String>",
     "device": "String",
     "arch": "Array(String)",
     "dtype": "String",
     "mode": "String",
     "startTime": "DateTime64(3)",
-    "stopTime": "DateTime64(3)",
-    "suites": "Array(String)"
+    "stopTime": "DateTime64(3)"
   },
   "tests": []
 }

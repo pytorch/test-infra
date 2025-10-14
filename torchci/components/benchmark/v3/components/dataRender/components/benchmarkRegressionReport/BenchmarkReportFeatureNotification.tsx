@@ -1,7 +1,7 @@
 import { Badge, IconButton, Tooltip } from "@mui/material";
 import { Box } from "@mui/system";
 import dayjs from "dayjs";
-import { useListBenchmarkRegressionReportsData } from "lib/benchmark/api_helper/apis/hooks";
+import { useListBenchmarkRegressionReportsData } from "lib/benchmark/api_helper/fe/hooks";
 import { RiNotification2Fill } from "react-icons/ri";
 import { BenchmarkReportFeatureSidePanel } from "./BenchmarkReportFeatureSidePanel";
 import {

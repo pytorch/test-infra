@@ -75,9 +75,3 @@ function getformat(data: any, format: string) {
       throw new Error("Invalid type");
   }
 }
-
-export const REQUIRED_COMPLIER_LIST_COMMITS_KEYS = [
-  "mode",
-  "dtype",
-  "deviceName",
-] as const;

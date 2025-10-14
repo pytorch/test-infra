@@ -1,7 +1,7 @@
 import { Alert } from "@mui/material";
 import LoadingPage from "components/common/LoadingPage";
-import { listBenchmarkRegressionReport } from "lib/benchmark/api_helper/apis/api";
-import { useListBenchmarkRegressionReportsData } from "lib/benchmark/api_helper/apis/hooks";
+import { listBenchmarkRegressionReport } from "lib/benchmark/api_helper/fe/api";
+import { useListBenchmarkRegressionReportsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useEffect, useState } from "react";
 import RegressionReportList from "./RegressionReportListView";
 

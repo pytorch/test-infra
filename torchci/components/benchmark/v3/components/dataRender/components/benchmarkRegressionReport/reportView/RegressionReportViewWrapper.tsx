@@ -1,7 +1,7 @@
 import { Alert } from "@mui/material";
 import { Box } from "@mui/system";
 import LoadingPage from "components/common/LoadingPage";
-import { useGetBenchmarkRegressionReportData } from "lib/benchmark/api_helper/apis/hooks";
+import { useGetBenchmarkRegressionReportData } from "lib/benchmark/api_helper/fe/hooks";
 import BenchmarkRegressionReportMetadataSection from "./BenchmarkRegressionReportMetadataSection";
 import { RegressionReportDetail } from "./RegressionReportDetail";
 

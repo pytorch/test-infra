@@ -1,4 +1,3 @@
-import dayjs from "dayjs";
 import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   CommitResult,
@@ -6,7 +5,7 @@ import {
   defaultGetTimeSeriesInputs,
   defaultListCommitsInputs,
 } from "../type";
-import { emptyTimeSeriesResponse } from "../utils";
+import { emptyTimeSeriesResponse, getCommitsWithSampling } from "../utils";
 import {
   extractBackendSqlStyle,
   toApiArch,
@@ -165,61 +164,4 @@ async function getCompilerDataFromClickhouse(inputparams: any): Promise<any[]> {
     });
   }
   return rows;
-}
-
-function subsampleCommitsByDate(data: any[], maxCount: number | undefined) {
-  if (!maxCount) return { data, is_sampled: false };
-
-  if (data.length <= maxCount)
-    return {
-      data,
-      is_sampled: false,
-    };
-
-  // Sort by date ascending
-  const sorted = [...data].sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
-
-  const first = sorted[0];
-  const last = sorted[sorted.length - 1];
-
-  // Subsample the middle points evenly
-  const step = (sorted.length - 2) / (maxCount - 2);
-  const sampled = [first];
-
-  for (let i = 1; i < maxCount - 1; i++) {
-    const idx = Math.round(i * step);
-    sampled.push(sorted[idx]);
-  }
-  sampled.push(last);
-
-  const sampling_info = {
-    origin: data.length,
-    result: sampled.length,
-  };
-  return {
-    data: sampled,
-    origin: data,
-    is_sampled: true,
-    sampling_info,
-  };
-}
-
-async function getCommitsWithSampling(
-  tableName: string,
-  queryParams: any
-): Promise<CommitResult> {
-  const commit_results = await queryClickhouseSaved(tableName, queryParams);
-  let maxCount = undefined;
-
-  // if subsampling is specified, use it
-  if (queryParams.sampling) {
-    maxCount = queryParams.sampling.max;
-    const res = subsampleCommitsByDate(commit_results, maxCount);
-    return res;
-  }
-
-  return {
-    data: commit_results,
-    is_sampled: false,
-  };
 }

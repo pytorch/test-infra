@@ -1,5 +1,8 @@
 // Utility to extract params from either GET or POST
+import dayjs from "dayjs";
+import { queryClickhouseSaved } from "lib/clickhouse";
 import { NextApiRequest } from "next";
+import { CommitResult } from "./type";
 
 /**
  * Key-value map describing metadata for a group.
@@ -329,4 +332,59 @@ export function parseTimestampTokenSeconds(
 
 export function badRequest(message: string, res: any) {
   return res.json({ error: message }, { status: 400 });
+}
+
+function subsampleCommitsByDate(data: any[], maxCount: number | undefined) {
+  if (!maxCount) return { data, is_sampled: false };
+
+  if (data.length <= maxCount)
+    return {
+      data,
+      is_sampled: false,
+    };
+
+  // Sort by date ascending
+  const sorted = [...data].sort((a, b) => dayjs(a.date).diff(dayjs(b.date)));
+
+  const first = sorted[0];
+  const last = sorted[sorted.length - 1];
+
+  // Subsample the middle points evenly
+  const step = (sorted.length - 2) / (maxCount - 2);
+  const sampled = [first];
+
+  for (let i = 1; i < maxCount - 1; i++) {
+    const idx = Math.round(i * step);
+    sampled.push(sorted[idx]);
+  }
+  sampled.push(last);
+
+  const sampling_info = {
+    origin: data.length,
+    result: sampled.length,
+  };
+  return {
+    data: sampled,
+    origin: data,
+    is_sampled: true,
+    sampling_info,
+  };
+}
+
+export async function getCommitsWithSampling(
+  tableName: string,
+  queryParams: any
+): Promise<CommitResult> {
+  const commit_results = await queryClickhouseSaved(tableName, queryParams);
+  let maxCount = undefined;
+  // if subsampling is specified, use it
+  if (queryParams.sampling) {
+    maxCount = queryParams.sampling.max;
+    const res = subsampleCommitsByDate(commit_results, maxCount);
+    return res;
+  }
+  return {
+    data: commit_results,
+    is_sampled: false,
+  };
 }

@@ -83,3 +83,27 @@ export interface CommitResult {
   is_sampled?: boolean;
   sampling_info?: CommitSamplingInfo;
 }
+
+/**
+ * The enum type of benchmark dashboard dropgroup item
+ * this is used to render dropdowns dynamically in the LLMs Benchmark page.
+ * the field value must match the fields in LLMsBenchmarkProps
+ */
+export enum BenchmarkMetadataType {
+  ModelName = "modelName",
+  BackendName = "backendName",
+  ModeName = "modeName",
+  DtypeName = "dtypeName",
+  DeviceName = "deviceName",
+  ArchName = "archName",
+  OperatornName = "operatorName",
+  Qps = "qps",
+}
+/**
+ * The input item for benchmark metada item
+ */
+export interface BenchmarkMetadataItem {
+  type: BenchmarkMetadataType;
+  options: string[];
+  labelName: string;
+}

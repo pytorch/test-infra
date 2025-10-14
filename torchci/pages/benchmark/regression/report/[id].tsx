@@ -4,7 +4,7 @@ import { BenchmarkReportFeatureSidePanel } from "components/benchmark/v3/compone
 import BenchmarkRegressionReportMetadataSection from "components/benchmark/v3/components/dataRender/components/benchmarkRegressionReport/reportView/BenchmarkRegressionReportMetadataSection";
 import { RegressionReportDetail } from "components/benchmark/v3/components/dataRender/components/benchmarkRegressionReport/reportView/RegressionReportDetail";
 import LoadingPage from "components/common/LoadingPage";
-import { useGetBenchmarkRegressionReportData } from "lib/benchmark/api_helper/apis/hooks";
+import { useGetBenchmarkRegressionReportData } from "lib/benchmark/api_helper/fe/hooks";
 import { useRouter } from "next/router";
 
 export default function Page() {
