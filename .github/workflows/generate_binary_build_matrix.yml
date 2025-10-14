@@ -76,7 +76,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: ${{ inputs.test-infra-repository }}
-          ref: ${{ inputs.test-infra-ref }}
+          ref: release-test-2.9
       - uses: ./.github/actions/set-channel
       - name: Generate test matrix
         id: generate
