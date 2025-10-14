@@ -88,7 +88,6 @@ export class QueryBuilder {
     const key = (s: SelectItem) => (Array.isArray(s) ? s[1] : s);
     for (const it of this.defaults.select ?? []) byField.set(key(it), it);
     for (const it of this.extraSelect) byField.set(key(it), it);
-
     let SELECT = [...byField.values()]
       .map((it) => (Array.isArray(it) ? `${it[0]} AS ${it[1]}` : it))
       .join(",\n    ");
@@ -154,6 +153,7 @@ export type QueryExecutor = (
 export interface BuildableQuery {
   build(): string; // must return SQL string
   toQueryParams(inputs: any, id?: string): Record<string, any>;
+  applyQuery(inputs: any, executor?: QueryExecutor): Promise<any>;
 }
 
 /**

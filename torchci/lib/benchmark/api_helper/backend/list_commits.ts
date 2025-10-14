@@ -28,9 +28,7 @@ export async function listBenchmarkCommitsFromDb(
   }
 
   const formats: string[] =
-    responseFormats && responseFormats.length != 0
-      ? responseFormats
-      : ["raw"];
+    responseFormats && responseFormats.length != 0 ? responseFormats : ["raw"];
 
   // format data based on requested response formats, for instance if format is "branch",
   //  we group the data by branch and return the data for each branch
