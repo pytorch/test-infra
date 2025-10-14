@@ -56,8 +56,8 @@ export default function TrunkRecoveryPanel({
 
   // Check if there's recent data (last 2 days)
   const twoDaysAgo = dayjs().subtract(2, "days");
-  const hasRecentData = processedData.some(
-    (d: any) => dayjs(d[0]).isAfter(twoDaysAgo)
+  const hasRecentData = processedData.some((d: any) =>
+    dayjs(d[0]).isAfter(twoDaysAgo)
   );
 
   const options: EChartsOption = {
