@@ -63,13 +63,13 @@ export async function queryClickhouse(
 }
 
 /**
- * Returns the result of a query from the clickhouse database.
+ * Returns the result of a query from the ClickHouse database.
  *
  * The format is an array of json dictionaries/objects ex [{name: "foo", age: 42}, {name: "bar", age: 43}]
  *
- * @param queryName: string, the name of the query, which is the name of the folder in clickhouse_queries
- * @param inputParams: Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
- * @param useQueryCache: boolean, if true, cache the query result on Ch side (1 minute TTL)
+ * @param queryName string, the name of the query, which is the name of the folder in clickhouse_queries
+ * @param inputParams Record<string, unknown>, the parameters to the query, an object where keys are the parameter names
+ * @param useQueryCache boolean, if true, cache the query result on Ch side (1 minute TTL)
  *
  * This function will filter the inputParams to only include the parameters
  * that are in the query params json file.
