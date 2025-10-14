@@ -100,7 +100,7 @@ jobs:
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
 
   generate-aarch64-linux-gpu-matrix:
-    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
+    uses: ./.github/workflows/generate_binary_build_matrix.yml
     with:
       package-type: wheel
       os: linux-aarch64
@@ -114,7 +114,7 @@ jobs:
     strategy:
       matrix: ${{ fromJson(needs.generate-aarch64-linux-cpu-matrix.outputs.matrix) }}
       fail-fast: false
-    uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
+    uses: ./.github/workflows/linux_job_v2.yml
     name: ${{ matrix.build_name }}
     with:
       runner: ${{ matrix.validation_runner }}
