@@ -1,5 +1,5 @@
-import { listBenchmarkMetadata } from "lib/benchmark/api_helper/backend/list_metadata_api";
 import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import { listBenchmarkMetadata } from "lib/benchmark/api_helper/backend/list_metadata_api";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(

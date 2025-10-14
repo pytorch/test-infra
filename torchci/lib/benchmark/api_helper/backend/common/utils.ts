@@ -389,8 +389,6 @@ export async function getCommitsWithSampling(
   };
 }
 
-
-
 /**
  * process general compiler data without precompute or aggregation
  * @param rawData
@@ -400,7 +398,7 @@ export async function getCommitsWithSampling(
 export function toBenchmarkTimeSeriesReponseFormat(
   rawData: any[],
   config: any = {},
-  formats: string[] = ["time_series"],
+  formats: string[] = ["time_series"]
 ) {
   const start_ts = new Date(rawData[0].granularity_bucket).getTime();
   const end_ts = new Date(
@@ -416,19 +414,19 @@ export function toBenchmarkTimeSeriesReponseFormat(
   return toTimeSeriesResponse(formats_result, rawData.length, start_ts, end_ts);
 }
 
-function getformat(data: any, format: string, config:any) {
+function getformat(data: any, format: string, config: any) {
   switch (format) {
     case "time_series":
       return to_time_series_data(
         data,
         config[format].group_key,
-        config[format].sub_group_key,
+        config[format].sub_group_key
       );
     case "table":
       return to_table(
         data,
         config[format].group_key,
-        config[format].sub_group_key,
+        config[format].sub_group_key
       );
       break;
     case "raw":

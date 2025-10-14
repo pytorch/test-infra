@@ -52,7 +52,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         floor(arrayAvg(metric.'benchmark_values'), 2) AS value,
         floor(toFloat64(metric.'target_value'), 2) AS target,
         benchmark.'mode' AS mode,
-        benchmark.'dtype' AS dtype
+        benchmark.'dtype' AS dtype,
         IF(
             empty(runners),
             tupleElement(benchmark, 'extra_info')['device'],
@@ -130,7 +130,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             has({branches: Array(String) }, head_branch)
             OR empty({branches: Array(String) })
         )
-        notEmpty(device)
+        AND notEmpty(device)
         AND (
             arch LIKE concat('%', {arch: String }, '%')
             OR {arch: String } = ''

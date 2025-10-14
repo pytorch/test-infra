@@ -1,5 +1,5 @@
-import { listBenchmarkCommitsFromDb } from "lib/benchmark/api_helper/backend/list_commits";
 import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import { listBenchmarkCommitsFromDb } from "lib/benchmark/api_helper/backend/list_commits";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(

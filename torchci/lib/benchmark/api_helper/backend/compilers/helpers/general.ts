@@ -1,5 +1,4 @@
-
-import { to_table, to_time_series_data, toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
+import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
 
 const COMPILER_GENERAL_TS_GROUP_KEY = [
   "dtype",
@@ -27,17 +26,16 @@ const COMPILER_GENERAL_TABLE_GROUP_KEY = [
 ];
 const COMPILER_GENERAL_TABLE_SUB_GROUP_KEY = ["metric"];
 
-
 export const COMPILER_GROUP_MAP = {
-  "time_series": {
-    "group_key": COMPILER_GENERAL_TS_GROUP_KEY,
-    "sub_group_key": COMPILER_GENERAL_TS_SUB_GROUP_KEY,
+  time_series: {
+    group_key: COMPILER_GENERAL_TS_GROUP_KEY,
+    sub_group_key: COMPILER_GENERAL_TS_SUB_GROUP_KEY,
   },
-  "table": {
-    "group_key": COMPILER_GENERAL_TABLE_GROUP_KEY,
-    "sub_group_key": COMPILER_GENERAL_TABLE_SUB_GROUP_KEY,
+  table: {
+    group_key: COMPILER_GENERAL_TABLE_GROUP_KEY,
+    sub_group_key: COMPILER_GENERAL_TABLE_SUB_GROUP_KEY,
   },
-}
+};
 
 /**
  * process general compiler data without precompute or aggregation
@@ -47,7 +45,7 @@ export const COMPILER_GROUP_MAP = {
  */
 export function toGeneralCompilerData(
   rawData: any[],
-  formats: string[] = ["time_series"],
+  formats: string[] = ["time_series"]
 ) {
   const config = COMPILER_GROUP_MAP;
   return toBenchmarkTimeSeriesReponseFormat(rawData, config, formats);

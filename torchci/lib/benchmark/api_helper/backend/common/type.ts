@@ -5,7 +5,7 @@ export enum CompilerQueryType {
 
 export const defaultCompilerGetTimeSeriesInputs: any = {
   models: [],
-  workflows:[],
+  workflows: [],
   compilers: [],
   branches: [],
   device: "",
@@ -17,7 +17,6 @@ export const defaultCompilerGetTimeSeriesInputs: any = {
   stopTime: "",
   suites: [],
 };
-
 
 /**
  * The default input for compiler get benchmark data,
@@ -35,7 +34,6 @@ export const defaultCompilerGetBenchmarkDataInputs: any = {
   stopTime: "",
   suites: [],
 };
-
 
 export const defaultListCommitsInputs: any = {
   branches: [],

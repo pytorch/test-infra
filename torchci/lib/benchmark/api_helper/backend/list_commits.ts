@@ -1,6 +1,6 @@
-import { getCompilerCommits } from "./compilers/compiler_benchmark_data";
 import { CommitResult, defaultListCommitsInputs } from "./common/type";
 import { getCommitsWithSampling, groupByBenchmarkData } from "./common/utils";
+import { getCompilerCommits } from "./compilers/compiler_benchmark_data";
 
 const BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME =
   "benchmark_v3/list_commit_query";
@@ -8,7 +8,7 @@ const BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME =
 export async function listBenchmarkCommitsFromDb(
   id: string,
   queryParams: any,
-  response_formats: []
+  responseFormats: []
 ) {
   const db = await getBenmarkCommits(id, queryParams);
   if (!db) {
@@ -28,8 +28,8 @@ export async function listBenchmarkCommitsFromDb(
   }
 
   const formats: string[] =
-    response_formats && response_formats.length != 0
-      ? response_formats
+    responseFormats && responseFormats.length != 0
+      ? responseFormats
       : ["raw"];
 
   // format data based on requested response formats, for instance if format is "branch",

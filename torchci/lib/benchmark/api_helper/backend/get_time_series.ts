@@ -5,7 +5,7 @@ import { BenchmarkDataQuery } from "./queryBuilderUtils/defaultGetBenchmarkDataQ
 export async function getBenchmarkTimeSeriesData(
   request_name: string,
   query_params: any,
-  formats: string[] = ["time_series"],
+  formats: string[] = ["time_series"]
 ) {
   switch (request_name) {
     case "compiler_precompute":
@@ -20,16 +20,22 @@ export async function getBenchmarkTimeSeriesData(
         CompilerQueryType.GENERAL,
         formats
       );
-    case "pytorch_operator_microbenchmak":
-      return await getGenernalBenchmarkTimeSeries(query_params, formats, request_name);
+    case "pytorch_operator_microbenchmark":
+      return await getGenernalBenchmarkTimeSeries(
+        query_params,
+        formats,
+        request_name
+      );
     default:
       throw new Error(`Unsupported request_name: ${request_name}`);
   }
 }
 
-async function getGenernalBenchmarkTimeSeries(query_params: any, formats: string[], id: string) {
+async function getGenernalBenchmarkTimeSeries(
+  query_params: any,
+  formats: string[],
+  id: string
+) {
   const queryBuilder = new BenchmarkDataQuery();
   const result = await queryBuilder.applyQuery(query_params);
-  
-
 }

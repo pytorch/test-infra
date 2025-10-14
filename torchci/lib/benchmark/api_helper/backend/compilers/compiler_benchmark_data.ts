@@ -6,15 +6,17 @@ import {
   defaultCompilerGetTimeSeriesInputs,
   defaultListCommitsInputs,
 } from "../common/type";
-import { emptyTimeSeriesResponse, getCommitsWithSampling } from "../common/utils";
+import {
+  emptyTimeSeriesResponse,
+  getCommitsWithSampling,
+} from "../common/utils";
 import {
   extractBackendSqlStyle,
   toApiArch,
   toQueryArch,
 } from "./helpers/common";
-import { toPrecomputeCompilerData } from "./helpers/precompute";
 import { toGeneralCompilerData } from "./helpers/general";
-
+import { toPrecomputeCompilerData } from "./helpers/precompute";
 
 //["x86_64","NVIDIA A10G","NVIDIA H100 80GB HBM3"]
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
@@ -29,29 +31,33 @@ const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
 export async function getSingleCompilerBenchmarkData(
   request_name: string,
   inputParams: any,
-  formats: string[] = ["raw"],
+  formats: string[] = ["raw"]
 ) {
   const queryParams = await getCompilerBenchmarkDataQueryParams(inputParams);
   const rows = await fetchCompilerDataFromDb(queryParams);
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
   }
-  return toCompilerResponseFormat(rows, formats, request_name)
+  return toCompilerResponseFormat(rows, formats, request_name);
 }
-
 
 /**
  * backend method to get time series data
  */
-export async function getCompilerBenchmarkTimeSeriesData(inputparams:any, type:CompilerQueryType, formats:string[]=["time_series"]){
-  const queryParams = await getCompilerBenchmarkTimeRangeQueryParams(inputparams);
+export async function getCompilerBenchmarkTimeSeriesData(
+  inputparams: any,
+  type: CompilerQueryType,
+  formats: string[] = ["time_series"]
+) {
+  const queryParams = await getCompilerBenchmarkTimeRangeQueryParams(
+    inputparams
+  );
   const rows = await fetchCompilerDataFromDb(queryParams);
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
   }
-  return toCompilerResponseFormat(rows, formats, type)
+  return toCompilerResponseFormat(rows, formats, type);
 }
-
 
 /**
  * return compiler benchmark data base on query type and formats
@@ -60,8 +66,12 @@ export async function getCompilerBenchmarkTimeSeriesData(inputparams:any, type:C
  * @param type
  * @returns
  */
-export function toCompilerResponseFormat(data:any[], formats:string[], type:string){
-    switch (type) {
+export function toCompilerResponseFormat(
+  data: any[],
+  formats: string[],
+  type: string
+) {
+  switch (type) {
     case CompilerQueryType.PRECOMPUTE:
       return toPrecomputeCompilerData(data, formats);
     case CompilerQueryType.GENERAL:
@@ -101,7 +111,9 @@ async function getCompilerBenchmarkDataQueryParams(
   queryParams["arch"] = arch_list;
 
   if (!queryParams.workflow || !queryParams.branch) {
-    throw new Error("no workflow or branch provided in request for single data fetch");
+    throw new Error(
+      "no workflow or branch provided in request for single data fetch"
+    );
   }
   queryParams["workflows"] = [queryParams.workflow];
   queryParams["branches"] = [queryParams.branch];
@@ -115,7 +127,9 @@ async function getCompilerBenchmarkDataQueryParams(
  * @param inputparams
  * @returns
  */
-export async function getCompilerBenchmarkTimeRangeQueryParams(inputparams:any){
+export async function getCompilerBenchmarkTimeRangeQueryParams(
+  inputparams: any
+) {
   const queryParams = {
     ...defaultCompilerGetTimeSeriesInputs, // base defaults
     ...inputparams, // override with caller's values
@@ -128,32 +142,36 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(inputparams:any){
 
   // use the startTime and endTime to fetch commits from clickhouse if commits field is not provided
   if (!queryParams.startTime || !queryParams.stopTime) {
-    throw new Error("(getCompilerBenchmarkTimeRangeQueryParams) no start/end time provided in request");
+    throw new Error(
+      "(getCompilerBenchmarkTimeRangeQueryParams) no start/end time provided in request"
+    );
   }
 
-    // get commits from clickhouse, if queryParams has samping config, use it
-    // TODO(ELAINEWY): when use sampled commits to fetch list of commits for data fetching,
-    // the result may contain more data than we expected. this is bc sometimes one commit
-    // can have multiple workflowid associated with it. we need to revisit this later.
-    // maybe we can use the workflowid to search for data instead of commit.
-    // if there is situation like this
-    const { data: commit_results } = await getCommitsWithSampling(
-      COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-      queryParams
-    );
+  // get commits from clickhouse, if queryParams has samping config, use it
+  // TODO(ELAINEWY): when use sampled commits to fetch list of commits for data fetching,
+  // the result may contain more data than we expected. this is bc sometimes one commit
+  // can have multiple workflowid associated with it. we need to revisit this later.
+  // maybe we can use the workflowid to search for data instead of commit.
+  // if there is situation like this
+  const { data: commit_results } = await getCommitsWithSampling(
+    COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+    queryParams
+  );
 
-    const unique_workflows = [...new Set(commit_results.map((c) => c.workflow_id))];
-    console.log(
-      `no workflows provided in request, searched unqiue workflows based on
+  const unique_workflows = [
+    ...new Set(commit_results.map((c) => c.workflow_id)),
+  ];
+  console.log(
+    `no workflows provided in request, searched unqiue workflows based on
       start/end time unique_workflows: ${unique_workflows.length}`
-    );
+  );
 
-    if (commit_results.length > 0) {
-      queryParams["workflows"] = unique_workflows;
-    } else {
-      console.log(`no workflow found in clickhouse using ${queryParams}`);
-      return [];
-    }
+  if (commit_results.length > 0) {
+    queryParams["workflows"] = unique_workflows;
+  } else {
+    console.log(`no workflow found in clickhouse using ${queryParams}`);
+    return [];
+  }
   return queryParams;
 }
 
@@ -171,7 +189,9 @@ async function fetchCompilerDataFromDb(queryParams: any): Promise<any[]> {
       queryParams
     );
   } catch (err: any) {
-    throw Error(`${COMPILER_BENCHMARK_TABLE_NAME}(clickhouse query issue) ${err.message}`);
+    throw Error(
+      `${COMPILER_BENCHMARK_TABLE_NAME}(clickhouse query issue) ${err.message}`
+    );
   }
 
   const end = Date.now();
