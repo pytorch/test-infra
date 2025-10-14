@@ -1,11 +1,11 @@
-import { getCompilerCommits } from "./compilers/get_compiler_benchmark_data";
-import { CommitResult, defaultListCommitsInputs } from "./type";
-import { getCommitsWithSampling, groupByBenchmarkData } from "./utils";
+import { getCompilerCommits } from "../compilers/get_compiler_benchmark_data";
+import { CommitResult, defaultListCommitsInputs } from "../type";
+import { getCommitsWithSampling, groupByBenchmarkData } from "../utils";
 
 const BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME =
   "benchmark_v3/list_commit_query";
 
-export async function listBenchmarkCommits(
+export async function listBenchmarkCommitsFromDb(
   id: string,
   queryParams: any,
   response_formats: []

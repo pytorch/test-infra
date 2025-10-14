@@ -1,4 +1,4 @@
-import { listBenchmarkCommits } from "lib/benchmark/api_helper/list_commits";
+import { listBenchmarkCommitsFromDb } from "lib/benchmark/api_helper/backend/list_commits";
 import { readApiGetParams } from "lib/benchmark/api_helper/utils";
 import { NextApiRequest, NextApiResponse } from "next";
 
@@ -26,7 +26,7 @@ export default async function handler(
   const { name, query_params, response_formats } = params;
 
   try {
-    const result = await listBenchmarkCommits(
+    const result = await listBenchmarkCommitsFromDb(
       name,
       query_params,
       response_formats

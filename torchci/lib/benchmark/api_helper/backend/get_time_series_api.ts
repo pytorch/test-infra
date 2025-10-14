@@ -34,6 +34,6 @@ export async function getBenchmarkData(
   id: string
 ) {
   const queryBuilder = new BenchmarkDataQuery();
-
-  const query = queryBuilder.applyQuery(query_params);
+  const result = queryBuilder.applyQuery(query_params);
+  return result;
 }

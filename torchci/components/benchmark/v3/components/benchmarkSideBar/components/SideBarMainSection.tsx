@@ -8,8 +8,8 @@ import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
-import dayjs from "dayjs";lib/benchmark/api_helper/fe/hooks
-import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/apis/hooks";
+import dayjs from "dayjs";
+import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
