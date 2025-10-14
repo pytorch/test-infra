@@ -95,14 +95,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         o.model.'backend' AS backend,
         o.model.'origins' AS origins,
         o.metric.'name' AS metric,
-        -- Arithmetic mean
         floor(arrayAvg(o.metric.'benchmark_values'), 2) AS actual,
-        -- Geometric mean
-        floor(exp(arrayAvg(arrayMap(x -> log(x), o.metric.'benchmark_values'))), 2) AS actual_geomean,
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
-        o.benchmark.'extra_info' AS debugging_info,
         IF(
             empty(o.runners),
             tupleElement(o.benchmark, 'extra_info')['device'],
@@ -211,7 +207,6 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   addExtraInfos(extraInfoMapStatements: Map<string, string>) {
     // store the extra keys for later use
     this._extra_keys = new Set<string>(extraInfoMapStatements.keys());
-
     const mapSelectItem = toQueryMapResult("extra", extraInfoMapStatements);
     this._inner_query_builder.addSelect([mapSelectItem]);
   }
@@ -235,19 +230,24 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
    * @param formats
    * @returns
    */
-  toFormat(rawData: any[], formats: string[], includesAllExtraKey: boolean) {
+  applyFormat(rawData: any[], formats: string[], includesAllExtraKey: boolean) {
     const config = this._format_config;
     if (includesAllExtraKey) {
       config.time_series.group_key = [
-        ...config.time_series.sub_group_key,
-        ...Array.from(this._extra_keys),
+        ...config.time_series.group_key,
+        ...Array.from(this._extra_keys).map((key) => `extra.${key}`),
       ];
       config.table.sub_group_key = [
         ...config.table.sub_group_key,
-        ...Array.from(this._extra_keys),
+        ...Array.from(this._extra_keys).map((key) => `extra.${key}`),
       ];
     }
     return toBenchmarkTimeSeriesReponseFormat(rawData, config, formats);
+  }
+
+  // reset format config
+  setFormatConfig(config: { [key: string]: BenchmarkGroupConfig }) {
+    this._format_config = config;
   }
 
   getFormatConfig() {
@@ -299,6 +299,13 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   }
 }
 
+/**
+ * helper function to convert a map of statements to a query map result
+ * e.g. map('key1', value1, 'key2', value2, ...)
+ * @param statements
+ * @param additionalStatements
+ * @returns
+ */
 function toQueryMapResult(
   resultName: string,
   statements: Map<string, string>,
@@ -321,10 +328,27 @@ function toQueryMapResult(
   return [sqlExpr, resultName];
 }
 
+
+/**
+ * Main function to get the query builder for a specific benchmark data
+ * if id not found, return default query builder
+ * @param name
+ * @returns
+ */
+export function getBenchmarkDataFetcher(name: string) {
+  const MAP: Record<string, any> = {
+    pytorch_operator_microbenchmark:
+      new PytorchOperatorMicroBenchmarkDataFetcher(),
+  };
+  return MAP[name] ?? new BenchmarkDataQuery();
+}
+
 /**
  * Builder to get PytorchOperatorMicroBenchmark
+ * It inherits method from BenchmarkDataQuery
+ *
  */
-export class PytorchOperatorMicroBenchmarkDataQuery extends ExecutableQueryBase {
+export class PytorchOperatorMicroBenchmarkDataFetcher extends ExecutableQueryBase {
   private _data_query: BenchmarkDataQuery;
   constructor() {
     super();
@@ -339,22 +363,29 @@ export class PytorchOperatorMicroBenchmarkDataQuery extends ExecutableQueryBase 
               ''
             )`,
         ],
+        [
+          "use_compile",
+           `IF(
+              mapContains(tupleElement(o.benchmark, 'extra_info'), 'use_compile'),
+              tupleElement(o.benchmark, 'extra_info')['use_compile'],
+              ''
+          )`,
+        ]
       ])
     );
   }
+
+  applyFormat(rawData: any[], formats: string[]) {
+    return this._data_query.applyFormat(rawData, formats, true);
+  }
+
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     return this._data_query.toQueryParams(inputs, id);
   }
 
   build() {
+     // debugging
+    // console.log("build PytorchOperatorMicroBenchmarkDataQuery", this._data_query.build());
     return this._data_query.build();
   }
-}
-
-export function getBenchmarkDataQuery(name: string) {
-  const MAP: Record<string, any> = {
-    pytorch_operator_micro_benchmark:
-      new PytorchOperatorMicroBenchmarkDataQuery(),
-  };
-  return MAP[name] ?? new BenchmarkDataQuery();
 }

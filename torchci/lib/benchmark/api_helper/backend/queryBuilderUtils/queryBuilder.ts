@@ -158,6 +158,10 @@ export interface BuildableQuery {
 
 /**
  * Base class for executable queries.
+ * - build(): returns SQL string
+ * - toQueryParams(): returns params for SQL execution
+ * - applyQuery(): executes SQL via provided executor (default: queryClickhouse)
+ *
  */
 export abstract class ExecutableQueryBase implements BuildableQuery {
   abstract build(): string;

@@ -274,11 +274,6 @@ export function to_time_series_data(
           new Date(a.granularity_bucket).getTime() -
           new Date(b.granularity_bucket).getTime()
       );
-    if (diffs.length > 0) {
-      console.log(
-        `we detected multiple datapoints for the same group keys ${diffs.length}`
-      );
-    }
     return {
       group_info,
       num_of_dp: ts_list.length,
@@ -287,6 +282,11 @@ export function to_time_series_data(
       data: ts_list,
     };
   });
+  if (diffs.length > 0) {
+      console.log(
+        `we detected multiple datapoints for the same group keys ${diffs.length}, peak first on \n ${JSON.stringify(diffs[0].key)}, \n Data1: ${JSON.stringify(diffs[0].data[0])}, Data:2 ${JSON.stringify(diffs[0].data[1])}`
+      );
+  }
   return result;
 }
 
@@ -408,13 +408,13 @@ export function toBenchmarkTimeSeriesReponseFormat(
   let formats_result: any = {};
 
   formats.forEach((format) => {
-    const data = getformat(rawData, format, config);
+    const data = getBenchmarkDataformat(rawData, format, config);
     formats_result[format] = data;
   });
   return toTimeSeriesResponse(formats_result, rawData.length, start_ts, end_ts);
 }
 
-function getformat(data: any, format: string, config: any) {
+function getBenchmarkDataformat(data: any, format: string, config: any) {
   switch (format) {
     case "time_series":
       return to_time_series_data(

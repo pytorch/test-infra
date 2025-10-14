@@ -1,6 +1,6 @@
 import { CompilerQueryType } from "./common/type";
 import { getCompilerBenchmarkTimeSeriesData } from "./compilers/compiler_benchmark_data";
-import { getBenchmarkDataQuery } from "./queryBuilderUtils/BenchmarkDataQueryBuilder";
+import { getBenchmarkDataFetcher } from "./queryBuilderUtils/BenchmarkDataQueryBuilder";
 
 export async function getBenchmarkTimeSeriesData(
   request_name: string,
@@ -36,7 +36,8 @@ async function getGenernalBenchmarkTimeSeries(
   formats: string[],
   id: string
 ) {
-  const queryBuilder = getBenchmarkDataQuery(id);
-  const result = await queryBuilder.applyQuery(query_params);
-  return queryBuilder.applyFormat(result, formats);
+
+  const fetcher = getBenchmarkDataFetcher(id);
+  const result = await fetcher.applyQuery(query_params);
+  return fetcher.applyFormat(result, formats);
 }
