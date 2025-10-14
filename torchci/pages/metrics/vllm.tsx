@@ -52,6 +52,41 @@ function formatCount(v: number | null | undefined): string {
   return v === null || v === undefined ? "-" : v.toString();
 }
 
+// Helper function to calculate percentage point delta
+function calculateDelta(
+  current: number | null | undefined,
+  previous: number | null | undefined
+): number | null {
+  if (
+    current === null ||
+    current === undefined ||
+    previous === null ||
+    previous === undefined
+  ) {
+    return null;
+  }
+  // Return percentage point difference (not relative change)
+  return (current - previous) * 100;
+}
+
+// Helper function to calculate relative percentage change (for absolute values like hours)
+function calculateRelativeDelta(
+  current: number | null | undefined,
+  previous: number | null | undefined
+): number | null {
+  if (
+    current === null ||
+    current === undefined ||
+    previous === null ||
+    previous === undefined ||
+    previous === 0
+  ) {
+    return null;
+  }
+  // Return percentage change
+  return ((current - previous) / previous) * 100;
+}
+
 // Type for metric configuration (supports both single and dual values)
 interface MetricConfig {
   title: string;
@@ -60,9 +95,13 @@ interface MetricConfig {
   badThreshold: (v: number | null | undefined) => boolean;
   tooltip?: string;
   paperSx?: any;
+  // Optional: for showing change vs previous period (always shown as %)
+  // Color: green if positive, red if negative
+  delta?: number | null;
   // Optional: for dual-value metrics (P50/P90 pairs)
   value2?: number | null | undefined;
   badThreshold2?: (v: number | null | undefined) => boolean;
+  delta2?: number | null;
   label1?: string;
   label2?: string;
 }
@@ -92,6 +131,8 @@ function MetricStack({
               badThreshold1={metric.badThreshold}
               badThreshold2={metric.badThreshold2}
               tooltip={metric.tooltip}
+              delta1={metric.delta}
+              delta2={metric.delta2}
             />
           );
         }
@@ -104,6 +145,7 @@ function MetricStack({
             valueRenderer={metric.valueRenderer}
             badThreshold={metric.badThreshold}
             tooltip={metric.tooltip}
+            delta={metric.delta}
           />
         );
       })}
@@ -156,6 +198,16 @@ export default function Page() {
     stopTime: stopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
   };
 
+  // Previous period params for delta calculation
+  const duration = stopTime.diff(startTime);
+  const prevStartTime = startTime.subtract(duration);
+  const prevStopTime = startTime;
+
+  const prevTimeParams = {
+    startTime: prevStartTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+    stopTime: prevStopTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
+  };
+
   const { data, isLoading } = useClickHouseAPIImmutable(
     "vllm/merges_percentage",
     {
@@ -170,6 +222,15 @@ export default function Page() {
     {
       ...timeParams,
       // Buildkite uses full repo URL with .git in vLLM dataset
+      repo: "https://github.com/vllm-project/vllm.git",
+      pipelineName: "CI",
+    }
+  );
+
+  const { data: prevCiDurations } = useClickHouseAPIImmutable(
+    "vllm/ci_run_duration",
+    {
+      ...prevTimeParams,
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
     }
@@ -204,10 +265,36 @@ export default function Page() {
   const ciNCancP90 =
     ciDurations === undefined ? undefined : qFrom(nonCanceledDurations, 0.9);
 
+  // Compute previous period CI P50/P90
+  const prevPoints = (prevCiDurations || []) as any[];
+  const prevSuccessDurations = prevPoints
+    .filter((d: any) =>
+      successStatesSet.has(String(d.build_state || "").toLowerCase())
+    )
+    .map((d: any) => Number(d.duration_hours))
+    .filter((x: number) => Number.isFinite(x))
+    .sort((a: number, b: number) => a - b);
+  const prevCiSuccP50 =
+    prevCiDurations === undefined
+      ? undefined
+      : qFrom(prevSuccessDurations, 0.5);
+  const prevCiSuccP90 =
+    prevCiDurations === undefined
+      ? undefined
+      : qFrom(prevSuccessDurations, 0.9);
+
   const { data: prCycleData } = useClickHouseAPIImmutable(
     "vllm/pr_cycle_time_breakdown",
     {
       ...timeParams,
+      repo: "vllm-project/vllm",
+    }
+  );
+
+  const { data: prevPrCycleData } = useClickHouseAPIImmutable(
+    "vllm/pr_cycle_time_breakdown",
+    {
+      ...prevTimeParams,
       repo: "vllm-project/vllm",
     }
   );
@@ -248,6 +335,36 @@ export default function Page() {
       ...timeParams,
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
+    }
+  );
+
+  // Fetch previous period data for delta calculations
+  const { data: prevReliabilityData } = useClickHouseAPIImmutable(
+    "vllm/ci_reliability",
+    {
+      ...prevTimeParams,
+      granularity: "day",
+      repo: "https://github.com/vllm-project/vllm.git",
+      pipelineName: "CI",
+    }
+  );
+
+  const { data: prevTrunkHealthData } = useClickHouseAPIImmutable(
+    "vllm/trunk_health",
+    {
+      ...prevTimeParams,
+      granularity: "day",
+      repo: "https://github.com/vllm-project/vllm.git",
+      pipelineName: "CI",
+    }
+  );
+
+  const { data: prevMergesData } = useClickHouseAPIImmutable(
+    "vllm/merges_percentage",
+    {
+      ...prevTimeParams,
+      granularity: "day",
+      repo: "vllm-project/vllm",
     }
   );
 
@@ -319,6 +436,148 @@ export default function Page() {
       ? null
       : 1 - trunkHealthPct;
 
+  // Calculate previous period metrics for deltas
+  const prevReliabilityPoints = (prevReliabilityData || []) as any[];
+  const prevTotalPassed = _.sumBy(prevReliabilityPoints, "passed_count");
+  const prevTotalFailed = _.sumBy(prevReliabilityPoints, "failed_count");
+  const prevTotalNonCanceled = prevTotalPassed + prevTotalFailed;
+  const prevOverallSuccessRate =
+    prevReliabilityData === undefined
+      ? undefined
+      : prevTotalNonCanceled === 0
+      ? null
+      : prevTotalPassed / prevTotalNonCanceled;
+
+  const prevTrunkHealthPoints = (prevTrunkHealthData || []) as any[];
+  const prevBuildsByDay = _.groupBy(prevTrunkHealthPoints, (d) =>
+    d.build_started_at ? d.build_started_at.slice(0, 10) : ""
+  );
+  const prevDailyStatus = Object.entries(prevBuildsByDay).map(
+    ([day, builds]) => {
+      const sortedBuilds = _.sortBy(builds, "build_started_at");
+      const mostRecent = sortedBuilds[sortedBuilds.length - 1];
+      return { day, isGreen: mostRecent?.is_green === 1 };
+    }
+  );
+  const prevGreenDays = prevDailyStatus.filter((d) => d.isGreen).length;
+  const prevTotalDays = prevDailyStatus.length;
+  const prevTrunkHealthPct =
+    prevTrunkHealthData === undefined
+      ? undefined
+      : prevTotalDays === 0
+      ? null
+      : prevGreenDays / prevTotalDays;
+
+  const prevCommitsOnRedPct =
+    prevTrunkHealthPct === undefined
+      ? undefined
+      : prevTrunkHealthPct === null
+      ? null
+      : 1 - prevTrunkHealthPct;
+
+  const prevManualMergedFailures =
+    prevMergesData === undefined || prevMergesData.length === 0
+      ? 0
+      : _.sumBy(prevMergesData, "manual_merged_with_failures_count");
+  const prevManualMerged =
+    prevMergesData === undefined || prevMergesData.length === 0
+      ? 0
+      : _.sumBy(prevMergesData, "manual_merged_count");
+  const prevAutoMerged =
+    prevMergesData === undefined || prevMergesData.length === 0
+      ? 0
+      : _.sumBy(prevMergesData, "auto_merged_count");
+  const prevTotalMerged = prevManualMerged + prevAutoMerged;
+  const prevManualMergedFailuresPct =
+    prevTotalMerged === 0 ? 0 : prevManualMergedFailures / prevTotalMerged;
+
+  // Calculate deltas (percentage point changes)
+  const trunkHealthDelta = calculateDelta(trunkHealthPct, prevTrunkHealthPct);
+  const commitsOnRedDelta = calculateDelta(
+    commitsOnRedPct,
+    prevCommitsOnRedPct
+  );
+  const forceMergesDelta = calculateDelta(
+    manualMergedFailuresPct,
+    prevManualMergedFailuresPct
+  );
+  const overallSuccessRateDelta = calculateDelta(
+    overallSuccessRate,
+    prevOverallSuccessRate
+  );
+
+  // Calculate deltas for CI times (relative percentage change for hours)
+  const ciSuccP50Delta = calculateRelativeDelta(ciSuccP50, prevCiSuccP50);
+  const ciSuccP90Delta = calculateRelativeDelta(ciSuccP90, prevCiSuccP90);
+
+  // Calculate deltas for PR cycle times
+  const prevMergeQueueP50 = getPrCycleValue(
+    prevPrCycleData,
+    "time_in_merge_queue_p50"
+  );
+  const prevMergeQueueP90 = getPrCycleValue(
+    prevPrCycleData,
+    "time_in_merge_queue_p90"
+  );
+  const mergeQueueP50Delta = calculateRelativeDelta(
+    getPrCycleValue(prCycleData, "time_in_merge_queue_p50"),
+    prevMergeQueueP50
+  );
+  const mergeQueueP90Delta = calculateRelativeDelta(
+    getPrCycleValue(prCycleData, "time_in_merge_queue_p90"),
+    prevMergeQueueP90
+  );
+
+  // Calculate delta for total failed builds (relative percentage change)
+  const totalFailedDelta = calculateRelativeDelta(
+    reliabilityData === undefined ? undefined : totalFailed,
+    prevReliabilityData === undefined ? undefined : prevTotalFailed
+  );
+
+  // Calculate delta for manual merges percentage
+  const prevManualMergedPct =
+    prevTotalMerged === 0 ? 0 : prevManualMerged / prevTotalMerged;
+  const manualMergedPctDelta = calculateDelta(
+    manualMergedPct,
+    prevManualMergedPct
+  );
+
+  // Calculate deltas for time to first review
+  const prevTimeToReviewP50 = getPrCycleValue(
+    prevPrCycleData,
+    "time_to_first_review_p50"
+  );
+  const prevTimeToReviewP90 = getPrCycleValue(
+    prevPrCycleData,
+    "time_to_first_review_p90"
+  );
+  const timeToReviewP50Delta = calculateRelativeDelta(
+    getPrCycleValue(prCycleData, "time_to_first_review_p50"),
+    prevTimeToReviewP50
+  );
+  const timeToReviewP90Delta = calculateRelativeDelta(
+    getPrCycleValue(prCycleData, "time_to_first_review_p90"),
+    prevTimeToReviewP90
+  );
+
+  // Calculate deltas for time to approval
+  const prevTimeToApprovalP50 = getPrCycleValue(
+    prevPrCycleData,
+    "time_to_approval_p50"
+  );
+  const prevTimeToApprovalP90 = getPrCycleValue(
+    prevPrCycleData,
+    "time_to_approval_p90"
+  );
+  const timeToApprovalP50Delta = calculateRelativeDelta(
+    getPrCycleValue(prCycleData, "time_to_approval_p50"),
+    prevTimeToApprovalP50
+  );
+  const timeToApprovalP90Delta = calculateRelativeDelta(
+    getPrCycleValue(prCycleData, "time_to_approval_p90"),
+    prevTimeToApprovalP90
+  );
+
   // Compute average recovery time
   const recoveryTimes = (trunkRecoveryData || []) as any[];
   const avgRecoveryTime =
@@ -373,6 +632,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 1) < 0.9,
               tooltip:
                 "Percentage of days where main branch ended green (most recent build of the day passed). Lower values mean trunk is frequently broken.",
+              delta: trunkHealthDelta,
             },
           ]}
         />
@@ -387,6 +647,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 0) > 0.1,
               tooltip:
                 "Percentage of days where main branch ended red (most recent build of the day failed). High values mean developers are committing to a broken trunk.",
+              delta: commitsOnRedDelta,
             },
           ]}
         />
@@ -401,6 +662,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 0) > 0.2,
               tooltip:
                 "Percentage of merged PRs that had hard-failing tests at merge time. These were manually merged (GitHub auto-merge disabled) despite CI failures. High values indicate tests being bypassed.",
+              delta: forceMergesDelta,
             },
           ]}
         />
@@ -420,6 +682,8 @@ export default function Page() {
               badThreshold2: (v) => (v ?? 0) > 6,
               tooltip:
                 "CI runtime for successful main branch runs. P50 = median (half complete faster), P90 = 90th percentile (90% complete faster). Measures how long developers wait for green checkmark.",
+              delta: ciSuccP50Delta,
+              delta2: ciSuccP90Delta,
             },
           ]}
         />
@@ -438,6 +702,8 @@ export default function Page() {
               badThreshold2: (v) => (v ?? 0) > 72,
               tooltip:
                 "Time from first approval to actual merge. P50 = median, P90 = 90th percentile. Measures how long PRs wait in merge queue after approval.",
+              delta: mergeQueueP50Delta,
+              delta2: mergeQueueP90Delta,
             },
           ]}
         />
@@ -461,6 +727,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 1) < 0.85,
               tooltip:
                 "Percentage of main branch builds with zero hard test failures. Builds with only soft failures (flaky tests) count as passed. Canceled builds excluded from calculation.",
+              delta: overallSuccessRateDelta,
             },
           ]}
         />
@@ -475,6 +742,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 0) > 10,
               tooltip:
                 "Count of main branch CI runs with hard test failures (soft failures excluded) in selected time period.",
+              delta: totalFailedDelta,
             },
           ]}
         />
@@ -504,6 +772,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 0) > 12,
               tooltip:
                 "Average time to fix main branch when it breaks. Measures from first failed CI run (trunk breaks) to first successful CI run (trunk recovers). Lower is better.",
+              delta: null, // TODO: Calculate when we have previous recovery data
             },
           ]}
         />
@@ -559,6 +828,7 @@ export default function Page() {
               badThreshold: (v) => (v ?? 0) > 0.5,
               tooltip:
                 "Percentage of merged PRs where a human clicked 'Merge' button instead of using GitHub auto-merge. Includes both clean manual merges AND force merges. High values may indicate slow merge queues or low CI trust.",
+              delta: manualMergedPctDelta,
             },
           ]}
         />
@@ -577,6 +847,8 @@ export default function Page() {
               badThreshold2: (v) => (v ?? 0) > 72,
               tooltip:
                 "Time from PR ready (labeled 'ready' or created) to first human review comment. P50 = median, P90 = 90th percentile. Excludes bot reviews.",
+              delta: timeToReviewP50Delta,
+              delta2: timeToReviewP90Delta,
             },
           ]}
         />
@@ -595,6 +867,8 @@ export default function Page() {
               badThreshold2: (v) => (v ?? 0) > 120,
               tooltip:
                 "Time from first human review to first approval from a maintainer (MEMBER/OWNER/COLLABORATOR). P50 = median, P90 = 90th percentile.",
+              delta: timeToApprovalP50Delta,
+              delta2: timeToApprovalP90Delta,
             },
           ]}
         />
