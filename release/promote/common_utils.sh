@@ -50,6 +50,7 @@ aws_promote() {
         ${AWS} s3 cp ${DRY_RUN_FLAG} \
             --acl public-read \
             --recursive \
+            --metadata-directive COPY \
             --exclude '*' \
             --include "*${package_name}-${pytorch_version}*" \
             "${PYTORCH_S3_FROM/\/$//}" \
