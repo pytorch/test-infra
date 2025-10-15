@@ -23,17 +23,19 @@ const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
   "compilers_benchmark_api_commit_query";
 
+// TODO(ELAINEWY): add GET BENCHMARK DATA API
 /**
  * backend method to get single compiler benchmark data
  * must provide workflow and branch in inputParams
- * @returns
  */
 export async function getSingleCompilerBenchmarkData(
   request_name: string,
   inputParams: any,
   formats: string[] = ["raw"]
 ) {
-  const queryParams = await getCompilerBenchmarkDataQueryParams(inputParams);
+  const queryParams = await getSingleCompilerBenchmarkDataQueryParams(
+    inputParams
+  );
   const rows = await fetchCompilerDataFromDb(queryParams);
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
@@ -100,7 +102,8 @@ export async function getCompilerCommits(
   );
 }
 
-async function getCompilerBenchmarkDataQueryParams(
+// TODO(ELAINEWY): add GET BENCHMARK DATA API
+async function getSingleCompilerBenchmarkDataQueryParams(
   inputparams: any
 ): Promise<any> {
   const queryParams = {
@@ -117,7 +120,7 @@ async function getCompilerBenchmarkDataQueryParams(
   }
   queryParams["workflows"] = [queryParams.workflow];
   queryParams["branches"] = [queryParams.branch];
-  console.log("workflows provided in request", queryParams.workflows);
+  console.log("(getSingleCompilerBenchmarkDataQueryParams) workflows provided in request", queryParams.workflows);
   return queryParams;
 }
 

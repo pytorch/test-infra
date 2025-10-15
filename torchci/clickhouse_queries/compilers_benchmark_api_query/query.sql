@@ -18,10 +18,7 @@ SELECT
         AS granularity_bucket
 FROM benchmark.oss_ci_benchmark_torchinductor
 WHERE
-    (
-        has ({workflows: Array(UInt64)}, workflow_id)
-        OR empty({workflows: Array(UInt64)})
-    )
+    workflow_id IN ({workflows: Array(String)})
     AND (
         has(
             {branches: Array(String)},
