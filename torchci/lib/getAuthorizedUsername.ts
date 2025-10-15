@@ -2,10 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
 import { getOctokitWithUserToken } from "./github";
-
-// Users in this list do not need to have write permissions to pytorch/pytorch
-// to be authorized in order to use flambeau-related features.
-const FLAMBEAU_ALLOW_LIST = ["saienduri"];
+import allowList from "./torchagent/allowList.json"
 
 /**
  * Helper that implements the common auth logic shared by the TorchAgent
@@ -65,7 +62,7 @@ export async function getAuthorizedUsername(
       return null;
     }
 
-    if (FLAMBEAU_ALLOW_LIST.includes(user.data.login)) {
+    if (allowList.includes(user.data.login)) {
       console.log(
         `Authorized: User ${user.data.login} is in the flambeau allow list`
       );
