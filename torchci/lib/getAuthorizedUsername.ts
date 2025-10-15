@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
 import { getOctokitWithUserToken } from "./github";
 // Give access to people who do not have write permissions to pytorch/pytorch
-import allowList from "./torchagent/allowList.json"
+import allowList from "./torchagent/allowList.json";
 
 /**
  * Helper that implements the common auth logic shared by the TorchAgent
