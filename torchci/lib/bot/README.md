@@ -25,7 +25,6 @@
     - [Smart Retry Logic (`retryBot.ts`)](#smart-retry-logic-retrybotts)
     - [Permission-based Security](#permission-based-security)
     - [Auto-labeling Intelligence](#auto-labeling-intelligence)
-  - [Data Flow](#data-flow)
   - [Integration Architecture](#integration-architecture)
   - [Deployment Context](#deployment-context)
   - [Configuration Files](#configuration-files)
@@ -316,13 +315,6 @@ ciflow_push_tags:
 - **File Pattern Matching**: Assigns module labels based on changed files
 - **CI Flow Detection**: Automatic ciflow/\* label assignment
 - **Release Note Categorization**: Automated release note classification
-
-## Data Flow
-
-1. **GitHub Webhook** → **Probot App** → **Bot Module Router**
-2. **Command Parsing** → **Permission Validation** → **Action Execution**
-3. **External API Calls** (GitHub, CircleCI, ClickHouse)
-4. **Event Logging** (DynamoDB) + **Response** (GitHub reactions/comments)
 
 ## Integration Architecture
 
