@@ -94,7 +94,7 @@ else
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.6'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
     fi
-    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.9' ]]; then
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '13.0' ]]; then
         nvidia-smi
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.9'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
@@ -112,8 +112,9 @@ else
     else
         curl -LsSf https://astral.sh/uv/install.sh | \
         INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.2 sh
-        uv venv --python ${MATRIX_PYTHON_VERSION}
         source $HOME/.local/bin/env
+        uv venv --python ${MATRIX_PYTHON_VERSION}
+        source .venv/bin/activate
         uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.2/ torch --force-reinstall
     fi
 
