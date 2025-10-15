@@ -96,8 +96,8 @@ function postFetchProcess(
   commit_map: Map<string, any>,
   metadata: any
 ) {
-  const start_ts = new Date(data[0].granularity_bucket).getTime();
-  const end_ts = new Date(data[data.length - 1].granularity_bucket).getTime();
+  const end_ts = new Date(data[0].granularity_bucket).getTime();
+  const start_ts = new Date(data[data.length - 1].granularity_bucket).getTime();
   data.map((row) => {
     row["commit"] = commit_map.get(row.workflow_id)?.commit;
     row["branch"] = commit_map.get(row.workflow_id)?.branch;
