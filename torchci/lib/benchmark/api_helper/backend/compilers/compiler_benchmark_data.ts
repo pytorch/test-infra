@@ -120,7 +120,10 @@ async function getSingleCompilerBenchmarkDataQueryParams(
   }
   queryParams["workflows"] = [queryParams.workflow];
   queryParams["branches"] = [queryParams.branch];
-  console.log("(getSingleCompilerBenchmarkDataQueryParams) workflows provided in request", queryParams.workflows);
+  console.log(
+    "(getSingleCompilerBenchmarkDataQueryParams) workflows provided in request",
+    queryParams.workflows
+  );
   return queryParams;
 }
 
