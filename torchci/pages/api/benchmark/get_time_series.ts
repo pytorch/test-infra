@@ -1,5 +1,7 @@
+import { CompilerQueryType } from "lib/benchmark/api_helper/backend/common/type";
 import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
-import { getBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/get_time_series";
+import { getCompilerBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/compilers/compiler_benchmark_data";
+import { getBenchmarkDataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 /**
@@ -55,4 +57,43 @@ export default async function handler(
     console.error("API error:", err.message);
     return res.status(400).json({ error: err.message });
   }
+}
+
+async function getBenchmarkTimeSeriesData(
+  request_name: string,
+  query_params: any,
+  formats: string[] = ["time_series"]
+) {
+  switch (request_name) {
+    case "compiler_precompute":
+      return await getCompilerBenchmarkTimeSeriesData(
+        query_params,
+        CompilerQueryType.PRECOMPUTE,
+        formats
+      );
+    case "compiler":
+      return await getCompilerBenchmarkTimeSeriesData(
+        query_params,
+        CompilerQueryType.GENERAL,
+        formats
+      );
+    case "pytorch_operator_microbenchmark":
+      return await getGenernalBenchmarkTimeSeries(
+        query_params,
+        formats,
+        request_name
+      );
+    default:
+      throw new Error(`Unsupported request_name: ${request_name}`);
+  }
+}
+
+async function getGenernalBenchmarkTimeSeries(
+  query_params: any,
+  formats: string[],
+  id: string
+) {
+  const fetcher = getBenchmarkDataFetcher(id);
+  const result = await fetcher.applyQuery(query_params);
+  return fetcher.applyFormat(result, formats);
 }

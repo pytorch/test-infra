@@ -1,5 +1,5 @@
 import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
-import { listBenchmarkMetadata } from "lib/benchmark/api_helper/backend/list_metadata_api";
+import { getListBenchmarkMetadataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
 import { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(
@@ -31,4 +31,11 @@ export default async function handler(
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
+}
+
+async function listBenchmarkMetadata(queryParams: any, id: string) {
+  // fetch metadata from db
+  const fetcher = getListBenchmarkMetadataFetcher(id);
+  const data = await fetcher.applyQuery(queryParams);
+  return fetcher.postProcess(data);
 }

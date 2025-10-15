@@ -167,14 +167,13 @@ export abstract class ExecutableQueryBase implements BuildableQuery {
   abstract build(): string;
 
   /** Default: pass inputs through as params (override in subclasses if needed). */
-  toQueryParams(inputs: any, id?: string): Record<string, any> {
-    return inputs;
-  }
+  abstract toQueryParams(inputs: any, id?: string): Record<string, any>;
 
-  /** Build SQL and execute via provided executor.
+  /**
+   * Build SQL and execute via provided executor.
    * by default, queryClickhouse is used. and it calls toQueryParams() to get processed params.
    *
-  */
+   */
   async applyQuery(
     inputs: any,
     executor: QueryExecutor = queryClickhouse

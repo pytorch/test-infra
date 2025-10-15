@@ -283,9 +283,15 @@ export function to_time_series_data(
     };
   });
   if (diffs.length > 0) {
-      console.log(
-        `we detected multiple datapoints for the same group keys ${diffs.length}, peak first on \n ${JSON.stringify(diffs[0].key)}, \n Data1: ${JSON.stringify(diffs[0].data[0])}, Data:2 ${JSON.stringify(diffs[0].data[1])}`
-      );
+    console.log(
+      `we detected multiple datapoints for the same group keys ${
+        diffs.length
+      }, peak first on \n ${JSON.stringify(
+        diffs[0].key
+      )}, \n Data1: ${JSON.stringify(
+        diffs[0].data[0]
+      )}, Data:2 ${JSON.stringify(diffs[0].data[1])}`
+    );
   }
   return result;
 }
@@ -400,7 +406,10 @@ export function toBenchmarkTimeSeriesReponseFormat(
   config: any = {},
   formats: string[] = ["time_series"]
 ) {
-  const start_ts = new Date(rawData[0].granularity_bucket).getTime();
+  if (rawData.length === 0) {
+    return emptyTimeSeriesResponse();
+  }
+  const start_ts = new Date(rawData[0]?.granularity_bucket).getTime();
   const end_ts = new Date(
     rawData[rawData.length - 1].granularity_bucket
   ).getTime();

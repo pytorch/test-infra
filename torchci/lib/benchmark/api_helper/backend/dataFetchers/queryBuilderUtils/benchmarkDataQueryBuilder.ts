@@ -1,5 +1,6 @@
 import { deepClone } from "@mui/x-data-grid/internals";
-import { toBenchmarkTimeSeriesReponseFormat } from "../common/utils";
+import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
+import { BenchmarkDataFetcher } from "../type";
 import { ExecutableQueryBase, QueryBuilder } from "./queryBuilder";
 
 const DEFAULT_TS_GROUP_KEY = [
@@ -16,6 +17,7 @@ const DEFAULT_TS_SUBGROUP_KEY = ["workflow_id"];
 
 const DEFAULT_TABLE_GROUP_KEY = [
   "workflow_id",
+  "commit",
   "dtype",
   "arch",
   "device",
@@ -42,13 +44,14 @@ export const DEFAULT_BENCHMARK_GROUP_MAP = {
   },
 };
 
-
+// TODO(elainewy) apply listCommits first to get the completed data
 /**
  * QueryBuilder to get benchmark data from the benchmark table
  * for repo/benchmark specific data use:
  *  - addExtraInfo(): if the field is also in the extra column as unique key
  *  - addMetadataInfo(): if it's only metadata info and does not act as unique key
- *  - toFormat(): to format the data to the desired format
+ *  - applyFormat(): to format the data to the desired format, default is time series
+ *
  */
 export class BenchmarkDataQuery extends ExecutableQueryBase {
   private _EXTRA_KEY_FIELD_NAME = "extra_key";
@@ -59,6 +62,18 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     DEFAULT_BENCHMARK_GROUP_MAP
   );
   private _extra_keys = new Set<string>();
+
+  DEFAULT_PARAMS = {
+    excludedMetrics: [],
+    commits: [],
+    arch: "",
+    mode: "",
+    models: [],
+    branches: [],
+    granularity: "hour",
+    backends: [],
+    dtypes: [],
+  };
 
   // must included in all select statement
   private _required_metadata_info_statements: Map<string, string>;
@@ -90,9 +105,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       },
       `
       SELECT
-        replaceOne(o.head_branch, 'refs/heads/', '') AS head_branch,
+        replaceOne(o.head_branch, 'refs/heads/', '') AS branch,
         o.workflow_id AS workflow_id,
         o.job_id AS job_id,
+        o.head_sha AS commit,
         o.model.'name' AS model,
         o.model.'backend' AS backend,
         o.model.'origins' AS origins,
@@ -161,6 +177,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       `
            SELECT DISTINCT
             workflow_id,
+            branch,
+            commit,
             job_id,
             model,
             backend,
@@ -179,7 +197,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         FROM {{TABLE}}
         WHERE
         (
-            has({branches: Array(String) }, head_branch)
+            has({branches: Array(String) }, branch)
             OR empty({branches: Array(String) })
         )
         AND notEmpty(device)
@@ -209,7 +227,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   addExtraInfos(extraInfoMapStatements: Map<string, string>) {
     // store the extra keys for later use
     this._extra_keys = new Set<string>(extraInfoMapStatements.keys());
-    const mapSelectItem = toQueryMapResult(this._EXTRA_KEY_FIELD_NAME, extraInfoMapStatements);
+    const mapSelectItem = toQueryMapResult(
+      this._EXTRA_KEY_FIELD_NAME,
+      extraInfoMapStatements
+    );
     this._inner_query_builder.addSelect([mapSelectItem]);
   }
 
@@ -226,22 +247,34 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     this._inner_query_builder.addSelect([mapSelectItem]);
   }
 
+  addInnerWhereStatements(statements: string[]) {
+    this._inner_query_builder.addWhere(statements);
+  }
+
   /**
    *
    * @param rawData
    * @param formats
    * @returns
    */
-  applyFormat(rawData: any[], formats: string[], includesAllExtraKey: boolean) {
+  applyFormat(
+    rawData: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
     const config = this._format_config;
     if (includesAllExtraKey) {
       config.time_series.group_key = [
         ...config.time_series.group_key,
-        ...Array.from(this._extra_keys).map((key) => `extra.${key}`),
+        ...Array.from(this._extra_keys).map(
+          (key) => `${this._EXTRA_KEY_FIELD_NAME}.${key}`
+        ),
       ];
       config.table.sub_group_key = [
         ...config.table.sub_group_key,
-        ...Array.from(this._extra_keys).map((key) => `extra.${key}`),
+        ...Array.from(this._extra_keys).map(
+          (key) => `${this._EXTRA_KEY_FIELD_NAME}.${key}`
+        ),
       ];
     }
     return toBenchmarkTimeSeriesReponseFormat(rawData, config, formats);
@@ -280,23 +313,12 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
 
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     this.validateInputs(inputs);
-    const defaults = {
-      excludedMetrics: [],
-      commits: [],
-      arch: "",
-      mode: "",
-      models: [],
-      branches: [],
-      granularity: "hour",
-      backends: [],
-      dtypes: [],
-    };
 
     if (inputs.benchmarkName) {
       inputs.benchmarkNames = [inputs.benchmarkName];
     }
 
-    const params = { ...defaults, ...inputs };
+    const params = { ...this.DEFAULT_PARAMS, ...inputs };
     return params;
   }
 }
@@ -330,26 +352,15 @@ function toQueryMapResult(
   return [sqlExpr, resultName];
 }
 
-
-/**
- * Main function to get the query builder for a specific benchmark data
- * if id not found, return default query builder
- * 
- */
-export function getBenchmarkDataFetcher(name: string) {
-  const MAP: Record<string, any> = {
-    pytorch_operator_microbenchmark:
-      new PytorchOperatorMicroBenchmarkDataFetcher(),
-  };
-  return MAP[name] ?? new BenchmarkDataQuery();
-}
-
 /**
  * Builder to get PytorchOperatorMicroBenchmark
  * It inherits method from BenchmarkDataQuery
  *
  */
-export class PytorchOperatorMicroBenchmarkDataFetcher extends ExecutableQueryBase {
+export class PytorchOperatorMicroBenchmarkDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
   private _data_query: BenchmarkDataQuery;
   constructor() {
     super();
@@ -361,34 +372,53 @@ export class PytorchOperatorMicroBenchmarkDataFetcher extends ExecutableQueryBas
         [
           "operator_name",
           `IF(
-              mapContains(tupleElement(o.benchmark, 'extra_info'), 'operator_name'),
-              tupleElement(o.benchmark, 'extra_info')['operator_name'],
-              ''
-            )`,
+            tupleElement(o.benchmark, 'extra_info')['operator_name'] = '',
+            arrayElement(splitByChar('_', tupleElement(o.model, 'name')), 1),
+            tupleElement(o.benchmark, 'extra_info')['operator_name']
+          )`,
         ],
         [
           "use_compile",
-           `IF(
-              mapContains(tupleElement(o.benchmark, 'extra_info'), 'use_compile'),
-              tupleElement(o.benchmark, 'extra_info')['use_compile'],
-              ''
+          `IF(
+              tupleElement(o.benchmark, 'extra_info')['use_compile'] = '',
+              'false',
+              -- Default to true
+              tupleElement(o.benchmark, 'extra_info')['use_compile']
           )`,
-        ]
+        ],
       ])
     );
+    this._data_query.addInnerWhereStatements([
+      `(
+          {operatorName:String} = ''
+          OR startsWith(tupleElement(o.model, 'name'), {operatorName:String})
+      )
+    `,
+    ]);
   }
 
-  applyFormat(rawData: any[], formats: string[]) {
-    return this._data_query.applyFormat(rawData, formats, true);
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
   }
 
   toQueryParams(inputs: any, id?: string): Record<string, any> {
-    return this._data_query.toQueryParams(inputs, id);
+    const params = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    return this._data_query.toQueryParams(params, id);
   }
 
   build() {
-     // debugging
-    // console.log("build PytorchOperatorMicroBenchmarkDataQuery", this._data_query.build());
+    // debugging
+    console.log(
+      "build PytorchOperatorMicroBenchmarkDataQuery",
+      this._data_query.build()
+    );
     return this._data_query.build();
   }
 }
