@@ -3,6 +3,10 @@ import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
 import { getOctokitWithUserToken } from "./github";
 
+// Users in this list do not need to have write permissions to pytorch/pytorch
+// to be authorized in order to use flambeau-related features.
+const FLAMBEAU_ALLOW_LIST = ["saienduri"];
+
 /**
  * Helper that implements the common auth logic shared by the TorchAgent
  * API handlers.  It returns the GitHub username if the request is
@@ -59,6 +63,13 @@ export async function getAuthorizedUsername(
       console.log("Rejected: Could not authenticate user with GitHub");
       res.status(401).json({ error: "GitHub authentication failed" });
       return null;
+    }
+
+    if (FLAMBEAU_ALLOW_LIST.includes(user.data.login)) {
+      console.log(
+        `Authorized: User ${user.data.login} is in the flambeau allow list`
+      );
+      return user.data.login;
     }
 
     const hasWritePermissions = await hasWritePermissionsUsingOctokit(
