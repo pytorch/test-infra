@@ -2,6 +2,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
 import { getOctokitWithUserToken } from "./github";
+// Give access to people who do not have write permissions to pytorch/pytorch
 import allowList from "./torchagent/allowList.json"
 
 /**
