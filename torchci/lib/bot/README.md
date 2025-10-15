@@ -13,17 +13,17 @@
     - [Security \& Review Bots](#security--review-bots)
     - [Infrastructure Bots](#infrastructure-bots)
   - [Detailed Bot Analysis](#detailed-bot-analysis)
-    - [1. autoLabelBot.ts](#1-autolabelbotts)
-    - [2. autoCcBot.ts](#2-autoccbotts)
-    - [3. retryBot.ts](#3-retrybotts)
-    - [4. ciflowPushTrigger.ts](#4-ciflowpushtriggerts)
+    - [autoLabelBot.ts](#autolabelbotts)
+    - [autoCcBot.ts](#autoccbotts)
+    - [retryBot.ts](#retrybotts)
+    - [ciflowPushTrigger.ts](#ciflowpushtriggerts)
       - [Configuration (ciflow_push_tags)](#configuration-ciflow_push_tags)
-    - [5. cancelWorkflowsOnCloseBot.ts](#5-cancelworkflowsonclosebotts)
-    - [6. verifyDisableTestIssueBot.ts](#6-verifydisabletestissuebotts)
-    - [7. stripApprovalBot.ts](#7-stripapprovalbotts)
-    - [8. codevNoWritePermBot.ts](#8-codevnowritepermbotts)
-    - [9. drciBot.ts](#9-drcibotts)
-    - [10. webhookToDynamo.ts](#10-webhooktodynamots)
+    - [cancelWorkflowsOnCloseBot.ts](#cancelworkflowsonclosebotts)
+    - [verifyDisableTestIssueBot.ts](#verifydisabletestissuebotts)
+    - [stripApprovalBot.ts](#stripapprovalbotts)
+    - [codevNoWritePermBot.ts](#codevnowritepermbotts)
+    - [drciBot.ts](#drcibotts)
+    - [webhookToDynamo.ts](#webhooktodynamots)
   - [External Integrations](#external-integrations)
     - [Data Storage](#data-storage)
     - [CI Systems](#ci-systems)
@@ -72,35 +72,35 @@ The bot supports these primary commands:
 
 ### Core Command Bots
 
-1. **pytorchBotHandler** (`lib/bot/pytorchBotHandler.ts:41`) - Central command processor
-2. **cliParser** (`lib/bot/cliParser.ts:7`) - Command-line interface parser
+- **pytorchBotHandler** (`lib/bot/pytorchBotHandler.ts:41`) - Central command processor
+- **cliParser** (`lib/bot/cliParser.ts:7`) - Command-line interface parser
 
 ### Automation Bots
 
-3. **autoLabelBot** - Smart labeling based on file changes and patterns
-4. **autoCcBot** - Auto-CC users based on label subscriptions
-5. **retryBot** - Intelligent CI retry using flakiness analytics
-6. **ciflowPushTrigger** - Git tag management for CI flow triggers
-7. **cancelWorkflowsOnCloseBot** - Resource cleanup on PR closure
+- **autoLabelBot** - Smart labeling based on file changes and patterns
+- **autoCcBot** - Auto-CC users based on label subscriptions
+- **retryBot** - Intelligent CI retry using flakiness analytics
+- **ciflowPushTrigger** - Git tag management for CI flow triggers
+- **cancelWorkflowsOnCloseBot** - Resource cleanup on PR closure
 
 ### CI Integration Bots
 
-8. **verifyDisableTestIssueBot** - Test disabling authorization
+- **verifyDisableTestIssueBot** - Test disabling authorization
 
 ### Security & Review Bots
 
-9. **stripApprovalBot** - Removes approvals on PR reopen
-10. **codevNoWritePermBot** - Notifies about permission requirements
-11. **drciBot** - Dr. CI dashboard integration
+- **stripApprovalBot** - Removes approvals on PR reopen
+- **codevNoWritePermBot** - Notifies about permission requirements
+- **drciBot** - Dr. CI dashboard integration
 
 ### Infrastructure Bots
 
-12. **webhookToDynamo** - Event logging to DynamoDB
-13. **pytorchbotLogger** - Bot action logging
+- **webhookToDynamo** - Event logging to DynamoDB
+- **pytorchbotLogger** - Bot action logging
 
 ## Detailed Bot Analysis
 
-### 1. autoLabelBot.ts
+### autoLabelBot.ts
 
 **Primary Purpose:** Automatically assigns labels to pull requests and issues based on various criteria including file paths, titles, and patterns.
 
@@ -120,7 +120,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Filters CI flow labels based on user permissions and workflow approval status
 
-### 2. autoCcBot.ts
+### autoCcBot.ts
 
 **Primary Purpose:** Automatically CC (carbon copy) relevant users when specific labels are applied to issues or PRs.
 
@@ -138,7 +138,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Parses subscription data from a configured tracking issue and maintains CC lists without duplicating existing mentions
 
-### 3. retryBot.ts
+### retryBot.ts
 
 **Primary Purpose:** Intelligently retries failed CI workflows and jobs based on failure patterns and flakiness analysis.
 
@@ -157,7 +157,7 @@ The bot supports these primary commands:
 
 **Special Logic:** Uses ML/analytics data from ClickHouse to make intelligent retry decisions
 
-### 4. ciflowPushTrigger.ts
+### ciflowPushTrigger.ts
 
 **Primary Purpose:** Manages Git tags that trigger CI workflows based on CI flow labels applied to PRs.
 
@@ -190,7 +190,7 @@ ciflow_push_tags:
   - ciflow/foo
 ```
 
-### 5. cancelWorkflowsOnCloseBot.ts
+### cancelWorkflowsOnCloseBot.ts
 
 **Primary Purpose:** Cancels running GitHub Actions workflows when PRs are closed to save compute resources.
 
@@ -208,7 +208,7 @@ ciflow_push_tags:
 
 **Special Logic:** Prevents unnecessary resource usage by canceling workflows for closed/abandoned PRs
 
-### 6. verifyDisableTestIssueBot.ts
+### verifyDisableTestIssueBot.ts
 
 **Primary Purpose:** Validates and processes issues that request disabling or marking tests as unstable.
 
@@ -226,7 +226,7 @@ ciflow_push_tags:
 
 **Special Logic:** Critical security component that ensures only authorized users can disable CI tests
 
-### 7. stripApprovalBot.ts
+### stripApprovalBot.ts
 
 **Primary Purpose:** Removes PR approvals when PRs are reopened to ensure fresh review.
 
@@ -243,7 +243,7 @@ ciflow_push_tags:
 
 **Special Logic:** Maintains code review integrity by requiring fresh approvals after PR reopening
 
-### 8. codevNoWritePermBot.ts
+### codevNoWritePermBot.ts
 
 **Primary Purpose:** Notifies Phabricator/Codev users when they need GitHub write permissions for CI.
 
@@ -260,7 +260,7 @@ ciflow_push_tags:
 
 **Special Logic:** Bridges the gap between internal Facebook/Meta development workflow and external GitHub CI requirements
 
-### 9. drciBot.ts
+### drciBot.ts
 
 **Primary Purpose:** Manages Dr. CI (Diagnostic CI) comments that provide comprehensive PR status information.
 
@@ -277,7 +277,7 @@ ciflow_push_tags:
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
 
-### 10. webhookToDynamo.ts
+### webhookToDynamo.ts
 
 **Primary Purpose:** Logs GitHub webhook events to DynamoDB tables for analytics and auditing.
 
