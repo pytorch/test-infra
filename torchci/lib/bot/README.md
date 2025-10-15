@@ -2,25 +2,20 @@
 
 - [PyTorch Bot Architecture Analysis](#pytorch-bot-architecture-analysis)
   - [Overview](#overview)
-  - [Bot Modules](#bot-modules)
-    - [Core Command Bots](#core-command-bots)
-    - [Automation Bots](#automation-bots)
-    - [CI Integration Bots](#ci-integration-bots)
-    - [Security \& Review Bots](#security--review-bots)
-    - [Infrastructure Bots](#infrastructure-bots)
-  - [Detailed Bot Analysis](#detailed-bot-analysis)
+  - [Core Bots](#core-bots)
     - [pytorchBot](#pytorchbot)
+    - [ciflowPushTrigger.ts](#ciflowpushtriggerts)
+      - [Configuration (ciflow_push_tags)](#configuration-ciflow_push_tags)
+    - [webhookToDynamo.ts](#webhooktodynamots)
+  - [Other Bots](#other-bots)
     - [autoLabelBot.ts](#autolabelbotts)
     - [autoCcBot.ts](#autoccbotts)
     - [retryBot.ts](#retrybotts)
-    - [ciflowPushTrigger.ts](#ciflowpushtriggerts)
-      - [Configuration (ciflow_push_tags)](#configuration-ciflow_push_tags)
     - [cancelWorkflowsOnCloseBot.ts](#cancelworkflowsonclosebotts)
     - [verifyDisableTestIssueBot.ts](#verifydisabletestissuebotts)
     - [stripApprovalBot.ts](#stripapprovalbotts)
     - [codevNoWritePermBot.ts](#codevnowritepermbotts)
     - [drciBot.ts](#drcibotts)
-    - [webhookToDynamo.ts](#webhooktodynamots)
   - [External Integrations](#external-integrations)
     - [Data Storage](#data-storage)
     - [CI Systems](#ci-systems)
@@ -41,36 +36,7 @@ The PyTorch bot is a GitHub webhook automation system built with **Probot** that
 
 - **Main Entry**: `lib/bot/index.ts:17` - Registers all bot modules with Probot
 
-## Bot Modules
-
-### Core Command Bots
-
-- **pytorchBot** (`lib/bot/pytorchBot.ts`) - Probot entrypoint that listens for comments and review events and forwards parsed commands to `pytorchBotHandler`
-
-### Automation Bots
-
-- **autoLabelBot** - Smart labeling based on file changes and patterns
-- **autoCcBot** - Auto-CC users based on label subscriptions
-- **retryBot** - Intelligent CI retry using flakiness analytics
-- **ciflowPushTrigger** - Git tag management for CI flow triggers
-- **cancelWorkflowsOnCloseBot** - Resource cleanup on PR closure
-
-### CI Integration Bots
-
-- **verifyDisableTestIssueBot** - Test disabling authorization
-
-### Security & Review Bots
-
-- **stripApprovalBot** - Removes approvals on PR reopen
-- **codevNoWritePermBot** - Notifies about permission requirements
-- **drciBot** - Dr. CI dashboard integration
-
-### Infrastructure Bots
-
-- **webhookToDynamo** - Event logging to DynamoDB
-- **pytorchbotLogger** - Bot action logging
-
-## Detailed Bot Analysis
+## Core Bots
 
 ### pytorchBot
 
@@ -107,6 +73,60 @@ The PyTorch bot is a GitHub webhook automation system built with **Probot** that
 - `cliParser.ts` — Command-line parser and help text generator for supported commands.
 - `utils.ts` — Permission helpers, reaction helpers, config loader utilities.
 - `pytorchbotLogger.ts` — Structured logging for bot actions.
+
+### ciflowPushTrigger.ts
+
+**Primary Purpose:** Manages Git tags that trigger CI workflows based on CI flow labels applied to PRs.
+
+**Key Features:**
+
+- **Tag synchronization**: Creates/updates Git tags when CI flow labels are added
+- **Permission validation**: Ensures only authorized users can trigger CI flows
+- **Tag cleanup**: Removes tags when labels are removed or PRs are closed
+- **Configuration validation**: Validates labels against configured allowed CI flow tags
+- **Permission-based filtering**: Removes CI flow labels from unauthorized PRs
+
+**GitHub Webhooks:**
+
+- `pull_request.labeled`, `pull_request.unlabeled`
+- `pull_request.synchronize`, `pull_request.opened`, `pull_request.reopened`, `pull_request.closed`
+
+**Special Logic:** Creates tags in format `ciflow/label/PR_NUMBER` to trigger downstream CI systems
+
+#### Configuration (ciflow_push_tags)
+
+Purpose: define which ciflow labels are allowed to create/update Git tags that trigger downstream CI systems. The `ciflowPushTrigger` bot reads this key from the repository configuration to validate labels and decide whether to push tags.
+
+The config option should be put in the repository's `.github/pytorch-probot.yml` file. If not present in the repository, the bot will look for `.github/pytorch-probot.yml` in the owner's github repository (org/owner-level defaults).
+
+Format:
+
+```yaml
+ciflow_push_tags:
+  - ciflow/trunk
+  - ciflow/foo
+```
+
+### webhookToDynamo.ts
+
+**Primary Purpose:** Logs GitHub webhook events to DynamoDB tables for analytics and auditing.
+
+**Key Features:**
+
+- **Comprehensive logging**: Captures workflow runs, jobs, issues, PRs, comments, and reviews
+- **Structured storage**: Organizes data into specific DynamoDB tables by event type
+- **Key prefixing**: Prevents conflicts by prefixing keys with repository information
+- **Label tracking**: Special handling for label events with timestamp tracking
+- **UUID generation**: Uses UUIDs for events that don't have natural unique identifiers
+
+**GitHub Webhooks:**
+
+- `workflow_job`, `workflow_run`, `issues`, `issue_comment`
+- `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`
+
+**Special Logic:** Forms the foundation of the analytics and monitoring infrastructure by persisting all relevant GitHub events
+
+## Other Bots
 
 ### autoLabelBot.ts
 
@@ -164,39 +184,6 @@ The PyTorch bot is a GitHub webhook automation system built with **Probot** that
 - `workflow_run.completed`
 
 **Special Logic:** Uses ML/analytics data from ClickHouse to make intelligent retry decisions
-
-### ciflowPushTrigger.ts
-
-**Primary Purpose:** Manages Git tags that trigger CI workflows based on CI flow labels applied to PRs.
-
-**Key Features:**
-
-- **Tag synchronization**: Creates/updates Git tags when CI flow labels are added
-- **Permission validation**: Ensures only authorized users can trigger CI flows
-- **Tag cleanup**: Removes tags when labels are removed or PRs are closed
-- **Configuration validation**: Validates labels against configured allowed CI flow tags
-- **Permission-based filtering**: Removes CI flow labels from unauthorized PRs
-
-**GitHub Webhooks:**
-
-- `pull_request.labeled`, `pull_request.unlabeled`
-- `pull_request.synchronize`, `pull_request.opened`, `pull_request.reopened`, `pull_request.closed`
-
-**Special Logic:** Creates tags in format `ciflow/label/PR_NUMBER` to trigger downstream CI systems
-
-#### Configuration (ciflow_push_tags)
-
-Purpose: define which ciflow labels are allowed to create/update Git tags that trigger downstream CI systems. The `ciflowPushTrigger` bot reads this key from the repository configuration to validate labels and decide whether to push tags.
-
-The config option should be put in the repository's `.github/pytorch-probot.yml` file. If not present in the repository, the bot will look for `.github/pytorch-probot.yml` in the owner's github repository (org/owner-level defaults).
-
-Format:
-
-```yaml
-ciflow_push_tags:
-  - ciflow/trunk
-  - ciflow/foo
-```
 
 ### cancelWorkflowsOnCloseBot.ts
 
@@ -284,25 +271,6 @@ ciflow_push_tags:
 - `pull_request.opened`, `pull_request.synchronize`
 
 **Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
-
-### webhookToDynamo.ts
-
-**Primary Purpose:** Logs GitHub webhook events to DynamoDB tables for analytics and auditing.
-
-**Key Features:**
-
-- **Comprehensive logging**: Captures workflow runs, jobs, issues, PRs, comments, and reviews
-- **Structured storage**: Organizes data into specific DynamoDB tables by event type
-- **Key prefixing**: Prevents conflicts by prefixing keys with repository information
-- **Label tracking**: Special handling for label events with timestamp tracking
-- **UUID generation**: Uses UUIDs for events that don't have natural unique identifiers
-
-**GitHub Webhooks:**
-
-- `workflow_job`, `workflow_run`, `issues`, `issue_comment`
-- `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`
-
-**Special Logic:** Forms the foundation of the analytics and monitoring infrastructure by persisting all relevant GitHub events
 
 ## External Integrations
 
