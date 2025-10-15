@@ -27,7 +27,6 @@
     - [Auto-labeling Intelligence](#auto-labeling-intelligence)
   - [Integration Architecture](#integration-architecture)
   - [Deployment Context](#deployment-context)
-  - [Configuration Files](#configuration-files)
 
 ## Overview
 
@@ -332,11 +331,3 @@ These bots work together as a cohesive CI/CD and development workflow system:
 - **Framework**: Probot (GitHub Apps framework)
 - **Language**: TypeScript with modern ES modules
 - **Monitoring**: DynamoDB logging + external Dr. CI dashboard
-
-## Configuration Files
-
-- `Constants.ts:1` - Cherry-pick and revert classifications
-- `subscriptions.ts:1` - Label subscription parsing utilities
-- Repository-specific configs loaded via `CachedConfigTracker`
-
-This bot ecosystem provides comprehensive automation for the PyTorch development workflow, balancing developer productivity with security and code quality requirements through intelligent automation and robust permission systems.
