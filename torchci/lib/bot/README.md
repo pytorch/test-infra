@@ -2,10 +2,6 @@
 
 - [PyTorch Bot Architecture Analysis](#pytorch-bot-architecture-analysis)
   - [Overview](#overview)
-  - [Core Architecture](#core-architecture)
-    - [Entry Points](#entry-points)
-    - [Command System](#command-system)
-    - [Permission System (`lib/bot/utils.ts:248`)](#permission-system-libbotutilsts248)
   - [Bot Modules](#bot-modules)
     - [Core Command Bots](#core-command-bots)
     - [Automation Bots](#automation-bots)
@@ -13,6 +9,7 @@
     - [Security \& Review Bots](#security--review-bots)
     - [Infrastructure Bots](#infrastructure-bots)
   - [Detailed Bot Analysis](#detailed-bot-analysis)
+    - [pytorchBot](#pytorchbot)
     - [autoLabelBot.ts](#autolabelbotts)
     - [autoCcBot.ts](#autoccbotts)
     - [retryBot.ts](#retrybotts)
@@ -42,38 +39,13 @@
 
 The PyTorch bot is a GitHub webhook automation system built with **Probot** that manages CI/CD workflows, code reviews, and development operations for the PyTorch ecosystem. It's deployed as a Next.js application on Vercel and integrates with multiple external services.
 
-## Core Architecture
-
-### Entry Points
-
 - **Main Entry**: `lib/bot/index.ts:17` - Registers all bot modules with Probot
-- **Command Handler**: `lib/bot/pytorchBot.ts:6` - Handles `@pytorchbot` commands via comments and reviews
-- **Command Parser**: `lib/bot/cliParser.ts:15` - Parses bot commands using argparse-style CLI interface
-
-### Command System
-
-The bot supports these primary commands:
-
-- **`merge`** - Merges PRs with approval validation and force-merge capabilities
-- **`revert`** - Reverts merged PRs with classification tracking
-- **`rebase`** - Rebases PRs onto target branches
-- **`label`** - Adds labels with permission validation
-- **`cherry-pick`** - Cherry-picks PRs to release branches
-- **`drci`** - Updates Dr. CI status comments
-
-### Permission System (`lib/bot/utils.ts:248`)
-
-- **Write Permissions**: Admin/write collaborators can use force-merge, ignore-current flags
-- **Rebase Permissions**: Write permissions OR non-first-time contributors
-- **Workflow Permissions**: Write permissions OR users with approved pull runs
-- **Authorization Tracking**: Uses GitHub's collaborator permission API
 
 ## Bot Modules
 
 ### Core Command Bots
 
-- **pytorchBotHandler** (`lib/bot/pytorchBotHandler.ts:41`) - Central command processor
-- **cliParser** (`lib/bot/cliParser.ts:7`) - Command-line interface parser
+- **pytorchBot** (`lib/bot/pytorchBot.ts`) - Probot entrypoint that listens for comments and review events and forwards parsed commands to `pytorchBotHandler`
 
 ### Automation Bots
 
@@ -99,6 +71,41 @@ The bot supports these primary commands:
 - **pytorchbotLogger** - Bot action logging
 
 ## Detailed Bot Analysis
+
+### pytorchBot
+
+**Primary Purpose:** Entry point for Probot that listens to issue comments and pull request review events, parses `@pytorchbot` and `@pytorchmergebot` commands and forwards them to the `PytorchBotHandler` which implements the command behavior and permission checks.
+
+**Triggers / Webhooks:**
+
+- `issue_comment.created` — Parses comments for `@pytorchbot` command lines and handles PR/issue commands.
+- `pull_request_review.submitted` and `pull_request_review.edited` — Parses review body for commands.
+
+**Supported Commands (via `cliParser`):**
+
+- `merge` — Merge a PR (supports `-f/--force`, `-i/--ignore-current`, `-r/--rebase`).
+- `revert` — Revert a merged PR (requires message & classification).
+- `rebase` — Rebase a PR to a target branch (defaults to `viable/strict`).
+- `label` — Add labels to a PR or Issue.
+- `drci` — Update Dr. CI comment for the PR.
+- `cherry-pick` — Cherry-pick a PR onto a release branch (`--onto/--into`, `--classification`).
+
+**Important behaviors & integrations:**
+
+- Commands are parsed by `cliParser.ts` (argument definitions and help text live there).
+- Permission checks and core logic are implemented in `pytorchBotHandler.ts` (e.g., `hasWritePermissions`, `hasRebasePermissions`, approval checks).
+- On valid commands the handler emits repository dispatch events such as `try-merge`, `try-rebase`, and `try-revert` which perform the actual work asynchronously.
+- The bot reacts to commands with a +1 reaction when appropriate and can post comments for failures or help text.
+- The handler integrates with other systems: ClickHouse (workflows/analytics), DynamoDB logging via `pytorchbotLogger`, and CachedConfigTracker for repo configs.
+- Issue comments are ignored when authored by known bot user IDs (see `pytorchBot.ts` skipUsers list).
+
+**Related files:**
+
+- `pytorchBot.ts` — Probot registration and webhook listeners.
+- `pytorchBotHandler.ts` — Command handling, permission enforcement and dispatch logic.
+- `cliParser.ts` — Command-line parser and help text generator for supported commands.
+- `utils.ts` — Permission helpers, reaction helpers, config loader utilities.
+- `pytorchbotLogger.ts` — Structured logging for bot actions.
 
 ### autoLabelBot.ts
 
@@ -306,7 +313,6 @@ ciflow_push_tags:
 ### CI Systems
 
 - **GitHub Actions**: Workflow triggering via repository dispatch events
-- **CircleCI**: Parameter-based workflow triggering
 - **Dr. CI**: Comprehensive status dashboard integration
 
 ### Configuration Management
