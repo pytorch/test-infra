@@ -77,3 +77,15 @@ export function useHideGreenColumnsPreference(): [
   );
   return [state, setState];
 }
+
+export function useHideNonViableStrictPreference(): [
+  boolean,
+  (_hideNonViableStrictValue: boolean) => void
+] {
+  const [state, setState] = usePreference(
+    "hideNonViableStrict",
+    /*override*/ undefined,
+    /*default*/ false
+  );
+  return [state, setState];
+}

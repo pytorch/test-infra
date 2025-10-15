@@ -2,6 +2,41 @@ import { GroupedJobStatus, JobStatus } from "components/job/GroupJobConclusion";
 import { getOpenUnstableIssues } from "lib/jobUtils";
 import { IssueData, RowData } from "./types";
 
+type RepoViableStrictBlockingJobsMap = {
+  [key: string]: RegExp[];
+};
+
+// Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
+export const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
+  "pytorch/pytorch": [/pull/i, /trunk/i, /lint/i, /linux-aarch64/i],
+};
+
+export function isJobViableStrictBlocking(
+  jobName: string | undefined,
+  repoOwner: string,
+  repoName: string
+): boolean {
+  if (!jobName) {
+    return false;
+  }
+
+  // Exclude memory leak and rerun disabled tests jobs
+  if (jobName.match(/, mem_leak/) || jobName.match(/, rerun_/)) {
+    return false;
+  }
+
+  const repo = `${repoOwner}/${repoName}`;
+  const viablestrictBlockingJobsPatterns =
+    VIABLE_STRICT_BLOCKING_JOBS[repo] ?? [];
+
+  for (const regex of viablestrictBlockingJobsPatterns) {
+    if (jobName.match(regex)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 const GROUP_MEMORY_LEAK_CHECK = "Memory Leak Check";
 const GROUP_RERUN_DISABLED_TESTS = "Rerun Disabled Tests";
 const GROUP_UNSTABLE = "Unstable";
@@ -355,13 +390,18 @@ export function getGroupingData(
   shaGrid: RowData[],
   jobNames: Set<string>,
   showUnstableGroup: boolean,
-  unstableIssues?: IssueData[]
+  unstableIssues?: IssueData[],
+  repoOwner?: string,
+  repoName?: string
 ) {
   // Construct Job Groupping Mapping
   const groupNameMapping = new Map<string, Array<string>>(); // group -> [job names]
 
   // Track which jobs have failures
   const jobsWithFailures = new Set<string>();
+
+  // Track which jobs are viable/strict blocking
+  const jobsViableStrictBlocking = new Set<string>();
 
   // First pass: check failures for each job across all commits
   for (const name of jobNames) {
@@ -373,6 +413,15 @@ export function getGroupingData(
 
     if (hasFailure) {
       jobsWithFailures.add(name);
+    }
+
+    // Check if this job is viable/strict blocking
+    if (
+      repoOwner &&
+      repoName &&
+      isJobViableStrictBlocking(name, repoOwner, repoName)
+    ) {
+      jobsViableStrictBlocking.add(name);
     }
   }
 
@@ -392,11 +441,21 @@ export function getGroupingData(
     }
   }
 
+  // Calculate which groups have viable/strict blocking jobs
+  const groupsViableStrictBlocking = new Set<string>();
+  for (const [groupName, jobs] of groupNameMapping.entries()) {
+    if (jobs.some((jobName) => jobsViableStrictBlocking.has(jobName))) {
+      groupsViableStrictBlocking.add(groupName);
+    }
+  }
+
   return {
     shaGrid,
     groupNameMapping,
     jobsWithFailures,
     groupsWithFailures,
+    jobsViableStrictBlocking,
+    groupsViableStrictBlocking,
   };
 }
 
