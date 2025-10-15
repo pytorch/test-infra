@@ -89,7 +89,32 @@ else
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 uninstall -y torch torchaudio torchvision
     fi
-    eval $INSTALLATION
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.6' && ${TARGET_OS} == 'linux' ]]; then
+        nvidia-smi
+        export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.6'
+        export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
+    fi
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.9' ]]; then
+        nvidia-smi
+        export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.9'
+        export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
+    fi
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.8' && ${TARGET_OS} == 'windows' ]]; then
+        nvidia-smi
+        export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.8'
+        export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
+    fi
+
+    if [[ ${TARGET_OS} == 'windows' ]]; then
+        powershell -ExecutionPolicy Bypass -c "\$env:INSTALLER_DOWNLOAD_URL='https://wheelnext.astral.sh'; irm https://astral.sh/uv/install.ps1 | iex"
+        export PATH="${HOME}/.local/bin/:${PATH}"
+        uv pip install torch torchvision
+    else
+        curl -LsSf https://astral.sh/uv/install.sh | \
+        INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.2 sh
+        source $HOME/.local/bin/env
+        uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.2/ torch torchvision
+    fi
 
     # test with numpy 1.x installation needs to happen after torch install
     MINOR_PYTHON_VERSION=$(echo "$MATRIX_PYTHON_VERSION" | cut -d . -f 2)
