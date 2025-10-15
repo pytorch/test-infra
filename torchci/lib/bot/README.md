@@ -89,6 +89,7 @@ The PyTorch bot is a GitHub webhook automation system built with **Probot** that
 - `label` — Add labels to a PR or Issue.
 - `drci` — Update Dr. CI comment for the PR.
 - `cherry-pick` — Cherry-pick a PR onto a release branch (`--onto/--into`, `--classification`).
+- `help` — Get help text for the bot or command. Examples: `@pytorchbot --help`, `@pytorchbot merge -h`. This [wiki page](https://github.com/pytorch/pytorch/wiki/Bot-commands) also has the help text but may be out of date.
 
 **Important behaviors & integrations:**
 
