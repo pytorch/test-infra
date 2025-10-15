@@ -112,8 +112,9 @@ else
     else
         curl -LsSf https://astral.sh/uv/install.sh | \
         INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.2 sh
+        uv venv --python ${MATRIX_PYTHON_VERSION}
         source $HOME/.local/bin/env
-        uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.2/ torch torchvision
+        uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.2/ torch --force-reinstall
     fi
 
     # test with numpy 1.x installation needs to happen after torch install
