@@ -2,6 +2,8 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { getServerSession } from "next-auth";
 import { hasWritePermissionsUsingOctokit } from "./GeneralUtils";
 import { getOctokitWithUserToken } from "./github";
+// Give access to people who do not have write permissions to pytorch/pytorch
+import allowList from "./torchagent/allowList.json";
 
 /**
  * Helper that implements the common auth logic shared by the TorchAgent
@@ -59,6 +61,13 @@ export async function getAuthorizedUsername(
       console.log("Rejected: Could not authenticate user with GitHub");
       res.status(401).json({ error: "GitHub authentication failed" });
       return null;
+    }
+
+    if (allowList.includes(user.data.login)) {
+      console.log(
+        `Authorized: User ${user.data.login} is in the flambeau allow list`
+      );
+      return user.data.login;
     }
 
     const hasWritePermissions = await hasWritePermissionsUsingOctokit(
