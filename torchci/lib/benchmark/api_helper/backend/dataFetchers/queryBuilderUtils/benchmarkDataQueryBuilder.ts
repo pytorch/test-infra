@@ -414,11 +414,6 @@ export class PytorchOperatorMicroBenchmarkDataFetcher
   }
 
   build() {
-    // debugging
-    console.log(
-      "build PytorchOperatorMicroBenchmarkDataQuery",
-      this._data_query.build()
-    );
     return this._data_query.build();
   }
 }

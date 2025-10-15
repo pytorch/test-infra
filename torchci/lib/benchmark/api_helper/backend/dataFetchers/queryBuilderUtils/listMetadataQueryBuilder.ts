@@ -62,6 +62,10 @@ export class BenchmarkMetadataQuery
     return this.builder.build();
   }
 
+  addWhere(where: string[]) {
+    this.builder.addWhere(where);
+  }
+
   toQueryParams(inputs: any) {
     this.validateInputs(inputs);
     return {
@@ -117,6 +121,13 @@ export function getDefaultBenchmarkMetadataGroup(
       "Device Name",
       (r) => (r.device && r.arch ? `${r.device} (${r.arch})` : r.device)
     ),
+    makeMetadataItem(
+      data,
+      "model",
+      BenchmarkMetadataType.ModelName,
+      "All models",
+      "Model Name"
+    ),
   ].filter(Boolean) as BenchmarkMetadataItem[];
 }
 
@@ -169,13 +180,16 @@ export class PytorchOperatorMicrobenchmarkMetadataFetcher
     if (item) {
       li.push(item);
     }
+    return li;
   }
 
   build() {
+    // console.log(this._data_query.build());
     return this._data_query.build();
   }
 
   toQueryParams(inputs: any) {
-    return this._data_query.toQueryParams(inputs);
+    const params = { ...inputs, operatorName: inputs.operatorName ?? "" };
+    return this._data_query.toQueryParams(params);
   }
 }

@@ -23,11 +23,9 @@ export default async function handler(
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
-  console.log("[API] LIST_METRICS recieved params: ", params.query_params);
-
   try {
-    const groups = listBenchmarkMetadata(params.query_params, params.id);
-    return res.status(200).json(groups);
+    const groups = await listBenchmarkMetadata(params.query_params, params.id);
+    return res.status(200).json({ data: groups });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }
@@ -37,5 +35,6 @@ async function listBenchmarkMetadata(queryParams: any, id: string) {
   // fetch metadata from db
   const fetcher = getListBenchmarkMetadataFetcher(id);
   const data = await fetcher.applyQuery(queryParams);
-  return fetcher.postProcess(data);
+  const result = fetcher.postProcess(data);
+  return result;
 }
