@@ -1,8 +1,9 @@
 import dayjs, { Dayjs } from "dayjs";
-import { TimeRange } from "lib/benchmark/store/benchmark_regression_store";
-import DefaultMetricsDropdowns from "../../components/benchmarkSideBar/components/DefaultSideBarMetricsDropdowns";
+import { BenchmarkCommitMeta, TimeRange } from "lib/benchmark/store/benchmark_regression_store";
+import DefaultMetricsDropdowns from "../../components/benchmarkSideBar/components/filters/DefaultSideBarMetricsDropdowns";
 import { NotFoundComponent, resolveComponent } from "../configRegistration";
 import { compilerQueryParameterConverter } from "../teams/compilers/config";
+import { arch } from "os";
 
 export const MIN_SAMPLING_THRESHOLD = 2;
 export type DataBindingConfig = {
@@ -25,8 +26,8 @@ export type BenchmarkUiParameters = {
   filters: Record<string, string>;
   lbranch: string;
   rbranch: string;
-  lcommit?: string;
-  rcommit?: string;
+  lcommit?: BenchmarkCommitMeta;
+  rcommit?: BenchmarkCommitMeta;
   [key: string]: any;
 };
 
@@ -38,6 +39,8 @@ export type QueryParamsConfig = {
 /* ----------------------- Converter function signatures --------------------- */
 export type QueryParameterConverterInputs = {
   timeRange: TimeRange;
+  benchmarkName: string;
+  repo: string;
   branches?: string[];
   commits?: string[];
   filters: Record<string, any>;
@@ -49,12 +52,22 @@ export type QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
 ) => any;
 
+const DEFAULT_FILTERS ={
+  dtype: "",
+  device: "",
+  arch: "",
+  mode: "",
+  backend: "",
+}
 /* ---------------------------- Default converter ---------------------------- */
 export const getDefaultDataConverter: QueryParameterConverter = (i) => {
   return {
+    ...DEFAULT_FILTERS,
     ...i.filters,
     branches: i.branches ?? [],
     commits: i.commits ?? [],
+    repo: i.repo,
+    benchmarkName: i.benchmarkName,
     startTime: dayjs.utc(i.timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
     stopTime: dayjs.utc(i.timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
   };

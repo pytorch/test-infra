@@ -15,7 +15,7 @@ export default async function handler(
   // validate params
   if (
     !params ||
-    !params.id ||
+    !params.name ||
     !params.query_params ||
     Object.keys(params.query_params).length == 0 ||
     Object.keys(params).length === 0
@@ -23,8 +23,9 @@ export default async function handler(
     return res.status(400).json({ error: "Missing required parameters" });
   }
 
+  console.log("[API]list metadata, received request:", params);
   try {
-    const groups = await listBenchmarkMetadata(params.query_params, params.id);
+    const groups = await listBenchmarkMetadata(params.query_params, params.name);
     return res.status(200).json({ data: groups });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

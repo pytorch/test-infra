@@ -1,6 +1,6 @@
 import { Box } from "@mui/system";
 import { UMDenseDropdown } from "components/uiModules/UMDenseComponents";
-import { DenseAlert } from "../../common/styledComponents";
+import { DenseAlert } from "../../../common/styledComponents";
 
 type BranchDropdownsProps = {
   type: string;

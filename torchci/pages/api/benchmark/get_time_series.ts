@@ -31,7 +31,6 @@ export default async function handler(
 
   const params = readApiGetParams(req);
   console.log("[API]get_time_series, received request:", params);
-
   // validate params
   if (
     !params ||
@@ -41,7 +40,6 @@ export default async function handler(
   ) {
     return res.status(400).json({ error: "Missing parameters" });
   }
-
   // get time series data
   try {
     const { name, response_formats, query_params } = params;

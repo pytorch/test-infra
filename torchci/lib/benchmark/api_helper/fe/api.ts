@@ -58,6 +58,35 @@ export async function postBenchmarkTimeSeriesFetcher<T>(
   return res.json();
 }
 
+
+export async function postBenchmarkMetadataFetcher<T>(
+  name: string,
+  queryParams: Record<string, unknown>
+): Promise<T> {
+  const body = {
+    name: name,
+    query_params: queryParams,
+  };
+  const url = "/api/benchmark/list_metadata";
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    let message = `Request failed with ${res.status}`;
+    try {
+      const payload = await res.json();
+      if (payload?.error) message = payload.error;
+    } catch {
+      // if not valid JSON, ignore
+    }
+    throw new Error(message);
+  }
+  return res.json();
+}
+
 export async function listBenchmarkRegressionReport<T>(
   report_id: string,
   limit: number = 10,

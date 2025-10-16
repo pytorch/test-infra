@@ -4,7 +4,8 @@ import utc from "dayjs/plugin/utc";
 import { BenchmarkDashboardStoreProvider } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkSideBar from "../components/benchmarkSideBar/BenchmarkSideBar";
 import { BenchmarkTopBar } from "../components/benchmarkSideBar/BenchmarkTopBar";
-import { getConfig } from "../configs/configBook";
+import getConfig from "next/config";
+import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 dayjs.extend(utc);
 
 export default function BenchmarkRegressionPage({
@@ -14,6 +15,8 @@ export default function BenchmarkRegressionPage({
   benchmarkId: string;
   initial: any;
 }) {
+
+  const getConfig = useBenchmarkBook((s) => s.getConfig);
   const config = getConfig(benchmarkId);
 
   // get dynamic componenet if any registered, otherwise use default
