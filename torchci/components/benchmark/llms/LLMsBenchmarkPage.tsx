@@ -139,6 +139,7 @@ const MainPage = ({
     );
   }, [router.query]);
   const queryParams = getLLMsBenchmarkPropsQueryParameter(props);
+
   const { data, error, isLoading } = useBenchmarkPropsData(queryParams);
 
   // an error occured while fetching the benchmark props data

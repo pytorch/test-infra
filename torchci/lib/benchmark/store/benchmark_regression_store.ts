@@ -15,6 +15,47 @@ export type BenchmarkCommitMeta = {
 };
 
 /**
+ * BenchmarkIdMappingItem is a mapping from benchmarkId to repoName and benchmarkName
+ * benchmarkName is used to fetch the benchmark data from dv
+ */
+interface BenchmarkIdMappingItem {
+  id: string;
+  repoName: string;
+  benchmarkName: string;
+}
+
+/**
+ * A helper function to get benchmark id from report id
+ * @param reportId
+ * @returns
+ */
+export function getBenchmarkIdFromReportId(reportId: string): string {
+  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? "";
+}
+
+const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
+  compiler_regression: "compiler_inductor",
+};
+
+const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
+  compiler_inductor: {
+    id: "compiler_inductor",
+    repoName: "pytorch/pytorch",
+    benchmarkName: "compiler_inductor",
+  },
+  compiler_precompute: {
+    id: "compiler_precompute",
+    repoName: "pytorch/pytorch",
+    benchmarkName: "compiler_precompute",
+  },
+  pytorch_operator_microbenchmark: {
+    id: "pytorch_operator_microbenchmark",
+    repoName: "pytorch/pytorch",
+    benchmarkName: "PyTorch operator microbenchmark",
+  },
+};
+
+/**
  * Data model for BenchmarkDashboardState
  */
 export interface BenchmarkDashboardState {
@@ -22,6 +63,9 @@ export interface BenchmarkDashboardState {
   stagedFilters: Record<string, string>;
   stagedLbranch: string;
   stagedRbranch: string;
+  stagedLcommit: BenchmarkCommitMeta | null;
+  stagedRcommit: BenchmarkCommitMeta | null;
+
   committedTime: TimeRange;
   committedFilters: Record<string, string>;
   committedLbranch: string;
@@ -37,6 +81,8 @@ export interface BenchmarkDashboardState {
 
   // may key to track of the benchamrk
   benchmarkId: string;
+  benchmarkName: string;
+  repo: string;
 
   lcommit: BenchmarkCommitMeta | null;
   rcommit: BenchmarkCommitMeta | null;
@@ -47,6 +93,8 @@ export interface BenchmarkDashboardState {
   setStagedRbranch: (c: string) => void;
   setStagedFilter: (k: string, v: string) => void;
   setStagedFilters: (filters: Record<string, string>) => void;
+  setStagedLcommit: (c: BenchmarkCommitMeta | null) => void;
+  setStagedRcommit: (c: BenchmarkCommitMeta | null) => void;
 
   commitMainOptions: () => void;
   revertMainOptions: () => void;
@@ -89,8 +137,11 @@ export function createDashboardStore(initial: {
   rcommit?: BenchmarkCommitMeta | null;
   maxSampling?: number;
 }) {
+  const idItem = BENCHMARK_ID_MAPPING[initial.benchmarkId];
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
     benchmarkId: initial.benchmarkId, // <-- fixed name
+    benchmarkName: idItem ? idItem.benchmarkName : initial.benchmarkId, // <-- fixed name
+    repo: idItem?.repoName ? idItem.repoName : "pytorch/pytorch",
 
     // set only with initial config
     enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
@@ -107,6 +158,9 @@ export function createDashboardStore(initial: {
     stagedFilters: initial.filters,
     stagedLbranch: initial.lbranch ?? "",
     stagedRbranch: initial.rbranch ?? "",
+
+    stagedLcommit: initial.lcommit ?? null,
+    stagedRcommit: initial.rcommit ?? null,
 
     // committed
     committedTime: initial.time,
@@ -130,6 +184,9 @@ export function createDashboardStore(initial: {
 
     setStagedLbranch: (c) => set({ stagedLbranch: c }),
     setStagedRbranch: (c) => set({ stagedRbranch: c }),
+    setStagedLcommit: (c) => set({ stagedLcommit: c }),
+    setStagedRcommit: (c) => set({ stagedRcommit: c }),
+
     setStagedTime: (t) => set({ stagedTime: t }),
     setStagedFilter: (k, v) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, [k]: v } })),
@@ -189,6 +246,11 @@ export function createDashboardStore(initial: {
           committedFilters: next.filters ?? s.committedFilters,
           committedLbranch: next.lbranch ?? s.committedLbranch ?? "",
           committedRbranch: next.rbranch ?? s.committedRbranch ?? "",
+
+          stagedLcommit:
+            next.lcommit !== undefined ? next.lcommit : s.stagedLcommit,
+          stagedRcommit:
+            next.rcommit !== undefined ? next.rcommit : s.stagedRcommit,
 
           lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
           rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,

@@ -3,6 +3,7 @@
     "branches": "Array(String)",
     "commits": "Array(String)",
     "compilers": "Array(String)",
+    "workflows": "Array(UInt64)",
     "device": "String",
     "arch": "Array(String)",
     "dtype": "String",

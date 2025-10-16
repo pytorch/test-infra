@@ -18,7 +18,7 @@ SELECT
         AS granularity_bucket
 FROM benchmark.oss_ci_benchmark_torchinductor
 WHERE
-    head_sha IN ({commits: Array(String)})
+    workflow_id IN ({workflows: Array(UInt64)})
     AND (
         has(
             {branches: Array(String)},
