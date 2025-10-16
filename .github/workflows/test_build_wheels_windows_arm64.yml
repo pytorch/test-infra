@@ -33,6 +33,13 @@ jobs:
             smoke-test-script: test/smoke_test.py
             package-name: torchvision
             architecture: "arm64"
+            build-platform: setup-py
+          - repository: pytorch/vision
+            pre-script: packaging/pre_build_script_arm64.sh
+            smoke-test-script: test/smoke_test.py
+            package-name: torchvision
+            architecture: "arm64"
+            build-platform: python-build-package
     uses: ./.github/workflows/build_wheels_windows.yml
     name: ${{ matrix.repository }}
     with:
@@ -46,3 +53,4 @@ jobs:
       package-name: ${{ matrix.package-name }}
       trigger-event: "${{ github.event_name }}"
       architecture: ${{ matrix.architecture }}
+      build-platform: ${{ matrix.build-platform }}
