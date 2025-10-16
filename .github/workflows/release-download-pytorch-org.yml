@@ -21,6 +21,7 @@ on:
           - executorch
           - torchvision
           - torchaudio
+          - torch_tensorrt
 
 permissions:
   id-token: write
