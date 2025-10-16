@@ -1,5 +1,4 @@
 // components/Sidebar.tsx
-"use client";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
@@ -13,11 +12,11 @@ import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
-import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { DenseAlert } from "../../common/styledComponents";
-import { BranchDropdowns } from "./commits/BranchDropdown";
-import { SamplingSetting } from "./filters/sampling/SamplingSetting";
 import { useUrlStoreSync } from "./useUrlSync";
+import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
+import { SamplingSetting } from "./filters/sampling/SamplingSetting";
+import { BranchDropdowns } from "./commits/BranchDropdown";
 
 const styles = {
   root: {
@@ -68,13 +67,19 @@ export function SideBarMainSection() {
 
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
-  const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
-  const dataBinding =
-    BenchmarkUIConfigBook.instance.getDataBinding(benchmarkId);
-  const required_filter_fields = config?.required_filter_fields ?? [];
+
+
+  const getConfig = useBenchmarkBook((s) => s.getConfig);
+  const config = getConfig(benchmarkId);
+  const dataBinding = config.dataBinding;
+
+
+  const required_filter_fields = config.raw?.required_filter_fields ?? [];
 
   // 2) One selector (with shallow inside useDashboardSelector) for the rest
   const {
+    repo,
+    benchmarkName,
     stagedTime,
     stagedFilters,
     stagedLbranch,
@@ -118,6 +123,9 @@ export function SideBarMainSection() {
     lcommit: s.lcommit,
     rcommit: s.rcommit,
 
+    repo: s.repo,
+    benchmarkName: s.benchmarkName,
+
     commitMainOptions: s.commitMainOptions,
     revertMainOptions: s.revertMainOptions,
   }));
@@ -147,9 +155,10 @@ export function SideBarMainSection() {
     (enableSamplingSetting ? !!stagedMaxSampling : true) &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
-  const params = BenchmarkUIConfigBook.instance
-    .getDataBinding(benchmarkId)
+  const params = dataBinding
     ?.toQueryParams({
+      repo: repo,
+      benchmarkName: benchmarkName,
       timeRange: stagedTime,
       filters: stagedFilters,
       maxSampling: enableSamplingSetting ? stagedMaxSampling : undefined,

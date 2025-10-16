@@ -2,13 +2,13 @@ import CircleIcon from "@mui/icons-material/Circle";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import { getBenchmarkIdFromReportId } from "components/benchmark/v3/configs/configBook";
 import { getBenchmarkFields } from "components/benchmark/v3/configs/utils/urlHandling";
 import { getBenchmarkMainRouteById } from "components/benchmark/v3/pages/BenchmarkListPage";
 import { queryObjectToSearchParams } from "components/uiModules/UMCopyLink";
 import dayjs from "dayjs";
 import {
   BenchmarkCommitMeta,
+  getBenchmarkIdFromReportId,
   TimeRange,
 } from "lib/benchmark/store/benchmark_regression_store";
 import { stateToQuery } from "lib/helpers/urlQuery";

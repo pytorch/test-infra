@@ -14,10 +14,6 @@ export type BenchmarkCommitMeta = {
   index?: number;
 };
 
-const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
-  compiler_regression: "compiler_inductor",
-};
-
 /**
  * BenchmarkIdMappingItem is a mapping from benchmarkId to repoName and benchmarkName
  * benchmarkName is used to fetch the benchmark data from dv
@@ -27,6 +23,19 @@ interface BenchmarkIdMappingItem {
   repoName: string;
   benchmarkName: string;
 }
+
+/**
+ * A helper function to get benchmark id from report id
+ * @param reportId
+ * @returns
+ */
+export function getBenchmarkIdFromReportId(reportId: string): string {
+  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? "";
+}
+
+const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
+  compiler_regression: "compiler_inductor",
+};
 
 const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
   compiler_inductor: {

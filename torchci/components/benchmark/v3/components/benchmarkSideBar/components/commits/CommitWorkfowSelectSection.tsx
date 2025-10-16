@@ -6,7 +6,7 @@ import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useState } from "react";
-import { BenchmarkUIConfigBook } from "../../../../configs/configBook";
+import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 
 /**
  *
@@ -15,6 +15,8 @@ import { BenchmarkUIConfigBook } from "../../../../configs/configBook";
  */
 export function CommitWorflowSelectSection() {
   const {
+    repo,
+    benchmarkName,
     benchmarkId,
     committedTime,
     committedFilters,
@@ -32,6 +34,8 @@ export function CommitWorflowSelectSection() {
     committedFilters: s.committedFilters,
     committedMaxSampling: s.committedMaxSampling,
     enableSamplingSetting: s.enableSamplingSetting,
+    repo: s.repo,
+    benchmarkName: s.benchmarkName,
     lcommit: s.lcommit,
     rcommit: s.rcommit,
     committedLBranch: s.committedLbranch,
@@ -43,10 +47,10 @@ export function CommitWorflowSelectSection() {
   const [leftList, setLeftList] = useState<BenchmarkCommitMeta[]>([]);
   const [rightList, setRightList] = useState<BenchmarkCommitMeta[]>([]);
 
-  const config = BenchmarkUIConfigBook.instance.get(benchmarkId);
-  const dataBinding =
-    BenchmarkUIConfigBook.instance.getDataBinding(benchmarkId);
-  const required_filter_fields = config?.required_filter_fields ?? [];
+  const getConfig = useBenchmarkBook((s) => s.getConfig);
+  const config = getConfig(benchmarkId);
+  const dataBinding = config.dataBinding
+  const required_filter_fields = config.raw?.required_filter_fields ?? [];
 
   const ready =
     !!committedTime?.start &&
@@ -67,6 +71,8 @@ export function CommitWorflowSelectSection() {
 
   // Convert to query params
   const params = dataBinding.toQueryParams({
+    repo: repo,
+    benchmarkName: benchmarkName,
     branches,
     timeRange: committedTime,
     filters: committedFilters,

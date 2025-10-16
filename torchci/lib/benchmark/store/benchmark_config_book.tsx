@@ -8,7 +8,7 @@ import {
   CompilerPrecomputeBenchmarkUIConfig,
   COMPILTER_PRECOMPUTE_BENCHMARK_ID,
 } from "components/benchmark/v3/configs/teams/compilers/config";
-import { defaultDashboardBenchmarkUIConfig } from "components/benchmark/v3/configs/teams/default/default_dashboard_config";
+import { defaultDashboardBenchmarkUIConfig } from "components/benchmark/v3/configs/teams/defaults/default_dashboard_config";
 import {
   DataBinding,
   DataBindingConfig,
