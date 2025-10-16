@@ -89,7 +89,7 @@ else
     if [[ ${MATRIX_PACKAGE_TYPE} == 'wheel' ]]; then
         pip3 uninstall -y torch torchaudio torchvision
     fi
-    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.6' && ${TARGET_OS} == 'linux' ]]; then
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.6' ]]; then
         nvidia-smi
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.6'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
@@ -99,7 +99,7 @@ else
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='13.0'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
     fi
-    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.8' && ${TARGET_OS} == 'windows' ]]; then
+    if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.8' ]]; then
         nvidia-smi
         export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.8'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
