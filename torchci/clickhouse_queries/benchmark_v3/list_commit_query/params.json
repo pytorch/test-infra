@@ -3,12 +3,14 @@
     "repo": "String",
     "benchmarkNames": "Array<String>",
     "branches": "Array<String>",
-    "device": "String",
-    "arch": "Array(String)",
-    "dtype": "String",
-    "mode": "String",
+    "models": "Array(String)",
     "startTime": "DateTime64(3)",
-    "stopTime": "DateTime64(3)"
+    "stopTime": "DateTime64(3)",
+    "backends": "Array(String)",
+    "arch": "String",
+    "dtype": "String",
+    "device": "String",
+    "mode": "String"
   },
   "tests": []
 }

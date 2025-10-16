@@ -71,6 +71,7 @@ export type ComparisonTableConfig = {
   customizedConfirmDialog?: {
     type: string;
     id?: string;
+    scope?: string;
   };
 };
 

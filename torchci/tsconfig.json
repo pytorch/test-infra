@@ -30,7 +30,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts"
-, "pages/benchmark/regression/[report_id]/regression_report"  ],
+, "pages/benchmark/regression/[report_id]/regression_report", "components/benchmark/v3/components/dataRender/components/benchmarkPairwise/BenchmarkPairwiseComparisonTable"  ],
   "exclude": [
     "node_modules"
   ]

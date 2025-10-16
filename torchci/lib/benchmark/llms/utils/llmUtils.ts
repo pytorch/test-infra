@@ -36,6 +36,7 @@ export function useBenchmark(
   (queryParamsWithBranchAndCommit as { [key: string]: any })["commits"] =
     branchAndCommit.commit ? [branchAndCommit.commit] : [];
 
+  console.log("query params", queryParamsWithBranchAndCommit)
   const url = `/api/clickhouse/${queryName}?parameters=${encodeURIComponent(
     JSON.stringify(queryParamsWithBranchAndCommit)
   )}`;

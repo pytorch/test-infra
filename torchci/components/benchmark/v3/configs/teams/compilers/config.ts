@@ -9,12 +9,12 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/backend/compilers/helpers/type";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../compilers/common";
-import { BenchmarkUIConfig } from "../../configBook";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
+import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -169,6 +169,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
 export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
   benchmarkId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
   apiId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
+  type: "aggregate",
   title: "Compiler Inductor Regression Tracking",
   dataBinding: {
     initial: COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
@@ -257,6 +258,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             customizedConfirmDialog: {
               type: "component",
               id: "CompilerPrecomputeConfirmDialogContent",
+              scope: "comparison_value"
             },
             targetField: "metric",
             comparisonPolicy: {

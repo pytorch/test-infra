@@ -64,13 +64,14 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   private _extra_keys = new Set<string>();
 
   DEFAULT_PARAMS = {
-    excludedMetrics: [],
-    commits: [],
     arch: "",
     mode: "",
+    device: "",
+    granularity: "hour",
+    excludedMetrics: [],
     models: [],
     branches: [],
-    granularity: "hour",
+    commits: [],
     backends: [],
     dtypes: [],
   };
@@ -201,6 +202,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             OR empty({branches: Array(String) })
         )
         AND notEmpty(device)
+         AND (
+            startsWith({device: String }, device)
+            OR {device: String } = ''
+        )
         AND (
             arch LIKE concat('%', {arch: String }, '%')
             OR {arch: String } = ''
@@ -270,8 +275,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
           (key) => `${this._EXTRA_KEY_FIELD_NAME}.${key}`
         ),
       ];
-      config.table.sub_group_key = [
-        ...config.table.sub_group_key,
+      config.table.group_key = [
+        ...config.table.group_key,
         ...Array.from(this._extra_keys).map(
           (key) => `${this._EXTRA_KEY_FIELD_NAME}.${key}`
         ),
@@ -314,8 +319,22 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     this.validateInputs(inputs);
 
-    if (inputs.benchmarkName) {
+    if (inputs.benchmarkName && !inputs.benchmarkNames) {
       inputs.benchmarkNames = [inputs.benchmarkName];
+    }
+    if (inputs.backend && !inputs.backends) {
+      inputs.backends = [inputs.backend];
+    }
+
+    if (inputs.dtype && !inputs.dtypes) {
+      inputs.dtypes = [inputs.dtype];
+    }
+
+    if (inputs.model && !inputs.models){
+      inputs.models = [inputs.model];
+    }
+    if (inputs.branch && !inputs.branches){
+      inputs.branches = [inputs.branch];
     }
 
     const params = { ...this.DEFAULT_PARAMS, ...inputs };

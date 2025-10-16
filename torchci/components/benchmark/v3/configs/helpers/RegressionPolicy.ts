@@ -90,6 +90,11 @@ export type ComparisonResult = {
 // Evaluator
 // ------------------------------------------------------------------
 
+/**
+ * function to evaluate a comparison result based on benchmark comparison policy
+ * if policy is not provided, it will use the default policy instead,
+ * see getDefaultComparisonPolicy
+ */
 export function evaluateComparison(
   target: string | undefined | null,
   oldValue: number | null | undefined,
