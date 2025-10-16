@@ -1,8 +1,8 @@
 import { Alert } from "@mui/material";
 import { Box } from "@mui/system";
-import { BenchmarkReportFeatureSidePanel } from "components/benchmark/v3/components/dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
-import BenchmarkRegressionReportMetadataSection from "components/benchmark/v3/components/dataRender/components/benchmarkRegressionReport/reportView/BenchmarkRegressionReportMetadataSection";
-import { RegressionReportDetail } from "components/benchmark/v3/components/dataRender/components/benchmarkRegressionReport/reportView/RegressionReportDetail";
+import { BenchmarkReportFeatureSidePanel } from "components/benchmark/v3/components/benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
+import BenchmarkRegressionReportMetadataSection from "components/benchmark/v3/components/benchmarkRegressionReport/reportView/BenchmarkRegressionReportMetadataSection";
+import { RegressionReportDetail } from "components/benchmark/v3/components/benchmarkRegressionReport/reportView/RegressionReportDetail";
 import LoadingPage from "components/common/LoadingPage";
 import { useGetBenchmarkRegressionReportData } from "lib/benchmark/api_helper/fe/hooks";
 import { useRouter } from "next/router";

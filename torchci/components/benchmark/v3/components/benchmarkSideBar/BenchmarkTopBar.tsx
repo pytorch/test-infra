@@ -1,8 +1,8 @@
 import { Divider, Paper, Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { BenchmarkUIConfigHandler } from "lib/benchmark/store/benchmark_config_book";
-import { BenchmarkReportFeatureNotification } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureNotification";
-import { BenchmarkReportFeatureSidePanel } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
+import { BenchmarkReportFeatureNotification } from "../benchmarkRegressionReport/BenchmarkReportFeatureNotification";
+import { BenchmarkReportFeatureSidePanel } from "../benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
 import { CommitWorflowSelectSection } from "./components/commits/CommitWorkfowSelectSection";
 
 export function BenchmarkTopBar({
