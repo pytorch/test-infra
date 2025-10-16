@@ -3,10 +3,10 @@ import { Stack } from "@mui/system";
 import { QueryParameterConverterInputs } from "components/benchmark/v3/configs/utils/dataBindingRegistration";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
+import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useState } from "react";
-import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 
 /**
  *
@@ -49,7 +49,7 @@ export function CommitWorflowSelectSection() {
 
   const getConfig = useBenchmarkBook((s) => s.getConfig);
   const config = getConfig(benchmarkId);
-  const dataBinding = config.dataBinding
+  const dataBinding = config.dataBinding;
   const required_filter_fields = config.raw?.required_filter_fields ?? [];
 
   const ready =

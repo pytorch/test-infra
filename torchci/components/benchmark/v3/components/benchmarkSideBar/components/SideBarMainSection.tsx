@@ -9,14 +9,14 @@ import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
+import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import { DenseAlert } from "../../common/styledComponents";
-import { useUrlStoreSync } from "./useUrlSync";
-import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
-import { SamplingSetting } from "./filters/sampling/SamplingSetting";
 import { BranchDropdowns } from "./commits/BranchDropdown";
+import { SamplingSetting } from "./filters/sampling/SamplingSetting";
+import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {
   root: {
@@ -68,11 +68,9 @@ export function SideBarMainSection() {
   // 1) Read benchmarkId (low-churn) to fetch config
   const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
 
-
   const getConfig = useBenchmarkBook((s) => s.getConfig);
   const config = getConfig(benchmarkId);
   const dataBinding = config.dataBinding;
-
 
   const required_filter_fields = config.raw?.required_filter_fields ?? [];
 
@@ -155,14 +153,13 @@ export function SideBarMainSection() {
     (enableSamplingSetting ? !!stagedMaxSampling : true) &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
-  const params = dataBinding
-    ?.toQueryParams({
-      repo: repo,
-      benchmarkName: benchmarkName,
-      timeRange: stagedTime,
-      filters: stagedFilters,
-      maxSampling: enableSamplingSetting ? stagedMaxSampling : undefined,
-    } as QueryParameterConverterInputs);
+  const params = dataBinding?.toQueryParams({
+    repo: repo,
+    benchmarkName: benchmarkName,
+    timeRange: stagedTime,
+    filters: stagedFilters,
+    maxSampling: enableSamplingSetting ? stagedMaxSampling : undefined,
+  } as QueryParameterConverterInputs);
 
   if (!params) {
     throw new Error(`Failed to convert to query params for ${benchmarkId}`);
