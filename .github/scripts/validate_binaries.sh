@@ -96,7 +96,7 @@ else
     fi
     if [[ ${MATRIX_GPU_ARCH_VERSION} == '13.0' ]]; then
         nvidia-smi
-        export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.9'
+        export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='13.0'
         export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
     fi
     if [[ ${MATRIX_GPU_ARCH_VERSION} == '12.8' && ${TARGET_OS} == 'windows' ]]; then
@@ -115,7 +115,7 @@ else
         source $HOME/.local/bin/env
         uv venv --python ${MATRIX_PYTHON_VERSION}
         source .venv/bin/activate
-        uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.2/ torch --force-reinstall
+        uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.2/ torch --force-reinstall --verbose
     fi
 
     # test with numpy 1.x installation needs to happen after torch install
