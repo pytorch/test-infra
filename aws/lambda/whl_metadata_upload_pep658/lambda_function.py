@@ -27,6 +27,12 @@ def upload_s3(bucket: str, key: str, filename: str, dry_run: bool) -> None:
         )
 
 
+def delete_s3(bucket: str, key: str, dry_run: bool) -> None:
+    print(f"Deleting {bucket}/{key}")
+    if not dry_run:
+        get_client(False).delete_object(Bucket=bucket, Key=key)
+
+
 def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
     zip_location = "/tmp/wheel.zip"
     metadata_location = "/tmp/METADATA"
@@ -37,6 +43,10 @@ def lambda_handler(event: Any, context: Any, dry_run: bool = False) -> None:
             print(f"Skipping {bucket}/{key} as it is not a wheel")
             continue
         print(f"Processing {bucket}/{key}")
+
+        # Delete existing metadata file if it exists. If we fail to extract a
+        # new one, we don't want to leave the old one around.
+        delete_s3(bucket, f"{key}.metadata", dry_run)
 
         if os.path.exists(zip_location):
             os.remove(zip_location)
