@@ -1,18 +1,18 @@
-import { DefaultAutoRenderContent } from "components/benchmark/v3/components/dataRender/auto/defaultAutoRenderContent";
-import { DefaultFanoutRenderContent } from "components/benchmark/v3/components/dataRender/fanout/defaultFanoutRenderContent";
+import { DefaultAutoRenderContent } from "components/benchmark_v3/components/dataRender/auto/defaultAutoRenderContent";
+import { DefaultFanoutRenderContent } from "components/benchmark_v3/components/dataRender/fanout/defaultFanoutRenderContent";
 import {
   NotFoundComponent,
   resolveComponent,
-} from "components/benchmark/v3/configs/configRegistration";
+} from "components/benchmark_v3/configs/configRegistration";
 import {
   CompilerPrecomputeBenchmarkUIConfig,
   COMPILTER_PRECOMPUTE_BENCHMARK_ID,
-} from "components/benchmark/v3/configs/teams/compilers/config";
-import { defaultDashboardBenchmarkUIConfig } from "components/benchmark/v3/configs/teams/defaults/default_dashboard_config";
+} from "components/benchmark_v3/configs/teams/compilers/config";
+import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
 import {
   DataBinding,
   DataBindingConfig,
-} from "components/benchmark/v3/configs/utils/dataBindingRegistration";
+} from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { create } from "zustand";
 
 export type BenchmarkUIConfig = {

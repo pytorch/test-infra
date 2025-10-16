@@ -1,4 +1,4 @@
-import BenchmarkRegressionPage from "components/benchmark/v3/pages/BenchmarkRegressionPage";
+import BenchmarkRegressionPage from "components/benchmark_v3/pages/BenchmarkRegressionPage";
 import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 
 export default function Page() {

@@ -1,4 +1,4 @@
-import { BenchmarkRegressionReportListWrapper } from "components/benchmark/v3/components/benchmarkRegressionReport/listView/BenchmarkRegressionReportListWrapper";
+import { BenchmarkRegressionReportListWrapper } from "components/benchmark_v3/components/benchmarkRegressionReport/listView/BenchmarkRegressionReportListWrapper";
 import { useRouter } from "next/router";
 
 export default function Page() {

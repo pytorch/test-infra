@@ -1,4 +1,4 @@
-import { benchmarkNavGroup } from "components/benchmark/v3/pages/BenchmarkListPage";
+import { benchmarkNavGroup } from "components/benchmark_v3/pages/BenchmarkListPage";
 import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
 import React, { useState } from "react";
