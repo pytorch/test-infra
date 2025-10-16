@@ -1,7 +1,7 @@
 
 conda create -y -n ${ENV_NAME}_poetry python=${MATRIX_PYTHON_VERSION} numpy ffmpeg
 conda activate ${ENV_NAME}_poetry
-curl -sSL https://install.python-poetry.org | python3 - --git https://github.com/python-poetry/poetry.git@master
+curl -sSL https://install.python-poetry.org | python3 - --git https://github.com/python-poetry/poetry.git@main
 export PATH="/root/.local/bin:$PATH"
 
 poetry --version

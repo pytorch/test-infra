@@ -103,8 +103,9 @@
 }
 
 .viablestrict_blocking {
-  border-left: 1px solid var(--color-failure);
-  border-right: 1px solid var(--color-failure);
+  border: 2px solid var(--color-failure);
+  background-color: rgba(255, 0, 0, 0.1);
+  border-radius: 2px;
 }
 
 .autorevert_tooltip_anchor {

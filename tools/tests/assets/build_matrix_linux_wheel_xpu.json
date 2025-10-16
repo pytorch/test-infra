@@ -12,7 +12,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.10",
@@ -26,7 +26,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.10",
@@ -40,7 +40,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.10",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_10-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.10",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_10-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.10",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_10-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.10",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_10-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.10",
@@ -54,7 +110,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.11",
@@ -68,7 +124,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.11",
@@ -82,7 +138,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.11",
@@ -96,7 +152,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.11",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_11-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.11",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_11-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.11",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_11-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.11",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_11-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.11",
@@ -110,7 +222,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.12",
@@ -124,7 +236,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.12",
@@ -138,7 +250,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.12",
@@ -152,7 +264,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.12",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_12-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.12",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_12-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.12",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_12-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.12",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_12-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.12",
@@ -166,7 +334,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13",
@@ -180,7 +348,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13",
@@ -194,7 +362,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13",
@@ -208,7 +376,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13",
@@ -222,7 +446,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13t",
@@ -236,7 +460,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13t",
@@ -250,7 +474,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13t",
@@ -264,7 +488,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.13t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_13t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.13t",
@@ -278,7 +558,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14",
@@ -292,7 +572,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14",
@@ -306,7 +586,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14",
@@ -320,7 +600,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14",
@@ -334,7 +670,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14t",
@@ -348,7 +684,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu126",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14t",
@@ -362,7 +698,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu128",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14t",
@@ -376,7 +712,63 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu130",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
+    },
+    {
+      "python_version": "3.14t",
+      "gpu_arch_type": "cuda",
+      "gpu_arch_version": "12.9",
+      "desired_cuda": "cu129",
+      "container_image": "pytorch/manylinux2_28-builder:cuda12.9",
+      "package_type": "manywheel",
+      "build_name": "manywheel-py3_14t-cuda12_9",
+      "validation_runner": "linux.g5.4xlarge.nvidia.gpu",
+      "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cu129",
+      "channel": "nightly",
+      "upload_to_base_bucket": "no",
+      "stable_version": "2.9.0"
     },
     {
       "python_version": "3.14t",
@@ -390,7 +782,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/xpu",
       "channel": "nightly",
       "upload_to_base_bucket": "no",
-      "stable_version": "2.8.0"
+      "stable_version": "2.9.0"
     }
   ]
 }

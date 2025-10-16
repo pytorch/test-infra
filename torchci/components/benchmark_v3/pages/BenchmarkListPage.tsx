@@ -72,27 +72,10 @@ export const categories: BenchmarkCategoryGroup[] = [
     subtitle: "Benchmarks related to repo pytorch/torchao",
     items: [
       {
-        name: "TorchAO Benchmark",
-        route: "/benchmark/llms?repoName=pytorch%2Fao",
-      },
-      {
         name: "TorchAO Micro API Benchmark",
         route:
           "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
-      },
-    ],
-  },
-  {
-    title: "ExecuTorch Benchmarks",
-    tags: ["repo:pytorch/executorch"],
-    subtitle: "Benchmarks related to repo pytorch/executorch",
-    items: [
-      {
-        name: "ExecuTorch Benchmark",
-        route: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
-        info: "Powered by [apple-perf](https://github.com/pytorch/executorch/blob/main/.github/workflows/apple-perf.yml) \
-        and [android-perf](https://github.com/pytorch/executorch/blob/main/.github/workflows/android-perf.yml) workflows",
       },
     ],
   },

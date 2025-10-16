@@ -3,7 +3,10 @@ import {
   isGroupAutorevertSignal,
   isJobAutorevertSignal,
 } from "lib/autorevertUtils";
-import { getGroupConclusionChar } from "lib/JobClassifierUtil";
+import {
+  getGroupConclusionChar,
+  isJobViableStrictBlocking,
+} from "lib/JobClassifierUtil";
 import {
   isCancellationSuccessJob,
   isFailedJob,
@@ -41,44 +44,6 @@ export enum GroupedJobStatus {
   Flaky = "flaky",
   WarningOnly = "warning",
   Pending = "pending",
-}
-
-type RepoViableStrictBlockingJobsMap = {
-  [key: string]: RegExp[];
-};
-
-// TODO: Move this to a config file
-const VIABLE_STRICT_BLOCKING_JOBS: RepoViableStrictBlockingJobsMap = {
-  // Source of truth for these jobs is in https://github.com/pytorch/pytorch/blob/main/.github/workflows/update-viablestrict.yml#L26
-  "pytorch/pytorch": [
-    /trunk/i,
-    /pull/i,
-    /lint/i,
-    /linux-binary-libtorch-release /i,
-    /linux-binary-manywheel /i,
-    /linux-aarch64/i,
-  ],
-};
-
-function isJobViableStrictBlocking(
-  jobName: string | undefined,
-  repoOwner: string,
-  repoName: string
-): boolean {
-  if (!jobName) {
-    return false;
-  }
-
-  const repo = `${repoOwner}/${repoName}`;
-  let viablestrict_blocking_jobs_patterns =
-    VIABLE_STRICT_BLOCKING_JOBS[repo] ?? [];
-
-  for (const regex of viablestrict_blocking_jobs_patterns) {
-    if (jobName.match(regex)) {
-      return true;
-    }
-  }
-  return false;
 }
 
 // React component to render either a group conclusion character or monsterized icons for failures
@@ -276,6 +241,8 @@ export default function HudGroupedCell({
               failedPreviousRunJobs={failedPreviousRunJobs}
               sha={sha}
               rowData={rowData}
+              repoOwner={repoOwner}
+              repoName={repoName}
             />
           }
         >
@@ -326,6 +293,8 @@ function GroupTooltip({
   failedPreviousRunJobs,
   sha,
   rowData,
+  repoOwner,
+  repoName,
 }: {
   conclusion: GroupedJobStatus;
   groupName: string;
@@ -335,6 +304,8 @@ function GroupTooltip({
   failedPreviousRunJobs: JobData[];
   sha?: string;
   rowData?: RowData;
+  repoOwner?: string;
+  repoName?: string;
 }) {
   const [monsterFailures] = useContext(MonsterFailuresContext);
 
@@ -382,6 +353,10 @@ function GroupTooltip({
                 const isAutorevert = rowData
                   ? isJobAutorevertSignal(job, rowData)
                   : false;
+                const isViableStrictBlocking =
+                  repoOwner &&
+                  repoName &&
+                  isJobViableStrictBlocking(job.name, repoOwner, repoName);
                 return (
                   <div
                     key={jobIndex}
@@ -400,6 +375,12 @@ function GroupTooltip({
                       {job.name}
                       {isAutorevert && " ⚠️ (triggered autorevert)"}
                     </a>
+                    {isViableStrictBlocking && (
+                      <span style={{ color: "orange", fontWeight: "bold" }}>
+                        {" "}
+                        [viable/strict blocking]
+                      </span>
+                    )}
                   </div>
                 );
               })}
@@ -416,6 +397,8 @@ function GroupTooltip({
         jobs={erroredJobs}
         message={"The following jobs errored out:"}
         rowData={rowData}
+        repoOwner={repoOwner}
+        repoName={repoName}
       />
     );
   } else if (conclusion === GroupedJobStatus.Queued) {
@@ -426,6 +409,8 @@ function GroupTooltip({
         jobs={queuedJobs}
         message={"The following jobs are still in queue:"}
         rowData={rowData}
+        repoOwner={repoOwner}
+        repoName={repoName}
       />
     );
   } else if (conclusion === GroupedJobStatus.Pending) {
@@ -436,6 +421,8 @@ function GroupTooltip({
         jobs={pendingJobs}
         message={"The following jobs are still pending:"}
         rowData={rowData}
+        repoOwner={repoOwner}
+        repoName={repoName}
       />
     );
   } else if (conclusion === GroupedJobStatus.Flaky) {
@@ -446,6 +433,8 @@ function GroupTooltip({
         jobs={failedPreviousRunJobs}
         message={"The following jobs were flaky:"}
         rowData={rowData}
+        repoOwner={repoOwner}
+        repoName={repoName}
       />
     );
   } else if (conclusion === GroupedJobStatus.AllNull) {
@@ -473,12 +462,16 @@ function ToolTip({
   message,
   jobs,
   rowData,
+  repoOwner,
+  repoName,
 }: {
   conclusion: string;
   groupName: string;
   message: string;
   jobs: JobData[];
   rowData?: RowData;
+  repoOwner?: string;
+  repoName?: string;
 }) {
   return (
     <div>
@@ -488,19 +481,30 @@ function ToolTip({
         const isAutorevert = rowData
           ? isJobAutorevertSignal(job, rowData)
           : false;
+        const isViableStrictBlocking =
+          repoOwner &&
+          repoName &&
+          isJobViableStrictBlocking(job.name, repoOwner, repoName);
         return (
-          <a
-            key={ind}
-            href={job.htmlUrl}
-            target="_blank"
-            rel="noreferrer"
-            className={
-              isAutorevert ? styles.autorevert_tooltip_anchor : undefined
-            }
-          >
-            {job.name}
-            {isAutorevert && " ⚠️ (triggered autorevert)"}
-          </a>
+          <div key={ind}>
+            <a
+              href={job.htmlUrl}
+              target="_blank"
+              rel="noreferrer"
+              className={
+                isAutorevert ? styles.autorevert_tooltip_anchor : undefined
+              }
+            >
+              {job.name}
+              {isAutorevert && " ⚠️ (triggered autorevert)"}
+            </a>
+            {isViableStrictBlocking && (
+              <span style={{ color: "orange", fontWeight: "bold" }}>
+                {" "}
+                [viable/strict blocking]
+              </span>
+            )}
+          </div>
         );
       })}
     </div>

@@ -42,6 +42,7 @@ import {
 import {
   useGroupingPreference,
   useHideGreenColumnsPreference,
+  useHideNonViableStrictPreference,
   useMonsterFailuresPreference,
   usePreference,
 } from "lib/useGroupingPreference";
@@ -64,11 +65,15 @@ export function JobCell({
   job,
   unstableIssues,
   isAutorevertSignal,
+  repoOwner,
+  repoName,
 }: {
   sha: string;
   job: JobData;
   unstableIssues: IssueData[];
   isAutorevertSignal?: boolean;
+  repoOwner?: string;
+  repoName?: string;
 }) {
   const [pinnedId, setPinnedId] = useContext(PinnedTooltipContext);
 
@@ -92,6 +97,8 @@ export function JobCell({
             job={job}
             sha={pinnedId.sha || sha}
             isAutorevertSignal={isAutorevertSignal}
+            repoOwner={repoOwner}
+            repoName={repoName}
           />
         }
         sha={sha as string}
@@ -119,10 +126,14 @@ function HudRow({
   rowData,
   names,
   unstableIssues,
+  repoOwner,
+  repoName,
 }: {
   rowData: RowData;
   names: string[];
   unstableIssues: IssueData[];
+  repoOwner?: string;
+  repoName?: string;
 }) {
   const router = useRouter();
   const params = packHudParams(router.query);
@@ -204,6 +215,8 @@ function HudRow({
         names={names}
         unstableIssues={unstableIssues}
         params={params}
+        repoOwner={repoOwner}
+        repoName={repoName}
       />
     </tr>
   );
@@ -214,11 +227,15 @@ function HudJobCells({
   names,
   unstableIssues,
   params,
+  repoOwner,
+  repoName,
 }: {
   rowData: RowData;
   names: string[];
   unstableIssues: IssueData[];
   params: HudParams;
+  repoOwner?: string;
+  repoName?: string;
 }) {
   let groupNames = groups.map((group) => group.name).concat("other");
   const { expandedGroups, setExpandedGroups, groupNameMapping } =
@@ -283,6 +300,8 @@ function HudJobCells({
               job={job}
               unstableIssues={unstableIssues}
               isAutorevertSignal={isJobAutorevertSignal(job, rowData)}
+              repoOwner={repoOwner}
+              repoName={repoName}
             />
           );
         }
@@ -295,10 +314,14 @@ function HudTableBody({
   shaGrid,
   names,
   unstableIssues,
+  repoOwner,
+  repoName,
 }: {
   shaGrid: RowData[];
   names: string[];
   unstableIssues: IssueData[];
+  repoOwner?: string;
+  repoName?: string;
 }) {
   return (
     <tbody>
@@ -308,6 +331,8 @@ function HudTableBody({
           rowData={row}
           names={names}
           unstableIssues={unstableIssues}
+          repoOwner={repoOwner}
+          repoName={repoName}
         />
       ))}
     </tbody>
@@ -323,6 +348,8 @@ function FiltersAndSettings({}: {}) {
   const [hideUnstable, setHideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns, setHideGreenColumns] =
     useHideGreenColumnsPreference();
+  const [hideNonViableStrict, setHideNonViableStrict] =
+    useHideNonViableStrictPreference();
   const [useGrouping, setUseGrouping] = useGroupingPreference(
     params.nameFilter
   );
@@ -362,6 +389,13 @@ function FiltersAndSettings({}: {}) {
               checkBoxName="hideGreenColumns"
               key="hideGreenColumns"
               labelText={"Hide green columns"}
+            />,
+            <CheckBoxSelector
+              value={hideNonViableStrict}
+              setValue={(value) => setHideNonViableStrict(value)}
+              checkBoxName="hideNonViableStrict"
+              key="hideNonViableStrict"
+              labelText={"Hide non-viable-strict jobs"}
             />,
             <CheckBoxSelector
               value={mergeEphemeralLF}
@@ -590,15 +624,24 @@ function GroupedHudTable({ params }: { params: HudParams }) {
 
   const [hideUnstable] = usePreference("hideUnstable");
   const [hideGreenColumns] = useHideGreenColumnsPreference();
+  const [hideNonViableStrict] = useHideNonViableStrictPreference();
   const [useGrouping] = useGroupingPreference(params.nameFilter);
 
-  const { shaGrid, groupNameMapping, jobsWithFailures, groupsWithFailures } =
-    getGroupingData(
-      data ?? [],
-      jobNames,
-      (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
-      unstableIssuesData ?? []
-    );
+  const {
+    shaGrid,
+    groupNameMapping,
+    jobsWithFailures,
+    groupsWithFailures,
+    jobsViableStrictBlocking,
+    groupsViableStrictBlocking,
+  } = getGroupingData(
+    data ?? [],
+    jobNames,
+    (!useGrouping && hideUnstable) || (useGrouping && !hideUnstable),
+    unstableIssuesData ?? [],
+    params.repoOwner,
+    params.repoName
+  );
 
   const [expandedGroups, setExpandedGroups] = useState(new Set<string>());
 
@@ -662,6 +705,16 @@ function GroupedHudTable({ params }: { params: HudParams }) {
       return false;
     }
 
+    // If hiding non-viable-strict, only show jobs/groups that are viable/strict blocking
+    if (hideNonViableStrict) {
+      if (
+        !groupsViableStrictBlocking.has(name) &&
+        !jobsViableStrictBlocking.has(name)
+      ) {
+        return false;
+      }
+    }
+
     // If hiding green columns, filter out names that don't have any failed jobs
     if (hideGreenColumns) {
       // For group names, check if any job in the group has failures
@@ -703,6 +756,8 @@ function GroupedHudTable({ params }: { params: HudParams }) {
           shaGrid={shaGrid}
           names={names}
           unstableIssues={unstableIssuesData ?? []}
+          repoOwner={params.repoOwner}
+          repoName={params.repoName}
         />
       </table>
     </GroupingContext.Provider>

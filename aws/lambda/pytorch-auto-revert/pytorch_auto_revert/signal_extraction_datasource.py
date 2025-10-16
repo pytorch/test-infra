@@ -215,6 +215,7 @@ class SignalExtractionDatasource:
             )
             # One query with a CTE that enumerates failed test ids from failed_job_ids,
             # then filters the main selection by those ids for the current chunk.
+            # Note: success_runs explicitly excludes skipped rows via skipped_count = 0.
             query = """
                 WITH failed_test_names AS (
                     SELECT DISTINCT concat(file, '|', classname, '|', name) AS test_id
@@ -223,8 +224,8 @@ class SignalExtractionDatasource:
                       AND (failure_count > 0 OR error_count > 0)
                 )
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
-                       max(failure_count > 0) AS failing,
-                       max(error_count  > 0) AS errored
+                       countIf(failure_count > 0 OR error_count > 0) AS failure_runs,
+                       countIf(failure_count = 0 AND error_count = 0 AND skipped_count = 0) AS success_runs
                 FROM default.test_run_s3
                 WHERE job_id IN {job_ids:Array(Int64)}
                   AND concat(file, '|', classname, '|', name) IN failed_test_names
@@ -247,8 +248,8 @@ class SignalExtractionDatasource:
                                 file=str(r[3] or ""),
                                 classname=str(r[4] or ""),
                                 name=str(r[5] or ""),
-                                failing=int(r[6] or 0),
-                                errored=int(r[7] or 0),
+                                failure_runs=int(r[6] or 0),
+                                success_runs=int(r[7] or 0),
                             )
                         )
         dt = time.perf_counter() - t0
