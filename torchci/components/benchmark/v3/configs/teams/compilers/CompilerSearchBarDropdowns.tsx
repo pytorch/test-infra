@@ -4,7 +4,7 @@ import {
   DISPLAY_NAMES_TO_DEVICE_NAMES,
 } from "components/benchmark/compilers/common";
 import { SUITES } from "components/benchmark/compilers/SuitePicker";
-import { SingleStringLabelInput } from "components/benchmark/v3/components/benchmarkSideBar/components/SingleStringLabelInput";
+import { SingleStringLabelInput } from "components/benchmark/v3/components/benchmarkSideBar/components/filters/SingleStringLabelInput";
 import {
   UMDenseDropdown,
   UMDenseModePicker,

@@ -1,4 +1,4 @@
-import { CommitResult, defaultListCommitsInputs } from "./common/type";
+import { CommitResult } from "./common/type";
 import { getCommitsWithSampling, groupByBenchmarkData } from "./common/utils";
 import { getCompilerCommits } from "./compilers/compiler_benchmark_data";
 
@@ -81,12 +81,22 @@ function getFormat(data: any, format: string = "raw") {
   }
 }
 
+const defaultGetCommitsInputs: any = {
+  branches: [],
+  models: [],
+  backends: [],
+  device: "",
+  arch: [],
+  dtype: "",
+  mode: "",
+};
+
 export async function getCommits(inputparams: any) {
   if (!inputparams.repo) {
     throw new Error("no repo provided in request");
   }
 
-  if (!inputparams.benchmarkNames || inputparams.benchmarkName) {
+  if (!inputparams.benchmarkNames && !inputparams.benchmarkName) {
     throw new Error("no benchmarkNames || benchmarkName provided in request");
   }
 
@@ -94,13 +104,27 @@ export async function getCommits(inputparams: any) {
     throw new Error("no start/end time provided in request");
   }
 
-  if (inputparams.benchmarkName) {
+  if (inputparams.benchmarkName && !inputparams.benchmarkNames) {
     inputparams.benchmarkNames = [inputparams.benchmarkName];
   }
+
+  if (inputparams.model && !inputparams.models) {
+    inputparams.models = [inputparams.model];
+  }
+
+  if (inputparams.backend && !inputparams.backends) {
+    inputparams.backends = [inputparams.backend];
+  }
+
   const queryParams = {
-    ...defaultListCommitsInputs, // base defaults
+    ...defaultGetCommitsInputs, // base defaults
     ...inputparams, // override with caller's values
   };
+
+  console.log(
+    "[API]list commits, defaultGetCommitsInputs query params: ",
+    queryParams
+  );
 
   return await getCommitsWithSampling(
     BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME,

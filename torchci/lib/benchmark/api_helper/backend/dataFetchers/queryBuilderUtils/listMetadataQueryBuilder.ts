@@ -76,7 +76,7 @@ export class BenchmarkMetadataQuery
 
   validateInputs(inputs: any) {
     if (!inputs.benchmarkName) {
-      throw new Error("No benchmark names provided");
+      throw new Error("No benchmark name provided");
     }
     if (!inputs.repo) {
       throw new Error("No repo provided");
@@ -96,36 +96,52 @@ export function getDefaultBenchmarkMetadataGroup(
       data,
       "backend",
       BenchmarkMetadataType.BackendName,
-      DEFAULT_BACKEND_NAME,
+      { displayName: DEFAULT_BACKEND_NAME, value: "" },
       "Backend"
     ),
     makeMetadataItem(
       data,
       "mode",
       BenchmarkMetadataType.ModeName,
-      DEFAULT_MODE_NAME,
+      { displayName: DEFAULT_MODE_NAME, value: "" },
       "Mode"
     ),
     makeMetadataItem(
       data,
       "dtype",
       BenchmarkMetadataType.DtypeName,
-      DEFAULT_DTYPE_NAME,
+      { displayName: DEFAULT_DTYPE_NAME, value: "" },
       "Dtype"
     ),
     makeMetadataItem(
       data,
       "device",
       BenchmarkMetadataType.DeviceName,
-      DEFAULT_DEVICE_NAME,
+      { displayName: DEFAULT_DEVICE_NAME, value: "" },
       "Device Name",
-      (r) => (r.device && r.arch ? `${r.device} (${r.arch})` : r.device)
+      "",
+      (r: any) => {
+        if (r.device && r.arch) {
+          return {
+            value: `${r.device}||${r.arch}`,
+            displayName: `${r.device} (${r.arch})`,
+          };
+        }
+        if (r.device) {
+          return {
+            value: r.device,
+            displayName: r.device,
+          };
+        }
+
+        return { value: "", displayName: "" };
+      }
     ),
     makeMetadataItem(
       data,
       "model",
       BenchmarkMetadataType.ModelName,
-      "All models",
+      { displayName: "All Models", value: "" },
       "Model Name"
     ),
   ].filter(Boolean) as BenchmarkMetadataItem[];
@@ -138,13 +154,27 @@ function makeMetadataItem(
   data: any[],
   field: string,
   type: BenchmarkMetadataType,
-  defaultValue: string,
+  defaultValue: { value: string; displayName: string },
   labelName: string,
-  formatter?: (r: any) => string | undefined
+  initialValue: string = "",
+  formatter?: (r: any) => { value: string; displayName: string }
 ): BenchmarkMetadataItem | null {
-  const values = ld.uniq(
-    data.map((r) => (formatter ? formatter(r) : r[field])).filter(Boolean)
-  ) as string[];
+  const values = ld.uniqBy(
+    data
+      .map((r) => {
+        // formatter must return { value, displayName }
+        const formatted = formatter
+          ? formatter(r)
+          : {
+              value: r[field],
+              displayName: r[field],
+            };
+        if (!formatted?.displayName) return null;
+        return formatted;
+      })
+      .filter(Boolean),
+    "value"
+  ) as { value: string; displayName: string }[];
 
   if (values.length === 0) {
     return null;
@@ -153,6 +183,7 @@ function makeMetadataItem(
     type,
     options: [defaultValue, ...values],
     labelName,
+    initialValue,
   };
 }
 
@@ -173,9 +204,20 @@ export class PytorchOperatorMicrobenchmarkMetadataFetcher
       data,
       "operator",
       BenchmarkMetadataType.OperatornName,
-      "All Operators",
+      { displayName: "All Operators", value: "" },
       "Operator",
-      (r) => r.model.split("_")[0] ?? "unknown"
+      "",
+      (r) => {
+        const splitted = r.model.split("_");
+        let value = undefined;
+        if (splitted.length > 1) {
+          value = splitted[0];
+        }
+        return {
+          value: value,
+          displayName: value,
+        };
+      }
     );
     if (item) {
       li.push(item);

@@ -1,15 +1,15 @@
 import { Divider, Paper, Typography } from "@mui/material";
 import { Stack } from "@mui/system";
-import { BenchmarkUI } from "../../configs/configBook";
+import { BenchmarkUIConfigHandler } from "lib/benchmark/store/benchmark_config_book";
 import { BenchmarkReportFeatureNotification } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureNotification";
 import { BenchmarkReportFeatureSidePanel } from "../dataRender/components/benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
-import { CommitWorflowSelectSection } from "./components/CommitWorkfowSelectSection";
+import { CommitWorflowSelectSection } from "./components/commits/CommitWorkfowSelectSection";
 
 export function BenchmarkTopBar({
   config,
   title = "",
 }: {
-  config: BenchmarkUI;
+  config: BenchmarkUIConfigHandler;
   title?: string;
 }) {
   const reportFeature =

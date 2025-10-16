@@ -6,7 +6,7 @@ import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useState } from "react";
-import { BenchmarkUIConfigBook } from "../../../configs/configBook";
+import { BenchmarkUIConfigBook } from "../../../../configs/configBook";
 
 /**
  *

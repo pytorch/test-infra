@@ -15,8 +15,8 @@ import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
 import { BenchmarkUIConfigBook } from "../../../configs/configBook";
 import { DenseAlert } from "../../common/styledComponents";
-import { BranchDropdowns } from "./BranchDropdown";
-import { SamplingSetting } from "./SamplingSetting";
+import { BranchDropdowns } from "./commits/BranchDropdown";
+import { SamplingSetting } from "./filters/sampling/SamplingSetting";
 import { useUrlStoreSync } from "./useUrlSync";
 
 const styles = {

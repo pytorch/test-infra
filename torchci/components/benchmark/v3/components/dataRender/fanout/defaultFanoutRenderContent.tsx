@@ -1,10 +1,10 @@
 import { Alert, Divider, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { HighlightStyles } from "components/benchmark/v3/components/common/highlight";
-import { getConfig } from "components/benchmark/v3/configs/configBook";
 import { getFanoutRenderComponent } from "components/benchmark/v3/configs/utils/fanoutRegistration";
 import LoadingPage from "components/common/LoadingPage";
-import { useBenchmarkData } from "lib/benchmark/api_helper/fe/hooks";
+import { useBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/fe/hooks";
+import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useState } from "react";
@@ -17,6 +17,8 @@ import { ToggleSection, toToggleSectionId } from "../../common/ToggleSection";
  */
 export function DefaultFanoutRenderContent() {
   const {
+    repo,
+    benchmarkName,
     benchmarkId,
     committedTime,
     committedFilters,
@@ -28,6 +30,8 @@ export function DefaultFanoutRenderContent() {
     setLcommit,
     setRcommit,
   } = useDashboardSelector((s) => ({
+    repo: s.repo,
+    benchmarkName: s.benchmarkName,
     benchmarkId: s.benchmarkId,
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -40,6 +44,7 @@ export function DefaultFanoutRenderContent() {
     setRcommit: s.setRcommit,
   }));
   const [payload, setPayload] = useState(null);
+  const getConfig = useBenchmarkBook((s) => s.getConfig);
   const config = getConfig(benchmarkId);
   const requiredFilters = config.dataBinding.raw.required_filter_fields;
   const dataRender = config.raw.dataRender;
@@ -84,6 +89,8 @@ export function DefaultFanoutRenderContent() {
 
   // convert to the query params
   const params = config.dataBinding.toQueryParams({
+    repo,
+    benchmarkName: benchmarkName,
     timeRange: committedTime,
     branches,
     filters: committedFilters,
@@ -96,7 +103,7 @@ export function DefaultFanoutRenderContent() {
     data: resp,
     isLoading,
     error,
-  } = useBenchmarkData(benchmarkId, queryParams);
+  } = useBenchmarkTimeSeriesData(benchmarkId, queryParams);
   if (isLoading) {
     return <LoadingPage />;
   }

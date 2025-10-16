@@ -107,12 +107,13 @@ export interface CommitResult {
  * the field value must match the fields in LLMsBenchmarkProps
  */
 export enum BenchmarkMetadataType {
-  ModelName = "modelName",
-  BackendName = "backendName",
-  ModeName = "modeName",
-  DtypeName = "dtypeName",
+  ModelName = "model",
+  BackendName = "backend",
+  ModeName = "mode",
+  DtypeName = "dtype",
   DeviceName = "deviceName",
-  ArchName = "archName",
+  Device = "device",
+  ArchName = "arch",
   OperatornName = "operatorName",
   Qps = "qps",
 }
@@ -121,6 +122,8 @@ export enum BenchmarkMetadataType {
  */
 export interface BenchmarkMetadataItem {
   type: BenchmarkMetadataType;
-  options: string[];
+  options: { displayName: string; value: string }[];
   labelName: string;
+  initialValue?: string;
+  extra?: any;
 }
