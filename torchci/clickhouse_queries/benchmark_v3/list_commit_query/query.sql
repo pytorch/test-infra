@@ -6,11 +6,14 @@ SELECT
 FROM benchmark.oss_ci_benchmark_metadata
 PREWHERE
     timestamp >= toUnixTimestamp({startTime: DateTime64(3)})
-    AND timestamp <  toUnixTimestamp({stopTime:  DateTime64(3)})   -- ← closed )
+    AND timestamp < toUnixTimestamp({stopTime:  DateTime64(3)})
 WHERE
     repo = {repo: String}
     AND (
-        has({branches: Array(String)}, replaceAll(head_branch, 'refs/heads/', ''))
+        has(
+            {branches: Array(String)},
+            replaceAll(head_branch, 'refs/heads/', '')
+        )
         OR empty({branches: Array(String)})
     )
     AND (benchmark_dtype = {dtype: String} OR empty({dtype: String}))
@@ -25,18 +28,21 @@ WHERE
         OR {arch: String} = ''
     )
     AND (
-        has({models: Array(String) }, model_name)
-        OR empty({models: Array(String) })
+        has({models: Array(String)}, model_name)
+        OR empty({models: Array(String)})
     )
     AND (
-        has({backends: Array(String) }, model_backend)
-        OR empty({backends: Array(String) })
+        has({backends: Array(String)}, model_backend)
+        OR empty({backends: Array(String)})
     )
     AND (
-        startsWith({device: String }, device)
-        OR {device: String } = ''
+        startsWith(device, {device: String})
+        OR {device: String} = ''
     )
 GROUP BY
-    branch, commit, workflow_id
+    replaceAll(head_branch, 'refs/heads/', ''),
+    head_sha,
+    workflow_id
 ORDER BY
-    branch, date
+    branch,      -- OK to use alias in ORDER BY
+    date;
