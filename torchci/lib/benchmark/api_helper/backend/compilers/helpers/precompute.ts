@@ -9,6 +9,7 @@ import {
   getPassingModels,
 } from "lib/benchmark/compilerUtils";
 import {
+  emptyTimeSeriesResponse,
   to_table,
   to_time_series_data,
   toTimeSeriesResponse,
@@ -80,6 +81,10 @@ export function toPrecomputeCompilerData(
       Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
   );
 
+  if (!data || data.length === 0) {
+    return emptyTimeSeriesResponse();
+  }
+
   // post process data to get start_ts and end_ts, and add commit metadata
   const { start_ts, end_ts } = postFetchProcess(all_data, commit_map, metadata);
 
@@ -88,6 +93,7 @@ export function toPrecomputeCompilerData(
     const f = getFormat(all_data, format);
     res[format] = f;
   });
+
   return toTimeSeriesResponse(res, rawData.length, start_ts, end_ts);
 }
 
@@ -96,8 +102,24 @@ function postFetchProcess(
   commit_map: Map<string, any>,
   metadata: any
 ) {
-  const end_ts = new Date(data[0].granularity_bucket).getTime();
-  const start_ts = new Date(data[data.length - 1].granularity_bucket).getTime();
+  let start_ts = new Date(data[0]?.granularity_bucket).getTime();
+  let end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
+
+  // Handle invalid dates (NaN from getTime)
+  if (isNaN(start_ts) || isNaN(end_ts)) {
+    console.warn(
+      "(postFetchProcess) Invalid granularity_bucket values detected"
+    );
+    throw new Error(
+      `(postFetchProcess)Invalid granularity_bucket values detected peek first data: ${data[0]}`
+    );
+  }
+
+  // Swap if needed
+  if (end_ts < start_ts) {
+    [start_ts, end_ts] = [end_ts, start_ts];
+  }
+
   data.map((row) => {
     row["commit"] = commit_map.get(row.workflow_id)?.commit;
     row["branch"] = commit_map.get(row.workflow_id)?.branch;
