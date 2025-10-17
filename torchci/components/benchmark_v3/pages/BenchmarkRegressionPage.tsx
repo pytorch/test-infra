@@ -20,7 +20,6 @@ export default function BenchmarkRegressionPage({
 }: {
   benchmarkId: string;
   type: BenchmarkPageType;
-  initial: any;
 }) {
   const router = useRouter();
   // ensure config will read the config from the store if it's predefined,
