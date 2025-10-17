@@ -82,7 +82,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "version": "12.9.79",
             "project": "torch",
             "target": "cu129",
-        }
+        },
     ],
     "nvidia-cuda-cupti": [
         {
