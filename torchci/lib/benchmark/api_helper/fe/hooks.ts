@@ -139,7 +139,7 @@ export function useBenchmarkCommittedContext() {
     rcommit: s.rcommit,
   }));
 
-  const configHandler = getBenchmarkConfigBook(benchmarkId);
+  const configHandler = useBenchmarkConfigBook(benchmarkId);
   const config = configHandler;
   const requiredFilters = config.dataBinding?.raw?.required_filter_fields ?? [];
   const dataRender = config?.raw?.dataRender ?? null;
@@ -163,7 +163,7 @@ export function useBenchmarkCommittedContext() {
 }
 
 // safely get config handler from benchmark book
-export function getBenchmarkConfigBook(benchmarkId: string) {
+export function useBenchmarkConfigBook(benchmarkId: string) {
   const getConfig = useBenchmarkBook((s) => s.getConfig);
   return getConfig(benchmarkId);
 }
