@@ -1,6 +1,7 @@
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
@@ -137,7 +138,7 @@ export function CommitWorflowSelectSection() {
   ]);
 
   if (error) return <div>Error: {error.message}</div>;
-  if (isLoading || !data) return null;
+  if (isLoading || !data) return <CenteredLoader />;
 
   return (
     <Stack spacing={1.5} direction={"row"} alignItems={"center"}>

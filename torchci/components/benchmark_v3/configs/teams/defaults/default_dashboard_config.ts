@@ -10,7 +10,6 @@ export const REQUIRED_COMPLIER_LIST_COMMITS_KEYS = [
 
 // The initial config for the compiler benchmark regression page
 export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
-  benchmarkId: DEFAULT_DASHBOARD_ID,
   time: {
     start: dayjs.utc().startOf("day").subtract(7, "day"),
     end: dayjs.utc().endOf("day"),
@@ -22,6 +21,21 @@ export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
   lbranch: "main",
   rbranch: "main",
 };
+
+export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
+  {
+    field: "device",
+    displayName: "Hardware type",
+  },
+  {
+    field: "arch",
+    displayName: "Hardware model",
+  },
+  {
+    field: "dtype",
+    displayName: "Dtype",
+  }
+] as const;
 
 export const defaultDashboardBenchmarkUIConfig = {
   benchmarkId: DEFAULT_DASHBOARD_ID,
@@ -37,12 +51,12 @@ export const defaultDashboardBenchmarkUIConfig = {
       {
         type: "AutoBenchmarkPairwiseComparisonTable",
         title: "Comparison Table",
-        filterByFieldValues: {},
         config: {
-          tableConfig: {
-            nameKeys: ["compiler"],
-            enableDialog: true,
+          primary: {
+            fields: ["model"],
+            displayName: "Model",
           },
+          extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
         },
       },
     ],

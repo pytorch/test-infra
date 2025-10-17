@@ -90,10 +90,9 @@ export class DataBinding {
   private readonly defaultConverter: QueryParameterConverter =
     getDefaultDataConverter;
 
-  constructor(cfg: DataBindingConfig) {
+  constructor(cfg: DataBindingConfig, id: string) {
     if (!cfg.initial) throw new Error("initial params are required");
-    if (cfg.initial.benchmarkId.length === 0)
-      throw new Error("benchmarkId is required");
+    if (!id || id.length === 0) throw new Error("benchmarkId is required");
 
     const filled: Required<DataBindingConfig> = {
       initial: {

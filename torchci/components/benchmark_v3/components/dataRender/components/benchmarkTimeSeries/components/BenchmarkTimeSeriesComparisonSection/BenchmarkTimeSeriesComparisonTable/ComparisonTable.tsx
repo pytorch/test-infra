@@ -1,7 +1,13 @@
 import { Typography } from "@mui/material";
-import { DataGrid, GridColDef, GridRowModel } from "@mui/x-data-grid";
+import {
+  DataGrid,
+  GridAutosizeOptions,
+  GridColDef,
+  GridRowModel,
+  useGridApiRef,
+} from "@mui/x-data-grid";
 import { SelectionDialog } from "components/benchmark_v3/components/common/SelectionDialog";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ComparisonTableConfig } from "../../../helper";
 import { getComparisionTableConlumnRendering } from "./ComparisonTableColumnRendering";
 import { SnapshotRow, ToComparisonTableRow } from "./ComparisonTableHelpers";
@@ -28,6 +34,7 @@ export function ComparisonTable({
   };
   onSelect?: (payload: any) => void;
 }) {
+  const apiRef = useGridApiRef();
   // group raw data into rows, each row contains all values across workflowIds
   const rows: GridRowModel[] = useMemo(() => {
     return ToComparisonTableRow(config, data);
@@ -59,6 +66,7 @@ export function ComparisonTable({
     const tail = auto.filter((c) => !head.includes(c));
     return [...head, ...tail];
   }, [rows, columnOrder]);
+
   // Form the columns
   const columns: GridColDef[] = useMemo(
     () =>
@@ -82,8 +90,8 @@ export function ComparisonTable({
         {lWorkflowId} - {rWorkflowId}
       </Typography>
       <DataGrid
+        apiRef={apiRef}
         density="compact"
-        disableRowSelectionOnClick
         rows={rows}
         columns={columns}
         initialState={{

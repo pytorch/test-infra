@@ -10,14 +10,18 @@ import {
 } from "components/benchmark_v3/configs/teams/compilers/config";
 import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
 import {
+  PYTORCH_OPERATOR_MICROBENCHMARK_ID,
+  PytorchOperatorMicroBenchmarkDashoboardConfig,
+} from "components/benchmark_v3/configs/teams/torchao/config";
+import {
   DataBinding,
   DataBindingConfig,
 } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { create } from "zustand";
 
 export type BenchmarkUIConfig = {
-  benchmarkId: string;
   apiId: string;
+  benchmarkId: string;
   title: string;
   type: string; // type of the component to render
   dataBinding: DataBindingConfig; // data binding config
@@ -51,7 +55,7 @@ export class BenchmarkUIConfigHandler {
   constructor(config: BenchmarkUIConfig) {
     this._benchmarkId = config.benchmarkId;
     this._config = config;
-    this._dataBinding = new DataBinding(config.dataBinding);
+    this._dataBinding = new DataBinding(config.dataBinding, this._benchmarkId);
   }
 
   get benchmarkId(): string {
@@ -120,6 +124,8 @@ interface State {
 
 const predefined: ConfigMap = {
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: CompilerPrecomputeBenchmarkUIConfig,
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]:
+    PytorchOperatorMicroBenchmarkDashoboardConfig,
 };
 
 export const useBenchmarkBook = create<State>()((set, get) => ({

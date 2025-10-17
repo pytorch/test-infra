@@ -36,18 +36,41 @@ export function getComparisionTableConlumnRendering(
   config: ComparisonTableConfig,
   onClick?: (data: any) => void
 ): GridColDef[] {
-  const nameCol: GridColDef = {
-    field: "name",
-    headerName: "Name",
-    flex: 1.2,
+  const primaryHeaderName = config?.primary?.displayName ?? "Name";
+
+  const primaryFlex = config?.renderOptions?.flex?.primary ?? 0.8;
+  const primaryCol: GridColDef = {
+    field: "primary",
+    headerName: primaryHeaderName,
+    flex: primaryFlex,
     sortable: false,
     filterable: false,
-    renderCell: (p) => <Typography variant="body2">{p.row.name}</Typography>,
+    renderCell: (p) => <Typography variant="body2">{p.row.primary}</Typography>,
   };
+
+  // get metadata columns from config
+  const metadata = config?.extraMetadata ?? [];
+
+  const metadatFlex = config?.renderOptions?.flex?.extraMetadata ?? 0.5;
+  const metadataCols: GridColDef[] = metadata
+    .filter((k) => !!k.field) // skip fields that are not defined
+    .map((k) => ({
+      field: k.field,
+      headerName: k.displayName,
+      flex: metadatFlex,
+      sortable: false,
+      filterable: false,
+      renderCell: (p) => (
+        <Typography variant="body2">{p.row[k.field]}</Typography>
+      ),
+    }));
+
+
+  const metricsFlex = config?.renderOptions?.flex?.target ?? 1.2;
   const metricCols: GridColDef[] = columnsFields.map((field) => ({
     field,
     headerName: field,
-    flex: 1,
+    flex: metricsFlex,
     sortable: false,
     filterable: false,
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (
@@ -61,6 +84,7 @@ export function getComparisionTableConlumnRendering(
       />
     ),
   }));
+
   const labelCol: GridColDef = {
     field: "label",
     headerName: "Label",
@@ -75,7 +99,7 @@ export function getComparisionTableConlumnRendering(
       </Tooltip>
     ),
   };
-  return [nameCol, ...metricCols, labelCol];
+  return [primaryCol, ...metadataCols, ...metricCols, labelCol];
 }
 
 /** Colors */
@@ -187,6 +211,7 @@ export function getFieldRender(
   R: any,
   config?: ComparisonTableConfig
 ) {
+  console.log("getFieldRender", targetField, config);
   const rc = getBenchmarkTimeSeriesComparisionTableRenderingConfig(
     targetField,
     config

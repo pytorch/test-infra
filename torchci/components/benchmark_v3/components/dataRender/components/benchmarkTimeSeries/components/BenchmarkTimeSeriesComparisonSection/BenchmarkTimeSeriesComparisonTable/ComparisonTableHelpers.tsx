@@ -1,9 +1,15 @@
 import { ComparisonTableConfig } from "../../../helper";
 
+type GridItemModel = {
+  value: number | string | null | undefined;
+  displayName: string;
+};
+
 type GridRowModel = {
   id: string;
   label: string;
-  name: string;
+  primary: string;
+  metadataColumns: GridItemModel[];
   metric: string;
   byWorkflow: Record<string, RowCellObj[]>;
   sampleInfo: any;
@@ -43,6 +49,11 @@ export type SnapshotRow = {
 export const asNumber = (v: unknown) => (typeof v === "number" ? v : undefined);
 export const valOf = (cell?: RowCellObj) => (cell ? cell.value : undefined);
 
+/**
+ * convert the data to ready to render table row
+ * @param data
+ * @returns
+ */
 export function ToComparisonTableRow(config: ComparisonTableConfig, data: any) {
   const m = new Map<string, GridRowModel>();
   for (const rowData of data ?? []) {
@@ -50,9 +61,10 @@ export function ToComparisonTableRow(config: ComparisonTableConfig, data: any) {
     const wf = String(gi?.workflow_id ?? "");
     const { key, label } = getGroupKeyAndLabel(gi);
 
-    const name = config?.nameKeys
-      ? config.nameKeys.map((k) => gi[k]).join(" · ")
+    const primaryRowValue = config?.primary?.fields
+      ? config.primary.fields.map((k) => gi[k]).join(" · ")
       : label;
+
     const rowDataMap = rowData.data ?? {};
     if (!m.has(key)) {
       m.set(key, {
@@ -61,7 +73,7 @@ export function ToComparisonTableRow(config: ComparisonTableConfig, data: any) {
         label,
         byWorkflow: {},
         sampleInfo: gi,
-        name,
+        primary: primaryRowValue,
       });
     }
     m.get(key)!.byWorkflow[wf] = rowDataMap;

@@ -253,7 +253,10 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             ],
           },
           tableConfig: {
-            nameKeys: ["compiler"],
+            primary: {
+              fields: ["compiler"],
+              displayName: "Backend",
+            },
             enableDialog: true,
             customizedConfirmDialog: {
               type: "component",

@@ -67,7 +67,7 @@ const DENSE_SELECT_SX = {
 type Props = {
   dtype: string;
   setDType: (v: string) => void;
-  dtypes: string[];
+  dtypes: (string | UMDenseDropdownOption)[];
   label: string;
 };
 
@@ -78,6 +78,11 @@ export const MODES: { [k: string]: string } = {
   inference: "bfloat16",
 };
 
+export interface UMDenseDropdownOption {
+  value: string;
+  displayName?: string;
+}
+
 export const UMDenseDropdown: React.FC<Props> = ({
   dtype,
   setDType,
@@ -86,30 +91,41 @@ export const UMDenseDropdown: React.FC<Props> = ({
 }) => {
   const labelId = "dtype-picker-label";
   const selectId = "dtype-picker-select";
-
   const handleChange = (e: SelectChangeEvent<string>) => {
     setDType(e.target.value);
   };
 
+  const safeValue = dtype ?? "";
   return (
     <FormControl size="small">
-      <InputLabel id={labelId}>{label}</InputLabel>
+      <InputLabel id={labelId} shrink>
+        {label}
+      </InputLabel>
       <Select
         id={selectId}
         labelId={labelId} // make sure these match
-        value={dtype}
+        value={safeValue}
         label={label}
         onChange={handleChange}
         sx={DENSE_SELECT_SX} // dense trigger
         MenuProps={{
           PaperProps: { sx: DENSE_MENU_STYLE },
         }}
+        displayEmpty
       >
-        {dtypes.map((v) => (
-          <MenuItem key={v} value={v}>
-            <Typography variant="body2">{v}</Typography>
-          </MenuItem>
-        ))}
+        {dtypes.map((item) => {
+          const option =
+            typeof item === "string"
+              ? { value: item, displayName: item }
+              : item;
+          return (
+            <MenuItem key={option.value} value={option.value}>
+              <Typography variant="body2">
+                {option.displayName ?? option.value}
+              </Typography>
+            </MenuItem>
+          );
+        })}
       </Select>
     </FormControl>
   );

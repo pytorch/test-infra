@@ -57,10 +57,11 @@ export function useUrlStoreSync<T extends Record<string, any>>(
     // prevent no-op replace and re-pushing the same thing
     if (nextSig === currSig || nextSig === lastPushedSigRef.current) return;
 
+    const [pathname] = router.asPath.split("?"); // strip query
     // briefly mark as syncing to avoid URL->store echo
     isApplyingUrlRef.current = true;
     router
-      .replace({ pathname: router.pathname, query: nextQueryObj }, undefined, {
+      .replace({ pathname: pathname, query: nextQueryObj }, undefined, {
         shallow: true,
       })
       .finally(() => {
