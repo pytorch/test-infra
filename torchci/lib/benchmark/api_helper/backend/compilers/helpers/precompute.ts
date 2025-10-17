@@ -107,7 +107,9 @@ function postFetchProcess(
 
   // Handle invalid dates (NaN from getTime)
   if (isNaN(start_ts) || isNaN(end_ts)) {
-    console.warn("(postFetchProcess) Invalid granularity_bucket values detected");
+    console.warn(
+      "(postFetchProcess) Invalid granularity_bucket values detected"
+    );
     throw new Error(
       `(postFetchProcess)Invalid granularity_bucket values detected peek first data: ${data[0]}`
     );
