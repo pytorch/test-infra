@@ -2,6 +2,7 @@ import json
 
 from torchci.clickhouse import query_clickhouse
 
+
 ALL_TESTS_QUERY = """
 SELECT
     name,
@@ -21,9 +22,7 @@ WHERE last_run > now() - INTERVAL 1 WEEK
 
 
 if __name__ == "__main__":
-    all_tests = query_clickhouse(
-        ALL_TESTS_QUERY, {}
-    )
+    all_tests = query_clickhouse(ALL_TESTS_QUERY, {})
     for test in all_tests:
         test["file"] = test["invoking_file"].replace(".", "/") + ".py"
         del test["invoking_file"]
