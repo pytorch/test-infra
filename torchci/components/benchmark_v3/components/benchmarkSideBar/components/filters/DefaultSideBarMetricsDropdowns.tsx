@@ -7,6 +7,7 @@ import {
 } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkDropdownGroup from "./BenchmarkFilterDropdownGroup";
+import { ElevatorSharp } from "@mui/icons-material";
 
 export default function DefaultMetricsDropdowns() {
   const {
@@ -64,10 +65,18 @@ export default function DefaultMetricsDropdowns() {
         optionListMap={metadataList}
         onChange={(_key: string, _value: any) => {
           if (_key == "deviceName") {
+            if (_value == "") {
+              setStagedFilter("device", "");
+              setStagedFilter("arch", "");
+              return;
+            }
             const v = _value.split("||");
             if (v.length === 2) {
               setStagedFilter("device", v[0]);
               setStagedFilter("arch", v[1]);
+            } else{
+              setStagedFilter("device", _value);
+              setStagedFilter("arch", "");
             }
           }
           setStagedFilter(_key, _value);
