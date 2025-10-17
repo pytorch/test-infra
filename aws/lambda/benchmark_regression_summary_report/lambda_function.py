@@ -179,7 +179,7 @@ class BenchmarkSummaryProcessor:
             source=config.source,
         )
         self.log_info(
-            f"done fetching target data (newest). found {len(target_data.time_series)} # of groups, with time range {target_data.time_range}",
+            f"Done fetching target data (newest). found {len(target_data.time_series)} # of groups, with time range {target_data.time_range}",
         )
         if not target_data.time_range or not target_data.time_range.end:
             return None, target_s, target_e
@@ -206,7 +206,7 @@ class BenchmarkSummaryProcessor:
         )
 
         self.log_info(
-            f"Done. found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
+            f"Done fetching baseline data. found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
         )
 
         baseline_latest_ts = int(isoparse(raw_data.time_range.end).timestamp())
