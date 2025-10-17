@@ -2,7 +2,7 @@ import { Alert } from "@mui/material";
 import { Box } from "@mui/system";
 import LoadingPage from "components/common/LoadingPage";
 import {
-  useBenchmarkConfigBook,
+  getBenchmarkConfigBook,
   useListBenchmarkMetadata,
 } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
@@ -25,7 +25,7 @@ export default function DefaultMetricsDropdowns() {
     stagedFilters: s.stagedFilters,
   }));
 
-  const configHandler = useBenchmarkConfigBook(benchmarkId);
+  const configHandler = getBenchmarkConfigBook(benchmarkId);
   const ready = !!configHandler && !!stagedTime?.start && !!stagedTime?.end;
 
   // convert to the query params

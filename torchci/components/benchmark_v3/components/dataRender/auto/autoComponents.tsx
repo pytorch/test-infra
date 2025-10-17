@@ -6,37 +6,28 @@ import {
   useBenchmarkCommittedContext,
   useBenchmarkTimeSeriesData,
 } from "lib/benchmark/api_helper/fe/hooks";
-import {
-  UIRenderConfig,
-  useBenchmarkBook,
-} from "lib/benchmark/store/benchmark_config_book";
+import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
 
-  const uiRenderConfig = config as UIRenderConfig;
-
-  if (!ctx) {
-    return <LoadingPage />;
-  }
-
-  const branches = [
-    ...new Set(
-      [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
-    ),
-  ];
-
   const ready =
+    !!ctx &&
     !!ctx.committedTime?.start &&
     !!ctx.committedTime?.end &&
     !!ctx.committedLbranch &&
     !!ctx.committedRbranch &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
 
-  const getConfig = useBenchmarkBook((s) => s.getConfig);
-  const c = getConfig(ctx.benchmarkId);
-  const dataBinding = c.dataBinding;
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const branches = [
+    ...new Set(
+      [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
+    ),
+  ];
 
   // convert to the query params
   const params = dataBinding.toQueryParams({
