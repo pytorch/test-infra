@@ -161,6 +161,7 @@ def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
         # TODO (huydhn): Only build CUDA 12.9 for Linux. This logic is to be cleaned up
         # in 2.10
         CUDA_ARCHES.append("12.9")
+        CUDA_AARCH64_ARCHES.append("12.9-aarch64")
     ROCM_ARCHES = ROCM_ARCHES_DICT[channel]
     if build_python_only:
         # Only select the oldest version of python if building a python only package
