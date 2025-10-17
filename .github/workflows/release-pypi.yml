@@ -61,10 +61,10 @@ jobs:
             mkdir dist/
             # shellcheck disable=SC2086
             aws s3 sync "s3://pytorch-backup/${PACKAGE}-${!version}-pypi-staging/" dist/ --debug
-      
+
       - name: Display structure of downloaded files
         run: ls -R dist/
-        
+
       - name: Publish package to PyPI
         if: ${{ inputs.dryrun == 'disabled' }}
         uses: pypa/gh-action-pypi-publish@release/v1
