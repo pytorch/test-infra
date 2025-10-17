@@ -3,12 +3,6 @@ import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy"
 
 export const DEFAULT_DASHBOARD_ID = "default-dashboard";
 
-export const REQUIRED_COMPLIER_LIST_COMMITS_KEYS = [
-  "mode",
-  "dtype",
-  "deviceName",
-] as const;
-
 export const DEFAULT_LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "latency",
   type: "ratio",

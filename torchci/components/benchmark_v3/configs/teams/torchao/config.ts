@@ -1,22 +1,25 @@
 import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 import {
+  DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
   DEFAULT_LATENCY_POLICY,
 } from "../defaults/default_dashboard_config";
 
+export const PYTORCH_OPERATOR_MICROBENCHMARK_ID =
+  "pytorch_operator_microbenchmark";
+
+const initialOptions = {
+  ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+  benchmarkId: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
+  filters: {
+    device: "cuda",
+    arch: "NVIDIA B200",
+    deviceName: "cuda||NVIDIA B200",
+  },
+};
+
 const COMPARISON_TABLE_METADATA_COLUMNS = [
-  {
-    field: "dtype",
-    displayName: "Dtype",
-  },
-  {
-    field: "device",
-    displayName: "Hardware type",
-  },
-  {
-    field: "arch",
-    displayName: "Hardware model",
-  },
+  ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   {
     field: "extra_key.use_compile",
     displayName: "Use Compile",
@@ -42,8 +45,6 @@ const RENDER_MAPPING_BOOK = {
   },
 };
 
-export const PYTORCH_OPERATOR_MICROBENCHMARK_ID =
-  "pytorch_operator_microbenchmark";
 export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
   {
     benchmarkId: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
@@ -51,15 +52,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
     title: "Pytorch Operator MicroBenchmark Dashboard",
     type: "dashboard",
     dataBinding: {
-      initial: {
-        ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
-        benchmarkId: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
-        filters: {
-          device: "cuda",
-          arch: "NVIDIA B200",
-          deviceName: "cuda||NVIDIA B200",
-        },
-      },
+      initial: initialOptions,
       required_filter_fields: [],
     },
     dataRender: {
