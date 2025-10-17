@@ -192,7 +192,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cusparselt-cu12": [
         {
-            "version": "0.8.0",
+            "version": "0.7.1",
             "project": "torch",
             "target": "cu126",
         },
@@ -261,7 +261,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-nvtx": [
         {
-            "version": "13.0.39",
+            "version": "13.0.85",
             "project": "torch",
             "target": "cu130",
         }
@@ -280,7 +280,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-nvjitlink": [
         {
-            "version": "13.0.39",
+            "version": "13.0.88",
             "project": "torch",
             "target": "cu130",
         }
@@ -299,7 +299,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cufile": [
         {
-            "version": "1.15.0.42",
+            "version": "1.15.1.6",
             "project": "torch",
             "target": "cu130",
         }
