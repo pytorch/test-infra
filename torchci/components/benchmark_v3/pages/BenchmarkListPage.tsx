@@ -59,6 +59,12 @@ export const categories: BenchmarkCategoryGroup[] = [
         route:
           "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/operator_benchmark)",
+        actions: [
+          {
+            label: "New dashboard (WIP)",
+            href: "/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
+          },
+        ],
       },
       {
         name: "Triton Benchmark",
