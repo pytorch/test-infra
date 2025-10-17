@@ -64,19 +64,7 @@ export default function DefaultMetricsDropdowns() {
         optionListMap={metadataList}
         onChange={(_key: string, _value: any) => {
           if (_key == "deviceName") {
-            if (_value == "") {
-              setStagedFilter("device", "");
-              setStagedFilter("arch", "");
-              return;
-            }
-            const v = _value.split("||");
-            if (v.length === 2) {
-              setStagedFilter("device", v[0]);
-              setStagedFilter("arch", v[1]);
-            } else {
-              setStagedFilter("device", _value);
-              setStagedFilter("arch", "");
-            }
+            handleDeviceName(_value, setStagedFilter);
           }
           setStagedFilter(_key, _value);
         }}
@@ -84,4 +72,26 @@ export default function DefaultMetricsDropdowns() {
       />
     </Box>
   );
+}
+
+function handleDeviceName(
+  deviceName: string,
+  setFilter: (k: string, v: string) => void
+) {
+  if (deviceName == "") {
+    setFilter("device", "");
+    setFilter("arch", "");
+    return;
+  }
+
+  const v = deviceName.split("||");
+
+  if (v.length === 2) {
+    setFilter("device", v[0]);
+    setFilter("arch", v[1]);
+  } else {
+    setFilter("device", deviceName);
+    setFilter("arch", "");
+  }
+  
 }
