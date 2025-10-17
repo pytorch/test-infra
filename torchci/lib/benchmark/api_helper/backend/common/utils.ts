@@ -406,13 +406,27 @@ export function toBenchmarkTimeSeriesReponseFormat(
   config: any = {},
   formats: string[] = ["time_series"]
 ) {
-  if (rawData.length === 0) {
+  if (!rawData || rawData.length === 0) {
     return emptyTimeSeriesResponse();
   }
-  const start_ts = new Date(rawData[0]?.granularity_bucket).getTime();
-  const end_ts = new Date(
-    rawData[rawData.length - 1].granularity_bucket
+
+  let start_ts = new Date(rawData[0]?.granularity_bucket).getTime();
+  let end_ts = new Date(
+    rawData[rawData.length - 1]?.granularity_bucket
   ).getTime();
+
+  // Handle invalid dates (NaN from getTime)
+  if (isNaN(start_ts) || isNaN(end_ts)) {
+    console.warn("Invalid granularity_bucket values detected");
+    throw new Error(
+      `Invalid granularity_bucket values detected peek first data: ${rawData[0]}`
+    );
+  }
+
+  // Swap if needed
+  if (end_ts < start_ts) {
+    [start_ts, end_ts] = [end_ts, start_ts];
+  }
 
   let formats_result: any = {};
 
