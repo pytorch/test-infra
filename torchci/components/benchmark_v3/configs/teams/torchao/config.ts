@@ -1,5 +1,8 @@
 import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL, DEFAULT_LATENCY_POLICY } from "../defaults/default_dashboard_config";
+import {
+  DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+  DEFAULT_LATENCY_POLICY,
+} from "../defaults/default_dashboard_config";
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {

@@ -181,8 +181,8 @@ export function ComparisonTableValueCell({
       break;
   }
 
-  const ldisplay = displayNameOf(ldata)
-  const rdisplay = displayNameOf(rdata)
+  const ldisplay = displayNameOf(ldata);
+  const rdisplay = displayNameOf(rdata);
   const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
@@ -218,11 +218,11 @@ export function getFieldRender(
   R: any,
   config?: ComparisonTableConfig,
   ldisplay?: string,
-  rdisplay?: string,
+  rdisplay?: string
 ) {
-   if(ldisplay || rdisplay){
-    return `${ldisplay ?? "N/A"}→${rdisplay ?? "N/A"}`
-   }
+  if (ldisplay || rdisplay) {
+    return `${ldisplay ?? "N/A"}→${rdisplay ?? "N/A"}`;
+  }
 
   const rc = getBenchmarkTimeSeriesComparisionTableRenderingConfig(
     targetField,

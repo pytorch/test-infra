@@ -6,7 +6,6 @@ import {
   useListBenchmarkMetadata,
 } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
-import { RenderRawContent } from "../../../common/RawContentDialog";
 import BenchmarkDropdownGroup from "./BenchmarkFilterDropdownGroup";
 
 export default function DefaultMetricsDropdowns() {
@@ -63,12 +62,6 @@ export default function DefaultMetricsDropdowns() {
 
   return (
     <Box>
-      <RenderRawContent
-        data={resp}
-        type="json"
-        title="tawta"
-        buttonName="result"
-      />
       <BenchmarkDropdownGroup
         optionListMap={metadataList}
         onChange={(_key: string, _value: any) => {
