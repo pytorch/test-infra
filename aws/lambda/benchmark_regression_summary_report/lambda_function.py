@@ -169,7 +169,7 @@ class BenchmarkSummaryProcessor:
         target_s = end_time - data_range.comparison_timedelta_s()
         target_e = end_time
         self.log_info(
-            "getting target data for time range "
+            "getting target data (newest) for time range "
             f"[{format_ts_with_t(target_s)},{format_ts_with_t(target_e)}] ..."
         )
         target_data = self._fetch_from_benchmark_ts_api(
@@ -179,7 +179,7 @@ class BenchmarkSummaryProcessor:
             source=config.source,
         )
         self.log_info(
-            f"done. found {len(target_data.time_series)} # of data groups, with time range {target_data.time_range}",
+            f"done fetching target data (newest). found {len(target_data.time_series)} # of groups, with time range {target_data.time_range}",
         )
         if not target_data.time_range or not target_data.time_range.end:
             return None, target_s, target_e
@@ -236,7 +236,7 @@ class BenchmarkSummaryProcessor:
 
         if latest_ts >= cutoff:
             return True
-        self.log_info(f"expect latest data to be after {cutoff}, but got {latest_ts}")
+        self.log_info(f"expect latest data to be after unixtime {cutoff}, but got {latest_ts}")
         return False
 
     def _fetch_from_benchmark_ts_api(
