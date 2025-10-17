@@ -43,6 +43,10 @@ export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
     field: "dtype",
     displayName: "Dtype",
   },
+  {
+    field: "mode",
+    displayName: "Mode",
+  },
 ] as const;
 
 export const defaultDashboardBenchmarkUIConfig = {
