@@ -1,11 +1,11 @@
 import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL, DEFAULT_LATENCY_POLICY } from "../defaults/default_dashboard_config";
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
-      field: "dtype",
-      displayName: "Dtype",
-},
+    field: "dtype",
+    displayName: "Dtype",
+  },
   {
     field: "device",
     displayName: "Hardware type",
@@ -24,15 +24,20 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   },
 ] as const;
 
-
 const RENDER_MAPPING_BOOK = {
   latency: {
     unit: {
       type: "time",
       unit: "μs",
     },
-   },
-}
+  },
+  "peak memory": {
+    unit: {
+      type: "memory",
+      unit: "KB",
+    },
+  },
+};
 
 export const PYTORCH_OPERATOR_MICROBENCHMARK_ID =
   "pytorch_operator_microbenchmark";
@@ -58,22 +63,25 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
       type: "auto",
       renders: [
         {
-          type: "AutoBenchmarkPairwiseComparisonTable",
+          type: "AutoBenchmarkTimeSeriesTable",
           title: "Comparison Table",
           config: {
             primary: {
               fields: ["model"],
               displayName: "Model",
             },
+            comparisonPolicy: {
+              latency: DEFAULT_LATENCY_POLICY,
+            },
             extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
-            renderOptions:{
-                tableRenderingBook: RENDER_MAPPING_BOOK,
-                flex:{
-                  primary: 1,
-                  extraMetadata: 0.4,
-                  target: 0.6
-                }
-           }
+            renderOptions: {
+              tableRenderingBook: RENDER_MAPPING_BOOK,
+              flex: {
+                primary: 1.2,
+                extraMetadata: 0.5,
+                target: 0.6,
+              },
+            },
           },
         },
       ],

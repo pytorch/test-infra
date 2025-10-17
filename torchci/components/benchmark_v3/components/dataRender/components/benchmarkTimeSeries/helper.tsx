@@ -59,7 +59,7 @@ export interface BenchmarkComparisonTableRenderingOptions {
   tableRenderingBook: BenchmarkComparisonTableRenderingBook;
   flex?: {
     [key: string]: number;
-  }
+  };
 }
 
 export type ComparisonTableConfig = {

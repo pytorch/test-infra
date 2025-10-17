@@ -48,6 +48,8 @@ export type SnapshotRow = {
 /** Helpers */
 export const asNumber = (v: unknown) => (typeof v === "number" ? v : undefined);
 export const valOf = (cell?: RowCellObj) => (cell ? cell.value : undefined);
+export const displayNameOf = (cell?: RowCellObj) =>
+  cell ? cell.displayName : undefined;
 
 /**
  * convert the data to ready to render table row

@@ -1,4 +1,4 @@
-import { AutoBenchmarkPairwiseComparisonTable } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
+import { AutoBenchmarkTimeSeriesTable } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
 
 export type AutoComponentProps = {
   config?: any;
@@ -37,8 +37,8 @@ export class AutoComponentRegistry {
 
   private constructor() {
     const registry: Record<string, AutoComponentConfig> = {
-      AutoBenchmarkPairwiseComparisonTable: {
-        Component: AutoBenchmarkPairwiseComparisonTable,
+      AutoBenchmarkTimeSeriesTable: {
+        Component: AutoBenchmarkTimeSeriesTable,
       },
       // Add your auto components here
     };

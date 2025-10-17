@@ -20,7 +20,7 @@ import {
   getBenchmarkTimeSeriesComparisonTableTarget,
   renderBasedOnUnitConifg,
 } from "../../../helper";
-import { asNumber, valOf } from "./ComparisonTableHelpers";
+import { asNumber, displayNameOf, valOf } from "./ComparisonTableHelpers";
 
 /**
  *
@@ -64,7 +64,6 @@ export function getComparisionTableConlumnRendering(
         <Typography variant="body2">{p.row[k.field]}</Typography>
       ),
     }));
-
 
   const metricsFlex = config?.renderOptions?.flex?.target ?? 1.2;
   const metricCols: GridColDef[] = columnsFields.map((field) => ({
@@ -144,15 +143,22 @@ export function ComparisonTableValueCell({
   const ln = asNumber(L);
   const rn = asNumber(R);
 
-  // get comparison policy for the field
+  // get target field key name, for instance, metric
+  // so we can get the comparison policy by get the value of target field
   const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
+
+  const findFieldValueFromColData =
+    ldata?.[targetField] ?? rdata?.[targetField];
+  const targetVal = findFieldValueFromColData;
+
   let comparisonPolicy: BenchmarkComparisonPolicyConfig | undefined = undefined;
-  if (targetField && config?.comparisonPolicy) {
-    const fieldValue = row[targetField];
-    comparisonPolicy = fieldValue
-      ? config?.comparisonPolicy[fieldValue]
+  if (targetVal && config?.comparisonPolicy) {
+    comparisonPolicy = targetVal
+      ? config?.comparisonPolicy[targetVal]
       : undefined;
   }
+
+  //console.log("ComparisonTableValueCell", ldata, rdata,targetField,row);
   // evaluate the value comparison result, return the comparison report for each field
   const result = evaluateComparison(
     comparisonPolicy?.target,
@@ -175,8 +181,9 @@ export function ComparisonTableValueCell({
       break;
   }
 
-  const targetFieldValue = row[targetField] ?? "";
-  const text = getFieldRender(targetFieldValue, L, R, config);
+  const ldisplay = displayNameOf(ldata)
+  const rdisplay = displayNameOf(rdata)
+  const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
       <Tooltip title={renderComparisonResult(result)}>
@@ -209,9 +216,14 @@ export function getFieldRender(
   targetField: string,
   L: any,
   R: any,
-  config?: ComparisonTableConfig
+  config?: ComparisonTableConfig,
+  ldisplay?: string,
+  rdisplay?: string,
 ) {
-  console.log("getFieldRender", targetField, config);
+   if(ldisplay || rdisplay){
+    return `${ldisplay ?? "N/A"}→${rdisplay ?? "N/A"}`
+   }
+
   const rc = getBenchmarkTimeSeriesComparisionTableRenderingConfig(
     targetField,
     config

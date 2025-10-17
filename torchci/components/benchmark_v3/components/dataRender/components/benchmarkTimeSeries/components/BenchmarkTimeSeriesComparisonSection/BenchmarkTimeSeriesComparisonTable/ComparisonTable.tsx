@@ -1,13 +1,12 @@
 import { Typography } from "@mui/material";
 import {
   DataGrid,
-  GridAutosizeOptions,
   GridColDef,
   GridRowModel,
   useGridApiRef,
 } from "@mui/x-data-grid";
 import { SelectionDialog } from "components/benchmark_v3/components/common/SelectionDialog";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { ComparisonTableConfig } from "../../../helper";
 import { getComparisionTableConlumnRendering } from "./ComparisonTableColumnRendering";
 import { SnapshotRow, ToComparisonTableRow } from "./ComparisonTableHelpers";

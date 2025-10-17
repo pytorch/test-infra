@@ -1,5 +1,5 @@
 import { Alert } from "@mui/material";
-import { Box, Grid } from "@mui/system";
+import { Grid } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -12,9 +12,7 @@ import {
 } from "lib/benchmark/store/benchmark_config_book";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
-export function AutoBenchmarkPairwiseComparisonTable({
-  config,
-}: AutoComponentProps) {
+export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
 
   const uiRenderConfig = config as UIRenderConfig;
@@ -65,7 +63,7 @@ export function AutoBenchmarkPairwiseComparisonTable({
   if (error) {
     return (
       <Alert severity="error">
-        (AutoBenchmarkPairwiseComparisonTable){error.message}
+        (AutoBenchmarkTimeSeriesTable){error.message}
       </Alert>
     );
   }
@@ -77,19 +75,19 @@ export function AutoBenchmarkPairwiseComparisonTable({
   }
   const data = resp?.data?.data;
   return (
-      <Grid container sx={{ m: 1 }}>
-        <Grid size={{ xs: 12}}>
+    <Grid container sx={{ m: 1 }}>
+      <Grid size={{ xs: 12 }}>
         <ComparisonTable
-        data={data["table"]}
-        config={uiRenderConfig.config}
-        lWorkflowId={ctx.lcommit?.workflow_id ?? null}
-        rWorkflowId={ctx.rcommit?.workflow_id ?? null}
-        title={{
-          text: "Comparison Table",
-        }}
-        onSelect={() => {}}
-      />
+          data={data["table"]}
+          config={uiRenderConfig.config}
+          lWorkflowId={ctx.lcommit?.workflow_id ?? null}
+          rWorkflowId={ctx.rcommit?.workflow_id ?? null}
+          title={{
+            text: "Comparison Table",
+          }}
+          onSelect={() => {}}
+        />
       </Grid>
-      </Grid>
+    </Grid>
   );
 }

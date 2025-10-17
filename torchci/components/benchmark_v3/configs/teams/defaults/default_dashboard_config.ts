@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 
 export const DEFAULT_DASHBOARD_ID = "default-dashboard";
 
@@ -7,6 +8,19 @@ export const REQUIRED_COMPLIER_LIST_COMMITS_KEYS = [
   "dtype",
   "deviceName",
 ] as const;
+
+export const DEFAULT_LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "latency",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.15,
+    goodRatio: 0.85,
+    direction: "down",
+  },
+};
+export const DEFAULT_COMPARISON_POLICY = {
+  latency: DEFAULT_LATENCY_POLICY,
+};
 
 // The initial config for the compiler benchmark regression page
 export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
@@ -34,7 +48,7 @@ export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
     field: "dtype",
     displayName: "Dtype",
-  }
+  },
 ] as const;
 
 export const defaultDashboardBenchmarkUIConfig = {
@@ -49,7 +63,7 @@ export const defaultDashboardBenchmarkUIConfig = {
     type: "auto",
     renders: [
       {
-        type: "AutoBenchmarkPairwiseComparisonTable",
+        type: "AutoBenchmarkTimeSeriesTable",
         title: "Comparison Table",
         config: {
           primary: {
@@ -57,6 +71,7 @@ export const defaultDashboardBenchmarkUIConfig = {
             displayName: "Model",
           },
           extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+          comparisonPolicy: DEFAULT_COMPARISON_POLICY,
         },
       },
     ],
