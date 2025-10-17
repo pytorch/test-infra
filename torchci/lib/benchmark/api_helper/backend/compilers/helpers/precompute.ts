@@ -102,7 +102,7 @@ function postFetchProcess(
   commit_map: Map<string, any>,
   metadata: any
 ) {
-  let start_ts = new Date(data[0].granularity_bucket).getTime();
+  let start_ts = new Date(data[0]?.granularity_bucket).getTime();
   let end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
 
   // Handle invalid dates (NaN from getTime)
