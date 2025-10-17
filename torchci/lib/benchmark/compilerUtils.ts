@@ -108,6 +108,7 @@ export function computePassrate(
       passrate: p,
       pass_count: pc,
       total_count: tc,
+      displayName: `${(p * 100).toFixed(0)}%, ${pc}/${tc}`,
       passrate_display: `${(p * 100).toFixed(0)}%, ${pc}/${tc}`,
     });
   });

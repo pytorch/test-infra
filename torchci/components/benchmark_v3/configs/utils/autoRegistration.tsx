@@ -1,4 +1,9 @@
-export type AutoComponent = React.ComponentType;
+import { AutoBenchmarkTimeSeriesTable } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
+
+export type AutoComponentProps = {
+  config?: any;
+};
+export type AutoComponent = React.ComponentType<AutoComponentProps>;
 
 export type AutoComponentConfig = {
   Component: AutoComponent;
@@ -32,6 +37,9 @@ export class AutoComponentRegistry {
 
   private constructor() {
     const registry: Record<string, AutoComponentConfig> = {
+      AutoBenchmarkTimeSeriesTable: {
+        Component: AutoBenchmarkTimeSeriesTable,
+      },
       // Add your auto components here
     };
     this.map = Object.freeze({ ...registry });

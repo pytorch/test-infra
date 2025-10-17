@@ -1,4 +1,5 @@
 import dayjs, { Dayjs } from "dayjs";
+import { BenchmarkPageType } from "lib/benchmark/store/benchmark_config_book";
 import {
   BenchmarkCommitMeta,
   TimeRange,
@@ -90,22 +91,28 @@ export class DataBinding {
   private readonly defaultConverter: QueryParameterConverter =
     getDefaultDataConverter;
 
-  constructor(cfg: DataBindingConfig) {
+  constructor(cfg: DataBindingConfig, id: string, type: BenchmarkPageType) {
     if (!cfg.initial) throw new Error("initial params are required");
-    if (cfg.initial.benchmarkId.length === 0)
-      throw new Error("benchmarkId is required");
+    if (!id || id.length === 0) throw new Error("benchmarkId is required");
+
+    const defaultInitial = {
+      time: {
+        start: dayjs.utc().startOf("day").subtract(7, "day"),
+        end: dayjs.utc().endOf("day"),
+      },
+      filters: {} as Record<string, string>, // allow "" values later
+      lbranch: "",
+      rbranch: "",
+      filter_options: {},
+    };
+
+    const initial = {
+      ...defaultInitial,
+      ...cfg.initial,
+    };
 
     const filled: Required<DataBindingConfig> = {
-      initial: {
-        ...cfg.initial,
-        time: cfg.initial?.time ?? {
-          start: dayjs.utc().startOf("day").subtract(7, "day"),
-          end: dayjs.utc().endOf("day"),
-        },
-        filters: cfg.initial?.filters ?? {},
-        lbranch: cfg.initial?.lbranch ?? "",
-        rbranch: cfg.initial?.rbranch ?? "",
-      },
+      initial: initial,
       required_filter_fields: cfg.required_filter_fields ?? [],
       filter_options: cfg.filter_options ?? {},
       query_params: cfg.query_params ?? {

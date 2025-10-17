@@ -57,10 +57,22 @@ export interface BenchmarkComparisonTitleMapping {
 export interface BenchmarkComparisonTableRenderingOptions {
   title_group_mapping: BenchmarkComparisonTitleMapping;
   tableRenderingBook: BenchmarkComparisonTableRenderingBook;
+  flex?: {
+    [key: string]: number;
+  };
 }
 
 export type ComparisonTableConfig = {
-  nameKeys?: string[]; // the field name used to render the name of the row, if not set, use all groupinfo labels
+  // always the first column, the name of the row
+  primary?: {
+    fields?: string[]; // the field name used to render the name of the row, if not set, use all groupinfo labels
+    displayName?: string; // the display name of the primary column, if not set, use the default name
+  };
+  // the columns from group info to render as columns
+  extraMetadata?: {
+    field: string;
+    displayName?: string;
+  }[];
   renderOptions?: BenchmarkComparisonTableRenderingOptions;
   // indicates the field to use for comparison policy map, and rendering map
   targetField?: string;
@@ -281,7 +293,7 @@ export function getBenchmarkTimeSeriesChartRenderingConfig(
 export function getBenchmarkTimeSeriesComparisonTableTarget(
   config?: ComparisonTableConfig
 ) {
-  return config?.targetField || DEFAULT_TARGET_FILED;
+  return config?.targetField ?? DEFAULT_TARGET_FILED;
 }
 
 export const fmtFixed2 = (v: any) =>

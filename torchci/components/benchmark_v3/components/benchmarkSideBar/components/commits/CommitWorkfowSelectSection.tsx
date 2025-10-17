@@ -1,6 +1,7 @@
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
@@ -16,6 +17,7 @@ import { useEffect, useState } from "react";
 export function CommitWorflowSelectSection() {
   const {
     repo,
+    type,
     benchmarkName,
     benchmarkId,
     committedTime,
@@ -29,6 +31,7 @@ export function CommitWorflowSelectSection() {
     setLcommit,
     setRcommit,
   } = useDashboardSelector((s) => ({
+    type: s.type,
     benchmarkId: s.benchmarkId,
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -48,7 +51,7 @@ export function CommitWorflowSelectSection() {
   const [rightList, setRightList] = useState<BenchmarkCommitMeta[]>([]);
 
   const getConfig = useBenchmarkBook((s) => s.getConfig);
-  const config = getConfig(benchmarkId);
+  const config = getConfig(benchmarkId, type);
   const dataBinding = config.dataBinding;
   const required_filter_fields = config.raw?.required_filter_fields ?? [];
 
@@ -137,7 +140,7 @@ export function CommitWorflowSelectSection() {
   ]);
 
   if (error) return <div>Error: {error.message}</div>;
-  if (isLoading || !data) return null;
+  if (isLoading || !data) return <CenteredLoader />;
 
   return (
     <Stack spacing={1.5} direction={"row"} alignItems={"center"}>

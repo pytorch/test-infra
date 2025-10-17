@@ -66,10 +66,13 @@ export function SideBarMainSection() {
   // pushUrlFromStore();
 
   // 1) Read benchmarkId (low-churn) to fetch config
-  const benchmarkId = useDashboardSelector((s) => s.benchmarkId);
+  const { benchmarkId, type } = useDashboardSelector((s) => ({
+    benchmarkId: s.benchmarkId,
+    type: s.type,
+  }));
 
   const getConfig = useBenchmarkBook((s) => s.getConfig);
-  const config = getConfig(benchmarkId);
+  const config = getConfig(benchmarkId, type);
   const dataBinding = config.dataBinding;
 
   const required_filter_fields = config.raw?.required_filter_fields ?? [];

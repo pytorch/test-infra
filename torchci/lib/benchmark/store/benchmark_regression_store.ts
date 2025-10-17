@@ -2,6 +2,7 @@
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
+import { BenchmarkPageType } from "./benchmark_config_book";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
@@ -21,7 +22,8 @@ export type BenchmarkCommitMeta = {
 interface BenchmarkIdMappingItem {
   id: string;
   repoName: string;
-  benchmarkName: string;
+  benchmarkName: string; // highiest level benchmarkName that used to fetch the data from api
+  benchmarkNameMapping?: Record<string, string>; // mapping from benchmarkName to benchmarkName based on page type, if this is defined, it overrides the main benchmarkName
 }
 
 /**
@@ -55,6 +57,12 @@ const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
   },
 };
 
+export function getBenchmarkIdMappingItem(
+  benchmarkId: string
+): BenchmarkIdMappingItem | undefined {
+  return BENCHMARK_ID_MAPPING[benchmarkId];
+}
+
 /**
  * Data model for BenchmarkDashboardState
  */
@@ -81,6 +89,7 @@ export interface BenchmarkDashboardState {
 
   // may key to track of the benchamrk
   benchmarkId: string;
+  type: BenchmarkPageType;
   benchmarkName: string;
   repo: string;
 
@@ -129,6 +138,7 @@ export interface BenchmarkDashboardState {
 
 export function createDashboardStore(initial: {
   benchmarkId: string;
+  type: BenchmarkPageType;
   time: TimeRange;
   filters: Record<string, string>;
   lbranch: string;
@@ -140,7 +150,11 @@ export function createDashboardStore(initial: {
   const idItem = BENCHMARK_ID_MAPPING[initial.benchmarkId];
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
     benchmarkId: initial.benchmarkId, // <-- fixed name
-    benchmarkName: idItem ? idItem.benchmarkName : initial.benchmarkId, // <-- fixed name
+    type: initial.type,
+    benchmarkName:
+      idItem?.benchmarkNameMapping?.[initial.type] ??
+      idItem.benchmarkName ??
+      initial.benchmarkId,
     repo: idItem?.repoName ? idItem.repoName : "pytorch/pytorch",
 
     // set only with initial config

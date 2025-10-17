@@ -1,15 +1,9 @@
 import BenchmarkRegressionPage from "components/benchmark_v3/pages/BenchmarkRegressionPage";
-import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
+import { BenchmarkPageType } from "lib/benchmark/store/benchmark_config_book";
 
 export default function Page() {
-  const id = "compiler_precompute";
-  const getConfig = useBenchmarkBook((s) => s.getConfig);
-  const config = getConfig(id);
-  const dataBinding = config.dataBinding;
-  return (
-    <BenchmarkRegressionPage
-      benchmarkId={config.benchmarkId}
-      initial={dataBinding.initialParams}
-    />
-  );
+  const benchmarkId = "compiler_precompute";
+  const type = BenchmarkPageType.AggregatePage;
+
+  return <BenchmarkRegressionPage benchmarkId={benchmarkId} type={type} />;
 }

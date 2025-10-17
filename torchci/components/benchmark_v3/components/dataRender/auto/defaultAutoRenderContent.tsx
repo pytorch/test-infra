@@ -27,7 +27,7 @@ export function DefaultAutoRenderContent() {
           const { Component } = getAutoRenderComponent(autoUIConfig);
           return (
             <Box key={index}>
-              <Component />
+              <Component config={autoUIConfig} />
             </Box>
           );
         })}
