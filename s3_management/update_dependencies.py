@@ -33,7 +33,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cuda-nvrtc": [
         {
-            "version": "13.0.48",
+            "version": "13.0.88",
             "project": "torch",
             "target": "cu130",
         }
@@ -52,7 +52,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cuda-runtime": [
         {
-            "version": "13.0.48",
+            "version": "13.0.96",
             "project": "torch",
             "target": "cu130",
         }
@@ -71,7 +71,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cuda-cupti": [
         {
-            "version": "13.0.48",
+            "version": "13.0.85",
             "project": "torch",
             "target": "cu130",
         }
@@ -109,7 +109,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cublas": [
         {
-            "version": "13.0.0.19",
+            "version": "13.1.0.3",
             "project": "torch",
             "target": "cu130",
         }
@@ -128,7 +128,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cufft": [
         {
-            "version": "12.0.0.15",
+            "version": "12.0.0.61",
             "project": "torch",
             "target": "cu130",
         }
@@ -147,7 +147,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-curand": [
         {
-            "version": "10.4.0.35",
+            "version": "10.4.0.42",
             "project": "torch",
             "target": "cu130",
         }
@@ -166,7 +166,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cusolver": [
         {
-            "version": "12.0.3.29",
+            "version": "12.0.4.66",
             "project": "torch",
             "target": "cu130",
         }
@@ -185,14 +185,14 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-cusparse": [
         {
-            "version": "12.6.2.49",
+            "version": "12.6.3.3",
             "project": "torch",
             "target": "cu130",
         }
     ],
     "nvidia-cusparselt-cu12": [
         {
-            "version": "0.7.1",
+            "version": "0.8.0",
             "project": "torch",
             "target": "cu126",
         },
