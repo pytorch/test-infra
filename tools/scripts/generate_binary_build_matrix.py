@@ -157,7 +157,7 @@ def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
-    if channel != "release" and os == LINUX:
+    if channel != "release" and (os == LINUX or os == LINUX_AARCH64):
         # TODO (huydhn): Only build CUDA 12.9 for Linux. This logic is to be cleaned up
         # in 2.10
         CUDA_ARCHES.append("12.9")
