@@ -18,6 +18,7 @@ import { ToggleSection, toToggleSectionId } from "../../common/ToggleSection";
 export function DefaultFanoutRenderContent() {
   const {
     repo,
+    type,
     benchmarkName,
     benchmarkId,
     committedTime,
@@ -31,6 +32,7 @@ export function DefaultFanoutRenderContent() {
     setRcommit,
   } = useDashboardSelector((s) => ({
     repo: s.repo,
+    type: s.type,
     benchmarkName: s.benchmarkName,
     benchmarkId: s.benchmarkId,
     committedTime: s.committedTime,
@@ -45,7 +47,7 @@ export function DefaultFanoutRenderContent() {
   }));
   const [payload, setPayload] = useState(null);
   const getConfig = useBenchmarkBook((s) => s.getConfig);
-  const config = getConfig(benchmarkId);
+  const config = getConfig(benchmarkId, type);
   const requiredFilters = config.dataBinding.raw.required_filter_fields;
   const dataRender = config.raw.dataRender;
 

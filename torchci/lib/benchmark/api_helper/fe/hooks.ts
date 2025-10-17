@@ -1,4 +1,7 @@
-import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
+import {
+  BenchmarkPageType,
+  useBenchmarkBook,
+} from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import { BundleResult } from "../backend/common/type";
@@ -117,6 +120,7 @@ export function useBenchmarkCommittedContext() {
   // read dashboard state
   const {
     repo,
+    type,
     benchmarkId,
     benchmarkName,
     committedTime,
@@ -128,6 +132,7 @@ export function useBenchmarkCommittedContext() {
     rcommit,
   } = useDashboardSelector((s) => ({
     repo: s.repo,
+    type: s.type,
     benchmarkName: s.benchmarkName,
     benchmarkId: s.benchmarkId,
     committedTime: s.committedTime,
@@ -139,7 +144,7 @@ export function useBenchmarkCommittedContext() {
     rcommit: s.rcommit,
   }));
 
-  const configHandler = useBenchmarkConfigBook(benchmarkId);
+  const configHandler = useBenchmarkConfigBook(benchmarkId, type);
   const config = configHandler;
   const requiredFilters = config.dataBinding?.raw?.required_filter_fields ?? [];
   const dataRender = config?.raw?.dataRender ?? null;
@@ -163,9 +168,12 @@ export function useBenchmarkCommittedContext() {
 }
 
 // safely get config handler from benchmark book
-export function useBenchmarkConfigBook(benchmarkId: string) {
+export function useBenchmarkConfigBook(
+  benchmarkId: string,
+  type: BenchmarkPageType
+) {
   const getConfig = useBenchmarkBook((s) => s.getConfig);
-  return getConfig(benchmarkId);
+  return getConfig(benchmarkId, type);
 }
 
 const limitErrorRetrySWR: SWRConfiguration = {

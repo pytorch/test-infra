@@ -15,6 +15,7 @@ const initialOptions = {
     device: "cuda",
     arch: "NVIDIA B200",
     deviceName: "cuda||NVIDIA B200",
+    operatorName: "addmm",
   },
 };
 

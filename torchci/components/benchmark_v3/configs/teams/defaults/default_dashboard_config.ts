@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 
 export const DEFAULT_DASHBOARD_ID = "default-dashboard";
@@ -49,7 +50,7 @@ export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
   },
 ] as const;
 
-export const defaultDashboardBenchmarkUIConfig = {
+export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
   benchmarkId: DEFAULT_DASHBOARD_ID,
   apiId: DEFAULT_DASHBOARD_ID,
   title: "Default dashboard",

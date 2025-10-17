@@ -12,6 +12,7 @@ export default function DefaultMetricsDropdowns() {
   const {
     setStagedFilter,
     repo,
+    type,
     benchmarkId,
     benchmarkName,
     stagedTime,
@@ -19,13 +20,14 @@ export default function DefaultMetricsDropdowns() {
   } = useDashboardSelector((s) => ({
     setStagedFilter: s.setStagedFilter,
     repo: s.repo,
+    type: s.type,
     benchmarkName: s.benchmarkName,
     benchmarkId: s.benchmarkId,
     stagedTime: s.stagedTime,
     stagedFilters: s.stagedFilters,
   }));
 
-  const configHandler = useBenchmarkConfigBook(benchmarkId);
+  const configHandler = useBenchmarkConfigBook(benchmarkId, type);
   const ready = !!configHandler && !!stagedTime?.start && !!stagedTime?.end;
 
   // convert to the query params

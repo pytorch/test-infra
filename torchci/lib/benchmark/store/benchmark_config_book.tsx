@@ -17,15 +17,27 @@ import {
   DataBinding,
   DataBindingConfig,
 } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+
 import { create } from "zustand";
+
+export const BenchmarkPageType = {
+  DashboardPage: "dashboard",
+  AggregatePage: "aggregate",
+  SinglePage: "single",
+} as const;
+
+// Infer the type automatically
+export type BenchmarkPageType =
+  typeof BenchmarkPageType[keyof typeof BenchmarkPageType];
 
 export type BenchmarkUIConfig = {
   apiId: string;
+  type: BenchmarkPageType;
   benchmarkId: string;
   title: string;
-  type: string; // type of the component to render
   dataBinding: DataBindingConfig; // data binding config
-  dataRender: DataRenderOption; // either binds a component or a converter function to render data
+  dataRender: DataRenderOption; // main render components
+  subSectionDataRenders?: Record<string, DataRenderOption>; // addditional data render options for same page
   required_filter_fields?: readonly string[]; // required filter fields
 };
 
@@ -49,17 +61,27 @@ export type DataRenderOption = {
  */
 export class BenchmarkUIConfigHandler {
   private _benchmarkId: string;
+  private _type: BenchmarkPageType;
   private _config: BenchmarkUIConfig;
   private _dataBinding: DataBinding;
 
   constructor(config: BenchmarkUIConfig) {
     this._benchmarkId = config.benchmarkId;
+    this._type = config.type;
     this._config = config;
-    this._dataBinding = new DataBinding(config.dataBinding, this._benchmarkId);
+    this._dataBinding = new DataBinding(
+      config.dataBinding,
+      this._benchmarkId,
+      this._type
+    );
   }
 
   get benchmarkId(): string {
     return this._benchmarkId;
+  }
+
+  get type(): BenchmarkPageType {
+    return this._type;
   }
 
   get raw(): BenchmarkUIConfig {
@@ -102,45 +124,59 @@ export class BenchmarkUIConfigHandler {
   };
 }
 
-type ConfigMap = Record<string, BenchmarkUIConfig>;
-
+export type BenchmarkConfigMap = Record<
+  string,
+  Partial<Record<BenchmarkPageType, BenchmarkUIConfig>>
+>;
 interface State {
-  predefined: ConfigMap;
-  temps: ConfigMap;
+  predefined: BenchmarkConfigMap;
+  temps: BenchmarkConfigMap;
 
   initTempConfig: (
     id: string,
-    type?: string,
+    type: BenchmarkPageType,
     params?: Partial<BenchmarkUIConfig>
   ) => BenchmarkUIConfig;
+
   ensureConfig: (
     id: string,
-    type?: string,
+    type: BenchmarkPageType,
     params?: Partial<BenchmarkUIConfig>
   ) => BenchmarkUIConfigHandler;
-  getConfig: (id: string) => BenchmarkUIConfigHandler;
+
+  getConfig: (id: string, type: BenchmarkPageType) => BenchmarkUIConfigHandler;
   listIds: () => string[];
 }
 
-const predefined: ConfigMap = {
-  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: CompilerPrecomputeBenchmarkUIConfig,
-  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]:
-    PytorchOperatorMicroBenchmarkDashoboardConfig,
+const predefined: BenchmarkConfigMap = {
+  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
+    [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
+  },
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorchOperatorMicroBenchmarkDashoboardConfig,
+  },
 };
 
 export const useBenchmarkBook = create<State>()((set, get) => ({
   predefined,
   temps: {},
 
-  initTempConfig: (id, type = "dashboard", params = {}) => {
+  initTempConfig: (
+    id,
+    type: BenchmarkPageType = BenchmarkPageType.DashboardPage,
+    params = {}
+  ) => {
     const { temps } = get();
     let defaultConfig = defaultDashboardBenchmarkUIConfig;
     switch (type) {
-      case "dashboard":
+      case BenchmarkPageType.DashboardPage:
         defaultConfig = defaultDashboardBenchmarkUIConfig;
         break;
       default:
-        throw new Error(`Unknown type: ${type}`);
+        throw new Error(
+          `Cannot create default page, We currently only support default Dashboard Page, but you request page type: ${type}`
+        );
     }
     const cfg: BenchmarkUIConfig = {
       ...defaultDashboardBenchmarkUIConfig,
@@ -153,23 +189,54 @@ export const useBenchmarkBook = create<State>()((set, get) => ({
         initial: {
           ...defaultConfig.dataBinding.initial,
           benchmarkId: id,
+          type: type,
         },
       },
     };
-    set({ temps: { ...temps, [id]: cfg } });
+
+    // if group exist override the config in there
+    const existingGroup = temps[id];
+    const updatedGroup = {
+      ...(existingGroup ?? {}), // keep all previous types under this id
+      [type]: cfg, // override (or add) this type
+    };
+
+    set({
+      temps: {
+        ...temps,
+        [id]: updatedGroup,
+      },
+    });
     return cfg;
   },
 
-  ensureConfig: (id, type = "dashboard", params = {}) => {
+  ensureConfig: (id: string, type: BenchmarkPageType, params = {}) => {
+    if (!id) throw new Error("ensureConfig: id is required");
+    if (!type) throw new Error("ensureConfig: type is required");
+
     const { predefined, temps, initTempConfig } = get();
-    const cfg = predefined[id] ?? temps[id] ?? initTempConfig(id, type, params);
+    const group = predefined[id] ?? temps[id];
+    if (!group) {
+      console.log("ensureConfig creating new config");
+    }
+    const cfg = group?.[type] ?? initTempConfig(id, type, params);
+    console.log("ensureConfig", type, params, cfg.dataBinding.initial);
     return new BenchmarkUIConfigHandler(cfg);
   },
 
-  getConfig: (id) => {
+  getConfig: (id: string, type: BenchmarkPageType) => {
+    if (!id) throw new Error("getConfig: id is required");
+    if (!type) throw new Error("getConfig: type is required");
+
     const { predefined, temps } = get();
-    const cfg = predefined[id] ?? temps[id];
-    if (!cfg) throw new Error(`No config found for id: ${id}`);
+    const group = predefined[id] ?? temps[id];
+    const cfg = group?.[type];
+    if (!cfg)
+      throw new Error(
+        `No config found for id: ${id} and ${type}, Group: ${
+          group ? "found the group" : "missing the group"
+        }`
+      );
     return new BenchmarkUIConfigHandler(cfg);
   },
 

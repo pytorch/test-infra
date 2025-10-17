@@ -144,6 +144,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
 // The initial config for the compiler benchmark regression page
 export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   benchmarkId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
+  type: "aggregate",
   apiId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
   // (elainewy): todo change this to json-friend config
   time: {
