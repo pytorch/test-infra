@@ -26,21 +26,17 @@ export default function DefaultMetricsDropdowns() {
   }));
 
   const configHandler = useBenchmarkConfigBook(benchmarkId);
-  if (!configHandler) {
-    return <LoadingPage />;
-  }
+  const ready = !!configHandler && !!stagedTime?.start && !!stagedTime?.end;
 
-  const ready = !!stagedTime?.start && !!stagedTime?.end;
   // convert to the query params
-  const params = configHandler.dataBinding.toQueryParams({
-    repo: repo,
-    benchmarkName: benchmarkName,
-    timeRange: stagedTime,
-    filters: {},
-  });
-
-  const queryParams: any | null = ready ? params : null;
-  // fetch the bechmark data
+  const queryParams = ready
+    ? configHandler.dataBinding.toQueryParams({
+        repo: repo,
+        benchmarkName: benchmarkName,
+        timeRange: stagedTime,
+        filters: {}, // the dropdown does not rerender when filter changes, since it manages the filter optons
+      })
+    : null;
 
   const {
     data: resp,

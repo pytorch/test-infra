@@ -19,7 +19,7 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   },
   {
     field: "extra_key.use_compile",
-    displayName: "use compile",
+    displayName: "Use Compile",
   },
   {
     field: "extra_key.operator_name",
