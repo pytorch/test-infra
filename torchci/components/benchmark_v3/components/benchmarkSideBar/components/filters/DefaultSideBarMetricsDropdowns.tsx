@@ -93,5 +93,4 @@ function handleDeviceName(
     setFilter("device", deviceName);
     setFilter("arch", "");
   }
-  
 }
