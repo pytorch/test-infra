@@ -71,8 +71,6 @@ export function SideBarMainSection() {
     type: s.type,
   }));
 
-  console.log("SideBarMainSection", benchmarkId, type);
-
   const getConfig = useBenchmarkBook((s) => s.getConfig);
   const config = getConfig(benchmarkId, type);
   const dataBinding = config.dataBinding;

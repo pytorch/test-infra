@@ -218,9 +218,10 @@ export const useBenchmarkBook = create<State>()((set, get) => ({
     const group = predefined[id] ?? temps[id];
     if (!group) {
       console.log("ensureConfig creating new config");
+    } else {
+      console.log(`ensureConfig found existing config for ${id} and ${type}`);
     }
     const cfg = group?.[type] ?? initTempConfig(id, type, params);
-    console.log("ensureConfig", type, params, cfg.dataBinding.initial);
     return new BenchmarkUIConfigHandler(cfg);
   },
 

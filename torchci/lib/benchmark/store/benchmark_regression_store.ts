@@ -151,7 +151,10 @@ export function createDashboardStore(initial: {
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
     benchmarkId: initial.benchmarkId, // <-- fixed name
     type: initial.type,
-    benchmarkName: idItem?.benchmarkNameMapping?.[initial.type]??idItem.benchmarkName?? initial.benchmarkId,
+    benchmarkName:
+      idItem?.benchmarkNameMapping?.[initial.type] ??
+      idItem.benchmarkName ??
+      initial.benchmarkId,
     repo: idItem?.repoName ? idItem.repoName : "pytorch/pytorch",
 
     // set only with initial config

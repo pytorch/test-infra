@@ -47,7 +47,7 @@ export default function BenchmarkDashboardPage({
       />
     );
   }
-  
+
   const Comp = config.getDataRenderComponent();
   return (
     <BenchmarkDashboardStoreProvider

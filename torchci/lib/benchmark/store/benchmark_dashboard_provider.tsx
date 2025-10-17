@@ -2,13 +2,13 @@ import { createContext, useContext, useRef } from "react";
 import { StoreApi } from "zustand";
 import { shallow } from "zustand/shallow";
 import type { UseBoundStoreWithEqualityFn } from "zustand/traditional";
+import { BenchmarkPageType } from "./benchmark_config_book";
 import type {
   BenchmarkCommitMeta,
   BenchmarkDashboardState,
   TimeRange,
 } from "./benchmark_regression_store";
 import { createDashboardStore } from "./benchmark_regression_store";
-import { BenchmarkPageType } from "./benchmark_config_book";
 
 // The context will hold a Zustand *hook* created by createDashboardStore.
 // We wrap it in a React Context so different benchmark pages can each get their own store.
@@ -40,7 +40,7 @@ export function BenchmarkDashboardStoreProvider({
   const storeRef = useRef<DashboardStoreHook>();
 
   if (!storeRef.current) {
-    const s = { ...initial, benchmarkId, type }
+    const s = { ...initial, benchmarkId, type };
     // Create a new store using the provided initial values.
     // This happens once when the provider is mounted.
     storeRef.current = createDashboardStore(s);
