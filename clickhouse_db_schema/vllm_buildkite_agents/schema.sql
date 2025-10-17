@@ -64,5 +64,7 @@ CREATE TABLE vllm.vllm_buildkite_agents (
     event String,
     sender Tuple(name Nullable(String), id Nullable(String))
 ) ENGINE = SharedReplacingMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
-ORDER BY
-    (agent .created_at, agent .name) SETTINGS index_granularity = 8192
+ORDER BY (
+    agent.created_at,
+    agent.name
+) SETTINGS index_granularity = 8192
