@@ -139,13 +139,13 @@ class BenchmarkSummaryProcessor:
         target, ls, le = self.get_target(config, self.end_time)
         if not target:
             self.log_info(
-                f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
+                f"skip generate report. no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
             return
         baseline, bs, be = self.get_baseline(config, self.end_time)
         if not baseline:
             self.log_info(
-                f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
+                f"skip generate report. no baseline data found for time range[{bs},{be}] with frequency {report_freq.get_text()}..."
             )
             return
         generator = BenchmarkRegressionReportGenerator(
@@ -236,7 +236,9 @@ class BenchmarkSummaryProcessor:
 
         if latest_ts >= cutoff:
             return True
-        self.log_info(f"expect latest data to be after unixtime {cutoff}, but got {latest_ts}")
+        self.log_info(
+            f"expect latest data to be after unixtime {cutoff}, but got {latest_ts}"
+        )
         return False
 
     def _fetch_from_benchmark_ts_api(
