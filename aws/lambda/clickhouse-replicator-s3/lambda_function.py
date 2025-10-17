@@ -585,12 +585,14 @@ SUPPORTED_PATHS = {
     "disabled_tests_historical": "misc.disabled_tests_historical",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
+    "all_test_runs": "fortesting.all_test_runs",
 }
 
 OBJECT_CONVERTER = {
     "default.merges": merges_adapter,
     "default.test_run_s3": handle_test_run_s3,
     "default.failed_test_runs": handle_test_run_s3,
+    "fortesting.all_test_runs": handle_test_run_s3,
     "default.test_run_summary": handle_test_run_summary,
     "default.merge_bases": merge_bases_adapter,
     "default.rerun_disabled_tests": rerun_disabled_tests_adapter,
