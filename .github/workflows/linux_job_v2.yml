@@ -164,8 +164,9 @@ jobs:
         uses: ./test-infra/.github/actions/setup-linux
         if: ${{ inputs.gpu-arch-type != 'rocm' }}
 
+      # TESTING: TO BE REMOVED ONCE https://github.com/pytorch/pytorch/pull/165821 LANDS
       - name: Setup ROCM
-        uses: pytorch/pytorch/.github/actions/setup-rocm@main
+        uses: pytorch/pytorch/.github/actions/setup-rocm@save_github_env_rocm
         if: ${{ inputs.gpu-arch-type == 'rocm' }}
 
       - name: Setup SSH
@@ -312,6 +313,9 @@ jobs:
             fi
             if [[ -d "artifacts-to-be-uploaded" ]]; then
               mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+            fi
+            if [[ -d "${RUNNER_TEMP}/artifacts-to-be-uploaded" ]]; then
+              mv -v "${RUNNER_TEMP}"/artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
           fi
 
