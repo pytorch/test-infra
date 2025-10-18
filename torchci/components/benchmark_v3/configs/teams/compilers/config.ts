@@ -15,6 +15,7 @@ import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
+import { toNumberArray } from "../../utils/helper_methods";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -102,9 +103,16 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
   const f = i.filters;
   const suiteList = getSuites(f.suite);
   const compilerList = getCompilers(f.compiler);
+
+  let workflows: number[] = [];
+  if(i.workflows){
+    workflows = toNumberArray(i.workflows);
+  }
+
   const params = {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
+    workflows: workflows,
     compilers: compilerList,
     arch: DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName],
     device: DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName],

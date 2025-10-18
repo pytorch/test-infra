@@ -60,7 +60,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
       type: "auto",
       renders: [
         {
-          type: "AutoBenchmarkTimeSeriesTable",
+          type: "AutoBenchmarkPairwiseTable",
           title: "Comparison Table",
           config: {
             primary: {
