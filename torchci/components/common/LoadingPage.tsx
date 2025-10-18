@@ -16,9 +16,11 @@ const LoadingItem = styled(Box)(({}) => ({
 function LoadingPage({
   height,
   width,
+  content = "Loading...",
 }: {
   height?: number;
   width?: number | string;
+  content?: string;
 }) {
   const style = {
     height: height ? height : "100%",
@@ -28,7 +30,7 @@ function LoadingPage({
     <>
       <LoadingContainer style={style}>
         <div>
-          <em> Loading...</em>
+          <em> {content}</em>
         </div>
         <LoadingItem>
           <CircularProgress />

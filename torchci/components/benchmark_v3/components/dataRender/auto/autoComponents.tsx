@@ -8,7 +8,6 @@ import {
 } from "lib/benchmark/api_helper/fe/hooks";
 import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
-import { boolean } from "zod";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -58,9 +57,7 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
       </Alert>
     );
   }
-  if (!ctx.dataRender?.renders) {
-    return <div>no data render</div>;
-  }
+
   if (!resp?.data?.data) {
     return <div>no data</div>;
   }
@@ -83,7 +80,6 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   );
 }
 
-
 export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
 
@@ -95,6 +91,8 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     !!ctx.committedRbranch &&
     !!ctx.lcommit?.workflow_id &&
     !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
@@ -105,7 +103,10 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
       [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
     ),
   ];
-  const workflows =ctx.lcommit?.workflow_id && ctx.rcommit?.workflow_id?[ctx.lcommit?.workflow_id, ctx.rcommit?.workflow_id]:[]
+  const workflows =
+    ctx.lcommit?.workflow_id && ctx.rcommit?.workflow_id
+      ? [ctx.lcommit?.workflow_id, ctx.rcommit?.workflow_id]
+      : [];
 
   // convert to the query params
   const params = dataBinding.toQueryParams({
@@ -115,7 +116,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     timeRange: ctx.committedTime,
     filters: ctx.committedFilters,
     maxSampling: ctx.committedMaxSampling,
-    workflows
+    workflows,
   });
 
   const queryParams: any | null = ready ? params : null;
@@ -125,6 +126,10 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     isLoading,
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+
+  if (!ready) {
+    return <LoadingPage content="Waiting for initializaiotn...." />;
+  }
 
   if (isLoading || !resp) {
     return <LoadingPage />;
@@ -137,14 +142,12 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
       </Alert>
     );
   }
-  if (!ctx.dataRender?.renders) {
-    return <div>no data render</div>;
-  }
-
 
   if (!resp?.data?.data) {
+    console.log("resp?.data?.data", resp, workflows);
     return <div>no data</div>;
   }
+
   const data = resp?.data?.data;
   return (
     <Grid container sx={{ m: 1 }}>

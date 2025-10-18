@@ -1,4 +1,7 @@
-import { AutoBenchmarkPairwiseTable, AutoBenchmarkTimeSeriesTable } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
+import {
+  AutoBenchmarkPairwiseTable,
+  AutoBenchmarkTimeSeriesTable,
+} from "components/benchmark_v3/components/dataRender/auto/autoComponents";
 
 export type AutoComponentProps = {
   config?: any;
@@ -40,9 +43,9 @@ export class AutoComponentRegistry {
       AutoBenchmarkTimeSeriesTable: {
         Component: AutoBenchmarkTimeSeriesTable,
       },
-      AutoBenchmarkPairwiseTable:{
+      AutoBenchmarkPairwiseTable: {
         Component: AutoBenchmarkPairwiseTable,
-      }
+      },
       // Add your auto components here
     };
     this.map = Object.freeze({ ...registry });

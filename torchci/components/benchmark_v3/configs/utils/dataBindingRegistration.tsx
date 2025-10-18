@@ -66,7 +66,7 @@ const DEFAULT_FILTERS = {
 /* ---------------------------- Default converter ---------------------------- */
 export const getDefaultDataConverter: QueryParameterConverter = (i) => {
   let workflows: number[] = [];
-  if(i.workflows){
+  if (i.workflows) {
     workflows = toNumberArray(i.workflows);
   }
 

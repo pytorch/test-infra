@@ -105,7 +105,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
   const compilerList = getCompilers(f.compiler);
 
   let workflows: number[] = [];
-  if(i.workflows){
+  if (i.workflows) {
     workflows = toNumberArray(i.workflows);
   }
 
