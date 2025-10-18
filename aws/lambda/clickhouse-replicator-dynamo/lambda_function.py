@@ -30,6 +30,7 @@ SUPPORTED_TABLES = {
     "torchci-pull-request-review-comment": "default.pull_request_review_comment",
     "torchci-metrics-ci-wait-time": "misc.metrics_ci_wait_time",
     "torchci-dynamo-perf-stats": "benchmark.inductor_torch_dynamo_perf_stats",
+    "vllm-buildkite-agent-events": "vllm.vllm_buildkite_agents",
     "vllm-buildkite-build-events": "vllm.vllm_buildkite_builds",
     "vllm-buildkite-job-events": "vllm.vllm_buildkite_jobs",
 }
