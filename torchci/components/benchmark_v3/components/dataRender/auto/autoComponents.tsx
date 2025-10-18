@@ -83,16 +83,19 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
 export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
 
+  const isWorkflowsReady =!!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch
+
+
   const ready =
     !!ctx &&
     !!ctx.committedTime?.start &&
     !!ctx.committedTime?.end &&
     !!ctx.committedLbranch &&
     !!ctx.committedRbranch &&
-    !!ctx.lcommit?.workflow_id &&
-    !!ctx.rcommit?.workflow_id &&
-    ctx.lcommit.branch === ctx.committedLbranch &&
-    ctx.rcommit.branch === ctx.committedRbranch &&
+    isWorkflowsReady &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
@@ -128,11 +131,11 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
   if (!ready) {
-    return <LoadingPage content="Waiting for initializaiotn...." />;
+    return <LoadingPage height={500} content="Waiting for initialization...." />;
   }
 
   if (isLoading || !resp) {
-    return <LoadingPage />;
+    return <LoadingPage height={500} />;
   }
 
   if (error) {
