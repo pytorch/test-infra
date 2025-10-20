@@ -55,6 +55,7 @@ jobs:
           python3 test-infra/tools/torchci/td/historical_file_failure_correlation.py
           python3 test-infra/tools/torchci/td/historical_class_failure_correlation.py
           python3 test-infra/tools/torchci/td/td_heuristic_historical_edited_files.py
+          python3 test-infra/tools/torchci/td/get_all_test_names.py
           # Do not run this one, it won't change
           # python3 test-infra/tools/torchci/td/td_heuristic_profiling.py
 
@@ -98,6 +99,20 @@ jobs:
           API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
         with:
           source_file: "td_heuristic_historical_edited_files.json"
+          destination_repo: "pytorch/test-infra"
+          destination_folder: "stats"
+          destination_branch: generated-stats
+          user_email: "test-infra@pytorch.org"
+          user_name: "Pytorch Test Infra"
+          commit_message: "Updating TD heuristic: historical edited files"
+
+      - name: Push historical edited files heuristic to test-infra repository
+        if: github.event_name != 'pull_request'
+        uses: dmnemec/copy_file_to_another_repo_action@eebb594efdf52bc12e1b461988d7254322dac131
+        env:
+          API_TOKEN_GITHUB: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          source_file: "td_all_tests.json"
           destination_repo: "pytorch/test-infra"
           destination_folder: "stats"
           destination_branch: generated-stats
