@@ -21,7 +21,7 @@ export function ScalarPanelWithValue({
   valueRenderer: (_value: any) => string;
   badThreshold: (_value: any) => boolean;
 }) {
-  if (value === undefined || value === null) {
+  if (value === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
