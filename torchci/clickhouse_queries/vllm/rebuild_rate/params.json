@@ -4,7 +4,8 @@
     "pipelineName": "String",
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "granularity": "String"
+    "granularity": "String",
+    "jobGroups": "Array(String)"
   },
   "tests": [
     {
@@ -12,7 +13,8 @@
       "pipelineName": "CI",
       "startTime": "2025-09-22T00:00:00.000",
       "stopTime": "2025-09-29T00:00:00.000",
-      "granularity": "day"
+      "granularity": "day",
+      "jobGroups": ["amd", "torch_nightly", "main"]
     }
   ]
 }

@@ -3,6 +3,7 @@
 -- Daily breakdown of build states (passed, failed, canceled)
 -- Accounts for soft failures: builds with only soft failures count as successful
 -- Only tracks main branch to exclude work-in-progress PR noise
+-- Supports filtering by job groups: AMD, Torch Nightly, or Main
 
 WITH build_jobs AS (
     SELECT
@@ -29,6 +30,14 @@ WITH build_jobs AS (
         AND tupleElement(build, 'started_at') IS NOT NULL
         AND tupleElement(build, 'started_at') >= {startTime: DateTime64(3) }
         AND tupleElement(build, 'started_at') < {stopTime: DateTime64(3) }
+        -- Job group filtering: AMD, Torch Nightly, or Main
+        AND (
+            (has({jobGroups: Array(String)}, 'amd') AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') > 0)
+            OR (has({jobGroups: Array(String)}, 'torch_nightly') AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') > 0)
+            OR (has({jobGroups: Array(String)}, 'main') 
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0 
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') = 0)
+        )
 ),
 
 builds AS (

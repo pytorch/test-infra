@@ -2,6 +2,7 @@
 -- Computes success rate for each individual job in the CI pipeline
 -- Shows which jobs are most/least reliable
 -- Only tracks main branch to exclude work-in-progress PR noise
+-- Supports filtering by job groups: AMD, Torch Nightly, or Main
 
 WITH jobs AS (
     SELECT
@@ -20,6 +21,14 @@ WITH jobs AS (
         AND tupleElement(job, 'finished_at') IS NOT NULL
         AND tupleElement(job, 'finished_at') >= {startTime: DateTime64(3) }
         AND tupleElement(job, 'finished_at') < {stopTime: DateTime64(3) }
+        -- Job group filtering: AMD, Torch Nightly, or Main
+        AND (
+            (has({jobGroups: Array(String)}, 'amd') AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') > 0)
+            OR (has({jobGroups: Array(String)}, 'torch_nightly') AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') > 0)
+            OR (has({jobGroups: Array(String)}, 'main') 
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0 
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') = 0)
+        )
 ),
 
 job_stats AS (

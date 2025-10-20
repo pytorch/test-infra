@@ -3,18 +3,16 @@
 -- Pattern: Last Success → Failed (break) → ... → Failed → Success (recovery)
 -- Measures time from initial break to recovery
 -- UPDATED: Fixed to only track TRUE state transitions (not consecutive failures)
+-- Supports filtering by job groups: AMD, Torch Nightly, or Main
 
-WITH main_builds AS (
+WITH build_jobs AS (
     SELECT
-        tupleElement(build, 'number') AS build_number,
+        toUInt32(tupleElement(build, 'number')) AS build_number,
         tupleElement(build, 'started_at') AS build_started_at,
         tupleElement(build, 'state') AS build_state,
-        if(
-            lowerUTF8(build_state) IN ('passed', 'finished', 'success'),
-            1,
-            if(lowerUTF8(build_state) IN ('failed', 'failing'), 0, -1)
-        ) AS is_success
-    FROM vllm.vllm_buildkite_builds
+        tupleElement(job, 'state') AS job_state,
+        tupleElement(job, 'soft_failed') AS soft_failed
+    FROM vllm.vllm_buildkite_jobs
     WHERE
         tupleElement(pipeline, 'repository') = {repo: String }
         AND tupleElement(pipeline, 'name') = {pipelineName: String }
@@ -22,6 +20,32 @@ WITH main_builds AS (
         AND tupleElement(build, 'started_at') IS NOT NULL
         AND tupleElement(build, 'started_at') >= {startTime: DateTime64(3) }
         AND tupleElement(build, 'started_at') < {stopTime: DateTime64(3) }
+        -- Job group filtering: AMD, Torch Nightly, or Main
+        AND (
+            (has({jobGroups: Array(String)}, 'amd') AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') > 0)
+            OR (has({jobGroups: Array(String)}, 'torch_nightly') AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') > 0)
+            OR (has({jobGroups: Array(String)}, 'main') 
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0 
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') = 0)
+        )
+),
+
+main_builds AS (
+    SELECT
+        build_number,
+        any(build_started_at) AS build_started_at,
+        any(build_state) AS build_state,
+        countIf(lowerUTF8(job_state) = 'failed' AND soft_failed = FALSE) AS hard_failure_count,
+        -- Build is successful if no hard failures among filtered jobs
+        -- Build is failed if there are any hard failures among filtered jobs
+        -- Build is canceled/unknown (-1) if it's canceled
+        if(
+            lowerUTF8(build_state) IN ('canceled', 'cancelled'),
+            -1,
+            if(hard_failure_count > 0, 0, 1)
+        ) AS is_success
+    FROM build_jobs
+    GROUP BY build_number
 ),
 
 -- Track ONLY actual state transitions (not all builds)

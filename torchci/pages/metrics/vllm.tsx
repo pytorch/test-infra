@@ -2,6 +2,9 @@ import { Box, Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
+import JobGroupFilter, {
+  JobGroup,
+} from "components/metrics/vllm/JobGroupFilter";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
 import MostRetriedJobsTable from "components/metrics/vllm/MostRetriedJobsTable";
@@ -198,6 +201,11 @@ export default function Page() {
   const [startTime, setStartTime] = useState(dayjs().subtract(1, "week"));
   const [stopTime, setStopTime] = useState(dayjs());
   const [timeRange, setTimeRange] = useState<number>(7);
+  const [selectedJobGroups, setSelectedJobGroups] = useState<JobGroup[]>([
+    "amd",
+    "torch_nightly",
+    "main",
+  ]);
 
   const timeParams = {
     startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
@@ -312,6 +320,7 @@ export default function Page() {
       granularity: "day",
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -320,6 +329,7 @@ export default function Page() {
     granularity: "day",
     repo: "https://github.com/vllm-project/vllm.git",
     pipelineName: "CI",
+    jobGroups: selectedJobGroups,
   });
 
   const { data: jobRetryStatsData } = useClickHouseAPIImmutable(
@@ -329,6 +339,7 @@ export default function Page() {
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
       minRuns: 5,
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -339,6 +350,7 @@ export default function Page() {
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
       minRuns: 3,
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -349,6 +361,7 @@ export default function Page() {
       granularity: "day",
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -358,6 +371,7 @@ export default function Page() {
       ...timeParams,
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -369,6 +383,7 @@ export default function Page() {
       granularity: "day",
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -379,6 +394,7 @@ export default function Page() {
       granularity: "day",
       repo: "https://github.com/vllm-project/vllm.git",
       pipelineName: "CI",
+      jobGroups: selectedJobGroups,
     }
   );
 
@@ -637,29 +653,30 @@ export default function Page() {
 
   return (
     <div style={{ paddingTop: "16px" }}>
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ mb: 3, pb: 2, alignItems: "flex-start", flexWrap: "wrap" }}
+      <Typography
+        fontSize={"2rem"}
+        fontWeight={"bold"}
+        sx={{ mb: 2 }}
       >
-        <Typography
-          fontSize={"2rem"}
-          fontWeight={"bold"}
-          sx={{ flexShrink: 0 }}
-        >
-          vLLM CI Metrics
-        </Typography>
-        <Box sx={{ flexGrow: 1, minWidth: "300px" }}>
-          <TimeRangePicker
-            startTime={startTime}
-            setStartTime={setStartTime}
-            stopTime={stopTime}
-            setStopTime={setStopTime}
-            timeRange={timeRange}
-            setTimeRange={setTimeRange}
-          />
-        </Box>
-      </Stack>
+        vLLM CI Metrics
+      </Typography>
+
+      <Box sx={{ mb: 2 }}>
+        <JobGroupFilter
+          selectedGroups={selectedJobGroups}
+          onChange={setSelectedJobGroups}
+          timeRangePicker={
+            <TimeRangePicker
+              startTime={startTime}
+              setStartTime={setStartTime}
+              stopTime={stopTime}
+              setStopTime={setStopTime}
+              timeRange={timeRange}
+              setTimeRange={setTimeRange}
+            />
+          }
+        />
+      </Box>
 
       {/* Section 1: Key Metrics Summary Cards */}
       <Divider sx={{ mt: 3, mb: 2 }}>
