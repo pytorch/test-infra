@@ -1,5 +1,14 @@
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import { Box, Chip, Divider, Grid, Link, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Chip,
+  Divider,
+  Grid,
+  Link,
+  Skeleton,
+  Stack,
+  Typography,
+} from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
@@ -654,11 +663,16 @@ export default function Page() {
 
   return (
     <div style={{ paddingTop: "16px" }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
-        <Typography
-          fontSize={"2rem"}
-          fontWeight={"bold"}
-        >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          mb: 2,
+          flexWrap: "wrap",
+        }}
+      >
+        <Typography fontSize={"2rem"} fontWeight={"bold"}>
           vLLM CI Metrics
         </Typography>
         <Link

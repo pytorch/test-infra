@@ -21,11 +21,25 @@ WHERE
     AND tupleElement(build, 'started_at') < {stopTime: DateTime64(3)}
     -- Job group filtering: AMD, Torch Nightly, or Main
     AND (
-        (has({jobGroups: Array(String)}, 'amd') AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') > 0)
-        OR (has({jobGroups: Array(String)}, 'torch_nightly') AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') > 0)
-        OR (has({jobGroups: Array(String)}, 'main') 
-            AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0 
-            AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') = 0)
+        (
+            has({jobGroups: Array(String)}, 'amd')
+            AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') > 0
+        )
+        OR (
+            has({jobGroups: Array(String)}, 'torch_nightly')
+            AND positionCaseInsensitive(
+                tupleElement(job, 'name'), 'Torch Nightly'
+            )
+            > 0
+        )
+        OR (
+            has({jobGroups: Array(String)}, 'main')
+            AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0
+            AND positionCaseInsensitive(
+                tupleElement(job, 'name'), 'Torch Nightly'
+            )
+            = 0
+        )
     )
 GROUP BY job_name
 HAVING total_runs >= {minRuns: UInt32}

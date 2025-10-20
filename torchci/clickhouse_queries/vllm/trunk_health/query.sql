@@ -20,11 +20,27 @@ WITH build_jobs AS (
         AND tupleElement(build, 'started_at') < {stopTime: DateTime64(3) }
         -- Job group filtering: AMD, Torch Nightly, or Main
         AND (
-            (has({jobGroups: Array(String)}, 'amd') AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') > 0)
-            OR (has({jobGroups: Array(String)}, 'torch_nightly') AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') > 0)
-            OR (has({jobGroups: Array(String)}, 'main') 
-                AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0 
-                AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') = 0)
+            (
+                has({jobGroups: Array(String)}, 'amd')
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD')
+                > 0
+            )
+            OR (
+                has({jobGroups: Array(String)}, 'torch_nightly')
+                AND positionCaseInsensitive(
+                    tupleElement(job, 'name'), 'Torch Nightly'
+                )
+                > 0
+            )
+            OR (
+                has({jobGroups: Array(String)}, 'main')
+                AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD')
+                = 0
+                AND positionCaseInsensitive(
+                    tupleElement(job, 'name'), 'Torch Nightly'
+                )
+                = 0
+            )
         )
 )
 
@@ -32,10 +48,12 @@ SELECT
     build_number,
     any(build_started_at) AS build_started_at,
     any(build_state) AS build_state,
-    countIf(lowerUTF8(job_state) = 'failed' AND soft_failed = FALSE) AS hard_failure_count,
+    countIf(lowerUTF8(job_state) = 'failed' AND soft_failed = FALSE)
+        AS hard_failure_count,
     -- Build is green if it has no hard failures among filtered jobs and is not canceled
     if(
-        lowerUTF8(build_state) NOT IN ('canceled', 'cancelled') AND hard_failure_count = 0,
+        lowerUTF8(build_state) NOT IN ('canceled', 'cancelled')
+        AND hard_failure_count = 0,
         1,
         0
     ) AS is_green

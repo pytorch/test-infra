@@ -12,7 +12,6 @@ import {
   FormGroup,
   FormLabel,
   Paper,
-  Stack,
 } from "@mui/material";
 
 export type JobGroup = "amd" | "torch_nightly" | "main";
@@ -83,13 +82,13 @@ export default function JobGroupFilter({
           </FormControl>
           {timeRangePicker && (
             <>
-              <Divider 
-                orientation="vertical" 
-                flexItem 
-                sx={{ 
-                  borderRightWidth: 2, 
-                  borderColor: 'text.secondary',
-                }} 
+              <Divider
+                orientation="vertical"
+                flexItem
+                sx={{
+                  borderRightWidth: 2,
+                  borderColor: "text.secondary",
+                }}
               />
               <Box>{timeRangePicker}</Box>
             </>
@@ -99,4 +98,3 @@ export default function JobGroupFilter({
     </Paper>
   );
 }
-
