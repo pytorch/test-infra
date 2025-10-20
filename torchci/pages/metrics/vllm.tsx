@@ -1,4 +1,5 @@
-import { Box, Divider, Grid, Skeleton, Stack, Typography } from "@mui/material";
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
+import { Box, Chip, Divider, Grid, Link, Skeleton, Stack, Typography } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
@@ -653,13 +654,46 @@ export default function Page() {
 
   return (
     <div style={{ paddingTop: "16px" }}>
-      <Typography
-        fontSize={"2rem"}
-        fontWeight={"bold"}
-        sx={{ mb: 2 }}
-      >
-        vLLM CI Metrics
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2, flexWrap: "wrap" }}>
+        <Typography
+          fontSize={"2rem"}
+          fontWeight={"bold"}
+        >
+          vLLM CI Metrics
+        </Typography>
+        <Link
+          href="https://app.codecov.io/github/vllm-project/vllm/tree/main"
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="none"
+        >
+          <Chip
+            label="Test Coverage"
+            icon={<OpenInNewIcon fontSize="small" />}
+            clickable
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 500 }}
+          />
+        </Link>
+        <Link
+          href="https://buildkite.com/vllm"
+          target="_blank"
+          rel="noopener noreferrer"
+          underline="none"
+        >
+          <Chip
+            label="Buildkite"
+            icon={<OpenInNewIcon fontSize="small" />}
+            clickable
+            size="small"
+            color="primary"
+            variant="outlined"
+            sx={{ fontWeight: 500 }}
+          />
+        </Link>
+      </Box>
 
       <Box sx={{ mb: 2 }}>
         <JobGroupFilter
