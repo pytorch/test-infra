@@ -149,7 +149,7 @@ def validation_runner(arch_type: str, os: str) -> str:
 
 
 def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
-    global CURRENT_VERSION, CUDA_ARCHES, ROCM_ARCHES, PYTHON_ARCHES
+    global CURRENT_VERSION, CUDA_ARCHES, CUDA_AARCH64_ARCHES, ROCM_ARCHES, PYTHON_ARCHES
     global WHEEL_CONTAINER_IMAGES, LIBTORCH_CONTAINER_IMAGES
     if channel == TEST:
         CURRENT_VERSION = CURRENT_CANDIDATE_VERSION
@@ -157,7 +157,7 @@ def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
-    if channel != "release" and os == LINUX:
+    if channel != "release" and (os == LINUX or os == LINUX_AARCH64):
         # TODO (huydhn): Only build CUDA 12.9 for Linux. This logic is to be cleaned up
         # in 2.10
         CUDA_ARCHES.append("12.9")
