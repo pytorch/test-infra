@@ -4,7 +4,8 @@
 
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import { Box, Paper, Skeleton, Tooltip, Typography } from "@mui/material";
-import { COLOR_HELP_ICON } from "./constants";
+import { useDarkMode } from "lib/DarkModeContext";
+import { getDeltaColor, getHelpIconColor } from "./constants";
 
 // Single-value panel for vLLM metrics
 export function VllmScalarPanel({
@@ -22,17 +23,16 @@ export function VllmScalarPanel({
   tooltip?: string;
   delta?: number | null;
 }) {
+  const { darkMode } = useDarkMode();
+
   if (value === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
   const fontColor = badThreshold(value) ? "#ee6666" : "inherit";
 
-  // Determine delta color: green if positive, red if negative
-  let deltaColor = "#999";
-  if (delta !== null && delta !== undefined) {
-    deltaColor = delta > 0 ? "#00ff00" : delta < 0 ? "#ee6666" : "#999";
-  }
+  // Determine delta color based on mode
+  const deltaColor = getDeltaColor(delta, darkMode);
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
@@ -63,7 +63,7 @@ export function VllmScalarPanel({
               <HelpOutlineIcon
                 sx={{
                   fontSize: "1rem",
-                  color: COLOR_HELP_ICON,
+                  color: getHelpIconColor(darkMode),
                   cursor: "help",
                 }}
               />
@@ -133,18 +133,14 @@ export function VllmDualScalarPanel({
   delta1?: number | null;
   delta2?: number | null;
 }) {
+  const { darkMode } = useDarkMode();
+
   if (value1 === undefined || value2 === undefined) {
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
   const color1 = badThreshold1(value1) ? "#ee6666" : "inherit";
   const color2 = badThreshold2(value2) ? "#ee6666" : "inherit";
-
-  // Delta colors: green if positive, red if negative
-  const getDeltaColor = (delta: number | null | undefined) => {
-    if (delta === null || delta === undefined) return "#999";
-    return delta > 0 ? "#00ff00" : delta < 0 ? "#ee6666" : "#999";
-  };
 
   return (
     <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
@@ -169,7 +165,7 @@ export function VllmDualScalarPanel({
               <HelpOutlineIcon
                 sx={{
                   fontSize: "1rem",
-                  color: COLOR_HELP_ICON,
+                  color: getHelpIconColor(darkMode),
                   cursor: "help",
                 }}
               />
@@ -207,7 +203,7 @@ export function VllmDualScalarPanel({
               <Typography
                 sx={{
                   fontSize: "0.8rem",
-                  color: getDeltaColor(delta1),
+                  color: getDeltaColor(delta1, darkMode),
                   fontWeight: "bold",
                   alignSelf: "flex-end",
                   mb: 0.5,
@@ -240,7 +236,7 @@ export function VllmDualScalarPanel({
               <Typography
                 sx={{
                   fontSize: "0.8rem",
-                  color: getDeltaColor(delta2),
+                  color: getDeltaColor(delta2, darkMode),
                   fontWeight: "bold",
                   alignSelf: "flex-end",
                   mb: 0.5,

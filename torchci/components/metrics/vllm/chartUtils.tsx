@@ -8,9 +8,9 @@ import {
   COLOR_BG_LIGHT,
   COLOR_CROSSHAIR_DARK,
   COLOR_CROSSHAIR_LIGHT,
-  COLOR_HELP_ICON,
   COLOR_TEXT_DARK,
   COLOR_TEXT_LIGHT,
+  getHelpIconColor,
 } from "./constants";
 
 // Common title configuration with smaller font
@@ -86,7 +86,7 @@ export function ChartPaper({
               top: 16,
               right: 16,
               fontSize: "1.2rem",
-              color: COLOR_HELP_ICON,
+              color: getHelpIconColor(darkMode),
               cursor: "help",
               zIndex: 1,
             }}
