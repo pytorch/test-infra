@@ -30,17 +30,26 @@ class SignalExtractionDatasource:
         """
         Fetch all commits pushed to main within the lookback window.
         Returns list of (sha, timestamp) tuples ordered newest → older.
+
+        Note: Uses ARRAY JOIN to extract all commits from ghstack pushes,
+        which can contain multiple commits in a single push event.
+        For commits with identical timestamps (from the same ghstack push),
+        orders by array index descending to match HUD/torchci ordering.
         """
         lookback_time = datetime.now() - timedelta(hours=lookback_hours)
 
         query = """
-        SELECT head_commit.id AS sha, max(head_commit.timestamp) AS ts
+        SELECT
+            commit.id AS sha,
+            max(commit.timestamp) AS ts,
+            arrayMax(groupArray(arrayFirstIndex(c -> c.'id' = commit.id, commits))) as array_index
         FROM default.push
+        ARRAY JOIN commits as commit, commits as c
         WHERE head_commit.timestamp >= {lookback_time:DateTime}
           AND ref = 'refs/heads/main'
           AND dynamoKey like {repo:String}
         GROUP BY sha
-        ORDER BY ts DESC
+        ORDER BY ts DESC, array_index DESC
         """
 
         params = {
