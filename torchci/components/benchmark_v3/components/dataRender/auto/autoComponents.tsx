@@ -47,6 +47,53 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
+  const subrenders = ctx.config.raw.dataRender.subSectionRenders;
+  const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
+  const update = useDashboardSelector((s) => s.update);
+
+  const onPrimaryFieldSelect = (selected: any) => {
+    if (!selected?.config?.navigation) {
+      return;
+    }
+    const navigation = selected.config.navigation;
+    const { type, value } = navigation;
+    const groupInfo = selected?.groupInfo ?? {};
+    switch (type) {
+      case "subSectionRender":
+        if (!subrenders) {
+          return;
+        }
+        const subRender = subrenders[value];
+        if (!subRender) {
+          return;
+        }
+        if (renderGroupId === value) {
+          return;
+        }
+
+        const fields = navigation?.applyFilterFields ?? [];
+        let changed: Record<string, string> = {};
+
+        if (fields.length === 0) {
+          return;
+        }
+
+        for (const field of fields) {
+          changed[field] = groupInfo[field];
+        }
+
+        update({
+          renderGroupId: value,
+          filters: {
+            ...ctx.committedFilters,
+            ...changed,
+          },
+        });
+      default:
+        return;
+    }
+  };
+
   if (isLoading) {
     return <LoadingPage />;
   }
@@ -75,6 +122,7 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
             text: uiRenderConfig?.title ?? "Comparison Table",
           }}
           onSelect={() => {}}
+          onPrimaryFieldSelect={onPrimaryFieldSelect}
         />
       </Box>
     </Stack>
@@ -127,6 +175,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
   const update = useDashboardSelector((s) => s.update);
 
+  // todo(elainewy): make this shared function 
   const onPrimaryFieldSelect = (selected: any) => {
     if (!selected?.config?.navigation) {
       return;
