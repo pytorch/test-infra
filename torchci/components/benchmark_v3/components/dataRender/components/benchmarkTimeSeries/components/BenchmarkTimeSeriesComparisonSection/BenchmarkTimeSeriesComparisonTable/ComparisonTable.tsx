@@ -113,6 +113,7 @@ export function ComparisonTable({
           return r.id;
         }}
         sx={{
+          "& .MuiDataGrid-virtualScroller": { scrollbarGutter: "stable" },
           "& .MuiDataGrid-cell": {
             py: 0, // less vertical padding
             fontSize: "0.75rem",

@@ -44,9 +44,9 @@ export function getComparisionTableConlumnRendering(
   // get primary column and apply render logics to it
   const primaryCol: GridColDef = {
     field: "primary",
+    flex: 1,
     headerName: primaryHeaderName,
     minWidth: primaryFlex,
-    flex: 1,
     sortable: false,
     filterable: false,
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => {

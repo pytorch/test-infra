@@ -1,5 +1,5 @@
 import { Alert } from "@mui/material";
-import { Box, Stack } from "@mui/system";
+import { Grid } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -111,8 +111,8 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   }
   const data = resp?.data?.data;
   return (
-    <Stack alignItems={"center"}>
-      <Box sx={{ width: "98%", height: "70vh" }}>
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}
@@ -124,8 +124,8 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
           onSelect={() => {}}
           onPrimaryFieldSelect={onPrimaryFieldSelect}
         />
-      </Box>
-    </Stack>
+      </Grid>
+    </Grid>
   );
 }
 
@@ -252,8 +252,8 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
 
   const data = resp?.data?.data;
   return (
-    <Stack alignItems={"center"}>
-      <Box sx={{ width: "98%", height: "70vh" }}>
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}
@@ -265,7 +265,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
           onSelect={() => {}}
           onPrimaryFieldSelect={onPrimaryFieldSelect}
         />
-      </Box>
-    </Stack>
+      </Grid>
+    </Grid>
   );
 }
