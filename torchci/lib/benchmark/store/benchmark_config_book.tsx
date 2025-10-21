@@ -40,11 +40,24 @@ export type BenchmarkUIConfig = {
   required_filter_fields?: readonly string[]; // required filter fields
 };
 
+export type BenchmarkUIConfigFilterConstarint = {
+  disabled?: boolean; // disable the filter
+  disableOptions?: string[]; // disable the options based on value
+};
+export type BenchmarkUIConfigFilterConstarintConfig = {
+  [key: string]: BenchmarkUIConfigFilterConstarint;
+};
+
 export type UIRenderConfig = {
   title?: string; // title of the component to render
   id?: string; // id of the component to render
   type: string; // type of the component to render
   config: any; // config of the component to render
+};
+
+export type SubSectionRenderConfig = {
+  filterConstraint?: BenchmarkUIConfigFilterConstarintConfig; // filter constraint of the component to render, only used when it's subrender
+  renders: UIRenderConfig[];
 };
 
 export type DataRenderOption = {
@@ -53,7 +66,7 @@ export type DataRenderOption = {
   id?: string; // id of the component to render, this is used when type is 'component'
   sideRender?: { [key: string]: UIRenderConfig }; // this used to render side content, such as regression report access
   renders?: UIRenderConfig[]; // this is used when type is predefined type such as 'default-fanout'
-  subSectionRenders?: { [key: string]: UIRenderConfig[] }; // this is used when type is predefined type such as 'default-f
+  subSectionRenders?: { [key: string]: SubSectionRenderConfig }; // this is used when type is predefined type such as 'default-f
 };
 
 /**

@@ -27,8 +27,16 @@ export default function DefaultMetricsDropdowns() {
     stagedFilters: s.stagedFilters,
   }));
 
+  const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
   const configHandler = useBenchmarkConfigBook(benchmarkId, type);
   const ready = !!configHandler && !!stagedTime?.start && !!stagedTime?.end;
+
+  const subrenders = configHandler.raw.dataRender.subSectionRenders;
+
+  let dropdownConfig = undefined;
+  if (subrenders && subrenders[renderGroupId]) {
+    dropdownConfig = subrenders[renderGroupId]?.filterConstraint;
+  }
 
   // convert to the query params
   const queryParams = ready
@@ -69,6 +77,7 @@ export default function DefaultMetricsDropdowns() {
           setStagedFilter(_key, _value);
         }}
         props={stagedFilters}
+        config={dropdownConfig}
       />
     </Box>
   );
