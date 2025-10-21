@@ -22,6 +22,8 @@ on:
           - torchvision
           - torchaudio
           - torch_tensorrt
+          - fbgemm_gpu
+          - fbgemm_gpu_genai
 
 permissions:
   id-token: write
