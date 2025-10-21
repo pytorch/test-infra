@@ -782,7 +782,9 @@ export default function Page() {
               title={"Merge retry rate (avg)"}
               queryName={"merge_retry_rate"}
               metricName={"avg_retry_rate"}
-              valueRenderer={(value) => value.toFixed(2) + "x"}
+              valueRenderer={(value) =>
+                value ? value.toFixed(2) + "x" : "N/A"
+              }
               queryParams={timeParams}
               badThreshold={(value) => value > 2.0} // 2.0 average retries
             />
