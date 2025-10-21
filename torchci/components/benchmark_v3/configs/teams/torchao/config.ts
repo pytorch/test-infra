@@ -61,6 +61,29 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
       subSectionRenders: {
         detali_view: [
           {
+            type: "AutoBenchmarkTimeSeriesChartGroup",
+            title: "Metrics Time Series Chart Detail View",
+            config: {
+              type: "line",
+              groupByFields: ["metric"],
+              lineKey: [
+                "model",
+                "extra_key.use_compile",
+                "mode",
+                "device",
+                "arch",
+                "dtype",
+                "metric",
+              ],
+              chart: {
+                renderOptions: {
+                  chartRenderBook: RENDER_MAPPING_BOOK,
+                  showLegendDetails: true,
+                },
+              },
+            },
+          },
+          {
             type: "AutoBenchmarkTimeSeriesTable",
             title: "Comparison Table Detail View",
             config: {

@@ -49,11 +49,11 @@ export default function BenchmarkTimeSeriesChartGroup({
       const { key, labels } = makeGroupKeyAndLabel(gi, gbf);
       if (!m.has(key)) m.set(key, { labels, items: [] });
       if (chartGroup.lineKey) {
-        const { key: _, labels: name_labels } = makeGroupKeyAndLabel(
+        const { key: name_key, labels: name_labels } = makeGroupKeyAndLabel(
           gi,
           chartGroup.lineKey
         );
-        s.legend_name = name_labels.join("|");
+        s.legend_name = name_labels.join(" | ");
       }
       m.get(key)!.items.push(s);
     }
@@ -117,6 +117,7 @@ export default function BenchmarkTimeSeriesChartGroup({
               }}
               renderOptions={chartGroup?.chart?.renderOptions}
               onSelect={onConfirm}
+              legendKeys={chartGroup?.lineKey ?? []}
             />
           </Grid>
         );
