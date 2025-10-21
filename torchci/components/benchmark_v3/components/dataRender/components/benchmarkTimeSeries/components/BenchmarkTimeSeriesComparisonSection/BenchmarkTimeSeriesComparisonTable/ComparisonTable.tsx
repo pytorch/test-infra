@@ -100,9 +100,13 @@ export function ComparisonTable({
         density="compact"
         rows={rows}
         columns={columns}
+        pageSizeOptions={[25, 50, 100]}
         initialState={{
           sorting: {
             sortModel: [{ field: "name", sort: "asc" }],
+          },
+          pagination: {
+            paginationModel: { pageSize: 25 },
           },
         }}
         getRowId={(r) => {
@@ -120,12 +124,6 @@ export function ComparisonTable({
           },
           "& .MuiDataGrid-row": {
             minHeight: 32,
-          },
-          "& .MuiDataGrid-footerContainer": {
-            position: "sticky",
-            bottom: 0,
-            bgcolor: "background.paper",
-            zIndex: 1,
           },
         }}
       />

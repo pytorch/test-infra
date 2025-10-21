@@ -57,7 +57,7 @@ export interface BenchmarkComparisonTitleMapping {
 export interface BenchmarkComparisonTableRenderingOptions {
   title_group_mapping: BenchmarkComparisonTitleMapping;
   tableRenderingBook: BenchmarkComparisonTableRenderingBook;
-  flex?: {
+  minWidth?: {
     [key: string]: number;
   };
 }

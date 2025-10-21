@@ -252,7 +252,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
 
   const data = resp?.data?.data;
   return (
-    <Stack alignItems={"center"} sx={{ mb: 10 }}>
+    <Stack alignItems={"center"}>
       <Box sx={{ width: "98%", height: "70vh" }}>
         <ComparisonTable
           data={data["table"]}

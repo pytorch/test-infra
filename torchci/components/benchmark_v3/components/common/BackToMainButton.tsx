@@ -1,6 +1,7 @@
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
+import { Box } from "@mui/system";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useRef } from "react";
@@ -31,11 +32,13 @@ export function BackToMainButton() {
   }
 
   return (
-    <Tooltip title="Back to previous main view">
-      <IconButton onClick={handleClick} size="small">
-        <ArrowBackIcon />
-      </IconButton>
-    </Tooltip>
+    <Box sx={{ mb: 3, mt: 1, ml: 1 }}>
+      <Tooltip title="Back to main view">
+        <IconButton size="small" onClick={handleClick} color="primary">
+          <ArrowBackIcon /> Back
+        </IconButton>
+      </Tooltip>
+    </Box>
   );
 }
 
