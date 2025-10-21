@@ -1,11 +1,18 @@
 import { getDynamoClient } from "lib/dynamo";
 import { Context, Probot } from "probot";
 import { v4 as uuidv4 } from "uuid";
+import { isPyTorchbotSupportedOrg, isVLLM } from "./utils";
 
 async function handleWorkflowJob(
   event: Context<"workflow_run" | "workflow_job">
 ) {
-  // Thre is the chance that job ids from different repos could collide. To
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
+  // There is the chance that job ids from different repos could collide. To
   // prevent this, prefix the object key with the repo that they come from.
   const key_prefix = event.payload.repository.full_name + "/";
 
@@ -35,6 +42,12 @@ async function handleWorkflowJob(
 }
 
 async function handleIssues(event: Context<"issues">) {
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   const client = getDynamoClient();
 
   const issue_number = event.payload.issue.number;
@@ -69,6 +82,12 @@ async function handleIssues(event: Context<"issues">) {
 }
 
 async function handleIssueComment(event: Context<"issue_comment">) {
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
@@ -82,6 +101,12 @@ async function handleIssueComment(event: Context<"issue_comment">) {
 }
 
 async function handlePullRequest(event: Context<"pull_request">) {
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
 
@@ -117,6 +142,12 @@ async function handlePullRequest(event: Context<"pull_request">) {
 }
 
 async function handlePush(event: Context<"push">) {
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   const key_prefix = event.payload.repository.full_name + "/";
   const client = getDynamoClient();
 
@@ -130,6 +161,12 @@ async function handlePush(event: Context<"push">) {
 }
 
 async function handlePullRequestReview(event: Context<"pull_request_review">) {
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
@@ -145,6 +182,12 @@ async function handlePullRequestReview(event: Context<"pull_request_review">) {
 async function handlePullRequestReviewComment(
   event: Context<"pull_request_review_comment">
 ) {
+  const owner = event.payload.repository.owner.login;
+  if (!isPyTorchbotSupportedOrg(owner) && !isVLLM(owner)) {
+    event.log(`${__filename} isn't enabled on ${owner}'s repos`);
+    return;
+  }
+
   const key_prefix = event.payload.repository.full_name;
   const client = getDynamoClient();
 
