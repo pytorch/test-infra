@@ -23,6 +23,7 @@ on:
           - torchcodec
           - torchvision-extra-decoders
           - torchtitan
+          - torchcomms
           - forge
           - all
 jobs:
@@ -120,6 +121,14 @@ jobs:
           repository: pytorch/torchtitan
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: torchtitan
+      - name: Trigger nightly torchcomms
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'torchcomms' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/torchcomms
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: torchcomms
       - name: Trigger nightly forge
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'forge' || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly
