@@ -3,7 +3,7 @@
 ### Prerequisites
 
 Here is a checklist of all the different services used by the HUD. Ask
-@janeyx99 or @suo for help getting access to these services.
+@pytorch/pytorch-dev-infra for help getting access to these services.
 
 - [ClickHouse](https://console.clickhouse.cloud/): primary data and metrics backend.
 - [Vercel](https://vercel.com/): hosting the website. If you are a metamate,
@@ -11,7 +11,6 @@ Here is a checklist of all the different services used by the HUD. Ask
   this](https://fb.workplace.com/groups/osssupport/posts/27574509675504286) in the
   [Open Source - Support](https://fb.workplace.com/groups/773769332671684) group
   to get access to Vercel.
-- [Sematext](https://sematext.com/): log drain for our Vercel instance.
 - [AWS](http://aws.com/): data pipelines for populating ClickHouse, Lambda, S3, etc.
 
 ### Quickstart
@@ -38,7 +37,7 @@ result! Any edits you make to the code will be reflected immediately in the
 browser. You can also run our test suite with `yarn test`.
 
 You can find additional yarn commands in `package.json` under the `scripts`
-section, such as `yarn test` to run the test suite.
+section, such as `yarn format` to run the linter.
 
 We use Next.js as our framework. To learn more about Next.js, take a look at the
 following resources:
@@ -58,7 +57,9 @@ To run tests first make sure you're in the `torchci` folder and then:
 - To run a specific test in a specific file:
   - `yarn test <path-to-file> -t "<part-of-test-name>"`
   - e.g. `yarn test test/autoLabelBot.test.ts -t "triage"`
-  - Note: This will run all tests that contain the string you entered
+  - Note: This will run all tests that regex match the string you enter
+
+The [underlying command](https://github.com/pytorch/test-infra/blob/05023d3001e0128018ad9e04a5ae2319a443e3f4/torchci/package.json#L9) of `yarn test` is `npx jest` ([jest docs](https://jestjs.io/docs/cli)).
 
 ### Testing Probot
 
@@ -74,8 +75,6 @@ them to your local server.
 We use [Vercel](https://vercel.com/torchci) as our deployment platform. Pushes
 to `main` and any other branches will automatically be deployed to Vercel; check out
 the bot comments for how to view.
-
-Logs for the Vercel instance can be found in [Sematext](https://sematext.com/).
 
 ## How to edit ClickHouse queries
 
