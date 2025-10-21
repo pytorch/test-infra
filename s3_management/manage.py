@@ -214,6 +214,7 @@ PACKAGE_ALLOW_LIST = {
         "torchtune",
         "torchtitan",
         "torchvision",
+        "torchcomms",
         "torchvision_extra_decoders",
         "triton",
         "tqdm",
