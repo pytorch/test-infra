@@ -121,7 +121,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               navigation: {
                 type: "subSectionRender",
                 value: "detali_view",
-                applyFilterFields: ["model", "mode"],
+                applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
               },
             },
             comparisonPolicy: {

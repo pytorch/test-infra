@@ -96,7 +96,12 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   };
 
   if (isLoading) {
-    return <LoadingPage />;
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkTimeSeriesTable..."
+      />
+    );
   }
 
   if (error) {
@@ -235,7 +240,12 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   }
 
   if (isLoading || !resp) {
-    return <LoadingPage height={500} />;
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkPairwiseTable..."
+      />
+    );
   }
 
   if (error) {
@@ -311,7 +321,12 @@ export function AutoBenchmarkTimeSeriesChartGroup({
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["time_series"]);
 
   if (isLoading) {
-    return <LoadingPage />;
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkTimeSeriesChartGroup..."
+      />
+    );
   }
 
   if (error) {

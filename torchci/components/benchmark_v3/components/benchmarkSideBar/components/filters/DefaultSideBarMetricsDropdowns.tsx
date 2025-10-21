@@ -66,6 +66,13 @@ export default function DefaultMetricsDropdowns() {
 
   const metadataList = resp?.data || [];
 
+  const filters = {
+    ...stagedFilters,
+    deviceName:
+      stagedFilters.deviceName.length > 0
+        ? stagedFilters.deviceName
+        : toDeviceName(stagedFilters.device, stagedFilters.arch),
+  };
   return (
     <Box>
       <BenchmarkDropdownGroup
@@ -76,7 +83,7 @@ export default function DefaultMetricsDropdowns() {
           }
           setStagedFilter(_key, _value);
         }}
-        props={stagedFilters}
+        props={filters}
         config={dropdownConfig}
       />
     </Box>
@@ -102,4 +109,15 @@ function handleDeviceName(
     setFilter("device", deviceName);
     setFilter("arch", "");
   }
+}
+
+function toDeviceName(device?: string, arch?: string) {
+  if (device == undefined || arch == undefined) {
+    return "";
+  }
+
+  if (!arch) {
+    return device;
+  }
+  return `${device}||${arch}`;
 }
