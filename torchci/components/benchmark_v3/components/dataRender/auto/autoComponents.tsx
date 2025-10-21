@@ -175,7 +175,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
   const update = useDashboardSelector((s) => s.update);
 
-  // todo(elainewy): make this shared function 
+  // todo(elainewy): make this shared function
   const onPrimaryFieldSelect = (selected: any) => {
     if (!selected?.config?.navigation) {
       return;
