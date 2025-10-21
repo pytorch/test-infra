@@ -43,6 +43,16 @@ export function useUrlStoreSync<T extends Record<string, any>>(
     }
   }, [router.isReady]); // only depends on readiness
 
+  useEffect(() => {
+    if (!router.isReady || !hydrated) return;
+
+    // avoid echo when we were the ones pushing
+    if (isApplyingUrlRef.current) return;
+
+    const parsed = queryToState(router.query);
+    update(parsed);
+  }, [router.asPath]);
+
   // Store -> URL (call this when you want to sync, e.g., on Confirm)
   const pushUrlFromStore = () => {
     if (!router.isReady || isApplyingUrlRef.current) return;
@@ -50,26 +60,34 @@ export function useUrlStoreSync<T extends Record<string, any>>(
     const nextQueryObj = stateToQuery(state);
     const currQueryObj = router.query as Record<string, any>;
 
-    // prevent no-op replace and re-pushing the same thing
     const nextSig = stableQuerySig(nextQueryObj);
     const currSig = stableQuerySig(currQueryObj);
+    if (nextSig === currSig || nextSig === lastPushedSigRef.current) {
+      //console.log("skipping url push lastpushed:",lastPushedSigRef.current);
+      //console.log("skipping url push nextSig:",nextSig);
+      return;
+    }
 
-    // prevent no-op replace and re-pushing the same thing
-    if (nextSig === currSig || nextSig === lastPushedSigRef.current) return;
+    const [pathname] = router.asPath.split("?");
 
-    const [pathname] = router.asPath.split("?"); // strip query
-    // briefly mark as syncing to avoid URL->store echo
+    // push url to router history if current url is from main page
+    // this works with router.back() to go back to main page from sub render pages
+    // when navigate to sub render page first time, we still push it to history
+    // so that when call router.back() it will go back to the previous main page
+    const isNextMain = (nextQueryObj.renderGroupId ?? "main") === "main";
+    const isCurrMain = (currQueryObj.renderGroupId ?? "main") === "main";
+
+    const navigate = isCurrMain ? router.push : router.replace;
+
     isApplyingUrlRef.current = true;
-    router
-      .replace({ pathname: pathname, query: nextQueryObj }, undefined, {
-        shallow: true,
-      })
-      .finally(() => {
-        lastPushedSigRef.current = nextSig;
-        setTimeout(() => {
-          isApplyingUrlRef.current = false;
-        }, 0);
-      });
+    navigate({ pathname, query: nextQueryObj }, undefined, {
+      shallow: false,
+    }).finally(() => {
+      lastPushedSigRef.current = nextSig;
+      setTimeout(() => {
+        isApplyingUrlRef.current = false;
+      }, 0);
+    });
   };
 
   return { pushUrlFromStore, hydrated };

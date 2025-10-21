@@ -121,6 +121,7 @@ export function useBenchmarkCommittedContext() {
   const {
     repo,
     type,
+
     benchmarkId,
     benchmarkName,
     committedTime,

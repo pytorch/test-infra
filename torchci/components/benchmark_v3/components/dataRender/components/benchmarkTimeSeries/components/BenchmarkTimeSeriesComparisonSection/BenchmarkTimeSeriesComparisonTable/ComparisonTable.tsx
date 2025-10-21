@@ -21,6 +21,7 @@ export function ComparisonTable({
     text: "Comparison Table",
   },
   onSelect,
+  onPrimaryFieldSelect,
 }: {
   data: SnapshotRow[];
   lWorkflowId: string | null;
@@ -32,6 +33,7 @@ export function ComparisonTable({
     description?: string;
   };
   onSelect?: (payload: any) => void;
+  onPrimaryFieldSelect?: (payload: any) => void;
 }) {
   const apiRef = useGridApiRef();
   // group raw data into rows, each row contains all values across workflowIds
@@ -42,12 +44,16 @@ export function ComparisonTable({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedData, setSelectedData] = useState<any>(undefined);
 
-  const onClick = (data: any) => {
+  const onColumnFieldClick = (data: any) => {
     setSelectedData(data);
     setDialogOpen(true);
   };
 
-  const onConfirm = () => {
+  const onPrimaryFieldClick = (data: any) => {
+    onPrimaryFieldSelect?.(data);
+  };
+
+  const onColumnFieldConfirm = () => {
     onSelect?.(selectedData);
   };
 
@@ -74,7 +80,8 @@ export function ComparisonTable({
         lWorkflowId,
         rWorkflowId,
         config,
-        onClick
+        onColumnFieldClick,
+        onPrimaryFieldClick
       ),
     [allColumns, lWorkflowId, rWorkflowId, title]
   );
@@ -114,6 +121,12 @@ export function ComparisonTable({
           "& .MuiDataGrid-row": {
             minHeight: 32,
           },
+          "& .MuiDataGrid-footerContainer": {
+            position: "sticky",
+            bottom: 0,
+            bgcolor: "background.paper",
+            zIndex: 1,
+          },
         }}
       />
       <SelectionDialog
@@ -121,7 +134,7 @@ export function ComparisonTable({
         onClose={() => setDialogOpen(false)}
         left={selectedData?.left}
         right={selectedData?.right}
-        onSelect={onConfirm}
+        onSelect={onColumnFieldConfirm}
         other={{ parent: "comparisonTable" }}
         enabled={config.enableDialog ?? false}
         config={config.customizedConfirmDialog}

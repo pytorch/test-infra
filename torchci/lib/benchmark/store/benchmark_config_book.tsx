@@ -37,7 +37,6 @@ export type BenchmarkUIConfig = {
   title: string;
   dataBinding: DataBindingConfig; // data binding config
   dataRender: DataRenderOption; // main render components
-  subSectionDataRenders?: Record<string, DataRenderOption>; // addditional data render options for same page
   required_filter_fields?: readonly string[]; // required filter fields
 };
 
@@ -54,6 +53,7 @@ export type DataRenderOption = {
   id?: string; // id of the component to render, this is used when type is 'component'
   sideRender?: { [key: string]: UIRenderConfig }; // this used to render side content, such as regression report access
   renders?: UIRenderConfig[]; // this is used when type is predefined type such as 'default-fanout'
+  subSectionRenders?: { [key: string]: UIRenderConfig[] }; // this is used when type is predefined type such as 'default-f
 };
 
 /**

@@ -12,7 +12,7 @@ export const UtilReportPageSyncParamsToUrl = () => {
     router.replace(
       {
         pathname: router.pathname,
-        query: values, // 🚀 overwrite the whole query string
+        query: values, // overwrite the whole query string
       },
       undefined,
       { shallow: true }

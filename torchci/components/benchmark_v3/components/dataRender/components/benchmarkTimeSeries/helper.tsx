@@ -62,12 +62,21 @@ export interface BenchmarkComparisonTableRenderingOptions {
   };
 }
 
+export interface BenchmarkComparisonTablePrimaryColumnConfig {
+  fields?: string[]; // the field name used to render the name of the row, if not set, use all groupinfo labels
+  displayName?: string; // the display name of the primary column, if not set, use the default name
+  navigation?: BenchmarkPageNavigationConfig; // the navigation config for the primary column
+}
+
+export interface BenchmarkPageNavigationConfig {
+  type: string;
+  value: string;
+  applyFilterFields?: string[];
+}
+
 export type ComparisonTableConfig = {
   // always the first column, the name of the row
-  primary?: {
-    fields?: string[]; // the field name used to render the name of the row, if not set, use all groupinfo labels
-    displayName?: string; // the display name of the primary column, if not set, use the default name
-  };
+  primary?: BenchmarkComparisonTablePrimaryColumnConfig;
   // the columns from group info to render as columns
   extraMetadata?: {
     field: string;

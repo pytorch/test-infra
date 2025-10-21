@@ -13,6 +13,7 @@ import {
   evaluateComparison,
 } from "components/benchmark_v3/configs/helpers/RegressionPolicy";
 import {
+  BenchmarkComparisonTablePrimaryColumnConfig,
   BenchmarkUnitConfig,
   ComparisonTableConfig,
   fmtFixed2,
@@ -34,18 +35,29 @@ export function getComparisionTableConlumnRendering(
   lWorkflowId: string | null,
   rWorkflowId: string | null,
   config: ComparisonTableConfig,
-  onClick?: (data: any) => void
+  onColumnFieldClick: (data: any) => void = (data: any) => {},
+  onPrimaryField?: (data: any) => void
 ): GridColDef[] {
   const primaryHeaderName = config?.primary?.displayName ?? "Name";
 
   const primaryFlex = config?.renderOptions?.flex?.primary ?? 0.8;
+
+  // get primary column and apply render logics to it
   const primaryCol: GridColDef = {
     field: "primary",
     headerName: primaryHeaderName,
     flex: primaryFlex,
     sortable: false,
     filterable: false,
-    renderCell: (p) => <Typography variant="body2">{p.row.primary}</Typography>,
+    renderCell: (params: GridRenderCellParams<any, GridRowModel>) => {
+      return (
+        <ComparisonTablePrimaryFieldValueCell
+          params={params}
+          primaryFieldConfig={config?.primary}
+          onClick={onPrimaryField}
+        />
+      );
+    },
   };
 
   // get metadata columns from config
@@ -73,13 +85,13 @@ export function getComparisionTableConlumnRendering(
     sortable: false,
     filterable: false,
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (
-      <ComparisonTableValueCell
+      <ComparisonTableColumnFieldValueCell
         field={field}
         row={params.row}
         lWorkflowId={lWorkflowId}
         rWorkflowId={rWorkflowId}
         config={config}
-        onClick={onClick}
+        onClick={onColumnFieldClick}
       />
     ),
   }));
@@ -105,17 +117,49 @@ export function getComparisionTableConlumnRendering(
 const VIOLATE_RULE_COLOR = "#ffebee"; // red[50]
 const IMPROVEMENT_COLOR = "#e8f5e9"; // green[50]
 
+export function ComparisonTablePrimaryFieldValueCell({
+  params,
+  primaryFieldConfig,
+  onClick = (data: any) => {},
+}: {
+  params: GridRenderCellParams<any, GridRowModel>;
+  primaryFieldConfig?: BenchmarkComparisonTablePrimaryColumnConfig;
+  onClick?: (data: any) => void;
+}) {
+  const type = primaryFieldConfig?.navigation?.type;
+  const isNavEnabled = !!type;
+
+  // render text-only primary row field if no navigation configuration
+  if (!isNavEnabled) {
+    return <Typography variant="body2">{params.row.primary}</Typography>;
+  }
+
+  return (
+    <Typography
+      variant="body2"
+      sx={{ cursor: "pointer", color: "primary.main" }}
+      onClick={() => {
+        onClick({
+          config: primaryFieldConfig,
+          groupInfo: params.row.groupInfo,
+        });
+      }}
+    >
+      {params.row.primary}
+    </Typography>
+  );
+}
+
 /**
  *
- * @returns
  */
-export function ComparisonTableValueCell({
+export function ComparisonTableColumnFieldValueCell({
   field,
   row,
   lWorkflowId,
   rWorkflowId,
   config,
-  onClick = (data: any) => {},
+  onClick,
 }: {
   field: string;
   row: GridRowModel;
@@ -123,7 +167,7 @@ export function ComparisonTableValueCell({
   rWorkflowId: string | null;
   comparisonTargetField?: string;
   config?: ComparisonTableConfig;
-  onClick?: (data: any) => void;
+  onClick: (data: any) => void;
 }) {
   const ldata = lWorkflowId
     ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
@@ -189,7 +233,7 @@ export function ComparisonTableValueCell({
       <Tooltip title={renderComparisonResult(result)}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="body2">{text}</Typography>
-          {config?.customizedConfirmDialog && (
+          {config?.enableDialog && (
             <MoreVertButton
               onClick={() => onClick({ left: ldata, right: rdata })}
             />
