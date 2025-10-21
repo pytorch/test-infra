@@ -12,7 +12,7 @@ type GridRowModel = {
   metadataColumns: GridItemModel[];
   metric: string;
   byWorkflow: Record<string, RowCellObj[]>;
-  sampleInfo: any;
+  groupInfo: any;
 };
 
 // used when find unique rows
@@ -74,7 +74,7 @@ export function ToComparisonTableRow(config: ComparisonTableConfig, data: any) {
         id: key,
         label,
         byWorkflow: {},
-        sampleInfo: gi,
+        groupInfo: gi,
         primary: primaryRowValue,
       });
     }

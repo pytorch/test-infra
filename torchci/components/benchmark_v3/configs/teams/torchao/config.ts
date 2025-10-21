@@ -58,14 +58,43 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
     },
     dataRender: {
       type: "auto",
+      subSectionRenders: {
+        detali_view: [
+          {
+            type: "AutoBenchmarkTimeSeriesTable",
+            title: "Comparison Table Detail View",
+            config: {
+              primary: {
+                fields: ["model"],
+                displayName: "Model",
+              },
+              comparisonPolicy: {
+                latency: DEFAULT_LATENCY_POLICY,
+              },
+              extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+              renderOptions: {
+                tableRenderingBook: RENDER_MAPPING_BOOK,
+                flex: {
+                  primary: 2,
+                },
+              },
+            },
+          },
+        ],
+      },
       renders: [
         {
-          type: "AutoBenchmarkTimeSeriesTable",
+          type: "AutoBenchmarkPairwiseTable",
           title: "Comparison Table",
           config: {
             primary: {
               fields: ["model"],
               displayName: "Model",
+              navigation: {
+                type: "subSectionRender",
+                value: "detali_view",
+                applyFilterFields: ["model", "mode"],
+              },
             },
             comparisonPolicy: {
               latency: DEFAULT_LATENCY_POLICY,
@@ -74,9 +103,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
             renderOptions: {
               tableRenderingBook: RENDER_MAPPING_BOOK,
               flex: {
-                primary: 1.2,
-                extraMetadata: 0.5,
-                target: 0.6,
+                primary: 2,
               },
             },
           },

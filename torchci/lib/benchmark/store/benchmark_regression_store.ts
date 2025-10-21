@@ -74,6 +74,10 @@ export interface BenchmarkDashboardState {
   stagedLcommit: BenchmarkCommitMeta | null;
   stagedRcommit: BenchmarkCommitMeta | null;
 
+  // manage the ui switch within the same page
+  // this is used when user switch between different ui view within the same store state
+  renderGroupId: string;
+
   committedTime: TimeRange;
   committedFilters: Record<string, string>;
   committedLbranch: string;
@@ -113,7 +117,10 @@ export interface BenchmarkDashboardState {
   setLcommit: (commit: BenchmarkCommitMeta | null) => void;
   setRcommit: (commit: BenchmarkCommitMeta | null) => void;
 
+  setRenderGroupId: (c: string) => void;
+
   update: (initial: {
+    renderGroupId?: string;
     time?: TimeRange;
     benchmarkId?: string;
     filters?: Record<string, string>;
@@ -133,6 +140,7 @@ export interface BenchmarkDashboardState {
     lbranch?: string;
     rbranch?: string;
     maxSampling?: number;
+    renderGroupId?: string;
   }) => void;
 }
 
@@ -145,6 +153,7 @@ export function createDashboardStore(initial: {
   rbranch: string;
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
+  renderGroupId?: string;
   maxSampling?: number;
 }) {
   const idItem = BENCHMARK_ID_MAPPING[initial.benchmarkId];
@@ -156,6 +165,9 @@ export function createDashboardStore(initial: {
       idItem.benchmarkName ??
       initial.benchmarkId,
     repo: idItem?.repoName ? idItem.repoName : "pytorch/pytorch",
+    // default page switch to the initial type
+    // default main means render the page with renders option
+    renderGroupId: initial.renderGroupId ?? "main",
 
     // set only with initial config
     enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
@@ -195,6 +207,8 @@ export function createDashboardStore(initial: {
         };
       });
     },
+
+    setRenderGroupId: (c) => set({ renderGroupId: c }),
 
     setStagedLbranch: (c) => set({ stagedLbranch: c }),
     setStagedRbranch: (c) => set({ stagedRbranch: c }),
@@ -268,6 +282,8 @@ export function createDashboardStore(initial: {
 
           lcommit: next.lcommit !== undefined ? next.lcommit : s.lcommit,
           rcommit: next.rcommit !== undefined ? next.rcommit : s.rcommit,
+
+          renderGroupId: next.renderGroupId ?? s.renderGroupId,
         };
 
         // set maxSampling
@@ -295,6 +311,7 @@ export function createDashboardStore(initial: {
       lcommit,
       rcommit,
       maxSampling,
+      renderGroupId,
     }) => {
       let timeRange = undefined;
       if (time?.end && time?.start) {
@@ -312,6 +329,7 @@ export function createDashboardStore(initial: {
         lcommit,
         rcommit,
         maxSampling,
+        renderGroupId,
       });
     },
   }));

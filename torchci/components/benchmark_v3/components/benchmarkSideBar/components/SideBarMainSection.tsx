@@ -35,6 +35,7 @@ export function SideBarMainSection() {
   const hydrateFromUrl = useDashboardSelector((s) => s.hydrateFromUrl);
 
   const committedState = useDashboardSelector((s) => ({
+    renderGroupId: s.renderGroupId,
     time: s.committedTime,
     filters: s.committedFilters,
     lcommit: s.lcommit,
@@ -43,6 +44,7 @@ export function SideBarMainSection() {
     rbranch: s.committedRbranch,
     maxSampling: s.committedMaxSampling,
   }));
+  const isMain = committedState.renderGroupId === "main";
 
   // sync the url with the store
   const { pushUrlFromStore, hydrated } = useUrlStoreSync(
@@ -222,6 +224,7 @@ export function SideBarMainSection() {
         </Typography>
         <UMCopyLink
           params={{
+            renderGroupId: committedState.renderGroupId,
             time: committedTime,
             filters: committedFilters,
             lbranch: committedLbranch,

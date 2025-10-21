@@ -21,6 +21,7 @@ export function ComparisonTable({
     text: "Comparison Table",
   },
   onSelect,
+  onPrimaryFieldSelect,
 }: {
   data: SnapshotRow[];
   lWorkflowId: string | null;
@@ -32,6 +33,7 @@ export function ComparisonTable({
     description?: string;
   };
   onSelect?: (payload: any) => void;
+  onPrimaryFieldSelect?: (payload: any) => void;
 }) {
   const apiRef = useGridApiRef();
   // group raw data into rows, each row contains all values across workflowIds
@@ -42,12 +44,16 @@ export function ComparisonTable({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedData, setSelectedData] = useState<any>(undefined);
 
-  const onClick = (data: any) => {
+  const onColumnFieldClick = (data: any) => {
     setSelectedData(data);
     setDialogOpen(true);
   };
 
-  const onConfirm = () => {
+  const onPrimaryFieldClick = (data: any) => {
+    onPrimaryFieldSelect?.(data);
+  };
+
+  const onColumnFieldConfirm = () => {
     onSelect?.(selectedData);
   };
 
@@ -74,7 +80,8 @@ export function ComparisonTable({
         lWorkflowId,
         rWorkflowId,
         config,
-        onClick
+        onColumnFieldClick,
+        onPrimaryFieldClick
       ),
     [allColumns, lWorkflowId, rWorkflowId, title]
   );
@@ -93,15 +100,20 @@ export function ComparisonTable({
         density="compact"
         rows={rows}
         columns={columns}
+        pageSizeOptions={[25, 50, 100]}
         initialState={{
           sorting: {
             sortModel: [{ field: "name", sort: "asc" }],
+          },
+          pagination: {
+            paginationModel: { pageSize: 25 },
           },
         }}
         getRowId={(r) => {
           return r.id;
         }}
         sx={{
+          "& .MuiDataGrid-virtualScroller": { scrollbarGutter: "stable" },
           "& .MuiDataGrid-cell": {
             py: 0, // less vertical padding
             fontSize: "0.75rem",
@@ -121,7 +133,7 @@ export function ComparisonTable({
         onClose={() => setDialogOpen(false)}
         left={selectedData?.left}
         right={selectedData?.right}
-        onSelect={onConfirm}
+        onSelect={onColumnFieldConfirm}
         other={{ parent: "comparisonTable" }}
         enabled={config.enableDialog ?? false}
         config={config.customizedConfirmDialog}

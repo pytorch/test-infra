@@ -7,6 +7,7 @@ import {
 import DefaultMetricsDropdowns from "../../components/benchmarkSideBar/components/filters/DefaultSideBarMetricsDropdowns";
 import { NotFoundComponent, resolveComponent } from "../configRegistration";
 import { compilerQueryParameterConverter } from "../teams/compilers/config";
+import { toNumberArray } from "./helper_methods";
 
 export const MIN_SAMPLING_THRESHOLD = 2;
 export type DataBindingConfig = {
@@ -45,7 +46,7 @@ export type QueryParameterConverterInputs = {
   benchmarkName: string;
   repo: string;
   branches?: string[];
-  commits?: string[];
+  workflows?: string[]; // workflow ids to filter the data, this mostly used for pairwise item
   filters: Record<string, any>;
   maxSampling?: number;
   [key: string]: any;
@@ -64,11 +65,16 @@ const DEFAULT_FILTERS = {
 };
 /* ---------------------------- Default converter ---------------------------- */
 export const getDefaultDataConverter: QueryParameterConverter = (i) => {
+  let workflows: number[] = [];
+  if (i.workflows) {
+    workflows = toNumberArray(i.workflows);
+  }
+
   return {
     ...DEFAULT_FILTERS,
     ...i.filters,
     branches: i.branches ?? [],
-    commits: i.commits ?? [],
+    workflows: workflows,
     repo: i.repo,
     benchmarkName: i.benchmarkName,
     startTime: dayjs.utc(i.timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),

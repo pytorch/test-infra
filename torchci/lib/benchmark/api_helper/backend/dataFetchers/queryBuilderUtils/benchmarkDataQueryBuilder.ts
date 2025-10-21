@@ -71,7 +71,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     excludedMetrics: [],
     models: [],
     branches: [],
-    commits: [],
+    workflows: [],
     backends: [],
     dtypes: [],
   };
@@ -138,8 +138,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
      WHERE
         o.repo = {repo: String }
         AND (
-            has({commits: Array(String) }, o.head_sha)
-            OR empty({commits: Array(String) })
+            has({workflows: Array(Int64) }, o.workflow_id)
+            OR empty({workflows: Array(Int64) })
         )
         AND (
             o.benchmark.'name' in {benchmarkNames: Array(String) }
