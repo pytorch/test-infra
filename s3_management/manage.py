@@ -327,7 +327,7 @@ PACKAGE_ALLOW_LIST = {
         "docker",
         "docstring_parser",
         "exceptiongroup",
-        "forge",
+        "torchforge",
         "gitdb",
         "GitPython",
         "grpcio",
