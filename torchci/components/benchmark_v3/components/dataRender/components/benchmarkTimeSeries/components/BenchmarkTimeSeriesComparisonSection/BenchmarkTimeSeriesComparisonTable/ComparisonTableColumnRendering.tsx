@@ -40,13 +40,13 @@ export function getComparisionTableConlumnRendering(
 ): GridColDef[] {
   const primaryHeaderName = config?.primary?.displayName ?? "Name";
 
-  const primaryFlex = config?.renderOptions?.minWidth?.primary ?? 100;
+  const primaryFlex = config?.renderOptions?.flex?.primary ?? 1.2;
   // get primary column and apply render logics to it
   const primaryCol: GridColDef = {
     field: "primary",
-    flex: 1,
+    flex: primaryFlex,
     headerName: primaryHeaderName,
-    minWidth: primaryFlex,
+    minWidth: 50,
     sortable: false,
     filterable: false,
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => {
@@ -63,13 +63,14 @@ export function getComparisionTableConlumnRendering(
   // get metadata columns from config
   const metadata = config?.extraMetadata ?? [];
 
-  const metadatFlex = config?.renderOptions?.minWidth?.extraMetadata ?? 80;
+  const metadatFlex = config?.renderOptions?.flex?.extraMetadata ?? 0.5;
   const metadataCols: GridColDef[] = metadata
     .filter((k) => !!k.field) // skip fields that are not defined
     .map((k) => ({
       field: k.field,
       headerName: k.displayName,
-      minWidth: metadatFlex,
+      flex: 0.5,
+      minWidth: 50,
       sortable: false,
       filterable: false,
       renderCell: (p) => (
@@ -77,12 +78,12 @@ export function getComparisionTableConlumnRendering(
       ),
     }));
 
-  const metricsFlex = config?.renderOptions?.minWidth?.target ?? 80;
+  const metricsFlex = config?.renderOptions?.flex?.target ?? 1;
   const metricCols: GridColDef[] = columnsFields.map((field) => ({
     field,
     headerName: field,
-    flex: 0.5,
-    minWidth: metricsFlex,
+    flex: 1,
+    minWidth: 50,
     sortable: false,
     filterable: false,
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (

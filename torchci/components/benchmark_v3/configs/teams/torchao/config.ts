@@ -74,10 +74,8 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
               renderOptions: {
                 tableRenderingBook: RENDER_MAPPING_BOOK,
-                minWidth: {
-                  primary: 350,
-                  extraMetadata: 80,
-                  target: 150,
+                flex: {
+                  primary: 2,
                 },
               },
             },
@@ -104,6 +102,9 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
             extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
             renderOptions: {
               tableRenderingBook: RENDER_MAPPING_BOOK,
+              flex: {
+                primary: 2,
+              },
             },
           },
         },
