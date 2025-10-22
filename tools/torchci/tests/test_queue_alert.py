@@ -7,25 +7,27 @@ from torchci.queue_alert import filter_long_queues, gen_update_comment, QueueInf
 class TestGitHubPR(TestCase):
     def test_filter_long_queues(self):
         db_results = [
-            {"count": 30, "avg_queue_s": 0, "machine_type": "linux.gcp.a100.large"},
-            {"count": 200, "avg_queue_s": 0, "machine_type": "machine1"},
-            {"count": 30, "avg_queue_s": 3600 * 5, "machine_type": "machine2"},
+            {"count": 100, "avg_queue_s": 7201, "machine_type": "rocm long"},
+            {"count": 10, "avg_queue_s": 7201, "machine_type": "rocm few"},
+            {"count": 100, "avg_queue_s": 1, "machine_type": "rocm short"},
+            {"count": 100, "avg_queue_s": 3601, "machine_type": "machine1"},
+            {"count": 10, "avg_queue_s": 3601, "machine_type": "machine1 few"},
+            {"count": 100, "avg_queue_s": 1, "machine_type": "machine1 show"},
+            {"count": 100, "avg_queue_s": 1801, "machine_type": "linux.2xlarge"},
+            {
+                "count": 10,
+                "avg_queue_s": 1801,
+                "machine_type": "linux.2xlarge few",
+            },
+            {"count": 100, "avg_queue_s": 1, "machine_type": "linux.2xlarge short"},
         ]
         long_queues = filter_long_queues(db_results)
         self.assertEqual(len(long_queues), 3)
 
-        db_results = [
-            {
-                "count": 0,
-                "avg_queue_s": 3600 * 30,
-                "machine_type": "linux.gcp.a100.large",
-            },
-            {"count": 10, "avg_queue_s": 0, "machine_type": "machine1"},
-            {"count": 10, "avg_queue_s": 3600 * 1, "machine_type": "machine2"},
-        ]
-        long_queues = filter_long_queues(db_results)
-        self.assertEqual(len(long_queues), 1)
-        self.assertEqual(long_queues[0].machine, "linux.gcp.a100.large")
+        self.assertSetEqual(
+            set(q.machine for q in long_queues),
+            {"rocm long", "machine1", "linux.2xlarge"},
+        )
 
     def test_gen_update_comment(self):
         original_issue: Dict[str, Any] = {"closed": True}  # type: ignore[annotation-unchecked]
