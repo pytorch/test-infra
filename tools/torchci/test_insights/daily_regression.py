@@ -60,7 +60,7 @@ CONFIG: list[dict[str, Any]] = [
         "link": get_name_in_info_anywhere_link("dynamo"),
     },
     {
-        "team": "inductor",
+        "team": "Inductor",
         "condition": lambda info: name_in_info_anywhere(info, "inductor"),
         "link": get_name_in_info_anywhere_link("inductor"),
     },
