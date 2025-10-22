@@ -59,28 +59,56 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
     dataRender: {
       type: "auto",
       subSectionRenders: {
-        detali_view: [
-          {
-            type: "AutoBenchmarkTimeSeriesTable",
-            title: "Comparison Table Detail View",
-            config: {
-              primary: {
-                fields: ["model"],
-                displayName: "Model",
-              },
-              comparisonPolicy: {
-                latency: DEFAULT_LATENCY_POLICY,
-              },
-              extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
-              renderOptions: {
-                tableRenderingBook: RENDER_MAPPING_BOOK,
-                flex: {
-                  primary: 2,
+        detali_view: {
+          filterConstraint: {
+            model: {
+              disabled: true,
+            },
+            deviceName: {
+              disableOptions: [""],
+            },
+            mode: {
+              disableOptions: [""],
+            },
+          },
+          renders: [
+            {
+              type: "AutoBenchmarkTimeSeriesChartGroup",
+              title: "Metrics Time Series Chart Detail View",
+              config: {
+                type: "line",
+                groupByFields: ["metric"],
+                lineKey: ["extra_key.use_compile", "dtype", "metric"],
+                chart: {
+                  renderOptions: {
+                    chartRenderBook: RENDER_MAPPING_BOOK,
+                    showLegendDetails: true,
+                  },
                 },
               },
             },
-          },
-        ],
+            {
+              type: "AutoBenchmarkTimeSeriesTable",
+              title: "Comparison Table Detail View",
+              config: {
+                primary: {
+                  fields: ["model"],
+                  displayName: "Model",
+                },
+                comparisonPolicy: {
+                  latency: DEFAULT_LATENCY_POLICY,
+                },
+                extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+                renderOptions: {
+                  tableRenderingBook: RENDER_MAPPING_BOOK,
+                  flex: {
+                    primary: 2,
+                  },
+                },
+              },
+            },
+          ],
+        },
       },
       renders: [
         {
@@ -93,7 +121,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               navigation: {
                 type: "subSectionRender",
                 value: "detali_view",
-                applyFilterFields: ["model", "mode"],
+                applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
               },
             },
             comparisonPolicy: {

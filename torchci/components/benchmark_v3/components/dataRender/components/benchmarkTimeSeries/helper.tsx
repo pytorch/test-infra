@@ -113,7 +113,6 @@ export type ChartConfig = {
     type: string;
     id?: string;
   };
-
   renderOptions?: BenchmarkTimeSeriesCharRenderOpiton;
 };
 
@@ -121,6 +120,7 @@ export type BenchmarkTimeSeriesCharRenderOpiton = {
   height?: string | number;
   title_group_mapping: BenchmarkComparisonTitleMapping;
   chartRenderBook?: BenchmarkTimeSeriesChartRenderingBook;
+  showLegendDetails?: boolean;
 };
 
 export type RawTimeSeriesPoint = {
@@ -311,3 +311,20 @@ export const fmtFixed2 = (v: any) =>
     : typeof v === "number"
     ? Number(v).toFixed(2)
     : String(v.toFixed(2));
+
+/**
+ * helper function to get the value from a nested object.
+ * try to get the value from the keyPath, if not found, return the fallback value
+ */
+export function getSmartValue(obj: any, keyPath: string, fallback?: any) {
+  if (!obj || !keyPath) return fallback;
+
+  // Try flat key first
+  if (keyPath in obj) {
+    return obj[keyPath];
+  }
+
+  //Try nested access (split by ".")
+  const value = keyPath.split(".").reduce((acc, key) => acc?.[key], obj);
+  return value !== undefined ? value : fallback;
+}

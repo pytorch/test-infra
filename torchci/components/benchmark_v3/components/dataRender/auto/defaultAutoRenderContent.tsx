@@ -1,4 +1,4 @@
-import { Divider, Typography } from "@mui/material";
+import { Alert, Divider, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { HighlightStyles } from "components/benchmark_v3/components/common/highlight";
 import { getAutoRenderComponent } from "components/benchmark_v3/configs/utils/autoRegistration";
@@ -22,7 +22,16 @@ export function DefaultAutoRenderContent() {
   // if renderGroupId is not main, we try to find the subSectionRenders, auto fallback to main render if nothing is found
   if (renderGroupId != "main" && ctx.dataRender?.subSectionRenders) {
     autoUIConfigs =
-      ctx.dataRender.subSectionRenders[renderGroupId] ?? ctx.dataRender.renders;
+      ctx.dataRender.subSectionRenders[renderGroupId].renders ?? [];
+  }
+
+  if (autoUIConfigs?.length === 0) {
+    return (
+      <Alert severity="error">
+        (DefaultAutoRenderContent) No render configuration is found, something
+        is wrong, please reach out to dev infra
+      </Alert>
+    );
   }
 
   return (
@@ -37,11 +46,9 @@ export function DefaultAutoRenderContent() {
         {autoUIConfigs?.map((autoUIConfig, index) => {
           const { Component } = getAutoRenderComponent(autoUIConfig);
           return (
-            <>
-              <Box key={index}>
-                <Component config={autoUIConfig} />
-              </Box>
-            </>
+            <Box key={index}>
+              <Component config={autoUIConfig} />
+            </Box>
           );
         })}
       </Box>

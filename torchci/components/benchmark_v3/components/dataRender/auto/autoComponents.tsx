@@ -1,4 +1,4 @@
-import { Alert } from "@mui/material";
+import { Alert, Typography } from "@mui/material";
 import { Grid } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
@@ -8,6 +8,7 @@ import {
 } from "lib/benchmark/api_helper/fe/hooks";
 import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
+import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
@@ -95,7 +96,12 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   };
 
   if (isLoading) {
-    return <LoadingPage />;
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkTimeSeriesTable..."
+      />
+    );
   }
 
   if (error) {
@@ -234,7 +240,12 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   }
 
   if (isLoading || !resp) {
-    return <LoadingPage height={500} />;
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkPairwiseTable..."
+      />
+    );
   }
 
   if (error) {
@@ -264,6 +275,84 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
           }}
           onSelect={() => {}}
           onPrimaryFieldSelect={onPrimaryFieldSelect}
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
+export function AutoBenchmarkTimeSeriesChartGroup({
+  config,
+}: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const ready =
+    !!ctx &&
+    !!ctx.committedTime?.start &&
+    !!ctx.committedTime?.end &&
+    !!ctx.committedLbranch &&
+    !!ctx.committedRbranch &&
+    ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const branches = [
+    ...new Set(
+      [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
+    ),
+  ];
+
+  // convert to the query params
+  const params = dataBinding.toQueryParams({
+    repo: ctx.repo,
+    branches: branches,
+    benchmarkName: ctx.benchmarkName,
+    timeRange: ctx.committedTime,
+    filters: ctx.committedFilters,
+    maxSampling: ctx.committedMaxSampling,
+  });
+
+  const queryParams: any | null = ready ? params : null;
+  // fetch the bechmark data
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["time_series"]);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkTimeSeriesChartGroup..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkTimeSeriesTable){error.message}
+      </Alert>
+    );
+  }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+  const data = resp?.data?.data;
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+        <Typography variant="h6">
+          {uiRenderConfig?.title?.toUpperCase()}
+        </Typography>
+        <BenchmarkTimeSeriesChartGroup
+          data={data["time_series"]}
+          chartGroup={uiRenderConfig.config}
+          onSelect={(payload: any) => {}}
+          lcommit={ctx.lcommit ?? undefined}
+          rcommit={ctx.rcommit ?? undefined}
         />
       </Grid>
     </Grid>

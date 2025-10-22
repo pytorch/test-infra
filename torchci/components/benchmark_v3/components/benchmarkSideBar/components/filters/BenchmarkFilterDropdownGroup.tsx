@@ -3,21 +3,7 @@ import {
   UMDenseDropdown,
   UMDenseDropdownOption,
 } from "components/uiModules/UMDenseComponents";
-
-/**
- * The enum type of benchmark dashboard dropgroup item
- * this is used to render dropdowns dynamically in the LLMs Benchmark page.
- * the field value must match the fields in LLMsBenchmarkProps
- */
-export enum BenchmarkDropdownGroupItemType {
-  ModelName = "model",
-  BackendName = "backend",
-  ModeName = "modeN",
-  DtypeName = "dtype",
-  DeviceName = "deviceName",
-  ArchName = "arch",
-  Qps = "qps",
-}
+import { BenchmarkUIConfigFilterConstarintConfig } from "lib/benchmark/store/benchmark_config_book";
 
 /**
  * The input item for benchmark dashboard dropdown
@@ -26,7 +12,7 @@ export enum BenchmarkDropdownGroupItemType {
  * @property labelName the label name of the dropdown
  */
 export interface BenchmarkDropdownGroupItem {
-  type: BenchmarkDropdownGroupItemType;
+  type: string;
   options: (string | UMDenseDropdownOption)[];
   labelName: string;
 }
@@ -34,21 +20,38 @@ export interface BenchmarkDropdownGroupItem {
 export default function BenchmarkDropdownGroup({
   onChange,
   props,
+  config,
   optionListMap,
 }: {
   onChange: (_key: string, _value: any) => void;
   props: any;
   optionListMap: BenchmarkDropdownGroupItem[];
+  config?: BenchmarkUIConfigFilterConstarintConfig;
 }) {
   return (
     <Stack spacing={1}>
       {optionListMap.length > 1 &&
         optionListMap.map((option, index) => {
           const type = option.type;
-          const olist = option.options;
+          let olist = option.options;
           if (!olist || olist.length <= 1) {
             return null;
           }
+
+          let disable = false;
+          if (config && config[type]) {
+            const c = config[type];
+            disable = c.disabled ?? false;
+            olist = olist.filter((o) => {
+              if (typeof o === "string") {
+                // Exclude if listed in disableOptions
+                return !c.disableOptions?.includes(o);
+              }
+              // Exclude if option.value is listed in disableOptions
+              return !c.disableOptions?.includes(o.value);
+            });
+          }
+
           return (
             <UMDenseDropdown
               key={index}
@@ -56,6 +59,7 @@ export default function BenchmarkDropdownGroup({
               setDType={(val: any) => {
                 onChange(type, val);
               }}
+              disable={disable}
               dtypes={olist}
               label={option.labelName}
             />

@@ -10,6 +10,7 @@ import {
   BenchmarkTimeSeriesInput,
   fmtFixed2,
   getBenchmarkTimeSeriesChartRenderingConfig,
+  getSmartValue,
   RawTimeSeriesPoint,
   renderBasedOnUnitConifg,
 } from "../../helper";
@@ -37,6 +38,7 @@ type Props = {
     singleGap?: number;
   };
   enableSelectMode?: boolean;
+  legendKeys?: string[];
   /** Called when user clicks Confirm with L/R selected for a single series. */
   onSelect?: (sel: ConfirmPayload) => void;
 };
@@ -52,6 +54,7 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
   renderOptions,
   customizedConfirmDialog,
   markArea,
+  legendKeys,
   onSelect = () => {},
 }) => {
   const chartRef = useRef<ReactECharts>(null);
@@ -92,11 +95,38 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       displayName = rc?.displayName ?? meta.metric;
     }
 
+    console.log("p", p);
+
+    let legendKeyItems: string[] = [];
+    if (renderOptions?.showLegendDetails) {
+      legendKeys?.forEach((k) => {
+        const v = getSmartValue(meta, k);
+        if (v) {
+          legendKeyItems.push(
+            `<div style="font-size:10px;"><i>${k}:${v}</i></div>`
+          );
+        }
+      });
+      if (legendKeyItems.length > 0) {
+        const legendItemTitle = `<div style="margin-top:4px;"><i>Metadata:</i></div>`;
+        legendKeyItems = [legendItemTitle, ...legendKeyItems];
+      }
+    }
+
     return [
       `<div style="font-weight:600;margin-bottom:4px;">${t}</div>`,
-      `<div style="font-size:12px;">${p?.data?.legend_name}</div>`,
-      `<b>${displayName}</b>: <b>${value}</b><br/>`,
-      `commit <code>${commitShort}</code> · workflow ${meta.workflow_id} · branch ${meta.branch}`,
+      `<div style="
+          font-size:12px;
+          max-width:240px;
+          white-space: normal;
+          word-break: break-word;
+          line-height:1.4;
+        ">
+        <b>legend name</b>: ${p?.data?.legend_name ?? ""}
+      </div>`,
+      `<div><b>${displayName}</b>: <b>${value}</b></div>`,
+      `<div>commit <code>${commitShort}</code> · workflow ${meta.workflow_id} · branch ${meta.branch}</div>`,
+      ...legendKeyItems,
     ].join("");
   }) as any;
 

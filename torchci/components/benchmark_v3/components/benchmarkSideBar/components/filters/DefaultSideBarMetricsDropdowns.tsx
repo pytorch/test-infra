@@ -27,8 +27,16 @@ export default function DefaultMetricsDropdowns() {
     stagedFilters: s.stagedFilters,
   }));
 
+  const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
   const configHandler = useBenchmarkConfigBook(benchmarkId, type);
   const ready = !!configHandler && !!stagedTime?.start && !!stagedTime?.end;
+
+  const subrenders = configHandler.raw.dataRender.subSectionRenders;
+
+  let dropdownConfig = undefined;
+  if (subrenders && subrenders[renderGroupId]) {
+    dropdownConfig = subrenders[renderGroupId]?.filterConstraint;
+  }
 
   // convert to the query params
   const queryParams = ready
@@ -58,6 +66,13 @@ export default function DefaultMetricsDropdowns() {
 
   const metadataList = resp?.data || [];
 
+  const filters = {
+    ...stagedFilters,
+    deviceName:
+      stagedFilters.deviceName.length > 0
+        ? stagedFilters.deviceName
+        : toDeviceName(stagedFilters.device, stagedFilters.arch),
+  };
   return (
     <Box>
       <BenchmarkDropdownGroup
@@ -68,7 +83,8 @@ export default function DefaultMetricsDropdowns() {
           }
           setStagedFilter(_key, _value);
         }}
-        props={stagedFilters}
+        props={filters}
+        config={dropdownConfig}
       />
     </Box>
   );
@@ -93,4 +109,15 @@ function handleDeviceName(
     setFilter("device", deviceName);
     setFilter("arch", "");
   }
+}
+
+function toDeviceName(device?: string, arch?: string) {
+  if (device == undefined || arch == undefined) {
+    return "";
+  }
+
+  if (!arch) {
+    return device;
+  }
+  return `${device}||${arch}`;
 }

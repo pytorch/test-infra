@@ -69,6 +69,7 @@ type Props = {
   setDType: (v: string) => void;
   dtypes: (string | UMDenseDropdownOption)[];
   label: string;
+  disable?: boolean;
 };
 
 export const DEFAULT_MODE = "inference";
@@ -88,6 +89,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
   setDType,
   dtypes,
   label,
+  disable = false,
 }) => {
   const labelId = "dtype-picker-label";
   const selectId = "dtype-picker-select";
@@ -112,6 +114,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
           PaperProps: { sx: DENSE_MENU_STYLE },
         }}
         displayEmpty
+        disabled={disable}
       >
         {dtypes.map((item) => {
           const option =
