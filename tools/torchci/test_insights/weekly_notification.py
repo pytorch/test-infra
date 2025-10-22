@@ -7,17 +7,18 @@ from typing import Any
 
 HUD_URL_ROOT = "https://hud.pytorch.org/tests/fileReport"
 CONFIG: list[dict[str, Any]] = [
+    {"team": "Inductor", "link": f"{HUD_URL_ROOT}?label=module:%20inductor"},
     {
-        "team": "Inductor",
-        "link": f"{HUD_URL_ROOT}?label=module:%20inductor",
-    }
+        "team": "dynamo",
+        "link": f"{HUD_URL_ROOT}?file=dynamo&job=dynamo&label=dynamo&fileRegex=true&jobRegex=true&labelRegex=true&useOrFilter=true",
+    },
 ]
 
 TITLE = "New Test Report is Available for {team}"
 REASON = (
     "A new test report has been generated for Team:{team}.  "
     "Please go to the following link to view the report: {report_url}.  "
-    "This issue is a notification and should close immediately after creation to avoid clutter."
+    "This issue is a notification. Please close it after reviewing the report."
 )
 
 
@@ -64,15 +65,6 @@ def send_to_aws_alerting_lambda(alert: dict[str, Any]) -> None:
             return
 
     _send(alert)
-
-    # Weird but the current setup doesn't handle notification style alerts very
-    # well, so we close it manually immediately
-    close_alert = alert.copy()
-    close_alert["state"] = "RESOLVED"
-    close_alert["occurred_at"] = datetime.datetime.now(datetime.timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%S.%fZ"
-    )
-    _send(close_alert)
 
 
 if __name__ == "__main__":
