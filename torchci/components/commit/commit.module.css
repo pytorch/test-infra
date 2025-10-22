@@ -26,6 +26,13 @@
   background-color: var(--workflow-box-success-bg);
 }
 
+.workflowBoxPending {
+  border: 1px solid gray;
+  padding: 10px;
+  border-radius: 5px;
+  background-color: var(--workflow-box-pending-bg);
+}
+
 .buttonBorder {
   border: 1px solid;
 }
