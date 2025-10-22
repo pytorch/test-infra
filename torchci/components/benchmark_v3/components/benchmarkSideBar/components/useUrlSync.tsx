@@ -81,7 +81,7 @@ export function useUrlStoreSync<T extends Record<string, any>>(
 
     isApplyingUrlRef.current = true;
     navigate({ pathname, query: nextQueryObj }, undefined, {
-      shallow: false,
+      shallow: true,
     }).finally(() => {
       lastPushedSigRef.current = nextSig;
       setTimeout(() => {
