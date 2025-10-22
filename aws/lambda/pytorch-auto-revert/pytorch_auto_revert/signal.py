@@ -270,6 +270,13 @@ class InfraCheckResult(Enum):
     RESTART_FAILURE = "restart_failure"  # no failure after any success
 
 
+class SignalSource(Enum):
+    """Origin of a Signal: test-track or job-track."""
+
+    TEST = "test"
+    JOB = "job"
+
+
 class Signal:
     """A refined, column-like view of raw CI data for pattern detection.
 
@@ -285,12 +292,15 @@ class Signal:
         workflow_name: str,
         commits: List[SignalCommit],
         job_base_name: Optional[str] = None,
+        source: SignalSource = SignalSource.TEST,
     ):
         self.key = key
         self.workflow_name = workflow_name
         # commits are ordered from newest to oldest
         self.commits = commits
         self.job_base_name = job_base_name
+        # Track the origin of the signal (test-track or job-track).
+        self.source = source
 
     def detect_fixed(self) -> bool:
         """
@@ -451,6 +461,16 @@ class Signal:
         ):
             restart_commits.add(partition.successful[0].head_sha)
 
+        # Job-track specific requirement: when there is no gap (unknown empty),
+        # require a failed rerun on the first failing commit to increase confidence.
+        if (
+            not partition.unknown
+            and self.source == SignalSource.JOB
+            and not partition.failed[-1].has_pending
+            and len(partition.failed[-1].events) < 2
+        ):
+            restart_commits.add(partition.failed[-1].head_sha)
+
         if restart_commits:
             return RestartCommits(commit_shas=restart_commits)
 
@@ -470,6 +490,12 @@ class Signal:
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_SUCCESSES,
                 f"not enough successes to make call: {partition.success_events_count()}",
+            )
+
+        if self.source == SignalSource.JOB and len(partition.failed) < 2:
+            return Ineligible(
+                IneligibleReason.INSUFFICIENT_FAILURES,
+                "job-track signal requires at least 2 failures on the first failing commit",
             )
 
         if partition.unknown:

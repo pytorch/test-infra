@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .job_agg_index import JobAggIndex, JobMeta, SignalStatus as AggStatus
-from .signal import Signal, SignalCommit, SignalEvent, SignalStatus
+from .signal import Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus
 from .signal_extraction_datasource import SignalExtractionDatasource
 from .signal_extraction_types import (
     JobBaseName,
@@ -127,6 +127,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    source=s.source,
                 )
             )
         return deduped
@@ -211,6 +212,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    source=s.source,
                 )
             )
         return out
@@ -422,6 +424,7 @@ class SignalExtractor:
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(job_base_name),
+                        source=SignalSource.TEST,
                     )
                 )
 
@@ -529,6 +532,7 @@ class SignalExtractor:
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(base_name),
+                        source=SignalSource.JOB,
                     )
                 )
 
