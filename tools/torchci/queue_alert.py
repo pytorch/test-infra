@@ -19,9 +19,23 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 QUEUE_ALERT_LABEL = "queue-alert"
 
-MAX_HOURS = 4
-MAX_MACHINES = 150
-EXCEPTIONS = {"linux.gcp.a100.large": (20, 20)}
+RULES = [
+    (
+        # rocm machines: >50 in queue for >2 hours
+        lambda machine_type: "rocm" in machine_type,
+        lambda count, seconds: count > 50 and seconds > 2 * 60 * 60,
+    ),
+    (
+        # common linux machines: >50 in queue for >30 minutes
+        lambda machine_type: "linux.2xlarge" or "linux.4xlarge" in machine_type,
+        lambda count, seconds: count > 50 and seconds > 30 * 60,
+    ),
+    (
+        # all other machines: >50 in queue for >1 hour
+        lambda _: True,
+        lambda count, seconds: count > 50 and seconds > 60 * 60,
+    ),
+]
 
 
 class QueueInfo(NamedTuple):
@@ -80,13 +94,12 @@ def filter_long_queues(db_result: List[Dict[str, Any]]) -> List[QueueInfo]:
             result["machine_type"],
         )
 
-        max_hours, max_machines = EXCEPTIONS.get(
-            machine_type, (MAX_HOURS, MAX_MACHINES)
-        )
-
-        if avg_queue_s / 3600 > max_hours or count > max_machines:
-            queue_info = QueueInfo(machine_type, count, avg_queue_s / 3600)
-            large_queue.append(queue_info)
+        for condition, action in RULES:
+            if condition(machine_type):
+                if action(count, avg_queue_s):
+                    queue_info = QueueInfo(machine_type, count, avg_queue_s / 3600)
+                    large_queue.append(queue_info)
+                break
 
     return large_queue
 
