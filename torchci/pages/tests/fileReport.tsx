@@ -694,6 +694,7 @@ function Graphs({ data }: { data: any[] }) {
 
 function TestStatus({
   shas,
+  useOrFilter,
   fileFilter,
   jobFilter,
   labelFilter,
@@ -702,6 +703,7 @@ function TestStatus({
   labelRegex,
 }: {
   shas: { sha: string; push_date: number }[];
+  useOrFilter: boolean;
   fileFilter: string;
   jobFilter: string;
   labelFilter: string;
@@ -732,6 +734,9 @@ function TestStatus({
     const fileMatch = matchField(row.file, fileFilter, fileRegex);
     const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
     const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
+    if (useOrFilter) {
+      return fileMatch || jobMatch || labelMatch;
+    }
     return fileMatch && jobMatch && labelMatch;
   });
 
@@ -839,6 +844,7 @@ function useWeeksData(commitMetadata: any[], headShaIndex: number) {
 }
 
 export default function Page() {
+  const [useOrFilter, setUseOrFilter] = useState(false);
   const [fileFilter, setFileFilter] = useState("");
   const [jobFilter, setJobFilter] = useState("");
   const [labelFilter, setLabelFilter] = useState("");
@@ -897,6 +903,8 @@ export default function Page() {
     if (q.fileRegex !== undefined) setFileRegex(q.fileRegex === "true");
     if (q.jobRegex !== undefined) setJobRegex(q.jobRegex === "true");
 
+    if (q.useOrFilter !== undefined) setUseOrFilter(q.useOrFilter === "true");
+
     setBaseUrl(
       `${window.location.protocol}//${
         window.location.host
@@ -913,6 +921,9 @@ export default function Page() {
     const fileMatch = matchField(row.file, fileFilter, fileRegex);
     const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
     const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
+    if (useOrFilter) {
+      return fileMatch || jobMatch || labelMatch;
+    }
     return fileMatch && jobMatch && labelMatch;
   });
 
@@ -929,6 +940,7 @@ export default function Page() {
             fileRegex: fileRegex ? "true" : "false",
             jobRegex: jobRegex ? "true" : "false",
             labelRegex: labelRegex ? "true" : "false",
+            useOrFilter: useOrFilter ? "true" : "false",
           })}`}
         />
       </Stack>
@@ -1032,6 +1044,20 @@ export default function Page() {
             }}
           />
         ))}
+        <ButtonGroup>
+          <Button
+            variant={useOrFilter ? "outlined" : "contained"}
+            onClick={() => setUseOrFilter(false)}
+          >
+            And
+          </Button>
+          <Button
+            variant={useOrFilter ? "contained" : "outlined"}
+            onClick={() => setUseOrFilter(true)}
+          >
+            Or
+          </Button>
+        </ButtonGroup>
         <Button type="submit" variant="outlined">
           Filter
         </Button>
@@ -1095,6 +1121,7 @@ export default function Page() {
             headShaIndex - 7 >= 0 ? headShaIndex - 7 : 0,
             headShaIndex + 1
           )}
+          useOrFilter={useOrFilter}
           fileFilter={fileFilter}
           jobFilter={jobFilter}
           labelFilter={labelFilter}
