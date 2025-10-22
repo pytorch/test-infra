@@ -137,6 +137,10 @@ class SignalCommit:
     def has_failure(self) -> bool:
         return SignalStatus.FAILURE in self.statuses
 
+    def count_by_status(self, status: SignalStatus) -> int:
+        """Get the count of events with the specified status."""
+        return self.statuses.get(status, 0)
+
     def events_by_status(self, status: SignalStatus) -> List[SignalEvent]:
         """Get all events with the specified status."""
         return [event for event in self.events if event.status == status]
@@ -492,7 +496,10 @@ class Signal:
                 f"not enough successes to make call: {partition.success_events_count()}",
             )
 
-        if self.source == SignalSource.JOB and len(partition.failed) < 2:
+        if (
+            self.source == SignalSource.JOB
+            and partition.failed[-1].count_by_status(SignalStatus.FAILURE) < 2
+        ):
             return Ineligible(
                 IneligibleReason.INSUFFICIENT_FAILURES,
                 "job-track signal requires at least 2 failures on the first failing commit",
