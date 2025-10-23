@@ -201,7 +201,7 @@ const HUD_GROUP_SORTING = [
   GROUP_IOS,
   GROUP_MAC,
   GROUP_LIBTORCH,
-  GROUP_OTHER_VIABLE_STRICT_BLOCKING,
+  GROUP_OTHER_VIABLE_STRICT_BLOCKING, // placed after the last group that tends to have viable/strict blocking jobs
   GROUP_SLOW,
   GROUP_PERIODIC,
   GROUP_ROCM,
