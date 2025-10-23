@@ -24,7 +24,7 @@ export default function RegexButton({
           borderColor: "transparent",
           fontFamily: "monospace",
           color: "inherit",
-          backgroundColor: isRegex ? "rgba(63, 81, 181, 0.1)" : "transparent",
+          backgroundColor: isRegex ? "rgba(182, 196, 223, 0.33)" : "transparent",
         }}
         variant="outlined"
         onClick={() => setIsRegex(!isRegex)}
