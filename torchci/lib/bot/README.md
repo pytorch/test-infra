@@ -2,12 +2,11 @@
 
 - [PyTorch Bot Architecture Analysis](#pytorch-bot-architecture-analysis)
   - [Overview](#overview)
-  - [Core Bots](#core-bots)
+  - [Bot Modules](#bot-modules)
     - [pytorchBot](#pytorchbot)
     - [ciflowPushTrigger.ts](#ciflowpushtriggerts)
       - [Configuration (ciflow_push_tags)](#configuration-ciflow_push_tags)
     - [webhookToDynamo.ts](#webhooktodynamots)
-  - [Other Bots](#other-bots)
     - [autoLabelBot.ts](#autolabelbotts)
     - [autoCcBot.ts](#autoccbotts)
     - [retryBot.ts](#retrybotts)
@@ -35,7 +34,7 @@ The PyTorch bot is a GitHub webhook automation system built with **Probot** that
 
 - **Main Entry**: `lib/bot/index.ts:17` - Registers all bot modules with Probot
 
-## Core Bots
+## Bot Modules
 
 ### pytorchBot
 
@@ -124,8 +123,6 @@ ciflow_push_tags:
 - `pull_request`, `pull_request_review`, `pull_request_review_comment`, `push`
 
 **Special Logic:** Forms the foundation of the analytics and monitoring infrastructure by persisting all relevant GitHub events
-
-## Other Bots
 
 ### autoLabelBot.ts
 
