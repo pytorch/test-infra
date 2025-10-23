@@ -3,12 +3,40 @@ import json
 from collections import defaultdict
 from functools import lru_cache
 from typing import Any
+from urllib.parse import quote
 
 from torchci.test_insights.file_report_generator import FileReportGenerator
 from torchci.test_insights.weekly_notification import send_to_aws_alerting_lambda
 
 
 FILE_REPORT_URL = "https://hud.pytorch.org/tests/fileReport"
+
+CORE_TEAM_LABELS = [
+    "module: unknown",
+    "module: decompositions",
+    "module: nn",
+    "module: optimizer",
+    "module: autograd",
+    "module: complex",
+    "module: fx",
+    "module: __torch_function__",
+    "oncall: fx",
+]
+
+
+def name_in_info_anywhere(info: dict[str, Any], name: str) -> bool:
+    """Check if name appears in any of short_job_name, file, or labels in info."""
+    return (
+        name in info.get("short_job_name", "")
+        or name in info.get("file", "")
+        or any(name in label for label in info.get("labels", []))
+    )
+
+
+def get_name_in_info_anywhere_link(name: str) -> str:
+    """Generate a link to the file report with filters for name in short_job_name, file, or labels."""
+    return f"{FILE_REPORT_URL}?label={name}&job={name}&file={name}&labelRegex=true&jobRegex=true&fileRegex=true&useOrFilter=true"
+
 
 CONFIG: list[dict[str, Any]] = [
     {
@@ -25,6 +53,29 @@ CONFIG: list[dict[str, Any]] = [
         "team": "mps",
         "condition": lambda info: "mac" in info.get("short_job_name", ""),
         "link": f"{FILE_REPORT_URL}?job=mac&jobRegex=true",
+    },
+    {
+        "team": "dynamo",
+        "condition": lambda info: name_in_info_anywhere(info, "dynamo"),
+        "link": get_name_in_info_anywhere_link("dynamo"),
+    },
+    {
+        "team": "Inductor",
+        "condition": lambda info: name_in_info_anywhere(info, "inductor"),
+        "link": get_name_in_info_anywhere_link("inductor"),
+    },
+    {
+        "team": "distributed",
+        "condition": lambda info: name_in_info_anywhere(info, "distributed"),
+        "link": get_name_in_info_anywhere_link("distributed"),
+    },
+    {
+        "team": "core",
+        "condition": lambda info: len(
+            set(CORE_TEAM_LABELS).intersection(set(info.get("labels", [])))
+        )
+        > 0,
+        "link": f"{FILE_REPORT_URL}?label={quote('|'.join(CORE_TEAM_LABELS))}&labelRegex=true",
     },
 ]
 

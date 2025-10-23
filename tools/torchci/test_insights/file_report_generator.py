@@ -36,7 +36,13 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, cast, Dict, List, Optional
 
-import boto3  # type: ignore[import]
+
+try:
+    import boto3  # type: ignore[import]
+except ImportError:
+    # for unit tests without boto3 installed
+    boto3 = None  # type: ignore[assignment]
+
 from torchci.clickhouse import query_clickhouse
 
 
