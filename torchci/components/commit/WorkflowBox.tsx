@@ -1,5 +1,5 @@
 import { Button, Stack, styled, Tooltip, Typography } from "@mui/material";
-import { TestInfo } from "components/additionalTestInfo/TestInfo";
+import { isPending, TestInfo } from "components/additionalTestInfo/TestInfo";
 import styles from "components/commit/commit.module.css";
 import LogViewer, { SearchLogViewer } from "components/common/log/LogViewer";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -179,6 +179,8 @@ export default function WorkflowBox({
   const isFailed = jobs.some(isFailedJob) !== false;
   const workflowClass = isFailed
     ? styles.workflowBoxFail
+    : isPending(jobs)
+    ? styles.workflowBoxPending
     : styles.workflowBoxSuccess;
 
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
