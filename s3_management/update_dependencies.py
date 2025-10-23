@@ -257,7 +257,9 @@ def main() -> None:
     project_paths = list(
         set(pkg_info["project"] for pkg_info in PACKAGES_PER_PROJECT.values())
     )
-    parser.add_argument("--package", choices=project_paths, default="torch")
+    # Add 'all' option to the choices
+    project_paths_with_all = ["all"] + project_paths
+    parser.add_argument("--package", choices=project_paths_with_all, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
@@ -269,11 +271,17 @@ def main() -> None:
 
     for prefix in SUBFOLDERS:
         # Filter packages by the selected project path
-        selected_packages = {
-            pkg_name: pkg_info
-            for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
-            if pkg_info["project"] == args.package
-        }
+        if args.package == "all":
+            # Process all packages regardless of project
+            selected_packages = PACKAGES_PER_PROJECT
+        else:
+            # Filter packages by the selected project path
+            selected_packages = {
+                pkg_name: pkg_info
+                for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
+                if pkg_info["project"] == args.package
+            }
+        
         for pkg_name, pkg_info in selected_packages.items():
             if "target" in pkg_info and pkg_info["target"] != "":
                 full_path = f'{prefix}/{pkg_info["target"]}'
