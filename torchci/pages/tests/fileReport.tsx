@@ -735,7 +735,12 @@ function TestStatus({
     const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
     const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
     if (useOrFilter) {
-      return fileMatch || jobMatch || labelMatch;
+      return (
+        (!fileFilter && !jobFilter && !labelFilter) ||
+        (fileFilter && fileMatch) ||
+        (jobFilter && jobMatch) ||
+        (labelFilter && labelMatch)
+      );
     }
     return fileMatch && jobMatch && labelMatch;
   });
@@ -922,7 +927,12 @@ export default function Page() {
     const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
     const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
     if (useOrFilter) {
-      return fileMatch || jobMatch || labelMatch;
+      return (
+        (!fileFilter && !jobFilter && !labelFilter) ||
+        (fileFilter && fileMatch) ||
+        (jobFilter && jobMatch) ||
+        (labelFilter && labelMatch)
+      );
     }
     return fileMatch && jobMatch && labelMatch;
   });
