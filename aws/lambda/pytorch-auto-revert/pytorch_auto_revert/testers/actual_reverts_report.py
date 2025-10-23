@@ -1,9 +1,11 @@
 """
-Generate a report of actual revert commits in pytorch/pytorch over a given period
-and annotate whether each has a matching non-dry-run autorevert decision recorded
-by misc.autorevert_events_v2.
+Generate a report of:
+1) actual revert commits in pytorch/pytorch over a given period with a left join
+   to autorevert decisions (default view), or
+2) autorevert decisions (reverts) over a given period with a left join to actual
+   revert commits (reverse view).
 
-Columns:
+Default view columns (actual → autorevert):
 - revert_time (UTC)
 - original_sha (the commit being reverted)
 - category (from -c flag in the bot command comment, else from message, else 'uncategorized')
@@ -12,9 +14,17 @@ Columns:
 - comment_url (link to the bot command comment if present)
 - has_autorevert (yes/no) — whether misc.autorevert_events_v2 recorded a revert for original_sha
 
+Reverse view columns (autorevert → actual):
+- ts (UTC)
+- sha
+- workflows
+- signal_keys
+- matching_actual_revert
+
 Usage examples:
 - python -m pytorch_auto_revert.testers.actual_reverts_report --start "2025-09-16 22:18:51" --end "2025-09-24 00:00:00"
 - python -m pytorch_auto_revert.testers.actual_reverts_report --start "2025-09-16 22:18:51" --format csv > reverts.csv
+- python -m pytorch_auto_revert.testers.actual_reverts_report --start "2025-09-16 22:18:51" --mode auto-to-actual
 
 This script uses the ClickHouse client configuration from environment variables
 as done by the project entrypoint (CLICKHOUSE_HOST, CLICKHOUSE_PORT, CLICKHOUSE_USERNAME,
@@ -53,10 +63,10 @@ def setup_ch_from_env() -> None:
     CHCliFactory.setup_client(host, port, username, password, database)
 
 
-def run_query(
+def run_query_actual_to_auto(
     start: datetime, end: datetime
 ) -> Tuple[List[str], List[Tuple[Any, ...]]]:
-    """Run the ClickHouse query and return (headers, rows)."""
+    """Default view: actual reverts → left join autorevert decisions."""
     client = CHCliFactory().client
 
     sql = """
@@ -158,11 +168,91 @@ def run_query(
     return headers, rows
 
 
+def run_query_auto_to_actual(
+    start: datetime, end: datetime
+) -> Tuple[List[str], List[Tuple[Any, ...]]]:
+    """Reverse view: autorevert decisions (reverts) → left join actual reverts."""
+    client = CHCliFactory().client
+
+    sql = """
+    WITH
+        toDateTime64({start:DateTime64(9)}, 9) AS start_ts,
+        toDateTime64({end:DateTime64(9)}, 9)   AS end_ts
+
+    -- A) Detect actual revert commits (bot-driven) within window
+    , revert_by_sha AS (
+        SELECT
+            commit.id                           AS revert_sha,
+            min(commit.timestamp)               AS revert_time,
+            anyHeavy(commit.message)            AS message,
+            regexpExtract(message, '(?s)This reverts commit ([0-9a-fA-F]{40})', 1) AS original_sha,
+            toInt64OrNull(regexpExtract(message, '#issuecomment-(\\d+)', 1)) AS comment_id,
+            regexpExtract(message, '(?s)on behalf of https://github.com/([A-Za-z0-9-]+)', 1) AS command_author,
+            regexpExtract(message,
+                          '(?s)\\[comment\\]\\((https://github.com/pytorch/pytorch/pull/\\d+#issuecomment-\\d+)\\)', 1
+            ) AS comment_url
+        FROM default.push
+        ARRAY JOIN commits AS commit
+        WHERE tupleElement(repository, 'full_name') = 'pytorch/pytorch'
+          AND commit.timestamp >= start_ts AND commit.timestamp < end_ts
+          AND match(commit.message, '(?s)This reverts commit [0-9a-fA-F]{40}')
+        GROUP BY commit.id
+        HAVING comment_id IS NOT NULL AND command_author != ''
+    )
+
+    -- B) Map original_sha → earliest matching revert_sha within window
+    , per_original AS (
+        SELECT
+            original_sha,
+            argMin(revert_sha, revert_time)    AS matching_revert_sha,
+            argMin(comment_url, revert_time)   AS matching_comment_url
+        FROM revert_by_sha
+        GROUP BY original_sha
+    )
+
+    -- C) Autorevert decisions (non-dry-run) within window
+    , auto AS (
+        SELECT ts, commit_sha, workflows, source_signal_keys
+        FROM misc.autorevert_events_v2
+        WHERE repo = 'pytorch/pytorch'
+          AND dry_run = 0 AND action = 'revert'
+          AND ts >= start_ts AND ts < end_ts
+    )
+
+    SELECT
+        auto.ts                                   AS ts,
+        toString(auto.commit_sha)                 AS sha,
+        auto.workflows                            AS workflows,
+        auto.source_signal_keys                   AS signal_keys,
+        per_original.matching_comment_url         AS comment_url,
+        toString(per_original.matching_revert_sha) AS revert_sha
+    FROM auto
+    LEFT JOIN per_original ON per_original.original_sha = auto.commit_sha
+    ORDER BY ts
+    """
+
+    res = client.query(sql, parameters={"start": start, "end": end})
+    headers = [
+        "ts (utc)",
+        "sha",
+        "workflows",
+        "signal keys",
+        "comment_url",
+        "revert sha",
+    ]
+    rows = [tuple(row) for row in res.result_rows]
+    return headers, rows
+
+
 def print_table(headers: List[str], rows: List[Tuple[Any, ...]]) -> None:
     # Pretty print with simple width calculation and trimming long cells
     widths = [len(h) for h in headers]
-    # Cap for reason and URL columns to keep output readable
-    caps = {headers.index("reason"): 100, headers.index("comment_url"): 120}
+    # Cap for long columns when present to keep output readable
+    caps = {}
+    if "reason" in headers:
+        caps[headers.index("reason")] = 100
+    if "comment_url" in headers:
+        caps[headers.index("comment_url")] = 120
     for row in rows:
         for i, val in enumerate(row):
             sval = "" if val is None else str(val)
@@ -196,12 +286,22 @@ def main() -> None:
     load_dotenv()
 
     ap = argparse.ArgumentParser(
-        description="Build actual reverts table for a date range (UTC)"
+        description=(
+            "Report reverts vs autorevert decisions for a date range (UTC).\n"
+            "Default view: actual reverts → left join autorevert decisions.\n"
+            "Reverse view: autorevert decisions → left join actual reverts."
+        )
     )
     ap.add_argument(
         "--start", required=True, help="Start time UTC (e.g. '2025-09-16 22:18:51')"
     )
     ap.add_argument("--end", default=None, help="End time UTC (default: now)")
+    ap.add_argument(
+        "--mode",
+        choices=["actual-to-auto", "auto-to-actual"],
+        default="actual-to-auto",
+        help="Which view to generate",
+    )
     ap.add_argument(
         "--format", choices=["table", "csv"], default="table", help="Output format"
     )
@@ -211,7 +311,10 @@ def main() -> None:
     end = parse_utc(args.end) if args.end else datetime.now(timezone.utc)
 
     setup_ch_from_env()
-    headers, rows = run_query(start, end)
+    if args.mode == "auto-to-actual":
+        headers, rows = run_query_auto_to_actual(start, end)
+    else:
+        headers, rows = run_query_actual_to_auto(start, end)
 
     if args.format == "csv":
         write_csv(headers, rows, fp=os.sys.stdout)
