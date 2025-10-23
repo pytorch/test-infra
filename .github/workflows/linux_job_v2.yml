@@ -313,6 +313,9 @@ jobs:
             if [[ -d "artifacts-to-be-uploaded" ]]; then
               mv -v artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
             fi
+            if [[ -d "${RUNNER_TEMP}/artifacts-to-be-uploaded" ]]; then
+              mv -v "${RUNNER_TEMP}"/artifacts-to-be-uploaded/* "${RUNNER_ARTIFACT_DIR}/"
+            fi
           fi
 
           upload_docs=0
