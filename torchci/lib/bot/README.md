@@ -27,6 +27,7 @@
     - [Auto-labeling Intelligence](#auto-labeling-intelligence)
   - [Integration Architecture](#integration-architecture)
   - [Deployment Context](#deployment-context)
+  - [Configuration File](#configuration-file)
 
 ## Overview
 
@@ -331,3 +332,7 @@ These bots work together as a cohesive CI/CD and development workflow system:
 - **Framework**: Probot (GitHub Apps framework)
 - **Language**: TypeScript with modern ES modules
 - **Monitoring**: DynamoDB logging + external Dr. CI dashboard
+
+## Configuration File
+
+- `.github/pytorch-probot.yml` - Some bots have settings or options that can be specified in this file. Please refer to the documentation for the individual bots to know what options are used.
