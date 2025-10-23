@@ -1,0 +1,102 @@
+name: Update S3 HTML dependencies for download.pytorch.org nightly
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - s3_management/update_dependencies.py
+  pull_request:
+    paths:
+      - s3_management/update_dependencies.py
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        description: 'Enable dry run mode'
+        required: true
+        type: choice
+        default: enabled
+        options:
+          - enabled
+          - disabled
+      channel:
+        description: 'Release channel to update'
+        required: true
+        type: choice
+        default: nightly
+        options:
+          - nightly
+          - test
+          - stable
+      package:
+        description: 'Package to update'
+        required: true
+        type: choice
+        default: torch
+        options:
+          - all
+          - torch
+          - triton
+          - torchtune
+          - torch_xpu
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-22.04
+    environment: pytorchbot-env
+    container:
+      image: continuumio/miniconda3:23.10.0-1
+    steps:
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          aws-region: us-east-1
+
+      - name: Checkout repository test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ github.ref }}
+
+      - name: Update s3 html index
+        shell: bash
+        env:
+          DRYRUN: ${{ github.event.inputs.dryrun || 'disabled' }}
+          CHANNEL: ${{ github.event.inputs.channel || 'nightly' }}
+          PACKAGE: ${{ github.event.inputs.package || 'all' }}
+        run: |
+          set -ex
+
+          # Output info on default conda env
+          conda info
+
+          # Install requirements
+          pip install -r s3_management/requirements.txt
+
+          # Build command arguments
+          ARGS="--package ${PACKAGE}"
+
+          # Add dry-run flag if enabled
+          if [ "${DRYRUN}" = "enabled" ]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+
+          # Add include-stable flag if channel is stable
+          if [ "${CHANNEL}" = "stable" ]; then
+            ARGS="${ARGS} --include-stable"
+          fi
+
+          # For push/PR events (non-manual), always run with dry-run enabled
+          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
+            ARGS="--package all --dry-run"
+            echo "Automated run detected - forcing dry-run mode"
+          fi
+
+          echo "Running: python3 s3_management/update_dependencies.py ${ARGS}"
+          python3 s3_management/update_dependencies.py ${ARGS}
