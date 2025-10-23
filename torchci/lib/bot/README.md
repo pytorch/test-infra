@@ -2,28 +2,19 @@
 
 - [PyTorch Bot Architecture Analysis](#pytorch-bot-architecture-analysis)
   - [Overview](#overview)
-  - [Core Architecture](#core-architecture)
-    - [Entry Points](#entry-points)
-    - [Command System](#command-system)
-    - [Permission System (`lib/bot/utils.ts:248`)](#permission-system-libbotutilsts248)
   - [Bot Modules](#bot-modules)
-    - [Core Command Bots](#core-command-bots)
-    - [Automation Bots](#automation-bots)
-    - [CI Integration Bots](#ci-integration-bots)
-    - [Security \& Review Bots](#security--review-bots)
-    - [Infrastructure Bots](#infrastructure-bots)
-  - [Detailed Bot Analysis](#detailed-bot-analysis)
-    - [1. autoLabelBot.ts](#1-autolabelbotts)
-    - [2. autoCcBot.ts](#2-autoccbotts)
-    - [3. retryBot.ts](#3-retrybotts)
-    - [4. ciflowPushTrigger.ts](#4-ciflowpushtriggerts)
+    - [pytorchBot](#pytorchbot)
+    - [ciflowPushTrigger.ts](#ciflowpushtriggerts)
       - [Configuration (ciflow_push_tags)](#configuration-ciflow_push_tags)
-    - [5. cancelWorkflowsOnCloseBot.ts](#5-cancelworkflowsonclosebotts)
-    - [6. verifyDisableTestIssueBot.ts](#6-verifydisabletestissuebotts)
-    - [7. stripApprovalBot.ts](#7-stripapprovalbotts)
-    - [8. codevNoWritePermBot.ts](#8-codevnowritepermbotts)
-    - [9. drciBot.ts](#9-drcibotts)
-    - [10. webhookToDynamo.ts](#10-webhooktodynamots)
+    - [webhookToDynamo.ts](#webhooktodynamots)
+    - [autoLabelBot.ts](#autolabelbotts)
+    - [autoCcBot.ts](#autoccbotts)
+    - [retryBot.ts](#retrybotts)
+    - [cancelWorkflowsOnCloseBot.ts](#cancelworkflowsonclosebotts)
+    - [verifyDisableTestIssueBot.ts](#verifydisabletestissuebotts)
+    - [stripApprovalBot.ts](#stripapprovalbotts)
+    - [codevNoWritePermBot.ts](#codevnowritepermbotts)
+    - [drciBot.ts](#drcibotts)
   - [External Integrations](#external-integrations)
     - [Data Storage](#data-storage)
     - [CI Systems](#ci-systems)
@@ -33,131 +24,55 @@
     - [Smart Retry Logic (`retryBot.ts`)](#smart-retry-logic-retrybotts)
     - [Permission-based Security](#permission-based-security)
     - [Auto-labeling Intelligence](#auto-labeling-intelligence)
-  - [Data Flow](#data-flow)
   - [Integration Architecture](#integration-architecture)
   - [Deployment Context](#deployment-context)
-  - [Configuration Files](#configuration-files)
+  - [Configuration File](#configuration-file)
 
 ## Overview
 
 The PyTorch bot is a GitHub webhook automation system built with **Probot** that manages CI/CD workflows, code reviews, and development operations for the PyTorch ecosystem. It's deployed as a Next.js application on Vercel and integrates with multiple external services.
 
-## Core Architecture
-
-### Entry Points
-
 - **Main Entry**: `lib/bot/index.ts:17` - Registers all bot modules with Probot
-- **Command Handler**: `lib/bot/pytorchBot.ts:6` - Handles `@pytorchbot` commands via comments and reviews
-- **Command Parser**: `lib/bot/cliParser.ts:15` - Parses bot commands using argparse-style CLI interface
-
-### Command System
-
-The bot supports these primary commands:
-
-- **`merge`** - Merges PRs with approval validation and force-merge capabilities
-- **`revert`** - Reverts merged PRs with classification tracking
-- **`rebase`** - Rebases PRs onto target branches
-- **`label`** - Adds labels with permission validation
-- **`cherry-pick`** - Cherry-picks PRs to release branches
-- **`drci`** - Updates Dr. CI status comments
-
-### Permission System (`lib/bot/utils.ts:248`)
-
-- **Write Permissions**: Admin/write collaborators can use force-merge, ignore-current flags
-- **Rebase Permissions**: Write permissions OR non-first-time contributors
-- **Workflow Permissions**: Write permissions OR users with approved pull runs
-- **Authorization Tracking**: Uses GitHub's collaborator permission API
 
 ## Bot Modules
 
-### Core Command Bots
+### pytorchBot
 
-1. **pytorchBotHandler** (`lib/bot/pytorchBotHandler.ts:41`) - Central command processor
-2. **cliParser** (`lib/bot/cliParser.ts:7`) - Command-line interface parser
+**Primary Purpose:** Entry point for Probot that listens to issue comments and pull request review events, parses `@pytorchbot` and `@pytorchmergebot` commands and forwards them to the `PytorchBotHandler` which implements the command behavior and permission checks.
 
-### Automation Bots
+**Triggers / Webhooks:**
 
-3. **autoLabelBot** - Smart labeling based on file changes and patterns
-4. **autoCcBot** - Auto-CC users based on label subscriptions
-5. **retryBot** - Intelligent CI retry using flakiness analytics
-6. **ciflowPushTrigger** - Git tag management for CI flow triggers
-7. **cancelWorkflowsOnCloseBot** - Resource cleanup on PR closure
+- `issue_comment.created` — Parses comments for `@pytorchbot` command lines and handles PR/issue commands.
+- `pull_request_review.submitted` and `pull_request_review.edited` — Parses review body for commands.
 
-### CI Integration Bots
+**Supported Commands (via `cliParser`):**
 
-8. **verifyDisableTestIssueBot** - Test disabling authorization
+- `merge` — Merge a PR (supports `-f/--force`, `-i/--ignore-current`, `-r/--rebase`).
+- `revert` — Revert a merged PR (requires message & classification).
+- `rebase` — Rebase a PR to a target branch (defaults to `viable/strict`).
+- `label` — Add labels to a PR or Issue.
+- `drci` — Update Dr. CI comment for the PR.
+- `cherry-pick` — Cherry-pick a PR onto a release branch (`--onto/--into`, `--classification`).
+- `help` — Get help text for the bot or command. Examples: `@pytorchbot --help`, `@pytorchbot merge -h`. This [wiki page](https://github.com/pytorch/pytorch/wiki/Bot-commands) also has the help text but may be out of date.
 
-### Security & Review Bots
+**Important behaviors & integrations:**
 
-9. **stripApprovalBot** - Removes approvals on PR reopen
-10. **codevNoWritePermBot** - Notifies about permission requirements
-11. **drciBot** - Dr. CI dashboard integration
+- Commands are parsed by `cliParser.ts` (argument definitions and help text live there).
+- Permission checks and core logic are implemented in `pytorchBotHandler.ts` (e.g., `hasWritePermissions`, `hasRebasePermissions`, approval checks).
+- On valid commands the handler emits repository dispatch events such as `try-merge`, `try-rebase`, and `try-revert` which perform the actual work asynchronously.
+- The bot reacts to commands with a +1 reaction when appropriate and can post comments for failures or help text.
+- The handler integrates with other systems: ClickHouse (workflows/analytics), DynamoDB logging via `pytorchbotLogger`, and CachedConfigTracker for repo configs.
+- Issue comments are ignored when authored by known bot user IDs (see `pytorchBot.ts` skipUsers list).
 
-### Infrastructure Bots
+**Related files:**
 
-12. **webhookToDynamo** - Event logging to DynamoDB
-13. **pytorchbotLogger** - Bot action logging
+- `pytorchBot.ts` — Probot registration and webhook listeners.
+- `pytorchBotHandler.ts` — Command handling, permission enforcement and dispatch logic.
+- `cliParser.ts` — Command-line parser and help text generator for supported commands.
+- `utils.ts` — Permission helpers, reaction helpers, config loader utilities.
+- `pytorchbotLogger.ts` — Structured logging for bot actions.
 
-## Detailed Bot Analysis
-
-### 1. autoLabelBot.ts
-
-**Primary Purpose:** Automatically assigns labels to pull requests and issues based on various criteria including file paths, titles, and patterns.
-
-**Key Features:**
-
-- **Title-based labeling**: Matches PR/issue titles against regex patterns to assign relevant labels
-- **File-based labeling**: Analyzes changed files to assign module-specific and release note labels
-- **Repository-specific rules**: Applies custom labeling rules based on the repository
-- **CIFlow integration**: Assigns ciflow/\* labels based on changed files (e.g., MPS, H100 symmetry memory tests)
-- **Release notes categorization**: Automatically categorizes PRs for release notes (PyTorch-specific)
-- **Permission filtering**: Only applies CI flow labels if the author has appropriate permissions
-
-**GitHub Webhooks:**
-
-- `issues.labeled`, `issues.opened`, `issues.edited`
-- `pull_request.opened`, `pull_request.edited`, `pull_request.synchronize`
-
-**Special Logic:** Filters CI flow labels based on user permissions and workflow approval status
-
-### 2. autoCcBot.ts
-
-**Primary Purpose:** Automatically CC (carbon copy) relevant users when specific labels are applied to issues or PRs.
-
-**Key Features:**
-
-- **Subscription management**: Loads user subscriptions from a tracking issue
-- **Dynamic CC lists**: Updates CC lists in issue/PR descriptions based on applied labels
-- **Self-removal**: Prevents users from being CC'd on their own issues/PRs
-- **Incremental updates**: Only adds new CCs, preserving existing ones
-
-**GitHub Webhooks:**
-
-- `issues.labeled`
-- `pull_request.labeled`
-
-**Special Logic:** Parses subscription data from a configured tracking issue and maintains CC lists without duplicating existing mentions
-
-### 3. retryBot.ts
-
-**Primary Purpose:** Intelligently retries failed CI workflows and jobs based on failure patterns and flakiness analysis.
-
-**Key Features:**
-
-- **Smart retry logic**: Distinguishes between infrastructure failures and code-related failures
-- **Flaky job detection**: Queries ClickHouse for flaky job data from previous workflows
-- **Configurable workflows**: Only retries workflows specified in configuration
-- **Failure threshold**: Limits retries when too many jobs fail (>5 jobs)
-- **Branch-specific behavior**: Different retry logic for main branch vs. feature branches
-- **Always-retry jobs**: Specific jobs that are retried regardless of failure type
-
-**GitHub Webhooks:**
-
-- `workflow_run.completed`
-
-**Special Logic:** Uses ML/analytics data from ClickHouse to make intelligent retry decisions
-
-### 4. ciflowPushTrigger.ts
+### ciflowPushTrigger.ts
 
 **Primary Purpose:** Manages Git tags that trigger CI workflows based on CI flow labels applied to PRs.
 
@@ -190,94 +105,7 @@ ciflow_push_tags:
   - ciflow/foo
 ```
 
-### 5. cancelWorkflowsOnCloseBot.ts
-
-**Primary Purpose:** Cancels running GitHub Actions workflows when PRs are closed to save compute resources.
-
-**Key Features:**
-
-- **Automatic cancellation**: Cancels all running workflows associated with a PR's head SHA
-- **Bot exclusions**: Doesn't cancel workflows for bot users (pytorchbot, pytorchmergebot)
-- **Repository filtering**: Only operates on pytorch/pytorch repository
-- **Merge detection**: Skips cancellation for PRs that were actually merged
-- **Batch processing**: Cancels multiple workflows concurrently
-
-**GitHub Webhooks:**
-
-- `pull_request.closed`
-
-**Special Logic:** Prevents unnecessary resource usage by canceling workflows for closed/abandoned PRs
-
-### 6. verifyDisableTestIssueBot.ts
-
-**Primary Purpose:** Validates and processes issues that request disabling or marking tests as unstable.
-
-**Key Features:**
-
-- **Title parsing**: Recognizes DISABLED and UNSTABLE prefixes in issue titles
-- **Authorization validation**: Checks if users have permission to disable tests
-- **Validation comments**: Posts detailed validation information about the disable request
-- **Auto-closure**: Automatically closes unauthorized disable requests
-- **Multi-format support**: Handles single test disables and aggregate disable issues
-
-**GitHub Webhooks:**
-
-- `issues.opened`, `issues.edited`
-
-**Special Logic:** Critical security component that ensures only authorized users can disable CI tests
-
-### 7. stripApprovalBot.ts
-
-**Primary Purpose:** Removes PR approvals when PRs are reopened to ensure fresh review.
-
-**Key Features:**
-
-- **Approval dismissal**: Automatically dismisses all existing approvals on PR reopening
-- **Permission-based**: Only acts on PRs from users without write permissions
-- **Notification messages**: Provides clear explanation for why approvals were removed
-- **Security-focused**: Ensures that reopened PRs (potentially after reverts) get fresh review
-
-**GitHub Webhooks:**
-
-- `pull_request.reopened`
-
-**Special Logic:** Maintains code review integrity by requiring fresh approvals after PR reopening
-
-### 8. codevNoWritePermBot.ts
-
-**Primary Purpose:** Notifies Phabricator/Codev users when they need GitHub write permissions for CI.
-
-**Key Features:**
-
-- **Differential detection**: Recognizes PRs exported from Phabricator (Differential Revision markers)
-- **Permission checking**: Verifies if the author has write permissions
-- **Helpful messaging**: Provides links to internal documentation for getting permissions
-- **Repository filtering**: Only operates on pytorch/pytorch repository
-
-**GitHub Webhooks:**
-
-- `pull_request.opened`
-
-**Special Logic:** Bridges the gap between internal Facebook/Meta development workflow and external GitHub CI requirements
-
-### 9. drciBot.ts
-
-**Primary Purpose:** Manages Dr. CI (Diagnostic CI) comments that provide comprehensive PR status information.
-
-**Key Features:**
-
-- **Status aggregation**: Creates/updates comprehensive status comments on PRs
-- **Integration with DrCI utilities**: Leverages external DrCI infrastructure
-- **PR state tracking**: Only operates on open PRs
-- **URL integration**: Links to external Dr. CI dashboard
-
-**GitHub Webhooks:**
-
-- `pull_request.opened`, `pull_request.synchronize`
-
-**Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
-
-### 10. webhookToDynamo.ts
+### webhookToDynamo.ts
 
 **Primary Purpose:** Logs GitHub webhook events to DynamoDB tables for analytics and auditing.
 
@@ -296,6 +124,150 @@ ciflow_push_tags:
 
 **Special Logic:** Forms the foundation of the analytics and monitoring infrastructure by persisting all relevant GitHub events
 
+### autoLabelBot.ts
+
+**Primary Purpose:** Automatically assigns labels to pull requests and issues based on various criteria including file paths, titles, and patterns.
+
+**Key Features:**
+
+- **Title-based labeling**: Matches PR/issue titles against regex patterns to assign relevant labels
+- **File-based labeling**: Analyzes changed files to assign module-specific and release note labels
+- **Repository-specific rules**: Applies custom labeling rules based on the repository
+- **CIFlow integration**: Assigns ciflow/\* labels based on changed files (e.g., MPS, H100 symmetry memory tests)
+- **Release notes categorization**: Automatically categorizes PRs for release notes (PyTorch-specific)
+- **Permission filtering**: Only applies CI flow labels if the author has appropriate permissions
+
+**GitHub Webhooks:**
+
+- `issues.labeled`, `issues.opened`, `issues.edited`
+- `pull_request.opened`, `pull_request.edited`, `pull_request.synchronize`
+
+**Special Logic:** Filters CI flow labels based on user permissions and workflow approval status
+
+### autoCcBot.ts
+
+**Primary Purpose:** Automatically CC (carbon copy) relevant users when specific labels are applied to issues or PRs.
+
+**Key Features:**
+
+- **Subscription management**: Loads user subscriptions from a tracking issue
+- **Dynamic CC lists**: Updates CC lists in issue/PR descriptions based on applied labels
+- **Self-removal**: Prevents users from being CC'd on their own issues/PRs
+- **Incremental updates**: Only adds new CCs, preserving existing ones
+
+**GitHub Webhooks:**
+
+- `issues.labeled`
+- `pull_request.labeled`
+
+**Special Logic:** Parses subscription data from a configured tracking issue and maintains CC lists without duplicating existing mentions
+
+### retryBot.ts
+
+**Primary Purpose:** Intelligently retries failed CI workflows and jobs based on failure patterns and flakiness analysis.
+
+**Key Features:**
+
+- **Smart retry logic**: Distinguishes between infrastructure failures and code-related failures
+- **Flaky job detection**: Queries ClickHouse for flaky job data from previous workflows
+- **Configurable workflows**: Only retries workflows specified in configuration
+- **Failure threshold**: Limits retries when too many jobs fail (>5 jobs)
+- **Branch-specific behavior**: Different retry logic for main branch vs. feature branches
+- **Always-retry jobs**: Specific jobs that are retried regardless of failure type
+
+**GitHub Webhooks:**
+
+- `workflow_run.completed`
+
+**Special Logic:** Uses ML/analytics data from ClickHouse to make intelligent retry decisions
+
+### cancelWorkflowsOnCloseBot.ts
+
+**Primary Purpose:** Cancels running GitHub Actions workflows when PRs are closed to save compute resources.
+
+**Key Features:**
+
+- **Automatic cancellation**: Cancels all running workflows associated with a PR's head SHA
+- **Bot exclusions**: Doesn't cancel workflows for bot users (pytorchbot, pytorchmergebot)
+- **Repository filtering**: Only operates on pytorch/pytorch repository
+- **Merge detection**: Skips cancellation for PRs that were actually merged
+- **Batch processing**: Cancels multiple workflows concurrently
+
+**GitHub Webhooks:**
+
+- `pull_request.closed`
+
+**Special Logic:** Prevents unnecessary resource usage by canceling workflows for closed/abandoned PRs
+
+### verifyDisableTestIssueBot.ts
+
+**Primary Purpose:** Validates and processes issues that request disabling or marking tests as unstable.
+
+**Key Features:**
+
+- **Title parsing**: Recognizes DISABLED and UNSTABLE prefixes in issue titles
+- **Authorization validation**: Checks if users have permission to disable tests
+- **Validation comments**: Posts detailed validation information about the disable request
+- **Auto-closure**: Automatically closes unauthorized disable requests
+- **Multi-format support**: Handles single test disables and aggregate disable issues
+
+**GitHub Webhooks:**
+
+- `issues.opened`, `issues.edited`
+
+**Special Logic:** Critical security component that ensures only authorized users can disable CI tests
+
+### stripApprovalBot.ts
+
+**Primary Purpose:** Removes PR approvals when PRs are reopened to ensure fresh review.
+
+**Key Features:**
+
+- **Approval dismissal**: Automatically dismisses all existing approvals on PR reopening
+- **Permission-based**: Only acts on PRs from users without write permissions
+- **Notification messages**: Provides clear explanation for why approvals were removed
+- **Security-focused**: Ensures that reopened PRs (potentially after reverts) get fresh review
+
+**GitHub Webhooks:**
+
+- `pull_request.reopened`
+
+**Special Logic:** Maintains code review integrity by requiring fresh approvals after PR reopening
+
+### codevNoWritePermBot.ts
+
+**Primary Purpose:** Notifies Phabricator/Codev users when they need GitHub write permissions for CI.
+
+**Key Features:**
+
+- **Differential detection**: Recognizes PRs exported from Phabricator (Differential Revision markers)
+- **Permission checking**: Verifies if the author has write permissions
+- **Helpful messaging**: Provides links to internal documentation for getting permissions
+- **Repository filtering**: Only operates on pytorch/pytorch repository
+
+**GitHub Webhooks:**
+
+- `pull_request.opened`
+
+**Special Logic:** Bridges the gap between internal Facebook/Meta development workflow and external GitHub CI requirements
+
+### drciBot.ts
+
+**Primary Purpose:** Manages Dr. CI (Diagnostic CI) comments that provide comprehensive PR status information.
+
+**Key Features:**
+
+- **Status aggregation**: Creates/updates comprehensive status comments on PRs
+- **Integration with DrCI utilities**: Leverages external DrCI infrastructure
+- **PR state tracking**: Only operates on open PRs
+- **URL integration**: Links to external Dr. CI dashboard
+
+**GitHub Webhooks:**
+
+- `pull_request.opened`, `pull_request.synchronize`
+
+**Special Logic:** Serves as the interface between GitHub PRs and the comprehensive Dr. CI dashboard system
+
 ## External Integrations
 
 ### Data Storage
@@ -306,7 +278,6 @@ ciflow_push_tags:
 ### CI Systems
 
 - **GitHub Actions**: Workflow triggering via repository dispatch events
-- **CircleCI**: Parameter-based workflow triggering
 - **Dr. CI**: Comprehensive status dashboard integration
 
 ### Configuration Management
@@ -342,13 +313,6 @@ ciflow_push_tags:
 - **CI Flow Detection**: Automatic ciflow/\* label assignment
 - **Release Note Categorization**: Automated release note classification
 
-## Data Flow
-
-1. **GitHub Webhook** → **Probot App** → **Bot Module Router**
-2. **Command Parsing** → **Permission Validation** → **Action Execution**
-3. **External API Calls** (GitHub, CircleCI, ClickHouse)
-4. **Event Logging** (DynamoDB) + **Response** (GitHub reactions/comments)
-
 ## Integration Architecture
 
 These bots work together as a cohesive CI/CD and development workflow system:
@@ -366,10 +330,6 @@ These bots work together as a cohesive CI/CD and development workflow system:
 - **Language**: TypeScript with modern ES modules
 - **Monitoring**: DynamoDB logging + external Dr. CI dashboard
 
-## Configuration Files
+## Configuration File
 
-- `Constants.ts:1` - Cherry-pick and revert classifications
-- `subscriptions.ts:1` - Label subscription parsing utilities
-- Repository-specific configs loaded via `CachedConfigTracker`
-
-This bot ecosystem provides comprehensive automation for the PyTorch development workflow, balancing developer productivity with security and code quality requirements through intelligent automation and robust permission systems.
+- `.github/pytorch-probot.yml` - Some bots have settings or options that can be specified in this file. Please refer to the documentation for the individual bots to know what options are used.
