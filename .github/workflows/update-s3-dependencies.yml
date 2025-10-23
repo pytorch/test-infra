@@ -1,12 +1,9 @@
-name: Update S3 HTML dependencies for download.pytorch.org nightly
+name: Update S3 HTML dependencies for download.pytorch.org nightly and test
 
 on:
   push:
     branches:
       - main
-    paths:
-      - s3_management/update_dependencies.py
-  pull_request:
     paths:
       - s3_management/update_dependencies.py
   workflow_dispatch:
@@ -19,15 +16,6 @@ on:
         options:
           - enabled
           - disabled
-      channel:
-        description: 'Release channel to update'
-        required: true
-        type: choice
-        default: nightly
-        options:
-          - nightly
-          - test
-          - stable
       package:
         description: 'Package to update'
         required: true
@@ -68,7 +56,6 @@ jobs:
         shell: bash
         env:
           DRYRUN: ${{ github.event.inputs.dryrun || 'disabled' }}
-          CHANNEL: ${{ github.event.inputs.channel || 'nightly' }}
           PACKAGE: ${{ github.event.inputs.package || 'all' }}
         run: |
           set -ex
@@ -85,17 +72,6 @@ jobs:
           # Add dry-run flag if enabled
           if [ "${DRYRUN}" = "enabled" ]; then
             ARGS="${ARGS} --dry-run"
-          fi
-
-          # Add include-stable flag if channel is stable
-          if [ "${CHANNEL}" = "stable" ]; then
-            ARGS="${ARGS} --include-stable"
-          fi
-
-          # For push/PR events (non-manual), always run with dry-run enabled
-          if [ "${{ github.event_name }}" == "push" ] || [ "${{ github.event_name }}" == "pull_request" ]; then
-            ARGS="--package all --dry-run"
-            echo "Automated run detected - forcing dry-run mode"
           fi
 
           echo "Running: python3 s3_management/update_dependencies.py ${ARGS}"
