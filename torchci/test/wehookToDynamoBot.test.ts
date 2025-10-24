@@ -8,6 +8,11 @@ import * as utils from "./utils";
 
 nock.disableNetConnect();
 jest.mock("uuid", () => ({ v4: () => "fake-uuid" }));
+jest.mock("../lib/bot/utils", () => ({
+  ...jest.requireActual("../lib/bot/utils"),
+  isPyTorchbotSupportedOrg: jest.fn(() => true),
+  isVLLM: jest.fn(() => false),
+}));
 
 describe("webhookToDynamo tests", () => {
   let probot: Probot;
