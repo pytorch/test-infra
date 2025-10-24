@@ -60,7 +60,7 @@ class DefaultConfig:
         self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "")
         self.workflows = os.environ.get(
             "WORKFLOWS",
-            ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64"]),
+            ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]),
         ).split(",")
 
     def to_autorevert_v2_params(
