@@ -12,14 +12,16 @@ import {
   Typography,
 } from "@mui/material";
 import dayjs from "dayjs";
+import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
-import { COLOR_ERROR, COLOR_HELP_ICON, COLOR_WARNING } from "./constants";
+import { COLOR_ERROR, COLOR_WARNING, getHelpIconColor } from "./constants";
 
 export default function UnreliableJobsTable({
   data,
 }: {
   data: any[] | undefined;
 }) {
+  const { darkMode } = useDarkMode();
   // Filter to jobs with failures and sort by failure rate
   const unreliableJobs = (data || [])
     .filter((job) => {
@@ -84,7 +86,11 @@ export default function UnreliableJobsTable({
           placement="top"
         >
           <HelpOutlineIcon
-            sx={{ fontSize: "1.2rem", color: COLOR_HELP_ICON, cursor: "help" }}
+            sx={{
+              fontSize: "1.2rem",
+              color: getHelpIconColor(darkMode),
+              cursor: "help",
+            }}
           />
         </Tooltip>
       </div>

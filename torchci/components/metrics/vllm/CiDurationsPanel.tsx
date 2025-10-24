@@ -14,7 +14,9 @@ import {
 // Helper function to handle build click events
 function handleBuildClick(params: any) {
   if (params?.seriesType === "scatter") {
-    const buildNumber = params?.data?.build_number;
+    // Data is [timestamp, duration, dataObj]
+    const dataObj = Array.isArray(params.data) ? params.data[2] : params.data;
+    const buildNumber = dataObj?.build_number;
     if (buildNumber !== undefined && buildNumber !== null) {
       const url = `https://buildkite.com/vllm/ci/builds/${buildNumber}/`;
       if (typeof window !== "undefined") {
@@ -24,25 +26,47 @@ function handleBuildClick(params: any) {
   }
 }
 
-// Helper function to generate main CI builds scatter series
-function getMainScatterSeries(): any {
-  return {
-    name: "CI builds",
-    type: "scatter",
-    encode: { x: "started_at", y: "duration_hours" },
-    symbolSize: 6,
-    datasetIndex: 0,
-    itemStyle: {
-      color: (params: any) => {
-        const s = params.data?.build_state?.toLowerCase?.();
-        if (s === "failed") return COLOR_ERROR;
-        if (s === "canceled" || s === "cancelled") return COLOR_GRAY;
-        if (s === "passed" || s === "finished" || s === "success")
-          return COLOR_SUCCESS;
-        return COLOR_SUCCESS;
-      },
+// Helper function to generate separate scatter series for each build state
+function getScatterSeriesByState(source: any[]): any[] {
+  // Split data by state
+  const successData = source.filter((d) => {
+    const s = d.build_state?.toLowerCase?.();
+    return s === "passed" || s === "finished" || s === "success";
+  });
+
+  const failedData = source.filter((d) => {
+    const s = d.build_state?.toLowerCase?.();
+    return s === "failed";
+  });
+
+  const canceledData = source.filter((d) => {
+    const s = d.build_state?.toLowerCase?.();
+    return s === "canceled" || s === "cancelled";
+  });
+
+  return [
+    {
+      name: "Success",
+      type: "scatter",
+      data: successData.map((d) => [d.started_at, d.duration_hours, d]),
+      symbolSize: 6,
+      itemStyle: { color: COLOR_SUCCESS },
     },
-  };
+    {
+      name: "Failed",
+      type: "scatter",
+      data: failedData.map((d) => [d.started_at, d.duration_hours, d]),
+      symbolSize: 6,
+      itemStyle: { color: COLOR_ERROR },
+    },
+    {
+      name: "Canceled",
+      type: "scatter",
+      data: canceledData.map((d) => [d.started_at, d.duration_hours, d]),
+      symbolSize: 6,
+      itemStyle: { color: COLOR_GRAY },
+    },
+  ];
 }
 
 // Helper function to generate line series for daily averages
@@ -74,36 +98,6 @@ function getLineSeries(
   ];
 }
 
-// Helper function to generate scatter series for legend
-function getLegendScatterSeries(): any[] {
-  return [
-    {
-      name: "Success",
-      type: "scatter",
-      data: [],
-      itemStyle: { color: COLOR_SUCCESS },
-      tooltip: { show: false },
-      silent: true,
-    },
-    {
-      name: "Failed",
-      type: "scatter",
-      data: [],
-      itemStyle: { color: COLOR_ERROR },
-      tooltip: { show: false },
-      silent: true,
-    },
-    {
-      name: "Canceled",
-      type: "scatter",
-      data: [],
-      itemStyle: { color: COLOR_GRAY },
-      tooltip: { show: false },
-      silent: true,
-    },
-  ];
-}
-
 // Helper function to format tooltip content
 function formatTooltip(params: any): string {
   if (params.seriesType === "line") {
@@ -112,7 +106,8 @@ function formatTooltip(params: any): string {
       : params.data?.value;
     return `Day: ${params.data.day}<br/>Daily median: ${rawVal} h`;
   }
-  const d = params.data;
+  // For scatter series, data is [timestamp, duration, dataObj]
+  const d = Array.isArray(params.data) ? params.data[2] : params.data;
   const when = d.started_at ? dayjs(d.started_at).format("M/D/YY h:mm A") : "";
   const duration = d.duration_hours_raw || d.duration_hours;
   const durationStr =
@@ -203,7 +198,7 @@ export default function CiDurationsPanel({
         { name: "Failed" },
         { name: "Canceled" },
       ],
-      selectedMode: false,
+      selectedMode: "multiple", // Enable toggling of legend items
     },
     grid: { top: 60, right: 8, bottom: 80, left: 64 },
     dataset: [
@@ -232,9 +227,8 @@ export default function CiDurationsPanel({
       formatter: formatTooltip,
     },
     series: [
-      getMainScatterSeries(),
       ...getLineSeries(dailyMeanSuccess, dailyMeanNonCanceled),
-      ...getLegendScatterSeries(),
+      ...getScatterSeriesByState(source),
     ],
     dataZoom: [
       {

@@ -4,7 +4,8 @@
     "repo": "String",
     "pipelineName": "String",
     "startTime": "DateTime64(3)",
-    "stopTime": "DateTime64(3)"
+    "stopTime": "DateTime64(3)",
+    "jobGroups": "Array(String)"
   },
   "tests": [
     {
@@ -12,7 +13,8 @@
       "repo": "https://github.com/vllm-project/vllm.git",
       "pipelineName": "CI",
       "startTime": "2025-09-22T00:00:00.000",
-      "stopTime": "2025-09-29T00:00:00.000"
+      "stopTime": "2025-09-29T00:00:00.000",
+      "jobGroups": ["amd", "torch_nightly", "main"]
     }
   ]
 }

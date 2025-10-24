@@ -4,7 +4,8 @@
     "pipelineName": "String",
     "startTime": "DateTime64(3)",
     "stopTime": "DateTime64(3)",
-    "minRuns": "UInt32"
+    "minRuns": "UInt32",
+    "jobGroups": "Array(String)"
   },
   "tests": [
     {
@@ -12,7 +13,8 @@
       "pipelineName": "CI",
       "startTime": "2025-09-26T00:00:00.000",
       "stopTime": "2025-10-03T00:00:00.000",
-      "minRuns": 3
+      "minRuns": 3,
+      "jobGroups": ["amd", "torch_nightly", "main"]
     }
   ]
 }

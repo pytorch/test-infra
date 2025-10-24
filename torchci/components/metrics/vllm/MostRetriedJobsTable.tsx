@@ -10,13 +10,16 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { COLOR_ERROR, COLOR_HELP_ICON, COLOR_WARNING } from "./constants";
+import { useDarkMode } from "lib/DarkModeContext";
+import { COLOR_ERROR, COLOR_WARNING, getHelpIconColor } from "./constants";
 
 export default function MostRetriedJobsTable({
   data,
 }: {
   data: any[] | undefined;
 }) {
+  const { darkMode } = useDarkMode();
+
   if (!data || data.length === 0) {
     return (
       <Paper sx={{ p: 2, height: "100%" }} elevation={3}>
@@ -48,7 +51,11 @@ export default function MostRetriedJobsTable({
           placement="top"
         >
           <HelpOutlineIcon
-            sx={{ fontSize: "1.2rem", color: COLOR_HELP_ICON, cursor: "help" }}
+            sx={{
+              fontSize: "1.2rem",
+              color: getHelpIconColor(darkMode),
+              cursor: "help",
+            }}
           />
         </Tooltip>
       </div>
