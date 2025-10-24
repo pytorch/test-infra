@@ -694,22 +694,10 @@ function Graphs({ data }: { data: any[] }) {
 
 function TestStatus({
   shas,
-  useOrFilter,
-  fileFilter,
-  jobFilter,
-  labelFilter,
-  fileRegex,
-  jobRegex,
-  labelRegex,
+  rowMatchesFilters,
 }: {
   shas: { sha: string; push_date: number }[];
-  useOrFilter: boolean;
-  fileFilter: string;
-  jobFilter: string;
-  labelFilter: string;
-  fileRegex: boolean;
-  jobRegex: boolean;
-  labelRegex: boolean;
+  rowMatchesFilters: (row: any) => boolean;
 }) {
   const options = shas;
   const [selectedIndex, setSelectedIndex] = useState<number>(
@@ -730,20 +718,7 @@ function TestStatus({
   );
 
   // Apply the same file/job/label filter to statusChangeData
-  data = data?.filter((row) => {
-    const fileMatch = matchField(row.file, fileFilter, fileRegex);
-    const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
-    const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
-    if (useOrFilter) {
-      return (
-        (!fileFilter && !jobFilter && !labelFilter) ||
-        (fileFilter && fileMatch) ||
-        (jobFilter && jobMatch) ||
-        (labelFilter && labelMatch)
-      );
-    }
-    return fileMatch && jobMatch && labelMatch;
-  });
+  data = data?.filter(rowMatchesFilters);
 
   const columns: any[] = [
     { field: "status", headerName: "Status", flex: 1 },
@@ -922,21 +897,22 @@ export default function Page() {
   }
 
   // Filter data by file, job, and label with regex support
-  data = data.filter((row) => {
+  function rowMatchesFilters(row: any) {
     const fileMatch = matchField(row.file, fileFilter, fileRegex);
     const jobMatch = matchField(row.short_job_name, jobFilter, jobRegex);
     const labelMatch = matchLabel(row.labels, labelFilter, labelRegex);
     if (useOrFilter) {
       return (
         (!fileFilter && !jobFilter && !labelFilter) ||
-        (fileFilter && fileMatch) ||
-        (jobFilter && jobMatch) ||
-        (labelFilter && labelMatch)
+        (fileFilter !== "" && fileMatch) ||
+        (jobFilter !== "" && jobMatch) ||
+        (labelFilter !== "" && labelMatch)
       );
     }
     return fileMatch && jobMatch && labelMatch;
-  });
+  }
 
+  data = data.filter(rowMatchesFilters);
   return (
     <Stack spacing={4}>
       <Stack direction="row" spacing={2}>
@@ -1131,13 +1107,7 @@ export default function Page() {
             headShaIndex - 7 >= 0 ? headShaIndex - 7 : 0,
             headShaIndex + 1
           )}
-          useOrFilter={useOrFilter}
-          fileFilter={fileFilter}
-          jobFilter={jobFilter}
-          labelFilter={labelFilter}
-          fileRegex={fileRegex}
-          jobRegex={jobRegex}
-          labelRegex={labelRegex}
+          rowMatchesFilters={rowMatchesFilters}
         />
       </Stack>
     </Stack>
