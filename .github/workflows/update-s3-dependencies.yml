@@ -56,7 +56,7 @@ jobs:
         shell: bash
         env:
           DRYRUN: ${{ github.event.inputs.dryrun || 'disabled' }}
-          PACKAGE: ${{ github.event.inputs.package || 'all' }}
+          PACKAGE: ${{ github.event.inputs.package || 'torch' }}
         run: |
           set -ex
 

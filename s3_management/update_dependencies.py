@@ -88,7 +88,7 @@ PACKAGES_PER_PROJECT = {
     "pydot": {"version": "latest", "project": "triton"},
     "pyparsing": {"version": "latest", "project": "triton"},
     "pytz": {"version": "latest", "project": "triton"},
-    "textX": {"version": "latest", "project": "triton"},
+    "textx": {"version": "latest", "project": "triton"},
     "tzdata": {"version": "latest", "project": "triton"},
     "importlib-metadata": {"version": "latest", "project": "triton"},
     "importlib-resources": {"version": "latest", "project": "triton"},
