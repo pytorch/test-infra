@@ -8,539 +8,146 @@ S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
 
-PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
-    "sympy": [{"version": "latest", "project": "torch"}],
-    "mpmath": [{"version": "latest", "project": "torch"}],
-    "pillow": [{"version": "latest", "project": "torch"}],
-    "networkx": [{"version": "latest", "project": "torch"}],
-    "numpy": [{"version": "latest", "project": "torch"}],
-    "jinja2": [{"version": "latest", "project": "torch"}],
-    "filelock": [{"version": "latest", "project": "torch"}],
-    "fsspec": [{"version": "latest", "project": "torch"}],
-    "nvidia-cudnn-cu11": [{"version": "latest", "project": "torch"}],
-    "typing-extensions": [{"version": "latest", "project": "torch"}],
-    "nvidia-cuda-nvrtc-cu12": [
-        {
-            "version": "12.6.77",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.8.93",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.9.86",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cuda-nvrtc": [
-        {
-            "version": "13.0.88",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cuda-runtime-cu12": [
-        {
-            "version": "12.6.77",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.8.90",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.9.79",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cuda-runtime": [
-        {
-            "version": "13.0.96",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cuda-cupti-cu12": [
-        {
-            "version": "12.6.80",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.8.90",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.9.79",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cuda-cupti": [
-        {
-            "version": "13.0.85",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cudnn-cu12": [
-        {
-            "version": "9.10.2.21",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "9.10.2.21",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "9.10.2.21",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cudnn-cu13": [
-        {
-            "version": "9.13.0.50",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cublas-cu12": [
-        {
-            "version": "12.6.4.1",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.8.4.1",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.9.1.4",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cublas": [
-        {
-            "version": "13.1.0.3",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cufft-cu12": [
-        {
-            "version": "11.3.0.4",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "11.3.3.83",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "11.4.1.4",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cufft": [
-        {
-            "version": "12.0.0.61",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-curand-cu12": [
-        {
-            "version": "10.3.7.77",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "10.3.9.90",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "10.3.10.19",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-curand": [
-        {
-            "version": "10.4.0.42",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cusolver-cu12": [
-        {
-            "version": "11.7.1.2",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "11.7.3.90",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "11.7.5.82",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cusolver": [
-        {
-            "version": "12.0.4.66",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cusparse-cu12": [
-        {
-            "version": "12.5.4.2",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.5.8.93",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.5.10.65",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cusparse": [
-        {
-            "version": "12.6.3.3",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cusparselt-cu12": [
-        {
-            "version": "0.7.1",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "0.7.1",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "0.7.1",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cusparselt-cu13": [
-        {
-            "version": "0.8.0",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-nccl-cu12": [
-        {
-            "version": "2.27.5",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "2.27.5",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "2.27.5",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-nccl-cu13": [
-        {
-            "version": "2.27.7",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-nvshmem-cu12": [
-        {
-            "version": "3.3.24",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "3.3.24",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "3.3.24",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-nvshmem-cu13": [
-        {
-            "version": "3.3.24",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-nvtx-cu12": [
-        {
-            "version": "12.6.77",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.8.90",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.9.79",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-nvtx": [
-        {
-            "version": "13.0.85",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-nvjitlink-cu12": [
-        {
-            "version": "12.6.85",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "12.8.93",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "12.9.86",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-nvjitlink": [
-        {
-            "version": "13.0.88",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "nvidia-cufile-cu12": [
-        {
-            "version": "1.11.1.6",
-            "project": "torch",
-            "target": "cu126",
-        },
-        {
-            "version": "1.13.1.3",
-            "project": "torch",
-            "target": "cu128",
-        },
-        {
-            "version": "1.14.1.1",
-            "project": "torch",
-            "target": "cu129",
-        },
-    ],
-    "nvidia-cufile": [
-        {
-            "version": "1.15.1.6",
-            "project": "torch",
-            "target": "cu130",
-        }
-    ],
-    "arpeggio": [{"version": "latest", "project": "triton"}],
-    "caliper-reader": [{"version": "latest", "project": "triton"}],
-    "contourpy": [{"version": "latest", "project": "triton"}],
-    "cycler": [{"version": "latest", "project": "triton"}],
-    "dill": [{"version": "latest", "project": "triton"}],
-    "fonttools": [{"version": "latest", "project": "triton"}],
-    "kiwisolver": [{"version": "latest", "project": "triton"}],
-    "llnl-hatchet": [{"version": "latest", "project": "triton"}],
-    "matplotlib": [{"version": "latest", "project": "triton"}],
-    "pandas": [{"version": "latest", "project": "triton"}],
-    "pydot": [{"version": "latest", "project": "triton"}],
-    "pyparsing": [{"version": "latest", "project": "triton"}],
-    "pytz": [{"version": "latest", "project": "triton"}],
-    "textX": [{"version": "latest", "project": "triton"}],
-    "tzdata": [{"version": "latest", "project": "triton"}],
-    "importlib-metadata": [{"version": "latest", "project": "triton"}],
-    "importlib-resources": [{"version": "latest", "project": "triton"}],
-    "zipp": [{"version": "latest", "project": "triton"}],
-    "aiohttp": [{"version": "latest", "project": "torchtune"}],
-    "aiosignal": [{"version": "latest", "project": "torchtune"}],
-    "antlr4-python3-runtime": [{"version": "latest", "project": "torchtune"}],
-    "attrs": [{"version": "latest", "project": "torchtune"}],
-    "blobfile": [{"version": "latest", "project": "torchtune"}],
-    "certifi": [{"version": "latest", "project": "torchtune"}],
-    "charset-normalizer": [{"version": "latest", "project": "torchtune"}],
-    "datasets": [{"version": "latest", "project": "torchtune"}],
-    "frozenlist": [{"version": "latest", "project": "torchtune"}],
-    "huggingface-hub": [{"version": "latest", "project": "torchtune"}],
-    "idna": [{"version": "latest", "project": "torchtune"}],
-    "lxml": [{"version": "latest", "project": "torchtune"}],
-    "markupsafe": [{"version": "latest", "project": "torchtune"}],
-    "multidict": [{"version": "latest", "project": "torchtune"}],
-    "multiprocess": [{"version": "latest", "project": "torchtune"}],
-    "omegaconf": [{"version": "latest", "project": "torchtune"}],
-    "pyarrow": [{"version": "latest", "project": "torchtune"}],
-    "pyarrow-hotfix": [{"version": "latest", "project": "torchtune"}],
-    "pycryptodomex": [{"version": "latest", "project": "torchtune"}],
-    "python-dateutil": [{"version": "latest", "project": "torchtune"}],
-    "pyyaml": [{"version": "latest", "project": "torchtune"}],
-    "regex": [{"version": "latest", "project": "torchtune"}],
-    "requests": [{"version": "latest", "project": "torchtune"}],
-    "safetensors": [{"version": "latest", "project": "torchtune"}],
-    "sentencepiece": [{"version": "latest", "project": "torchtune"}],
-    "six": [{"version": "latest", "project": "torchtune"}],
-    "tiktoken": [{"version": "latest", "project": "torchtune"}],
-    "tqdm": [{"version": "latest", "project": "torchtune"}],
-    "urllib3": [{"version": "latest", "project": "torchtune"}],
-    "xxhash": [{"version": "latest", "project": "torchtune"}],
-    "yarl": [{"version": "latest", "project": "torchtune"}],
-    "dpcpp-cpp-rt": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-cmplr-lib-rt": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-cmplr-lib-ur": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-cmplr-lic-rt": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-opencl-rt": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-sycl-rt": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-openmp": [{"version": "latest", "project": "torch_xpu"}],
-    "tcmlib": [{"version": "latest", "project": "torch_xpu"}],
-    "umf": [{"version": "latest", "project": "torch_xpu"}],
-    "intel-pti": [{"version": "latest", "project": "torch_xpu"}],
-    "tbb": [{"version": "latest", "project": "torch_xpu"}],
-    "oneccl-devel": [{"version": "latest", "project": "torch_xpu"}],
-    "oneccl": [{"version": "latest", "project": "torch_xpu"}],
-    "impi-rt": [{"version": "latest", "project": "torch_xpu"}],
-    "onemkl-sycl-blas": [{"version": "latest", "project": "torch_xpu"}],
-    "onemkl-sycl-dft": [{"version": "latest", "project": "torch_xpu"}],
-    "onemkl-sycl-lapack": [{"version": "latest", "project": "torch_xpu"}],
-    "onemkl-sycl-sparse": [{"version": "latest", "project": "torch_xpu"}],
-    "onemkl-sycl-rng": [{"version": "latest", "project": "torch_xpu"}],
-    "mkl": [{"version": "latest", "project": "torch_xpu"}],
-    # vLLM
-    "ninja": [{"version": "latest", "project": "vllm"}],
-    "cuda-python": [{"version": "12.9.0", "project": "vllm"}],
-    "cuda-bindings": [{"version": "12.9.2", "project": "vllm"}],
-    "cuda-pathfinder": [{"version": "latest", "project": "vllm"}],
-    "pynvml": [{"version": "latest", "project": "vllm"}],
-    "nvidia-ml-py": [{"version": "latest", "project": "vllm"}],
-    "einops": [{"version": "latest", "project": "vllm"}],
-    "packaging": [{"version": "latest", "project": "vllm"}],
-    "nvidia-cudnn-frontend": [{"version": "latest", "project": "vllm"}],
-    "cachetools": [{"version": "latest", "project": "vllm"}],
-    "blake3": [{"version": "latest", "project": "vllm"}],
-    "py-cpuinfo": [{"version": "latest", "project": "vllm"}],
-    "transformers": [{"version": "latest", "project": "vllm"}],
-    "hf-xet": [{"version": "latest", "project": "vllm"}],
-    "tokenizers": [{"version": "latest", "project": "vllm"}],
-    "protobuf": [{"version": "latest", "project": "vllm"}],
-    "fastapi": [{"version": "latest", "project": "vllm"}],
-    "annotated-types": [{"version": "latest", "project": "vllm"}],
-    "anyio": [{"version": "latest", "project": "vllm"}],
-    "pydantic": [{"version": "latest", "project": "vllm"}],
-    "pydantic-core": [{"version": "2.33.2", "project": "vllm"}],
-    "sniffio": [{"version": "latest", "project": "vllm"}],
-    "starlette": [{"version": "latest", "project": "vllm"}],
-    "typing-inspection": [{"version": "latest", "project": "vllm"}],
-    "openai": [{"version": "latest", "project": "vllm"}],
-    "distro": [{"version": "latest", "project": "vllm"}],
-    "h11": [{"version": "latest", "project": "vllm"}],
-    "httpcore": [{"version": "latest", "project": "vllm"}],
-    "httpx": [{"version": "latest", "project": "vllm"}],
-    "jiter": [{"version": "latest", "project": "vllm"}],
-    "prometheus-client": [{"version": "latest", "project": "vllm"}],
-    "prometheus-fastapi-instrumentator": [{"version": "latest", "project": "vllm"}],
-    "lm-format-enforcer": [{"version": "latest", "project": "vllm"}],
-    "interegular": [{"version": "latest", "project": "vllm"}],
-    "llguidance": [{"version": "0.7.11", "project": "vllm"}],
-    "outlines-core": [{"version": "0.2.10", "project": "vllm"}],
-    "diskcache": [{"version": "latest", "project": "vllm"}],
-    "lark": [{"version": "latest", "project": "vllm"}],
-    "xgrammar": [{"version": "0.1.23", "project": "vllm"}],
-    "partial-json-parser": [{"version": "latest", "project": "vllm"}],
-    "pyzmq": [{"version": "latest", "project": "vllm"}],
-    "msgspec": [{"version": "latest", "project": "vllm"}],
-    "gguf": [{"version": "latest", "project": "vllm"}],
-    "mistral-common": [{"version": "latest", "project": "vllm"}],
-    "rpds-py": [{"version": "latest", "project": "vllm"}],
-    "pycountry": [{"version": "latest", "project": "vllm"}],
-    "referencing": [{"version": "latest", "project": "vllm"}],
-    "pydantic-extra-types": [{"version": "latest", "project": "vllm"}],
-    "jsonschema-specifications": [{"version": "latest", "project": "vllm"}],
-    "jsonschema": [{"version": "latest", "project": "vllm"}],
-    "opencv-python-headless": [{"version": "latest", "project": "vllm"}],
-    "compressed-tensors": [{"version": "latest", "project": "vllm"}],
-    "frozendict": [{"version": "latest", "project": "vllm"}],
-    "depyf": [{"version": "latest", "project": "vllm"}],
-    "astor": [{"version": "latest", "project": "vllm"}],
-    "cloudpickle": [{"version": "latest", "project": "vllm"}],
-    "watchfiles": [{"version": "latest", "project": "vllm"}],
-    "python-json-logger": [{"version": "latest", "project": "vllm"}],
-    "scipy": [{"version": "latest", "project": "vllm"}],
-    "pybase64": [{"version": "latest", "project": "vllm"}],
-    "cbor2": [{"version": "latest", "project": "vllm"}],
-    "setproctitle": [{"version": "latest", "project": "vllm"}],
-    "openai-harmony": [{"version": "latest", "project": "vllm"}],
-    "numba": [{"version": "0.61.2", "project": "vllm"}],
-    "llvmlite": [{"version": "latest", "project": "vllm"}],
-    "ray": [{"version": "latest", "project": "vllm"}],
-    "click": [{"version": "latest", "project": "vllm"}],
-    "msgpack": [{"version": "latest", "project": "vllm"}],
-    "fastapi-cli": [{"version": "latest", "project": "vllm"}],
-    "httptools": [{"version": "latest", "project": "vllm"}],
-    "markdown-it-py": [{"version": "latest", "project": "vllm"}],
-    "pygments": [{"version": "latest", "project": "vllm"}],
-    "python-dotenv": [{"version": "latest", "project": "vllm"}],
-    "rich": [{"version": "latest", "project": "vllm"}],
-    "rich-toolkit": [{"version": "latest", "project": "vllm"}],
-    "shellingham": [{"version": "latest", "project": "vllm"}],
-    "typer": [{"version": "latest", "project": "vllm"}],
-    "uvicorn": [{"version": "latest", "project": "vllm"}],
-    "uvloop": [{"version": "latest", "project": "vllm"}],
-    "websockets": [{"version": "latest", "project": "vllm"}],
-    "python-multipart": [{"version": "latest", "project": "vllm"}],
-    "email-validator": [{"version": "latest", "project": "vllm"}],
-    "dnspython": [{"version": "2.7.0", "project": "vllm"}],
-    "fastapi-cloud-cli": [{"version": "latest", "project": "vllm"}],
-    "mdurl": [{"version": "latest", "project": "vllm"}],
-    "rignore": [{"version": "latest", "project": "vllm"}],
-    "sentry-sdk": [{"version": "latest", "project": "vllm"}],
-    "cupy-cuda12x": [{"version": "latest", "project": "vllm"}],
-    "fastrlock": [{"version": "latest", "project": "vllm"}],
-    "soundfile": [{"version": "latest", "project": "vllm"}],
-    "cffi": [{"version": "latest", "project": "vllm"}],
-    "pycparser": [{"version": "latest", "project": "vllm"}],
+PACKAGES_PER_PROJECT = {
+    "sympy": {"version": "latest", "project": "torch"},
+    "mpmath": {"version": "latest", "project": "torch"},
+    "pillow": {"version": "latest", "project": "torch"},
+    "networkx": {"version": "latest", "project": "torch"},
+    "numpy": {"version": "latest", "project": "torch"},
+    "jinja2": {"version": "latest", "project": "torch"},
+    "filelock": {"version": "latest", "project": "torch"},
+    "fsspec": {"version": "latest", "project": "torch"},
+    "nvidia-cudnn-cu11": {"version": "latest", "project": "torch"},
+    "nvidia-cudnn-cu12": {"version": "latest", "project": "torch"},
+    "typing-extensions": {"version": "latest", "project": "torch"},
+    "nvidia-cuda-nvrtc-cu12": {
+        "version": "12.9.86",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cuda-runtime-cu12": {
+        "version": "12.9.79",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cuda-cupti-cu12": {
+        "version": "12.9.79",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cublas-cu12": {
+        "version": "12.9.1.4",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cufft-cu12": {
+        "version": "11.4.1.4",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-curand-cu12": {
+        "version": "10.3.10.19",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cusolver-cu12": {
+        "version": "11.7.5.82",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cusparse-cu12": {
+        "version": "12.5.10.65",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-nvtx-cu12": {
+        "version": "12.9.79",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-nvjitlink-cu12": {
+        "version": "12.9.86",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "nvidia-cufile-cu12": {
+        "version": "1.14.1.1",
+        "project": "torch",
+        "target": "cu129",
+    },
+    "arpeggio": {"version": "latest", "project": "triton"},
+    "caliper-reader": {"version": "latest", "project": "triton"},
+    "contourpy": {"version": "latest", "project": "triton"},
+    "cycler": {"version": "latest", "project": "triton"},
+    "dill": {"version": "latest", "project": "triton"},
+    "fonttools": {"version": "latest", "project": "triton"},
+    "kiwisolver": {"version": "latest", "project": "triton"},
+    "llnl-hatchet": {"version": "latest", "project": "triton"},
+    "matplotlib": {"version": "latest", "project": "triton"},
+    "pandas": {"version": "latest", "project": "triton"},
+    "pydot": {"version": "latest", "project": "triton"},
+    "pyparsing": {"version": "latest", "project": "triton"},
+    "pytz": {"version": "latest", "project": "triton"},
+    "textX": {"version": "latest", "project": "triton"},
+    "tzdata": {"version": "latest", "project": "triton"},
+    "importlib-metadata": {"version": "latest", "project": "triton"},
+    "importlib-resources": {"version": "latest", "project": "triton"},
+    "zipp": {"version": "latest", "project": "triton"},
+    "aiohttp": {"version": "latest", "project": "torchtune"},
+    "aiosignal": {"version": "latest", "project": "torchtune"},
+    "antlr4-python3-runtime": {"version": "latest", "project": "torchtune"},
+    "attrs": {"version": "latest", "project": "torchtune"},
+    "blobfile": {"version": "latest", "project": "torchtune"},
+    "certifi": {"version": "latest", "project": "torchtune"},
+    "charset-normalizer": {"version": "latest", "project": "torchtune"},
+    "datasets": {"version": "latest", "project": "torchtune"},
+    "dill": {"version": "latest", "project": "torchtune"},
+    "frozenlist": {"version": "latest", "project": "torchtune"},
+    "huggingface-hub": {"version": "latest", "project": "torchtune"},
+    "idna": {"version": "latest", "project": "torchtune"},
+    "lxml": {"version": "latest", "project": "torchtune"},
+    "markupsafe": {"version": "latest", "project": "torchtune"},
+    "multidict": {"version": "latest", "project": "torchtune"},
+    "multiprocess": {"version": "latest", "project": "torchtune"},
+    "omegaconf": {"version": "latest", "project": "torchtune"},
+    "pandas": {"version": "latest", "project": "torchtune"},
+    "pyarrow": {"version": "latest", "project": "torchtune"},
+    "pyarrow-hotfix": {"version": "latest", "project": "torchtune"},
+    "pycryptodomex": {"version": "latest", "project": "torchtune"},
+    "python-dateutil": {"version": "latest", "project": "torchtune"},
+    "pytz": {"version": "latest", "project": "torchtune"},
+    "pyyaml": {"version": "latest", "project": "torchtune"},
+    "regex": {"version": "latest", "project": "torchtune"},
+    "requests": {"version": "latest", "project": "torchtune"},
+    "safetensors": {"version": "latest", "project": "torchtune"},
+    "sentencepiece": {"version": "latest", "project": "torchtune"},
+    "six": {"version": "latest", "project": "torchtune"},
+    "tiktoken": {"version": "latest", "project": "torchtune"},
+    "tqdm": {"version": "latest", "project": "torchtune"},
+    "tzdata": {"version": "latest", "project": "torchtune"},
+    "urllib3": {"version": "latest", "project": "torchtune"},
+    "xxhash": {"version": "latest", "project": "torchtune"},
+    "yarl": {"version": "latest", "project": "torchtune"},
+    "dpcpp-cpp-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-cmplr-lib-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-cmplr-lib-ur": {"version": "latest", "project": "torch_xpu"},
+    "intel-cmplr-lic-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-opencl-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-sycl-rt": {"version": "latest", "project": "torch_xpu"},
+    "intel-openmp": {"version": "latest", "project": "torch_xpu"},
+    "tcmlib": {"version": "latest", "project": "torch_xpu"},
+    "umf": {"version": "latest", "project": "torch_xpu"},
+    "intel-pti": {"version": "latest", "project": "torch_xpu"},
+    "tbb": {"version": "latest", "project": "torch_xpu"},
+    "oneccl-devel": {"version": "latest", "project": "torch_xpu"},
+    "oneccl": {"version": "latest", "project": "torch_xpu"},
+    "impi-rt": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-blas": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-dft": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-lapack": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-sparse": {"version": "latest", "project": "torch_xpu"},
+    "onemkl-sycl-rng": {"version": "latest", "project": "torch_xpu"},
+    "mkl": {"version": "latest", "project": "torch_xpu"},
 }
 
 
@@ -648,15 +255,10 @@ def main() -> None:
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     # Get unique paths from the packages list
     project_paths = list(
-        {
-            config["project"]
-            for pkg_configs in PACKAGES_PER_PROJECT.values()
-            for config in pkg_configs
-        }
+        set(pkg_info["project"] for pkg_info in PACKAGES_PER_PROJECT.values())
     )
-    # Add 'all' option to the choices
-    project_paths_with_all = ["all"] + project_paths
-    parser.add_argument("--package", choices=project_paths_with_all, default="torch")
+    project_paths += ["all"]
+    parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
@@ -668,17 +270,11 @@ def main() -> None:
 
     for prefix in SUBFOLDERS:
         # Filter packages by the selected project path
-        if args.package == "all":
-            # Process all packages regardless of project
-            selected_packages = PACKAGES_PER_PROJECT
-        else:
-            # Filter packages by the selected project path
-            selected_packages = {
-                pkg_name: pkg_info
-                for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
-                if pkg_info["project"] == args.package
-            }
-        
+        selected_packages = {
+            pkg_name: pkg_info
+            for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
+            if args.package == "all" or pkg_info["project"] == args.package
+        }
         for pkg_name, pkg_info in selected_packages.items():
             if "target" in pkg_info and pkg_info["target"] != "":
                 full_path = f'{prefix}/{pkg_info["target"]}'
@@ -690,7 +286,7 @@ def main() -> None:
                 full_path,
                 dry_run=args.dry_run,
                 only_pypi=args.only_pypi,
-                target_version=pkg_config["version"],
+                target_version=pkg_info["version"],
             )
 
 
