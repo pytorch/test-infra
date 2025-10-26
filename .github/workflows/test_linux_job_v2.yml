@@ -34,7 +34,7 @@ jobs:
       id-token: write
     strategy:
       matrix:
-        runner_type: ["linux.4xlarge.nvidia.gpu", "linux.g5.4xlarge.nvidia.gpu"]
+        runner_type: ["linux.g5.4xlarge.nvidia.gpu"]
     with:
       job-name: "linux-py3.10-cu128"
       runner: ${{ matrix.runner_type }}
@@ -72,7 +72,7 @@ jobs:
       timeout: 60
       script: |
         nvidia-smi
-        nvcc --version | grep "cuda_12.6"
+        nvcc --version | grep "cuda_12.8"
         conda create --yes --quiet -n test python=3.10
         conda activate test
         python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cu128 --pre torch
