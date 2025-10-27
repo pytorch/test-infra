@@ -1,4 +1,4 @@
-10ame: Test build/test linux workflow
+name: Test build/test linux workflow
 
 on:
   pull_request:
