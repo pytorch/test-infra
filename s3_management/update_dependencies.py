@@ -654,6 +654,7 @@ def main() -> None:
             for config in pkg_configs
         }
     )
+    project_paths += ["all"]
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
@@ -669,7 +670,9 @@ def main() -> None:
         for pkg_name, pkg_configs in PACKAGES_PER_PROJECT.items():
             # Filter configurations by the selected project
             selected_configs = [
-                config for config in pkg_configs if config["project"] == args.package
+                config
+                for config in pkg_configs
+                if args.package == "all" or config["project"] == args.package
             ]
 
             # Process each configuration for this package

@@ -1,0 +1,75 @@
+name: Update S3 HTML dependencies for download.pytorch.org nightly and test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - s3_management/update_dependencies.py
+  workflow_dispatch:
+    inputs:
+      dryrun:
+        description: 'Enable dry run mode'
+        required: true
+        type: choice
+        default: enabled
+        options:
+          - enabled
+          - disabled
+      package:
+        description: 'Package to update'
+        required: true
+        type: choice
+        default: torch
+        options:
+          - all
+          - torch
+          - triton
+          - torchtune
+          - torch_xpu
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  update:
+    runs-on: ubuntu-22.04
+    environment: pytorchbot-env
+    container:
+      image: continuumio/miniconda3:23.10.0-1
+    steps:
+      - name: configure aws credentials
+        id: aws_creds
+        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
+        with:
+          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_s3_update
+          aws-region: us-east-1
+
+      - name: Checkout repository test-infra
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: pytorch/test-infra
+          ref: ${{ github.ref }}
+
+      - name: Update s3 html index
+        shell: bash
+        env:
+          DRYRUN: ${{ github.event.inputs.dryrun || 'disabled' }}
+          PACKAGE: ${{ github.event.inputs.package || 'torch' }}
+        run: |
+          set -ex
+
+          # Install requirements
+          pip install -r s3_management/requirements.txt
+
+          # shellcheck disable=SC2086
+          ARGS="--package ${PACKAGE}"
+
+          # Add dry-run flag if enabled
+          if [[ ${DRYRUN} == 'enabled' ]]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+
+          # shellcheck disable=SC2086
+          python3 s3_management/update_dependencies.py ${ARGS}
