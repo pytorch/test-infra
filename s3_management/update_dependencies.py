@@ -648,9 +648,12 @@ def main() -> None:
     parser = ArgumentParser("Upload dependent packages to s3://pytorch")
     # Get unique paths from the packages list
     project_paths = list(
-        set(pkg_info["project"] for pkg_info in PACKAGES_PER_PROJECT.values())
+        {
+            config["project"]
+            for pkg_configs in PACKAGES_PER_PROJECT.values()
+            for config in pkg_configs
+        }
     )
-    project_paths += ["all"]
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
@@ -662,25 +665,29 @@ def main() -> None:
         SUBFOLDERS.append("whl")
 
     for prefix in SUBFOLDERS:
-        # Filter packages by the selected project path
-        selected_packages = {
-            pkg_name: pkg_info
-            for pkg_name, pkg_info in PACKAGES_PER_PROJECT.items()
-            if args.package == "all" or pkg_info["project"] == args.package
-        }
-        for pkg_name, pkg_info in selected_packages.items():
-            if "target" in pkg_info and pkg_info["target"] != "":
-                full_path = f'{prefix}/{pkg_info["target"]}'
-            else:
-                full_path = f"{prefix}"
+        # Process each package and its multiple configurations
+        for pkg_name, pkg_configs in PACKAGES_PER_PROJECT.items():
+            # Filter configurations by the selected project
+            selected_configs = [
+                config
+                for config in pkg_configs
+                if args.package == "all" or config["project"] == args.package
+            ]
 
-            upload_missing_whls(
-                pkg_name,
-                full_path,
-                dry_run=args.dry_run,
-                only_pypi=args.only_pypi,
-                target_version=pkg_info["version"],
-            )
+            # Process each configuration for this package
+            for pkg_config in selected_configs:
+                if "target" in pkg_config and pkg_config["target"] != "":
+                    full_path = f"{prefix}/{pkg_config['target']}"
+                else:
+                    full_path = f"{prefix}"
+
+                upload_missing_whls(
+                    pkg_name,
+                    full_path,
+                    dry_run=args.dry_run,
+                    only_pypi=args.only_pypi,
+                    target_version=pkg_config["version"],
+                )
 
 
 if __name__ == "__main__":
