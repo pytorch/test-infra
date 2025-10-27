@@ -60,19 +60,16 @@ jobs:
         run: |
           set -ex
 
-          # Output info on default conda env
-          conda info
-
           # Install requirements
           pip install -r s3_management/requirements.txt
 
-          # Build command arguments
+          # shellcheck disable=SC2086
           ARGS="--package ${PACKAGE}"
 
           # Add dry-run flag if enabled
-          if [ "${DRYRUN}" = "enabled" ]; then
+          if [[ ${DRYRUN} == 'enabled' ]]; then
             ARGS="${ARGS} --dry-run"
           fi
 
-          echo "Running: python3 s3_management/update_dependencies.py ${ARGS}"
+          # shellcheck disable=SC2086
           python3 s3_management/update_dependencies.py ${ARGS}
