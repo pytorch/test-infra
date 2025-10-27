@@ -654,6 +654,7 @@ def main() -> None:
             for config in pkg_configs
         }
     )
+    project_paths += ["all"]
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--only-pypi", action="store_true")
