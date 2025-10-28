@@ -35,22 +35,6 @@ jobs:
       gpu-arch-version: ""
       script: |
         [[ "${SECRET_NOT_A_SECRET_USED_FOR_TESTING}" == "SECRET_VALUE" ]] || exit 1
-  test-cpu:
-    uses: ./.github/workflows/linux_job.yml
-    with:
-      job-name: "linux-py3.9-cpu"
-      runner: linux.2xlarge
-      test-infra-repository: ${{ github.repository }}
-      test-infra-ref: ${{ github.ref }}
-      submodules: "recursive"
-      gpu-arch-type: cpu
-      gpu-arch-version: ""
-      script: |
-        conda create --yes --quiet -n test python=3.9
-        conda activate test
-        python3 -m pip install --index-url https://download.pytorch.org/whl/nightly/cpu --pre torch
-        # Can import pytorch
-        python3 -c 'import torch'
   test-gpu:
     uses: ./.github/workflows/linux_job.yml
     strategy:
