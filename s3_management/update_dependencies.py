@@ -285,24 +285,24 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-nvshmem-cu12": [
         {
-            "version": "3.3.24",
+            "version": "3.4.5",
             "project": "torch",
             "target": "cu126",
         },
         {
-            "version": "3.3.24",
+            "version": "3.4.5",
             "project": "torch",
             "target": "cu128",
         },
         {
-            "version": "3.3.24",
+            "version": "3.4.5",
             "project": "torch",
             "target": "cu129",
         },
     ],
     "nvidia-nvshmem-cu13": [
         {
-            "version": "3.3.24",
+            "version": "3.4.5",
             "project": "torch",
             "target": "cu130",
         }
