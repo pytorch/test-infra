@@ -33,12 +33,14 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
 
 const RENDER_MAPPING_BOOK = {
   latency: {
+    displayName: "Latency(μs)",
     unit: {
       type: "time",
       unit: "μs",
     },
   },
   "peak memory": {
+    displayName: "Peak Memory(KB)",
     unit: {
       type: "memory",
       unit: "KB",
@@ -104,6 +106,16 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
                   flex: {
                     primary: 2,
                   },
+                },
+              },
+            },
+            {
+              type: "AutoBenchmarkRawDataTable",
+              title: "Raw Data Table",
+              config: {
+                extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+                renderOptions: {
+                  tableRenderingBook: RENDER_MAPPING_BOOK,
                 },
               },
             },
