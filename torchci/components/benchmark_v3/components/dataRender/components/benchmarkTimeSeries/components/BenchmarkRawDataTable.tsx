@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useMemo } from "react";
 import {
   fmtFixed2,
+  formatHeaderName,
   getBenchmarkTimeSeriesComparisionTableRenderingConfig,
   renderBasedOnUnitConifg,
 } from "../helper";
@@ -177,7 +178,7 @@ function getTableConlumnRendering(
     .filter((k: any) => !!k.field) // skip fields that are not defined
     .map((k: any) => ({
       field: k.field,
-      headerName: k.displayName,
+      headerName: k.displayName ?? k.field,
       flex: 0.5,
       renderCell: (p: any) => (
         <Typography variant="body2">{p.row[k.field]}</Typography>
@@ -186,8 +187,10 @@ function getTableConlumnRendering(
 
   const metricCols: GridColDef[] = metricFields.map((field) => ({
     field,
-    headerName:
-      field.split("||").length > 1 ? field.split("||").join(" ") : field,
+    headerName: formatHeaderName(
+      field,
+      config?.renderOptions?.tableRenderingBook
+    ),
     sortable: false,
     filterable: false,
     valueGetter: (_value: any, row: any) => {

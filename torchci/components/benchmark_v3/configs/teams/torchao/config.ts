@@ -33,12 +33,14 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
 
 const RENDER_MAPPING_BOOK = {
   latency: {
+    displayName: "Latency(μs)",
     unit: {
       type: "time",
       unit: "μs",
     },
   },
   "peak memory": {
+    displayName: "Peak Memory(KB)",
     unit: {
       type: "memory",
       unit: "KB",

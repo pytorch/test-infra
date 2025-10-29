@@ -17,6 +17,7 @@ import {
   BenchmarkUnitConfig,
   ComparisonTableConfig,
   fmtFixed2,
+  formatHeaderName,
   getBenchmarkTimeSeriesComparisionTableRenderingConfig,
   getBenchmarkTimeSeriesComparisonTableTarget,
   renderBasedOnUnitConifg,
@@ -68,7 +69,7 @@ export function getComparisionTableConlumnRendering(
     .filter((k) => !!k.field) // skip fields that are not defined
     .map((k) => ({
       field: k.field,
-      headerName: k.displayName,
+      headerName: k?.displayName ?? k.field,
       flex: 0.5,
       minWidth: 50,
       sortable: false,
@@ -81,7 +82,10 @@ export function getComparisionTableConlumnRendering(
   const metricsFlex = config?.renderOptions?.flex?.target ?? 1;
   const metricCols: GridColDef[] = columnsFields.map((field) => ({
     field,
-    headerName: field,
+    headerName: formatHeaderName(
+      field,
+      config?.renderOptions?.tableRenderingBook
+    ),
     flex: 1,
     minWidth: 50,
     sortable: false,

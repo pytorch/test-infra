@@ -36,6 +36,7 @@ export interface BenchmarkTimeSeriesChartRenderingConfig {
 
 // Config for table rendering
 export interface BenchmarkComparisonTableRenderingConfig {
+  displayName?: string;
   unit: BenchmarkUnitConfig;
 }
 
@@ -327,4 +328,24 @@ export function getSmartValue(obj: any, keyPath: string, fallback?: any) {
   //Try nested access (split by ".")
   const value = keyPath.split(".").reduce((acc, key) => acc?.[key], obj);
   return value !== undefined ? value : fallback;
+}
+
+export function formatHeaderName(
+  field: string,
+  renderBook?: BenchmarkComparisonTableRenderingBook
+): string {
+  if (!field) return "";
+
+  let name = field;
+  let extra = "";
+  if (field.split("||").length > 1) {
+    name = field.split("||")[0];
+    extra = field.split("||")[1];
+  }
+  if (!renderBook) return `${name} ${extra}`;
+  const displayName = renderBook[name]?.displayName;
+  if (displayName) {
+    name = displayName;
+  }
+  return `${name} ${extra}`;
 }
