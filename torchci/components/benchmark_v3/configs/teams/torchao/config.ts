@@ -107,6 +107,16 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
                 },
               },
             },
+            {
+              type: "AutoBenchmarkRawDataTable",
+              title: "Raw Data Table",
+              config: {
+                extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+                renderOptions: {
+                  tableRenderingBook: RENDER_MAPPING_BOOK,
+                },
+              },
+            },
           ],
         },
       },
