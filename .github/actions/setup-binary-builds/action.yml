@@ -112,7 +112,7 @@ runs:
             --prefix "${CONDA_ENV}" \
             "python=3.9"
           CONDA_ENV="${CONDA_ENV}"
-          CONDA_RUN="conda run -p ${CONDA_ENV}"
+          CONDA_RUN="conda run --no-capture-output -p ${CONDA_ENV}"
           ${CONDA_RUN} python -m pip install ${GITHUB_WORKSPACE}/test-infra/tools/pkg-helpers
           BUILD_ENV_FILE="${RUNNER_TEMP}/build_env_${GITHUB_RUN_ID}"
           ${CONDA_RUN} python -m pytorch_pkg_helpers > "${BUILD_ENV_FILE}"
@@ -155,4 +155,4 @@ runs:
               ${CONDA_EXTRA_PARAM}
 
           echo "CONDA_ENV=${CONDA_ENV}" >> "${GITHUB_ENV}"
-          echo "CONDA_RUN=conda run -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
+          echo "CONDA_RUN=conda run --no-capture-output -p ${CONDA_ENV}" >> "${GITHUB_ENV}"
