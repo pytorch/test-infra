@@ -6,6 +6,7 @@ import {
   GridRenderCellParams,
   useGridApiRef,
 } from "@mui/x-data-grid";
+import { RenderRawContent } from "components/benchmark_v3/components/common/RawContentDialog";
 import Link from "next/link";
 import { useMemo } from "react";
 import {
@@ -19,6 +20,7 @@ export default function BenchmarkRawDataTable({
   config,
   data,
   title,
+  isDebug = false,
 }: {
   config: any;
   data: any;
@@ -26,6 +28,7 @@ export default function BenchmarkRawDataTable({
     text: string;
     description?: string;
   };
+  isDebug?: boolean;
 }) {
   const apiRef = useGridApiRef();
 
@@ -65,7 +68,14 @@ export default function BenchmarkRawDataTable({
       {title?.description && (
         <Typography variant="body2">{title.description}</Typography>
       )}
-
+      {isDebug && (
+        <RenderRawContent
+          data={rows}
+          title="Report Raw Json"
+          buttonName="View Full Raw Data"
+          type="json"
+        />
+      )}
       <Button
         onClick={() =>
           apiRef?.current?.exportDataAsCsv({

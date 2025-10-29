@@ -424,6 +424,7 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
           config={uiRenderConfig.config}
           title={{
             text: uiRenderConfig?.title ?? "Raw Table",
+            description: "list all the workflow run data within the time range",
           }}
         />
       </Grid>
