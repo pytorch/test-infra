@@ -16,6 +16,10 @@ WHERE
         OR empty({branches: Array(String)})
     )
     AND (
+        benchmark_extra_info['output'] LIKE '%performance.csv'
+        OR benchmark_extra_info['output'] LIKE '%accuracy.csv'
+    )
+    AND (
         has({suites: Array(String)}, suite)
         OR empty({suites: Array(String)})
     )

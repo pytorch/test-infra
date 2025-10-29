@@ -20,6 +20,10 @@ FROM benchmark.oss_ci_benchmark_torchinductor
 WHERE
     workflow_id IN ({workflows: Array(UInt64)})
     AND (
+        benchmark_extra_info['output'] LIKE '%performance.csv'
+        OR benchmark_extra_info['output'] LIKE '%accuracy.csv'
+    )
+    AND (
         has(
             {branches: Array(String)},
             replaceOne(head_branch, 'refs/heads/', '')
