@@ -50,7 +50,7 @@
     "minimatch": "^9.0.3",
     "minimist": "^1.2.6",
     "next": "15.5.0",
-    "next-auth": "^4.24.11",
+    "next-auth": "^4.24.12",
     "octokit": "^1.7.1",
     "pino-std-serializers": "^7.0.0",
     "probot": "^12.3.3",
