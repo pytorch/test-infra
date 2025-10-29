@@ -67,6 +67,7 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cpu (aarch64)": "cpu",
   "rocm (mi300x)": "rocm",
   mps: "mps",
+  xpu: "xpu",
 };
 export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
   "cuda (a100)": "a100",
@@ -78,6 +79,7 @@ export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
   // TODO (huydhn): Figure out a way to get the GPU name for ROCm
   "rocm (mi300x)": "",
   mps: "",
+  xpu: "",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a100)": "inductor-A100-perf-nightly",
@@ -88,6 +90,7 @@ export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cpu (aarch64)": "inductor-perf-nightly-aarch64",
   rocm: "inductor-perf-nightly-rocm",
   mps: "inductor-perf-nightly-macos",
+  xpu: "inductor-perf-nightly-xpu",
 };
 
 export const DEFAULT_HIGHLIGHT_KEY = "none";
