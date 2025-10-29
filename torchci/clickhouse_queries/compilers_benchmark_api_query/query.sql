@@ -19,9 +19,10 @@ SELECT
 FROM benchmark.oss_ci_benchmark_torchinductor
 WHERE
     workflow_id IN ({workflows: Array(UInt64)})
-    AND (
-        benchmark_extra_info['output'] LIKE '%performance.csv'
-        OR benchmark_extra_info['output'] LIKE '%accuracy.csv'
+    AND NOT (
+        endsWith(benchmark_extra_info['output'], 'huggingface.csv')
+        OR endsWith(benchmark_extra_info['output'], 'torchbench.csv')
+        OR endsWith(benchmark_extra_info['output'], 'timm_models.csv')
     )
     AND (
         has(
