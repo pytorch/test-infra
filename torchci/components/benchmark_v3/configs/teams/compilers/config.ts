@@ -66,18 +66,32 @@ const DashboardRenderBook = {
   },
   speedup: {
     displayName: "Perf. speedup",
+    unit: {
+      unit: "x",
+    },
   },
   dynamo_peak_mem: {
     displayName: "Dynamo memory usage",
   },
   compilation_latency: {
     displayName: "Compilation time (seconds)",
+    unit: {
+      type: "time",
+      unit: "s",
+    },
   },
   compression_ratio: {
     displayName: "Peak mem compress ratio ",
+    unit: {
+      unit: "x",
+    },
   },
   abs_latency: {
     displayName: "Abs. execution time (ms)",
+    unit: {
+      type: "time",
+      unit: "ms",
+    },
   },
 };
 
