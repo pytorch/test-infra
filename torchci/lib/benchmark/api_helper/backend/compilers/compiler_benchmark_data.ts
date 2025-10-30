@@ -153,26 +153,28 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
     );
   }
 
-  if (!queryParams.workflows || queryParams.workflows.length == 0 ) {
+  if (!queryParams.workflows || queryParams.workflows.length == 0) {
     const { data: commit_results } = await getCommitsWithSampling(
       COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
       queryParams
     );
-  const unique_workflows = [
-    ...new Set(commit_results.map((c) => c.workflow_id)),
-  ];
-  console.log(
-    `no workflows provided in request, searched unqiue workflows based on
+    const unique_workflows = [
+      ...new Set(commit_results.map((c) => c.workflow_id)),
+    ];
+    console.log(
+      `no workflows provided in request, searched unqiue workflows based on
       start/end time unique_workflows: ${unique_workflows.length}`
-  );
+    );
     if (commit_results.length > 0) {
       queryParams["workflows"] = unique_workflows;
     } else {
       console.log(`no workflow found in clickhouse using ${queryParams}`);
       return [];
     }
-  } else{
-    console.log(`input provided workflows found using ${queryParams.workflows}`);
+  } else {
+    console.log(
+      `input provided workflows found using ${queryParams.workflows}`
+    );
   }
   return queryParams;
 }

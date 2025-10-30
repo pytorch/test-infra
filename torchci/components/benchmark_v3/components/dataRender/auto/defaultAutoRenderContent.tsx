@@ -22,7 +22,7 @@ export function DefaultAutoRenderContent() {
   // if renderGroupId is not main, we try to find the subSectionRenders, auto fallback to main render if nothing is found
   if (renderGroupId != "main" && ctx.dataRender?.subSectionRenders) {
     autoUIConfigs =
-      ctx.dataRender.subSectionRenders[renderGroupId].renders ?? [];
+      ctx.dataRender.subSectionRenders[renderGroupId]?.renders ?? [];
   }
 
   if (autoUIConfigs?.length === 0) {

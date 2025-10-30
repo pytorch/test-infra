@@ -308,7 +308,7 @@ export function getBenchmarkTimeSeriesComparisonTableTarget(
 export const fmtFixed2 = (v: any) => {
   if (v == null) return "—";
   const num = Number(v);
-  if (isNaN(num)) return String(v??""); // not a valid number
+  if (isNaN(num)) return String(v ?? ""); // not a valid number
   return num.toFixed(2);
 };
 /**

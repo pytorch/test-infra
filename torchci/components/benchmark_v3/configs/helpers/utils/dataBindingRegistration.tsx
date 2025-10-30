@@ -5,8 +5,8 @@ import {
   TimeRange,
 } from "lib/benchmark/store/benchmark_regression_store";
 import DefaultMetricsDropdowns from "../../../components/benchmarkSideBar/components/filters/DefaultSideBarMetricsDropdowns";
-import { NotFoundComponent, resolveComponent } from "../configRegistration";
 import { compilerQueryParameterConverter } from "../../teams/compilers/config";
+import { NotFoundComponent, resolveComponent } from "../configRegistration";
 import { toNumberArray } from "./helper_methods";
 
 export const MIN_SAMPLING_THRESHOLD = 2;

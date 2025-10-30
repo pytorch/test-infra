@@ -9,6 +9,7 @@ import { useEffect, useRef } from "react";
 export function BackToMainButton() {
   const router = useRouter();
   const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
+
   const { prevRef, currentRef } = useRouteHistory();
 
   const handleClick = () => {
@@ -16,7 +17,13 @@ export function BackToMainButton() {
       router.back();
     } else {
       const { renderGroupId, ...rest } = router.query as Record<string, any>;
-      const nextMainQuery = { ...rest, renderGroupId: "main" };
+
+      let nextMainQuery: any = { ...rest, renderGroupId: "main" };
+
+      // TODO:make this configurable
+      if (renderGroupId === "detail_view") {
+        nextMainQuery = { ...nextMainQuery, "filters.model": undefined };
+      }
 
       // push the main page
       router.push(

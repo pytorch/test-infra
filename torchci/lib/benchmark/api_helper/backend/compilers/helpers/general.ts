@@ -1,5 +1,5 @@
-import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
 import _ from "lodash";
+import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
 
 const COMPILER_GENERAL_TS_GROUP_KEY = [
   "dtype",
@@ -55,14 +55,16 @@ export function toGeneralCompilerData(
   return toBenchmarkTimeSeriesReponseFormat(normalized, config, formats);
 }
 
-
 function normalizeBenchmarkValues(rows: any[]) {
   return rows.map((row) => {
-    if (row.metric === "accuracy" && _.get(row, "extra_info.benchmark_values")) {
+    if (
+      row.metric === "accuracy" &&
+      _.get(row, "extra_info.benchmark_values")
+    ) {
       try {
         const parsed = JSON.parse(_.get(row, "extra_info.benchmark_values"));
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return { ...row, value: parsed[0], value_type: "string"};
+          return { ...row, value: parsed[0], value_type: "string" };
         }
       } catch {
         // ignore JSON parse errors

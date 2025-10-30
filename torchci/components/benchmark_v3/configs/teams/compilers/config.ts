@@ -56,7 +56,6 @@ const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
-
 const ACCURACY_STATUS_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "accuracy",
   type: "status",
@@ -116,6 +115,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     workflows = toNumberArray(i.workflows);
   }
 
+  let models = f.model ? [f.model] : [];
   const params = {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
@@ -126,13 +126,13 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     dtype: f.dtype === "none" ? "" : f.dtype,
     granularity: "hour",
     mode: f.mode,
+    models: models,
     startTime: dayjs.utc(i.timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
     stopTime: dayjs.utc(i.timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
     suites: suiteList,
   };
   return params;
 };
-
 
 export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
 
@@ -164,24 +164,24 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
 export const COMPILTER_BENCHMARK_NAME = "compiler_inductor";
 
 const COMPILER_BENCHMARK_DATABINDING = {
-    initial: COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
-    required_filter_fields: REQUIRED_COMPLIER_LIST_COMMITS_KEYS,
-    filter_options: {
-      customizedDropdown: {
-        type: "component",
-        id: "CompilerSearchBarDropdowns",
-      },
+  initial: COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
+  required_filter_fields: REQUIRED_COMPLIER_LIST_COMMITS_KEYS,
+  filter_options: {
+    customizedDropdown: {
+      type: "component",
+      id: "CompilerSearchBarDropdowns",
     },
-    query_params: {
-      type: "converter",
-      id: "compilerQueryParameterConverter",
-    },
-  }
+  },
+  query_params: {
+    type: "converter",
+    id: "compilerQueryParameterConverter",
+  },
+};
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
   ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   {
-    field:"suite"
+    field: "suite",
   },
   {
     field: "compiler",
@@ -189,16 +189,36 @@ const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
   },
 ] as const;
 
-
 // config for the compiler dashboard page
 export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
   benchmarkId: COMPILTER_BENCHMARK_NAME,
   apiId: COMPILTER_BENCHMARK_NAME,
   title: "Compiler Inductor Dashboard",
-  type:"dashboard",
+  type: "dashboard",
   dataBinding: COMPILER_BENCHMARK_DATABINDING,
-  dataRender:{
+  dataRender: {
     type: "auto",
+    subSectionRenders: {
+      detail_view: {
+        renders: [
+          {
+            type: "AutoBenchmarkTimeSeriesChartGroup",
+            title: "Metrics Time Series Chart Detail View",
+            config: {
+              type: "line",
+              groupByFields: ["metric"],
+              lineKey: ["model", "compiler", "suite"],
+              chart: {
+                renderOptions: {
+                  chartRenderBook: RENDER_MAPPING_BOOK,
+                  showLegendDetails: true,
+                },
+              },
+            },
+          },
+        ],
+      },
+    },
     renders: [
       {
         type: "AutoBenchmarkPairwiseTable",
@@ -207,6 +227,11 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
           primary: {
             fields: ["model"],
             displayName: "Model",
+            navigation: {
+              type: "subSectionRender",
+              value: "detail_view",
+              applyFilterFields: ["model"],
+            },
           },
           targetField: "metric",
           comparisonPolicy: {
@@ -225,7 +250,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
       },
     ],
   },
-}
+};
 
 function getCompilers(compiler: string | undefined | null) {
   // indicates fetch all compilers

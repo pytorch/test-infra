@@ -27,32 +27,31 @@ export function getDefaultStatusComparisonPolicy(
   return {
     target,
     type: "status",
-    statusPolicy:{
+    statusPolicy: {
       goodValuePatterns: ["pass"],
-      badValuePatterns: ["fail"]
-    }
+      badValuePatterns: ["fail"],
+    },
   };
 }
 
 export type BenchmarkStatusComparisonPolicy = {
-     /**
-     * ex target accuracy with value pass, pass_due_to_skip, fail_accuracy, fail_to_run
-     *
-     * if oldvalue is pass but newValue is any fail, consider bad
-     * if oldvalue is pass and newValue is pass, consider neutrual
-     * if oldvalue is fail but new value is any pass, consider good
-     * if oldvalue and new value both fails, consider neutrual but warning
-     * else consider neutrual
-     */
-    /** "good" (indicate desired value) */
-    goodValues?: string[];
-    goodValuePatterns?: string[];
+  /**
+   * ex target accuracy with value pass, pass_due_to_skip, fail_accuracy, fail_to_run
+   *
+   * if oldvalue is pass but newValue is any fail, consider bad
+   * if oldvalue is pass and newValue is pass, consider neutrual
+   * if oldvalue is fail but new value is any pass, consider good
+   * if oldvalue and new value both fails, consider neutrual but warning
+   * else consider neutrual
+   */
+  /** "good" (indicate desired value) */
+  goodValues?: string[];
+  goodValuePatterns?: string[];
 
-    /** "bad" (indicated failure) */
-    badValues?: string[];
-    badValuePatterns?: string[];
-}
-
+  /** "bad" (indicated failure) */
+  badValues?: string[];
+  badValuePatterns?: string[];
+};
 
 export type BenchmarkComparisonPolicyConfig = {
   /** metric/column name this policy applies to */
@@ -60,7 +59,7 @@ export type BenchmarkComparisonPolicyConfig = {
 
   type?: ComparisonPolicyType;
 
-    /** status-based thresholds relative to oldValue, this assume everything should be string */
+  /** status-based thresholds relative to oldValue, this assume everything should be string */
   statusPolicy?: BenchmarkStatusComparisonPolicy;
 
   /** ratio-based thresholds relative to oldValue */
@@ -116,15 +115,13 @@ export type BenchmarkComparisonPolicyConfig = {
 
 export type ComparisonResult = {
   target: string;
-  oldValue: number |string | null;
-  newValue: number |string  | null;
+  oldValue: number | string | null;
+  newValue: number | string | null;
   delta: number | null;
   verdict: ComparisonVerdict;
   reason?: string;
   isDefaultPolicy: boolean;
 };
-
-
 
 // ------------------------------------------------------------------
 // Main Evaluator Method
@@ -132,9 +129,9 @@ export type ComparisonResult = {
 export function evaluateComparison(
   target: string | undefined | null,
   oldValue: any,
-  newValue:any,
+  newValue: any,
   policy?: BenchmarkComparisonPolicyConfig
-): ComparisonResult{
+): ComparisonResult {
   // by default we assume the metrics are numberic
   if (!policy || policy.type == null) {
     policy = getDefaultNumericComparisonPolicy("general");
@@ -151,9 +148,9 @@ export function evaluateComparison(
   };
   switch (type) {
     case "ratio":
-      return evaluateNumericComparison(target, oldValue, newValue, policy)
+      return evaluateNumericComparison(target, oldValue, newValue, policy);
     case "status":
-      return evaluateStatusComparison(target, oldValue, newValue, policy)
+      return evaluateStatusComparison(target, oldValue, newValue, policy);
     default:
       return { ...base, verdict: "neutral", reason: "no policy" };
   }
@@ -167,13 +164,12 @@ export function evaluateStatusComparison(
   oldValue: string | null | undefined,
   newValue: string | null | undefined,
   policy?: BenchmarkComparisonPolicyConfig
-): ComparisonResult{
-
-  if (!policy || !policy.statusPolicy){
-    policy = getDefaultStatusComparisonPolicy(target??"general")
+): ComparisonResult {
+  if (!policy || !policy.statusPolicy) {
+    policy = getDefaultStatusComparisonPolicy(target ?? "general");
   }
 
-    const base: ComparisonResult = {
+  const base: ComparisonResult = {
     target: target ?? "general",
     oldValue: oldValue ?? null,
     newValue: newValue ?? null,
@@ -182,21 +178,24 @@ export function evaluateStatusComparison(
     isDefaultPolicy: !policy || policy.type == null,
   };
 
-  if(policy.statusPolicy){
-    const {verdict, reason} = compareStatus(oldValue, newValue, policy.statusPolicy);
+  if (policy.statusPolicy) {
+    const { verdict, reason } = compareStatus(
+      oldValue,
+      newValue,
+      policy.statusPolicy
+    );
     return {
-          ...base,
-          verdict,
-          reason
+      ...base,
+      verdict,
+      reason,
     };
   }
   return {
     ...base,
     verdict: "neutral",
-    reason: "No status comparison policy detected, please investigate"
-  }
+    reason: "No status comparison policy detected, please investigate",
+  };
 }
-
 
 // ------------------------------------------------------------------
 // Numeric Evaluator
@@ -212,7 +211,6 @@ export function evaluateNumericComparison(
     policy = getDefaultNumericComparisonPolicy("general");
   }
 
-  console.log(oldValue, newValue, policy)
   oldValue = asNumber(oldValue);
   newValue = asNumber(newValue);
 
@@ -234,75 +232,73 @@ export function evaluateNumericComparison(
   ) {
     return { ...base, reason: "missing value" };
   }
-      const rp = policy.ratioPolicy ?? {
-        badRatio: 0.9,
-        goodRatio: 1.1,
-        direction: "up",
+  const rp = policy.ratioPolicy ?? {
+    badRatio: 0.9,
+    goodRatio: 1.1,
+    direction: "up",
+  };
+  const dir = rp.direction ?? "up";
+
+  const calculatedGood = rp.goodRatio
+    ? oldValue * rp.goodRatio
+    : oldValue * DEFAULT_GOOD_RATIO;
+  const calculatedBad = oldValue * rp.badRatio;
+  // Compare with oldValue * ratio
+  if (dir === "up") {
+    if (rp.goodRatio != null && newValue > oldValue * rp.goodRatio) {
+      return {
+        ...base,
+        verdict: "good",
+        reason: `new > old * goodRatio (${
+          rp.goodRatio
+        })[${calculatedGood.toFixed(2)}]`,
       };
-      const dir = rp.direction ?? "up";
-
-      const calculatedGood = rp.goodRatio
-        ? oldValue * rp.goodRatio
-        : oldValue * DEFAULT_GOOD_RATIO;
-      const calculatedBad = oldValue * rp.badRatio;
-      // Compare with oldValue * ratio
-      if (dir === "up") {
-        if (rp.goodRatio != null && newValue > oldValue * rp.goodRatio) {
-          return {
-            ...base,
-            verdict: "good",
-            reason: `new > old * goodRatio (${
-              rp.goodRatio
-            })[${calculatedGood.toFixed(2)}]`,
-          };
-        }
-        if (newValue < oldValue * rp.badRatio) {
-          return {
-            ...base,
-            verdict: "regression",
-            reason: `new < old * badRatio (${
-              rp.badRatio
-            })[${calculatedBad.toFixed(2)}]`,
-          };
-        }
-        return {
-          ...base,
-          verdict: "neutral",
-          reason: "between good/bad ratios",
-        };
-      } else {
-        if (rp.goodRatio != null && newValue < oldValue * rp.goodRatio) {
-          return {
-            ...base,
-            verdict: "good",
-            reason: `new < old * goodRatio (${
-              rp.goodRatio
-            })[${calculatedGood.toFixed(2)}}]`,
-          };
-        }
-        if (newValue > oldValue * rp.badRatio) {
-          return {
-            ...base,
-            verdict: "regression",
-            reason: `new > old * badRatio (${
-              rp.badRatio
-            })[${calculatedBad.toFixed(2)}]`,
-          };
-        }
-        return {
-          ...base,
-          verdict: "neutral",
-          reason: "between good/bad ratios",
-        };
-      }
+    }
+    if (newValue < oldValue * rp.badRatio) {
+      return {
+        ...base,
+        verdict: "regression",
+        reason: `new < old * badRatio (${rp.badRatio})[${calculatedBad.toFixed(
+          2
+        )}]`,
+      };
+    }
+    return {
+      ...base,
+      verdict: "neutral",
+      reason: "between good/bad ratios",
+    };
+  } else {
+    if (rp.goodRatio != null && newValue < oldValue * rp.goodRatio) {
+      return {
+        ...base,
+        verdict: "good",
+        reason: `new < old * goodRatio (${
+          rp.goodRatio
+        })[${calculatedGood.toFixed(2)}}]`,
+      };
+    }
+    if (newValue > oldValue * rp.badRatio) {
+      return {
+        ...base,
+        verdict: "regression",
+        reason: `new > old * badRatio (${rp.badRatio})[${calculatedBad.toFixed(
+          2
+        )}]`,
+      };
+    }
+    return {
+      ...base,
+      verdict: "neutral",
+      reason: "between good/bad ratios",
+    };
+  }
 }
-
-
 
 function matchExactOrIncludes(v: string, exact?: string[], pats?: string[]) {
   const x = v.toLowerCase();
-  if (exact?.some(g => g.toLowerCase() === x)) return true;
-  if (pats?.some(p => x.includes(p.toLowerCase()))) return true;
+  if (exact?.some((g) => g.toLowerCase() === x)) return true;
+  if (pats?.some((p) => x.includes(p.toLowerCase()))) return true;
   return false;
 }
 
@@ -311,7 +307,8 @@ function isGoodStatus(v: any, p: BenchmarkStatusComparisonPolicy): boolean {
   // explicit lists first
   if (matchExactOrIncludes(s, p.goodValues, p.goodValuePatterns)) return true;
   // fallback heuristic if no config provided
-  if (!p.goodValues && !p.goodValuePatterns) return s.toLowerCase().includes("pass");
+  if (!p.goodValues && !p.goodValuePatterns)
+    return s.toLowerCase().includes("pass");
   return false;
 }
 
@@ -320,7 +317,8 @@ function isBadStatus(v: any, p: BenchmarkStatusComparisonPolicy): boolean {
   // explicit lists first
   if (matchExactOrIncludes(s, p.badValues, p.badValuePatterns)) return true;
   // fallback heuristic if no config provided
-  if (!p.badValues && !p.badValuePatterns) return s.toLowerCase().includes("fail");
+  if (!p.badValues && !p.badValuePatterns)
+    return s.toLowerCase().includes("fail");
   // if not matched explicitly, treat as not-bad (unknown/neutral)
   return false;
 }
@@ -331,9 +329,9 @@ export function compareStatus(
   policy: BenchmarkStatusComparisonPolicy
 ): any {
   const wasGood = isGoodStatus(oldValue, policy);
-  const wasBad  = isBadStatus(oldValue, policy);
+  const wasBad = isBadStatus(oldValue, policy);
   const isGood_ = isGoodStatus(newValue, policy);
-  const isBad_  = isBadStatus(newValue, policy);
+  const isBad_ = isBadStatus(newValue, policy);
 
   // 1) old pass -> any fail => bad
   if (wasGood && isBad_) {

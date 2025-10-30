@@ -5,6 +5,10 @@ import {
   resolveComponent,
 } from "components/benchmark_v3/configs/helpers/configRegistration";
 import {
+  DataBinding,
+  DataBindingConfig,
+} from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
+import {
   CompilerDashboardBenchmarkUIConfig,
   CompilerPrecomputeBenchmarkUIConfig,
   COMPILTER_BENCHMARK_NAME,
@@ -15,10 +19,6 @@ import {
   PYTORCH_OPERATOR_MICROBENCHMARK_ID,
   PytorchOperatorMicroBenchmarkDashoboardConfig,
 } from "components/benchmark_v3/configs/teams/torchao/config";
-import {
-  DataBinding,
-  DataBindingConfig,
-} from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
 
 import { create } from "zustand";
 
@@ -164,7 +164,7 @@ interface State {
 }
 
 const predefined: BenchmarkConfigMap = {
-  [COMPILTER_BENCHMARK_NAME]:{
+  [COMPILTER_BENCHMARK_NAME]: {
     [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
   },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
