@@ -16,14 +16,10 @@ export function BackToMainButton() {
     if (prevRef.current) {
       router.back();
     } else {
+      // if there is no history, push to main page with existing query params
       const { renderGroupId, ...rest } = router.query as Record<string, any>;
 
       let nextMainQuery: any = { ...rest, renderGroupId: "main" };
-
-      // TODO:make this configurable
-      if (renderGroupId === "detail_view") {
-        nextMainQuery = { ...nextMainQuery, "filters.model": undefined };
-      }
 
       // push the main page
       router.push(

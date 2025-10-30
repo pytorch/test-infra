@@ -26,8 +26,11 @@ const COMPILER_GENERAL_TABLE_GROUP_KEY = [
   "compiler",
   "model",
   "suite",
+  "repo",
   "granularity_bucket",
 ];
+
+const PYTORCH_REPO = "pytorch/pytorch";
 const COMPILER_GENERAL_TABLE_SUB_GROUP_KEY = ["metric"];
 
 export const COMPILER_GROUP_MAP = {
@@ -60,6 +63,8 @@ export function toGeneralCompilerData(
 
 function normalizeBenchmarkValues(rows: any[]) {
   return rows.map((row) => {
+    // the materialized table does not have repo column
+    row.repo = PYTORCH_REPO;
     if (
       row.metric === "accuracy" &&
       _.get(row, "extra_info.benchmark_values")

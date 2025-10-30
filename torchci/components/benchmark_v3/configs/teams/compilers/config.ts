@@ -240,7 +240,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             navigation: {
               type: "subSectionRender",
               value: "detail_view",
-              applyFilterFields: ["model","compiler","suite","mode"],
+              applyFilterFields: ["model", "compiler", "suite", "mode"],
             },
           },
           targetField: "metric",

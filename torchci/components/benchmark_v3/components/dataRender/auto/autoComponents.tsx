@@ -8,7 +8,6 @@ import {
 } from "lib/benchmark/api_helper/fe/hooks";
 import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
-import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
@@ -267,7 +266,6 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
-        <RenderRawContent data={data["table"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}

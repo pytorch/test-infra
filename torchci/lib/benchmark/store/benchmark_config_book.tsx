@@ -5,10 +5,6 @@ import {
   resolveComponent,
 } from "components/benchmark_v3/configs/helpers/configRegistration";
 import {
-  DataBinding,
-  DataBindingConfig,
-} from "components/benchmark_v3/configs/utils/dataBindingRegistration";
-import {
   CompilerDashboardBenchmarkUIConfig,
   CompilerPrecomputeBenchmarkUIConfig,
   COMPILTER_BENCHMARK_NAME,
@@ -19,6 +15,10 @@ import {
   PYTORCH_OPERATOR_MICROBENCHMARK_ID,
   PytorchOperatorMicroBenchmarkDashoboardConfig,
 } from "components/benchmark_v3/configs/teams/torchao/config";
+import {
+  DataBinding,
+  DataBindingConfig,
+} from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 
 import { create } from "zustand";
 
