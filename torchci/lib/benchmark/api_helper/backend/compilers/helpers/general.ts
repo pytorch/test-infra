@@ -19,11 +19,14 @@ const COMPILER_GENERAL_TABLE_GROUP_KEY = [
   "arch",
   "device",
   "mode",
+  "job_id",
+  "commit",
   "workflow_id",
   "branch",
   "compiler",
   "model",
   "suite",
+  "granularity_bucket",
 ];
 const COMPILER_GENERAL_TABLE_SUB_GROUP_KEY = ["metric"];
 

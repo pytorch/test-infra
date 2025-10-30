@@ -216,6 +216,16 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
               },
             },
           },
+          {
+            type: "AutoBenchmarkRawDataTable",
+            title: "Raw Data Table",
+            config: {
+              extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              renderOptions: {
+                tableRenderingBook: RENDER_MAPPING_BOOK,
+              },
+            },
+          },
         ],
       },
     },
@@ -230,7 +240,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             navigation: {
               type: "subSectionRender",
               value: "detail_view",
-              applyFilterFields: ["model"],
+              applyFilterFields: ["model","compiler","suite","mode"],
             },
           },
           targetField: "metric",
