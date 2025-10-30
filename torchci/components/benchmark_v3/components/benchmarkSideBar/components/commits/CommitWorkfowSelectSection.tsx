@@ -1,6 +1,6 @@
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
-import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
+import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";

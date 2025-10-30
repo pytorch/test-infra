@@ -1,6 +1,6 @@
 import { Alert, Typography } from "@mui/material";
 import { Grid } from "@mui/system";
-import { AutoComponentProps } from "components/benchmark_v3/configs/helpers/utils/autoRegistration";
+import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
   useBenchmarkCommittedContext,

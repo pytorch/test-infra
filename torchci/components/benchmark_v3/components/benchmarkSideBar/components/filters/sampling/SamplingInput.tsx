@@ -2,7 +2,7 @@ import DoneIcon from "@mui/icons-material/Done";
 import { IconButton } from "@mui/material";
 import TextField from "@mui/material/TextField";
 import { Stack } from "@mui/system";
-import { MIN_SAMPLING_THRESHOLD } from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
+import { MIN_SAMPLING_THRESHOLD } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { useEffect, useState } from "react";
 
 type MaxSamplingInputProps = {

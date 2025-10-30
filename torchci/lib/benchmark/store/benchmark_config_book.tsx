@@ -7,7 +7,7 @@ import {
 import {
   DataBinding,
   DataBindingConfig,
-} from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
+} from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import {
   CompilerDashboardBenchmarkUIConfig,
   CompilerPrecomputeBenchmarkUIConfig,

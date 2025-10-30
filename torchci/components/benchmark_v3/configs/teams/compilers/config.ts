@@ -14,8 +14,8 @@ import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy"
 import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
-} from "../../helpers/utils/dataBindingRegistration";
-import { toNumberArray } from "../../helpers/utils/helper_methods";
+} from "../../utils/dataBindingRegistration";
+import { toNumberArray } from "../../utils/helper_methods";
 import { DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS } from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 

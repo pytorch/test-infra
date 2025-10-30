@@ -2,7 +2,7 @@ import CircleIcon from "@mui/icons-material/Circle";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import { getBenchmarkFields } from "components/benchmark_v3/configs/helpers/utils/urlHandling";
+import { getBenchmarkFields } from "components/benchmark_v3/configs/utils/urlHandling";
 import { getBenchmarkMainRouteById } from "components/benchmark_v3/pages/BenchmarkListPage";
 import { queryObjectToSearchParams } from "components/uiModules/UMCopyLink";
 import dayjs from "dayjs";
