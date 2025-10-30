@@ -115,7 +115,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     workflows = toNumberArray(i.workflows);
   }
 
-  let models = f.model ? [f.model] : [];
+  let models = getModels(f.model);
   const params = {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
@@ -251,6 +251,17 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
     ],
   },
 };
+
+function getModels(model: string | undefined | null) {
+  // indicates fetch all compilers
+  if (!model) {
+    return [];
+  }
+  if (model == "all") {
+    return [];
+  }
+  return [model];
+}
 
 function getCompilers(compiler: string | undefined | null) {
   // indicates fetch all compilers

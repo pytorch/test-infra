@@ -9,15 +9,19 @@ import {
   UMDenseDropdown,
   UMDenseModePicker,
 } from "components/uiModules/UMDenseComponents";
+import { BenchmarkPageType } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 export function CompilerSearchBarDropdowns() {
   const backendFilterInfo =
     "The displayed data is post-sampling and may not include all entries. For non-continuous data, commit options are based on the sampled set, so use the chart or table interactions to explore complete results";
 
-  const { stagedFilters, setStagedFilter } = useDashboardSelector((s) => ({
-    stagedFilters: s.stagedFilters,
-    setStagedFilter: s.setStagedFilter,
-  }));
+  const { stagedFilters, setStagedFilter, type } = useDashboardSelector(
+    (s) => ({
+      stagedFilters: s.stagedFilters,
+      setStagedFilter: s.setStagedFilter,
+      type: s.type,
+    })
+  );
 
   return (
     <>
@@ -52,6 +56,16 @@ export function CompilerSearchBarDropdowns() {
         dtypes={["all", ...Object.keys(SUITES)]}
         label="Suite"
       />
+      {type != BenchmarkPageType.AggregatePage && (
+        <SingleStringLabelInput
+          title="Model"
+          value={stagedFilters.model}
+          helperText="filter model, e.g. aot_eager"
+          onChange={(newLabel) => {
+            setStagedFilter("model", newLabel ?? "all");
+          }}
+        />
+      )}
       <SingleStringLabelInput
         title="Backend"
         value={stagedFilters.compiler}
