@@ -9,7 +9,6 @@ export function getBenchmarkFields(data: any, id: string) {
     default:
       return data;
   }
-  toCompilerBenchmarkDisplayName(data.device, data.arch);
 }
 
 export function toCompilerBenchmarkDisplayName(device: string, arch: string) {

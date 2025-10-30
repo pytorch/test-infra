@@ -1,6 +1,6 @@
 import { Alert, Typography } from "@mui/material";
 import { Grid } from "@mui/system";
-import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
+import { AutoComponentProps } from "components/benchmark_v3/configs/helpers/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
   useBenchmarkCommittedContext,
@@ -10,6 +10,7 @@ import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
+import { RenderRawContent } from "../../common/RawContentDialog";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -265,6 +266,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+        <RenderRawContent data={data["table"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}

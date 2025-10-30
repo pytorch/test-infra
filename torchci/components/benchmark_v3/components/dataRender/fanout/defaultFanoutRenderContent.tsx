@@ -1,7 +1,7 @@
 import { Alert, Divider, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { HighlightStyles } from "components/benchmark_v3/components/common/highlight";
-import { getFanoutRenderComponent } from "components/benchmark_v3/configs/utils/fanoutRegistration";
+import { getFanoutRenderComponent } from "components/benchmark_v3/configs/helpers/utils/fanoutRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import { useBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/fe/hooks";
 import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";

@@ -3,9 +3,11 @@ import { DefaultFanoutRenderContent } from "components/benchmark_v3/components/d
 import {
   NotFoundComponent,
   resolveComponent,
-} from "components/benchmark_v3/configs/configRegistration";
+} from "components/benchmark_v3/configs/helpers/configRegistration";
 import {
+  CompilerDashboardBenchmarkUIConfig,
   CompilerPrecomputeBenchmarkUIConfig,
+  COMPILTER_BENCHMARK_NAME,
   COMPILTER_PRECOMPUTE_BENCHMARK_ID,
 } from "components/benchmark_v3/configs/teams/compilers/config";
 import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
@@ -16,7 +18,7 @@ import {
 import {
   DataBinding,
   DataBindingConfig,
-} from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+} from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
 
 import { create } from "zustand";
 
@@ -162,6 +164,9 @@ interface State {
 }
 
 const predefined: BenchmarkConfigMap = {
+  [COMPILTER_BENCHMARK_NAME]:{
+    [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
+  },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
     [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
   },

@@ -2,7 +2,7 @@
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
-import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/helpers/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
 import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";

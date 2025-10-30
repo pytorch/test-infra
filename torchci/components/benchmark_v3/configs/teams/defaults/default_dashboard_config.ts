@@ -1,6 +1,8 @@
 import dayjs from "dayjs";
 import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
+import utc from "dayjs/plugin/utc";
+dayjs.extend(utc);
 
 export const DEFAULT_DASHBOARD_ID = "default-dashboard";
 

@@ -305,13 +305,12 @@ export function getBenchmarkTimeSeriesComparisonTableTarget(
   return config?.targetField ?? DEFAULT_TARGET_FILED;
 }
 
-export const fmtFixed2 = (v: any) =>
-  v == null
-    ? "—"
-    : typeof v === "number"
-    ? Number(v).toFixed(2)
-    : String(v.toFixed(2));
-
+export const fmtFixed2 = (v: any) => {
+  if (v == null) return "—";
+  const num = Number(v);
+  if (isNaN(num)) return String(v??""); // not a valid number
+  return num.toFixed(2);
+};
 /**
  * helper function to get the value from a nested object.
  * try to get the value from the keyPath, if not found, return the fallback value

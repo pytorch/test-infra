@@ -14,8 +14,9 @@ import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy"
 import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
-} from "../../utils/dataBindingRegistration";
-import { toNumberArray } from "../../utils/helper_methods";
+} from "../../helpers/utils/dataBindingRegistration";
+import { toNumberArray } from "../../helpers/utils/helper_methods";
+import { DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS } from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -53,6 +54,12 @@ const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
     goodRatio: 1.05,
     direction: "up",
   },
+};
+
+
+const ACCURACY_STATUS_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "accuracy",
+  type: "status",
 };
 
 const RENDER_MAPPING_BOOK = {
@@ -126,26 +133,6 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
   return params;
 };
 
-function getCompilers(compiler: string | undefined | null) {
-  // indicates fetch all compilers
-  if (!compiler) {
-    return [];
-  }
-  if (compiler == "all") {
-    return [];
-  }
-  return DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]
-    ? [DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]]
-    : [compiler];
-}
-
-function getSuites(suite: string | undefined | null) {
-  // indicates fetch all suites
-  if (!suite) {
-    return Object.keys(SUITES);
-  }
-  return suite == "all" ? Object.keys(SUITES) : [suite];
-}
 
 export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
 
@@ -173,6 +160,93 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   rbranch: "main",
   maxSampling: 110, // max number of job run results to show in the table, this avoid out of memory issue
 };
+
+export const COMPILTER_BENCHMARK_NAME = "compiler_inductor";
+
+const COMPILER_BENCHMARK_DATABINDING = {
+    initial: COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
+    required_filter_fields: REQUIRED_COMPLIER_LIST_COMMITS_KEYS,
+    filter_options: {
+      customizedDropdown: {
+        type: "component",
+        id: "CompilerSearchBarDropdowns",
+      },
+    },
+    query_params: {
+      type: "converter",
+      id: "compilerQueryParameterConverter",
+    },
+  }
+
+const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
+  ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+  {
+    field:"suite"
+  },
+  {
+    field: "compiler",
+    displayName: "Backend",
+  },
+] as const;
+
+
+// config for the compiler dashboard page
+export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
+  benchmarkId: COMPILTER_BENCHMARK_NAME,
+  apiId: COMPILTER_BENCHMARK_NAME,
+  title: "Compiler Inductor Dashboard",
+  type:"dashboard",
+  dataBinding: COMPILER_BENCHMARK_DATABINDING,
+  dataRender:{
+    type: "auto",
+    renders: [
+      {
+        type: "AutoBenchmarkPairwiseTable",
+        title: "Comparison Table",
+        config: {
+          primary: {
+            fields: ["model"],
+            displayName: "Model",
+          },
+          targetField: "metric",
+          comparisonPolicy: {
+            accuracy: ACCURACY_STATUS_POLICY,
+            compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
+            compression_ratio: COMPRESSION_RATIO_POLICY,
+          },
+          extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+          renderOptions: {
+            tableRenderingBook: RENDER_MAPPING_BOOK,
+            flex: {
+              primary: 2,
+            },
+          },
+        },
+      },
+    ],
+  },
+}
+
+function getCompilers(compiler: string | undefined | null) {
+  // indicates fetch all compilers
+  if (!compiler) {
+    return [];
+  }
+  if (compiler == "all") {
+    return [];
+  }
+  return DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]
+    ? [DISPLAY_NAMES_TO_COMPILER_NAMES[compiler]]
+    : [compiler];
+}
+
+function getSuites(suite: string | undefined | null) {
+  // indicates fetch all suites
+  if (!suite) {
+    return Object.keys(SUITES);
+  }
+  return suite == "all" ? Object.keys(SUITES) : [suite];
+}
 
 // main config for the compiler benchmark regression page
 export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {

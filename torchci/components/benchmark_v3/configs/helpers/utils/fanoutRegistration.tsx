@@ -2,7 +2,7 @@ import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_st
 import {
   FanoutBenchmarkTimeSeriesChartSection,
   FanoutBenchmarkTimeSeriesComparisonTableSection,
-} from "../../components/dataRender/fanout/FanoutComponents";
+} from "../../../components/dataRender/fanout/FanoutComponents";
 
 /** ---------------- Types ---------------- */
 export type FanoutComponentProps = {
