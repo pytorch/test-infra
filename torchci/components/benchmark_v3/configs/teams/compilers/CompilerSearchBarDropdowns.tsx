@@ -60,7 +60,7 @@ export function CompilerSearchBarDropdowns() {
         <SingleStringLabelInput
           title="Model"
           value={stagedFilters.model}
-          helperText="filter model, e.g. aot_eager"
+          helperText="filter model, e.g. dlrm"
           onChange={(newLabel) => {
             setStagedFilter("model", newLabel ?? "all");
           }}
