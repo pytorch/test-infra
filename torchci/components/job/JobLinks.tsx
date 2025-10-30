@@ -145,6 +145,7 @@ export default function JobLinks({
       workflowId: parseInt(job.workflowId),
       failureLineNum: job.failureLineNumbers[0],
       headSha: job.sha,
+      jobName: job.name,
     });
     if (ODCCommand != null) {
       subInfo.push(ODCCommand);

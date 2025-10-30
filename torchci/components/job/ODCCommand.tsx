@@ -22,48 +22,52 @@ const STARTING_INSTRUCTIONS =
  *
  * https://github.com/wdvr/osdc
  *
- * Caveats:
+ * Limitations:
  * - only on pytorch/pytorch repo
  * - only linux jobs
  * - only tests
  * - no building
+ * - requires job to be finished and have logs available
+ *
+ * Steps:
+ * 1. Read the starting instructions to get setup with gpu-dev CLI
+ * 2. Run the command to reserve a GPU
+ * 3. ssh into the reserved machine
+ * 4. Download and install binary, checkout pytorch, set environment variables
+ * 5. Run test command
+ *
+ * Example reserve gpu-dev command: gpu-dev reserve --gpu-type t4 --gpus 1
+ * --dockerimage
+ * ghcr.io/pytorch/ci-image:pytorch-linux-jammy-py3.10-clang12-3bdcaae7001ead0f64837461a6
+ *
+ * Search the job log for:
+ *   where to download binary from
+ *   docker image
+ *   environment variables
+ *     probably only care about PATH for now
+ *   test command
+ *   gpu type
+ *   num gpus is assumed to be 1 for now
+ *
+ * TODO:
+ * - the extracted info should probably be an artifact of the job, instead of
+ * going to the log to parse it
+ * - extract the correct number of gpus
+ * - repro command might not be right, especially for distributed tests?
  */
 export function ODCommandInstructions({
   jobId,
   workflowId,
   failureLineNum,
   headSha,
+  jobName,
 }: {
   jobId: number;
   workflowId: number;
   failureLineNum: number;
   headSha: string;
+  jobName: string;
 }) {
-  /**
-   * Steps:
-   * 1. Read the starting instructions to get setup with gpu-dev CLI
-   * 2. Run the command to reserve a GPU
-   * 3. ssh into the reserved machine
-   * 4. Download binary
-   * 5. Set environment variables
-   * 6. Run command
-   *
-   * Example reserve gpu-dev command: gpu-dev reserve --gpu-type t4
-   * --dockerimage
-   * ghcr.io/pytorch/ci-image:pytorch-linux-jammy-py3.10-clang12-3bdcaae7001ead0f64837461a6
-   *
-   * Search the job log for:
-   *   binary info
-   *   docker image
-   *   environment variables
-   *     probably only care about PATH for now
-   *   command
-   *   gpu type
-   *
-   * In the future, this should probably be an artifact of the job
-   *
-   */
-
   const [open, setOpen] = useState(false);
   const reproInfo = useInformationFromJobLog(workflowId, jobId, failureLineNum);
 
@@ -71,23 +75,31 @@ export function ODCommandInstructions({
     return null;
   }
 
-  const { gpuType, dockerImage, binaryURL, envVars, command } = reproInfo;
+  const { gpuType, numGPUs, dockerImage, binaryURL, envVars, command } =
+    reproInfo;
 
   function getInstructionsInsideMachine() {
     // Helper function for the initial setup commands inside the reserved
     // machine
+
+    // Empty strings create newlines for better readability
     const instructions = [
       `# Use a tmp directory to avoid polluting your workspace`,
       `rm -rf /tmp/odc-repro && mkdir -p /tmp/odc-repro && cd /tmp/odc-repro`,
+      ``,
       `# Set up environment variables`,
       `export PATH=${envVars["PATH"]}:$PATH`,
+      ``,
       `# Clone pytorch repo`,
       `git clone https://github.com/pytorch/pytorch.git && cd pytorch && git checkout ${headSha}`,
+      ``,
       `# Download the binary artifacts`,
       `curl ${binaryURL} -o /tmp/odc-repro/artifacts.zip`,
       `unzip /tmp/odc-repro/artifacts.zip -d /tmp/odc-repro/artifacts`,
+      ``,
       `# Install the wheel `,
-      `pip install $(echo /tmp/odc-repro/artifacts/dist/*.whl)[opt-einsum]`,
+      `pip install $(echo /tmp/odc-repro/artifacts/dist/*.whl)[opt-einsum] --upgrade --target /tmp/odc-repro/pytorch`,
+      ``,
       `# Set up python path to use the local checkout`,
       `export PYTHONPATH=/tmp/odc-repro/pytorch:$PYTHONPATH`,
     ];
@@ -119,6 +131,12 @@ export function ODCommandInstructions({
         <DialogTitle>OSDC gpu-dev Reproduction Instructions</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
+            <Typography variant="body1" fontWeight="bold">
+              Reproducing the failure for job:{" "}
+              <a href={`/pytorch/pytorch/commit/${headSha}#${jobId}`}>
+                {jobName}
+              </a>
+            </Typography>
             <Typography variant="body1">
               This is only available to Meta employees. You can use the OSDC
               gpu-dev CLI to reserve a machine similar to the one used in CI and
@@ -127,8 +145,8 @@ export function ODCommandInstructions({
               the CI job.
             </Typography>
             <Typography variant="body1">
-              Currently this does not support rebuilding the binary, so
-              modifications to cpp and other files will not be reflected.
+              Currently this does not support a full rebuild, so modifications
+              to cpp and similar files will not be reflected.
             </Typography>
 
             <InstructionItem
@@ -161,6 +179,7 @@ export function ODCommandInstructions({
                   <TerminalCopyBox
                     text={
                       `gpu-dev reserve --gpu-type ${gpuType} ` +
+                      (numGPUs > 0 ? `--gpus ${numGPUs} ` : "") +
                       `--dockerimage ${dockerImage}`
                     }
                   />
@@ -354,16 +373,25 @@ function useInformationFromJobLog(
   const command = noTimeStampLogLines[reproCommandLine + 1].trim();
 
   // Machine type
-  const runnerType = noTimeStampLogLines
-    .find((line) => line.startsWith("Runner Type: "))
-    ?.slice("Runner Type: ".length);
-  // TODO: query gpu-dev to get available gpu types?  Query vantage and scale
-  // config to get GPU architecture?
   let gpuType: string = "CPU-X86";
-  if (runnerType?.includes("g6")) {
-    gpuType = "L4";
-  } else if (runnerType?.includes("g4dn")) {
-    gpuType = "T4";
+  let numGPUs = 0;
+  const runnerLineBefore = noTimeStampLogLines.findIndex((line) =>
+    line.startsWith(
+      "+ nvidia-smi --query-gpu=gpu_name --format=csv,noheader --id=0"
+    )
+  );
+  if (runnerLineBefore !== -1) {
+    const gpuFullName = noTimeStampLogLines[runnerLineBefore + 1];
+    gpuType = gpuFullName.split(" ")[1];
+    numGPUs = 1;
+    if (gpuType == "A10G") {
+      gpuType = "A100";
+    }
+    const regexPattern = new RegExp(`(\\d+)\\s+${gpuFullName}\\s+On`);
+    numGPUs =
+      noTimeStampLogLines
+        .map((line) => parseInt(line.match(regexPattern)?.[1] || "0"))
+        .reduce((acc, val) => (val > acc ? val : acc), 0) + 1;
   }
 
   // envVars
@@ -378,6 +406,7 @@ function useInformationFromJobLog(
 
   return {
     gpuType,
+    numGPUs,
     dockerImage,
     binaryURL,
     envVars: {
