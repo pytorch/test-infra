@@ -16,6 +16,8 @@ const DEFAULT_TS_GROUP_KEY = [
 const DEFAULT_TS_SUBGROUP_KEY = ["workflow_id"];
 
 const DEFAULT_TABLE_GROUP_KEY = [
+  "repo",
+  "job_id",
   "workflow_id",
   "commit",
   "dtype",
@@ -25,6 +27,7 @@ const DEFAULT_TABLE_GROUP_KEY = [
   "mode",
   "branch",
   "model",
+  "granularity_bucket",
 ];
 const DEFAULT_TABLE_SUB_GROUP_KEY = ["metric"];
 
@@ -109,6 +112,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         replaceOne(o.head_branch, 'refs/heads/', '') AS branch,
         o.workflow_id AS workflow_id,
         o.job_id AS job_id,
+        o.repo AS repo,
         o.head_sha AS commit,
         o.model.'name' AS model,
         o.model.'backend' AS backend,
@@ -178,6 +182,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       `
            SELECT DISTINCT
             workflow_id,
+            repo,
             branch,
             commit,
             job_id,

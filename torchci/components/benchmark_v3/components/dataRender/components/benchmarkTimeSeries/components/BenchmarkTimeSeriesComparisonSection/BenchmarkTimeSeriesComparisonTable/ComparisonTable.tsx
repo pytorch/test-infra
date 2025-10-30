@@ -1,4 +1,5 @@
 import { Typography } from "@mui/material";
+import { Box } from "@mui/system";
 import {
   DataGrid,
   GridColDef,
@@ -87,7 +88,7 @@ export function ComparisonTable({
   );
 
   return (
-    <>
+    <Box>
       <Typography variant="h6">{title.text}</Typography>
       {title.description && (
         <Typography variant="body2">{title.description}</Typography>
@@ -138,6 +139,6 @@ export function ComparisonTable({
         enabled={config.enableDialog ?? false}
         config={config.customizedConfirmDialog}
       />
-    </>
+    </Box>
   );
 }

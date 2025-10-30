@@ -451,7 +451,6 @@ function getBenchmarkDataformat(data: any, format: string, config: any) {
         config[format].group_key,
         config[format].sub_group_key
       );
-      break;
     case "raw":
       return data;
     default:

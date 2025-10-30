@@ -1,5 +1,6 @@
 import {
   AutoBenchmarkPairwiseTable,
+  AutoBenchmarkRawDataTable,
   AutoBenchmarkTimeSeriesChartGroup,
   AutoBenchmarkTimeSeriesTable,
 } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
@@ -49,6 +50,9 @@ export class AutoComponentRegistry {
       },
       AutoBenchmarkTimeSeriesChartGroup: {
         Component: AutoBenchmarkTimeSeriesChartGroup,
+      },
+      AutoBenchmarkRawDataTable: {
+        Component: AutoBenchmarkRawDataTable,
       },
       // Add your auto components here
     };

@@ -9,6 +9,8 @@ import {
 import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { RenderRawContent } from "../../common/RawContentDialog";
+import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
+
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
@@ -258,7 +260,6 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   }
 
   if (!resp?.data?.data) {
-    console.log("resp?.data?.data", resp, workflows);
     return <div>no data</div>;
   }
 
@@ -355,6 +356,79 @@ export function AutoBenchmarkTimeSeriesChartGroup({
           onSelect={(payload: any) => {}}
           lcommit={ctx.lcommit ?? undefined}
           rcommit={ctx.rcommit ?? undefined}
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
+export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const ready =
+    !!ctx &&
+    !!ctx.committedTime?.start &&
+    !!ctx.committedTime?.end &&
+    !!ctx.committedLbranch &&
+    !!ctx.committedRbranch &&
+    ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const branches = [
+    ...new Set(
+      [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
+    ),
+  ];
+
+  // convert to the query params
+  const params = dataBinding.toQueryParams({
+    repo: ctx.repo,
+    branches: branches,
+    benchmarkName: ctx.benchmarkName,
+    timeRange: ctx.committedTime,
+    filters: ctx.committedFilters,
+    maxSampling: ctx.committedMaxSampling,
+  });
+
+  const queryParams: any | null = ready ? params : null;
+  // fetch the bechmark data
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkRawDataTable..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">(AutoBenchmarkRawDataTable){error.message}</Alert>
+    );
+  }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+  const data = resp?.data?.data;
+
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+        <BenchmarkRawDataTable
+          data={data["table"]}
+          config={uiRenderConfig.config}
+          title={{
+            text: uiRenderConfig?.title ?? "Raw Table",
+            description: "list all the workflow run data within the time range",
+          }}
         />
       </Grid>
     </Grid>

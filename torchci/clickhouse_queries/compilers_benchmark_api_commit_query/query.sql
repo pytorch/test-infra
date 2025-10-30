@@ -15,6 +15,11 @@ WHERE
         )
         OR empty({branches: Array(String)})
     )
+    AND NOT (
+        endsWith(benchmark_extra_info['output'], 'huggingface.csv')
+        OR endsWith(benchmark_extra_info['output'], 'torchbench.csv')
+        OR endsWith(benchmark_extra_info['output'], 'timm_models.csv')
+    )
     AND (
         has({suites: Array(String)}, suite)
         OR empty({suites: Array(String)})

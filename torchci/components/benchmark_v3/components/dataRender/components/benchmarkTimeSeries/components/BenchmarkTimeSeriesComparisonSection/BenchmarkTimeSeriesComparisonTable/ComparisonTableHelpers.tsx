@@ -17,6 +17,8 @@ type GridRowModel = {
 
 // used when find unique rows
 const TO_ROW_EXCLUDE_KEYS = [
+  "repo",
+  "job_id",
   "workflow_id",
   "commit",
   "branch",
@@ -25,13 +27,17 @@ const TO_ROW_EXCLUDE_KEYS = [
   "date",
 ];
 
-function getGroupKeyAndLabel(gi: any) {
+export function groupKeyAndLabel(gi: any, exclude_keys: string[] = []) {
   const keys = Object.keys(gi ?? {})
-    .filter((k) => !TO_ROW_EXCLUDE_KEYS.includes(k))
+    .filter((k) => !exclude_keys.includes(k))
     .sort();
   const key = keys.map((k) => `${k}=${String(gi?.[k])}`).join("|");
   const label = keys.map((k) => String(gi?.[k])).join(" · ");
   return { key, label, metric: String(gi?.metric ?? "") };
+}
+
+function getGroupKeyAndLabel(gi: any) {
+  return groupKeyAndLabel(gi, TO_ROW_EXCLUDE_KEYS);
 }
 
 export type RowCellObj = {
