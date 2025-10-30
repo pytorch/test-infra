@@ -10,7 +10,6 @@ import { RenderRawContent } from "components/benchmark_v3/components/common/RawC
 import Link from "next/link";
 import { useMemo } from "react";
 import {
-  fmtFixed2,
   formatHeaderName,
   getBenchmarkTimeSeriesComparisionTableRenderingConfig,
   renderBasedOnUnitConifg,
@@ -213,7 +212,7 @@ function getTableConlumnRendering(
         fieldName,
         config
       );
-      return renderBasedOnUnitConifg(fmtFixed2(value), rc?.unit);
+      return renderBasedOnUnitConifg(value, rc?.unit);
     },
     renderCell: (params: GridRenderCellParams<any>) => {
       return <Box>{params.formattedValue ?? ""}</Box>;

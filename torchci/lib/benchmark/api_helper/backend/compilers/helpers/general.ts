@@ -1,3 +1,4 @@
+import { COMPILER_NAMES_TO_DISPLAY_NAMES } from "components/benchmark/compilers/common";
 import _ from "lodash";
 import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
 
@@ -65,6 +66,7 @@ function normalizeBenchmarkValues(rows: any[]) {
   return rows.map((row) => {
     // the materialized table does not have repo column
     row.repo = PYTORCH_REPO;
+    row.compiler = COMPILER_NAMES_TO_DISPLAY_NAMES[row.compiler];
     if (
       row.metric === "accuracy" &&
       _.get(row, "extra_info.benchmark_values")

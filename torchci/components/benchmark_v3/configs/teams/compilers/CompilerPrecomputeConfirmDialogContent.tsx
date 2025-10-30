@@ -128,7 +128,6 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
 
 function toBenchmarkDashboardUrl(left: any, right: any, router: NextRouter) {
   const pathname = "/benchmark/v3/dashboard/compiler_inductor";
-
   const lcommit: BenchmarkCommitMeta = {
     commit: left.commit,
     branch: left.branch,
@@ -142,18 +141,21 @@ function toBenchmarkDashboardUrl(left: any, right: any, router: NextRouter) {
     date: right.granularity_bucket,
   };
 
-  console.log("other left", left);
+  const filters = {
+    suite: left?.suite,
+    compiler: left?.compiler,
+  };
 
-  const res = stateToQuery({
+  const reformattedPrams = stateToQuery({
     lcommit,
     rcommit,
+    filters,
   });
 
   const nextDashboardMainQuery = {
     ...router.query, // keep existing params like lcommit, rcommit
+    ...reformattedPrams,
     renderGroupId: "main",
-    "filters.suite": left?.suite,
-    "filters.compiler": left?.compiler,
   };
   const params = new URLSearchParams(
     Object.entries(nextDashboardMainQuery)

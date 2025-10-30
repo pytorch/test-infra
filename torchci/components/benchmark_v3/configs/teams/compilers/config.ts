@@ -16,7 +16,6 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
-import { DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS } from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -59,6 +58,27 @@ const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
 const ACCURACY_STATUS_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "accuracy",
   type: "status",
+};
+
+const DashboardRenderBook = {
+  accuracy: {
+    displayName: "Accuracy",
+  },
+  speedup: {
+    displayName: "Perf. speedup",
+  },
+  dynamo_peak_mem: {
+    displayName: "Dynamo memory usage",
+  },
+  compilation_latency: {
+    displayName: "Compilation time (seconds)",
+  },
+  compression_ratio: {
+    displayName: "Peak mem compress ratio ",
+  },
+  abs_latency: {
+    displayName: "Abs. execution time (ms)",
+  },
 };
 
 const RENDER_MAPPING_BOOK = {
@@ -179,7 +199,6 @@ const COMPILER_BENCHMARK_DATABINDING = {
 };
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
-  ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   {
     field: "suite",
   },
@@ -210,7 +229,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
               lineKey: ["model", "compiler", "suite"],
               chart: {
                 renderOptions: {
-                  chartRenderBook: RENDER_MAPPING_BOOK,
+                  chartRenderBook: DashboardRenderBook,
                   showLegendDetails: true,
                 },
               },
@@ -222,7 +241,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             config: {
               extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
               renderOptions: {
-                tableRenderingBook: RENDER_MAPPING_BOOK,
+                tableRenderingBook: DashboardRenderBook,
               },
             },
           },
@@ -251,7 +270,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
           },
           extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
-            tableRenderingBook: RENDER_MAPPING_BOOK,
+            tableRenderingBook: DashboardRenderBook,
             flex: {
               primary: 2,
             },
