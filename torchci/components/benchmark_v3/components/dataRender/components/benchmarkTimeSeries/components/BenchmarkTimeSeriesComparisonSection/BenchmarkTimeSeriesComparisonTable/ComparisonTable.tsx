@@ -1,4 +1,4 @@
-import { Typography } from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -96,6 +96,19 @@ export function ComparisonTable({
       <Typography variant="body2">
         {lWorkflowId} - {rWorkflowId}
       </Typography>
+      {!config?.disableExport && (
+        <Button
+          onClick={() =>
+            apiRef?.current?.exportDataAsCsv({
+              allColumns: true,
+              utf8WithBom: true,
+              fileName: `benchmark_${title.text}_${lWorkflowId}_to_${rWorkflowId}`,
+            })
+          }
+        >
+          Download CSV
+        </Button>
+      )}
       <DataGrid
         apiRef={apiRef}
         density="compact"

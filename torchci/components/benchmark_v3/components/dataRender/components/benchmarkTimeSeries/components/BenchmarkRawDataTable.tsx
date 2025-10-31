@@ -1,4 +1,4 @@
-import { Button, Typography } from "@mui/material";
+import { Button, Tooltip, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -145,26 +145,37 @@ function getTableConlumnRendering(
       valueFormatter: (value: any, row: any) => {
         return value ?? "";
       },
-      renderCell: (params: GridRenderCellParams<any>) => (
-        <Link href={params.row.job_url} target="_blank" rel="noopener">
-          {params.value}
-        </Link>
-      ),
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const tooltipText = `navigate to github page for job ${params.value}
+        }`;
+        return (
+          <Tooltip title={tooltipText}>
+            <Link href={params.row.job_url} target="_blank" rel="noopener">
+              {params.value}
+            </Link>
+          </Tooltip>
+        );
+      },
     },
     {
       field: "commit",
       headerName: "Commit",
-      renderCell: (params: GridRenderCellParams<any>) => (
-        <Link href={params.row.commit_url} target="_blank" rel="noopener">
-          <span
-            style={{
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-            }}
-          >
-            {String(params.value).slice(0, 8)}
-          </span>
-        </Link>
-      ),
+      renderCell: (params: GridRenderCellParams<any>) => {
+        const tooltipText = `navigate to job run in hud commit page`;
+        return (
+          <Tooltip title={tooltipText}>
+            <Link href={params.row.commit_url} target="_blank" rel="noopener">
+              <span
+                style={{
+                  fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                }}
+              >
+                {String(params.value)}
+              </span>
+            </Link>
+          </Tooltip>
+        );
+      },
     },
     {
       field: "timestamp",
@@ -223,7 +234,7 @@ function getTableConlumnRendering(
 }
 
 /**
- * Transform the data into a table row item
+ * Transform the data into a table row item for rendering
  * @param config
  * @param data
  * @returns
@@ -235,9 +246,11 @@ export function ToRawTableRow(config: any, data: any) {
     const wf = String(i?.workflow_id ?? "");
     const jobId = String(i?.job_id ?? "");
     const sourceRepo = i?.repo ?? "";
-    const repoUrl = `https://github.com/${sourceRepo}`;
-    const commitUrl = `${repoUrl}/commit/${i?.commit ?? ""}`;
-    const jobUrl = `${repoUrl}/actions/runs/${wf}/job/${jobId}`;
+    const hudCommitUrl = `/${sourceRepo}/commit/${
+      i?.commit ?? ""
+    }#${jobId}-box`;
+    const gitRepoUrl = `https://github.com/${sourceRepo}`;
+    const jobUrl = `${gitRepoUrl}/actions/runs/${wf}/job/${jobId}`;
     const rawData = d.data ?? [];
     const { key } = groupKeyAndLabel(i);
     if (!m.has(key)) {
@@ -246,7 +259,7 @@ export function ToRawTableRow(config: any, data: any) {
         job_id: jobId,
         workflow_id: wf,
         commit: i?.commit ?? "",
-        commit_url: commitUrl,
+        commit_url: hudCommitUrl,
         job_url: jobUrl,
         repo: String(i?.repo ?? ""),
         timestamp: i?.granularity_bucket ?? "",
