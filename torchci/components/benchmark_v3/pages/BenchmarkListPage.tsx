@@ -61,12 +61,12 @@ export const categories: BenchmarkCategoryGroup[] = [
       {
         name: "Operator Microbenchmark",
         route:
-          "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
+          "/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/operator_benchmark)",
         actions: [
           {
-            label: "New dashboard (WIP)",
-            href: "/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
+            label: "Legacy dashboard",
+            href:  "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
           },
         ],
       },
