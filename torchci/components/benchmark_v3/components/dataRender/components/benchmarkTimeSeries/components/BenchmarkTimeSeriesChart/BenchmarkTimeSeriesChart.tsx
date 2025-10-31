@@ -95,8 +95,6 @@ const BenchmarkTimeSeriesChart: React.FC<Props> = ({
       displayName = rc?.displayName ?? meta.metric;
     }
 
-    console.log("p", p);
-
     let legendKeyItems: string[] = [];
     if (renderOptions?.showLegendDetails) {
       legendKeys?.forEach((k) => {

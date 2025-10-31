@@ -22,7 +22,7 @@ import {
   getBenchmarkTimeSeriesComparisonTableTarget,
   renderBasedOnUnitConifg,
 } from "../../../helper";
-import { asNumber, displayNameOf, valOf } from "./ComparisonTableHelpers";
+import { displayNameOf, valOf } from "./ComparisonTableHelpers";
 
 /**
  *
@@ -122,6 +122,7 @@ export function getComparisionTableConlumnRendering(
 /** Colors */
 const VIOLATE_RULE_COLOR = "#ffebee"; // red[50]
 const IMPROVEMENT_COLOR = "#e8f5e9"; // green[50]
+const WARNING_COLOR = "#fff9c4"; // yellow[50]
 
 export function ComparisonTablePrimaryFieldValueCell({
   params,
@@ -184,37 +185,22 @@ export function ComparisonTableColumnFieldValueCell({
       row.byWorkflow[rWorkflowId]?.[field]
     : undefined;
 
-  // get rabw value of left and right field
+  // get raw value of left and right field
   const L = valOf(ldata);
   const R = valOf(rdata);
 
-  // assume l and r are numbers
-  // todo(elainwy): support non-number values (e.g. string)
-  const ln = asNumber(L);
-  const rn = asNumber(R);
-
-  // get target field key name, for instance, metric
-  // so we can get the comparison policy by get the value of target field
   const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
-
   const findFieldValueFromColData =
     ldata?.[targetField] ?? rdata?.[targetField];
   const targetVal = findFieldValueFromColData;
 
-  let comparisonPolicy: BenchmarkComparisonPolicyConfig | undefined = undefined;
-  if (targetVal && config?.comparisonPolicy) {
-    comparisonPolicy = targetVal
-      ? config?.comparisonPolicy[targetVal]
-      : undefined;
-  }
-
-  //console.log("ComparisonTableValueCell", ldata, rdata,targetField,row);
-  // evaluate the value comparison result, return the comparison report for each field
-  const result = evaluateComparison(
-    comparisonPolicy?.target,
-    ln,
-    rn,
-    comparisonPolicy
+  const { result, text } = getComparisonResult(
+    L,
+    R,
+    ldata,
+    rdata,
+    targetVal,
+    config
   );
 
   // pick background color based on result signals
@@ -226,14 +212,14 @@ export function ComparisonTableColumnFieldValueCell({
     case "regression":
       bgColor = VIOLATE_RULE_COLOR;
       break;
+    case "warning":
+      bgColor = WARNING_COLOR;
+      break;
     case "neutral":
     default:
       break;
   }
 
-  const ldisplay = displayNameOf(ldata);
-  const rdisplay = displayNameOf(rdata);
-  const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
   return (
     <Box sx={{ bgcolor: bgColor, borderRadius: 1, px: 0.5, py: 0.25 }}>
       <Tooltip title={renderComparisonResult(result)}>
@@ -268,12 +254,12 @@ export function getFieldRender(
   R: any,
   config?: ComparisonTableConfig,
   ldisplay?: string,
-  rdisplay?: string
+  rdisplay?: string,
+  missingText: string = "N/A"
 ) {
   if (ldisplay || rdisplay) {
-    return `${ldisplay ?? "N/A"}→${rdisplay ?? "N/A"}`;
+    return `${ldisplay ?? missingText}→${rdisplay ?? missingText}`;
   }
-
   const rc = getBenchmarkTimeSeriesComparisionTableRenderingConfig(
     targetField,
     config
@@ -283,21 +269,61 @@ export function getFieldRender(
 export function formatTransitionWithUnit(
   L: any,
   R: any,
-  table_unit?: BenchmarkUnitConfig
+  table_unit?: BenchmarkUnitConfig,
+  missingText: string = "N/A"
 ): string {
-  const formatValue = (v: any) =>
-    v == null ? "N/A" : renderBasedOnUnitConifg(fmtFixed2(v), table_unit);
+  const formatValue = (v: any) => {
+    if (v == null || v == undefined) return missingText;
+    const num = Number(v);
+    const isNumeric = !isNaN(num) && v !== "";
+    if (isNumeric) {
+      return renderBasedOnUnitConifg(fmtFixed2(num), table_unit);
+    }
+    // non-numeric → render raw
+    return String(v);
+  };
+
   if (L == null && R == null) {
-    return "N/A";
+    return missingText;
   }
+
   if (L == null) {
-    return `N/A→${formatValue(R)}`;
+    return `${missingText}→${formatValue(R)}`;
   }
   if (R == null) {
-    return `${formatValue(L)}→N/A`;
+    return `${formatValue(L)}→${missingText}`;
   }
+
   if (fmtFixed2(L) === fmtFixed2(R)) {
     return formatValue(L);
   }
   return `${formatValue(L)}→${formatValue(R)}`;
+}
+
+export function getComparisonResult(
+  L: any,
+  R: any,
+  ldata: any,
+  rdata: any,
+  targetVal: string,
+  config?: ComparisonTableConfig
+) {
+  // get target field key name, for instance, metric
+  // so we can get the comparison policy by get the value of target field
+
+  let policy: BenchmarkComparisonPolicyConfig | undefined = undefined;
+  if (targetVal && config?.comparisonPolicy) {
+    policy = targetVal ? config.comparisonPolicy[targetVal] : undefined;
+  }
+  // evaluate the value comparison result, return the comparison report for each field
+  const result = evaluateComparison(policy?.target, L, R, policy);
+
+  const ldisplay = displayNameOf(ldata);
+  const rdisplay = displayNameOf(rdata);
+  const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
+
+  return {
+    result,
+    text,
+  };
 }

@@ -61,7 +61,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
     dataRender: {
       type: "auto",
       subSectionRenders: {
-        detali_view: {
+        detail_view: {
           filterConstraint: {
             model: {
               disabled: true,
@@ -132,7 +132,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               displayName: "Model",
               navigation: {
                 type: "subSectionRender",
-                value: "detali_view",
+                value: "detail_view",
                 applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
               },
             },

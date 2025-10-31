@@ -9,6 +9,7 @@ import {
 import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
+
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 

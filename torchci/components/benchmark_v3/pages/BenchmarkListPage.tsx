@@ -35,6 +35,10 @@ export const categories: BenchmarkCategoryGroup[] = [
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/dynamo#torchcompile-benchmarking)",
         actions: [
           {
+            label: "New dashboard (WIP)",
+            href: "/benchmark/v3/dashboard/compiler_inductor",
+          },
+          {
             label: "Legacy Page/Playground",
             href: "/benchmark/compilers",
           },

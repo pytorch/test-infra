@@ -58,7 +58,7 @@ async function getBenmarkCommits(
   query_params: any
 ): Promise<CommitResult> {
   switch (request_name) {
-    case "compiler":
+    case "compiler_inductor":
     case "compiler_precompute":
       return await getCompilerCommits(query_params);
     default:

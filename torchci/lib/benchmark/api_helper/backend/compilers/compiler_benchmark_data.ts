@@ -153,30 +153,28 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
     );
   }
 
-  // get commits from clickhouse, if queryParams has samping config, use it
-  // TODO(ELAINEWY): when use sampled commits to fetch list of commits for data fetching,
-  // the result may contain more data than we expected. this is bc sometimes one commit
-  // can have multiple workflowid associated with it. we need to revisit this later.
-  // maybe we can use the workflowid to search for data instead of commit.
-  // if there is situation like this
-  const { data: commit_results } = await getCommitsWithSampling(
-    COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-    queryParams
-  );
-
-  const unique_workflows = [
-    ...new Set(commit_results.map((c) => c.workflow_id)),
-  ];
-  console.log(
-    `no workflows provided in request, searched unqiue workflows based on
+  if (!queryParams.workflows || queryParams.workflows.length == 0) {
+    const { data: commit_results } = await getCommitsWithSampling(
+      COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
+      queryParams
+    );
+    const unique_workflows = [
+      ...new Set(commit_results.map((c) => c.workflow_id)),
+    ];
+    console.log(
+      `no workflows provided in request, searched unqiue workflows based on
       start/end time unique_workflows: ${unique_workflows.length}`
-  );
-
-  if (commit_results.length > 0) {
-    queryParams["workflows"] = unique_workflows;
+    );
+    if (commit_results.length > 0) {
+      queryParams["workflows"] = unique_workflows;
+    } else {
+      console.log(`no workflow found in clickhouse using ${queryParams}`);
+      return [];
+    }
   } else {
-    console.log(`no workflow found in clickhouse using ${queryParams}`);
-    return [];
+    console.log(
+      `input provided workflows found using ${queryParams.workflows}`
+    );
   }
   return queryParams;
 }

@@ -71,7 +71,7 @@ async function getBenchmarkTimeSeriesData(
         CompilerQueryType.PRECOMPUTE,
         formats
       );
-    case "compiler":
+    case "compiler_inductor":
       return await getCompilerBenchmarkTimeSeriesData(
         query_params,
         CompilerQueryType.GENERAL,

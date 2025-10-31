@@ -9,14 +9,17 @@ import { useEffect, useRef } from "react";
 export function BackToMainButton() {
   const router = useRouter();
   const renderGroupId = useDashboardSelector((s) => s.renderGroupId);
+
   const { prevRef, currentRef } = useRouteHistory();
 
   const handleClick = () => {
     if (prevRef.current) {
       router.back();
     } else {
+      // if there is no history, push to main page with existing query params
       const { renderGroupId, ...rest } = router.query as Record<string, any>;
-      const nextMainQuery = { ...rest, renderGroupId: "main" };
+
+      let nextMainQuery: any = { ...rest, renderGroupId: "main" };
 
       // push the main page
       router.push(

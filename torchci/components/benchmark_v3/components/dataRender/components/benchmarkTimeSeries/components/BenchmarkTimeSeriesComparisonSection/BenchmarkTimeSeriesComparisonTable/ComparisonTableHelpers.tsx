@@ -52,7 +52,14 @@ export type SnapshotRow = {
 };
 
 /** Helpers */
-export const asNumber = (v: unknown) => (typeof v === "number" ? v : undefined);
+export const asNumber = (v: unknown): number | undefined => {
+  if (typeof v === "number") return v;
+  if (typeof v === "string" && v.trim() !== "") {
+    const num = Number(v);
+    return isNaN(num) ? undefined : num;
+  }
+  return undefined;
+};
 export const valOf = (cell?: RowCellObj) => (cell ? cell.value : undefined);
 export const displayNameOf = (cell?: RowCellObj) =>
   cell ? cell.displayName : undefined;

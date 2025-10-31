@@ -149,15 +149,15 @@ export function RawContentDialog({
 
 export function RenderRawContent({
   data,
-  title,
-  buttonName,
-  type,
+  title = "Raw Content",
+  buttonName = "Raw Content",
+  type = "json",
   component,
 }: {
   data: any;
-  title: string;
-  buttonName: string;
-  type: "json" | "component";
+  title?: string;
+  buttonName?: string;
+  type?: "json" | "component";
   component?: (data: any, title: string) => JSX.Element;
 }) {
   return (

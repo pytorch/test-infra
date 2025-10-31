@@ -69,7 +69,7 @@ export default function DefaultMetricsDropdowns() {
   const filters = {
     ...stagedFilters,
     deviceName:
-      stagedFilters.deviceName.length > 0
+      stagedFilters?.deviceName?.length > 0
         ? stagedFilters.deviceName
         : toDeviceName(stagedFilters.device, stagedFilters.arch),
   };
