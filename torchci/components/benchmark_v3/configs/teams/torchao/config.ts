@@ -2,8 +2,8 @@ import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 import {
   DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
-  DEFAULT_LATENCY_POLICY,
 } from "../defaults/default_dashboard_config";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 
 export const PYTORCH_OPERATOR_MICROBENCHMARK_ID =
   "pytorch_operator_microbenchmark";
@@ -16,6 +16,16 @@ const initialOptions = {
     arch: "NVIDIA B200",
     deviceName: "cuda||NVIDIA B200",
     operatorName: "addmm",
+  },
+};
+
+export const DEFAULT_LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "latency",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.25,
+    goodRatio: 0.75,
+    direction: "down",
   },
 };
 
