@@ -91,10 +91,6 @@ function NavBar() {
 
   const devInfraDropdown = [
     {
-      name: "SLIs",
-      href: "/sli",
-    },
-    {
       name: "TTS",
       href: "/tts",
     },
