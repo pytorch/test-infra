@@ -321,7 +321,17 @@ class SignalExtractor:
                 started_at=job.started_at,
                 job_id=int(tr.job_id),
             )
+            # Combine outcomes across shards/partitions for the same group key.
+            # Outcome with failures takes precedence.
+            # This is to support a rare case where a test appears in multiple shards
+            # usually it indicates that our base_name normalization is not perfect.
+            existing = tests_by_group_attempt.get(key)
+            if existing is not None and existing.failure_runs > 0:
+                outcome = existing
+
             tests_by_group_attempt[key] = outcome
+
+            # Track keys that have at least one failure across any shard
             if outcome.failure_runs > 0:
                 failing_tests_by_job_base_name.add(
                     (job.workflow_name, job_base_name, tr.test_id)

@@ -525,6 +525,155 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertEqual(c_new.events[0].status, SignalStatus.PENDING)
         self.assertEqual(c_new.events[0].wf_run_id, 200)
 
+    def test_test_track_combines_shards_failure_wins(self):
+        # Same commit/run/attempt/test_id present on two shards of the same base:
+        # - shard A reports success
+        # - shard B reports failure
+        # When combining, the attempt should reflect a FAILURE event (and we still
+        # retain SUCCESS if it was also observed).
+        base_name = "linux-test (dynamo_wrapped, 1, 3)"  # numeric tokens may be ignored/merged by base logic
+
+        jobs = [
+            # Both jobs share the same commit, workflow run, attempt and base name
+            J(
+                sha="C",
+                run=5000,
+                job=1001,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",  # marks base as test-track candidate
+            ),
+            J(
+                sha="C",
+                run=5000,
+                job=1002,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 12),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+
+        tests = [
+            # Same test id across two shards: one success and one failure
+            T(
+                job=1001,
+                run=5000,
+                attempt=1,
+                file="h.py",
+                name="test_merge",
+                failure_runs=1,
+                success_runs=0,
+            ),
+            T(
+                job=1002,
+                run=5000,
+                attempt=1,
+                file="h.py",
+                name="test_merge",
+                failure_runs=0,
+                success_runs=1,
+            ),
+        ]
+
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(signals, "trunk", "h.py::test_merge")
+        self.assertIsNotNone(test_sig)
+        # Single commit present
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["C"])
+        events = test_sig.commits[0].events
+        # Expect exactly one FAILURE event for the attempt (failure dominates)
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].status, SignalStatus.FAILURE)
+
+    def test_test_track_combines_shards_success_single_event(self):
+        # Two shards for the same test attempt both succeed; ensure we emit
+        # a single SUCCESS event for that attempt (no duplication).
+        base_name = "linux-test (dynamo_wrapped, 1, 3)"
+
+        jobs = [
+            # Mark base as test-track by using a test failure classification on one job
+            # (selection signal only). Actual test rows are successes.
+            J(
+                sha="C2",
+                run=6000,
+                job=1101,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 10),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="C2",
+                run=6000,
+                job=1102,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 12),
+                conclusion="success",
+                rule="",
+            ),
+            # Older commit with the same test failing at least once so the test id is included
+            J(
+                sha="C1",
+                run=5990,
+                job=1103,
+                attempt=1,
+                name=base_name,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+        ]
+
+        tests = [
+            # Both shards report success for the same test id
+            T(
+                job=1101,
+                run=6000,
+                attempt=1,
+                file="h2.py",
+                name="test_merge_success",
+                failure_runs=0,
+                success_runs=1,
+            ),
+            T(
+                job=1102,
+                run=6000,
+                attempt=1,
+                file="h2.py",
+                name="test_merge_success",
+                failure_runs=0,
+                success_runs=1,
+            ),
+            # Older commit has a failure for the same test id to ensure inclusion
+            T(
+                job=1103,
+                run=5990,
+                attempt=1,
+                file="h2.py",
+                name="test_merge_success",
+                failure_runs=1,
+                success_runs=0,
+            ),
+        ]
+
+        signals = self._extract(jobs, tests)
+        test_sig = self._find_test_signal(signals, "trunk", "h2.py::test_merge_success")
+        self.assertIsNotNone(test_sig)
+        # Should contain both commits, newest first
+        self.assertEqual([c.head_sha for c in test_sig.commits], ["C2", "C1"])
+        # Find C2 and verify only a single SUCCESS event is emitted for the attempt
+        c2 = test_sig.commits[0]
+        events = c2.events
+        # Expect exactly one SUCCESS event for the attempt
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0].status, SignalStatus.SUCCESS)
+
 
 if __name__ == "__main__":
     unittest.main()
