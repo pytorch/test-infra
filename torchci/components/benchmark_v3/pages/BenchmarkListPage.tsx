@@ -60,13 +60,14 @@ export const categories: BenchmarkCategoryGroup[] = [
       },
       {
         name: "Operator Microbenchmark",
-        route:
-          "/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
+        route: "/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/operator_benchmark)",
+        description:
+          "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
         actions: [
           {
-            label: "Legacy dashboard",
-            href:  "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
+            label: "Legacy Page/Playground",
+            href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
           },
         ],
       },
