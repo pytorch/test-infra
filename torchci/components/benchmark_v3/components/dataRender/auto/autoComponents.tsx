@@ -1,5 +1,5 @@
 import { Alert, Typography } from "@mui/material";
-import { Grid } from "@mui/system";
+import { Box, Grid } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -12,6 +12,10 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
+import { BenchmarkLogSidePanelWrapper, BenchmarkLogViewer, LogSrc } from "../../common/BenchmarkLogViewer";
+import _ from "lodash";
+import { LOG_PREFIX } from "components/benchmark/common";
+import { RenderRawContent } from "../../common/RawContentDialog";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -282,6 +286,122 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   );
 }
 
+export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch;
+
+  const ready =
+    !!ctx &&
+    !!ctx.committedTime?.start &&
+    !!ctx.committedTime?.end &&
+    !!ctx.committedLbranch &&
+    !!ctx.committedRbranch &&
+    isWorkflowsReady &&
+    ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  const dataBinding = ctx?.configHandler.dataBinding;
+
+  const branches = [
+    ...new Set(
+      [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
+    ),
+  ];
+  const workflows =
+    ctx.lcommit?.workflow_id && ctx.rcommit?.workflow_id
+      ? [ctx.lcommit?.workflow_id, ctx.rcommit?.workflow_id]
+      : [];
+
+  // convert to the query params
+  const params = dataBinding.toQueryParams({
+    repo: ctx.repo,
+    branches: branches,
+    benchmarkName: ctx.benchmarkName,
+    timeRange: ctx.committedTime,
+    filters: ctx.committedFilters,
+    maxSampling: ctx.committedMaxSampling,
+    workflows,
+  });
+
+  const queryParams: any | null = ready ? params : null;
+  // fetch the bechmark data
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+
+  if (!ready) {
+    return (
+      <LoadingPage height={500} content="Waiting for initialization...." />
+    );
+  }
+
+  if (isLoading || !resp) {
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkPairwiseTable..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkTimeSeriesTable){error.message}
+      </Alert>
+    );
+  }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+
+  const data = resp?.data?.data;
+  const rows = (data["table"] as any[]) ?? [];
+
+  const workflowJobMap = new Map<string, string[]>();
+
+  for (const row of rows) {
+    const wf = row.group_info?.workflow_id;
+    const job = row.group_info?.job_id;
+    console.log(row.group_info)
+    if (!wf || !job) continue;
+    if (!workflowJobMap.has(wf)) {
+      workflowJobMap.set(wf, []);
+    }
+    const jobs = workflowJobMap.get(wf)!;
+    if (!jobs.includes(job)) {
+      jobs.push(job);
+    }
+  }
+  workflowJobMap.entries
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+        {Array.from(workflowJobMap.entries()).map(([wf, jobs]) => {
+      const urls = jobs.map((job: string) => ({
+        url: `${LOG_PREFIX}/${job}`,
+      }));
+      return (
+        <Box key={wf}>
+          <BenchmarkLogSidePanelWrapper
+            urls={urls}
+            buttonLabel={`${wf}`}
+          />
+        </Box>
+      );
+    })}
+      </Grid>
+    </Grid>
+  );
+}
+
 export function AutoBenchmarkTimeSeriesChartGroup({
   config,
 }: AutoComponentProps) {
@@ -416,6 +536,7 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
     return <div>no data</div>;
   }
   const data = resp?.data?.data;
+
 
   return (
     <Grid container sx={{ m: 1 }}>
