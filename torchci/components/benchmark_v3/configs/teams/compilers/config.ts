@@ -16,7 +16,6 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
-import { DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS } from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
