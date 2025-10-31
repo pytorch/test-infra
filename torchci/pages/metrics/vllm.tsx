@@ -18,9 +18,11 @@ import JobGroupFilter, {
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
 import MostRetriedJobsTable from "components/metrics/vllm/MostRetriedJobsTable";
+import QueueWaitPerBuildPanel from "components/metrics/vllm/QueueWaitPerBuildPanel";
 import ReliabilityPanel from "components/metrics/vllm/ReliabilityPanel";
 import ReliabilityTrendPanel from "components/metrics/vllm/ReliabilityTrendPanel";
 import RetryTrendPanel from "components/metrics/vllm/RetryTrendPanel";
+import RunCostPerBuildPanel from "components/metrics/vllm/RunCostPerBuildPanel";
 import TimeToSignalTrendPanel from "components/metrics/vllm/TimeToSignalTrendPanel";
 import TrunkHealthPanel from "components/metrics/vllm/TrunkHealthPanel";
 import TrunkHealthTrendPanel from "components/metrics/vllm/TrunkHealthTrendPanel";
@@ -306,6 +308,15 @@ export default function Page() {
     prevCiDurations === undefined
       ? undefined
       : qFrom(prevSuccessDurations, 0.9);
+
+  const { data: queuePerBuild } = useClickHouseAPIImmutable(
+    "vllm/queue_per_build_windowed",
+    {
+      ...timeParams,
+    }
+  );
+
+  const isQueueLoading = queuePerBuild === undefined;
 
   const { data: prCycleData } = useClickHouseAPIImmutable(
     "vllm/pr_cycle_time_breakdown",
@@ -960,6 +971,33 @@ export default function Page() {
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeToSignalTrendPanel data={ciDurations} />
         </Grid>
+      </DashboardRow>
+      {/* Section 3b: Queue Utilization & Cost */}
+      <Divider sx={{ mt: 4, mb: 2 }}>
+        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+          Queue Utilization & Cost
+        </Typography>
+      </Divider>
+      <DashboardRow spacing={2}>
+        {isQueueLoading ? (
+          <>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <Skeleton variant="rectangular" height={"100%"} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <Skeleton variant="rectangular" height={"100%"} />
+            </Grid>
+          </>
+        ) : (
+          <>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <QueueWaitPerBuildPanel data={queuePerBuild} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <RunCostPerBuildPanel data={queuePerBuild} />
+            </Grid>
+          </>
+        )}
       </DashboardRow>
 
       {/* Section 4: PR Cycle Metrics */}
