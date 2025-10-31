@@ -33,7 +33,7 @@ CUDA_ARCHES_DICT = {
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["6.4", "7.0"],
+    "nightly": ["7.0", "7.1"],
     "test": ["6.3", "6.4"],
     "release": ["6.3", "6.4"],
 }
