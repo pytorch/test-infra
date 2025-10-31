@@ -210,7 +210,7 @@ function scrollToLine(state: EditorState, view: EditorView, line: number) {
   }
 }
 
-export function Log({
+function Log({
   url,
   currentLine,
 }: {
