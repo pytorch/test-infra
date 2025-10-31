@@ -1,15 +1,12 @@
-import { basicSetup } from "@codemirror/basic-setup";
-import { codeFolding, foldAll } from "@codemirror/language";
-import { search } from "@codemirror/search";
 import { EditorSelection, EditorState } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import { Divider, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import { foldUninteresting } from "components/common/log/LogViewer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWRImmutable from "swr/immutable";
 import { LogUrlList } from "./BenchmarkLogList";
+import { MultiLogViewer } from "./MultiLogViewer";
+import { filterByTerms, tokenizeQuery } from "./utils";
 
 const fetchText = async (url: string) => {
   const r = await fetch(url);
@@ -70,27 +67,27 @@ function scrollToLine(state: EditorState, view: EditorView, line: number) {
   }
 }
 
-export function BenchmarkLogViewer({
+export function BenchmarkLogViewContent({
   urls,
   current,
   editorWidth = "70vw",
   listWidth = "25%",
 }: {
   urls: LogSrc[];
+  /** optional: scroll target like {fileIndex: 0, line: 42} (1-based line in that file) */
   current?: { fileIndex: number; line: number };
   editorWidth?: string | number;
   listWidth?: string | number;
 }) {
-  // shared query
+  // shared query (plain string; chip UI can sit outside or inside LogUrlList)
   const [query, setQuery] = useState("");
 
-  // 1) filter first
-  const filteredUrls = useMemo(() => filterUrls(urls, query), [urls, query]);
+  // 1) tokenize + filter first (shared utils)
+  const terms = useMemo(() => tokenizeQuery(query), [query]);
+  const filteredUrls = useMemo(() => filterByTerms(urls, terms), [urls, terms]);
 
-  // 2) keys only from filtered
+  // fetch only filtered URLs
   const keys = useMemo(() => filteredUrls.map((u) => u.url), [filteredUrls]);
-
-  // 3) fetch only filtered URLs (parallel)
   const swrKey = keys.length ? (["logs", ...keys] as const) : null;
   const { data: texts, error } = useSWRImmutable(
     swrKey,
@@ -100,58 +97,26 @@ export function BenchmarkLogViewer({
     }
   );
 
-  // 4) labels from filtered
+  // labels for filtered (stable)
   const labels = useMemo(
     () => filteredUrls.map((u, i) => u.label ?? u.url ?? `Log ${i + 1}`),
     [filteredUrls]
   );
 
-  // 5) combine fetched subset
+  // combine fetched subset
   const combined = useMemo(() => {
-    if (!texts) return { combined: "Loading...", offsets: [1] };
+    if (!texts) return { combined: "Loading...", offsets: [1] as number[] };
     return combineLogs(texts, labels);
   }, [texts, labels]);
 
-  // 6) CodeMirror view
-  const viewerRef = useRef<HTMLDivElement>(null!);
   const viewRef = useRef<EditorView | null>(null);
 
-  // Build editor state whenever combined/height changes
-  const state = useMemo(() => {
-    return EditorState.create({
-      doc: combined.combined,
-      extensions: [
-        basicSetup,
-        EditorState.readOnly.of(true),
-        EditorView.theme({
-          "&": { width: "100%", height: "90vh", boxSizing: "border-box" },
-        }),
-        EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }),
-        oneDark,
-        // your folding extensions:
-        foldUninteresting,
-        codeFolding({
-          placeholderText:
-            "<probably uninteresting folded group, click to show>",
-        }),
-        search({ top: true }),
-      ],
-    });
-  }, [combined.combined, editorWidth]);
-
+  // scroll to target line when ready (after texts/combined are ready)
   useEffect(() => {
-    if (!viewerRef.current) return;
-    if (!viewRef.current) {
-      const v = new EditorView({ state, parent: viewerRef.current });
-      viewRef.current = v;
-      foldAll(v);
-    } else {
-      viewRef.current.setState(state);
-    }
+    const v = viewRef.current;
+    if (!v || !texts) return;
 
-    const v = viewRef.current!;
     if (
-      texts &&
       current &&
       current.fileIndex >= 0 &&
       current.fileIndex < combined.offsets.length
@@ -159,25 +124,18 @@ export function BenchmarkLogViewer({
       const globalLine =
         combined.offsets[current.fileIndex] + (current.line - 1);
       scrollToLine(v.state, v, globalLine);
-    } else if (texts) {
-      foldAll(v);
+    } else {
+      // optional: fold all on re-compute
+      // foldAll(v);
     }
-  }, [state, texts, current?.fileIndex, current?.line, combined.offsets]);
-
-  useEffect(() => {
-    return () => {
-      if (viewRef.current) {
-        viewRef.current.destroy();
-        viewRef.current = null;
-      }
-    };
-  }, []);
+  }, [texts, current?.fileIndex, current?.line, combined.offsets]);
 
   if (error) {
     return (
       <Box sx={{ color: "tomato" }}>Failed to load logs: {String(error)}</Box>
     );
   }
+
   return (
     <Stack direction="row" spacing={1}>
       {/* search + list uses the same query that drives filtering/fetching */}
@@ -193,52 +151,15 @@ export function BenchmarkLogViewer({
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           {`# Combined ${filteredUrls.length}/${urls.length} logs`}
         </Typography>
-        <div ref={viewerRef} onDoubleClick={(e) => e.stopPropagation()} />
+        <MultiLogViewer
+          viewRef={viewRef}
+          doc={combined.combined}
+          width="100%"
+          height="90vh"
+          // extraExtensions={[/* add more if needed */]}
+          autoFoldOnMount
+        />
       </Box>
     </Stack>
   );
-}
-
-function parseTerms(query: string): string[] {
-  return Array.from(
-    new Set(
-      query
-        .split(/\s+/)
-        .map((t) => t.trim().toLowerCase())
-        .filter(Boolean)
-    )
-  );
-}
-
-export function filterUrls(urls: LogSrc[], query: string): LogSrc[] {
-  const terms = parseTerms(query);
-  if (terms.length === 0) return urls;
-  return urls.filter((u) => {
-    const hay = buildHaystack(u);
-    return terms.every((t) => hay.includes(t)); // AND logic, case-insensitive
-  });
-}
-
-function buildHaystack(u: LogSrc): string {
-  const parts = [u.label ?? "", u.url ?? "", ...flattenInfo(u.info ?? {})];
-  return parts.join(" ").toLowerCase();
-}
-
-function flattenInfo(val: unknown, out: string[] = []): string[] {
-  if (val == null) return out;
-  if (
-    typeof val === "string" ||
-    typeof val === "number" ||
-    typeof val === "boolean"
-  ) {
-    out.push(String(val));
-  } else if (Array.isArray(val)) {
-    for (const v of val) flattenInfo(v, out);
-  } else if (typeof val === "object") {
-    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
-      out.push(k); // include keys so "arch", "device" are searchable
-      flattenInfo(v, out); // include values (nested ok)
-    }
-  }
-  return out;
 }

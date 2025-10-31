@@ -1,3 +1,4 @@
+import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import {
   Autocomplete,
@@ -10,7 +11,7 @@ import {
 } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
-import { LogSrc } from "./BenchmarkLogViewer";
+import { LogSrc } from "./BenchmarkLogViewContent";
 
 export function LogUrlList({
   urls,
@@ -224,7 +225,7 @@ function highlightChunksMulti(text: string, terms: string[]): React.ReactNode {
   return out;
 }
 
-// Jump helper (unchanged)
+// Jump helper
 export function cmJumpToFirstMatch(
   view: EditorView | null,
   query: string | RegExp,
@@ -232,18 +233,21 @@ export function cmJumpToFirstMatch(
 ): boolean {
   if (!view) return false;
   const text = view.state.doc.toString();
-  if (typeof query === "string") {
-    const idx = text.search(
-      new RegExp(escapeRegExp(query), opts.caseSensitive ? "" : "i")
-    );
-    if (idx < 0) return false;
-    view.dispatch({ selection: { anchor: idx }, scrollIntoView: true });
-    view.focus();
-    return true;
-  }
-  const idx = text.search(query);
-  if (idx < 0) return false;
-  view.dispatch({ selection: { anchor: idx }, scrollIntoView: true });
+
+  const re =
+    typeof query === "string"
+      ? new RegExp(escapeRegExp(query), opts.caseSensitive ? "" : "i")
+      : query;
+
+  const m = text.match(re);
+  if (!m || m.index == null) return false;
+
+  const from = m.index;
+  const to = from + m[0].length;
+  view.dispatch({
+    selection: EditorSelection.single(from, to),
+    scrollIntoView: true,
+  });
   view.focus();
   return true;
 }

@@ -3,7 +3,7 @@ import { Divider, Drawer, IconButton, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import { useState } from "react";
-import { BenchmarkLogViewer, LogSrc } from "./BenchmarkLogViewer";
+import { BenchmarkLogViewContent, LogSrc } from "./BenchmarkLogViewContent";
 
 export function BenchmarkLogSidePanelWrapper({
   urls,
@@ -25,8 +25,6 @@ export function BenchmarkLogSidePanelWrapper({
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
-
-  console.log("BenchmarkLogSidePanelWrapper current urls", urls.length);
   return (
     <Box>
       <UMDenseButtonLight onClick={handleOpen}>
@@ -66,7 +64,7 @@ export function BenchmarkLogSidePanelWrapper({
         {/* Lazy-render the log viewer only when open */}
         {open && (
           <Box sx={{ flex: 1, overflow: "hidden", mx: 1 }}>
-            <BenchmarkLogViewer
+            <BenchmarkLogViewContent
               urls={urls}
               current={current}
               editorWidth={editorWidth}
