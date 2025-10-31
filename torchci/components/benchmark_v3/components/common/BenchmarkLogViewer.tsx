@@ -11,11 +11,12 @@ import {
   Drawer,
   IconButton,
   Link,
+  TextField,
   Typography,
 } from "@mui/material";
-import { Box } from "@mui/system";
+import { Box, Stack } from "@mui/system";
 import { foldUninteresting } from "components/common/log/LogViewer";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import useSWRImmutable from "swr/immutable";
 
 const fetchText = async (url: string) => {
@@ -24,7 +25,11 @@ const fetchText = async (url: string) => {
   return r.text();
 };
 
-export type LogSrc = { url: string; label?: string };
+export type LogSrc = {
+  url: string;
+  label?: string;
+  info?: Record<string, string[]>;
+};
 
 function lineCount(txt: string): number {
   // count of lines in CodeMirror is 1 + number of '\n'
@@ -76,7 +81,7 @@ function scrollToLine(state: EditorState, view: EditorView, line: number) {
 export function BenchmarkLogSidePanelWrapper({
   urls,
   current,
-  height = "90vh",
+  height = "60vh",
   buttonLabel = "Show logs",
   panelTitle = "Benchmark Logs",
   widthPx = "50vw",
@@ -128,9 +133,6 @@ export function BenchmarkLogSidePanelWrapper({
           </IconButton>
         </Box>
         <Divider />
-        <Box sx={{ mx: 1 }}>
-          <LogUrlList urls={urls} />
-        </Box>
         {/* Lazy-render the log viewer only when open */}
         {open && (
           <Box sx={{ flex: 1, overflow: "hidden", mx: 1 }}>
@@ -145,7 +147,7 @@ export function BenchmarkLogSidePanelWrapper({
 export function BenchmarkLogViewer({
   urls,
   current,
-  height = "90vh",
+  height = "100%",
 }: {
   urls: LogSrc[];
   /** optional: scroll target like {fileIndex: 0, line: 42} (1-based line in that file) */
@@ -249,56 +251,136 @@ export function BenchmarkLogViewer({
 
   if (error) {
     return (
-      <div style={{ color: "tomato" }}>
+      <Box style={{ color: "tomato" }}>
         Failed to load logs: {String(error)}
-      </div>
+      </Box>
     );
   }
 
   // Stop propagation to avoid parent click handlers (keeps your previous behavior)
-  return <div ref={viewerRef} onDoubleClick={(e) => e.stopPropagation()} />;
-}
-
-export function LogUrlList({ urls }: { urls: LogSrc[] }) {
   return (
     <Box>
-      <Typography variant="subtitle2" sx={{ mb: 1 }}>
-        {`# Combine ${urls.length} logs for fast search `}
-      </Typography>
+      <LogUrlList urls={urls} viewRef={viewRef} />
+      <Divider sx={{ mt: 2 }} />
       <Box>
-        {urls.map((u, i) => (
-          <Box
-            key={i}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              py: 0.5,
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{ minWidth: 60, flexShrink: 0, fontWeight: 500 }}
-            >
-              {u.label ?? `Log ${i + 1}`}
-            </Typography>
-            <Link
-              href={u.url}
-              target="_blank"
-              rel="noopener"
-              underline="hover"
-              sx={{
-                fontSize: "0.8rem",
-                wordBreak: "break-all",
-                color: "text.secondary",
-              }}
-            >
-              {u.url}
-            </Link>
-            <Button onClick={}>jump to search</Button>
-          </Box>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          {`# Combine ${urls.length} logs for fast search`}
+        </Typography>
+        <div ref={viewerRef} onDoubleClick={(e) => e.stopPropagation()} />
+      </Box>
+    </Box>
+  );
+}
+
+function stringifyInfo(info?: any): string {
+  if (!info) return "";
+  return Object.entries(info)
+    .map(([k, v]) => `${k}:${Array.isArray(v) ? v.join(",") : String(v)}`)
+    .join(" ")
+    .toLowerCase();
+}
+
+export function LogUrlList({
+  urls,
+  viewRef,
+}: {
+  urls: LogSrc[];
+  viewRef: any;
+}) {
+  const [query, setQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return urls;
+    return urls.filter((u) => {
+      const haystack = [u.label ?? "", u.url, stringifyInfo(u.info)]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+  }, [urls, query]);
+
+  return (
+    <Box>
+      <Typography variant="body2" sx={{ mb: 1 }}>
+        Log Details:
+      </Typography>
+
+      {/* Simple search box */}
+      <TextField
+        fullWidth
+        size="small"
+        placeholder="Search logs..."
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        sx={{ mb: 1 }}
+      />
+
+      {/* Scrollable area */}
+      <Box
+        sx={{
+          maxHeight: 400,
+          overflowY: "auto",
+          pr: 1,
+        }}
+      >
+        {filtered.map((u, i) => (
+          <Fragment key={i}>
+            <Stack>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography
+                  variant="body2"
+                  sx={{ minWidth: 60, flexShrink: 0, fontWeight: 500 }}
+                >
+                  {u.label ?? `Log ${i + 1}`}
+                </Typography>
+                <Button
+                  size="small"
+                  onClick={() => cmJumpToFirstMatch(viewRef.current, u.url)}
+                >
+                  jump to search
+                </Button>
+              </Stack>
+
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Typography>Source:</Typography>
+                <Link
+                  href={u.url}
+                  target="_blank"
+                  rel="noopener"
+                  underline="hover"
+                  sx={{
+                    fontSize: "0.8rem",
+                    wordBreak: "break-all",
+                    color: "text.secondary",
+                    flex: 1,
+                  }}
+                >
+                  {u.url}
+                </Link>
+              </Stack>
+
+              {u.info && (
+                <Stack>
+                  <Typography>Info:</Typography>
+                  {Object.entries(u.info).map(([k, v]) => (
+                    <Box key={k} sx={{ display: "flex", gap: 1, ml: 2 }}>
+                      <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                        {k}:
+                      </Typography>
+                      <Typography
+                        variant="caption"
+                        sx={{ color: "text.secondary" }}
+                      >
+                        {Array.isArray(v) ? v.join(", ") : String(v)}
+                      </Typography>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Stack>
+            <Divider />
+          </Fragment>
         ))}
       </Box>
     </Box>
@@ -306,10 +388,12 @@ export function LogUrlList({ urls }: { urls: LogSrc[] }) {
 }
 
 export function cmJumpToFirstMatch(
-  view: EditorView,
+  view: EditorView | null,
   query: string | RegExp,
   opts: { caseSensitive?: boolean } = {}
 ): boolean {
+  if (!view) return false;
+
   const text = view.state.doc.toString();
   let m: RegExpMatchArray | null = null;
 

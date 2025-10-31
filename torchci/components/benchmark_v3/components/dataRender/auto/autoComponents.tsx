@@ -304,6 +304,8 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
 
   const dataBinding = ctx?.configHandler.dataBinding;
 
+  const uiRenderConfig = config as UIRenderConfig;
+
   const branches = [
     ...new Set(
       [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
@@ -362,13 +364,16 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
 
   const data = resp?.data?.data;
   const rows = (data["table"] as any[]) ?? [];
-
   const workflowJobMap = new Map<string, string[]>();
+
+  const jobInfo = collectJobGroupInfoUniques(
+    rows,
+    uiRenderConfig.config?.logFields ?? []
+  );
 
   for (const row of rows) {
     const wf = row.group_info?.workflow_id;
     const job = row.group_info?.job_id;
-    console.log(row.group_info);
     if (!wf || !job) continue;
     if (!workflowJobMap.has(wf)) {
       workflowJobMap.set(wf, []);
@@ -378,6 +383,7 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
       jobs.push(job);
     }
   }
+
   workflowJobMap.entries;
   return (
     <Grid container sx={{ m: 1 }}>
@@ -385,7 +391,9 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
         {Array.from(workflowJobMap.entries()).map(([wf, jobs]) => {
           const urls = jobs.map((job: string) => ({
             url: `${LOG_PREFIX}/${job}`,
+            info: jobInfo.get(job),
           }));
+          console.log("urls", urls);
           return (
             <Box key={wf}>
               <BenchmarkLogSidePanelWrapper urls={urls} buttonLabel={`${wf}`} />
@@ -546,4 +554,28 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
       </Grid>
     </Grid>
   );
+}
+
+export function collectJobGroupInfoUniques(
+  rows: any[],
+  fields: string[]
+): Map<string, Record<string, string[]>> {
+  const jobInfo = new Map<string, Record<string, string[]>>();
+
+  for (const row of rows ?? []) {
+    const gi = row.group_info;
+    if (!gi || !gi.job_id) continue;
+
+    const job = gi.job_id;
+    if (!jobInfo.has(job)) jobInfo.set(job, {});
+    const info = jobInfo.get(job)!;
+    for (const f of fields) {
+      const v = gi[f];
+      if (v == null) continue;
+      if (!info[f]) info[f] = [];
+      if (!info[f].includes(v)) info[f].push(v);
+    }
+  }
+
+  return jobInfo;
 }
