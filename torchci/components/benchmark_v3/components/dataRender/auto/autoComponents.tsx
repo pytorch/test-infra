@@ -11,9 +11,9 @@ import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_pr
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
 import { LOG_PREFIX } from "components/benchmark/common";
-import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
+import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -393,7 +393,6 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
             url: `${LOG_PREFIX}/${job}`,
             info: jobInfo.get(job),
           }));
-          console.log("urls", urls);
           return (
             <Box key={wf}>
               <BenchmarkLogSidePanelWrapper urls={urls} buttonLabel={`${wf}`} />
