@@ -14,6 +14,9 @@ import { toToggleSectionId } from "components/benchmark_v3/components/common/Tog
 import { toBenchmarkTimeseriesChartGroupId } from "components/benchmark_v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { toBenchmarkTimeseriesChartSectionId } from "components/benchmark_v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartSection";
 import { toBenchamrkTimeSeriesComparisonTableId } from "components/benchmark_v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTableSection";
+import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
+import { stateToQuery } from "lib/helpers/urlQuery";
+import { NextRouter, useRouter } from "next/router";
 /**
  * Customized dialog content for compiler precompute benchmark page.
  * if parent is timeSeriesChart, we will show the following options:
@@ -30,6 +33,7 @@ import { toBenchamrkTimeSeriesComparisonTableId } from "components/benchmark_v3/
 export const CompilerPrecomputeConfirmDialogContent: React.FC<
   TimeSeriesChartDialogContentProps
 > = ({ left, right, other, closeDialog, triggerUpdate }) => {
+  const router = useRouter();
   if (left == null || right == null) {
     return (
       <Box>
@@ -92,10 +96,11 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   const onGoToUrl = () => {
     closeDialog();
     triggerUpdate();
-    const url = toBenchmarkLegacyUrl(left, right);
-    // open a new tab
+    // const url = toBenchmarkLegacyUrl(left, right);
+    const url = toBenchmarkDashboardUrl(left, right, router);
     window.open(url, "_blank");
   };
+
   return (
     <List>
       {other?.parent === "timeSeriesChart" && (
@@ -114,12 +119,53 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       )}
       <NavListItem
         primary="Navigate to detail view"
-        secondary={`Open the detailed benchmark view for suite "${left?.suite}" and compiler "${left?.compiler}" in the compiler dashboard.`}
+        secondary={`Open the detail view for suite "${left?.suite}" and compiler "${left?.compiler}" in the compiler dashboard.`}
         onClick={onGoToUrl}
       />
     </List>
   );
 };
+
+function toBenchmarkDashboardUrl(left: any, right: any, router: NextRouter) {
+  const pathname = "/benchmark/v3/dashboard/compiler_inductor";
+  const lcommit: BenchmarkCommitMeta = {
+    commit: left.commit,
+    branch: left.branch,
+    workflow_id: left.workflow_id,
+    date: left.granularity_bucket,
+  };
+  const rcommit: BenchmarkCommitMeta = {
+    commit: right.commit,
+    branch: right.branch,
+    workflow_id: right.workflow_id,
+    date: right.granularity_bucket,
+  };
+
+  const filters = {
+    suite: left?.suite,
+    compiler: left?.compiler,
+  };
+
+  const reformattedPrams = stateToQuery({
+    lcommit,
+    rcommit,
+    filters,
+  });
+
+  const nextDashboardMainQuery = {
+    ...router.query, // keep existing params like lcommit, rcommit
+    ...reformattedPrams,
+    renderGroupId: "main",
+  };
+  const params = new URLSearchParams(
+    Object.entries(nextDashboardMainQuery)
+      .filter(([_, v]) => v != null && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  );
+
+  const url = `${pathname}?${params.toString()}`;
+  return url;
+}
 
 // set url to nagivate to the legacy benchmark data page
 function toBenchmarkLegacyUrl(left: any, right: any) {
