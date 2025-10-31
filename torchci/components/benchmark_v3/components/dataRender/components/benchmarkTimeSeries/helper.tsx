@@ -78,6 +78,7 @@ export interface BenchmarkPageNavigationConfig {
 export type ComparisonTableConfig = {
   // always the first column, the name of the row
   primary?: BenchmarkComparisonTablePrimaryColumnConfig;
+  disableExport?: boolean;
   // the columns from group info to render as columns
   extraMetadata?: {
     field: string;

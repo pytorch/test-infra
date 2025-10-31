@@ -48,8 +48,6 @@ export function getComparisionTableConlumnRendering(
     flex: primaryFlex,
     headerName: primaryHeaderName,
     minWidth: 50,
-    sortable: false,
-    filterable: false,
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => {
       return (
         <ComparisonTablePrimaryFieldValueCell
@@ -72,8 +70,6 @@ export function getComparisionTableConlumnRendering(
       headerName: k?.displayName ?? k.field,
       flex: 0.5,
       minWidth: 50,
-      sortable: false,
-      filterable: false,
       renderCell: (p) => (
         <Typography variant="body2">{p.row[k.field]}</Typography>
       ),
@@ -90,12 +86,50 @@ export function getComparisionTableConlumnRendering(
     minWidth: 50,
     sortable: false,
     filterable: false,
+    valueGetter: (_value: any, row: any) => {
+      const ldata = lWorkflowId
+        ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
+          row.byWorkflow[lWorkflowId]?.[field]
+        : undefined;
+      const rdata = rWorkflowId
+        ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
+          row.byWorkflow[rWorkflowId]?.[field]
+        : undefined;
+
+      // get raw value of left and right field
+      const L = valOf(ldata);
+      const R = valOf(rdata);
+
+      const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
+      const findFieldValueFromColData =
+        ldata?.[targetField] ?? rdata?.[targetField];
+      const targetVal = findFieldValueFromColData;
+
+      const { result, text } = getComparisonResult(
+        L,
+        R,
+        ldata,
+        rdata,
+        targetVal,
+        config
+      );
+      return {
+        result,
+        text,
+        ldata,
+        rdata,
+      };
+    },
+    valueFormatter: (value: any, row: any) => {
+      // this export as value in the export csv file
+      return value?.text ?? "";
+    },
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (
       <ComparisonTableColumnFieldValueCell
-        field={field}
-        row={params.row}
-        lWorkflowId={lWorkflowId}
-        rWorkflowId={rWorkflowId}
+        text={params.value?.text}
+        result={params.value?.result}
+        ldata={params.value?.ldata}
+        rdata={params.value?.rdata}
         config={config}
         onClick={onColumnFieldClick}
       />
@@ -161,48 +195,21 @@ export function ComparisonTablePrimaryFieldValueCell({
  *
  */
 export function ComparisonTableColumnFieldValueCell({
-  field,
-  row,
-  lWorkflowId,
-  rWorkflowId,
+  text,
+  result,
+  ldata,
+  rdata,
   config,
   onClick,
 }: {
-  field: string;
-  row: GridRowModel;
-  lWorkflowId: string | null;
-  rWorkflowId: string | null;
+  text: string | undefined;
+  result: any;
+  ldata: any;
+  rdata: any;
   comparisonTargetField?: string;
   config?: ComparisonTableConfig;
   onClick: (data: any) => void;
 }) {
-  const ldata = lWorkflowId
-    ? row.byWorkflow[lWorkflowId]?.[field]?.data?.[0] ??
-      row.byWorkflow[lWorkflowId]?.[field]
-    : undefined;
-  const rdata = rWorkflowId
-    ? row.byWorkflow[rWorkflowId]?.[field]?.data?.[0] ??
-      row.byWorkflow[rWorkflowId]?.[field]
-    : undefined;
-
-  // get raw value of left and right field
-  const L = valOf(ldata);
-  const R = valOf(rdata);
-
-  const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
-  const findFieldValueFromColData =
-    ldata?.[targetField] ?? rdata?.[targetField];
-  const targetVal = findFieldValueFromColData;
-
-  const { result, text } = getComparisonResult(
-    L,
-    R,
-    ldata,
-    rdata,
-    targetVal,
-    config
-  );
-
   // pick background color based on result signals
   let bgColor = "";
   switch (result.verdict) {
@@ -255,7 +262,7 @@ export function getFieldRender(
   config?: ComparisonTableConfig,
   ldisplay?: string,
   rdisplay?: string,
-  missingText: string = "N/A"
+  missingText: string = "missing data"
 ) {
   if (ldisplay || rdisplay) {
     return `${ldisplay ?? missingText}→${rdisplay ?? missingText}`;
@@ -264,13 +271,13 @@ export function getFieldRender(
     targetField,
     config
   );
-  return formatTransitionWithUnit(L, R, rc?.unit);
+  return formatTransitionWithUnit(L, R, rc?.unit, missingText);
 }
 export function formatTransitionWithUnit(
   L: any,
   R: any,
   table_unit?: BenchmarkUnitConfig,
-  missingText: string = "N/A"
+  missingText: string = "missing data"
 ): string {
   const formatValue = (v: any) => {
     if (v == null || v == undefined) return missingText;
@@ -321,7 +328,6 @@ export function getComparisonResult(
   const ldisplay = displayNameOf(ldata);
   const rdisplay = displayNameOf(rdata);
   const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
-
   return {
     result,
     text,
