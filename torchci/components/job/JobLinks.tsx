@@ -12,6 +12,7 @@ import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import styles from "./JobLinks.module.css";
+import { ODCommandInstructions } from "./ODCCommand";
 import ReproductionCommand from "./ReproductionCommand";
 
 const DEFAULT_REPO = "pytorch/pytorch";
@@ -126,6 +127,28 @@ export default function JobLinks({
     });
     if (reproComamnd != null) {
       subInfo.push(reproComamnd);
+    }
+  }
+
+  if (
+    job.repo == "pytorch/pytorch" &&
+    isFailedJob(job) &&
+    job.workflowId != null &&
+    job.id != null &&
+    job.failureLineNumbers &&
+    job.failureLineNumbers.length > 0 &&
+    job.sha != null &&
+    job.name?.includes("linux") // ODC only supports linux jobs for now
+  ) {
+    const ODCCommand = ODCommandInstructions({
+      jobId: parseInt(job.id),
+      workflowId: parseInt(job.workflowId),
+      failureLineNum: job.failureLineNumbers[0],
+      headSha: job.sha,
+      jobName: job.name,
+    });
+    if (ODCCommand != null) {
+      subInfo.push(ODCCommand);
     }
   }
 
