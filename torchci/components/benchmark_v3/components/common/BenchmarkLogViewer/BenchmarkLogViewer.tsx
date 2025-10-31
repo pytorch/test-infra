@@ -5,7 +5,7 @@ import { EditorSelection, EditorState } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
 import { Divider, Typography } from "@mui/material";
-import { Box } from "@mui/system";
+import { Box, Stack } from "@mui/system";
 import { foldUninteresting } from "components/common/log/LogViewer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import useSWRImmutable from "swr/immutable";
@@ -70,55 +70,16 @@ function scrollToLine(state: EditorState, view: EditorView, line: number) {
   }
 }
 
-// --- helper: simple filter across label/url/info
-function filterUrls(urls: LogSrc[], query: string): LogSrc[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return urls;
-  return urls.filter((u) => {
-    const infoStr = u.info
-      ? Object.entries(u.info)
-          .map(([k, v]) =>
-            Array.isArray(v) ? `${k}:${v.join(",")}` : `${k}:${String(v)}`
-          )
-          .join(" ")
-          .toLowerCase()
-      : "";
-    return (
-      (u.label ?? "").toLowerCase().includes(q) ||
-      u.url.toLowerCase().includes(q) ||
-      infoStr.includes(q)
-    );
-  });
-}
-
-function escapeRegExp(s: string) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-function highlightChunks(text: string, query: string): React.ReactNode {
-  if (!query) return text;
-  const pat = new RegExp(escapeRegExp(query), "ig");
-  const out: React.ReactNode[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = pat.exec(text)) !== null) {
-    const start = m.index,
-      end = start + m[0].length;
-    if (start > last) out.push(text.slice(last, start));
-    out.push(<mark key={`${start}-${end}`}>{text.slice(start, end)}</mark>);
-    last = end;
-  }
-  if (last < text.length) out.push(text.slice(last));
-  return out;
-}
-
 export function BenchmarkLogViewer({
   urls,
   current,
-  height = "100%",
+  editorWidth = "70vw",
+  listWidth = "25%",
 }: {
   urls: LogSrc[];
   current?: { fileIndex: number; line: number };
-  height?: string | number;
+  editorWidth?: string | number;
+  listWidth?: string | number;
 }) {
   // shared query
   const [query, setQuery] = useState("");
@@ -163,7 +124,7 @@ export function BenchmarkLogViewer({
         basicSetup,
         EditorState.readOnly.of(true),
         EditorView.theme({
-          "&": { height: typeof height === "number" ? `${height}px` : height },
+          "&": { width: "100%", height: "90vh", boxSizing: "border-box" },
         }),
         EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }),
         oneDark,
@@ -176,7 +137,7 @@ export function BenchmarkLogViewer({
         search({ top: true }),
       ],
     });
-  }, [combined.combined, height]);
+  }, [combined.combined, editorWidth]);
 
   useEffect(() => {
     if (!viewerRef.current) return;
@@ -217,23 +178,67 @@ export function BenchmarkLogViewer({
       <Box sx={{ color: "tomato" }}>Failed to load logs: {String(error)}</Box>
     );
   }
-
   return (
-    <Box>
+    <Stack direction="row" spacing={1}>
       {/* search + list uses the same query that drives filtering/fetching */}
       <LogUrlList
-        urls={filteredUrls}
+        urls={urls}
         viewRef={viewRef}
         query={query}
         setQuery={setQuery}
+        width={listWidth}
       />
       <Divider sx={{ mt: 2 }} />
-      <Box>
+      <Box sx={{ width: editorWidth, minWidth: "500px", height: "90vh" }}>
         <Typography variant="subtitle2" sx={{ mb: 1 }}>
           {`# Combined ${filteredUrls.length}/${urls.length} logs`}
         </Typography>
         <div ref={viewerRef} onDoubleClick={(e) => e.stopPropagation()} />
       </Box>
-    </Box>
+    </Stack>
   );
+}
+
+function parseTerms(query: string): string[] {
+  return Array.from(
+    new Set(
+      query
+        .split(/\s+/)
+        .map((t) => t.trim().toLowerCase())
+        .filter(Boolean)
+    )
+  );
+}
+
+export function filterUrls(urls: LogSrc[], query: string): LogSrc[] {
+  const terms = parseTerms(query);
+  if (terms.length === 0) return urls;
+  return urls.filter((u) => {
+    const hay = buildHaystack(u);
+    return terms.every((t) => hay.includes(t)); // AND logic, case-insensitive
+  });
+}
+
+function buildHaystack(u: LogSrc): string {
+  const parts = [u.label ?? "", u.url ?? "", ...flattenInfo(u.info ?? {})];
+  return parts.join(" ").toLowerCase();
+}
+
+function flattenInfo(val: unknown, out: string[] = []): string[] {
+  if (val == null) return out;
+  if (
+    typeof val === "string" ||
+    typeof val === "number" ||
+    typeof val === "boolean"
+  ) {
+    out.push(String(val));
+  } else if (Array.isArray(val)) {
+    for (const v of val) flattenInfo(v, out);
+  } else if (typeof val === "object") {
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      out.push(k); // include keys so "arch", "device" are searchable
+      flattenInfo(v, out); // include values (nested ok)
+    }
+  }
+  return out;
 }

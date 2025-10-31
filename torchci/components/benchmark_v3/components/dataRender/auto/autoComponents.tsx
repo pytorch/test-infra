@@ -1,5 +1,5 @@
 import { Alert, Typography } from "@mui/material";
-import { Box, Grid, Stack } from "@mui/system";
+import { Grid, Stack } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -337,7 +337,7 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
 
   if (!ready) {
     return (
-      <LoadingPage height={500} content="Waiting for initialization...." />
+      <LoadingPage height={100} content="Waiting for initialization...." />
     );
   }
 
@@ -345,7 +345,7 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
     return (
       <LoadingPage
         height={500}
-        content="loading data for AutoBenchmarkPairwiseTable..."
+        content="loading data for AutoBenchmarkLogs..."
       />
     );
   }
@@ -385,19 +385,36 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
   }
 
   return (
-      <Stack>
+    <Stack sx={{ m: 1 }}>
+      <Typography variant="h6">Logging: </Typography>
+      <Typography
+        variant="subtitle1"
+        sx={{ color: "text.secondary", fontWeight: 400 }}
+      >
+        {" "}
+        log details from selected workflow runs{" "}
+      </Typography>
+      <Stack flexDirection="row">
         {Array.from(workflowJobMap.entries()).map(([wf, jobs]) => {
           const urls = jobs.map((job: string) => ({
             url: `${LOG_PREFIX}/${job}`,
             info: jobInfo.get(job),
           }));
+          const isl = ctx.lcommit?.workflow_id == wf;
           return (
-            <Box key={wf}>
-              <BenchmarkLogSidePanelWrapper urls={urls} buttonLabel={`${wf}`} />
-            </Box>
+            <Stack key={wf} flexDirection="row" alignItems="center">
+              <Typography variant="body2" sx={{ padding: 1 }}>
+                {isl ? "l" : "r"}workflow ({wf}):{" "}
+              </Typography>
+              <BenchmarkLogSidePanelWrapper
+                urls={urls}
+                buttonLabel={`logs (${urls.length})`}
+              />
+            </Stack>
           );
         })}
       </Stack>
+    </Stack>
   );
 }
 

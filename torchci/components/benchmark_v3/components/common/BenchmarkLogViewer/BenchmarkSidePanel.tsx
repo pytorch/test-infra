@@ -1,33 +1,37 @@
 import CloseIcon from "@mui/icons-material/Close";
-import { Button, Divider, Drawer, IconButton, Typography } from "@mui/material";
+import { Divider, Drawer, IconButton, Typography } from "@mui/material";
 import { Box } from "@mui/system";
+import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import { useState } from "react";
 import { BenchmarkLogViewer, LogSrc } from "./BenchmarkLogViewer";
 
 export function BenchmarkLogSidePanelWrapper({
   urls,
   current,
-  height = "50vh",
+  editorWidth = "60vw",
+  listWidth = "20vw",
   buttonLabel = "Show logs",
   panelTitle = "Benchmark Logs",
-  widthPx = "80vw",
+  width = "80vw",
 }: {
   urls: LogSrc[];
   current?: { fileIndex: number; line: number };
-  height?: string | number;
   buttonLabel?: string;
   panelTitle?: string;
-  widthPx?: any;
+  width?: any;
+  editorWidth?: string | number;
+  listWidth?: string | number;
 }) {
   const [open, setOpen] = useState(false);
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
+  console.log("BenchmarkLogSidePanelWrapper current urls", urls.length);
   return (
     <Box>
-      <Button variant="outlined" size="small" onClick={handleOpen}>
+      <UMDenseButtonLight onClick={handleOpen}>
         {buttonLabel}
-      </Button>
+      </UMDenseButtonLight>
       <Drawer
         anchor="right"
         open={open}
@@ -35,8 +39,8 @@ export function BenchmarkLogSidePanelWrapper({
         slotProps={{
           paper: {
             sx: {
-              width: widthPx,
-              maxWidth: "90vw",
+              width: width,
+              minWidth: "500px",
             },
           },
         }}
@@ -62,7 +66,12 @@ export function BenchmarkLogSidePanelWrapper({
         {/* Lazy-render the log viewer only when open */}
         {open && (
           <Box sx={{ flex: 1, overflow: "hidden", mx: 1 }}>
-            <BenchmarkLogViewer urls={urls} current={current} height={height} />
+            <BenchmarkLogViewer
+              urls={urls}
+              current={current}
+              editorWidth={editorWidth}
+              listWidth={listWidth}
+            />
           </Box>
         )}
       </Drawer>

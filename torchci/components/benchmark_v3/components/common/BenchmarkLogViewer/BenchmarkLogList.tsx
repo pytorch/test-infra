@@ -1,7 +1,15 @@
 import { EditorView } from "@codemirror/view";
-import { Button, Divider, Link, TextField, Typography } from "@mui/material";
+import {
+  Autocomplete,
+  Button,
+  Chip,
+  Divider,
+  Link,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import { Fragment } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { LogSrc } from "./BenchmarkLogViewer";
 
 export function LogUrlList({
@@ -9,24 +17,98 @@ export function LogUrlList({
   viewRef,
   query,
   setQuery,
+  width = "80vw",
+  height = "90vh",
 }: {
   urls: LogSrc[];
   viewRef: React.MutableRefObject<EditorView | null>;
   query: string;
   setQuery: (s: string) => void;
+  width?: any;
+  height?: any;
 }) {
+  // chips state (derived from query initially)
+  const [terms, setTerms] = useState<string[]>(
+    query
+      .split(/\s+/)
+      .map((t) => t.trim())
+      .filter(Boolean)
+  );
+  const [inputValue, setInputValue] = useState("");
+
+  // keep external query string loosely in sync (optional)
+  useEffect(() => {
+    setQuery(terms.join(" "));
+  }, [terms, setQuery]);
+
+  // normalized chips (dedupe + lowercase)
+  const normTerms = useMemo(
+    () =>
+      Array.from(new Set(terms.map((t) => t.toLowerCase()).filter(Boolean))),
+    [terms]
+  );
+
+  const filtered = useMemo(() => {
+    if (!normTerms.length) return urls;
+    return urls.filter((u) => {
+      const hay = buildHaystack(u);
+      const result = normTerms.every((t) => hay.includes(t));
+      return result;
+    });
+  }, [urls, normTerms]);
+
+  const jumpRegex = useMemo(() => {
+    if (!normTerms.length) return null;
+    return new RegExp(`(${normTerms.map(escapeRegExp).join("|")})`, "i");
+  }, [normTerms]);
+
+  // add a term from the current input
+  const commitInputAsTerm = useCallback(() => {
+    const t = inputValue.trim();
+    if (!t) return;
+    if (!terms.includes(t)) setTerms((prev) => [...prev, t]);
+    setInputValue("");
+  }, [inputValue, terms]);
+
   return (
-    <Box>
-      <TextField
-        fullWidth
-        size="small"
-        placeholder="Search label / url / info…"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        sx={{ mb: 1 }}
+    <Box width={width}>
+      <Autocomplete
+        multiple
+        freeSolo
+        options={[]} // no predefined options; it's a tag input
+        value={terms}
+        inputValue={inputValue}
+        onInputChange={(_e, v) => setInputValue(v)}
+        onChange={(_e, newValue) => setTerms(newValue)}
+        renderTags={(value, getTagProps) =>
+          value.map((option, index) => (
+            <Chip
+              variant="outlined"
+              size="small"
+              label={option}
+              {...getTagProps({ index })}
+              key={`${option}-${index}`}
+            />
+          ))
+        }
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            size="small"
+            placeholder="Search label / url / info…"
+            onKeyDown={(e) => {
+              if (["Enter", " ", "Comma"].includes(e.key) || e.key === ",") {
+                e.preventDefault();
+                commitInputAsTerm();
+              }
+            }}
+            sx={{ m: 1 }}
+          />
+        )}
       />
-      <Box sx={{ maxHeight: 300, overflowY: "auto", pr: 1 }}>
-        {urls.map((u, i) => (
+
+      <Box sx={{ height: height, overflowY: "auto", pr: 1, minWidth: 0 }}>
+        {filtered.map((u, i) => (
           <Fragment key={`${u.url}-${i}`}>
             <Stack>
               <Stack direction="row" alignItems="center" spacing={1}>
@@ -34,19 +116,16 @@ export function LogUrlList({
                   variant="body2"
                   sx={{ minWidth: 60, fontWeight: 600 }}
                 >
-                  {highlightChunks(u.label ?? `Log ${i + 1}`, query)}
+                  {highlightChunksMulti(u.label ?? `Log ${i + 1}`, terms)}
                 </Typography>
                 <Button
                   size="small"
                   onClick={() => {
-                    const q = query.trim() || u.url;
-                    if (viewRef.current) {
-                      // your existing helper
-                      cmJumpToFirstMatch(viewRef.current, q);
-                    }
+                    const fallback = u.url;
+                    cmJumpToFirstMatch(viewRef.current, fallback);
                   }}
                 >
-                  jump to search
+                  jump to head of log
                 </Button>
               </Stack>
               <Stack direction="row" alignItems="center" spacing={1}>
@@ -63,7 +142,7 @@ export function LogUrlList({
                     flex: 1,
                   }}
                 >
-                  {highlightChunks(u.url, query)}
+                  {highlightChunksMulti(u.url, terms)}
                 </Link>
               </Stack>
               {u.info && (
@@ -76,13 +155,13 @@ export function LogUrlList({
                     return (
                       <Box key={k} sx={{ display: "flex", gap: 1, ml: 2 }}>
                         <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                          {highlightChunks(`${k}:`, query)}
+                          {highlightChunksMulti(`${k}:`, terms)}
                         </Typography>
                         <Typography
                           variant="caption"
                           sx={{ color: "text.secondary" }}
                         >
-                          {highlightChunks(vs, query)}
+                          {highlightChunksMulti(vs, terms)}
                         </Typography>
                       </Box>
                     );
@@ -101,13 +180,40 @@ export function LogUrlList({
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
-function highlightChunks(text: string, query: string): React.ReactNode {
-  if (!query) return text;
-  const pat = new RegExp(escapeRegExp(query), "ig");
+
+// Flatten any nested info into plain strings
+function flattenInfo(val: unknown, out: string[] = []): string[] {
+  if (val == null) return out;
+  if (
+    typeof val === "string" ||
+    typeof val === "number" ||
+    typeof val === "boolean"
+  ) {
+    out.push(String(val));
+  } else if (Array.isArray(val)) {
+    for (const v of val) flattenInfo(v, out);
+  } else if (typeof val === "object") {
+    for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+      out.push(k); // include keys so "arch", "device" are searchable
+      flattenInfo(v, out);
+    }
+  }
+  return out;
+}
+
+function buildHaystack(u: LogSrc): string {
+  const parts = [u.label ?? "", u.url ?? "", ...flattenInfo(u.info ?? {})];
+  return parts.join(" ").toLowerCase();
+}
+
+// Highlight ALL chips
+function highlightChunksMulti(text: string, terms: string[]): React.ReactNode {
+  if (!terms?.length) return text;
+  const pattern = new RegExp(terms.map(escapeRegExp).join("|"), "ig");
   const out: React.ReactNode[] = [];
-  let last = 0;
-  let m: RegExpExecArray | null;
-  while ((m = pat.exec(text)) !== null) {
+  let last = 0,
+    m: RegExpExecArray | null;
+  while ((m = pattern.exec(text)) !== null) {
     const start = m.index,
       end = start + m[0].length;
     if (start > last) out.push(text.slice(last, start));
@@ -118,41 +224,26 @@ function highlightChunks(text: string, query: string): React.ReactNode {
   return out;
 }
 
+// Jump helper (unchanged)
 export function cmJumpToFirstMatch(
   view: EditorView | null,
   query: string | RegExp,
   opts: { caseSensitive?: boolean } = {}
 ): boolean {
   if (!view) return false;
-
   const text = view.state.doc.toString();
-  let m: RegExpMatchArray | null = null;
-
   if (typeof query === "string") {
-    const flags = opts.caseSensitive ? "g" : "gi";
-    // Escape the string into a safe regex
-    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    m = text.match(new RegExp(escaped, flags));
-    if (!m) return false;
-    // We need the index; rematch to get it
-    const re = new RegExp(escaped, flags);
-    const idx = text.search(re);
+    const idx = text.search(
+      new RegExp(escapeRegExp(query), opts.caseSensitive ? "" : "i")
+    );
     if (idx < 0) return false;
-    view.dispatch({
-      selection: { anchor: idx },
-      scrollIntoView: true,
-    });
-    view.focus();
-    return true;
-  } else {
-    const re = query;
-    const idx = text.search(re);
-    if (idx < 0) return false;
-    view.dispatch({
-      selection: { anchor: idx },
-      scrollIntoView: true,
-    });
+    view.dispatch({ selection: { anchor: idx }, scrollIntoView: true });
     view.focus();
     return true;
   }
+  const idx = text.search(query);
+  if (idx < 0) return false;
+  view.dispatch({ selection: { anchor: idx }, scrollIntoView: true });
+  view.focus();
+  return true;
 }
