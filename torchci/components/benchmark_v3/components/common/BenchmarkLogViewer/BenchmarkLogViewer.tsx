@@ -4,13 +4,10 @@ import { search } from "@codemirror/search";
 import { EditorSelection, EditorState } from "@codemirror/state";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView } from "@codemirror/view";
-import {
-  Divider,
-  Typography,
-} from "@mui/material";
-import { Box, Stack } from "@mui/system";
+import { Divider, Typography } from "@mui/material";
+import { Box } from "@mui/system";
 import { foldUninteresting } from "components/common/log/LogViewer";
-import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import useSWRImmutable from "swr/immutable";
 import { LogUrlList } from "./BenchmarkLogList";
 
@@ -72,7 +69,6 @@ function scrollToLine(state: EditorState, view: EditorView, line: number) {
     });
   }
 }
-
 
 // --- helper: simple filter across label/url/info
 function filterUrls(urls: LogSrc[], query: string): LogSrc[] {

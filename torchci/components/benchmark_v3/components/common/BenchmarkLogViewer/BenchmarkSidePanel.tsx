@@ -1,8 +1,8 @@
+import CloseIcon from "@mui/icons-material/Close";
 import { Button, Divider, Drawer, IconButton, Typography } from "@mui/material";
+import { Box } from "@mui/system";
 import { useState } from "react";
 import { BenchmarkLogViewer, LogSrc } from "./BenchmarkLogViewer";
-import { Box } from "@mui/system";
-import CloseIcon from "@mui/icons-material/Close";
 
 export function BenchmarkLogSidePanelWrapper({
   urls,

@@ -1,5 +1,5 @@
 import { Alert, Typography } from "@mui/material";
-import { Box, Grid } from "@mui/system";
+import { Box, Grid, Stack } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -11,9 +11,9 @@ import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_pr
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
 import { LOG_PREFIX } from "components/benchmark/common";
+import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
-import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -384,10 +384,8 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
     }
   }
 
-  workflowJobMap.entries;
   return (
-    <Grid container sx={{ m: 1 }}>
-      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+      <Stack>
         {Array.from(workflowJobMap.entries()).map(([wf, jobs]) => {
           const urls = jobs.map((job: string) => ({
             url: `${LOG_PREFIX}/${job}`,
@@ -399,8 +397,7 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
             </Box>
           );
         })}
-      </Grid>
-    </Grid>
+      </Stack>
   );
 }
 

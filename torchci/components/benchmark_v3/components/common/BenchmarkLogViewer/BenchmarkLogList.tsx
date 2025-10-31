@@ -1,8 +1,8 @@
+import { EditorView } from "@codemirror/view";
 import { Button, Divider, Link, TextField, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
-import { LogSrc } from "./BenchmarkLogViewer";
-import { EditorView } from "@codemirror/view";
 import { Fragment } from "react";
+import { LogSrc } from "./BenchmarkLogViewer";
 
 export function LogUrlList({
   urls,
@@ -98,7 +98,6 @@ export function LogUrlList({
   );
 }
 
-
 function escapeRegExp(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -118,7 +117,6 @@ function highlightChunks(text: string, query: string): React.ReactNode {
   if (last < text.length) out.push(text.slice(last));
   return out;
 }
-
 
 export function cmJumpToFirstMatch(
   view: EditorView | null,
