@@ -10,12 +10,10 @@ import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
+import { LOG_PREFIX } from "components/benchmark/common";
+import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
-import { BenchmarkLogSidePanelWrapper, BenchmarkLogViewer, LogSrc } from "../../common/BenchmarkLogViewer";
-import _ from "lodash";
-import { LOG_PREFIX } from "components/benchmark/common";
-import { RenderRawContent } from "../../common/RawContentDialog";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -370,7 +368,7 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
   for (const row of rows) {
     const wf = row.group_info?.workflow_id;
     const job = row.group_info?.job_id;
-    console.log(row.group_info)
+    console.log(row.group_info);
     if (!wf || !job) continue;
     if (!workflowJobMap.has(wf)) {
       workflowJobMap.set(wf, []);
@@ -380,23 +378,20 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
       jobs.push(job);
     }
   }
-  workflowJobMap.entries
+  workflowJobMap.entries;
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
         {Array.from(workflowJobMap.entries()).map(([wf, jobs]) => {
-      const urls = jobs.map((job: string) => ({
-        url: `${LOG_PREFIX}/${job}`,
-      }));
-      return (
-        <Box key={wf}>
-          <BenchmarkLogSidePanelWrapper
-            urls={urls}
-            buttonLabel={`${wf}`}
-          />
-        </Box>
-      );
-    })}
+          const urls = jobs.map((job: string) => ({
+            url: `${LOG_PREFIX}/${job}`,
+          }));
+          return (
+            <Box key={wf}>
+              <BenchmarkLogSidePanelWrapper urls={urls} buttonLabel={`${wf}`} />
+            </Box>
+          );
+        })}
       </Grid>
     </Grid>
   );
@@ -536,7 +531,6 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
     return <div>no data</div>;
   }
   const data = resp?.data?.data;
-
 
   return (
     <Grid container sx={{ m: 1 }}>

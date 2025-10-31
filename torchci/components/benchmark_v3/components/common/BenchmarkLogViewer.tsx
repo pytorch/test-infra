@@ -1,15 +1,22 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import useSWRImmutable from "swr/immutable";
-import { EditorState, Compartment, EditorSelection } from "@codemirror/state";
-import { EditorView } from "@codemirror/view";
-import { codeFolding, foldAll, foldService } from "@codemirror/language";
-import { search } from "@codemirror/search";
-import { oneDark } from "@codemirror/theme-one-dark";
 import { basicSetup } from "@codemirror/basic-setup";
-import { foldUninteresting } from "components/common/log/LogViewer";
-import { Button, Divider, Drawer, IconButton, Link, Typography } from "@mui/material";
-import { Box } from "@mui/system";
+import { codeFolding, foldAll } from "@codemirror/language";
+import { search } from "@codemirror/search";
+import { EditorSelection, EditorState } from "@codemirror/state";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { EditorView } from "@codemirror/view";
 import CloseIcon from "@mui/icons-material/Close";
+import {
+  Button,
+  Divider,
+  Drawer,
+  IconButton,
+  Link,
+  Typography,
+} from "@mui/material";
+import { Box } from "@mui/system";
+import { foldUninteresting } from "components/common/log/LogViewer";
+import { useEffect, useMemo, useRef, useState } from "react";
+import useSWRImmutable from "swr/immutable";
 
 const fetchText = async (url: string) => {
   const r = await fetch(url);
@@ -95,13 +102,13 @@ export function BenchmarkLogSidePanelWrapper({
         open={open}
         onClose={handleClose}
         slotProps={{
-        paper: {
-        sx: {
-            width: widthPx,
-            maxWidth: "90vw",
-        },
-        },
-      }}
+          paper: {
+            sx: {
+              width: widthPx,
+              maxWidth: "90vw",
+            },
+          },
+        }}
       >
         {/* Header */}
         <Box
@@ -121,12 +128,12 @@ export function BenchmarkLogSidePanelWrapper({
           </IconButton>
         </Box>
         <Divider />
-        <Box sx={{mx:1}}>
-           <LogUrlList urls={urls}/>
+        <Box sx={{ mx: 1 }}>
+          <LogUrlList urls={urls} />
         </Box>
         {/* Lazy-render the log viewer only when open */}
         {open && (
-          <Box sx={{ flex: 1, overflow: "hidden", mx:1 }}>
+          <Box sx={{ flex: 1, overflow: "hidden", mx: 1 }}>
             <BenchmarkLogViewer urls={urls} current={current} height={height} />
           </Box>
         )}
@@ -147,13 +154,13 @@ export function BenchmarkLogViewer({
 }) {
   const keys = urls.map((u) => u.url);
 
-    const { data: texts, error } = useSWRImmutable(
+  const { data: texts, error } = useSWRImmutable(
     keys.length ? ["logs", ...keys] : null,
     async (key) => {
-        const [, ...list] = key;
-        return Promise.all(list.map(fetchText));
+      const [, ...list] = key;
+      return Promise.all(list.map(fetchText));
     }
-    );
+  );
 
   const labels = useMemo(
     () => urls.map((u, i) => u.label ?? u.url ?? `Log ${i + 1}`),
@@ -172,11 +179,16 @@ export function BenchmarkLogViewer({
       extensions: [
         basicSetup,
         EditorState.readOnly.of(true),
-        EditorView.theme({ "&": { height: typeof height === "number" ? `${height}px` : height } }),
+        EditorView.theme({
+          "&": { height: typeof height === "number" ? `${height}px` : height },
+        }),
         EditorView.theme({ ".cm-activeLine": { backgroundColor: "indigo" } }),
         oneDark,
         foldUninteresting,
-        codeFolding({ placeholderText: "<probably uninteresting folded group, click to show>", }),
+        codeFolding({
+          placeholderText:
+            "<probably uninteresting folded group, click to show>",
+        }),
         search({ top: true }),
       ],
     });
@@ -204,8 +216,14 @@ export function BenchmarkLogViewer({
 
     // After mounting/updating, optionally scroll
     const v = viewRef.current!;
-    if (texts && current && current.fileIndex >= 0 && current.fileIndex < combined.offsets.length) {
-      const globalLine = combined.offsets[current.fileIndex] + (current.line - 1);
+    if (
+      texts &&
+      current &&
+      current.fileIndex >= 0 &&
+      current.fileIndex < combined.offsets.length
+    ) {
+      const globalLine =
+        combined.offsets[current.fileIndex] + (current.line - 1);
       scrollToLine(v.state, v, globalLine);
     } else if (texts) {
       // fold after content is real
@@ -230,7 +248,11 @@ export function BenchmarkLogViewer({
   }, []);
 
   if (error) {
-    return <div style={{ color: "tomato" }}>Failed to load logs: {String(error)}</div>;
+    return (
+      <div style={{ color: "tomato" }}>
+        Failed to load logs: {String(error)}
+      </div>
+    );
   }
 
   // Stop propagation to avoid parent click handlers (keeps your previous behavior)
@@ -275,9 +297,7 @@ export function LogUrlList({ urls }: { urls: LogSrc[] }) {
             >
               {u.url}
             </Link>
-            <Button onClick={}>
-                jump to search
-            </Button>
+            <Button onClick={}>jump to search</Button>
           </Box>
         ))}
       </Box>

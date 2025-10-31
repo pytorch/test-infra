@@ -266,7 +266,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
       {
         type: "AutoBenchmarkLogs",
         title: "Logs",
-        config: {}
+        config: {},
       },
       {
         type: "AutoBenchmarkPairwiseTable",
