@@ -1,9 +1,9 @@
 import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
-import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 
 export const PYTORCH_OPERATOR_MICROBENCHMARK_ID =
   "pytorch_operator_microbenchmark";
@@ -19,7 +19,7 @@ const initialOptions = {
   },
 };
 
-export const DEFAULT_LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
+export const LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "latency",
   type: "ratio",
   ratioPolicy: {
@@ -108,7 +108,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
                   displayName: "Model",
                 },
                 comparisonPolicy: {
-                  latency: DEFAULT_LATENCY_POLICY,
+                  latency: LATENCY_POLICY,
                 },
                 extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
                 renderOptions: {
@@ -147,7 +147,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               },
             },
             comparisonPolicy: {
-              latency: DEFAULT_LATENCY_POLICY,
+              latency: LATENCY_POLICY,
             },
             extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
             renderOptions: {
