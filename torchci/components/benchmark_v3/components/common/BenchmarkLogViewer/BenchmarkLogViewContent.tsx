@@ -148,8 +148,8 @@ export function BenchmarkLogViewContent({
       />
       <Divider sx={{ mt: 2 }} />
       <Box sx={{ width: editorWidth, minWidth: "500px", height: "90vh" }}>
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>
-          {`# Combined ${filteredUrls.length}/${urls.length} logs`}
+         <Typography variant="h6" sx={{ mb: 1 }}>
+          Combined Loggings ({`# Display ${filteredUrls.length}/${urls.length} logs`})
         </Typography>
         <MultiLogViewer
           viewRef={viewRef}
