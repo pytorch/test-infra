@@ -136,17 +136,31 @@ export function LogUrlList({
                 >
                   {highlightChunksMulti(u.label ?? `Log ${i + 1}`, terms)}
                 </Typography>
-                <Button
-                  size="small"
-                  onClick={() => {
-                    const v = viewRef.current;
-                    if (!v) return;
-                    const fallback = u.url || "";
-                    cmJumpToFirstMatch(v, fallback);
-                  }}
+                <Tooltip
+                  title="Naivgate to the head of the log in log view"
+                  placement="top"
+                  arrow
                 >
-                  jump to head of log
-                </Button>
+                  <Button
+                    size="small"
+                    sx={{
+                      textTransform: "none", // keep lowercase
+                      fontSize: "0.7rem", // smaller font
+                      minWidth: 0, // remove default min width
+                      px: 0.5, // tighter horizontal padding
+                      py: 0, // tighter vertical padding
+                    }}
+                    variant="contained"
+                    onClick={() => {
+                      const v = viewRef.current;
+                      if (!v) return;
+                      const fallback = u.url || "";
+                      cmJumpToFirstMatch(v, fallback);
+                    }}
+                  >
+                    jump to head of log
+                  </Button>
+                </Tooltip>
               </Stack>
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Typography variant="caption">Source:</Typography>

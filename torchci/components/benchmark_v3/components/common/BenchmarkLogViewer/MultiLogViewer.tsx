@@ -36,6 +36,9 @@ export function MultiLogViewer({
         EditorView.theme({
           "&": { width: "100%", height: "100%", boxSizing: "border-box" },
           ".cm-activeLine": { backgroundColor: "indigo" },
+          "&.cm-focused .cm-selectionBackground": {
+            backgroundColor: "indigo",
+          },
         }),
         oneDark,
         foldUninteresting,
