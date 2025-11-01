@@ -1,5 +1,5 @@
 import { Alert, Typography } from "@mui/material";
-import { Grid } from "@mui/system";
+import { Grid, Stack } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -10,6 +10,8 @@ import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
+import { LOG_PREFIX } from "components/benchmark/common";
+import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
@@ -282,6 +284,140 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   );
 }
 
+export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch;
+
+  const ready =
+    !!ctx &&
+    !!ctx.committedTime?.start &&
+    !!ctx.committedTime?.end &&
+    !!ctx.committedLbranch &&
+    !!ctx.committedRbranch &&
+    isWorkflowsReady &&
+    ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  const dataBinding = ctx?.configHandler.dataBinding;
+
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const branches = [
+    ...new Set(
+      [ctx.committedLbranch, ctx.committedRbranch].filter((b) => b.length > 0)
+    ),
+  ];
+  const workflows =
+    ctx.lcommit?.workflow_id && ctx.rcommit?.workflow_id
+      ? [ctx.lcommit?.workflow_id, ctx.rcommit?.workflow_id]
+      : [];
+
+  // convert to the query params
+  const params = dataBinding.toQueryParams({
+    repo: ctx.repo,
+    branches: branches,
+    benchmarkName: ctx.benchmarkName,
+    timeRange: ctx.committedTime,
+    filters: ctx.committedFilters,
+    maxSampling: ctx.committedMaxSampling,
+    workflows,
+  });
+
+  const queryParams: any | null = ready ? params : null;
+  // fetch the bechmark data
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+
+  if (!ready) {
+    return (
+      <LoadingPage height={100} content="Waiting for initialization...." />
+    );
+  }
+
+  if (isLoading || !resp) {
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkLogs..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkTimeSeriesTable){error.message}
+      </Alert>
+    );
+  }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+
+  const data = resp?.data?.data;
+  const rows = (data["table"] as any[]) ?? [];
+  const workflowJobMap = new Map<string, string[]>();
+
+  const jobInfo = collectJobGroupInfoUniques(
+    rows,
+    uiRenderConfig.config?.logFields ?? []
+  );
+
+  for (const row of rows) {
+    const wf = row.group_info?.workflow_id;
+    const job = row.group_info?.job_id;
+    if (!wf || !job) continue;
+    if (!workflowJobMap.has(wf)) {
+      workflowJobMap.set(wf, []);
+    }
+    const jobs = workflowJobMap.get(wf)!;
+    if (!jobs.includes(job)) {
+      jobs.push(job);
+    }
+  }
+
+  return (
+    <Stack sx={{ m: 1 }}>
+      <Typography variant="h6">Logging: </Typography>
+      <Typography
+        variant="subtitle1"
+        sx={{ color: "text.secondary", fontWeight: 400 }}
+      >
+        {" "}
+        log details from selected workflow runs{" "}
+      </Typography>
+      <Stack flexDirection="row">
+        {Array.from(workflowJobMap.entries()).map(([wf, jobs]) => {
+          const urls = jobs.map((job: string) => ({
+            url: `${LOG_PREFIX}/${job}`,
+            info: jobInfo.get(job),
+          }));
+          const isl = ctx.lcommit?.workflow_id == wf;
+          return (
+            <Stack key={wf} flexDirection="row" alignItems="center">
+              <Typography variant="body2" sx={{ padding: 1 }}>
+                {isl ? "l" : "r"}workflow ({wf}):{" "}
+              </Typography>
+              <BenchmarkLogSidePanelWrapper
+                urls={urls}
+                buttonLabel={`logs (${urls.length})`}
+              />
+            </Stack>
+          );
+        })}
+      </Stack>
+    </Stack>
+  );
+}
+
 export function AutoBenchmarkTimeSeriesChartGroup({
   config,
 }: AutoComponentProps) {
@@ -431,4 +567,28 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
       </Grid>
     </Grid>
   );
+}
+
+export function collectJobGroupInfoUniques(
+  rows: any[],
+  fields: string[]
+): Map<string, Record<string, string[]>> {
+  const jobInfo = new Map<string, Record<string, string[]>>();
+
+  for (const row of rows ?? []) {
+    const gi = row.group_info;
+    if (!gi || !gi.job_id) continue;
+
+    const job = gi.job_id;
+    if (!jobInfo.has(job)) jobInfo.set(job, {});
+    const info = jobInfo.get(job)!;
+    for (const f of fields) {
+      const v = gi[f];
+      if (v == null) continue;
+      if (!info[f]) info[f] = [];
+      if (!info[f].includes(v)) info[f].push(v);
+    }
+  }
+
+  return jobInfo;
 }

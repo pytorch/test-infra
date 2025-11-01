@@ -1,4 +1,5 @@
 import {
+  AutoBenchmarkLogs,
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
   AutoBenchmarkTimeSeriesChartGroup,
@@ -53,6 +54,9 @@ export class AutoComponentRegistry {
       },
       AutoBenchmarkRawDataTable: {
         Component: AutoBenchmarkRawDataTable,
+      },
+      AutoBenchmarkLogs: {
+        Component: AutoBenchmarkLogs,
       },
       // Add your auto components here
     };
