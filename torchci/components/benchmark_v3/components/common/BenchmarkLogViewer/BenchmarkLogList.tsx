@@ -1,25 +1,27 @@
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import {
   Autocomplete,
   Button,
   Chip,
   Divider,
+  IconButton,
   Link,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { LogSrc } from "./BenchmarkLogViewContent";
-
 export function LogUrlList({
   urls,
   viewRef,
   query,
   setQuery,
   width = "80vw",
-  height = "90vh",
+  height = "60vh",
 }: {
   urls: LogSrc[];
   viewRef: React.MutableRefObject<EditorView | null>;
@@ -37,7 +39,7 @@ export function LogUrlList({
   );
   const [inputValue, setInputValue] = useState("");
 
-  // keep external query string loosely in sync (optional)
+  // keep external query string loosely in sync
   useEffect(() => {
     setQuery(terms.join(" "));
   }, [terms, setQuery]);
@@ -53,15 +55,9 @@ export function LogUrlList({
     if (!normTerms.length) return urls;
     return urls.filter((u) => {
       const hay = buildHaystack(u);
-      const result = normTerms.every((t) => hay.includes(t));
-      return result;
+      return normTerms.every((t) => hay.includes(t));
     });
   }, [urls, normTerms]);
-
-  const jumpRegex = useMemo(() => {
-    if (!normTerms.length) return null;
-    return new RegExp(`(${normTerms.map(escapeRegExp).join("|")})`, "i");
-  }, [normTerms]);
 
   // add a term from the current input
   const commitInputAsTerm = useCallback(() => {
@@ -71,27 +67,34 @@ export function LogUrlList({
     setInputValue("");
   }, [inputValue, terms]);
 
+  const removeAt = useCallback(
+    (idx: number) => setTerms((prev) => prev.filter((_, i) => i !== idx)),
+    []
+  );
+
   return (
     <Box width={width}>
-      <Autocomplete
+      <Autocomplete<string, true, false, true>
         multiple
         freeSolo
-        options={[]} // no predefined options; it's a tag input
+        options={[] as string[]}
         value={terms}
         inputValue={inputValue}
         onInputChange={(_e, v) => setInputValue(v)}
         onChange={(_e, newValue) => setTerms(newValue)}
-        renderTags={(value, getTagProps) =>
-          value.map((option, index) => (
-            <Chip
-              variant="outlined"
-              size="small"
-              label={option}
-              {...getTagProps({ index })}
-              key={`${option}-${index}`}
-            />
-          ))
-        }
+        renderValue={(selected /* string[] */) => (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, m: 1 }}>
+            {selected.map((option, idx) => (
+              <Chip
+                key={`${option}-${idx}`}
+                variant="outlined"
+                size="small"
+                label={option}
+                onDelete={() => removeAt(idx)}
+              />
+            ))}
+          </Box>
+        )}
         renderInput={(params) => (
           <TextField
             {...params}
@@ -101,14 +104,28 @@ export function LogUrlList({
               if (["Enter", " ", "Comma"].includes(e.key) || e.key === ",") {
                 e.preventDefault();
                 commitInputAsTerm();
+                return;
+              }
+              if (e.key === "Backspace" && !inputValue && terms.length > 0) {
+                e.preventDefault();
+                removeAt(terms.length - 1);
               }
             }}
             sx={{ m: 1 }}
           />
         )}
       />
-
-      <Box sx={{ height: height, overflowY: "auto", pr: 1, minWidth: 0 }}>
+      <SearchTipsTooltip />
+      <Divider sx={{ my: 1 }} />
+      <Box
+        sx={{
+          height,
+          minHeight: "10vh",
+          overflowY: "auto",
+          pr: 1,
+          minWidth: 0,
+        }}
+      >
         {filtered.map((u, i) => (
           <Fragment key={`${u.url}-${i}`}>
             <Stack>
@@ -122,8 +139,10 @@ export function LogUrlList({
                 <Button
                   size="small"
                   onClick={() => {
-                    const fallback = u.url;
-                    cmJumpToFirstMatch(viewRef.current, fallback);
+                    const v = viewRef.current;
+                    if (!v) return;
+                    const fallback = u.url || "";
+                    cmJumpToFirstMatch(v, fallback);
                   }}
                 >
                   jump to head of log
@@ -146,6 +165,7 @@ export function LogUrlList({
                   {highlightChunksMulti(u.url, terms)}
                 </Link>
               </Stack>
+
               {u.info && (
                 <Stack sx={{ mt: 0.5 }}>
                   <Typography variant="caption" sx={{ fontWeight: 600 }}>
@@ -174,6 +194,7 @@ export function LogUrlList({
           </Fragment>
         ))}
       </Box>
+      <Divider sx={{ my: 1 }} />
     </Box>
   );
 }
@@ -250,4 +271,70 @@ export function cmJumpToFirstMatch(
   });
   view.focus();
   return true;
+}
+
+export function SearchTipsTooltip() {
+  return (
+    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ ml: 1 }}>
+      <Typography variant="body2" sx={{ mr: 0.5 }}>
+        Search Tips:
+      </Typography>
+      <Tooltip
+        title={<SearchTipsContent />}
+        placement="top"
+        arrow
+        slotProps={{
+          tooltip: {
+            sx: {
+              bgcolor: "background.paper",
+              color: "text.primary",
+              boxShadow: 3,
+              p: 1.2,
+            },
+          },
+        }}
+      >
+        <IconButton size="small">
+          <InfoOutlinedIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  );
+}
+
+function SearchTipsContent() {
+  return (
+    <Box sx={{ mx: 1.5, mt: 0.5, color: "text.secondary" }}>
+      <Stack direction="row" spacing={1} alignItems="flex-start">
+        <InfoOutlinedIcon fontSize="small" sx={{ mt: "2px", opacity: 0.8 }} />
+        <Box>
+          <Typography variant="caption" sx={{ display: "block" }}>
+            <b>Search scope:</b> search all values in info section & source
+            section below.
+          </Typography>
+          <Typography variant="caption" sx={{ display: "block", mt: 0.25 }}>
+            <b>How to filter:</b> type terms and press <b>Enter</b>/<b>Space</b>
+            /<b>,</b>. Multiple terms are combined with <b>AND</b>.
+          </Typography>
+          {/* optional: small examples row */}
+          <Stack
+            direction="row"
+            spacing={0.5}
+            sx={{ mt: 0.5, flexWrap: "wrap" }}
+          >
+            <Typography variant="caption" sx={{ mr: 0.5 }}>
+              Examples:
+            </Typography>
+            <Chip size="small" variant="outlined" label="timm_models" />
+            <Chip size="small" variant="outlined" label="adv_inception_v3" />
+          </Stack>
+          <Typography variant="caption" sx={{ display: "block", mt: 0.25 }}>
+            <b>Field option coverage:</b> the available fields (e.g.{" "}
+            <code>model</code>, <code>arch</code>) reflect your <i>main page</i>{" "}
+            filters and may not be the full list of content in the log.
+          </Typography>
+        </Box>
+      </Stack>
+    </Box>
+  );
 }
