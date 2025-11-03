@@ -98,7 +98,7 @@ function computeDecorations(view: EditorView) {
 // - Anything in a GitHub group (e.g. gets automatically collapse in GitHub UI)
 // - All the "cleanup" stuff (e.g. anything after the actual build/test). This
 //   part is hardcoded but should be good enough for starters.
-const foldUninteresting = foldService.of(
+export const foldUninteresting = foldService.of(
   (state: EditorState, lineStart: number, lineEnd: number) => {
     const startingLine = state.doc.lineAt(lineStart);
     if (!startingLine.text.includes("##[group]")) {
