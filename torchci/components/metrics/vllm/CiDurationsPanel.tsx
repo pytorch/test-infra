@@ -230,28 +230,11 @@ export default function CiDurationsPanel({
       ...getLineSeries(dailyMeanSuccess, dailyMeanNonCanceled),
       ...getScatterSeriesByState(source),
     ],
-    dataZoom: [
-      {
-        type: "slider",
-        show: true,
-        xAxisIndex: 0,
-        bottom: 0,
-        start: 0,
-        end: 100,
-        height: 25,
-      },
-      {
-        type: "inside",
-        xAxisIndex: 0,
-        start: 0,
-        end: 100,
-      },
-    ],
   };
 
   return (
     <ChartPaper
-      tooltip="Main branch CI runtimes over time. Green line = mean runtime for successful builds, Pink line = mean including failures. Scatter points = individual builds (click to view in Buildkite). Use slider or scroll to zoom."
+      tooltip="Main branch CI runtimes over time. Green line = mean runtime for successful builds, Pink line = mean including failures. Scatter points = individual builds (click to view in Buildkite)."
       option={options}
       onEvents={{
         click: handleBuildClick,
