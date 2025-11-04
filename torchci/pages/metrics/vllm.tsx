@@ -11,11 +11,13 @@ import {
 } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
+import DockerBuildRuntimePanel from "components/metrics/vllm/DockerBuildRuntimePanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
 import JobGroupFilter, {
   JobGroup,
 } from "components/metrics/vllm/JobGroupFilter";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
+import JobRuntimePanel from "components/metrics/vllm/JobRuntimePanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
 import MostRetriedJobsTable from "components/metrics/vllm/MostRetriedJobsTable";
 import QueueWaitPerBuildPanel from "components/metrics/vllm/QueueWaitPerBuildPanel";
@@ -372,6 +374,23 @@ export default function Page() {
       pipelineName: "CI",
       minRuns: 3,
       jobGroups: selectedJobGroups,
+    }
+  );
+
+  const { data: jobRuntimeTrendsData } = useClickHouseAPIImmutable(
+    "vllm/job_runtime_trends",
+    {
+      ...timeParams,
+      repo: "https://github.com/vllm-project/vllm.git",
+      jobGroups: selectedJobGroups,
+    }
+  );
+
+  const { data: dockerBuildRuntimeData } = useClickHouseAPIImmutable(
+    "vllm/docker_build_runtime",
+    {
+      ...timeParams,
+      repo: "https://github.com/vllm-project/vllm.git",
     }
   );
 
@@ -968,8 +987,16 @@ export default function Page() {
         </Grid>
       </DashboardRow>
       <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <TimeToSignalTrendPanel data={ciDurations} />
+        </Grid>
+        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+          <DockerBuildRuntimePanel data={dockerBuildRuntimeData} />
+        </Grid>
+      </DashboardRow>
+      <DashboardRow spacing={2}>
+        <Grid size={{ xs: 12 }} height={ROW_HEIGHT + 150}>
+          <JobRuntimePanel data={jobRuntimeTrendsData} />
         </Grid>
       </DashboardRow>
       {/* Section 3b: Queue Utilization & Cost */}
