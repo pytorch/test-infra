@@ -49,7 +49,7 @@ runs:
               )
           }
 
-          install_nvidia_docker2_ubuntu20() {
+          install_nvidia_docker2_ubuntu() {
               (
                   set -x
                   # Install nvidia-driver package if not installed
@@ -101,13 +101,19 @@ runs:
 
                   if [ "$HAS_NVIDIA_DRIVER" -eq 0 ]; then
                       # CAUTION: this may need to be updated in future
-                      if [ "${DISTRIBUTION}" != ubuntu20.04 ]; then
-                            sudo yum groupinstall -y "Development Tools"
-                            # ensure our kernel install is the same as our underlying kernel,
-                            # groupinstall "Development Tools" has a habit of mismatching kernel headers
-                            sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
-                            sudo modprobe backlight
-                      fi
+                      case "${DISTRIBUTION}" in
+                          ubuntu*)
+                              # Ubuntu doesn't need yum packages
+                              ;;
+                          *)
+                              # Amazon Linux and others need Development Tools
+                              sudo yum groupinstall -y "Development Tools"
+                              # ensure our kernel install is the same as our underlying kernel,
+                              # groupinstall "Development Tools" has a habit of mismatching kernel headers
+                              sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
+                              sudo modprobe backlight
+                              ;;
+                      esac
                       sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN"
 
                       set +e
@@ -214,7 +220,7 @@ runs:
               )
           }
 
-          install_nvidia_driver_ubuntu20() {
+          install_nvidia_driver_ubuntu() {
               (
                   set -x
                   install_nvidia_driver_common
@@ -227,8 +233,8 @@ runs:
               amzn*)
                   install_nvidia_driver_amzn2
                   ;;
-              ubuntu20.04)
-                  install_nvidia_driver_ubuntu20
+              ubuntu*)
+                  install_nvidia_driver_ubuntu
                   ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
@@ -242,8 +248,8 @@ runs:
               amzn*)
                   install_nvidia_docker2_amzn2
                   ;;
-              ubuntu20.04)
-                  install_nvidia_docker2_ubuntu20
+              ubuntu*)
+                  install_nvidia_docker2_ubuntu
                   ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
