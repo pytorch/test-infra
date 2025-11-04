@@ -72,8 +72,8 @@ runs:
               (
                   # Try to gather more information about the runner and its existing NVIDIA driver if any
                   echo "Before installing NVIDIA driver"
-                  lspci
-                  lsmod
+                  lspci || true
+                  lsmod || true
                   modinfo nvidia || true
 
                   HAS_NVIDIA_DRIVER=0
@@ -136,7 +136,7 @@ runs:
                       fi
 
                       if [ "$RESET_GPU" -eq 1 ]; then
-                          NVIDIA_DEVICES=$(lspci -D | grep -i NVIDIA | cut -d' ' -f1)
+                          NVIDIA_DEVICES=$(lspci -D 2>/dev/null | grep -i NVIDIA | cut -d' ' -f1 || true)
                           # The GPU can get stuck in a failure state if somehow the test crashs the GPU microcode. When this
                           # happens, we'll try to reset all NVIDIA devices https://github.com/pytorch/pytorch/issues/88388
                           for PCI_ID in $NVIDIA_DEVICES; do
@@ -159,8 +159,8 @@ runs:
               (
                   sudo modprobe nvidia || true
                   echo "After installing NVIDIA driver"
-                  lspci
-                  lsmod
+                  lspci || true
+                  lsmod || true
                   modinfo nvidia || true
 
                   (
