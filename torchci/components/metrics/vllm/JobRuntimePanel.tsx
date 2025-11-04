@@ -15,12 +15,7 @@ import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
 import { useDarkMode } from "lib/DarkModeContext";
 import React, { useState } from "react";
-import {
-  getChartTitle,
-  getCrosshairTooltipConfig,
-  getReactEChartsProps,
-  GRID_DEFAULT,
-} from "./chartUtils";
+import { getCrosshairTooltipConfig, getReactEChartsProps } from "./chartUtils";
 import { COLOR_SUCCESS, COLOR_WARNING } from "./constants";
 
 interface JobRuntimeData {
@@ -94,7 +89,9 @@ function formatChartTooltip(params: any): string {
 
   params.forEach((p: any) => {
     if (p.value !== undefined && p.value !== null) {
-      result += `${p.marker} ${p.seriesName}: <b>${p.value.toFixed(1)}m</b><br/>`;
+      result += `${p.marker} ${p.seriesName}: <b>${p.value.toFixed(
+        1
+      )}m</b><br/>`;
     }
   });
 
@@ -165,8 +162,8 @@ export default function JobRuntimePanel({
           ? -1
           : 1
         : aValue > bValue
-          ? -1
-          : 1;
+        ? -1
+        : 1;
     }
 
     return sortOrder === "asc"
@@ -177,7 +174,10 @@ export default function JobRuntimePanel({
   // Auto-select first job if nothing is selected or if selected job is no longer in the list
   React.useEffect(() => {
     if (sortedStats.length > 0) {
-      if (!selectedJob || !sortedStats.some((s) => s.job_name === selectedJob)) {
+      if (
+        !selectedJob ||
+        !sortedStats.some((s) => s.job_name === selectedJob)
+      ) {
         setSelectedJob(sortedStats[0].job_name);
       }
     }
@@ -206,9 +206,7 @@ export default function JobRuntimePanel({
           .sort((a, b) => a.date.localeCompare(b.date))
       : [];
 
-  const chartDates = selectedJobData.map((d) =>
-    dayjs(d.date).format("MMM D")
-  );
+  const chartDates = selectedJobData.map((d) => dayjs(d.date).format("MMM D"));
   const chartMeanData = selectedJobData.map((d) => d.mean_runtime_minutes);
   const chartP90Data = selectedJobData.map((d) => d.p90_runtime_minutes);
 
@@ -379,7 +377,14 @@ export default function JobRuntimePanel({
         </Box>
 
         {/* Chart on the right */}
-        <Box sx={{ flex: "1 1 50%", minWidth: 0, maxWidth: "50%", overflow: "hidden" }}>
+        <Box
+          sx={{
+            flex: "1 1 50%",
+            minWidth: 0,
+            maxWidth: "50%",
+            overflow: "hidden",
+          }}
+        >
           <ReactECharts
             {...getReactEChartsProps(darkMode)}
             option={chartOptions}

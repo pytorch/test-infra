@@ -18,13 +18,15 @@ WITH jobs AS (
         AND tupleElement(job, 'finished_at') IS NOT NULL
         AND tupleElement(job, 'started_at') >= {startTime: DateTime64(3) }
         AND tupleElement(job, 'started_at') < {stopTime: DateTime64(3) }
-        AND lowerUTF8(tupleElement(job, 'state')) IN ('passed', 'finished', 'success', 'failed')
+        AND lowerUTF8(tupleElement(job, 'state')) IN (
+            'passed', 'finished', 'success', 'failed'
+        )
 )
 
 SELECT
     job_started_at AS timestamp,
     build_number,
-    round(dateDiff('second', job_started_at, job_finished_at) / 60.0, 2) AS runtime_minutes
+    round(dateDiff('second', job_started_at, job_finished_at) / 60.0, 2)
+        AS runtime_minutes
 FROM jobs
 ORDER BY job_started_at ASC
-
