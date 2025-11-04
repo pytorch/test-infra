@@ -52,11 +52,24 @@ runs:
           install_nvidia_docker2_ubuntu() {
               (
                   set -x
-                  # Install nvidia-driver package if not installed
-                  status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
-                  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
+                  # Check if nvidia-container-toolkit or nvidia-docker2 is installed
+                  set +e
+                  toolkit_status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-container-toolkit 2>&1)"
+                  toolkit_result=$?
+                  docker2_status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
+                  docker2_result=$?
+                  set -e
+                  
+                  # Install if neither package is installed
+                  if [ "$toolkit_result" -ne 0 ] && [ "$docker2_result" -ne 0 ]; then
+                    echo "Installing nvidia-container-toolkit..."
+                    sudo apt-get update -qq
                     sudo apt-get install -y nvidia-container-toolkit-1.17.8
                     sudo systemctl restart docker
+                  elif [ "$toolkit_result" -eq 0 ] && [ "$toolkit_status" = "installed" ]; then
+                    echo "nvidia-container-toolkit is already installed"
+                  elif [ "$docker2_result" -eq 0 ] && [ "$docker2_status" = "installed" ]; then
+                    echo "nvidia-docker2 (legacy) is already installed, skipping"
                   fi
               )
           }
@@ -92,6 +105,13 @@ runs:
 
                           # Turn off persistent mode so that the installation script can unload the kernel module
                           sudo killall nvidia-persistenced || true
+                          
+                          # Unload NVIDIA kernel modules to allow new driver installation
+                          echo "Attempting to unload NVIDIA kernel modules..."
+                          sudo rmmod nvidia_uvm || true
+                          sudo rmmod nvidia_drm || true
+                          sudo rmmod nvidia_modeset || true
+                          sudo rmmod nvidia || true
                       else
                           HAS_NVIDIA_DRIVER=1
                           echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has already been installed. Skipping NVIDIA driver installation"
