@@ -164,28 +164,11 @@ export default function DurationDistributionPanel({
       axisPointer: { type: "shadow" },
       formatter: formatDistributionTooltip,
     },
-    dataZoom: [
-      {
-        type: "slider",
-        show: true,
-        xAxisIndex: 0,
-        bottom: 0,
-        start: 0,
-        end: 100,
-        height: 25,
-      },
-      {
-        type: "inside",
-        xAxisIndex: 0,
-        start: 0,
-        end: 100,
-      },
-    ],
   };
 
   return (
     <ChartPaper
-      tooltip="Histogram showing distribution of main branch CI runtimes (how long builds take to complete). Green = successful builds, Red = failed builds, Gray = canceled builds. Use slider or scroll to zoom."
+      tooltip="Histogram showing distribution of main branch CI runtimes (how long builds take to complete). Green = successful builds, Red = failed builds, Gray = canceled builds."
       option={options}
       darkMode={darkMode}
     />

@@ -1,6 +1,59 @@
-// Shared color constants for vLLM metrics charts
+// Shared constants for vLLM metrics dashboard and charts
 
-// Data visualization colors
+// ============================================================================
+// Layout Constants
+// ============================================================================
+export const ROW_HEIGHT = 375;
+export const METRIC_CARD_HEIGHT = 200;
+export const JOB_RUNTIME_PANEL_HEIGHT = ROW_HEIGHT + 150;
+
+// ============================================================================
+// Repository Constants
+// ============================================================================
+export const VLLM_REPO_URL = "https://github.com/vllm-project/vllm.git";
+export const VLLM_REPO_SHORT = "vllm-project/vllm";
+export const PIPELINE_NAME = "CI";
+
+// ============================================================================
+// Query Parameter Defaults
+// ============================================================================
+export const DEFAULT_MIN_RUNS_RETRY_STATS = 5;
+export const DEFAULT_MIN_RUNS_JOB_RELIABILITY = 3;
+
+// ============================================================================
+// Tab Styling Configuration
+// ============================================================================
+export const TAB_CONFIG = {
+  containerSx: (darkMode: boolean) => ({
+    borderBottom: 2,
+    borderColor: "divider",
+    mb: 3,
+    mt: 2,
+    bgcolor: darkMode ? "rgba(255, 255, 255, 0.05)" : "rgba(0, 0, 0, 0.02)",
+    borderRadius: "8px 8px 0 0",
+    px: 2,
+  }),
+  tabsSx: {
+    "& .MuiTab-root": {
+      fontSize: "1rem",
+      fontWeight: 600,
+      minHeight: 56,
+      textTransform: "none",
+      px: 3,
+    },
+    "& .Mui-selected": {
+      fontWeight: 700,
+    },
+  },
+  indicatorSx: {
+    height: 3,
+    borderRadius: "3px 3px 0 0",
+  },
+};
+
+// ============================================================================
+// Data Visualization Colors
+// ============================================================================
 export const COLOR_SUCCESS = "#3ba272"; // Green - for successful/passing states
 export const COLOR_ERROR = "#ee6666"; // Red - for failures/errors
 export const COLOR_WARNING = "#fc9403"; // Orange - for warnings/manual actions

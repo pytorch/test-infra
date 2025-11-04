@@ -7,15 +7,19 @@ import {
   Link,
   Skeleton,
   Stack,
+  Tab,
+  Tabs,
   Typography,
 } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
+import DockerBuildRuntimePanel from "components/metrics/vllm/DockerBuildRuntimePanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
 import JobGroupFilter, {
   JobGroup,
 } from "components/metrics/vllm/JobGroupFilter";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
+import JobRuntimePanel from "components/metrics/vllm/JobRuntimePanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
 import MostRetriedJobsTable from "components/metrics/vllm/MostRetriedJobsTable";
 import ReliabilityPanel from "components/metrics/vllm/ReliabilityPanel";
@@ -30,17 +34,23 @@ import {
   VllmDualScalarPanel,
   VllmScalarPanel,
 } from "components/metrics/vllm/VllmScalarPanel";
+import {
+  DEFAULT_MIN_RUNS_JOB_RELIABILITY,
+  DEFAULT_MIN_RUNS_RETRY_STATS,
+  JOB_RUNTIME_PANEL_HEIGHT,
+  METRIC_CARD_HEIGHT,
+  PIPELINE_NAME,
+  ROW_HEIGHT,
+  TAB_CONFIG,
+  VLLM_REPO_SHORT,
+  VLLM_REPO_URL,
+} from "components/metrics/vllm/constants";
 import dayjs from "dayjs";
 import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import _ from "lodash";
 import React, { useState } from "react";
 import { TimeRangePicker } from "../metrics";
-
-const ROW_HEIGHT = 375;
-const METRIC_CARD_HEIGHT = 200; // Height for key metric cards (reduced by ~20% from default)
-
-// moved MergesPanel and CiDurationsPanel to components
 
 // Helper function to safely extract PR cycle data values
 function getPrCycleValue(
@@ -216,6 +226,11 @@ export default function Page() {
     "torch_nightly",
     "main",
   ]);
+  const [selectedTab, setSelectedTab] = useState(0);
+
+  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
+    setSelectedTab(newValue);
+  };
 
   const timeParams = {
     startTime: startTime.utc().format("YYYY-MM-DDTHH:mm:ss.SSS"),
@@ -237,7 +252,7 @@ export default function Page() {
     {
       ...timeParams,
       granularity: "day",
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -245,9 +260,8 @@ export default function Page() {
     "vllm/ci_run_duration",
     {
       ...timeParams,
-      // Buildkite uses full repo URL with .git in vLLM dataset
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
     }
   );
 
@@ -255,8 +269,8 @@ export default function Page() {
     "vllm/ci_run_duration",
     {
       ...prevTimeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
     }
   );
 
@@ -311,7 +325,7 @@ export default function Page() {
     "vllm/pr_cycle_time_breakdown",
     {
       ...timeParams,
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -319,7 +333,7 @@ export default function Page() {
     "vllm/pr_cycle_time_breakdown",
     {
       ...prevTimeParams,
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -328,8 +342,8 @@ export default function Page() {
     {
       ...timeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -337,8 +351,8 @@ export default function Page() {
   const { data: retryData } = useClickHouseAPIImmutable("vllm/rebuild_rate", {
     ...timeParams,
     granularity: "day",
-    repo: "https://github.com/vllm-project/vllm.git",
-    pipelineName: "CI",
+    repo: VLLM_REPO_URL,
+    pipelineName: PIPELINE_NAME,
     jobGroups: selectedJobGroups,
   });
 
@@ -346,9 +360,9 @@ export default function Page() {
     "vllm/job_retry_stats",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
-      minRuns: 5,
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+      minRuns: DEFAULT_MIN_RUNS_RETRY_STATS,
       jobGroups: selectedJobGroups,
     }
   );
@@ -357,10 +371,27 @@ export default function Page() {
     "vllm/job_reliability",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
-      minRuns: 3,
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+      minRuns: DEFAULT_MIN_RUNS_JOB_RELIABILITY,
       jobGroups: selectedJobGroups,
+    }
+  );
+
+  const { data: jobRuntimeTrendsData } = useClickHouseAPIImmutable(
+    "vllm/job_runtime_trends",
+    {
+      ...timeParams,
+      repo: VLLM_REPO_URL,
+      jobGroups: selectedJobGroups,
+    }
+  );
+
+  const { data: dockerBuildRuntimeData } = useClickHouseAPIImmutable(
+    "vllm/docker_build_runtime",
+    {
+      ...timeParams,
+      repo: VLLM_REPO_URL,
     }
   );
 
@@ -369,8 +400,8 @@ export default function Page() {
     {
       ...timeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -379,8 +410,8 @@ export default function Page() {
     "vllm/trunk_recovery_time",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -391,8 +422,8 @@ export default function Page() {
     {
       ...prevTimeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -402,8 +433,8 @@ export default function Page() {
     {
       ...prevTimeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -413,7 +444,7 @@ export default function Page() {
     {
       ...prevTimeParams,
       granularity: "day",
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -662,7 +693,7 @@ export default function Page() {
       : _.meanBy(recoveryTimes, "recovery_hours");
 
   return (
-    <div style={{ paddingTop: "16px" }}>
+    <Stack style={{ paddingTop: "16px" }}>
       <Box
         sx={{
           display: "flex",
@@ -726,7 +757,7 @@ export default function Page() {
         />
       </Box>
 
-      {/* Section 1: Key Metrics Summary Cards */}
+      {/* Overview - Always Visible */}
       <Divider sx={{ mt: 3, mb: 2 }}>
         <Typography variant="h6" sx={{ fontWeight: "bold" }}>
           Key Metrics Overview
@@ -822,214 +853,234 @@ export default function Page() {
         />
       </DashboardRow>
 
-      {/* Section 2: CI Reliability */}
-      <Divider sx={{ mt: 4, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          CI Reliability
-        </Typography>
-      </Divider>
-      <DashboardRow spacing={2}>
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "Overall Success Rate",
-              value: overallSuccessRate,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 1) < 0.85,
-              tooltip:
-                "Percentage of main branch builds with zero hard test failures. Builds with only soft failures (flaky tests) count as passed. Canceled builds excluded from calculation.",
-              delta: overallSuccessRateDelta,
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "Total Failed Builds",
-              value: reliabilityData === undefined ? undefined : totalFailed,
-              valueRenderer: formatCount,
-              badThreshold: (v) => (v ?? 0) > 10,
-              tooltip:
-                "Count of main branch CI runs with hard test failures (soft failures excluded) in selected time period.",
-              delta: totalFailedDelta,
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "% Jobs Retried",
-              value: overallRetryRate,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 0) > 0.01,
-              tooltip:
-                "Percentage of jobs that were manually or automatically retried. Low values (<1%) indicate stable infrastructure. High values may indicate flaky tests or infrastructure issues.",
-              delta: null, // TODO: Add delta when we have previous retry data
-            },
-          ]}
-        />
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <ReliabilityPanel data={reliabilityData} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <ReliabilityTrendPanel data={reliabilityData} />
-        </Grid>
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <TrunkHealthTrendPanel data={dailyTrunkHealthData} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <CommitsOnRedTrendPanel data={dailyTrunkHealthData} />
-        </Grid>
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <RetryTrendPanel data={retryData} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <MostRetriedJobsTable data={jobRetryStatsData} />
-        </Grid>
-      </DashboardRow>
-      <Divider sx={{ mt: 4, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          Trunk Health
-        </Typography>
-      </Divider>
-      <DashboardRow spacing={2}>
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "Avg breakage duration",
-              value: avgRecoveryTime,
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 12,
-              tooltip:
-                "Average time trunk stays broken before being fixed. Measured from when trunk first breaks (success→failure) to when it's fixed (failure→success). Includes nights, weekends, and investigation time. Lower is better.",
-              delta: null, // TODO: Calculate when we have previous recovery data
-            },
-          ]}
-        />
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <TrunkHealthPanel data={trunkHealthData} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <TrunkRecoveryPanel
-            data={trunkRecoveryData}
-            startTime={startTime.toDate()}
-            stopTime={stopTime.toDate()}
-          />
-        </Grid>
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <JobReliabilityPanel data={jobReliabilityData} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <UnreliableJobsTable data={jobReliabilityData} />
-        </Grid>
-      </DashboardRow>
+      {/* Tabs for detailed sections */}
+      <Box sx={{ ...TAB_CONFIG.containerSx(darkMode), mt: 10 }}>
+        <Tabs
+          value={selectedTab}
+          onChange={handleTabChange}
+          aria-label="detailed metrics sections"
+          sx={TAB_CONFIG.tabsSx}
+          TabIndicatorProps={{ sx: TAB_CONFIG.indicatorSx }}
+        >
+          <Tab label="Reliability" />
+          <Tab label="Duration Analysis" />
+          <Tab label="Source Control" />
+        </Tabs>
+      </Box>
 
-      {/* Section 3: CI Duration Analysis */}
-      <Divider sx={{ mt: 4, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          CI Duration Analysis
-        </Typography>
-      </Divider>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <DurationDistributionPanel data={ciDurations} />
-        </Grid>
-        <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <CiDurationsPanel data={ciDurations} />
-        </Grid>
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <TimeToSignalTrendPanel data={ciDurations} />
-        </Grid>
-      </DashboardRow>
+      {/* Tab 0: Reliability */}
+      {selectedTab === 0 && (
+        <>
+          <DashboardRow spacing={2}>
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "Overall Success Rate",
+                  value: overallSuccessRate,
+                  valueRenderer: formatPercentage,
+                  badThreshold: (v) => (v ?? 1) < 0.85,
+                  tooltip:
+                    "Percentage of main branch builds with zero hard test failures. Builds with only soft failures (flaky tests) count as passed. Canceled builds excluded from calculation.",
+                  delta: overallSuccessRateDelta,
+                },
+              ]}
+            />
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "Total Failed Builds",
+                  value:
+                    reliabilityData === undefined ? undefined : totalFailed,
+                  valueRenderer: formatCount,
+                  badThreshold: (v) => (v ?? 0) > 10,
+                  tooltip:
+                    "Count of main branch CI runs with hard test failures (soft failures excluded) in selected time period.",
+                  delta: totalFailedDelta,
+                },
+              ]}
+            />
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "% Jobs Retried",
+                  value: overallRetryRate,
+                  valueRenderer: formatPercentage,
+                  badThreshold: (v) => (v ?? 0) > 0.01,
+                  tooltip:
+                    "Percentage of jobs that were manually or automatically retried. Low values (<1%) indicate stable infrastructure. High values may indicate flaky tests or infrastructure issues.",
+                  delta: null, // TODO: Add delta when we have previous retry data
+                },
+              ]}
+            />
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "Avg breakage duration",
+                  value: avgRecoveryTime,
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 12,
+                  tooltip:
+                    "Average time trunk stays broken before being fixed. Measured from when trunk first breaks (success→failure) to when it's fixed (failure→success). Includes nights, weekends, and investigation time. Lower is better.",
+                  delta: null, // TODO: Calculate when we have previous recovery data
+                },
+              ]}
+            />
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <ReliabilityPanel data={reliabilityData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <ReliabilityTrendPanel data={reliabilityData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <TrunkHealthTrendPanel data={dailyTrunkHealthData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <CommitsOnRedTrendPanel data={dailyTrunkHealthData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <RetryTrendPanel data={retryData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <MostRetriedJobsTable data={jobRetryStatsData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <TrunkHealthPanel data={trunkHealthData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <TrunkRecoveryPanel
+                data={trunkRecoveryData}
+                startTime={startTime.toDate()}
+                stopTime={stopTime.toDate()}
+              />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <JobReliabilityPanel data={jobReliabilityData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <UnreliableJobsTable data={jobReliabilityData} />
+            </Grid>
+          </DashboardRow>
+        </>
+      )}
 
-      {/* Section 4: PR Cycle Metrics */}
-      <Divider sx={{ mt: 4, mb: 2 }}>
-        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
-          PR Cycle Metrics
-        </Typography>
-      </Divider>
-      <DashboardRow spacing={2}>
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "% manual merges",
-              value: manualMergedPct,
-              valueRenderer: formatPercentage,
-              badThreshold: (v) => (v ?? 0) > 0.5,
-              tooltip:
-                "Percentage of merged PRs where a human clicked 'Merge' button instead of using GitHub auto-merge. Includes both clean manual merges AND force merges. High values may indicate slow merge queues or low CI trust.",
-              delta: manualMergedPctDelta,
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "Time to first review",
-              value: getPrCycleValue(prCycleData, "time_to_first_review_p50"),
-              value2: getPrCycleValue(prCycleData, "time_to_first_review_p90"),
-              label1: "P50",
-              label2: "P90",
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 24,
-              badThreshold2: (v) => (v ?? 0) > 72,
-              tooltip:
-                "Time from PR ready (labeled 'ready' or created) to first human review comment. P50 = median, P90 = 90th percentile. Excludes bot reviews.",
-              delta: timeToReviewP50Delta,
-              delta2: timeToReviewP90Delta,
-            },
-          ]}
-        />
-        <MetricColumn
-          size={{ xs: 6, md: 3, lg: 2 }}
-          height={METRIC_CARD_HEIGHT}
-          metrics={[
-            {
-              title: "Time to approval",
-              value: getPrCycleValue(prCycleData, "time_to_approval_p50"),
-              value2: getPrCycleValue(prCycleData, "time_to_approval_p90"),
-              label1: "P50",
-              label2: "P90",
-              valueRenderer: formatHoursWithUnit,
-              badThreshold: (v) => (v ?? 0) > 48,
-              badThreshold2: (v) => (v ?? 0) > 120,
-              tooltip:
-                "Time from first human review to first approval from a maintainer (MEMBER/OWNER/COLLABORATOR). P50 = median, P90 = 90th percentile.",
-              delta: timeToApprovalP50Delta,
-              delta2: timeToApprovalP90Delta,
-            },
-          ]}
-        />
-      </DashboardRow>
-      <DashboardRow spacing={2}>
-        <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
-          <MergesPanel data={data} />
-        </Grid>
-      </DashboardRow>
-    </div>
+      {/* Tab 1: Duration Analysis */}
+      {selectedTab === 1 && (
+        <>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <DurationDistributionPanel data={ciDurations} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <CiDurationsPanel data={ciDurations} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <TimeToSignalTrendPanel data={ciDurations} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <DockerBuildRuntimePanel data={dockerBuildRuntimeData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12 }} height={JOB_RUNTIME_PANEL_HEIGHT}>
+              <JobRuntimePanel data={jobRuntimeTrendsData} />
+            </Grid>
+          </DashboardRow>
+        </>
+      )}
+
+      {/* Tab 2: Source Control */}
+      {selectedTab === 2 && (
+        <>
+          <DashboardRow spacing={2}>
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "% manual merges",
+                  value: manualMergedPct,
+                  valueRenderer: formatPercentage,
+                  badThreshold: (v) => (v ?? 0) > 0.5,
+                  tooltip:
+                    "Percentage of merged PRs where a human clicked 'Merge' button instead of using GitHub auto-merge. Includes both clean manual merges AND force merges. High values may indicate slow merge queues or low CI trust.",
+                  delta: manualMergedPctDelta,
+                },
+              ]}
+            />
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "Time to first review",
+                  value: getPrCycleValue(
+                    prCycleData,
+                    "time_to_first_review_p50"
+                  ),
+                  value2: getPrCycleValue(
+                    prCycleData,
+                    "time_to_first_review_p90"
+                  ),
+                  label1: "P50",
+                  label2: "P90",
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 24,
+                  badThreshold2: (v) => (v ?? 0) > 72,
+                  tooltip:
+                    "Time from PR ready (labeled 'ready' or created) to first human review comment. P50 = median, P90 = 90th percentile. Excludes bot reviews.",
+                  delta: timeToReviewP50Delta,
+                  delta2: timeToReviewP90Delta,
+                },
+              ]}
+            />
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
+                  title: "Time to approval",
+                  value: getPrCycleValue(prCycleData, "time_to_approval_p50"),
+                  value2: getPrCycleValue(prCycleData, "time_to_approval_p90"),
+                  label1: "P50",
+                  label2: "P90",
+                  valueRenderer: formatHoursWithUnit,
+                  badThreshold: (v) => (v ?? 0) > 48,
+                  badThreshold2: (v) => (v ?? 0) > 120,
+                  tooltip:
+                    "Time from first human review to first approval from a maintainer (MEMBER/OWNER/COLLABORATOR). P50 = median, P90 = 90th percentile.",
+                  delta: timeToApprovalP50Delta,
+                  delta2: timeToApprovalP90Delta,
+                },
+              ]}
+            />
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
+              <MergesPanel data={data} />
+            </Grid>
+          </DashboardRow>
+        </>
+      )}
+    </Stack>
   );
 }
