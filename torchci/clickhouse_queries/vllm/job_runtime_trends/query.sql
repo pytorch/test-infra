@@ -18,7 +18,9 @@ WITH jobs AS (
         AND tupleElement(job, 'finished_at') IS NOT NULL
         AND tupleElement(job, 'started_at') >= {startTime: DateTime64(3) }
         AND tupleElement(job, 'started_at') < {stopTime: DateTime64(3) }
-        AND lowerUTF8(tupleElement(job, 'state')) IN ('passed', 'finished', 'success', 'failed')
+        AND lowerUTF8(tupleElement(job, 'state')) IN (
+            'passed', 'finished', 'success', 'failed'
+        )
         -- Job group filtering: AMD, Torch Nightly, or Main
         AND (
             (
@@ -49,10 +51,16 @@ SELECT
     job_name,
     toDate(job_started_at) AS date,
     count() AS count,
-    round(avg(dateDiff('second', job_started_at, job_finished_at) / 60.0), 2) AS mean_runtime_minutes,
-    round(quantile(0.9)(dateDiff('second', job_started_at, job_finished_at) / 60.0), 2) AS p90_runtime_minutes,
-    round(max(dateDiff('second', job_started_at, job_finished_at) / 60.0), 2) AS max_runtime_minutes
+    round(avg(dateDiff('second', job_started_at, job_finished_at) / 60.0), 2)
+        AS mean_runtime_minutes,
+    round(
+        quantile(0.9) (
+            dateDiff('second', job_started_at, job_finished_at) / 60.0
+        ),
+        2
+    ) AS p90_runtime_minutes,
+    round(max(dateDiff('second', job_started_at, job_finished_at) / 60.0), 2)
+        AS max_runtime_minutes
 FROM jobs
 GROUP BY job_name, date
 ORDER BY job_name ASC, date ASC
-

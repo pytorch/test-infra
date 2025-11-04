@@ -34,17 +34,23 @@ import {
   VllmDualScalarPanel,
   VllmScalarPanel,
 } from "components/metrics/vllm/VllmScalarPanel";
+import {
+  DEFAULT_MIN_RUNS_JOB_RELIABILITY,
+  DEFAULT_MIN_RUNS_RETRY_STATS,
+  JOB_RUNTIME_PANEL_HEIGHT,
+  METRIC_CARD_HEIGHT,
+  PIPELINE_NAME,
+  ROW_HEIGHT,
+  TAB_CONFIG,
+  VLLM_REPO_SHORT,
+  VLLM_REPO_URL,
+} from "components/metrics/vllm/constants";
 import dayjs from "dayjs";
 import { useDarkMode } from "lib/DarkModeContext";
 import { useClickHouseAPIImmutable } from "lib/GeneralUtils";
 import _ from "lodash";
 import React, { useState } from "react";
 import { TimeRangePicker } from "../metrics";
-
-const ROW_HEIGHT = 375;
-const METRIC_CARD_HEIGHT = 200; // Height for key metric cards (reduced by ~20% from default)
-
-// moved MergesPanel and CiDurationsPanel to components
 
 // Helper function to safely extract PR cycle data values
 function getPrCycleValue(
@@ -246,7 +252,7 @@ export default function Page() {
     {
       ...timeParams,
       granularity: "day",
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -254,9 +260,8 @@ export default function Page() {
     "vllm/ci_run_duration",
     {
       ...timeParams,
-      // Buildkite uses full repo URL with .git in vLLM dataset
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
     }
   );
 
@@ -264,8 +269,8 @@ export default function Page() {
     "vllm/ci_run_duration",
     {
       ...prevTimeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
     }
   );
 
@@ -320,7 +325,7 @@ export default function Page() {
     "vllm/pr_cycle_time_breakdown",
     {
       ...timeParams,
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -328,7 +333,7 @@ export default function Page() {
     "vllm/pr_cycle_time_breakdown",
     {
       ...prevTimeParams,
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -337,8 +342,8 @@ export default function Page() {
     {
       ...timeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -346,8 +351,8 @@ export default function Page() {
   const { data: retryData } = useClickHouseAPIImmutable("vllm/rebuild_rate", {
     ...timeParams,
     granularity: "day",
-    repo: "https://github.com/vllm-project/vllm.git",
-    pipelineName: "CI",
+    repo: VLLM_REPO_URL,
+    pipelineName: PIPELINE_NAME,
     jobGroups: selectedJobGroups,
   });
 
@@ -355,9 +360,9 @@ export default function Page() {
     "vllm/job_retry_stats",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
-      minRuns: 5,
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+      minRuns: DEFAULT_MIN_RUNS_RETRY_STATS,
       jobGroups: selectedJobGroups,
     }
   );
@@ -366,9 +371,9 @@ export default function Page() {
     "vllm/job_reliability",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
-      minRuns: 3,
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+      minRuns: DEFAULT_MIN_RUNS_JOB_RELIABILITY,
       jobGroups: selectedJobGroups,
     }
   );
@@ -377,7 +382,7 @@ export default function Page() {
     "vllm/job_runtime_trends",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
+      repo: VLLM_REPO_URL,
       jobGroups: selectedJobGroups,
     }
   );
@@ -386,7 +391,7 @@ export default function Page() {
     "vllm/docker_build_runtime",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
+      repo: VLLM_REPO_URL,
     }
   );
 
@@ -395,8 +400,8 @@ export default function Page() {
     {
       ...timeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -405,8 +410,8 @@ export default function Page() {
     "vllm/trunk_recovery_time",
     {
       ...timeParams,
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -417,8 +422,8 @@ export default function Page() {
     {
       ...prevTimeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -428,8 +433,8 @@ export default function Page() {
     {
       ...prevTimeParams,
       granularity: "day",
-      repo: "https://github.com/vllm-project/vllm.git",
-      pipelineName: "CI",
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
       jobGroups: selectedJobGroups,
     }
   );
@@ -439,7 +444,7 @@ export default function Page() {
     {
       ...prevTimeParams,
       granularity: "day",
-      repo: "vllm-project/vllm",
+      repo: VLLM_REPO_SHORT,
     }
   );
 
@@ -849,41 +854,13 @@ export default function Page() {
       </DashboardRow>
 
       {/* Tabs for detailed sections */}
-      <Box
-        sx={{
-          borderBottom: 2,
-          borderColor: "divider",
-          mb: 0,
-          mt: 10,
-          bgcolor: darkMode
-            ? "rgba(255, 255, 255, 0.05)"
-            : "rgba(0, 0, 0, 0.02)",
-          borderRadius: "8px 8px 0 0",
-          px: 2,
-        }}
-      >
+      <Box sx={{ ...TAB_CONFIG.containerSx(darkMode), mt: 10 }}>
         <Tabs
           value={selectedTab}
           onChange={handleTabChange}
           aria-label="detailed metrics sections"
-          sx={{
-            "& .MuiTab-root": {
-              fontSize: "1rem",
-              fontWeight: 600,
-              minHeight: 56,
-              textTransform: "none",
-              px: 3,
-            },
-            "& .Mui-selected": {
-              fontWeight: 700,
-            },
-          }}
-          TabIndicatorProps={{
-            sx: {
-              height: 3,
-              borderRadius: "3px 3px 0 0",
-            },
-          }}
+          sx={TAB_CONFIG.tabsSx}
+          TabIndicatorProps={{ sx: TAB_CONFIG.indicatorSx }}
         >
           <Tab label="Reliability" />
           <Tab label="Duration Analysis" />
@@ -1024,7 +1001,7 @@ export default function Page() {
             </Grid>
           </DashboardRow>
           <DashboardRow spacing={2}>
-            <Grid size={{ xs: 12 }} height={ROW_HEIGHT + 150}>
+            <Grid size={{ xs: 12 }} height={JOB_RUNTIME_PANEL_HEIGHT}>
               <JobRuntimePanel data={jobRuntimeTrendsData} />
             </Grid>
           </DashboardRow>

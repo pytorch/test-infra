@@ -16,10 +16,10 @@ function formatTooltip(params: any): string {
   if (!params || !params.data) return "";
 
   const data = params.data;
-  
+
   // Handle both scatter (array) and line (object) series
   let timestamp, runtime, buildNumber;
-  
+
   if (Array.isArray(data)) {
     timestamp = data[0];
     runtime = data[1];
@@ -91,9 +91,9 @@ export default function DockerBuildRuntimePanel({
   const runtimes = (data || []).map((d) => d.runtime_minutes);
   const avgRuntime = runtimes.length ? _.mean(runtimes).toFixed(1) : "N/A";
   const p90Runtime = runtimes.length
-    ? runtimes.sort((a, b) => a - b)[
-        Math.floor(runtimes.length * 0.9)
-      ].toFixed(1)
+    ? runtimes
+        .sort((a, b) => a - b)
+        [Math.floor(runtimes.length * 0.9)].toFixed(1)
     : "N/A";
 
   const options: EChartsOption = {
@@ -162,4 +162,3 @@ export default function DockerBuildRuntimePanel({
     />
   );
 }
-
