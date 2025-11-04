@@ -14,8 +14,7 @@ import { Box, Stack } from "@mui/system";
 import { useState } from "react";
 import useSWR from "swr";
 
-const STARTING_INSTRUCTIONS =
-  "https://fb.workplace.com/groups/750343464652882/posts/750356391318256";
+const STARTING_INSTRUCTIONS = "https://fburl.com/workplace/008py9db";
 
 /**
  * Get the reproduction command for the job using osdc gpu-dev CLI
@@ -392,6 +391,10 @@ function useInformationFromJobLog(
       noTimeStampLogLines
         .map((line) => parseInt(line.match(regexPattern)?.[1] || "0"))
         .reduce((acc, val) => (val > acc ? val : acc), 0) + 1;
+    if (numGPUs > 1) {
+      // Cap at 2 for now. The options allowed by ODC are 1/2/4
+      numGPUs = 2;
+    }
   }
 
   // envVars
