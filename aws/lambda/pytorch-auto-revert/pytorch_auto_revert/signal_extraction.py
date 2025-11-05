@@ -82,7 +82,9 @@ class SignalExtractor:
         # Select jobs to participate in test-track details fetch
         test_track_job_ids, failed_job_ids = self._select_test_track_job_ids(jobs)
         test_rows = self._datasource.fetch_tests_for_job_ids(
-            test_track_job_ids, failed_job_ids=failed_job_ids
+            test_track_job_ids,
+            failed_job_ids=failed_job_ids,
+            lookback_hours=self.lookback_hours,
         )
 
         test_signals = self._build_test_signals(jobs, test_rows, commits)
