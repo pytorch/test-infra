@@ -113,6 +113,7 @@ export function NavBarGroupDropdown({
                     fontWeight: 800,
                     textTransform: "uppercase",
                     letterSpacing: 0.5,
+                    lineHeight: 2,
                   }}
                 >
                   {group.label}
