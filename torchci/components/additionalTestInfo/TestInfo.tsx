@@ -7,9 +7,9 @@ import { JobData } from "lib/types";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
 import useSWR from "swr";
-import { TestRerunsInfo } from "./RerunInfo";
 import { TestCountsInfo } from "./TestCounts";
 import styles from "./TestInfo.module.css";
+import { TestStatusInfo } from "./TestStatusInfo";
 
 const WorkflowLevelUtilizationSection = styled("div")(({}) => ({
   margin: "10px",
@@ -280,7 +280,7 @@ export function TestInfo({
   runAttempt: string;
   jobs: JobData[];
 }) {
-  const [showInfo, setShowInfo] = useState("Reruns Info");
+  const [showInfo, setShowInfo] = useState("Test Status Info");
 
   function ButtonSelector({ name }: { name: string }) {
     return (
@@ -309,7 +309,7 @@ export function TestInfo({
         </div>
       </WorkflowLevelUtilizationSection>
       <div className={styles.tab}>
-        <ButtonSelector name="Reruns Info" />
+        <ButtonSelector name="Test Status Info" />
         <ButtonSelector name="TD Info" />
         <ButtonSelector name="Test Counts Info" />
         <ButtonSelector name="Regenerate Info" />
@@ -318,10 +318,9 @@ export function TestInfo({
         {showInfo == "TD Info" && (
           <TDInfo workflowId={workflowId} jobs={jobs} runAttempt={runAttempt} />
         )}
-        {showInfo == "Reruns Info" && (
-          <TestRerunsInfo
+        {showInfo == "Test Status Info" && (
+          <TestStatusInfo
             workflowId={workflowId}
-            jobs={jobs}
             runAttempt={runAttempt}
           />
         )}
