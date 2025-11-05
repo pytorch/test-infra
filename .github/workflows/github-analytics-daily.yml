@@ -78,5 +78,5 @@ jobs:
           --repo-path ./pytorch \
           --remote origin \
           --branch "${BRANCH:-release/2.9}" \
-          --milestone-id "${MILESTONE:-55}" \
+          --milestone-id "${MILESTONE:-58}" \
           --missing-in-branch
