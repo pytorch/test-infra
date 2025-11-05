@@ -211,12 +211,20 @@ export function ODCommandInstructions({
             />
             <InstructionItem
               index={5}
-              title="Download the binary"
+              title="Run the test"
               component={
-                <>
-                  <Typography variant="body1">Run the test</Typography>
-                  <TerminalCopyBox text={command} />
-                </>
+                command == undefined ? (
+                  <Typography variant="body1">
+                    We were unable to extract the test command from the job log.
+                    Please check the log manually to find the command to run the
+                    test.
+                  </Typography>
+                ) : (
+                  <>
+                    <Typography variant="body1">Run the test</Typography>
+                    <TerminalCopyBox text={command} />
+                  </>
+                )
               }
             />
           </Stack>
@@ -366,10 +374,10 @@ function useInformationFromJobLog(
         "To execute this test, run the following from the base repo dir:"
       )
     );
-  if (reproCommandLine === -1) {
-    return undefined;
-  }
-  const command = noTimeStampLogLines[reproCommandLine + 1].trim();
+  const command =
+    reproCommandLine === -1
+      ? undefined
+      : noTimeStampLogLines[reproCommandLine + 1].trim();
 
   // Machine type
   let gpuType: string = "CPU-X86";
