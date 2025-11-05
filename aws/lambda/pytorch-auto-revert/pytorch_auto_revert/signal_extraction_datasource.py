@@ -189,12 +189,15 @@ class SignalExtractionDatasource:
         job_ids: List[JobId],
         *,
         failed_job_ids: List[JobId],
+        lookback_hours: int,
     ) -> List[TestRow]:
-        """Batch fetch test verdict rows from default.test_run_s3 for given job ids.
+        """Batch fetch test verdict rows from tests.all_test_runs for given job ids.
 
         If failed_job_ids is provided, first compute the set of failed test identifiers
         (file+classname+name) from those jobs, and only fetch tests for job_ids that
         match that set. This reduces the result size significantly.
+        Additionally, constrain by the table's partition (toDate(time_inserted))
+        using NOW() and the lookback window with a 1-day margin to avoid timezone issues.
         """
         log = logging.getLogger(__name__)
         if not job_ids:
@@ -224,25 +227,31 @@ class SignalExtractionDatasource:
             )
             # One query with a CTE that enumerates failed test ids from failed_job_ids,
             # then filters the main selection by those ids for the current chunk.
-            # Note: success_runs explicitly excludes skipped rows via skipped_count = 0.
+            # Partition pruning: restrict toDate(time_inserted) to the lookback window
+            # with a 1 day margin using NOW() to avoid timezone handling.
             query = """
                 WITH failed_test_names AS (
                     SELECT DISTINCT concat(file, '|', classname, '|', name) AS test_id
-                    FROM default.test_run_s3
+                    FROM tests.all_test_runs
                     WHERE job_id IN {failed_job_ids:Array(Int64)}
                       AND (failure_count > 0 OR error_count > 0)
+                      AND toDate(time_inserted) >=
+                          toDate(NOW() - toIntervalHour({lookback_hours:Int32}) - toIntervalDay(1))
                 )
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
                        countIf(failure_count > 0 OR error_count > 0) AS failure_runs,
                        countIf(failure_count = 0 AND error_count = 0 AND skipped_count = 0) AS success_runs
-                FROM default.test_run_s3
+                FROM tests.all_test_runs
                 WHERE job_id IN {job_ids:Array(Int64)}
                   AND concat(file, '|', classname, '|', name) IN failed_test_names
+                  AND toDate(time_inserted) >=
+                      toDate(NOW() - toIntervalHour({lookback_hours:Int32}) - toIntervalDay(1))
                 GROUP BY job_id, workflow_id, workflow_run_attempt, file, classname, name
             """
             params = {
                 "job_ids": [int(j) for j in chunk],
                 "failed_job_ids": [int(j) for j in failed_job_ids],
+                "lookback_hours": int(lookback_hours),
             }
 
             for attempt in RetryWithBackoff():
