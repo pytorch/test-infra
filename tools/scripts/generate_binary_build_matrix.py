@@ -174,7 +174,7 @@ def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
             for gpu_arch in CUDA_ARCHES
         },
         **{
-            gpu_arch: f"pytorch/manylinuxaarch64-builder:cuda{gpu_arch.replace('-aarch64', '')}"
+            gpu_arch: f"pytorch/manylinuxaarch64-builder:cuda{gpu_arch.replace('-aarch64', '')}-09a61657deadba7d8e2f4b64a383799deacc85db"
             for gpu_arch in CUDA_AARCH64_ARCHES
         },
         **{
