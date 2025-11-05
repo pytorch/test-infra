@@ -73,7 +73,7 @@ runs:
                     
                     # Update and install
                     sudo apt-get update -qq
-                    sudo apt-get install -y nvidia-container-toolkit=1.17.8-1
+                    sudo apt-get install -y nvidia-container-toolkit
                     sudo systemctl restart docker
                   elif [ "$toolkit_result" -eq 0 ] && [ "$toolkit_status" = "installed" ]; then
                     echo "nvidia-container-toolkit is already installed"
