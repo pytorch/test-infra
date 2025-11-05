@@ -1,15 +1,16 @@
-with job as (
-    select
+WITH job AS (
+    SELECT
         id,
         name
-    from
+    FROM
         default.workflow_job
-    where
+    WHERE
         run_id = {workflowId: Int64 }
-        and run_attempt = {runAttempt: Int32 }
-        and name = {jobName: String }
+        AND run_attempt = {runAttempt: Int32 }
+        AND name = {jobName: String }
 )
-select
+
+SELECT
     invoking_file,
     name,
     classname,
@@ -18,15 +19,15 @@ select
     failure,
     error,
     job_id
-from
+FROM
     tests.all_test_runs
-    join job on job.id = all_test_runs.job_id
-where
-    job_id in (select id from job)
-    and workflow_id = {workflowId: Int64 }
-    and workflow_run_attempt = {runAttempt: Int32 }
-    and (
+JOIN job ON job.id = all_test_runs.job_id
+WHERE
+    job_id IN (SELECT id FROM job)
+    AND workflow_id = {workflowId: Int64 }
+    AND workflow_run_attempt = {runAttempt: Int32 }
+    AND (
         all_test_runs.name = {testName: String }
-        and classname = {className: String }
-        and invoking_file = {invokingFile: String }
+        AND classname = {className: String }
+        AND invoking_file = {invokingFile: String }
     )

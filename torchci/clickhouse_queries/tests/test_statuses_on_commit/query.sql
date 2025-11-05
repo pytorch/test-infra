@@ -1,14 +1,15 @@
-with job as (
-    select
+WITH job AS (
+    SELECT
         id,
         name
-    from
+    FROM
         default.workflow_job
-    where
+    WHERE
         run_id = {workflowId: String }
-        and run_attempt = {runAttempt: Int }
+        AND run_attempt = {runAttempt: Int }
 )
-select
+
+SELECT
     invoking_file,
     name,
     classname,
@@ -29,21 +30,21 @@ select
         'flaky',
         'failure'
     ) AS status,
-    job.name as job_name
-from
+    job.name AS job_name
+FROM
     tests.all_test_runs
-    join job on job.id = all_test_runs.job_id
-where
+JOIN job ON job.id = all_test_runs.job_id
+WHERE
     workflow_id = {workflowId: Int64 }
-    and job_id in (select id from job)
-    and workflow_run_attempt = {runAttempt: Int32 }
-    and (
+    AND job_id IN (SELECT id FROM job)
+    AND workflow_run_attempt = {runAttempt: Int32 }
+    AND (
         match(name, {searchString: String })
-        or match(classname, {searchString: String })
-        or match(invoking_file, {searchString: String })
-        or match(job.name, {searchString: String })
+        OR match(classname, {searchString: String })
+        OR match(invoking_file, {searchString: String })
+        OR match(job.name, {searchString: String })
     )
-group by
+GROUP BY
     invoking_file,
     name,
     classname,
