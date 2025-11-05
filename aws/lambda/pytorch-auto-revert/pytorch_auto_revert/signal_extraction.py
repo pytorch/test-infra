@@ -218,7 +218,7 @@ class SignalExtractor:
         return out
 
     # -----------------------------
-    # Phase B — Tests (test_run_s3 only)
+    # Phase B — Tests (tests.all_test_runs only)
     # -----------------------------
     def _select_test_track_job_ids(
         self, jobs: List[JobRow]
@@ -259,11 +259,11 @@ class SignalExtractor:
     ) -> List[Signal]:
         """Build per-test Signals across commits, scoped to job base.
 
-        We index `default.test_run_s3` rows per (wf_run_id, run_attempt, job_base) and collect
+        We index `tests.all_test_runs` rows per (wf_run_id, run_attempt, job_base) and collect
         which base(s) (by normalized job name) a test appears in. For each commit and (workflow, base),
         we compute attempt metadata (pending/completed, start time). Then, for tests that failed at least once in
         that base, we emit events per commit/attempt:
-          - If test_run_s3 rows exist → emit at most one FAILURE event if any failed runs exist,
+          - If tests.all_test_runs rows exist → emit at most one FAILURE event if any failed runs exist,
             and at most one SUCCESS event if any successful runs exist (both may be present).
           - Else if group pending → PENDING
           - Else → no event (missing)
@@ -295,7 +295,7 @@ class SignalExtractor:
             value_fn=lambda j: (j.wf_run_id, j.run_attempt),
         )
 
-        # Index test_run_s3 rows per (commit, job_base, wf_run, attempt, test_id)
+        # Index tests.all_test_runs rows per (commit, job_base, wf_run, attempt, test_id)
         # Store aggregated failure/success counts
         tests_by_group_attempt: Dict[
             Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt, TestId],

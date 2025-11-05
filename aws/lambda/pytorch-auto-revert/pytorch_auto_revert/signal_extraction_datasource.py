@@ -190,7 +190,7 @@ class SignalExtractionDatasource:
         *,
         failed_job_ids: List[JobId],
     ) -> List[TestRow]:
-        """Batch fetch test verdict rows from default.test_run_s3 for given job ids.
+        """Batch fetch test verdict rows from tests.all_test_runs for given job ids.
 
         If failed_job_ids is provided, first compute the set of failed test identifiers
         (file+classname+name) from those jobs, and only fetch tests for job_ids that
@@ -228,14 +228,14 @@ class SignalExtractionDatasource:
             query = """
                 WITH failed_test_names AS (
                     SELECT DISTINCT concat(file, '|', classname, '|', name) AS test_id
-                    FROM default.test_run_s3
+                    FROM tests.all_test_runs
                     WHERE job_id IN {failed_job_ids:Array(Int64)}
                       AND (failure_count > 0 OR error_count > 0)
                 )
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
                        countIf(failure_count > 0 OR error_count > 0) AS failure_runs,
                        countIf(failure_count = 0 AND error_count = 0 AND skipped_count = 0) AS success_runs
-                FROM default.test_run_s3
+                FROM tests.all_test_runs
                 WHERE job_id IN {job_ids:Array(Int64)}
                   AND concat(file, '|', classname, '|', name) IN failed_test_names
                 GROUP BY job_id, workflow_id, workflow_run_attempt, file, classname, name
