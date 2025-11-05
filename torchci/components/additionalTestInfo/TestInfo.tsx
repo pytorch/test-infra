@@ -319,10 +319,7 @@ export function TestInfo({
           <TDInfo workflowId={workflowId} jobs={jobs} runAttempt={runAttempt} />
         )}
         {showInfo == "Test Status Info" && (
-          <TestStatusInfo
-            workflowId={workflowId}
-            runAttempt={runAttempt}
-          />
+          <TestStatusInfo workflowId={workflowId} runAttempt={runAttempt} />
         )}
         {showInfo == "Test Counts Info" && (
           <TestCountsInfo
