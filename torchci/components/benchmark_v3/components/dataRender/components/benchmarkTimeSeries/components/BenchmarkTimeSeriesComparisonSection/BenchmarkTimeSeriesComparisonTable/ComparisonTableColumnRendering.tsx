@@ -100,10 +100,15 @@ export function getComparisionTableConlumnRendering(
       const L = valOf(ldata);
       const R = valOf(rdata);
 
+      // get target field name, for instance, metric
       const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
       const findFieldValueFromColData =
         ldata?.[targetField] ?? rdata?.[targetField];
       const targetVal = findFieldValueFromColData;
+
+      const failureConfig =
+        config?.renderOptions?.tableRenderingBook?.[targetVal]?.failure;
+      // lobr snf gs∂
 
       const { result, text } = getComparisonResult(
         L,
@@ -121,7 +126,6 @@ export function getComparisionTableConlumnRendering(
       };
     },
     valueFormatter: (value: any, row: any) => {
-      // this export as value in the export csv file
       return value?.text ?? "";
     },
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (
@@ -212,7 +216,7 @@ export function ComparisonTableColumnFieldValueCell({
 }) {
   // pick background color based on result signals
   let bgColor = "";
-  switch (result.verdict) {
+  switch (result?.verdict) {
     case "good":
       bgColor = IMPROVEMENT_COLOR;
       break;
@@ -243,7 +247,8 @@ export function ComparisonTableColumnFieldValueCell({
   );
 }
 
-function renderComparisonResult(result: ComparisonResult) {
+function renderComparisonResult(result?: ComparisonResult) {
+  if (!result) return "";
   return (
     <Box sx={{ p: 1 }}>
       {Object.entries(result).map(([key, value]) => (
@@ -262,6 +267,8 @@ export function getFieldRender(
   config?: ComparisonTableConfig,
   ldisplay?: string,
   rdisplay?: string,
+  lfailed?: boolean,
+  rfailed?: boolean,
   missingText: string = "missing data"
 ) {
   if (ldisplay || rdisplay) {
@@ -271,13 +278,24 @@ export function getFieldRender(
     targetField,
     config
   );
-  return formatTransitionWithUnit(L, R, rc?.unit, missingText);
+
+  return formatTransitionWithUnit(
+    L,
+    R,
+    lfailed,
+    rfailed,
+    rc?.unit,
+    missingText
+  );
 }
 export function formatTransitionWithUnit(
   L: any,
   R: any,
+  lfailed?: boolean,
+  rfailed?: boolean,
   table_unit?: BenchmarkUnitConfig,
-  missingText: string = "missing data"
+  missingText: string = "missing data",
+  failureText: string = "Failure"
 ): string {
   const formatValue = (v: any) => {
     if (v == null || v == undefined) return missingText;
@@ -289,6 +307,17 @@ export function formatTransitionWithUnit(
     // non-numeric → render raw
     return String(v);
   };
+
+  if (lfailed && rfailed) {
+    return failureText;
+  }
+
+  if (lfailed) {
+    return `${failureText}→${formatValue(R)}`;
+  }
+  if (rfailed) {
+    return `${formatValue(L)}→${failureText}`;
+  }
 
   if (L == null && R == null) {
     return missingText;
@@ -327,7 +356,22 @@ export function getComparisonResult(
 
   const ldisplay = displayNameOf(ldata);
   const rdisplay = displayNameOf(rdata);
-  const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
+
+  if (ldata?.is_failure || rdata?.is_failure) {
+    result.verdict = "warning";
+    result.reason = "detect failure";
+  }
+
+  const text = getFieldRender(
+    targetVal,
+    L,
+    R,
+    config,
+    ldisplay,
+    rdisplay,
+    ldata?.is_failure,
+    rdata?.is_failure
+  );
   return {
     result,
     text,

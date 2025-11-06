@@ -1,5 +1,5 @@
+import { BenchmarkPageType } from "components/benchmark_v3/configs/benchmark_config_book";
 import dayjs, { Dayjs } from "dayjs";
-import { BenchmarkPageType } from "lib/benchmark/store/benchmark_config_book";
 import {
   BenchmarkCommitMeta,
   TimeRange,

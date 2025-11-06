@@ -2,8 +2,8 @@
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
+import { BenchmarkPageType } from "../../../components/benchmark_v3/configs/benchmark_config_book";
 import { BENCHMARK_ID_MAPPING } from "../../../components/benchmark_v3/configs/configurations";
-import { BenchmarkPageType } from "./benchmark_config_book";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;

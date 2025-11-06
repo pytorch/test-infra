@@ -38,6 +38,11 @@ export interface BenchmarkTimeSeriesChartRenderingConfig {
 export interface BenchmarkComparisonTableRenderingConfig {
   displayName?: string;
   unit: BenchmarkUnitConfig;
+  hide: boolean; // hide the column in the table
+  failure: {
+    value: any;
+    dependence?: string; // the field name to check the failure condition
+  };
 }
 
 // The book: dictionary keyed by field name

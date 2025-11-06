@@ -1,12 +1,12 @@
 import { Alert, Typography } from "@mui/material";
 import { Grid, Stack } from "@mui/system";
+import { UIRenderConfig } from "components/benchmark_v3/configs/benchmark_config_book";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
   useBenchmarkCommittedContext,
   useBenchmarkTimeSeriesData,
 } from "lib/benchmark/api_helper/fe/hooks";
-import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
@@ -244,20 +244,20 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     );
   }
 
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkTimeSeriesTable){error.message}
+      </Alert>
+    );
+  }
+
   if (isLoading || !resp) {
     return (
       <LoadingPage
         height={500}
         content="loading data for AutoBenchmarkPairwiseTable..."
       />
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert severity="error">
-        (AutoBenchmarkTimeSeriesTable){error.message}
-      </Alert>
     );
   }
 

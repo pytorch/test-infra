@@ -1,7 +1,7 @@
 import {
   BenchmarkPageType,
   useBenchmarkBook,
-} from "lib/benchmark/store/benchmark_config_book";
+} from "components/benchmark_v3/configs/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import useSWR, { SWRConfiguration, SWRResponse } from "swr";
 import { BundleResult } from "../backend/common/type";

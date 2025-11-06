@@ -1,7 +1,7 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
+import { BenchmarkUIConfig } from "../../config_book_types";
 dayjs.extend(utc);
 
 export const DEFAULT_DASHBOARD_ID = "default-dashboard";
@@ -62,6 +62,55 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
   },
   dataRender: {
     type: "auto",
+    subSectionRenders: {
+         detail_view: {
+           filterConstraint: {
+             model: {
+               disabled: true,
+             },
+             deviceName: {
+               disableOptions: [""],
+             },
+             mode: {
+               disableOptions: [""],
+             },
+           },
+           renders: [
+             {
+               type: "AutoBenchmarkTimeSeriesChartGroup",
+               title: "Metrics Time Series Chart Detail View",
+               config: {
+                 type: "line",
+                 groupByFields: ["metric"],
+                 lineKey: ["dtype", "metric"],
+                 chart: {
+                   renderOptions: {
+                     showLegendDetails: true,
+                   },
+                 },
+               },
+             },
+             {
+               type: "AutoBenchmarkTimeSeriesTable",
+               title: "Comparison Table Detail View",
+               config: {
+                 primary: {
+                   fields: ["model"],
+                   displayName: "Model",
+                 },
+                 extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+               },
+             },
+             {
+               type: "AutoBenchmarkRawDataTable",
+               title: "Raw Data Table",
+               config: {
+                 extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+               },
+             },
+           ],
+         },
+       },
     renders: [
       {
         type: "AutoBenchmarkTimeSeriesTable",
@@ -70,6 +119,11 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
           primary: {
             fields: ["model"],
             displayName: "Model",
+            navigation: {
+              type: "subSectionRender",
+              value: "detail_view",
+              applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
+            },
           },
           extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
           comparisonPolicy: DEFAULT_COMPARISON_POLICY,

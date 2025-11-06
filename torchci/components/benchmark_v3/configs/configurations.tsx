@@ -1,5 +1,5 @@
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
-import { BenchmarkIdMappingItem } from "./types";
+import { BenchmarkIdMappingItem } from "./config_book_types";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",

@@ -1,4 +1,4 @@
-import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
+import { BenchmarkUIConfig } from "../../config_book_types";
 import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
 
 export const PYTORCH_HELION_BENCHMARK_ID = "pytorch_helion";
@@ -38,6 +38,15 @@ const RENDER_MAPPING_BOOK = {
       unit: "x",
     },
   },
+  helion_accuracy: {
+    hide: true,
+  },
+  triton_accuracy: {
+    hide: true,
+  },
+  torch_compile_accuracy: {
+    hide: true,
+  },
 };
 export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
   benchmarkId: PYTORCH_HELION_BENCHMARK_ID,
@@ -70,7 +79,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["extra_key.use_compile", "dtype", "metric"],
+              lineKey: ["metric"],
               chart: {
                 renderOptions: {
                   chartRenderBook: RENDER_MAPPING_BOOK,

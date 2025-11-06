@@ -8,7 +8,6 @@ import { DEFAULT_MODE, MODES } from "components/benchmark/ModeAndDTypePicker";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/backend/compilers/helpers/type";
-import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../benchmark/compilers/common";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
@@ -16,6 +15,7 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
+import { BenchmarkUIConfig } from "../../config_book_types";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
