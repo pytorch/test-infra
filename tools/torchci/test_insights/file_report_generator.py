@@ -287,13 +287,17 @@ class FileReportGenerator:
 
         return "unknown"
 
+    def _get_local_cache_file_loc(self, bucket: str, key: str) -> Path:
+        """Get the local cache file location for a given S3 bucket and key."""
+        return get_temp_dir() / f"cache_{bucket}_{key.replace('/', '_')}"
+
     def _fetch_from_s3(self, bucket: str, key: str) -> str:
         """
         Fetch a file from s3 and return its contents as a string. Also saves the
         contents to a local cache.
         """
         try:
-            file_loc = get_temp_dir() / f"cache_{bucket}_{key.replace('/', '_')}"
+            file_loc = self._get_local_cache_file_loc(bucket, key)
             if file_loc.exists():
                 logger.debug(f"Using cached download for {file_loc}")
                 compressed_data = file_loc.read_bytes()
@@ -630,9 +634,16 @@ class FileReportGenerator:
             with open(local_file, "w") as f:
                 f.write(body.getvalue())
             return
+
+        compressed = gzip.compress(body.getvalue().encode())
+
+        # Also write to local temp dir cache
+        with open(self._get_local_cache_file_loc(bucket_name, key), "wb") as f:
+            f.write(compressed)
+
         logger.info(f"Uploading data to s3: {html_url}")
         self.get_s3_resource().Object(bucket_name, key).put(
-            Body=gzip.compress(body.getvalue().encode()),
+            Body=compressed,
             ContentEncoding="gzip",
             ContentType="application/json",
         )
