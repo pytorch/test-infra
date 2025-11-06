@@ -1,4 +1,4 @@
-import { BenchmarkPageType } from "components/benchmark_v3/configs/benchmark_config_book";
+import { BenchmarkPageType } from "components/benchmark_v3/configs/config_book_types";
 import BenchmarkRegressionPage from "components/benchmark_v3/pages/BenchmarkRegressionPage";
 
 export default function Page() {

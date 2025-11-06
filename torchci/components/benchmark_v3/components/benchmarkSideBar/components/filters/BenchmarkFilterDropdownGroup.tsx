@@ -1,5 +1,5 @@
 import { Stack } from "@mui/system";
-import { BenchmarkUIConfigFilterConstarintConfig } from "components/benchmark_v3/configs/benchmark_config_book";
+import { BenchmarkUIConfigFilterConstarintConfig } from "components/benchmark_v3/configs/config_book_types";
 import {
   UMDenseDropdown,
   UMDenseDropdownOption,

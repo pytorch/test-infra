@@ -1,6 +1,5 @@
 import { Box } from "@mui/system";
 import {
-  BenchmarkPageType,
   BenchmarkUIConfigHandler,
   useBenchmarkBook,
 } from "components/benchmark_v3/configs/benchmark_config_book";
@@ -13,6 +12,7 @@ import { useEffect, useState } from "react";
 import BenchmarkSideBar from "../components/benchmarkSideBar/BenchmarkSideBar";
 import { BenchmarkTopBar } from "../components/benchmarkSideBar/BenchmarkTopBar";
 import { BenchmarkIdNotRegisterError } from "../components/common/BenchmarkIdNotRegisterError";
+import { BenchmarkPageType } from "../configs/config_book_types";
 import { getBenchmarkIdMappingItem } from "../configs/configurations";
 dayjs.extend(utc);
 

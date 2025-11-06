@@ -1,10 +1,10 @@
-import { BenchmarkPageType } from "components/benchmark_v3/configs/benchmark_config_book";
 import dayjs, { Dayjs } from "dayjs";
 import {
   BenchmarkCommitMeta,
   TimeRange,
 } from "lib/benchmark/store/benchmark_regression_store";
 import DefaultMetricsDropdowns from "../../components/benchmarkSideBar/components/filters/DefaultSideBarMetricsDropdowns";
+import { BenchmarkPageType } from "../config_book_types";
 import {
   NotFoundComponent,
   resolveComponent,

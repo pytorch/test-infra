@@ -1,6 +1,5 @@
 import { Alert, Typography } from "@mui/material";
 import { Grid, Stack } from "@mui/system";
-import { UIRenderConfig } from "components/benchmark_v3/configs/benchmark_config_book";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -11,6 +10,7 @@ import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_pr
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
 import { LOG_PREFIX } from "components/benchmark/common";
+import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
