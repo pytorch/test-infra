@@ -12,12 +12,14 @@ from typing import Optional
 import requests
 import yaml
 
+
 @lru_cache
 def _get_scale_config() -> dict:
     """Load scale-config.yml and return as a dictionary."""
     with open(".github/scale-config.yml", "r") as f:
         config = yaml.safe_load(f)
     return config
+
 
 def get_ec2_instance_for_label(label: str) -> dict[str, Optional[str]]:
     """Get EC2 instance type for a given GitHub Actions runner label from scale-config.yml."""
@@ -26,9 +28,12 @@ def get_ec2_instance_for_label(label: str) -> dict[str, Optional[str]]:
     runner_info = config.get("runner_types", {})
 
     if label in runner_info:
-        return { "ec2_instance": runner_info[label].get("instance_type", None) ,
-                 "os": runner_info[label].get("os", "linux") }  # Default to linux if not specified
-    return { "ec2_instance": None , "os": None }
+        return {
+            "ec2_instance": runner_info[label].get("instance_type", None),
+            "os": runner_info[label].get("os", "linux"),
+        }  # Default to linux if not specified
+    return {"ec2_instance": None, "os": None}
+
 
 @lru_cache
 def get_all_pricing_data() -> dict:
@@ -37,6 +42,7 @@ def get_all_pricing_data() -> dict:
     response = requests.get(price_list_url)
     response.raise_for_status()
     return response.json()
+
 
 @lru_cache
 def get_price_for_ec2_instance(instance_type, os_type="linux") -> Optional[float]:
@@ -74,6 +80,7 @@ def get_price_for_ec2_instance(instance_type, os_type="linux") -> Optional[float
 
     print(f"No pricing found for {instance_type} ({operating_system})")
     return None
+
 
 @lru_cache
 def get_price_for_label(label: str) -> Optional[float]:
