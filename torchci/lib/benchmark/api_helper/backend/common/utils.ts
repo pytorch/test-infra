@@ -265,6 +265,7 @@ export function to_time_series_data(
           diffs.push({
             key: `${key}___${sub_key}`,
             data: item.data,
+            length: item.data.length
           });
         }
         return item.data[0];
@@ -288,9 +289,9 @@ export function to_time_series_data(
         diffs.length
       }, peak first on \n ${JSON.stringify(
         diffs[0].key
-      )}, \n Data1: ${JSON.stringify(
+      )},\n duplicates ${diffs[0].length} \n Data1: ${JSON.stringify(
         diffs[0].data[0]
-      )}, Data:2 ${JSON.stringify(diffs[0].data[1])}`
+      )},\n Data:2 ${JSON.stringify(diffs[0].data[1])}`
     );
   }
   return result;

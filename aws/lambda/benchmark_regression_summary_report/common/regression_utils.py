@@ -8,7 +8,8 @@ from common.benchmark_time_series_api_model import (
 )
 from common.config_model import BenchmarkConfig, RegressionPolicy
 from dateutil.parser import isoparse
-
+import math
+import statistics
 
 logger = logging.getLogger()
 
@@ -78,9 +79,11 @@ def get_regression_status(regression_summary: BenchmarkRegressionSummary) -> str
     status = (
         "regression"
         if regression_summary.get("regression_count", 0) > 0
-        else "suspicious"
-        if regression_summary.get("suspicious_count", 0) > 0
-        else "no_regression"
+        else (
+            "suspicious"
+            if regression_summary.get("suspicious_count", 0) > 0
+            else "no_regression"
+        )
     )
     return status
 
@@ -274,10 +277,9 @@ class BenchmarkRegressionReportGenerator:
         calculate the baseline value based on the mode
         mode: mean, p90, max, min, target, p50, p95
         """
-        items = [d for d in data["values"] if field in d]
+        items = [d for d in data["values"] if field in d and d[field] is not None and not math.isnan(float(d[field]))]
         if not items:
             return None
-
         if mode == "max":
             baseline_obj = max(items, key=lambda d: float(d[field]))
         elif mode == "min":
@@ -286,10 +288,12 @@ class BenchmarkRegressionReportGenerator:
             baseline_obj = items[-1]
         elif mode == "earliest":
             baseline_obj = items[0]
+        elif mode == "median":
+            median_val = statistics.median([float(d[field]) for d in items])
+            baseline_obj = min(items, key=lambda d: abs(float(d[field]) - median_val))
         else:
             logger.warning("Unknown mode: %s", mode)
             return None
-
         result: BaselineResult = {
             "group_info": data["group_info"],
             "value": float(baseline_obj[field]),
