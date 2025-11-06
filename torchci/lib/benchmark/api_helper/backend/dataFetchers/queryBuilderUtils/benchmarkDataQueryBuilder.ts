@@ -101,7 +101,12 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         select_exists: true,
         where_exists: true,
         // default select statement for customized query
-        select: [["map()", this._EXTRA_KEY_FIELD_NAME], metadata_info_select],
+        select: [
+          ["floor(arrayAvg(o.metric.'benchmark_values'), 2)", "value"],
+          ["floor(arrayAvg(o.metric.'benchmark_values'), 2)", "avg_value"],
+          ["map()", this._EXTRA_KEY_FIELD_NAME],
+          metadata_info_select,
+        ],
         prewhere: [
           "o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })",
           "o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })",
@@ -118,7 +123,6 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         o.model.'backend' AS backend,
         o.model.'origins' AS origins,
         o.metric.'name' AS metric,
-        floor(arrayAvg(o.metric.'benchmark_values'), 2) AS value,
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
@@ -182,6 +186,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       `
            SELECT DISTINCT
             workflow_id,
+            avg_value,
             repo,
             branch,
             commit,
@@ -227,6 +232,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             metric
     `
     );
+  }
+
+  replaceValueSelectStatement(queryStatement: string) {
+    this._inner_query_builder.replaceDefaultSelect([queryStatement, "value"]);
   }
 
   /**
@@ -302,6 +311,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   build() {
     const inner = this._inner_query_builder.build();
     const primary = this._main_query_builder.build();
+    console.log("inner", inner);
     return `
     WITH benchmarks AS (
         ${inner}
@@ -350,6 +360,23 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
 /**
  * helper function to convert a map of statements to a query map result
  * e.g. map('key1', value1, 'key2', value2, ...)
+ *
+ *
+ * Example:
+ *
+ * * metadata_map = new Map([
+ *  ["timestamp","formatDateTime(fromUnixTimestamp(timestamp), '%Y-%m-%dT%H:%i:%sZ')"],
+ *  ["key2","value2"],
+ * ])
+ * toQueryMapResult('metadata_info', metadata_map)
+ *
+ * When add to select statement, it will be:
+ * map(
+ *   'timestamp',
+ *   formatDateTime(fromUnixTimestamp(o.timestamp), '%Y-%m-%dT%H:%i:%sZ')
+ *   'key2',
+ *    value2
+ * ) as metadata_info
  * @param statements
  * @param additionalStatements
  * @returns
@@ -419,6 +446,45 @@ export class PytorchOperatorMicroBenchmarkDataFetcher
       )
     `,
     ]);
+  }
+
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const params = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}
+
+/**
+ * Builder to get PytorchOperatorMicroBenchmark
+ * It inherits method from BenchmarkDataQuery
+ *
+ */
+export class PytorchHelionDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+    this._data_query.replaceValueSelectStatement(
+      "floor(exp(arrayAvg(arrayMap(x -> log(x), o.metric.'benchmark_values'))), 2)"
+    );
   }
 
   applyFormat(

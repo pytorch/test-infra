@@ -8,12 +8,12 @@ import {
   useBenchmarkBook,
 } from "lib/benchmark/store/benchmark_config_book";
 import { BenchmarkDashboardStoreProvider } from "lib/benchmark/store/benchmark_dashboard_provider";
-import { getBenchmarkIdMappingItem } from "lib/benchmark/store/benchmark_regression_store";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import BenchmarkSideBar from "../components/benchmarkSideBar/BenchmarkSideBar";
 import { BenchmarkTopBar } from "../components/benchmarkSideBar/BenchmarkTopBar";
 import { BenchmarkIdNotRegisterError } from "../components/common/BenchmarkIdNotRegisterError";
+import { getBenchmarkIdMappingItem } from "../configs/configurations";
 dayjs.extend(utc);
 
 export default function BenchmarkDashboardPage({

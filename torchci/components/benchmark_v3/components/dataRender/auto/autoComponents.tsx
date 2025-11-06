@@ -12,6 +12,7 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 
 import { LOG_PREFIX } from "components/benchmark/common";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
+import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
@@ -268,6 +269,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+        <RenderRawContent data={data["table"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}

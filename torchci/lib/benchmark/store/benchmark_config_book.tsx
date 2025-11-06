@@ -12,9 +12,15 @@ import {
 } from "components/benchmark_v3/configs/teams/compilers/config";
 import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
 import {
+  PYTORCH_HELION_BENCHMARK_ID,
+  PytorchHelionDashboardConfig,
+} from "components/benchmark_v3/configs/teams/helion/config";
+import {
   PYTORCH_OPERATOR_MICROBENCHMARK_ID,
   PytorchOperatorMicroBenchmarkDashoboardConfig,
 } from "components/benchmark_v3/configs/teams/torchao/config";
+import { BenchmarkConfigMap } from "components/benchmark_v3/configs/types";
+
 import {
   DataBinding,
   DataBindingConfig,
@@ -139,10 +145,6 @@ export class BenchmarkUIConfigHandler {
   };
 }
 
-export type BenchmarkConfigMap = Record<
-  string,
-  Partial<Record<BenchmarkPageType, BenchmarkUIConfig>>
->;
 interface State {
   predefined: BenchmarkConfigMap;
   temps: BenchmarkConfigMap;
@@ -163,7 +165,7 @@ interface State {
   listIds: () => string[];
 }
 
-const predefined: BenchmarkConfigMap = {
+const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [COMPILTER_BENCHMARK_NAME]: {
     [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
   },
@@ -174,10 +176,13 @@ const predefined: BenchmarkConfigMap = {
     [BenchmarkPageType.DashboardPage]:
       PytorchOperatorMicroBenchmarkDashoboardConfig,
   },
+  [PYTORCH_HELION_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
+  },
 };
 
 export const useBenchmarkBook = create<State>()((set, get) => ({
-  predefined,
+  predefined: PREDEFINED_BENCHMARK_CONFIG,
   temps: {},
 
   initTempConfig: (
