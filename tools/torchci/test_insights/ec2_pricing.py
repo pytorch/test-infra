@@ -2,41 +2,33 @@
 """
 EC2 Pricing Map Generator
 
-Generates a pricing map for EC2 instances by reading .github/scale-config.yml
-and fetching current AWS pricing data.
+Get pricing info for EC2 instances by reading .github/scale-config.yml and
+fetching current AWS pricing data.
 """
 
-import argparse
-import json
 from functools import lru_cache
 from typing import Optional
 
 import requests
 import yaml
 
-
-def gen_pricing_map(output_file: str) -> None:
-    """Generate pricing map from scale-config.yml and write to output file."""
+@lru_cache
+def _get_scale_config() -> dict:
+    """Load scale-config.yml and return as a dictionary."""
     with open(".github/scale-config.yml", "r") as f:
         config = yaml.safe_load(f)
+    return config
 
-    runner_types = config.get("runner_types", {})
-    pricing_data = []
+def get_ec2_instance_for_label(label: str) -> dict[str, Optional[str]]:
+    """Get EC2 instance type for a given GitHub Actions runner label from scale-config.yml."""
+    config = _get_scale_config()
 
-    for runner_type, runner_config in runner_types.items():
-        instance_type = runner_config.get("instance_type", "")
-        os_type = runner_config.get("os", "linux")  # Default to linux if not specified
-        price = get_price(instance_type, os_type) or 0.0
-        pricing_data.append([runner_type, instance_type, price])
+    runner_info = config.get("runner_types", {})
 
-    # Write to file
-    with open(output_file, "w") as f:
-        for row in pricing_data:
-            f.write(json.dumps(row))
-            f.write("\n")
-
-    print(f"Output written to {output_file}")
-
+    if label in runner_info:
+        return { "ec2_instance": runner_info[label].get("instance_type", None) ,
+                 "os": runner_info[label].get("os", "linux") }  # Default to linux if not specified
+    return { "ec2_instance": None , "os": None }
 
 @lru_cache
 def get_all_pricing_data() -> dict:
@@ -46,8 +38,8 @@ def get_all_pricing_data() -> dict:
     response.raise_for_status()
     return response.json()
 
-
-def get_price(instance_type, os_type="linux") -> Optional[float]:
+@lru_cache
+def get_price_for_ec2_instance(instance_type, os_type="linux") -> Optional[float]:
     """Fetch on-demand price for EC2 instance type using AWS public pricing data. Returns None if not found."""
 
     # Map os_type to AWS pricing API values
@@ -83,23 +75,12 @@ def get_price(instance_type, os_type="linux") -> Optional[float]:
     print(f"No pricing found for {instance_type} ({operating_system})")
     return None
 
-
-def main():
-    """Parse command-line arguments and generate EC2 pricing map."""
-    parser = argparse.ArgumentParser(
-        description="Generate EC2 pricing map from scale-config.yml"
-    )
-    parser.add_argument(
-        "--output",
-        "-o",
-        type=str,
-        default="ec2_pricing.json",
-        help="Output file path (default: ec2_pricing.json)",
-    )
-    args = parser.parse_args()
-
-    gen_pricing_map(args.output)
-
-
-if __name__ == "__main__":
-    main()
+@lru_cache
+def get_price_for_label(label: str) -> Optional[float]:
+    """Get the on-demand price for the EC2 instance type associated with the given GitHub Actions runner label."""
+    instance_info = get_ec2_instance_for_label(label)
+    instance_type = instance_info["ec2_instance"]
+    os_type = instance_info["os"]
+    if instance_type is not None:
+        return get_price_for_ec2_instance(instance_type, os_type)
+    return None
