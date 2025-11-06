@@ -1,8 +1,8 @@
 // benchmark_regression_store.ts
+import { BenchmarkPageType } from "components/benchmark_v3/configs/config_book_types";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
-import { BenchmarkPageType } from "../../../components/benchmark_v3/configs/benchmark_config_book";
 import { BENCHMARK_ID_MAPPING } from "../../../components/benchmark_v3/configs/configurations";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };

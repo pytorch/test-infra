@@ -1,8 +1,8 @@
+import { BenchmarkPageType } from "components/benchmark_v3/configs/config_book_types";
 import { createContext, useContext, useRef } from "react";
 import { StoreApi } from "zustand";
 import { shallow } from "zustand/shallow";
 import type { UseBoundStoreWithEqualityFn } from "zustand/traditional";
-import { BenchmarkPageType } from "../../../components/benchmark_v3/configs/benchmark_config_book";
 import type {
   BenchmarkCommitMeta,
   BenchmarkDashboardState,

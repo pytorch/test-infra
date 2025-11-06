@@ -9,13 +9,13 @@ import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { REQUIRED_COMPLIER_LIST_COMMITS_KEYS } from "lib/benchmark/api_helper/backend/compilers/helpers/type";
 import { DISPLAY_NAMES_TO_COMPILER_NAMES } from "../../../../benchmark/compilers/common";
+import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   QueryParameterConverter,
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
-import { BenchmarkUIConfig } from "../../config_book_types";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
