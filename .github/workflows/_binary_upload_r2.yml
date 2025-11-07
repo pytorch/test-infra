@@ -66,16 +66,31 @@ jobs:
     timeout-minutes: 30
     name: upload-r2-${{ matrix.build_name }}
     steps:
+      - name: Check if R2 secrets are configured
+        id: check-secrets
+        shell: bash
+        run: |
+          if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ]; then
+            echo "R2 secrets are not configured, skipping upload"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "R2 secrets are configured, proceeding with upload"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+          
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        if: steps.check-secrets.outputs.skip != 'true'
         with:
           repository: ${{ inputs.test-infra-repository }}
           ref: ${{ inputs.test-infra-ref }}
           path: test-infra
 
       - uses: ./test-infra/.github/actions/set-channel
-
+        if: steps.check-secrets.outputs.skip != 'true'
+        
       # For pytorch_pkg_helpers which we need to run to generate the artifact name and target R2 buckets
       - uses: ./test-infra/.github/actions/setup-binary-upload
+        if: steps.check-secrets.outputs.skip != 'true'
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.ref }}
@@ -85,13 +100,14 @@ jobs:
           upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
 
       - name: Download the artifact
+        if: steps.check-secrets.outputs.skip != 'true'
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: ${{ inputs.repository }}/dist/
 
       - name: Configure R2 credentials
-        if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ steps.check-secrets.outputs.skip != 'true' && (inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/'))) }}
         shell: bash
         env:
           R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
@@ -115,13 +131,14 @@ jobs:
           echo "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}" >> "${GITHUB_ENV}"
 
       - name: Nightly or release RC
-        if: ${{ inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/')) }}
+        if: ${{ steps.check-secrets.outputs.skip != 'true' && (inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/'))) }}
         shell: bash
         run: |
           set -ex
           echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
 
       - name: Upload package to R2
+        if: steps.check-secrets.outputs.skip != 'true'
         shell: bash
         working-directory: ${{ inputs.repository }}
         env:
@@ -139,11 +156,6 @@ jobs:
             AWS_CMD="aws s3 cp"
           fi
 
-          UPLOAD_ENDPOINT=""
-          if [[ -n "$R2_ACCOUNT_ID" ]]; then
-            UPLOAD_ENDPOINT="--endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          fi
-
           # Set path to specific wheel-upload-path, defaulting to pytorch bucket
           BUCKET_NAME="pytorch-downloads"
           BUCKET_PATH=""
@@ -155,5 +167,5 @@ jobs:
           for pkg in dist/*; do
             shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
             ${AWS_CMD} "$pkg" "s3://${BUCKET_NAME}/${BUCKET_PATH}" \
-              --metadata "checksum-sha256=${shm_id}" ${UPLOAD_ENDPOINT}
+              --metadata "checksum-sha256=${shm_id}" --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
           done
