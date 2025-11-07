@@ -480,7 +480,8 @@ export default function LLMsSummaryPanel({
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
     <>
-      <RenderRawContent data={data} />
+      <RenderRawContent data={lData} buttonName="lData" />
+      <RenderRawContent data={rData} buttonName="rData" />
       <Grid container spacing={10}>
         <Grid size={{ xs: 12, lg: 11.8 }}>
           <TablePanelWithData

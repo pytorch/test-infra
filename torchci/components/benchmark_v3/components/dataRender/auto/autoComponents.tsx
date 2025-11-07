@@ -236,7 +236,10 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     data: resp,
     isLoading,
     error,
-  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, [
+    "table",
+    "raw",
+  ]);
 
   if (!ready) {
     return (
@@ -269,7 +272,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
-        <RenderRawContent data={data["table"]} />
+        <RenderRawContent data={data["raw"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}
