@@ -157,16 +157,16 @@ jobs:
             AWS_CMD="aws s3 cp"
           fi
 
-          # Set path to specific wheel-upload-path, defaulting to pytorch bucket
-          BUCKET_NAME="pytorch-downloads"
-          BUCKET_PATH=""
+          # set path to specific wheel-upload-path
           if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
-            BUCKET_PATH="${WHEEL_UPLOAD_PATH}"
+            PYTORCH_S3_BUCKET_PATH="s3://pytorch-downloads/${WHEEL_UPLOAD_PATH}"
+          else
+            PYTORCH_S3_BUCKET_PATH=${PYTORCH_S3_BUCKET_PATH/"s3://pytorch"/"s3://pytorch-downloads"}
           fi
 
           # shellcheck disable=SC2086
           for pkg in dist/*; do
             shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
-            ${AWS_CMD} "$pkg" "s3://${BUCKET_NAME}/${BUCKET_PATH}" \
+            ${AWS_CMD} "$pkg" "${PYTORCH_S3_BUCKET_PATH}" \
               --metadata "checksum-sha256=${shm_id}" --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
           done
