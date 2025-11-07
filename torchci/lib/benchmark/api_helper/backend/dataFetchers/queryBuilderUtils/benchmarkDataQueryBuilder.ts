@@ -492,6 +492,10 @@ export class PytorchHelionDataFetcher
       "floor(arrayAvg(o.metric.'benchmark_values'), 2)",
       "avg_value"
     );
+    this._data_query.addSelectStatement(
+      "o.metric['benchmark_values']",
+      "raw_value_list"
+    )
   }
 
   applyFormat(
