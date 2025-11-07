@@ -16,6 +16,7 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
+import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -197,8 +198,11 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
 
 export const COMPILTER_BENCHMARK_NAME = "compiler_inductor";
 
-const COMPILER_BENCHMARK_DATABINDING = {
-  initial: COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
+const COMPILER_DASHBOARD_BENCHMARK_DATABINDING = {
+  initial: {
+    ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+    ...COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL,
+  },
   required_filter_fields: REQUIRED_COMPLIER_LIST_COMMITS_KEYS,
   filter_options: {
     customizedDropdown: {
@@ -214,7 +218,7 @@ const COMPILER_BENCHMARK_DATABINDING = {
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
-    field:"branch",
+    field: "branch",
     displayName: "branch",
   },
   {
@@ -232,7 +236,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
   apiId: COMPILTER_BENCHMARK_NAME,
   title: "Compiler Inductor Dashboard",
   type: "dashboard",
-  dataBinding: COMPILER_BENCHMARK_DATABINDING,
+  dataBinding: COMPILER_DASHBOARD_BENCHMARK_DATABINDING,
   dataRender: {
     type: "auto",
     subSectionRenders: {
@@ -244,7 +248,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["model", "compiler", "suite","branch"],
+              lineKey: ["model", "compiler", "suite", "branch"],
               chart: {
                 renderOptions: {
                   chartRenderBook: DashboardRenderBook,
@@ -378,7 +382,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
           chartGroup: {
             type: "line",
             groupByFields: ["metric"],
-            lineKey: ["compiler","branch"],
+            lineKey: ["compiler", "branch"],
             chart: {
               enableDialog: true,
               customizedConfirmDialog: {

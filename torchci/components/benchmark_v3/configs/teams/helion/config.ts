@@ -18,9 +18,9 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
     displayName: "Hardware model",
   },
   {
-    field:"branch",
+    field: "branch",
     displayName: "branch",
-  }
+  },
 ] as const;
 
 const RENDER_MAPPING_BOOK = {
@@ -83,7 +83,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["metric","branch"],
+              lineKey: ["metric", "branch"],
               chart: {
                 renderOptions: {
                   chartRenderBook: RENDER_MAPPING_BOOK,

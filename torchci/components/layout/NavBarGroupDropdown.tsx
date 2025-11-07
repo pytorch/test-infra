@@ -60,7 +60,7 @@ export function NavBarGroupDropdown({
   );
 
   return (
-    <div
+    <Box
       onMouseEnter={(e) => setAnchorEl(e.currentTarget)}
       onMouseLeave={() => setAnchorEl(null)}
     >
@@ -162,6 +162,6 @@ export function NavBarGroupDropdown({
           </MenuList>
         </Paper>
       </Popper>
-    </div>
+    </Box>
   );
 }

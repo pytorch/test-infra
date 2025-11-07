@@ -1,7 +1,9 @@
 // components/Sidebar.tsx
+import { FormControlLabel, Switch } from "@mui/material";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { Box } from "@mui/system";
 import { useBenchmarkBook } from "components/benchmark_v3/configs/benchmark_config_book";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
@@ -17,7 +19,6 @@ import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./commits/BranchDropdown";
 import { SamplingSetting } from "./filters/sampling/SamplingSetting";
 import { useUrlStoreSync } from "./useUrlSync";
-import { FormControlLabel, Switch } from "@mui/material";
 
 const styles = {
   root: {
@@ -276,23 +277,32 @@ export function SideBarMainSection() {
       <Stack spacing={1.5}>
         <DropdownComp />
       </Stack>
-        {!isCommitsLoading && !commitsError && (
+      {!isCommitsLoading && !commitsError && (
         <>
           {enableMultiBranchOption && (
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={branchOptionType =='multiple'? true: false}
-                  onChange={(e) => setBranchOptionType(e.target.checked?'multiple':'single')}
-                />
-              }
-              label={
-                <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                  Enable Multi Branch
-                </Typography>
-              }
-            />
+            <Box>
+              <Typography variant="subtitle2">
+                TYPE:{branchOptionType}{" "}
+              </Typography>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={branchOptionType == "comparison" ? true : false}
+                    onChange={(e) =>
+                      setBranchOptionType(
+                        e.target.checked ? "comparison" : "single"
+                      )
+                    }
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    Enable Multi Branch
+                  </Typography>
+                }
+              />
+            </Box>
           )}
           <BranchDropdowns
             type={branchOptionType ?? "single"}

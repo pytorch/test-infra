@@ -49,6 +49,7 @@ export function BranchDropdowns({
 
   return (
     <SectionShell>
+      <Box>{type}</Box>
       {empty ? (
         <DenseAlert severity="warning">
           No branch is found, please select other features.

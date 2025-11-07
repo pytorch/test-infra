@@ -163,7 +163,7 @@ export function CommitWorflowSelectSection() {
         setCommit={setLcommit}
       />
       <Box
-       sx={{
+        sx={{
           whiteSpace: "nowrap",
         }}
       >
