@@ -480,24 +480,23 @@ export default function LLMsSummaryPanel({
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
     <>
-    <RenderRawContent data={data} />
-    <Grid container spacing={10}>
-      <Grid size={{ xs: 12, lg: 11.8 }}>
-        <TablePanelWithData
-          title={"Models"}
-          data={data}
-          columns={columns}
-          dataGridProps={{ getRowId: (el: any) => el.name }}
-          showFooter={true}
-          disableAutoPageSize={true}
-          customStyle={{
-            maxHeight: 1200,
-          }}
-        />
+      <RenderRawContent data={data} />
+      <Grid container spacing={10}>
+        <Grid size={{ xs: 12, lg: 11.8 }}>
+          <TablePanelWithData
+            title={"Models"}
+            data={data}
+            columns={columns}
+            dataGridProps={{ getRowId: (el: any) => el.name }}
+            showFooter={true}
+            disableAutoPageSize={true}
+            customStyle={{
+              maxHeight: 1200,
+            }}
+          />
+        </Grid>
       </Grid>
-    </Grid>
     </>
-
   );
 }
 

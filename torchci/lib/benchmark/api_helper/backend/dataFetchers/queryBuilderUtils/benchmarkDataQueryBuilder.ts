@@ -493,9 +493,9 @@ export class PytorchHelionDataFetcher
       "avg_value"
     );
     this._data_query.addSelectStatement(
-      "o.metric['benchmark_values']",
+      "tupleElement(o.metric, 'benchmark_values')",
       "raw_value_list"
-    )
+    );
   }
 
   applyFormat(
