@@ -59,7 +59,7 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
         },
     ),
     report_config=ReportConfig(
-        report_level="no_regression",
+        report_level="insufficient_data",
     ),
 )
 
@@ -139,7 +139,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
         },
     ),
     report_config=ReportConfig(
-        report_level="insufficient_data",
+        report_level="no_regression",
     ),
 )
 

@@ -268,7 +268,6 @@ class BenchmarkSummaryProcessor:
             self.log_info(
                 f"call OK in {elapsed_ms} ms (query_len={len(query)})",
             )
-            self.log_info("resp {resp}")
             return resp.data
         except requests.exceptions.HTTPError as e:
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
