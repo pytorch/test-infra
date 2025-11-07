@@ -36,7 +36,7 @@ export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
 
 export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
-    field:"branch",
+    field: "branch",
     displayName: "Branch",
   },
   {
