@@ -7,9 +7,10 @@ Signal extraction layer.
 Transforms raw workflow/job/test data into Signal objects used by signal.py.
 """
 
+from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import DefaultDict, Dict, Iterable, List, Optional, Set, Tuple
 
 from .job_agg_index import JobAggIndex, JobMeta, SignalStatus as AggStatus
 from .signal import Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus
@@ -88,7 +89,7 @@ class SignalExtractor:
         )
 
         test_signals = self._build_test_signals(jobs, test_rows, commits)
-        job_signals = self._build_non_test_signals(jobs, commits)
+        job_signals = self._build_job_signals(jobs, commits)
         # Deduplicate events within commits across all signals as a final step
         # GitHub-specific behavior like "rerun failed" can reuse job instances for reruns.
         # When that happens, the jobs have identical timestamps by DIFFERENT job ids.
@@ -442,7 +443,7 @@ class SignalExtractor:
 
         return signals
 
-    def _build_non_test_signals(
+    def _build_job_signals(
         self, jobs: List[JobRow], commits: List[Tuple[Sha, datetime]]
     ) -> List[Signal]:
         """Build Signals keyed by normalized job base name per workflow.
@@ -453,7 +454,6 @@ class SignalExtractor:
             jobs: List of job rows from the datasource
             commits: Ordered list of (sha, timestamp) tuples (newest → older)
         """
-
         commit_timestamps = dict(commits)
 
         index = JobAggIndex.from_rows(
@@ -479,41 +479,115 @@ class SignalExtractor:
 
         signals: List[Signal] = []
         for wf_name, base_name in wf_base_keys:
-            commit_objs: List[SignalCommit] = []
-            # Track failure types across all attempts/commits for this base
-            has_failures = False  # at least one failure observed
+            signals += self._build_job_signals_for_wf(
+                commit_timestamps, wf_name, base_name, index, groups_index
+            )
 
-            for sha, _ in commits:
-                attempt_keys: List[
-                    Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]
-                ] = groups_index.get((sha, wf_name, base_name), [])
-                events: List[SignalEvent] = []
+        return signals
 
-                for akey in attempt_keys:
-                    meta = index.stats(akey)
-                    if meta.is_cancelled:
-                        # canceled attempts are treated as missing
-                        continue
-                    # Map aggregation verdict to outer SignalStatus
-                    if meta.status is None:
-                        continue
-                    if meta.status == AggStatus.FAILURE:
-                        ev_status = SignalStatus.FAILURE
-                        has_failures = True
-                    elif meta.status == AggStatus.PENDING:
-                        ev_status = SignalStatus.PENDING
-                    else:
-                        ev_status = SignalStatus.SUCCESS
+    def _build_job_signals_for_wf(
+        self,
+        commit_timestamps: Dict[Sha, datetime],
+        wf_name: WorkflowName,
+        base_name: JobBaseName,
+        index: JobAggIndex[Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]],
+        groups_index: DefaultDict[
+            Tuple[Sha, WorkflowName, JobBaseName], List[Tuple[WfRunId, RunAttempt]]
+        ],
+    ) -> List[Signal]:
+        # It is simpler to extract rules per signal and then build the signals,
+        # as it will change lots of names classes, etc
+        # so doing in a single iteration would be a messy code
+        found_rules: Set[str] = set()
+        for sha, _ in commit_timestamps.items():
+            attempt_keys: List[
+                Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]
+            ] = groups_index.get((sha, wf_name, base_name), [])
 
-                    # Extract wf_run_id/run_attempt from the attempt key
-                    _, _, _, wf_run_id, run_attempt = akey
+            for akey in attempt_keys:
+                meta = index.stats(akey)
+                if meta.is_cancelled:
+                    # canceled attempts are treated as missing
+                    continue
+                if meta.status == AggStatus.FAILURE:
+                    found_rules.update(r or "UNDEFINED" for r in meta.rules)
 
-                    events.append(
+        # we only build job signals when there are failures
+        if not found_rules:
+            return []
+
+        signals: Dict[str, Signal] = {}
+        for found_rule in found_rules:
+            rule_base_name = f"{base_name}::{found_rule}"
+            signals[found_rule] = Signal(
+                key=rule_base_name,
+                workflow_name=wf_name,
+                commits=[],
+                job_base_name=rule_base_name,
+                source=SignalSource.JOB,
+            )
+
+        for sha, _ in commit_timestamps.items():
+            rule_events = self._build_job_rule_events_for_sha(
+                sha, wf_name, base_name, index, groups_index, found_rules
+            )
+
+            for found_rule in found_rules:
+                signals[found_rule].commits.append(
+                    SignalCommit(
+                        head_sha=sha,
+                        timestamp=commit_timestamps[sha],
+                        events=rule_events.get(found_rule, []),
+                    )
+                )
+
+        return list(signals.values())
+
+    def _build_job_rule_events_for_sha(
+        self,
+        sha: Sha,
+        wf_name: WorkflowName,
+        base_name: JobBaseName,
+        index: JobAggIndex[Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]],
+        groups_index: DefaultDict[
+            Tuple[Sha, WorkflowName, JobBaseName], List[Tuple[WfRunId, RunAttempt]]
+        ],
+        found_rules: Set[str],
+    ) -> DefaultDict[str, List[SignalEvent]]:
+        attempt_keys: List[
+            Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt]
+        ] = groups_index.get((sha, wf_name, base_name), [])
+
+        rule_events: DefaultDict[str, List[SignalEvent]] = defaultdict(list)
+
+        for akey in attempt_keys:
+            meta = index.stats(akey)
+            if meta.is_cancelled:
+                # canceled attempts are treated as missing
+                continue
+            # Map aggregation verdict to outer SignalStatus
+            if meta.status is None:
+                continue
+            if meta.status == AggStatus.FAILURE:
+                ev_status = SignalStatus.FAILURE
+            elif meta.status == AggStatus.PENDING:
+                ev_status = SignalStatus.PENDING
+            else:
+                ev_status = SignalStatus.SUCCESS
+
+            # Extract wf_run_id/run_attempt from the attempt key
+            _, _, _, wf_run_id, run_attempt = akey
+
+            if ev_status != SignalStatus.FAILURE:
+                # if the signal is not a failure it is relevant
+                # for all failures signals columns
+                for rule in found_rules:
+                    rule_events[rule].append(
                         SignalEvent(
                             name=self._fmt_event_name(
                                 workflow=wf_name,
                                 kind="job",
-                                identifier=base_name,
+                                identifier=f"{base_name}::{rule}",
                                 wf_run_id=wf_run_id,
                                 run_attempt=run_attempt,
                             ),
@@ -525,24 +599,29 @@ class SignalExtractor:
                             job_id=meta.job_id,
                         )
                     )
-
-                # important to always include the commit, even if no events
-                commit_objs.append(
-                    SignalCommit(
-                        head_sha=sha, timestamp=commit_timestamps[sha], events=events
+            else:
+                # signals that contain failures rules then are
+                # relevant to only those affected rules.
+                # EX:
+                # A signal initially failing with some timeout than fails
+                # with some infra error, means that the timeout signal
+                # status is not able to be obtained at this stage.
+                for rule_unfiltered in meta.rules:
+                    rule = rule_unfiltered or "UNDEFINED"
+                    rule_events[rule].append(
+                        SignalEvent(
+                            name=self._fmt_event_name(
+                                workflow=wf_name,
+                                kind="job",
+                                identifier=f"{base_name}::{rule}",
+                                wf_run_id=wf_run_id,
+                                run_attempt=run_attempt,
+                            ),
+                            status=ev_status,
+                            started_at=meta.started_at,
+                            ended_at=None,
+                            wf_run_id=int(wf_run_id),
+                            run_attempt=int(run_attempt),
+                            job_id=meta.job_id,
+                        )
                     )
-                )
-
-            # Emit job signal when failures were present
-            if has_failures:
-                signals.append(
-                    Signal(
-                        key=base_name,
-                        workflow_name=wf_name,
-                        commits=commit_objs,
-                        job_base_name=str(base_name),
-                        source=SignalSource.JOB,
-                    )
-                )
-
-        return signals
