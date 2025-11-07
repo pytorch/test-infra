@@ -37,7 +37,7 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
     hud_info={
         "url": "https://hud.pytorch.org/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
     },
-    # set baseline from past 7 days using avg, and compare with the last 1 day
+    # set baseline from past 4-8 days, and compare with the lastest 4 day
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
         range=RangeConfig(
