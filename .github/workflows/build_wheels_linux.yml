@@ -126,16 +126,6 @@ on:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
         required: false
-      R2_ACCOUNT_ID:
-        description: Cloudflare R2 account ID
-        required: false
-      R2_ACCESS_KEY_ID:
-        description: Cloudflare R2 access key ID
-        required: false
-      R2_SECRET_ACCESS_KEY:
-        description: Cloudflare R2 secret access key
-        required: false
-
 
 permissions:
   id-token: write
@@ -157,7 +147,7 @@ jobs:
       BUILD_TARGET: ${{ inputs.build-target }}
     name: build-${{ matrix.build_name }}
     runs-on: ${{ (inputs.runner != '' && inputs.runner) || matrix.validation_runner }}
-    environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
+    environment: 'pytorchbot-env'
     container:
       image: ${{ matrix.container_image }}
       options: ${{ matrix.gpu_arch_type == 'cuda' && '--gpus all -e NVIDIA_DRIVER_CAPABILITIES=compute,utility,video' || ' ' }}
