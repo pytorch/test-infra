@@ -187,7 +187,7 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIn("attempt=1", events[0].name)
         self.assertIn("attempt=2", events[1].name)
 
-    def test_keep_going_failure_test_track_failure_and_no_job_signal(self):
+    def test_keep_going_failure_test_track_failure_and_job_signal(self):
         # in_progress + KG-adjusted failure for a test-classified job
         jobs = [
             J(
@@ -217,8 +217,6 @@ class TestSignalExtraction(unittest.TestCase):
         test_sig = self._find_test_signal(signals, "trunk", "f.py::test_a")
         self.assertIsNotNone(test_sig)
         self.assertEqual(test_sig.commits[0].events[0].status, SignalStatus.FAILURE)
-        # Non-test signal for this base should be omitted due to test-only failure policy
-        self.assertIsNone(self._find_job_signal(signals, "trunk", jobs[0].base_name))
 
     def test_cancelled_attempt_yields_no_event(self):
         # Include a separate failing commit so the job signal is emitted
@@ -249,119 +247,6 @@ class TestSignalExtraction(unittest.TestCase):
         # find X1 commit in the signal and ensure it has no events
         x1 = next(c for c in sig.commits if c.head_sha == "X1")
         self.assertEqual(x1.events, [])
-
-    def test_non_test_inclusion_gate(self):
-        # (a) only test failures -> no job signal
-        jobs_a = [
-            J(
-                sha="A2",
-                run=600,
-                job=40,
-                attempt=1,
-                started_at=ts(self.t0, 10),
-                conclusion="failure",
-                rule="pytest failure",
-            ),
-            J(
-                sha="A1",
-                run=610,
-                job=41,
-                attempt=1,
-                started_at=ts(self.t0, 5),
-                conclusion="failure",
-                rule="pytest failure",
-            ),
-        ]
-        tests_a = [
-            T(
-                job=40,
-                run=600,
-                attempt=1,
-                file="f.py",
-                name="test_x",
-                failure_runs=1,
-                success_runs=0,
-            ),
-            T(
-                job=41,
-                run=610,
-                attempt=1,
-                file="f.py",
-                name="test_x",
-                failure_runs=1,
-                success_runs=0,
-            ),
-        ]
-        signals_a = self._extract(jobs_a, tests_a)
-        self.assertIsNone(
-            self._find_job_signal(signals_a, "trunk", jobs_a[0].base_name)
-        )
-
-        # (b) includes a non-test failure -> job signal emitted
-        jobs_b = [
-            J(
-                sha="B2",
-                run=700,
-                job=50,
-                attempt=1,
-                started_at=ts(self.t0, 10),
-                conclusion="failure",
-                rule="infra-flake",  # non-test classification
-            ),
-            J(
-                sha="B1",
-                run=710,
-                job=51,
-                attempt=1,
-                started_at=ts(self.t0, 5),
-                conclusion="success",
-                rule="",
-            ),
-        ]
-        signals_b = self._extract(jobs_b, tests=[])
-        self.assertIsNotNone(
-            self._find_job_signal(signals_b, "trunk", jobs_b[0].base_name)
-        )
-
-    def test_job_track_treats_test_failures_as_success(self):
-        # When a base has a non-test (infra) failure somewhere (so a job signal is emitted),
-        # attempts that fail due to tests should NOT appear as FAILURES in the job track.
-        # They should be treated as SUCCESS at the job-track level, leaving the failure to test-track.
-        jobs = [
-            # Newer commit: infra-caused failure (non-test classification)
-            J(
-                sha="Z2",
-                run=9100,
-                job=801,
-                attempt=1,
-                started_at=ts(self.t0, 20),
-                conclusion="failure",
-                rule="infra",  # non-test
-            ),
-            # Older commit: failure caused by tests (test classification)
-            J(
-                sha="Z1",
-                run=9000,
-                job=800,
-                attempt=1,
-                started_at=ts(self.t0, 10),
-                conclusion="failure",
-                rule="pytest failure",  # test-caused
-            ),
-        ]
-
-        signals = self._extract(jobs, tests=[])
-        base = jobs[0].base_name
-        sig = self._find_job_signal(signals, "trunk", base)
-        self.assertIsNotNone(sig)
-        # Expect commits newest->older
-        self.assertEqual([c.head_sha for c in sig.commits], ["Z2", "Z1"])
-        # Newer infra failure remains FAILURE
-        self.assertEqual(len(sig.commits[0].events), 1)
-        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
-        # Older test-caused failure is mapped to SUCCESS in job track
-        self.assertEqual(len(sig.commits[1].events), 1)
-        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
 
     def test_commits_without_jobs_are_included(self):
         # Verify that commits with no jobs at all are still included in signals

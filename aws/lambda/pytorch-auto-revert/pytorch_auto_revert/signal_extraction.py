@@ -481,7 +481,7 @@ class SignalExtractor:
         for wf_name, base_name in wf_base_keys:
             commit_objs: List[SignalCommit] = []
             # Track failure types across all attempts/commits for this base
-            has_relevant_failures = False  # at least one non-test failure observed
+            has_failures = False  # at least one failure observed
 
             for sha, _ in commits:
                 attempt_keys: List[
@@ -497,14 +497,12 @@ class SignalExtractor:
                     # Map aggregation verdict to outer SignalStatus
                     if meta.status is None:
                         continue
-                    if meta.status == AggStatus.FAILURE and meta.has_non_test_failures:
-                        # mark presence of non-test failures (relevant for job track)
-                        has_relevant_failures = True
+                    if meta.status == AggStatus.FAILURE:
                         ev_status = SignalStatus.FAILURE
+                        has_failures = True
                     elif meta.status == AggStatus.PENDING:
                         ev_status = SignalStatus.PENDING
                     else:
-                        # Note: when all failures are caused by tests, we do NOT emit job-level failures
                         ev_status = SignalStatus.SUCCESS
 
                     # Extract wf_run_id/run_attempt from the attempt key
@@ -535,8 +533,8 @@ class SignalExtractor:
                     )
                 )
 
-            # Emit job signal when failures were present and failures were NOT exclusively test-caused
-            if has_relevant_failures:
+            # Emit job signal when failures were present
+            if has_failures:
                 signals.append(
                     Signal(
                         key=base_name,
