@@ -126,15 +126,6 @@ on:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
         required: false
-      R2_ACCOUNT_ID:
-        description: Cloudflare R2 account ID
-        required: false
-      R2_ACCESS_KEY_ID:
-        description: Cloudflare R2 access key ID
-        required: false
-      R2_SECRET_ACCESS_KEY:
-        description: Cloudflare R2 secret access key
-        required: false
 
 
 permissions:
