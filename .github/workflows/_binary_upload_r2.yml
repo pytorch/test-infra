@@ -70,6 +70,7 @@ jobs:
         id: check-secrets
         shell: bash
         run: |
+          # shellcheck disable=SC2086
           if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ]; then
             echo "R2 secrets are not configured, skipping upload"
             echo "skip=true" >> $GITHUB_OUTPUT
