@@ -360,7 +360,7 @@ jobs:
   upload-r2:
     needs: build
     uses: ./.github/workflows/_binary_upload_r2.yml
-    if: ${{ secrets.R2_ACCOUNT_ID != '' }}
+    if: always()
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
