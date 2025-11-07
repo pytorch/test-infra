@@ -236,9 +236,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     data: resp,
     isLoading,
     error,
-  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, [
-    "table",
-  ]);
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
   if (!ready) {
     return (
