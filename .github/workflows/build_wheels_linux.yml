@@ -126,6 +126,16 @@ on:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
         required: false
+      R2_ACCOUNT_ID:
+        description: Cloudflare R2 account ID
+        required: false
+      R2_ACCESS_KEY_ID:
+        description: Cloudflare R2 access key ID
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        description: Cloudflare R2 secret access key
+        required: false
+
 
 permissions:
   id-token: write
@@ -347,6 +357,26 @@ jobs:
       wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
     secrets:
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+
+  upload-r2:
+    needs: build
+    uses: ./.github/workflows/_binary_upload_r2.yml
+    if: always()
+    with:
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+      test-infra-repository: ${{ inputs.test-infra-repository }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
+      build-matrix: ${{ inputs.build-matrix }}
+      architecture: ${{ inputs.architecture }}
+      trigger-event: ${{ inputs.trigger-event }}
+      upload-to-pypi: ${{ inputs.upload-to-pypi }}
+      wheel-upload-path: ${{ inputs.wheel-upload-path }}
+      wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
+    secrets:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID:  ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY:  ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}

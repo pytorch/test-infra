@@ -1,0 +1,172 @@
+name: upload-r2
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: 'Repository to checkout, defaults to ""'
+        default: ''
+        type: string
+      ref:
+        description: 'Reference to checkout, defaults to "nightly"'
+        default: 'nightly'
+        type: string
+      test-infra-repository:
+        description: "Test infra repository to use"
+        default: "pytorch/test-infra"
+        type: string
+      test-infra-ref:
+        description: "Test infra reference to use"
+        default: ""
+        type: string
+      build-matrix:
+        description: "Build matrix to utilize"
+        default: ''
+        type: string
+      architecture:
+        description: Architecture to build for x86_64 for default Linux, or aarch64 for Linux aarch64 builds
+        required: false
+        type: string
+        default: ''
+      trigger-event:
+        description: "Trigger Event in caller that determines whether or not to upload"
+        type: string
+        default: ''
+      upload-to-pypi:
+        description: The comma-separated list of CUDA arch to be uploaded to pypi
+        default: ''
+        type: string
+      wheel-upload-path:
+        description: Custom wheel upload path
+        required: false
+        type: string
+        default: ''
+      wheel-nightly-policy:
+        description: Custom wheel upload policy for nightly
+        type: string
+        default: ''
+    secrets:
+      R2_ACCOUNT_ID:
+        description: Cloudflare R2 account ID
+        required: false
+      R2_ACCESS_KEY_ID:
+        description: Cloudflare R2 access key ID
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        description: Cloudflare R2 secret access key
+        required: false
+
+jobs:
+  upload:
+    runs-on: ubuntu-22.04
+    environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(inputs.build-matrix) }}
+    timeout-minutes: 30
+    name: upload-r2-${{ matrix.build_name }}
+    steps:
+      - name: Check if R2 secrets are configured
+        id: check-secrets
+        shell: bash
+        run: |
+          # shellcheck disable=SC2086
+          if [ -z "${{ secrets.R2_ACCOUNT_ID }}" ]; then
+            echo "R2 secrets are not configured, skipping upload"
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "R2 secrets are configured, proceeding with upload"
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        if: steps.check-secrets.outputs.skip != 'true'
+        with:
+          repository: ${{ inputs.test-infra-repository }}
+          ref: ${{ inputs.test-infra-ref }}
+          path: test-infra
+
+      - uses: ./test-infra/.github/actions/set-channel
+        if: steps.check-secrets.outputs.skip != 'true'
+
+      # For pytorch_pkg_helpers which we need to run to generate the artifact name and target R2 buckets
+      - uses: ./test-infra/.github/actions/setup-binary-upload
+        if: steps.check-secrets.outputs.skip != 'true'
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.ref }}
+          python-version: ${{ matrix.python_version }}
+          cuda-version: ${{ matrix.desired_cuda }}
+          arch: ${{ inputs.architecture }}
+          upload-to-base-bucket: ${{ matrix.upload_to_base_bucket }}
+
+      - name: Download the artifact
+        if: steps.check-secrets.outputs.skip != 'true'
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: ${{ env.ARTIFACT_NAME }}
+          path: ${{ inputs.repository }}/dist/
+
+      - name: Configure R2 credentials
+        if: ${{ steps.check-secrets.outputs.skip != 'true' && (inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/'))) }}
+        shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          # Configure AWS CLI to work with R2
+          mkdir -p ~/.aws
+          cat > ~/.aws/credentials <<EOF
+          [default]
+          aws_access_key_id = ${R2_ACCESS_KEY_ID}
+          aws_secret_access_key = ${R2_SECRET_ACCESS_KEY}
+          EOF
+
+          cat > ~/.aws/config <<EOF
+          [default]
+          region = auto
+          EOF
+
+          # Store R2 account ID for use in upload step
+          echo "R2_ACCOUNT_ID=${R2_ACCOUNT_ID}" >> "${GITHUB_ENV}"
+
+      - name: Nightly or release RC
+        if: ${{ steps.check-secrets.outputs.skip != 'true' && (inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && startsWith(github.event.ref, 'refs/heads/nightly')) || (env.CHANNEL == 'test' && startsWith(github.event.ref, 'refs/tags/'))) }}
+        shell: bash
+        run: |
+          set -ex
+          echo "NIGHTLY_OR_TEST=1" >> "${GITHUB_ENV}"
+
+      - name: Upload package to R2
+        if: steps.check-secrets.outputs.skip != 'true'
+        shell: bash
+        working-directory: ${{ inputs.repository }}
+        env:
+          WHEEL_UPLOAD_PATH: ${{ inputs.wheel-upload-path }}
+        run: |
+          set -ex
+
+          # shellcheck disable=SC1090
+          source "${BUILD_ENV_FILE}"
+
+          pip install awscli==1.42.67
+
+          AWS_CMD="aws s3 cp --dryrun"
+          if [[ "${NIGHTLY_OR_TEST:-0}" == "1" ]]; then
+            AWS_CMD="aws s3 cp"
+          fi
+
+          # Set path to specific wheel-upload-path, defaulting to pytorch bucket
+          BUCKET_NAME="pytorch-downloads"
+          BUCKET_PATH=""
+          if [[ -n "$WHEEL_UPLOAD_PATH" ]]; then
+            BUCKET_PATH="${WHEEL_UPLOAD_PATH}"
+          fi
+
+          # shellcheck disable=SC2086
+          for pkg in dist/*; do
+            shm_id=$(sha256sum "${pkg}" | awk '{print $1}')
+            ${AWS_CMD} "$pkg" "s3://${BUCKET_NAME}/${BUCKET_PATH}" \
+              --metadata "checksum-sha256=${shm_id}" --endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com
+          done
