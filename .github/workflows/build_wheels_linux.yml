@@ -356,11 +356,11 @@ jobs:
       wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
     secrets:
       PYPI_API_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
-
+        
   upload-r2:
     needs: build
     uses: ./.github/workflows/_binary_upload_r2.yml
-    if: always()
+    if: always() && secrets.R2_ACCOUNT_ID != ''
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
