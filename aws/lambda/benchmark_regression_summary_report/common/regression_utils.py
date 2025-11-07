@@ -277,7 +277,11 @@ class BenchmarkRegressionReportGenerator:
         calculate the baseline value based on the mode
         mode: mean, p90, max, min, target, p50, p95
         """
-        items = [d for d in data["values"] if field in d and d[field] is not None and not math.isnan(float(d[field]))]
+        items = [
+            d
+            for d in data["values"]
+            if field in d and d[field] is not None and not math.isnan(float(d[field]))
+        ]
         if not items:
             return None
         if mode == "max":

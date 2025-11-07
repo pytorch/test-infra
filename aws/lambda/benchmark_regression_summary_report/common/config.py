@@ -150,6 +150,7 @@ BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(
     }
 )
 
+
 def get_benchmark_regression_config(config_id: str) -> BenchmarkConfig:
     """Get benchmark regression config by config id"""
     try:
