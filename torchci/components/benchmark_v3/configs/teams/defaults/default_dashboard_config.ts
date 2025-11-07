@@ -36,6 +36,10 @@ export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
 
 export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
+    field:"branch",
+    displayName: "Branch",
+  },
+  {
     field: "device",
     displayName: "Hardware type",
   },

@@ -281,9 +281,6 @@ export function SideBarMainSection() {
         <>
           {enableMultiBranchOption && (
             <Box>
-              <Typography variant="subtitle2">
-                TYPE:{branchOptionType}{" "}
-              </Typography>
               <FormControlLabel
                 control={
                   <Switch
