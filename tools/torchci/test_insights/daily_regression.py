@@ -85,6 +85,10 @@ class RegressionNotification:
     Class to handle regression notifications for test insights.
     """
 
+    previous_regression_sha_key = (
+        "additional_info/weekly_file_report/regression_metadata.json.gz"
+    )
+
     def __init__(self):
         self.file_report_generator = FileReportGenerator(dry_run=True)
 
@@ -92,10 +96,20 @@ class RegressionNotification:
     def _previous_regression_sha(self) -> str:
         text = self.file_report_generator._fetch_from_s3(
             "ossci-raw-job-status",
-            "additional_info/weekly_file_report/regression_metadata.json.gz",
+            self.previous_regression_sha_key,
         )
-        data = json.loads(text)
-        return data
+        try:
+            return json.loads(text)[0]["sha"]
+        except (json.JSONDecodeError, IndexError, KeyError):
+            return ""
+
+    def upload_new_regression_sha(self, sha: str) -> None:
+        body = [{"sha": sha}]
+        self.file_report_generator.upload_to_s3(
+            body,
+            "ossci-raw-job-status",
+            self.previous_regression_sha_key,
+        )
 
     def gen_regression_for_team(
         self,
@@ -308,6 +322,7 @@ class RegressionNotification:
                 send_to_aws_alerting_lambda(alert)
             else:
                 print(f"No significant regression for team: {team['team']}")
+        self.upload_new_regression_sha(current_sha)
 
 
 if __name__ == "__main__":
