@@ -162,9 +162,7 @@ export function TestStatusInfo({
             columns={columns}
             density={"compact"}
             hideFooter={true}
-            getRowId={(row) =>
-              `${row.name}-${row.classname}-${row.file}-${row.invoking_file}`
-            }
+            getRowId={(row) => row.id}
             pagination={undefined}
             onRowClick={handleEvent}
             disableColumnFilter
