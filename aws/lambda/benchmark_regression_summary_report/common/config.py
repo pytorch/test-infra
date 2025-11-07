@@ -16,8 +16,6 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
     source=BenchmarkApiSource(
         api_query_url="http://localhost:3000/api/benchmark/get_time_series",
         type="benchmark_time_series_api",
-        # currently we only detect the regression for h100 with dtype bfloat16, and mode inference
-        # we can extend this to other devices, dtypes and mode in the future
         api_endpoint_params_template="""
                 {
                   "name": "pytorch_operator_microbenchmark",
@@ -25,7 +23,7 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
                     "mode": "",
                     "branches": ["main"],
                     "repo": "pytorch/pytorch",
-                    "device": "cuda",
+                    "device": "",
                     "benchmarkName": "PyTorch operator microbenchmark",
                     "startTime": "{{ startTime }}",
                     "stopTime": "{{ stopTime }}"
