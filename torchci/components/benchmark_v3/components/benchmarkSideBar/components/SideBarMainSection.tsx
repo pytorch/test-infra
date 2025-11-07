@@ -145,8 +145,6 @@ export function SideBarMainSection() {
   const [samplingDirty, setSamplingDirty] = useState(false);
   const prevEnableRef = useRef(enableSamplingSetting);
 
-  const prevBranchOption = useRef(branchOptionType);
-
   useEffect(() => {
     if (enableSamplingSetting !== prevEnableRef.current) {
       setSamplingDirty(true); // mark dirty when toggled
