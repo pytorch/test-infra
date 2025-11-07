@@ -70,8 +70,28 @@ export class QueryBuilder {
     this.defaults = defaults;
     this.template = template;
   }
+
   addSelect(items: SelectItem[]) {
     this.extraSelect.push(...items);
+    return this;
+  }
+
+  /** Replace a single select item by alias.
+   *  the replace item must be an array of [field, alias].
+   */
+  replaceDefaultSelect(item: SelectItem) {
+    if (!Array.isArray(item)) return this;
+    const [field, alias] = item;
+
+    if (!this.defaults?.select) return this;
+
+    const idx = this.defaults.select.findIndex(
+      (sel) => Array.isArray(sel) && sel[1] === alias
+    );
+
+    if (idx >= 0) {
+      this.defaults.select[idx] = [field, alias];
+    }
     return this;
   }
 

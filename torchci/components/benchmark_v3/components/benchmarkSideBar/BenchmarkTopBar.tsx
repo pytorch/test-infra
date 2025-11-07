@@ -1,6 +1,6 @@
 import { Divider, Paper, Typography } from "@mui/material";
 import { Stack } from "@mui/system";
-import { BenchmarkUIConfigHandler } from "lib/benchmark/store/benchmark_config_book";
+import { BenchmarkUIConfigHandler } from "components/benchmark_v3/configs/benchmark_config_book";
 import { BenchmarkReportFeatureNotification } from "../benchmarkRegressionReport/BenchmarkReportFeatureNotification";
 import { BenchmarkReportFeatureSidePanel } from "../benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
 import { CommitWorflowSelectSection } from "./components/commits/CommitWorkfowSelectSection";

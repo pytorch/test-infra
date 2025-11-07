@@ -1,7 +1,7 @@
 import { deepClone } from "@mui/x-data-grid/internals";
 import { toBenchmarkTimeSeriesReponseFormat } from "../../common/utils";
 import { BenchmarkDataFetcher } from "../type";
-import { ExecutableQueryBase, QueryBuilder } from "./queryBuilder";
+import { ExecutableQueryBase, QueryBuilder, SelectItem } from "./queryBuilder";
 
 const DEFAULT_TS_GROUP_KEY = [
   "dtype",
@@ -101,7 +101,11 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         select_exists: true,
         where_exists: true,
         // default select statement for customized query
-        select: [["map()", this._EXTRA_KEY_FIELD_NAME], metadata_info_select],
+        select: [
+          ["floor(arrayAvg(o.metric.'benchmark_values'), 2)", "value"],
+          ["map()", this._EXTRA_KEY_FIELD_NAME],
+          metadata_info_select,
+        ],
         prewhere: [
           "o.timestamp >= toUnixTimestamp({startTime: DateTime64(3) })",
           "o.timestamp < toUnixTimestamp({stopTime: DateTime64(3) })",
@@ -118,7 +122,6 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         o.model.'backend' AS backend,
         o.model.'origins' AS origins,
         o.metric.'name' AS metric,
-        floor(arrayAvg(o.metric.'benchmark_values'), 2) AS value,
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
@@ -227,6 +230,16 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             metric
     `
     );
+  }
+
+  replaceValueSelectStatement(queryStatement: string) {
+    this._inner_query_builder.replaceDefaultSelect([queryStatement, "value"]);
+  }
+
+  addSelectStatement(selectStatement: string, value: string) {
+    const selectItem: SelectItem = [selectStatement, value];
+    this._inner_query_builder.addSelect([selectItem]);
+    this._main_query_builder.addSelect([value]);
   }
 
   /**
@@ -350,6 +363,23 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
 /**
  * helper function to convert a map of statements to a query map result
  * e.g. map('key1', value1, 'key2', value2, ...)
+ *
+ *
+ * Example:
+ *
+ * * metadata_map = new Map([
+ *  ["timestamp","formatDateTime(fromUnixTimestamp(timestamp), '%Y-%m-%dT%H:%i:%sZ')"],
+ *  ["key2","value2"],
+ * ])
+ * toQueryMapResult('metadata_info', metadata_map)
+ *
+ * When add to select statement, it will be:
+ * map(
+ *   'timestamp',
+ *   formatDateTime(fromUnixTimestamp(o.timestamp), '%Y-%m-%dT%H:%i:%sZ')
+ *   'key2',
+ *    value2
+ * ) as metadata_info
  * @param statements
  * @param additionalStatements
  * @returns
@@ -426,6 +456,95 @@ export class PytorchOperatorMicroBenchmarkDataFetcher
     formats: string[],
     includesAllExtraKey: boolean = true
   ) {
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const params = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}
+
+/**
+ * Builder to get PytorchOperatorMicroBenchmark
+ * It inherits method from BenchmarkDataQuery
+ *
+ */
+export class PytorchHelionDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+    this._data_query.replaceValueSelectStatement(
+      "floor(exp(arrayAvg(arrayMap(x -> log(x), o.metric.'benchmark_values'))), 2)"
+    );
+    this._data_query.addSelectStatement(
+      "floor(arrayAvg(o.metric.'benchmark_values'), 2)",
+      "avg_value"
+    );
+  }
+
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    const m = new Map<string, any>();
+    // for accuracy, update primary value field with avg_value
+    // ts object are pass by reference
+    data.forEach((d) => {
+      if (d.metric.includes("_accuracy")) {
+        d.value = d?.avg_value;
+      }
+    });
+
+    data.forEach((d) => {
+      const wi = d.workflow_id;
+      const ji = d.job_id;
+      const device = d.device;
+      const arch = d.arch;
+      const model = d.model;
+      const key = `${wi}_${ji}_${device}_${arch}_${model}`;
+      if (!m.has(key)) {
+        m.set(key, {
+          speedup_list: [],
+        });
+      }
+      const data = m.get(key);
+      if (d.metric.includes("_accuracy")) {
+        data[d.metric] = d;
+      }
+      if (d.metric.includes("_speedup")) {
+        data[d.metric] = d;
+        data.speedup_list.push(d.metric);
+      }
+    });
+
+    // Process speedup failure based on accurracy failure
+    m.forEach((data) => {
+      const speedup_list = data.speedup_list;
+      speedup_list.forEach((speedup: string) => {
+        const accMetricName = speedup.replace(/_speedup$/, "_accuracy");
+        const accItem = data[accMetricName];
+        const isAccFailure = accItem?.value < 1 ? true : false;
+        if (isAccFailure) {
+          const speedupItem = data[speedup];
+          // clear out the speedup value since it's not valid
+          speedupItem.value = undefined;
+          speedupItem.is_failure = true;
+        }
+      });
+    });
     return this._data_query.applyFormat(data, formats, includesAllExtraKey);
   }
 

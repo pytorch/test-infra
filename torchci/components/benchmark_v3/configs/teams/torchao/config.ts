@@ -1,4 +1,4 @@
-import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
+import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,

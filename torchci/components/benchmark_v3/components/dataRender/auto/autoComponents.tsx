@@ -6,12 +6,13 @@ import {
   useBenchmarkCommittedContext,
   useBenchmarkTimeSeriesData,
 } from "lib/benchmark/api_helper/fe/hooks";
-import { UIRenderConfig } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
 
 import { LOG_PREFIX } from "components/benchmark/common";
+import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
+import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
@@ -243,20 +244,20 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     );
   }
 
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkTimeSeriesTable){error.message}
+      </Alert>
+    );
+  }
+
   if (isLoading || !resp) {
     return (
       <LoadingPage
         height={500}
         content="loading data for AutoBenchmarkPairwiseTable..."
       />
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert severity="error">
-        (AutoBenchmarkTimeSeriesTable){error.message}
-      </Alert>
     );
   }
 
@@ -268,6 +269,7 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+        <RenderRawContent data={data["table"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}

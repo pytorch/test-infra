@@ -1,9 +1,9 @@
 import { Stack } from "@mui/system";
+import { BenchmarkUIConfigFilterConstarintConfig } from "components/benchmark_v3/configs/config_book_types";
 import {
   UMDenseDropdown,
   UMDenseDropdownOption,
 } from "components/uiModules/UMDenseComponents";
-import { BenchmarkUIConfigFilterConstarintConfig } from "lib/benchmark/store/benchmark_config_book";
 
 /**
  * The input item for benchmark dashboard dropdown

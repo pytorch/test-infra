@@ -2,6 +2,7 @@
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { useBenchmarkBook } from "components/benchmark_v3/configs/benchmark_config_book";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMCopyLink } from "components/uiModules/UMCopyLink";
@@ -9,7 +10,6 @@ import { UMDateButtonPicker } from "components/uiModules/UMDateRangePicker";
 import { UMDenseButtonLight } from "components/uiModules/UMDenseComponents";
 import dayjs from "dayjs";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
-import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";

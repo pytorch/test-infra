@@ -1,10 +1,10 @@
 import { Typography } from "@mui/material";
 import { Stack } from "@mui/system";
+import { useBenchmarkBook } from "components/benchmark_v3/configs/benchmark_config_book";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
 import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
-import { useBenchmarkBook } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import { useEffect, useState } from "react";

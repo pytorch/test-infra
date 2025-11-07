@@ -1,6 +1,11 @@
 import { DefaultAutoRenderContent } from "components/benchmark_v3/components/dataRender/auto/defaultAutoRenderContent";
 import { DefaultFanoutRenderContent } from "components/benchmark_v3/components/dataRender/fanout/defaultFanoutRenderContent";
 import {
+  BenchmarkConfigMap,
+  BenchmarkPageType,
+  BenchmarkUIConfig,
+} from "components/benchmark_v3/configs/config_book_types";
+import {
   NotFoundComponent,
   resolveComponent,
 } from "components/benchmark_v3/configs/helpers/configRegistration";
@@ -12,63 +17,31 @@ import {
 } from "components/benchmark_v3/configs/teams/compilers/config";
 import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
 import {
+  PYTORCH_HELION_BENCHMARK_ID,
+  PytorchHelionDashboardConfig,
+} from "components/benchmark_v3/configs/teams/helion/config";
+import {
   PYTORCH_OPERATOR_MICROBENCHMARK_ID,
   PytorchOperatorMicroBenchmarkDashoboardConfig,
 } from "components/benchmark_v3/configs/teams/torchao/config";
-import {
-  DataBinding,
-  DataBindingConfig,
-} from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+import { DataBinding } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 
 import { create } from "zustand";
 
-export const BenchmarkPageType = {
-  DashboardPage: "dashboard",
-  AggregatePage: "aggregate",
-  SinglePage: "single",
-} as const;
-
-// Infer the type automatically
-export type BenchmarkPageType =
-  typeof BenchmarkPageType[keyof typeof BenchmarkPageType];
-
-export type BenchmarkUIConfig = {
-  apiId: string;
-  type: BenchmarkPageType;
-  benchmarkId: string;
-  title: string;
-  dataBinding: DataBindingConfig; // data binding config
-  dataRender: DataRenderOption; // main render components
-  required_filter_fields?: readonly string[]; // required filter fields
-};
-
-export type BenchmarkUIConfigFilterConstarint = {
-  disabled?: boolean; // disable the filter
-  disableOptions?: string[]; // disable the options based on value
-};
-export type BenchmarkUIConfigFilterConstarintConfig = {
-  [key: string]: BenchmarkUIConfigFilterConstarint;
-};
-
-export type UIRenderConfig = {
-  title?: string; // title of the component to render
-  id?: string; // id of the component to render
-  type: string; // type of the component to render
-  config: any; // config of the component to render
-};
-
-export type SubSectionRenderConfig = {
-  filterConstraint?: BenchmarkUIConfigFilterConstarintConfig; // filter constraint of the component to render, only used when it's subrender
-  renders: UIRenderConfig[];
-};
-
-export type DataRenderOption = {
-  type: string;
-  api?: any;
-  id?: string; // id of the component to render, this is used when type is 'component'
-  sideRender?: { [key: string]: UIRenderConfig }; // this used to render side content, such as regression report access
-  renders?: UIRenderConfig[]; // this is used when type is predefined type such as 'default-fanout'
-  subSectionRenders?: { [key: string]: SubSectionRenderConfig }; // this is used when type is predefined type such as 'default-f
+const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
+  [COMPILTER_BENCHMARK_NAME]: {
+    [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
+  },
+  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
+    [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
+  },
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorchOperatorMicroBenchmarkDashoboardConfig,
+  },
+  [PYTORCH_HELION_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
+  },
 };
 
 /**
@@ -139,10 +112,6 @@ export class BenchmarkUIConfigHandler {
   };
 }
 
-export type BenchmarkConfigMap = Record<
-  string,
-  Partial<Record<BenchmarkPageType, BenchmarkUIConfig>>
->;
 interface State {
   predefined: BenchmarkConfigMap;
   temps: BenchmarkConfigMap;
@@ -163,21 +132,8 @@ interface State {
   listIds: () => string[];
 }
 
-const predefined: BenchmarkConfigMap = {
-  [COMPILTER_BENCHMARK_NAME]: {
-    [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
-  },
-  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
-    [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
-  },
-  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]:
-      PytorchOperatorMicroBenchmarkDashoboardConfig,
-  },
-};
-
 export const useBenchmarkBook = create<State>()((set, get) => ({
-  predefined,
+  predefined: PREDEFINED_BENCHMARK_CONFIG,
   temps: {},
 
   initTempConfig: (

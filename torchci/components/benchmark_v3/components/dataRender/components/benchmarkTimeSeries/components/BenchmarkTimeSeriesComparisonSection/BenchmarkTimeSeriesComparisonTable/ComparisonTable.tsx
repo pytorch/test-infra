@@ -87,6 +87,11 @@ export function ComparisonTable({
     [allColumns, lWorkflowId, rWorkflowId, title]
   );
 
+  const columnVisibilityModel = Object.fromEntries(
+    Object.entries(config?.renderOptions?.tableRenderingBook ?? {})
+      .filter(([_, v]) => v?.hide === true)
+      .map(([k]) => [k, false])
+  );
   return (
     <Box>
       <Typography variant="h6">{title.text}</Typography>
@@ -121,6 +126,9 @@ export function ComparisonTable({
           },
           pagination: {
             paginationModel: { pageSize: 25 },
+          },
+          columns: {
+            columnVisibilityModel: columnVisibilityModel,
           },
         }}
         getRowId={(r) => {

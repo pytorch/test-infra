@@ -1,8 +1,9 @@
 // benchmark_regression_store.ts
+import { BenchmarkPageType } from "components/benchmark_v3/configs/config_book_types";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
-import { BenchmarkPageType } from "./benchmark_config_book";
+import { BENCHMARK_ID_MAPPING } from "../../../components/benchmark_v3/configs/configurations";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
@@ -14,54 +15,6 @@ export type BenchmarkCommitMeta = {
   workflow_id: string;
   index?: number;
 };
-
-/**
- * BenchmarkIdMappingItem is a mapping from benchmarkId to repoName and benchmarkName
- * benchmarkName is used to fetch the benchmark data from dv
- */
-interface BenchmarkIdMappingItem {
-  id: string;
-  repoName: string;
-  benchmarkName: string; // highiest level benchmarkName that used to fetch the data from api
-  benchmarkNameMapping?: Record<string, string>; // mapping from benchmarkName to benchmarkName based on page type, if this is defined, it overrides the main benchmarkName
-}
-
-/**
- * A helper function to get benchmark id from report id
- * @param reportId
- * @returns
- */
-export function getBenchmarkIdFromReportId(reportId: string): string {
-  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? "";
-}
-
-const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
-  compiler_regression: "compiler_inductor",
-};
-
-const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
-  compiler_inductor: {
-    id: "compiler_inductor",
-    repoName: "pytorch/pytorch",
-    benchmarkName: "compiler_inductor",
-  },
-  compiler_precompute: {
-    id: "compiler_precompute",
-    repoName: "pytorch/pytorch",
-    benchmarkName: "compiler_precompute",
-  },
-  pytorch_operator_microbenchmark: {
-    id: "pytorch_operator_microbenchmark",
-    repoName: "pytorch/pytorch",
-    benchmarkName: "PyTorch operator microbenchmark",
-  },
-};
-
-export function getBenchmarkIdMappingItem(
-  benchmarkId: string
-): BenchmarkIdMappingItem | undefined {
-  return BENCHMARK_ID_MAPPING[benchmarkId];
-}
 
 /**
  * Data model for BenchmarkDashboardState

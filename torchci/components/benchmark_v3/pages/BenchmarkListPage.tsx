@@ -2,9 +2,10 @@ import { Box, Typography } from "@mui/material";
 import { NavCategory, NavItem } from "components/layout/NavBarGroupDropdown";
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
 import BenchmarkCategoryCardList from "../components/benchmarkList/BenchmarkCategoryCardList";
+import { BENCHMARK_CATEGORIES } from "../configs/configurations";
 
 export function getBenchmarkMainRouteById(id: string): string | undefined {
-  for (const category of categories) {
+  for (const category of BENCHMARK_CATEGORIES) {
     for (const item of category.items) {
       if (item.id === id) {
         return item.route;
@@ -13,121 +14,6 @@ export function getBenchmarkMainRouteById(id: string): string | undefined {
   }
   return undefined;
 }
-
-export const categories: BenchmarkCategoryGroup[] = [
-  {
-    title: "PyTorch Benchmarks",
-    subtitle: "Benchmarks related to repo pytorch/pytorch",
-    tags: ["repo:pytorch/pytorch"],
-    items: [
-      {
-        name: "CacheBench Benchmark",
-        route:
-          "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=+Benchmark",
-        info: "Powered by [code](https://github.com/search?q=repo%3Apytorch%2Fpytorch%20%20TorchCache&type=code)",
-      },
-      {
-        name: "Compiler Inductor Benchmark",
-        id: "compiler_inductor",
-        route: "/benchmark/compilers_regression",
-        description:
-          "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
-        info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/dynamo#torchcompile-benchmarking)",
-        actions: [
-          {
-            label: "New dashboard (WIP)",
-            href: "/benchmark/v3/dashboard/compiler_inductor",
-          },
-          {
-            label: "Legacy Page/Playground",
-            href: "/benchmark/compilers",
-          },
-          {
-            label: "Regression Reports",
-            type: "regression_report",
-            href: "/benchmark/regression/reports/compiler_regression",
-          },
-          {
-            label: "Docs",
-            href: "https://docs.pytorch.org/docs/main/torch.compiler_performance_dashboard.html",
-          },
-        ],
-      },
-      {
-        name: "LLMs Benchmark",
-        route: "/benchmark/llms?repoName=pytorch%2Fpytorch",
-        info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/gpt_fast)",
-      },
-      {
-        name: "Operator Microbenchmark",
-        route: "/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
-        info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/operator_benchmark)",
-        description:
-          "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
-        actions: [
-          {
-            label: "Legacy Page/Playground",
-            href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
-          },
-        ],
-      },
-      {
-        name: "Triton Benchmark",
-        route: "/tritonbench/commit_view",
-      },
-    ],
-  },
-  {
-    title: "TorchAo Benchmarks",
-    tags: ["repo:pytorch/torchao"],
-    subtitle: "Benchmarks related to repo pytorch/torchao",
-    items: [
-      {
-        name: "TorchAO Micro API Benchmark",
-        route:
-          "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
-        info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
-      },
-    ],
-  },
-  {
-    title: "vLLM Benchmarks ",
-    tags: ["repo:vllm-project/vllm"],
-    subtitle: "Benchmarks related to repo vllm-project/vllm",
-    items: [
-      {
-        name: "VLLM V1 Benchmark",
-        route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
-        info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
-      },
-    ],
-  },
-  {
-    title: "SGLang Benchmarks",
-    subtitle: "Benchmarks related to repo sgl-project/sglang",
-    tags: ["repo:sgl-project/sglang"],
-    items: [
-      {
-        name: "SGLang Benchmark",
-        route: "/benchmark/llms?repoName=sgl-project%2Fsglang",
-        info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/sglang-benchmarks/benchmarks)",
-      },
-    ],
-  },
-  {
-    title: "Helion Benchmarks",
-    subtitle: "Benchmarks related to repo pytorch/helion",
-    tags: ["repo:pytorch/helion"],
-    items: [
-      {
-        name: "Helion Benchmark",
-        route:
-          "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
-        info: "Powered by [code](https://github.com/pytorch/helion/tree/main/benchmarks)",
-      },
-    ],
-  },
-];
 
 export function benchmarkCategoryCardToNavGroup(
   categories: BenchmarkCategoryGroup[]
@@ -155,7 +41,7 @@ export function benchmarkCategoryCardToNavGroup(
 }
 
 export const benchmarkNavGroup: NavCategory[] =
-  benchmarkCategoryCardToNavGroup(categories);
+  benchmarkCategoryCardToNavGroup(BENCHMARK_CATEGORIES);
 
 export function BenchmarkListPage() {
   return (
@@ -163,7 +49,7 @@ export function BenchmarkListPage() {
       <Typography variant="h5" sx={{ mb: 1 }}>
         Benchmarks
       </Typography>
-      <BenchmarkCategoryCardList categories={categories} />
+      <BenchmarkCategoryCardList categories={BENCHMARK_CATEGORIES} />
     </Box>
   );
 }
