@@ -137,10 +137,10 @@ jobs:
             AWS_CMD="aws s3 cp"
           fi
 
-          # UPLOAD_ENDPOINT=""
-          # if [[ -n "$R2_ACCOUNT_ID" ]]; then
-          UPLOAD_ENDPOINT="--endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
-          # fi
+          UPLOAD_ENDPOINT=""
+          if [[ -n "$R2_ACCOUNT_ID" ]]; then
+            UPLOAD_ENDPOINT="--endpoint-url https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+          fi
 
           # Set path to specific wheel-upload-path, defaulting to pytorch bucket
           BUCKET_NAME="pytorch-downloads"
