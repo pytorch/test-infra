@@ -8,6 +8,7 @@ import { BENCHMARK_ID_MAPPING } from "../../../components/benchmark_v3/configs/c
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
 
+
 export type BenchmarkCommitMeta = {
   commit: string;
   date: string;
@@ -44,6 +45,10 @@ export interface BenchmarkDashboardState {
   // TODO(elainewy): may allow user to set a different max sampling threshold based on their needs.
   stagedMaxSampling?: number;
 
+
+  enableMultiBranchOption?:boolean;
+  branchOptionType: string
+
   // may key to track of the benchamrk
   benchmarkId: string;
   type: BenchmarkPageType;
@@ -67,6 +72,7 @@ export interface BenchmarkDashboardState {
 
   setEnableSamplingSetting: (enable: boolean) => void;
 
+  setBranchOptionType:(type:string) => void;
   setLcommit: (commit: BenchmarkCommitMeta | null) => void;
   setRcommit: (commit: BenchmarkCommitMeta | null) => void;
 
@@ -108,6 +114,7 @@ export function createDashboardStore(initial: {
   rcommit?: BenchmarkCommitMeta | null;
   renderGroupId?: string;
   maxSampling?: number;
+  enableMultiBranchOption?: boolean
 }) {
   const idItem = BENCHMARK_ID_MAPPING[initial.benchmarkId];
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
@@ -121,6 +128,11 @@ export function createDashboardStore(initial: {
     // default page switch to the initial type
     // default main means render the page with renders option
     renderGroupId: initial.renderGroupId ?? "main",
+
+    // multi branch setting
+    enableMultiBranchOption: (initial.enableMultiBranchOption ?? false),
+    branchOptionType: "single",
+
 
     // set only with initial config
     enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
@@ -173,6 +185,26 @@ export function createDashboardStore(initial: {
       set((s) => ({ stagedFilters: { ...s.stagedFilters, [k]: v } })),
     setStagedFilters: (filters) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, ...filters } })),
+
+    setBranchOptionType:(type) => {
+      set((s) => {
+        if (!s.enableMultiBranchOption) return s;
+        if (type === s.branchOptionType){
+          return s;
+        }
+        if (type == "single"){
+          return {
+          branchOptionType:type,
+          committedRbranch: s.committedLbranch,
+          stagedRbranch: s.stagedLbranch
+        }
+      } else{
+         return {
+          branchOptionType:type,
+        }
+      }
+      });
+    },
 
     commitMainOptions: () => {
       set((s) => {

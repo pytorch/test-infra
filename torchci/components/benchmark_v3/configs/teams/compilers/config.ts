@@ -214,6 +214,10 @@ const COMPILER_BENCHMARK_DATABINDING = {
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
+    field:"branch",
+    displayName: "branch",
+  },
+  {
     field: "suite",
   },
   {
@@ -240,7 +244,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["model", "compiler", "suite"],
+              lineKey: ["model", "compiler", "suite","branch"],
               chart: {
                 renderOptions: {
                   chartRenderBook: DashboardRenderBook,
@@ -374,7 +378,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
           chartGroup: {
             type: "line",
             groupByFields: ["metric"],
-            lineKey: ["compiler"],
+            lineKey: ["compiler","branch"],
             chart: {
               enableDialog: true,
               customizedConfirmDialog: {

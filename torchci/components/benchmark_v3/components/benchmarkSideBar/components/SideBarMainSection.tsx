@@ -17,6 +17,7 @@ import { DenseAlert } from "../../common/styledComponents";
 import { BranchDropdowns } from "./commits/BranchDropdown";
 import { SamplingSetting } from "./filters/sampling/SamplingSetting";
 import { useUrlStoreSync } from "./useUrlSync";
+import { FormControlLabel, Switch } from "@mui/material";
 
 const styles = {
   root: {
@@ -93,6 +94,8 @@ export function SideBarMainSection() {
     setStagedRBranch,
     setEnableSamplingSetting,
     setStagedMaxSampling,
+    setBranchOptionType,
+
     lcommit,
     rcommit,
     committedTime,
@@ -100,6 +103,8 @@ export function SideBarMainSection() {
     committedLbranch,
     committedRbranch,
     committedMaxSampling,
+    branchOptionType,
+    enableMultiBranchOption,
     enableSamplingSetting,
     commitMainOptions,
     revertMainOptions,
@@ -109,12 +114,15 @@ export function SideBarMainSection() {
     stagedLbranch: s.stagedLbranch,
     stagedRbranch: s.stagedRbranch,
     stagedMaxSampling: s.stagedMaxSampling,
+    enableMultiBranchOption: s.enableMultiBranchOption,
+    branchOptionType: s.branchOptionType,
 
     setStagedTime: s.setStagedTime,
     setStagedLBranch: s.setStagedLbranch,
     setStagedRBranch: s.setStagedRbranch,
     setStagedMaxSampling: s.setStagedMaxSampling,
     setEnableSamplingSetting: s.setEnableSamplingSetting,
+    setBranchOptionType: s.setBranchOptionType,
 
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -135,6 +143,9 @@ export function SideBarMainSection() {
 
   const [samplingDirty, setSamplingDirty] = useState(false);
   const prevEnableRef = useRef(enableSamplingSetting);
+
+  const prevBranchOption = useRef(branchOptionType);
+
   useEffect(() => {
     if (enableSamplingSetting !== prevEnableRef.current) {
       setSamplingDirty(true); // mark dirty when toggled
@@ -265,15 +276,33 @@ export function SideBarMainSection() {
       <Stack spacing={1.5}>
         <DropdownComp />
       </Stack>
-      {!isCommitsLoading && !commitsError && (
-        <BranchDropdowns
-          type="single"
-          lbranch={stagedLbranch}
-          rbranch={stagedRbranch}
-          setLbranch={setStagedLBranch}
-          setRbranch={setStagedRBranch}
-          branchOptions={branches}
-        />
+        {!isCommitsLoading && !commitsError && (
+        <>
+          {enableMultiBranchOption && (
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={branchOptionType =='multiple'? true: false}
+                  onChange={(e) => setBranchOptionType(e.target.checked?'multiple':'single')}
+                />
+              }
+              label={
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  Enable Multi Branch
+                </Typography>
+              }
+            />
+          )}
+          <BranchDropdowns
+            type={branchOptionType ?? "single"}
+            lbranch={stagedLbranch}
+            rbranch={stagedRbranch}
+            setLbranch={setStagedLBranch}
+            setRbranch={setStagedRBranch}
+            branchOptions={branches}
+          />
+        </>
       )}
       {isCommitsLoading && (
         <CenteredLoader size={20} minHeight={20} thickness={4} />

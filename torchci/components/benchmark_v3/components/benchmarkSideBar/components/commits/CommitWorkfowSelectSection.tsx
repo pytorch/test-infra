@@ -1,5 +1,5 @@
 import { Typography } from "@mui/material";
-import { Stack } from "@mui/system";
+import { Box, Stack } from "@mui/system";
 import { useBenchmarkBook } from "components/benchmark_v3/configs/benchmark_config_book";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
@@ -147,6 +147,13 @@ export function CommitWorflowSelectSection() {
       <Typography variant="subtitle2" sx={{ minWidth: 100 }}>
         Commit Range:
       </Typography>
+      <Box
+        sx={{
+          whiteSpace: "nowrap",
+        }}
+      >
+        {lcommit?.branch}:
+      </Box>
       <UMDenseCommitDropdown
         label={"lbl-left"}
         branchName={committedLBranch}
@@ -155,6 +162,13 @@ export function CommitWorflowSelectSection() {
         commitList={leftList}
         setCommit={setLcommit}
       />
+      <Box
+       sx={{
+          whiteSpace: "nowrap",
+        }}
+      >
+        {rcommit?.branch}:
+      </Box>
       <UMDenseCommitDropdown
         label={"lbl-right"}
         branchName={committedRBranch}

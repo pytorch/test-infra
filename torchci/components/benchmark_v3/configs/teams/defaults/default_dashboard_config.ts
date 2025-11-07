@@ -31,6 +31,7 @@ export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
   },
   lbranch: "main",
   rbranch: "main",
+  enableMultiBranchOption:true,
 };
 
 export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
@@ -82,7 +83,7 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["dtype", "metric"],
+              lineKey: ["dtype", "metric","branch"],
               chart: {
                 renderOptions: {
                   showLegendDetails: true,

@@ -82,7 +82,7 @@ export function BenchmarkTimeSeriesComparisonTableSlider({
     const wf = byId[ids[wfi]];
     if (!wf) return "-";
     const commit = wf.commit ? shortSha(wf.commit) : "";
-    return `${wf.workflow_id} (commit: ${commit})`;
+    return `${wf.workflow_id} (commit: ${commit}, branch: ${wf?.branch})`;
   }
 
   function valueLabelFormat(idx: number) {

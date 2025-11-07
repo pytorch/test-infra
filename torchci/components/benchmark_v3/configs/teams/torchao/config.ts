@@ -90,7 +90,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               config: {
                 type: "line",
                 groupByFields: ["metric"],
-                lineKey: ["extra_key.use_compile", "dtype", "metric"],
+                lineKey: ["extra_key.use_compile", "dtype", "metric","branch"],
                 chart: {
                   renderOptions: {
                     chartRenderBook: RENDER_MAPPING_BOOK,
