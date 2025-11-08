@@ -11,16 +11,16 @@ const initialOptions = {
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
+    field: "branch",
+    displayName: "branch",
+  },
+  {
     field: "device",
     displayName: "Hardware type",
   },
   {
     field: "arch",
     displayName: "Hardware model",
-  },
-  {
-    field: "branch",
-    displayName: "branch",
   },
 ] as const;
 
@@ -69,13 +69,7 @@ export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
         type: "AutoBenchmarkSingleDataTable",
         title: "Single Table",
         config: {
-          extraMetadata: [
-            {
-              field: "branch",
-              displayName: "branch",
-            },
-            ...COMPARISON_TABLE_METADATA_COLUMNS,
-          ],
+          extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
             highlightPolicy: {
