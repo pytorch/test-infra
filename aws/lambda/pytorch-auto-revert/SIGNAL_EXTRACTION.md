@@ -82,6 +82,28 @@ Notes
 - Each commit holds a list of `SignalEvent`s (time‑ordered by `started_at`).
   Ordering: dicts in Python 3.7+ preserve insertion order. Phase A inserts commit keys in push‑timestamp DESC order, so iterating the mapping yields newest→older commits without extra sorting.
 
+### Test‑track semantics
+- Source of truth for SUCCESS/FAILURE is `tests.all_test_runs` per test id.
+- When a test row exists for an attempt:
+  - Emit at most one FAILURE if any failed runs exist; at most one SUCCESS if any successful runs exist.
+- When no test rows exist for an attempt and any grouped job for that attempt is pending → emit PENDING.
+- Otherwise (no test rows and not pending) → no event for that attempt.
+
+### Job‑track semantics (non‑test)
+- Build per normalized job base across commits; aggregate shards by `(wf_run_id, run_attempt)`.
+- Event mapping per attempt uses aggregated job meta with test‑failure filtering:
+  - FAILURE only when the attempt had non‑test failures (e.g. infra‑related).
+  - PENDING when the attempt is still running.
+  - SUCCESS otherwise, including when failures are exclusively test‑caused (these are handled by test‑track).
+- Cancelled attempts are treated as missing (no event).
+- Emit a job‑track Signal only when at least one attempt/commit shows a non‑test (infra) failure within the window.
+
+Event naming (for debuggability):
+- Consistent key=value format: `wf=<workflow> kind=<test|job> id=<test_id|job_base> run=<wf_run_id> attempt=<run_attempt>`
+- Examples:
+  - Test event: `wf=trunk kind=test id=inductor/test_foo.py::test_bar run=1744 attempt=1`
+  - Job event:  `wf=trunk kind=job  id=linux-jammy-cuda12.8-py3.10-gcc11 / test run=1744 attempt=2`
+
 ### Test‑track mapping
 - Build a per‑commit map `test_id -> list[SignalEvent]` by combining all relevant jobs and shards:
   - For each (wf_run_id, run_attempt, job_base_name) group in the commit, consult `tests.all_test_runs` rows (if any) for each candidate `test_id`:
@@ -93,7 +115,7 @@ Notes
     - Within the same run, separate events for retries via `run_attempt` (name hints like "Attempt #2" are not relied upon).
 
 ### Non‑test mapping
-- Similar to test‑track but grouping is coarser (by normalized job base name):
+- Similar to test‑track but grouping is coarser (by normalized job base name plus classification rule):
 - For each (run_id, run_attempt, job_base_name) group in the commit
   - Within each group compute event status:
     - FAILURE if any row concluded failure.
