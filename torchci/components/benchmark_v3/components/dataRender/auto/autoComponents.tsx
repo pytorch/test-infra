@@ -636,7 +636,7 @@ export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
-        <RenderRawContent data={data["table"]} buttonName={"raw json"}/>
+        <RenderRawContent data={data["table"]} buttonName={"raw json"} />
         <BenchmarkSingleDataTable
           data={data["table"]}
           config={uiRenderConfig.config}

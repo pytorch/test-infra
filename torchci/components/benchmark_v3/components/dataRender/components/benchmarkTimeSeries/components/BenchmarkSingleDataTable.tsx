@@ -233,6 +233,10 @@ function getTableConlumnRendering(
         fieldName,
         config
       );
+
+      if (!value) {
+        return "missing data";
+      }
       return renderBasedOnUnitConifg(value, rc?.unit);
     },
     renderCell: (params: GridRenderCellParams<any>) => {
