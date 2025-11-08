@@ -15,7 +15,6 @@ import {
   renderBasedOnUnitConifg,
 } from "../helper";
 import { groupKeyAndLabel } from "./BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTableHelpers";
-import { ParamSelector } from "lib/ParamSelector";
 
 const GOOD_COLOR = "#e8f5e9"; // green[50]
 export default function BenchmarkSingleDataTable({
@@ -237,9 +236,9 @@ function getTableConlumnRendering(
       return renderBasedOnUnitConifg(value, rc?.unit);
     },
     renderCell: (params: GridRenderCellParams<any>) => {
-      if (config?.renderOptions?.highlightPolicy){
-        const policy = config?.renderOptions?.highlightPolicy
-        return renderHighlight(policy,params)
+      if (config?.renderOptions?.highlightPolicy) {
+        const policy = config?.renderOptions?.highlightPolicy;
+        return renderHighlight(policy, params);
       }
       return <Box>{params.formattedValue ?? ""}</Box>;
     },
@@ -248,16 +247,18 @@ function getTableConlumnRendering(
   return [...metadataColumns, ...metadataCols, ...metricCols];
 }
 
-function renderHighlight(highlightPolicy:any, params: GridRenderCellParams<any>){
-  if (highlightPolicy.direction !='row'){
+function renderHighlight(
+  highlightPolicy: any,
+  params: GridRenderCellParams<any>
+) {
+  if (highlightPolicy.direction != "row") {
     return <Box>{params.formattedValue ?? ""}</Box>;
   }
-  const policy= highlightPolicy?.policy?? "max"
-  const regex = highlightPolicy?.regex
-  const highlighColor=highlightPolicy?.color?? GOOD_COLOR
-  const highlight = shouldHighlightCellByRowExtrema(params, policy,regex)
-  console.log("highlight",params.field ,highlight )
- return (
+  const policy = highlightPolicy?.policy ?? "max";
+  const regex = highlightPolicy?.regex;
+  const highlighColor = highlightPolicy?.color ?? GOOD_COLOR;
+  const highlight = shouldHighlightCellByRowExtrema(params, policy, regex);
+  return (
     <Box
       sx={{
         bgcolor: highlight ? highlighColor : "transparent",
@@ -337,7 +338,6 @@ export function shouldHighlightCellByRowExtrema(
   }
 
   const current = flattened[baseField];
-  console.log("baseField",baseField,current,flattened,)
 
   if (current == null) return false;
 
@@ -355,7 +355,6 @@ export function shouldHighlightCellByRowExtrema(
     regex ? regex.test(k) : true
   );
 
-  console.log(entries)
   if (entries.length === 0) return false;
 
   const values = entries.map(([, v]) => v);

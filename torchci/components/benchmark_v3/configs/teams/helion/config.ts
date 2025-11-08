@@ -66,20 +66,20 @@ export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
         title: "Single Table",
         config: {
           extraMetadata: [
-             {
+            {
               field: "branch",
               displayName: "branch",
             },
-            ...COMPARISON_TABLE_METADATA_COLUMNS
+            ...COMPARISON_TABLE_METADATA_COLUMNS,
           ],
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
-            highlightPolicy:{
-              direction:"row",
-              regex:"_speedup$",
-              policy:"max"
-            }
-        },
+            highlightPolicy: {
+              direction: "row",
+              regex: "_speedup$",
+              policy: "max",
+            },
+          },
         },
       },
     ],

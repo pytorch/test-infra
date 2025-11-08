@@ -11,8 +11,7 @@ export const DEFAULT_SINGLE_VIEW_BENCHMARK_INITIAL = {
     start: dayjs.utc().startOf("day").subtract(7, "day"),
     end: dayjs.utc().endOf("day"),
   },
-  filters: {
-  },
+  filters: {},
   lbranch: "main",
   rbranch: "main",
 };
