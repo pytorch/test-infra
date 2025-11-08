@@ -318,7 +318,9 @@ class TestSignalExtraction(unittest.TestCase):
         sig2 = self._find_job_signal(
             signals,
             "trunk",
-            Signal.derive_base_name_with_rule(base_name=base2.base_name, rule=base2.rule),
+            Signal.derive_base_name_with_rule(
+                base_name=base2.base_name, rule=base2.rule
+            ),
         )
         self.assertIsNotNone(sig2)
         self.assertEqual(len(sig2.commits), 1)
