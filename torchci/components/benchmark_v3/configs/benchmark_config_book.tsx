@@ -19,6 +19,7 @@ import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/confi
 import {
   PYTORCH_HELION_BENCHMARK_ID,
   PytorchHelionDashboardConfig,
+  PytorchHelionSingleConfig,
 } from "components/benchmark_v3/configs/teams/helion/config";
 import {
   PYTORCH_OPERATOR_MICROBENCHMARK_ID,
@@ -27,6 +28,7 @@ import {
 import { DataBinding } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 
 import { create } from "zustand";
+import { defaultSingleBenchmarkUIConfig } from "./teams/defaults/default_single_view_config";
 
 const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [COMPILTER_BENCHMARK_NAME]: {
@@ -41,6 +43,7 @@ const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   },
   [PYTORCH_HELION_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
+    [BenchmarkPageType.SinglePage]: PytorchHelionSingleConfig,
   },
 };
 
@@ -135,7 +138,6 @@ interface State {
 export const useBenchmarkBook = create<State>()((set, get) => ({
   predefined: PREDEFINED_BENCHMARK_CONFIG,
   temps: {},
-
   initTempConfig: (
     id,
     type: BenchmarkPageType = BenchmarkPageType.DashboardPage,
@@ -147,13 +149,16 @@ export const useBenchmarkBook = create<State>()((set, get) => ({
       case BenchmarkPageType.DashboardPage:
         defaultConfig = defaultDashboardBenchmarkUIConfig;
         break;
+      case BenchmarkPageType.SinglePage:
+        defaultConfig = defaultSingleBenchmarkUIConfig;
+        break;
       default:
         throw new Error(
-          `Cannot create default page, We currently only support default Dashboard Page, but you request page type: ${type}`
+          `Cannot create default page, We currently only support default Dashboard Page and Single Page, but you request page type: ${type}`
         );
     }
     const cfg: BenchmarkUIConfig = {
-      ...defaultDashboardBenchmarkUIConfig,
+      ...defaultConfig,
       type,
       benchmarkId: id,
       apiId: params.apiId ?? id,
@@ -181,6 +186,7 @@ export const useBenchmarkBook = create<State>()((set, get) => ({
         [id]: updatedGroup,
       },
     });
+    console.log("initialed", cfg);
     return cfg;
   },
 
@@ -204,12 +210,14 @@ export const useBenchmarkBook = create<State>()((set, get) => ({
     if (!type) throw new Error("getConfig: type is required");
 
     const { predefined, temps } = get();
-    const group = predefined[id] ?? temps[id];
-    const cfg = group?.[type];
+    const pg = predefined[id];
+    const tmpg = temps[id];
+
+    const cfg = pg?.[type] ?? tmpg?.[type];
     if (!cfg)
       throw new Error(
         `No config found for id: ${id} and ${type}, Group: ${
-          group ? "found the group" : "missing the group"
+          pg || tmpg ? "found the group" : "missing the group"
         }`
       );
     return new BenchmarkUIConfigHandler(cfg);

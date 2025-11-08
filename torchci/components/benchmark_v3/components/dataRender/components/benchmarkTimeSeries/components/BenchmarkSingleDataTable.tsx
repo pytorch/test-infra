@@ -15,8 +15,10 @@ import {
   renderBasedOnUnitConifg,
 } from "../helper";
 import { groupKeyAndLabel } from "./BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTableHelpers";
+import { ParamSelector } from "lib/ParamSelector";
 
-export default function BenchmarkRawDataTable({
+const GOOD_COLOR = "#e8f5e9"; // green[50]
+export default function BenchmarkSingleDataTable({
   config,
   data,
   title,
@@ -190,10 +192,6 @@ function getTableConlumnRendering(
         );
       },
     },
-    {
-      field: "timestamp",
-      headerName: "Timestamp",
-    },
   ];
 
   const metadata = config?.extraMetadata ?? [];
@@ -202,7 +200,6 @@ function getTableConlumnRendering(
     .map((k: any) => ({
       field: k.field,
       headerName: k.displayName ?? k.field,
-      flex: 0.5,
       renderCell: (p: any) => (
         <Typography variant="body2">{p.row[k.field]}</Typography>
       ),
@@ -214,6 +211,7 @@ function getTableConlumnRendering(
       field,
       config?.renderOptions?.tableRenderingBook
     ),
+    flex: 0.5,
     sortable: false,
     filterable: false,
     valueGetter: (_value: any, row: any) => {
@@ -239,11 +237,39 @@ function getTableConlumnRendering(
       return renderBasedOnUnitConifg(value, rc?.unit);
     },
     renderCell: (params: GridRenderCellParams<any>) => {
+      if (config?.renderOptions?.highlightPolicy){
+        const policy = config?.renderOptions?.highlightPolicy
+        return renderHighlight(policy,params)
+      }
       return <Box>{params.formattedValue ?? ""}</Box>;
     },
   }));
 
   return [...metadataColumns, ...metadataCols, ...metricCols];
+}
+
+function renderHighlight(highlightPolicy:any, params: GridRenderCellParams<any>){
+  if (highlightPolicy.direction !='row'){
+    return <Box>{params.formattedValue ?? ""}</Box>;
+  }
+  const policy= highlightPolicy?.policy?? "max"
+  const regex = highlightPolicy?.regex
+  const highlighColor=highlightPolicy?.color?? GOOD_COLOR
+  const highlight = shouldHighlightCellByRowExtrema(params, policy,regex)
+  console.log("highlight",params.field ,highlight )
+ return (
+    <Box
+      sx={{
+        bgcolor: highlight ? highlighColor : "transparent",
+        fontWeight: highlight ? 600 : "normal",
+        px: 0.5,
+        py: 0.25,
+        borderRadius: 1,
+      }}
+    >
+      {params.formattedValue ?? params.value ?? ""}
+    </Box>
+  );
 }
 
 /**
@@ -283,4 +309,58 @@ export function ToRawTableRow(config: any, data: any) {
     m.get(key)!.rowItem.push(rawData);
   }
   return Array.from(m.values());
+}
+
+export function shouldHighlightCellByRowExtrema(
+  params: GridRenderCellParams<any>,
+  policy: "min" | "max",
+  regexString?: string
+): boolean {
+  const rowItems = params.row?.rowItem;
+  if (!Array.isArray(rowItems) || rowItems.length === 0) return false;
+
+  // parse "field||idx" -> base name + index
+  const [baseField, idxStr] = String(params.field).split("||");
+  const idx = Number.isFinite(Number(idxStr)) ? Number(idxStr) : 0;
+
+  // flatten rowItem[0]
+  const root = rowItems[0] ?? {};
+  const flattened: Record<string, number> = {};
+
+  for (const key of Object.keys(root)) {
+    const arr = root[key]?.data;
+    if (!Array.isArray(arr) || arr.length <= idx) continue;
+    const v = arr[idx]?.value;
+    if (typeof v === "number" && Number.isFinite(v)) {
+      flattened[key] = v;
+    }
+  }
+
+  const current = flattened[baseField];
+  console.log("baseField",baseField,current,flattened,)
+
+  if (current == null) return false;
+
+  // optional regex filter
+  let regex: RegExp | null = null;
+  if (regexString) {
+    try {
+      regex = new RegExp(regexString);
+    } catch {
+      regex = null;
+    }
+  }
+
+  const entries = Object.entries(flattened).filter(([k]) =>
+    regex ? regex.test(k) : true
+  );
+
+  console.log(entries)
+  if (entries.length === 0) return false;
+
+  const values = entries.map(([, v]) => v);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+
+  return policy === "min" ? current === minV : current === maxV;
 }

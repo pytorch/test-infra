@@ -15,6 +15,7 @@ import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/Be
 import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
+import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -557,13 +558,90 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
 
   return (
     <Grid container sx={{ m: 1 }}>
-      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
         <BenchmarkRawDataTable
           data={data["table"]}
           config={uiRenderConfig.config}
           title={{
             text: uiRenderConfig?.title ?? "Raw Table",
             description: "list all the workflow run data within the time range",
+          }}
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
+export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id && ctx.lcommit.branch === ctx.committedLbranch;
+
+  const ready =
+    !!ctx &&
+    !!ctx.committedTime?.start &&
+    !!ctx.committedTime?.end &&
+    !!ctx.committedLbranch &&
+    isWorkflowsReady &&
+    ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const branches = [
+    ...new Set([ctx.committedLbranch].filter((b) => b.length > 0)),
+  ];
+  const workflows = ctx.lcommit?.workflow_id ? [ctx.lcommit?.workflow_id] : [];
+
+  // convert to the query params
+  const params = dataBinding.toQueryParams({
+    repo: ctx.repo,
+    branches: branches,
+    benchmarkName: ctx.benchmarkName,
+    timeRange: ctx.committedTime,
+    filters: ctx.committedFilters,
+    maxSampling: ctx.committedMaxSampling,
+    workflows,
+  });
+
+  const queryParams: any | null = ready ? params : null;
+  // fetch the bechmark data
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkSingleDataTable..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkSingleDataTable){error.message}
+      </Alert>
+    );
+  }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+  const data = resp?.data?.data;
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
+        <BenchmarkSingleDataTable
+          data={data["table"]}
+          config={uiRenderConfig.config}
+          title={{
+            text: uiRenderConfig?.title ?? "Single Table",
+            description: "list single workflow run data",
           }}
         />
       </Grid>

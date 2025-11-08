@@ -87,11 +87,15 @@ export function ComparisonTable({
     [allColumns, lWorkflowId, rWorkflowId, title]
   );
 
+  const tableRenderingBook = config?.renderOptions?.tableRenderingBook as
+    | Record<string, { hide?: boolean }>
+    | undefined;
   const columnVisibilityModel = Object.fromEntries(
-    Object.entries(config?.renderOptions?.tableRenderingBook ?? {})
-      .filter(([_, v]) => v?.hide === true)
+    Object.entries(tableRenderingBook ?? {})
+      .filter(([_, v]) => v?.hide)
       .map(([k]) => [k, false])
   );
+
   return (
     <Box>
       <Typography variant="h6">{title.text}</Typography>

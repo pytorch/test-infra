@@ -1,5 +1,6 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import { DEFAULT_SINGLE_VIEW_BENCHMARK_INITIAL } from "../defaults/default_single_view_config";
 
 export const PYTORCH_HELION_BENCHMARK_ID = "pytorch_helion";
 
@@ -16,10 +17,6 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
     field: "arch",
     displayName: "Hardware model",
-  },
-  {
-    field: "branch",
-    displayName: "branch",
   },
 ] as const;
 
@@ -52,6 +49,43 @@ const RENDER_MAPPING_BOOK = {
     hide: true,
   },
 };
+
+export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
+  benchmarkId: PYTORCH_HELION_BENCHMARK_ID,
+  apiId: "pytorch_helion",
+  title: "Helion Single View",
+  dataBinding: {
+    initial: DEFAULT_SINGLE_VIEW_BENCHMARK_INITIAL,
+    required_filter_fields: [],
+  },
+  dataRender: {
+    type: "auto",
+    renders: [
+      {
+        type: "AutoBenchmarkSingleDataTable",
+        title: "Single Table",
+        config: {
+          extraMetadata: [
+             {
+              field: "branch",
+              displayName: "branch",
+            },
+            ...COMPARISON_TABLE_METADATA_COLUMNS
+          ],
+          renderOptions: {
+            tableRenderingBook: RENDER_MAPPING_BOOK,
+            highlightPolicy:{
+              direction:"row",
+              regex:"_speedup$",
+              policy:"max"
+            }
+        },
+        },
+      },
+    ],
+  },
+};
+
 export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
   benchmarkId: PYTORCH_HELION_BENCHMARK_ID,
   apiId: "pytorch_helion",
