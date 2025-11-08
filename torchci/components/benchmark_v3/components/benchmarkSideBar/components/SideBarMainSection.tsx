@@ -1,7 +1,9 @@
 // components/Sidebar.tsx
+import { FormControlLabel, Switch } from "@mui/material";
 import Divider from "@mui/material/Divider";
 import Stack from "@mui/material/Stack";
 import Typography from "@mui/material/Typography";
+import { Box } from "@mui/system";
 import { useBenchmarkBook } from "components/benchmark_v3/configs/benchmark_config_book";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
@@ -93,6 +95,8 @@ export function SideBarMainSection() {
     setStagedRBranch,
     setEnableSamplingSetting,
     setStagedMaxSampling,
+    setBranchOptionType,
+
     lcommit,
     rcommit,
     committedTime,
@@ -100,6 +104,8 @@ export function SideBarMainSection() {
     committedLbranch,
     committedRbranch,
     committedMaxSampling,
+    branchOptionType,
+    enableMultiBranchOption,
     enableSamplingSetting,
     commitMainOptions,
     revertMainOptions,
@@ -109,12 +115,15 @@ export function SideBarMainSection() {
     stagedLbranch: s.stagedLbranch,
     stagedRbranch: s.stagedRbranch,
     stagedMaxSampling: s.stagedMaxSampling,
+    enableMultiBranchOption: s.enableMultiBranchOption,
+    branchOptionType: s.branchOptionType,
 
     setStagedTime: s.setStagedTime,
     setStagedLBranch: s.setStagedLbranch,
     setStagedRBranch: s.setStagedRbranch,
     setStagedMaxSampling: s.setStagedMaxSampling,
     setEnableSamplingSetting: s.setEnableSamplingSetting,
+    setBranchOptionType: s.setBranchOptionType,
 
     committedTime: s.committedTime,
     committedFilters: s.committedFilters,
@@ -135,6 +144,7 @@ export function SideBarMainSection() {
 
   const [samplingDirty, setSamplingDirty] = useState(false);
   const prevEnableRef = useRef(enableSamplingSetting);
+
   useEffect(() => {
     if (enableSamplingSetting !== prevEnableRef.current) {
       setSamplingDirty(true); // mark dirty when toggled
@@ -266,14 +276,38 @@ export function SideBarMainSection() {
         <DropdownComp />
       </Stack>
       {!isCommitsLoading && !commitsError && (
-        <BranchDropdowns
-          type="single"
-          lbranch={stagedLbranch}
-          rbranch={stagedRbranch}
-          setLbranch={setStagedLBranch}
-          setRbranch={setStagedRBranch}
-          branchOptions={branches}
-        />
+        <>
+          {enableMultiBranchOption && (
+            <Box>
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={branchOptionType == "comparison" ? true : false}
+                    onChange={(e) =>
+                      setBranchOptionType(
+                        e.target.checked ? "comparison" : "single"
+                      )
+                    }
+                  />
+                }
+                label={
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                    Enable Multi Branch
+                  </Typography>
+                }
+              />
+            </Box>
+          )}
+          <BranchDropdowns
+            type={branchOptionType ?? "single"}
+            lbranch={stagedLbranch}
+            rbranch={stagedRbranch}
+            setLbranch={setStagedLBranch}
+            setRbranch={setStagedRBranch}
+            branchOptions={branches}
+          />
+        </>
       )}
       {isCommitsLoading && (
         <CenteredLoader size={20} minHeight={20} thickness={4} />

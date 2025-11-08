@@ -22,7 +22,7 @@ export function BenchmarkTopBar({
         position: "sticky",
         top: 0,
         paddingTop: 2,
-        zIndex: 1100,
+        zIndex: 1,
         borderBottom: "1px solid",
         borderColor: "divider",
         px: 2,
