@@ -18,6 +18,10 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
     field: "arch",
     displayName: "Hardware model",
   },
+  {
+    field: "branch",
+    displayName: "branch",
+  },
 ] as const;
 
 const RENDER_MAPPING_BOOK = {
