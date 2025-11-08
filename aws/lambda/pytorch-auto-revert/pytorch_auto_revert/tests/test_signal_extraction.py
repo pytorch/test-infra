@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timedelta
 from typing import Iterable, List
 
-from pytorch_auto_revert.signal import SignalStatus
+from pytorch_auto_revert.signal import Signal, SignalStatus
 from pytorch_auto_revert.signal_extraction import SignalExtractor
 from pytorch_auto_revert.signal_extraction_datasource import SignalExtractionDatasource
 from pytorch_auto_revert.signal_extraction_types import (
@@ -148,8 +148,12 @@ class TestSignalExtraction(unittest.TestCase):
             J(sha="C1", run=100, job=2, attempt=1, started_at=ts(self.t0, 5)),
         ]
         signals = self._extract(jobs, tests=[])
-        base = jobs[0].base_name
-        sig = self._find_job_signal(signals, "trunk", base)
+        base = jobs[0]
+        sig = self._find_job_signal(
+            signals,
+            "trunk",
+            Signal.derive_base_name_with_rule(base_name=base.base_name, rule=base.rule),
+        )
         self.assertIsNotNone(sig)
         self.assertEqual([c.head_sha for c in sig.commits], ["C2", "C1"])
 
@@ -174,8 +178,12 @@ class TestSignalExtraction(unittest.TestCase):
             ),
         ]
         signals = self._extract(jobs, tests=[])
-        base = jobs[0].base_name
-        sig = self._find_job_signal(signals, "trunk", base)
+        base = jobs[0]
+        sig = self._find_job_signal(
+            signals,
+            "trunk",
+            Signal.derive_base_name_with_rule(base_name=base.base_name, rule=""),
+        )
         self.assertIsNotNone(sig)
         self.assertEqual(len(sig.commits), 1)
         events = sig.commits[0].events
@@ -241,8 +249,12 @@ class TestSignalExtraction(unittest.TestCase):
             ),
         ]
         signals = self._extract(jobs, tests=[])
-        base = jobs[0].base_name
-        sig = self._find_job_signal(signals, "trunk", base)
+        base = jobs[0]
+        sig = self._find_job_signal(
+            signals,
+            "trunk",
+            Signal.derive_base_name_with_rule(base_name=base.base_name, rule=base.rule),
+        )
         self.assertIsNotNone(sig)
         # find X1 commit in the signal and ensure it has no events
         x1 = next(c for c in sig.commits if c.head_sha == "X1")
@@ -291,8 +303,12 @@ class TestSignalExtraction(unittest.TestCase):
         se._datasource = FakeDatasourceWithExtraCommit(jobs, [])
         signals = se.extract()
 
-        base = jobs[0].base_name
-        sig = self._find_job_signal(signals, "trunk", base)
+        base = jobs[0]
+        sig = self._find_job_signal(
+            signals,
+            "trunk",
+            Signal.derive_base_name_with_rule(base_name=base.base_name, rule=base.rule),
+        )
         self.assertIsNotNone(sig)
         # Should have 3 commits: C2 (with events), C3 (no events), C1 (with events)
         self.assertEqual(len(sig.commits), 3)

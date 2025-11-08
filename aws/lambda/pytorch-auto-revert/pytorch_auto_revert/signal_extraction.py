@@ -510,7 +510,10 @@ class SignalExtractor:
                     # canceled attempts are treated as missing
                     continue
                 if meta.status == AggStatus.FAILURE:
-                    found_rules.update(r or "UNDEFINED" for r in meta.rules)
+                    if meta.rules:
+                        found_rules.update(r or "UNDEFINED" for r in meta.rules)
+                    else:
+                        found_rules.add("UNDEFINED")
 
         # we only build job signals when there are failures
         if not found_rules:
@@ -518,7 +521,9 @@ class SignalExtractor:
 
         signals: Dict[str, Signal] = {}
         for found_rule in found_rules:
-            rule_base_name = f"{base_name}::{found_rule}"
+            rule_base_name = Signal.derive_base_name_with_rule(
+                base_name=str(base_name), rule=found_rule
+            )
             signals[found_rule] = Signal(
                 key=rule_base_name,
                 workflow_name=wf_name,
@@ -582,12 +587,15 @@ class SignalExtractor:
                 # if the signal is not a failure it is relevant
                 # for all failures signals columns
                 for rule in found_rules:
+                    rule_base_name = Signal.derive_base_name_with_rule(
+                        base_name=str(base_name), rule=rule
+                    )
                     rule_events[rule].append(
                         SignalEvent(
                             name=self._fmt_event_name(
                                 workflow=wf_name,
                                 kind="job",
-                                identifier=f"{base_name}::{rule}",
+                                identifier=rule_base_name,
                                 wf_run_id=wf_run_id,
                                 run_attempt=run_attempt,
                             ),
@@ -606,14 +614,17 @@ class SignalExtractor:
                 # A signal initially failing with some timeout than fails
                 # with some infra error, means that the timeout signal
                 # status is not able to be obtained at this stage.
-                for rule_unfiltered in meta.rules:
+                for rule_unfiltered in meta.rules or [None]:
                     rule = rule_unfiltered or "UNDEFINED"
+                    rule_base_name = Signal.derive_base_name_with_rule(
+                        base_name=str(base_name), rule=rule
+                    )
                     rule_events[rule].append(
                         SignalEvent(
                             name=self._fmt_event_name(
                                 workflow=wf_name,
                                 kind="job",
-                                identifier=f"{base_name}::{rule}",
+                                identifier=rule_base_name,
                                 wf_run_id=wf_run_id,
                                 run_attempt=run_attempt,
                             ),
@@ -625,3 +636,5 @@ class SignalExtractor:
                             job_id=meta.job_id,
                         )
                     )
+
+        return rule_events

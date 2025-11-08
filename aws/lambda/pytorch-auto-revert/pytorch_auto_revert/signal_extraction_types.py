@@ -23,6 +23,7 @@ Sha = NewType("Sha", str)
 WorkflowName = NewType("WorkflowName", str)
 JobName = NewType("JobName", str)
 JobBaseName = NewType("JobBaseName", str)
+JobBaseNameRule = NewType("JobBaseNameRule", str)
 TestId = NewType("TestId", str)
 
 

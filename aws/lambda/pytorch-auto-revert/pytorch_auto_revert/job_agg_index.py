@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from typing import (
@@ -51,7 +51,7 @@ class JobMeta:
     """
 
     all_completed_success: bool = False
-    rules: List[str] = []
+    rules: List[str] = field(default_factory=lambda: [])
     has_failures: bool = False
     has_non_test_failures: bool = False
     is_cancelled: bool = False
