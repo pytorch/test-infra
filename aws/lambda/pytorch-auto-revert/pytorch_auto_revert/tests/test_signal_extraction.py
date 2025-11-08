@@ -260,6 +260,77 @@ class TestSignalExtraction(unittest.TestCase):
         x1 = next(c for c in sig.commits if c.head_sha == "X1")
         self.assertEqual(x1.events, [])
 
+    def test_changing_rules_across_attempts(self):
+        # One commit with 3 attempts:
+        # - attempt 1: failure with rule "infra"
+        # - attempt 2: failure with rule "pytest failure"
+        # - attempt 3: success with rule ""
+        jobs = [
+            J(
+                sha="R1",
+                run=600,
+                job=40,
+                attempt=1,
+                started_at=ts(self.t0, 1),
+                conclusion="failure",
+                rule="infra",
+            ),
+            J(
+                sha="R1",
+                run=600,
+                job=41,
+                attempt=2,
+                started_at=ts(self.t0, 2),
+                conclusion="failure",
+                rule="pytest failure",
+            ),
+            J(
+                sha="R1",
+                run=600,
+                job=42,
+                attempt=3,
+                started_at=ts(self.t0, 3),
+                conclusion="success",
+                rule="",
+            ),
+        ]
+        signals = self._extract(jobs, tests=[])
+        # for 'infra' rule
+        base = jobs[0]
+        sig = self._find_job_signal(
+            signals,
+            "trunk",
+            Signal.derive_base_name_with_rule(base_name=base.base_name, rule=base.rule),
+        )
+        self.assertIsNotNone(sig)
+        self.assertEqual(len(sig.commits), 1)
+        events = sig.commits[0].events
+        self.assertEqual(len(events), 2)
+        # the first infra failure
+        self.assertEqual(events[0].status, SignalStatus.FAILURE)
+        self.assertIn(base.rule, events[0].name)
+        # the final success
+        self.assertEqual(events[1].status, SignalStatus.SUCCESS)
+        self.assertIn(base.rule, events[1].name)
+
+        # for 'pytest failure' rule
+        base2 = jobs[1]
+        sig2 = self._find_job_signal(
+            signals,
+            "trunk",
+            Signal.derive_base_name_with_rule(base_name=base2.base_name, rule=base2.rule),
+        )
+        self.assertIsNotNone(sig2)
+        self.assertEqual(len(sig2.commits), 1)
+        events2 = sig2.commits[0].events
+        self.assertEqual(len(events2), 2)
+        # the pytest failure
+        self.assertEqual(events2[0].status, SignalStatus.FAILURE)
+        self.assertIn(base2.rule, events2[0].name)
+        # the final success
+        self.assertEqual(events2[1].status, SignalStatus.SUCCESS)
+        self.assertIn(base2.rule, events2[1].name)
+
     def test_commits_without_jobs_are_included(self):
         # Verify that commits with no jobs at all are still included in signals
         # Simulate case where C2 has a failure, C3 has no jobs (e.g., periodic workflow),
