@@ -4,7 +4,6 @@ import { Probot } from "probot";
 import myProbotApp from "../lib/bot/autoCcBot";
 import { nockTracker } from "./common";
 import * as utils from "./utils";
-import { minimatch } from "minimatch";
 nock.disableNetConnect();
 
 describe("auto-cc-bot", () => {
