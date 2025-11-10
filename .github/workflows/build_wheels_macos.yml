@@ -88,6 +88,16 @@ on:
         description: 'Timeout for the job (in minutes)'
         default: 60
         type: number
+    secrets:
+      R2_ACCOUNT_ID:
+        description: Cloudflare R2 account ID
+        required: false
+      R2_ACCESS_KEY_ID:
+        description: Cloudflare R2 access key ID
+        required: false
+      R2_SECRET_ACCESS_KEY:
+        description: Cloudflare R2 secret access key
+        required: false
 
 permissions:
   id-token: write
@@ -106,6 +116,7 @@ jobs:
       CU_VERSION: ${{ matrix.desired_cuda }}
     name: build-${{ matrix.build_name }}
     runs-on: ${{ inputs.runner-type }}
+    environment: ${{(inputs.trigger-event == 'schedule' || (inputs.trigger-event == 'push' && (startsWith(github.event.ref, 'refs/heads/nightly') || startsWith(github.event.ref, 'refs/tags/v')))) && 'pytorchbot-env' || ''}}
     # If a build is taking longer than 60 minutes on these runners we need
     # to have a conversation
     timeout-minutes: ${{ inputs.timeout }}
@@ -272,6 +283,26 @@ jobs:
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
+
+  upload-r2:
+    needs: build
+    uses: ./.github/workflows/_binary_upload_r2.yml
+    if: always()
+    with:
+      repository: ${{ inputs.repository }}
+      ref: ${{ inputs.ref }}
+      test-infra-repository: ${{ inputs.test-infra-repository }}
+      test-infra-ref: ${{ inputs.test-infra-ref }}
+      build-matrix: ${{ inputs.build-matrix }}
+      architecture: ${{ inputs.architecture }}
+      trigger-event: ${{ inputs.trigger-event }}
+      upload-to-pypi: ${{ inputs.upload-to-pypi }}
+      wheel-upload-path: ${{ inputs.wheel-upload-path }}
+      wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
+    secrets:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID:  ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY:  ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
