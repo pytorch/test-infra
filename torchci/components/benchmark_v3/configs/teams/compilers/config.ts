@@ -193,6 +193,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   },
   lbranch: "main",
   rbranch: "main",
+  enableSamplingFeature: true,
   maxSampling: 110, // max number of job run results to show in the table, this avoid out of memory issue
 };
 

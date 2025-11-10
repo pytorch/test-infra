@@ -173,6 +173,9 @@ export function NavigateToDashboardButton({
       variant="outlined"
       color="primary"
       endIcon={<OpenInNewIcon fontSize="small" />}
+      sx={{
+        whiteSpace: "nowrap",
+      }}
     >
       View {commit.workflow_id} ({commit.commit.slice(0, 7)}) in Dashboard
     </UMDenseSingleButton>

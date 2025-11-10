@@ -36,6 +36,7 @@ export interface BenchmarkDashboardState {
   committedLbranch: string;
   committedRbranch: string;
 
+  enableSamplingFeature?: boolean;
   enableSamplingSetting?: boolean;
   // max sampling threshold, if null, no limit.
   // otherwise, we subsampling data in backend to fit the limit during the data
@@ -112,6 +113,7 @@ export function createDashboardStore(initial: {
   rcommit?: BenchmarkCommitMeta | null;
   renderGroupId?: string;
   maxSampling?: number;
+  enableSamplingFeature?: boolean;
   enableMultiBranchOption?: boolean;
 }) {
   const idItem = BENCHMARK_ID_MAPPING[initial.benchmarkId];
@@ -132,11 +134,19 @@ export function createDashboardStore(initial: {
     branchOptionType: "single",
 
     // set only with initial config
-    enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
+    enableSamplingFeature: initial.enableSamplingFeature,
+    enableSamplingSetting:
+      initial?.enableSamplingFeature &&
+      initial?.maxSampling &&
+      initial?.maxSampling > 0
+        ? true
+        : false,
     // max sampling threshold, if null, no limit.
     // otherwise, we subsampling data in backend to fit the limit during the data
     // the min sampling threshold is 10
-    committedMaxSampling: initial.maxSampling,
+    committedMaxSampling: initial.enableSamplingFeature
+      ? initial.maxSampling
+      : undefined,
 
     // todo(elainewy): may allow user to set a different max sampling threshold based on their needs
     stagedMaxSampling: initial.maxSampling,
