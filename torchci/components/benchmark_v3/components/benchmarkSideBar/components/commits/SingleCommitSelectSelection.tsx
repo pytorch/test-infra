@@ -18,13 +18,10 @@ export function SingleCommitSelectSelection() {
     committedTime,
     committedFilters,
     lcommit,
-    rcommit,
     committedLBranch,
-    committedRBranch,
     committedMaxSampling,
     enableSamplingSetting,
     setLcommit,
-    setRcommit,
   } = useDashboardSelector((s) => ({
     type: s.type,
     benchmarkId: s.benchmarkId,
@@ -37,14 +34,10 @@ export function SingleCommitSelectSelection() {
     lcommit: s.lcommit,
     rcommit: s.rcommit,
     committedLBranch: s.committedLbranch,
-    committedRBranch: s.committedRbranch,
     setLcommit: s.setLcommit,
-    setRcommit: s.setRcommit,
   }));
 
   const [leftList, setLeftList] = useState<BenchmarkCommitMeta[]>([]);
-  const [rightList, setRightList] = useState<BenchmarkCommitMeta[]>([]);
-
   const getConfig = useBenchmarkBook((s) => s.getConfig);
   const config = getConfig(benchmarkId, type);
   const dataBinding = config.dataBinding;
@@ -55,15 +48,13 @@ export function SingleCommitSelectSelection() {
     !!committedTime?.end &&
     !!committedLBranch &&
     committedLBranch.length > 0 &&
-    !!committedRBranch &&
-    committedRBranch.length > 0 &&
     (enableSamplingSetting ? committedMaxSampling : true) &&
     required_filter_fields.every((k) => !!committedFilters[k]);
 
   // Fetch data
   const branches = [
     ...new Set(
-      [committedLBranch, committedRBranch].filter((b) => b.length > 0)
+      [committedLBranch].filter((b) => b.length > 0)
     ),
   ];
 
@@ -113,21 +104,13 @@ export function SingleCommitSelectSelection() {
       setLcommit(
         nextAutoL ? L.find((c) => c.workflow_id === nextAutoL) ?? null : null
       );
-      // tho this is single commit comopnent, we use same store as comparison mode,
-      // update rcommit for data consistency
-      setRcommit(
-        nextAutoL ? L.find((c) => c.workflow_id === nextAutoL) ?? null : null
-      );
     }
   }, [
     isLoading,
     data,
     committedLBranch,
-    committedRBranch,
     lcommit?.workflow_id,
-    rcommit?.workflow_id,
     setLcommit,
-    setRcommit,
   ]);
 
   if (error) return <div>Error: {error.message}</div>;
@@ -146,14 +129,13 @@ export function SingleCommitSelectSelection() {
         {lcommit?.branch}:
       </Box>
       <UMDenseCommitDropdown
-        label={"lbl-left"}
+        label={"run"}
         branchName={committedLBranch}
         disable={!ready || leftList.length === 0 || isLoading}
         selectedCommit={lcommit}
         commitList={leftList}
         setCommit={(c) => {
-          setLcommit(c);
-          setRcommit(c);
+          setLcommit(c)
         }}
       />
     </Stack>
