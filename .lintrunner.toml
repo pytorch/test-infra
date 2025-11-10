@@ -52,7 +52,7 @@ exclude_patterns = [
     'aws/lambda/servicelab-ingestor/**',
     'aws/lambda/tests/**',
     'aws/lambda/whl_metadata_upload_pep658/**',
-    '**/_pytest/**',
+    '**/_pytest/**/*.py',
 ]
 command = [
     'python3',
@@ -81,6 +81,7 @@ init_command = [
     'types-colorama==0.4.6',
     'filelock==3.13.1',
     'junitparser==2.1.1',
+    'pytest==8.4.2',
     'rich==10.9.0',
     'pyyaml==6.0.1',
     'optree==0.13.0',
