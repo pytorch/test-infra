@@ -43,19 +43,19 @@ Notes
 - This preserves all runs (original + restarts) and per‑run attempts (`run_attempt`).
 - Job retries typically show up as separate job rows; names may include `Attempt #2` and have later `started_at`.
 
-## Phase B — Test Details Fetch (batched, from `tests.all_test_runs`)
+## Phase B — Test Details Fetch (batched, from `default.test_run_s3`)
 
-Decide in Python which jobs belong to the test‑track (e.g., `rule IN ('pytest failure','Python unittest failure')`). For those (job_id, run_id[, run_attempt]) triples, fetch per‑test rows directly from `tests.all_test_runs` — this table contains one row per testcase and is populated earlier while jobs may still be running.
+Decide in Python which jobs belong to the test‑track (e.g., `rule IN ('pytest failure','Python unittest failure')`. For those (job_id, run_id[, run_attempt]) triples, fetch per‑test rows directly from `default.test_run_s3` — this table contains one row per testcase, including successful ones (failure_count=0, error_count=0).
 
-Why `tests.all_test_runs`?
-- We need per‑test identities to build per‑test Signals; `tests.all_test_runs` has them and is populated earlier than the final summary tables. Summary is optional and redundant for this layer.
+Why `test_run_s3` only?
+- We need per‑test identities to build per‑test Signals; `default.test_run_s3` has them. Summary is optional and redundant for this layer.
 - Performance remains good by filtering on `job_id IN (...)` (first PK column) and grouping; limit to the time window implicitly via the selected job set from Phase A.
 
 Job selection for test track:
 - Step 1: find normalized job base names that exhibited a test‑related classification in any commit within the window.
 - Step 2: include ALL jobs across ALL commits whose normalized base is in that set (original runs, restarts; any run_id/attempt) so we can observe successes or pendings for the same test on other commits.
 
-Optimized batched all_test_runs query (for N job_ids):
+Optimized batched test_run_s3 query (for N job_ids):
 
 ```
 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
@@ -63,13 +63,13 @@ SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
        max(error_count  > 0) AS errored,
        max(rerun_count  > 0) AS rerun_seen,
        count() AS rows
-FROM tests.all_test_runs
+FROM default.test_run_s3
 WHERE job_id IN {job_ids:Array(Int64)}
 GROUP BY job_id, workflow_id, workflow_run_attempt, file, classname, name
 ```
 
 Notes
-- Use `job_id IN (...)` to leverage the table’s primary key prefix on `job_id`.
+- Use `job_id IN (...)` to leverage the PK prefix `(job_id, name, classname, invoking_file, file)`.
 - We keep `workflow_run_attempt` to distinguish attempts within the same workflow run.
 
 ## Mapping to Signals
@@ -83,7 +83,7 @@ Notes
   Ordering: dicts in Python 3.7+ preserve insertion order. Phase A inserts commit keys in push‑timestamp DESC order, so iterating the mapping yields newest→older commits without extra sorting.
 
 ### Test‑track semantics
-- Source of truth for SUCCESS/FAILURE is `tests.all_test_runs` per test id.
+- Source of truth for SUCCESS/FAILURE is `default.test_run_s3` per test id.
 - When a test row exists for an attempt:
   - Emit at most one FAILURE if any failed runs exist; at most one SUCCESS if any successful runs exist.
 - When no test rows exist for an attempt and any grouped job for that attempt is pending → emit PENDING.
@@ -106,9 +106,9 @@ Event naming (for debuggability):
 
 ### Test‑track mapping
 - Build a per‑commit map `test_id -> list[SignalEvent]` by combining all relevant jobs and shards:
-  - For each (wf_run_id, run_attempt, job_base_name) group in the commit, consult `tests.all_test_runs` rows (if any) for each candidate `test_id`:
-    - If rows exist for this `test_id` → status should reflect the found test verdict.
-    - If no rows exist and the group is still running (some jobs pending) → status = PENDING.
+  - For each (wf_run_id, run_attempt, job_base_name) group in the commit, consult `test_run_s3` rows (if any) for each candidate `test_id`:
+    - If `test_run_s3` rows exist for this `test_id` → status should reflect the found test verdict.
+    - If no `test_run_s3` rows exist and the group is still running (some jobs pending) → status = PENDING.
     - Else (no rows and group completed) → missing/unknown (no event emitted).
   - Event boundaries (naturally arise from grouping):
     - Separate events for distinct workflow runs (different `wf_run_id`) on the same commit (regardless of how they were triggered).
@@ -174,7 +174,7 @@ Notes
 3) Implement selectors for test‑track pairs (Python filter on `rule`).
 4) Implement batched Phase B queries:
    - Use `(workflow_id, job_id) IN array(tuple(...))` to leverage PK prefixes.
-   - call `tests.all_test_runs` to enumerate failing tests
+   - call `test_run_s3` to enumerate failing tests
 5) Implement mapping to Signals for both tracks, emitting multiple events per commit as specified.
 6) Add unit tests:
    - Test‑track: a) failure on one commit; b) success on another; c) unknown/gap.
@@ -185,7 +185,7 @@ Notes
 
 - Keep the window small (16–32h) and deduplicate commits via push timestamps.
 - Limit the batched pairs size; chunk when necessary.
-- Align filters with primary keys:  `job_id` for `tests.all_test_runs`.
+- Align filters with primary keys:  `job_id` for `test_run_s3`.
 - Avoid scanning all of `workflow_job` by joining to recent pushes and filtering repo/branches.
 
 ## Open Questions

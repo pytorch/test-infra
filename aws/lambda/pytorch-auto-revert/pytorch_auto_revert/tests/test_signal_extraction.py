@@ -52,11 +52,7 @@ class FakeDatasource(SignalExtractionDatasource):
         return list(self._jobs)
 
     def fetch_tests_for_job_ids(
-        self,
-        job_ids: List[JobId],
-        *,
-        failed_job_ids: List[JobId],
-        lookback_hours: int = 24,
+        self, job_ids: List[JobId], *, failed_job_ids: List[JobId]
     ) -> List[TestRow]:
         ids = {int(j) for j in job_ids}
         return [r for r in self._tests if int(r.job_id) in ids]
