@@ -121,12 +121,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
       {
         name: "TorchAO Micro API Benchmark",
         route:
-          "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
+          "/benchmark/v3/dashboard/torchao_micro_api_benchmark",
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
         actions: [
           {
-            label: "New dashboard (WIP)",
-            href: "/benchmark/v3/dashboard/torchao_micro_api_benchmark",
+            label: "Legacy dashboard",
+            href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
           },
         ],
       },
