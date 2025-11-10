@@ -1,5 +1,6 @@
 WITH job AS (
     SELECT
+        distinct
         id,
         name
     FROM
