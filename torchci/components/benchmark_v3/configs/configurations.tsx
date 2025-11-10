@@ -26,8 +26,12 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
     repoName: "pytorch/helion",
     benchmarkName: "Helion Benchmark",
   },
+  torchao_micro_api_benchmark: {
+    id: "torchao_micro_api_benchmark",
+    repoName: "pytorch/ao",
+    benchmarkName: "micro-benchmark api",
+  },
 };
-
 /**
  * A helper function to get benchmark id from report id
  * @param reportId
@@ -119,6 +123,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         route:
           "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
+        actions: [
+          {
+            label: "New dashboard (WIP)",
+            href: "/benchmark/v3/dashboard/torchao_micro_api_benchmark",
+          },
+        ],
       },
     ],
   },
