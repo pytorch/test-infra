@@ -294,11 +294,7 @@ jobs:
       test-infra-repository: ${{ inputs.test-infra-repository }}
       test-infra-ref: ${{ inputs.test-infra-ref }}
       build-matrix: ${{ inputs.build-matrix }}
-      architecture: ${{ inputs.architecture }}
       trigger-event: ${{ inputs.trigger-event }}
-      upload-to-pypi: ${{ inputs.upload-to-pypi }}
-      wheel-upload-path: ${{ inputs.wheel-upload-path }}
-      wheel-nightly-policy: ${{ inputs.wheel-nightly-policy }}
     secrets:
       R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
       R2_ACCESS_KEY_ID:  ${{ secrets.R2_ACCESS_KEY_ID }}
