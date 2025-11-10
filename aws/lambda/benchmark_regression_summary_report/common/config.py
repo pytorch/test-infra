@@ -10,6 +10,7 @@ from common.config_model import (
     ReportConfig,
 )
 
+
 PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
     name="Pytorch Operator Microbench Regression",
     id="pytorch_operator_microbenchmark",

@@ -1,5 +1,7 @@
 import datetime as dt
 import logging
+import math
+import statistics
 from typing import Any, Counter, Dict, List, Literal, Optional, TypedDict
 
 from common.benchmark_time_series_api_model import (
@@ -8,8 +10,7 @@ from common.benchmark_time_series_api_model import (
 )
 from common.config_model import BenchmarkConfig, RegressionPolicy
 from dateutil.parser import isoparse
-import math
-import statistics
+
 
 logger = logging.getLogger()
 
