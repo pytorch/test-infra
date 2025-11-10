@@ -254,6 +254,7 @@ exclude_patterns = [
     '**/gradlew',
     '**/fixtures/**',
     '**/snapshots/**',
+    '**/_pytest/**',
     # Putting this exclusion just to get the linter running.
     "tools/stronghold/bin/build-check-api-compatibility",
 ]
