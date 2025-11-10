@@ -11,9 +11,10 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 
 import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
+import { useRouter } from "next/router";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
-import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
+import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
@@ -270,7 +271,6 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
-        <RenderRawContent data={data["table"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}
@@ -284,6 +284,34 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
         />
       </Grid>
     </Grid>
+  );
+}
+
+export function AutoBenchmarkSingleViewNavigation({
+  config,
+}: AutoComponentProps) {
+  const router = useRouter();
+  const ctx = useBenchmarkCommittedContext();
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch;
+
+  const uiRenderConfig = config as UIRenderConfig;
+  const lcommit = ctx.lcommit;
+  const rcommit = ctx.rcommit;
+
+  if (!isWorkflowsReady || !lcommit || !rcommit) {
+    return <></>;
+  }
+  return (
+    <BenchmarkSingleViewNavigation
+      benchmarkId={ctx.benchmarkId}
+      lcommit={lcommit}
+      rcommit={rcommit}
+      config={uiRenderConfig}
+    />
   );
 }
 
@@ -636,7 +664,6 @@ export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
-        <RenderRawContent data={data["table"]} buttonName={"raw json"} />
         <BenchmarkSingleDataTable
           data={data["table"]}
           config={uiRenderConfig.config}

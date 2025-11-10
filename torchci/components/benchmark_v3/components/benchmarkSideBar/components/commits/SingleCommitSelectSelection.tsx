@@ -1,12 +1,18 @@
+import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import { Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { useBenchmarkBook } from "components/benchmark_v3/configs/benchmark_config_book";
 import { QueryParameterConverterInputs } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 import { CenteredLoader } from "components/common/LoadingIcon";
-import { UMDenseCommitDropdown } from "components/uiModules/UMDenseComponents";
+import {
+  UMDenseCommitDropdown,
+  UMDenseSingleButton,
+} from "components/uiModules/UMDenseComponents";
 import { useBenchmarkCommitsData } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
+import { stateToQuery } from "lib/helpers/urlQuery";
+import { NextRouter, useRouter } from "next/router";
 import { useEffect, useState } from "react";
 
 export function SingleCommitSelectSelection() {
@@ -52,11 +58,7 @@ export function SingleCommitSelectSelection() {
     required_filter_fields.every((k) => !!committedFilters[k]);
 
   // Fetch data
-  const branches = [
-    ...new Set(
-      [committedLBranch].filter((b) => b.length > 0)
-    ),
-  ];
+  const branches = [...new Set([committedLBranch].filter((b) => b.length > 0))];
 
   // Convert to query params
   const params = dataBinding.toQueryParams({
@@ -105,13 +107,7 @@ export function SingleCommitSelectSelection() {
         nextAutoL ? L.find((c) => c.workflow_id === nextAutoL) ?? null : null
       );
     }
-  }, [
-    isLoading,
-    data,
-    committedLBranch,
-    lcommit?.workflow_id,
-    setLcommit,
-  ]);
+  }, [isLoading, data, committedLBranch, lcommit?.workflow_id, setLcommit]);
 
   if (error) return <div>Error: {error.message}</div>;
   if (isLoading || !data) return <CenteredLoader />;
@@ -135,9 +131,10 @@ export function SingleCommitSelectSelection() {
         selectedCommit={lcommit}
         commitList={leftList}
         setCommit={(c) => {
-          setLcommit(c)
+          setLcommit(c);
         }}
       />
+      <NavigateToDashboardButton benchmarkId={benchmarkId} commit={lcommit} />
     </Stack>
   );
 }
@@ -156,3 +153,55 @@ export const convertToBranchMap = (
     return acc;
   }, {} as Record<string, BenchmarkCommitMeta[]>);
 };
+
+export function NavigateToDashboardButton({
+  benchmarkId,
+  commit,
+}: {
+  benchmarkId: string;
+  commit: BenchmarkCommitMeta | null;
+}) {
+  const router = useRouter();
+  if (!commit) {
+    return <></>;
+  }
+  return (
+    <UMDenseSingleButton
+      component="a"
+      href={toDashboardUrl(benchmarkId, commit, router)}
+      size="small"
+      variant="outlined"
+      color="primary"
+      endIcon={<OpenInNewIcon fontSize="small" />}
+    >
+      View {commit.workflow_id} ({commit.commit.slice(0, 7)}) in Dashboard
+    </UMDenseSingleButton>
+  );
+}
+
+export function toDashboardUrl(
+  benchmarkId: string,
+  commit: BenchmarkCommitMeta,
+  router: NextRouter
+) {
+  const pathname = `/benchmark/v3/dashboard/${benchmarkId}`;
+  const lcommit: BenchmarkCommitMeta = commit;
+  const rcommit: BenchmarkCommitMeta = commit;
+  const reformattedPrams = stateToQuery({
+    lcommit,
+    rcommit,
+  });
+
+  const nextDashboardMainQuery = {
+    ...router.query, // keep existing params
+    ...reformattedPrams,
+    renderGroupId: "main",
+  };
+  const params = new URLSearchParams(
+    Object.entries(nextDashboardMainQuery)
+      .filter(([_, v]) => v != null && v !== "")
+      .map(([k, v]) => [k, String(v)])
+  );
+  const url = `${pathname}?${params.toString()}`;
+  return url;
+}

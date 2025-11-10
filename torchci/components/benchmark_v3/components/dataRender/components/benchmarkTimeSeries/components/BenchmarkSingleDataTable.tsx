@@ -79,15 +79,23 @@ export default function BenchmarkSingleDataTable({
       {title?.description && (
         <Typography variant="body2">{title.description}</Typography>
       )}
-      {isDebug && (
-        <RenderRawContent
-          data={rows}
-          title="Report Raw Json"
-          buttonName="View Full Raw Data"
-          type="json"
-        />
-      )}
+      <RenderRawContent
+        data={data}
+        buttonName={"view json"}
+        buttonSx={{ lineHeight: 2 }}
+        title={"Raw Json"}
+      />
       <Button
+        variant="outlined"
+        sx={{
+          px: 0.5,
+          py: 0,
+          mx: 1,
+          minWidth: "auto",
+          lineHeight: 2,
+          fontSize: "0.75rem",
+          textTransform: "none",
+        }}
         onClick={() =>
           apiRef?.current?.exportDataAsCsv({
             allColumns: true,

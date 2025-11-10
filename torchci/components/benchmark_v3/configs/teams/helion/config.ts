@@ -156,6 +156,14 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
     },
     renders: [
       {
+        type: "AutoBenchmarkSingleViewNavigation",
+        config: {
+          title: {
+            description: "See single view for left and right runs",
+          },
+        },
+      },
+      {
         type: "AutoBenchmarkPairwiseTable",
         title: "Comparison Table",
         config: {

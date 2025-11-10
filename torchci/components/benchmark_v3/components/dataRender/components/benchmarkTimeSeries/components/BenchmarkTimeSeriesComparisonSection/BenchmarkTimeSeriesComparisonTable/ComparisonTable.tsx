@@ -6,6 +6,7 @@ import {
   GridRowModel,
   useGridApiRef,
 } from "@mui/x-data-grid";
+import { RenderRawContent } from "components/benchmark_v3/components/common/RawContentDialog";
 import { SelectionDialog } from "components/benchmark_v3/components/common/SelectionDialog";
 import { useMemo, useState } from "react";
 import { ComparisonTableConfig } from "../../../helper";
@@ -105,8 +106,24 @@ export function ComparisonTable({
       <Typography variant="body2">
         {lWorkflowId} - {rWorkflowId}
       </Typography>
+      <RenderRawContent
+        data={data}
+        buttonName={"view json"}
+        buttonSx={{ lineHeight: 2 }}
+        title={"Raw Json"}
+      />
       {!config?.disableExport && (
         <Button
+          variant="outlined"
+          sx={{
+            px: 0.5,
+            py: 0,
+            mx: 1,
+            minWidth: "auto",
+            lineHeight: 2,
+            fontSize: "0.75rem",
+            textTransform: "none",
+          }}
           onClick={() =>
             apiRef?.current?.exportDataAsCsv({
               allColumns: true,
@@ -118,6 +135,7 @@ export function ComparisonTable({
           Download CSV
         </Button>
       )}
+
       <DataGrid
         apiRef={apiRef}
         density="compact"

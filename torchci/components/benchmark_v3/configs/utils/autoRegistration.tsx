@@ -3,6 +3,7 @@ import {
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
   AutoBenchmarkSingleDataTable,
+  AutoBenchmarkSingleViewNavigation,
   AutoBenchmarkTimeSeriesChartGroup,
   AutoBenchmarkTimeSeriesTable,
 } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
@@ -49,6 +50,9 @@ export class AutoComponentRegistry {
       },
       AutoBenchmarkPairwiseTable: {
         Component: AutoBenchmarkPairwiseTable,
+      },
+      AutoBenchmarkSingleViewNavigation: {
+        Component: AutoBenchmarkSingleViewNavigation,
       },
       AutoBenchmarkTimeSeriesChartGroup: {
         Component: AutoBenchmarkTimeSeriesChartGroup,

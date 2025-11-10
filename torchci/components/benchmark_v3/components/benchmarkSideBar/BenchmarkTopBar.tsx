@@ -44,8 +44,10 @@ export function BenchmarkTopBar({
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
           </>
         )}
-        <ReportFeature reportFeature={reportFeature} />
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+        {reportFeature && <ReportFeature reportFeature={reportFeature} />}
+        {reportFeature && (
+          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+        )}
         {mode == "default" && <CommitWorflowSelectSection />}
         {mode == "single" && <SingleCommitSelectSelection />}
       </Stack>
