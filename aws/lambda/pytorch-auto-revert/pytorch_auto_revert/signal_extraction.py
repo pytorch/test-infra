@@ -492,15 +492,16 @@ class SignalExtractor:
                     # Map aggregation verdict to outer SignalStatus
                     if meta.status is None:
                         continue
-                    if meta.status == AggStatus.FAILURE and meta.has_non_test_failures:
+                    if meta.status == AggStatus.FAILURE:
                         # mark presence of non-test failures (relevant for job track)
-                        has_relevant_failures = True
+                        if meta.has_non_test_failures:
+                            has_relevant_failures = True
+
                         ev_status = SignalStatus.FAILURE
-                    elif meta.status == AggStatus.PENDING:
-                        ev_status = SignalStatus.PENDING
-                    else:
-                        # Note: when all failures are caused by tests, we do NOT emit job-level failures
+                    elif meta.status == AggStatus.SUCCESS:
                         ev_status = SignalStatus.SUCCESS
+                    else:
+                        ev_status = SignalStatus.PENDING
 
                     # Extract wf_run_id/run_attempt from the attempt key
                     _, _, _, wf_run_id, run_attempt = akey
