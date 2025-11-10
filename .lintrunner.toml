@@ -52,7 +52,6 @@ exclude_patterns = [
     'aws/lambda/servicelab-ingestor/**',
     'aws/lambda/tests/**',
     'aws/lambda/whl_metadata_upload_pep658/**',
-    '**/_pytest/**/*.py',
 ]
 command = [
     'python3',
