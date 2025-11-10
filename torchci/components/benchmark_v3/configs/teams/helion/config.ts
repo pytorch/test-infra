@@ -67,7 +67,7 @@ export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
     renders: [
       {
         type: "AutoBenchmarkSingleDataTable",
-        title: "Single Table",
+        title: "Single Run Table",
         config: {
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
@@ -157,11 +157,8 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
     renders: [
       {
         type: "AutoBenchmarkSingleViewNavigation",
-        config: {
-          title: {
-            description: "See single view for left and right runs",
-          },
-        },
+        description: "See single view for left and right runs",
+        config: {},
       },
       {
         type: "AutoBenchmarkPairwiseTable",

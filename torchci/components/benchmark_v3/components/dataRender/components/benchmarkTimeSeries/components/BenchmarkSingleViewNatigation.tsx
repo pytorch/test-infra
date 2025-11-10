@@ -11,17 +11,20 @@ export function BenchmarkSingleViewNavigation({
   lcommit,
   rcommit,
   config,
+  title,
 }: {
   benchmarkId: string;
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
+  title?: {
+    text?: string;
+    description?: string;
+  };
   config: UIRenderConfig;
 }) {
   const router = useRouter();
 
   const uiRenderConfig = config as UIRenderConfig;
-
-  const title = uiRenderConfig.config?.title;
 
   if (!lcommit || !rcommit) {
     return <></>;
@@ -29,7 +32,7 @@ export function BenchmarkSingleViewNavigation({
 
   return (
     <Box>
-      <Typography variant="h6">{title?.text}</Typography>
+      {title?.text && <Typography variant="h6">{title?.text}</Typography>}
       {title?.description && (
         <Typography variant="body2">{title.description}</Typography>
       )}

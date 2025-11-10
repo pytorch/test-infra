@@ -311,6 +311,10 @@ export function AutoBenchmarkSingleViewNavigation({
       lcommit={lcommit}
       rcommit={rcommit}
       config={uiRenderConfig}
+      title={{
+        text: config?.title,
+        description: config?.description,
+      }}
     />
   );
 }
@@ -668,8 +672,8 @@ export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
           data={data["table"]}
           config={uiRenderConfig.config}
           title={{
-            text: uiRenderConfig?.title ?? "Single Table",
-            description: "list single workflow run data",
+            text: config?.title ?? "Single Table",
+            description: config?.description ?? "list single workflow run data",
           }}
         />
       </Grid>
