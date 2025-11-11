@@ -24,8 +24,6 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   },
 ] as const;
 
-
-
 const RENDER_MAPPING_BOOK = {
   helion_speedup: {
     displayName: "Helion Speedup (Geomean)",
@@ -77,9 +75,9 @@ export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
               displayName: "Model",
             },
             {
-              field:"arch",
+              field: "arch",
               displayName: "Hardware Type",
-            }
+            },
           ],
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
