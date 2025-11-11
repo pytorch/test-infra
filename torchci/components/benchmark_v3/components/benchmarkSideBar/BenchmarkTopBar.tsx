@@ -4,13 +4,16 @@ import { BenchmarkUIConfigHandler } from "components/benchmark_v3/configs/benchm
 import { BenchmarkReportFeatureNotification } from "../benchmarkRegressionReport/BenchmarkReportFeatureNotification";
 import { BenchmarkReportFeatureSidePanel } from "../benchmarkRegressionReport/BenchmarkReportFeatureSidePanel";
 import { CommitWorflowSelectSection } from "./components/commits/CommitWorkfowSelectSection";
+import { SingleCommitSelectSelection } from "./components/commits/SingleCommitSelectSelection";
 
 export function BenchmarkTopBar({
   config,
   title = "",
+  mode = "default",
 }: {
   config: BenchmarkUIConfigHandler;
   title?: string;
+  mode?: string;
 }) {
   const reportFeature =
     config.raw.dataRender?.sideRender?.RegressionReportFeature;
@@ -41,9 +44,12 @@ export function BenchmarkTopBar({
             <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
           </>
         )}
-        <ReportFeature reportFeature={reportFeature} />
-        <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
-        <CommitWorflowSelectSection />
+        {reportFeature && <ReportFeature reportFeature={reportFeature} />}
+        {reportFeature && (
+          <Divider orientation="vertical" flexItem sx={{ mx: 1 }} />
+        )}
+        {mode == "default" && <CommitWorflowSelectSection />}
+        {mode == "single" && <SingleCommitSelectSelection />}
       </Stack>
     </Paper>
   );

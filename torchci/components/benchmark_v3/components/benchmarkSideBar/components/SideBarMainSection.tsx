@@ -107,6 +107,7 @@ export function SideBarMainSection() {
     branchOptionType,
     enableMultiBranchOption,
     enableSamplingSetting,
+    enableSamplingFeature,
     commitMainOptions,
     revertMainOptions,
   } = useDashboardSelector((s) => ({
@@ -115,6 +116,7 @@ export function SideBarMainSection() {
     stagedLbranch: s.stagedLbranch,
     stagedRbranch: s.stagedRbranch,
     stagedMaxSampling: s.stagedMaxSampling,
+    enableSamplingFeature: s.enableSamplingFeature,
     enableMultiBranchOption: s.enableMultiBranchOption,
     branchOptionType: s.branchOptionType,
 
@@ -253,15 +255,19 @@ export function SideBarMainSection() {
         end={stagedTime.end}
         gap={0}
       />
-      {/* Fetch Settings */}
-      <Divider />
-      <Typography variant="subtitle2">Fetch Settings</Typography>
-      <SamplingSetting
-        enableSamplingSetting={enableSamplingSetting ?? false}
-        setEnableSamplingSetting={setEnableSamplingSetting}
-        setMaxSampling={setStagedMaxSampling}
-        maxSamplingValue={stagedMaxSampling ?? 0}
-      />
+      {enableSamplingFeature && (
+        <>
+          {/* Fetch Settings */}
+          <Divider />
+          <Typography variant="subtitle2">Fetch Settings</Typography>{" "}
+          <SamplingSetting
+            enableSamplingSetting={enableSamplingSetting ?? false}
+            setEnableSamplingSetting={setEnableSamplingSetting}
+            setMaxSampling={setStagedMaxSampling}
+            maxSamplingValue={stagedMaxSampling ?? 0}
+          />
+        </>
+      )}
       {showSamplinginfo && (
         <DenseAlert severity="info">
           {`Data Sampling: subsample from ${sampling_info?.origin ?? 0} to ${

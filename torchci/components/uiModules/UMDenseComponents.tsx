@@ -1,5 +1,6 @@
 import {
   Button,
+  ButtonProps,
   FormControl,
   InputLabel,
   MenuItem,
@@ -27,6 +28,16 @@ export const UMDenseButtonLight = styled(Button)(({ theme }) => ({
   fontSize: "0.75rem",
   borderRadius: 4,
   textTransform: "none", // optional: avoids uppercase
+}));
+
+export const UMDenseSingleButton = styled(Button)<ButtonProps>(({ theme }) => ({
+  px: 0.5,
+  py: 0,
+  mx: 1,
+  minWidth: "auto",
+  lineHeight: 2,
+  fontSize: "0.75rem",
+  textTransform: "none",
 }));
 
 // Reusable dense menu style (affects the dropdown list items)

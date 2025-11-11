@@ -11,8 +11,10 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 
 import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
+import { useRouter } from "next/router";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
-import { RenderRawContent } from "../../common/RawContentDialog";
+import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
+import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
 
@@ -269,7 +271,6 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   return (
     <Grid container sx={{ m: 1 }}>
       <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
-        <RenderRawContent data={data["table"]} />
         <ComparisonTable
           data={data["table"]}
           config={uiRenderConfig.config}
@@ -283,6 +284,38 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
         />
       </Grid>
     </Grid>
+  );
+}
+
+export function AutoBenchmarkSingleViewNavigation({
+  config,
+}: AutoComponentProps) {
+  const router = useRouter();
+  const ctx = useBenchmarkCommittedContext();
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch;
+
+  const uiRenderConfig = config as UIRenderConfig;
+  const lcommit = ctx.lcommit;
+  const rcommit = ctx.rcommit;
+
+  if (!isWorkflowsReady || !lcommit || !rcommit) {
+    return <></>;
+  }
+  return (
+    <BenchmarkSingleViewNavigation
+      benchmarkId={ctx.benchmarkId}
+      lcommit={lcommit}
+      rcommit={rcommit}
+      config={uiRenderConfig}
+      title={{
+        text: config?.title,
+        description: config?.description,
+      }}
+    />
   );
 }
 
@@ -557,13 +590,90 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
 
   return (
     <Grid container sx={{ m: 1 }}>
-      <Grid sx={{ p: 0.2 }} size={{ xs: 12 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
         <BenchmarkRawDataTable
           data={data["table"]}
           config={uiRenderConfig.config}
           title={{
             text: uiRenderConfig?.title ?? "Raw Table",
             description: "list all the workflow run data within the time range",
+          }}
+        />
+      </Grid>
+    </Grid>
+  );
+}
+
+export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id && ctx.lcommit.branch === ctx.committedLbranch;
+
+  const ready =
+    !!ctx &&
+    !!ctx.committedTime?.start &&
+    !!ctx.committedTime?.end &&
+    !!ctx.committedLbranch &&
+    isWorkflowsReady &&
+    ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const branches = [
+    ...new Set([ctx.committedLbranch].filter((b) => b.length > 0)),
+  ];
+  const workflows = ctx.lcommit?.workflow_id ? [ctx.lcommit?.workflow_id] : [];
+
+  // convert to the query params
+  const params = dataBinding.toQueryParams({
+    repo: ctx.repo,
+    branches: branches,
+    benchmarkName: ctx.benchmarkName,
+    timeRange: ctx.committedTime,
+    filters: ctx.committedFilters,
+    maxSampling: ctx.committedMaxSampling,
+    workflows,
+  });
+
+  const queryParams: any | null = ready ? params : null;
+  // fetch the bechmark data
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={500}
+        content="loading data for AutoBenchmarkSingleDataTable..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkSingleDataTable){error.message}
+      </Alert>
+    );
+  }
+
+  if (!resp?.data?.data) {
+    return <div>no data</div>;
+  }
+  const data = resp?.data?.data;
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
+        <BenchmarkSingleDataTable
+          data={data["table"]}
+          config={uiRenderConfig.config}
+          title={{
+            text: config?.title ?? "Single Table",
+            description: config?.description ?? "list single workflow run data",
           }}
         />
       </Grid>
