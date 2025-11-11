@@ -257,7 +257,11 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   }
 
   if (timedOut) {
-    return <Alert severity="warning">[Timeout(30s)]unable to fetch data</Alert>;
+    return (
+      <Alert severity="warning">
+        Timeout(30s): unable to fetch data due to no commit infos
+      </Alert>
+    );
   }
 
   if (error) {
