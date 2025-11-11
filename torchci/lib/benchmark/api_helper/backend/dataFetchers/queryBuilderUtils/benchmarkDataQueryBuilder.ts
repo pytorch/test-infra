@@ -560,3 +560,54 @@ export class PytorchHelionDataFetcher
     return this._data_query.build();
   }
 }
+
+/**
+ * Builder to get TorchAo  Micro API Benchmark
+ * It inherits method from BenchmarkDataQuery
+ *
+ */
+export class PytorchAoMicroApiBenchmarkDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+
+    // add extra info to the query
+    this._data_query.addExtraInfos(
+      new Map([
+        [
+          "use_compile",
+          `IF(
+              tupleElement(o.benchmark, 'extra_info')['use_compile'] = '',
+              'false',
+              -- Default to true
+              tupleElement(o.benchmark, 'extra_info')['use_compile']
+          )`,
+        ],
+      ])
+    );
+  }
+
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const params = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}

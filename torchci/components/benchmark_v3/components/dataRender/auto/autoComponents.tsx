@@ -11,6 +11,7 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 
 import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
+import { useEffect, useState } from "react";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
@@ -142,7 +143,7 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
 
 export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
-
+  const [timedOut, setTimedOut] = useState(false);
   const isWorkflowsReady =
     !!ctx.lcommit?.workflow_id &&
     !!ctx.rcommit?.workflow_id &&
@@ -157,6 +158,17 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     !!ctx.committedRbranch &&
     isWorkflowsReady &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  useEffect(() => {
+    if (!ready) {
+      const id = setTimeout(() => {
+        setTimedOut(true);
+      }, 30000); // 30 seconds
+      return () => clearTimeout(id);
+    } else {
+      setTimedOut(false);
+    }
+  }, [ready]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
   const uiRenderConfig = config as UIRenderConfig;
@@ -238,10 +250,14 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
-  if (!ready) {
+  if (!ready && !timedOut) {
     return (
       <LoadingPage height={500} content="Waiting for initialization...." />
     );
+  }
+
+  if (timedOut) {
+    return <Alert severity="warning">[Timeout(30s)]unable to fetch data</Alert>;
   }
 
   if (error) {
