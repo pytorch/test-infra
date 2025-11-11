@@ -9,7 +9,7 @@ const initialOptions = {
   benchmarkId: PYTORCH_HELION_BENCHMARK_ID,
 };
 
-const COMPARISON_TABLE_METADATA_COLUMNS = [
+const DETAIL_VIEW_METADATA_COLUMNS = [
   {
     field: "branch",
     displayName: "branch",
@@ -141,7 +141,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
                 fields: ["model"],
                 displayName: "Model",
               },
-              extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: DETAIL_VIEW_METADATA_COLUMNS,
               renderOptions: {
                 tableRenderingBook: RENDER_MAPPING_BOOK,
                 flex: {
@@ -154,7 +154,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: DETAIL_VIEW_METADATA_COLUMNS,
               renderOptions: {
                 tableRenderingBook: RENDER_MAPPING_BOOK,
               },
