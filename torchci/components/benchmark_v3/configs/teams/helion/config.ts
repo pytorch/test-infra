@@ -182,7 +182,12 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
               applyFilterFields: ["model", "device", "arch"],
             },
           },
-          extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+          extraMetadata: [
+            {
+              field: "arch",
+              displayName: "Hardware model",
+            },
+          ],
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
             flex: {
