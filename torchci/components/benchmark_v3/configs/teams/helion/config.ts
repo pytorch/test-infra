@@ -71,6 +71,16 @@ export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
         type: "AutoBenchmarkSingleDataTable",
         title: "Single Run Table",
         config: {
+          extraMetadata: [
+            {
+              field: "model",
+              displayName: "Model",
+            },
+            {
+              field:"arch",
+              displayName: "Hardware Type",
+            }
+          ],
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
             highlightPolicy: {
