@@ -1,5 +1,5 @@
 WITH job AS (
-    SELECT
+    SELECT DISTINCT
         id,
         name
     FROM
