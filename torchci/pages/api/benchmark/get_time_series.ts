@@ -79,6 +79,7 @@ async function getBenchmarkTimeSeriesData(
       );
     case "pytorch_operator_microbenchmark":
     case "pytorch_helion":
+    case "torchao_micro_api_benchmark":
       return await getGenernalBenchmarkTimeSeries(
         query_params,
         formats,
