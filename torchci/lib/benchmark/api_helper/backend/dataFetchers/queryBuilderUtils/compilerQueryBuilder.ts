@@ -201,11 +201,6 @@ SETTINGS session_timezone = 'UTC';
       ]);
     }
     const params = compilerParmsToQueryInput(inputs);
-
-    console.log("apply query", {
-      ...this._DEFAULT_QUERY_PARAMS,
-      ...params,
-    });
     return {
       ...this._DEFAULT_QUERY_PARAMS,
       ...params,
