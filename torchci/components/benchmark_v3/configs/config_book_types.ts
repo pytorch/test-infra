@@ -46,6 +46,7 @@ export type BenchmarkUIConfigFilterConstarintConfig = {
 
 export type UIRenderConfig = {
   title?: string; // title of the component to render
+  description?: string; // description of the component to render
   id?: string; // id of the component to render
   type: string; // type of the component to render
   config: any; // config of the component to render

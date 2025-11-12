@@ -1,4 +1,4 @@
-import { Tooltip, Typography } from "@mui/material";
+import { Button, Tooltip, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -7,7 +7,6 @@ import {
   useGridApiRef,
 } from "@mui/x-data-grid";
 import { RenderRawContent } from "components/benchmark_v3/components/common/RawContentDialog";
-import { UMDenseSingleButton } from "components/uiModules/UMDenseComponents";
 import Link from "next/link";
 import { useMemo } from "react";
 import {
@@ -17,7 +16,8 @@ import {
 } from "../helper";
 import { groupKeyAndLabel } from "./BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTableHelpers";
 
-export default function BenchmarkRawDataTable({
+const GOOD_COLOR = "#e8f5e9"; // green[50]
+export default function BenchmarkSingleDataTable({
   config,
   data,
   title,
@@ -85,8 +85,17 @@ export default function BenchmarkRawDataTable({
         buttonSx={{ lineHeight: 2 }}
         title={"Raw Json"}
       />
-      <UMDenseSingleButton
+      <Button
         variant="outlined"
+        sx={{
+          px: 0.5,
+          py: 0,
+          mx: 1,
+          minWidth: "auto",
+          lineHeight: 2,
+          fontSize: "0.75rem",
+          textTransform: "none",
+        }}
         onClick={() =>
           apiRef?.current?.exportDataAsCsv({
             allColumns: true,
@@ -96,7 +105,7 @@ export default function BenchmarkRawDataTable({
         }
       >
         Download CSV
-      </UMDenseSingleButton>
+      </Button>
       <DataGrid
         density="compact"
         apiRef={apiRef}
@@ -190,10 +199,6 @@ function getTableConlumnRendering(
         );
       },
     },
-    {
-      field: "timestamp",
-      headerName: "Timestamp",
-    },
   ];
 
   const metadata = config?.extraMetadata ?? [];
@@ -202,7 +207,6 @@ function getTableConlumnRendering(
     .map((k: any) => ({
       field: k.field,
       headerName: k.displayName ?? k.field,
-      flex: 0.5,
       renderCell: (p: any) => (
         <Typography variant="body2">{p.row[k.field]}</Typography>
       ),
@@ -214,6 +218,7 @@ function getTableConlumnRendering(
       field,
       config?.renderOptions?.tableRenderingBook
     ),
+    flex: 0.5,
     sortable: false,
     filterable: false,
     valueGetter: (_value: any, row: any) => {
@@ -236,14 +241,48 @@ function getTableConlumnRendering(
         fieldName,
         config
       );
+
+      if (!value) {
+        return "missing data";
+      }
       return renderBasedOnUnitConifg(value, rc?.unit);
     },
     renderCell: (params: GridRenderCellParams<any>) => {
+      if (config?.renderOptions?.highlightPolicy) {
+        const policy = config?.renderOptions?.highlightPolicy;
+        return renderHighlight(policy, params);
+      }
       return <Box>{params.formattedValue ?? ""}</Box>;
     },
   }));
 
   return [...metadataColumns, ...metadataCols, ...metricCols];
+}
+
+function renderHighlight(
+  highlightPolicy: any,
+  params: GridRenderCellParams<any>
+) {
+  if (highlightPolicy.direction != "row") {
+    return <Box>{params.formattedValue ?? ""}</Box>;
+  }
+  const policy = highlightPolicy?.policy ?? "max";
+  const regex = highlightPolicy?.regex;
+  const highlighColor = highlightPolicy?.color ?? GOOD_COLOR;
+  const highlight = shouldHighlightCellByRowExtrema(params, policy, regex);
+  return (
+    <Box
+      sx={{
+        bgcolor: highlight ? highlighColor : "transparent",
+        fontWeight: highlight ? 600 : "normal",
+        px: 0.5,
+        py: 0.25,
+        borderRadius: 1,
+      }}
+    >
+      {params.formattedValue ?? params.value ?? ""}
+    </Box>
+  );
 }
 
 /**
@@ -283,4 +322,56 @@ export function ToRawTableRow(config: any, data: any) {
     m.get(key)!.rowItem.push(rawData);
   }
   return Array.from(m.values());
+}
+
+export function shouldHighlightCellByRowExtrema(
+  params: GridRenderCellParams<any>,
+  policy: "min" | "max",
+  regexString?: string
+): boolean {
+  const rowItems = params.row?.rowItem;
+  if (!Array.isArray(rowItems) || rowItems.length === 0) return false;
+
+  // parse "field||idx" -> base name + index
+  const [baseField, idxStr] = String(params.field).split("||");
+  const idx = Number.isFinite(Number(idxStr)) ? Number(idxStr) : 0;
+
+  // flatten rowItem[0]
+  const root = rowItems[0] ?? {};
+  const flattened: Record<string, number> = {};
+
+  for (const key of Object.keys(root)) {
+    const arr = root[key]?.data;
+    if (!Array.isArray(arr) || arr.length <= idx) continue;
+    const v = arr[idx]?.value;
+    if (typeof v === "number" && Number.isFinite(v)) {
+      flattened[key] = v;
+    }
+  }
+
+  const current = flattened[baseField];
+
+  if (current == null) return false;
+
+  // optional regex filter
+  let regex: RegExp | null = null;
+  if (regexString) {
+    try {
+      regex = new RegExp(regexString);
+    } catch {
+      regex = null;
+    }
+  }
+
+  const entries = Object.entries(flattened).filter(([k]) =>
+    regex ? regex.test(k) : true
+  );
+
+  if (entries.length === 0) return false;
+
+  const values = entries.map(([, v]) => v);
+  const minV = Math.min(...values);
+  const maxV = Math.max(...values);
+
+  return policy === "min" ? current === minV : current === maxV;
 }

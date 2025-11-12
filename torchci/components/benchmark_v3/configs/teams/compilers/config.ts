@@ -16,7 +16,10 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import {
+  BRANCH_METADATA_COLUMN,
+  DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+} from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -193,6 +196,7 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   },
   lbranch: "main",
   rbranch: "main",
+  enableSamplingFeature: true,
   maxSampling: 110, // max number of job run results to show in the table, this avoid out of memory issue
 };
 
@@ -217,10 +221,6 @@ const COMPILER_DASHBOARD_BENCHMARK_DATABINDING = {
 };
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
-  {
-    field: "branch",
-    displayName: "branch",
-  },
   {
     field: "suite",
   },
@@ -261,7 +261,10 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: [
+                BRANCH_METADATA_COLUMN,
+                ...DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              ],
               renderOptions: {
                 tableRenderingBook: DashboardRenderBook,
               },
