@@ -193,6 +193,8 @@ export function toDashboardUrl(
   const reformattedPrams = stateToQuery({
     lcommit,
     rcommit,
+    lbranch: commit.branch,
+    rbranch: commit.branch,
   });
 
   const nextDashboardMainQuery = {

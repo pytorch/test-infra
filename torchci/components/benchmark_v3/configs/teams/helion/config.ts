@@ -11,10 +11,6 @@ const initialOptions = {
 
 const DETAIL_VIEW_METADATA_COLUMNS = [
   {
-    field: "branch",
-    displayName: "branch",
-  },
-  {
     field: "device",
     displayName: "Hardware type",
   },
@@ -154,7 +150,13 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: DETAIL_VIEW_METADATA_COLUMNS,
+              extraMetadata: [
+                {
+                  field: "branch",
+                  displayName: "branch",
+                },
+                ...DETAIL_VIEW_METADATA_COLUMNS,
+              ],
               renderOptions: {
                 tableRenderingBook: RENDER_MAPPING_BOOK,
               },
