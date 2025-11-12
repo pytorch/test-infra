@@ -29,6 +29,10 @@ import { DataBinding } from "components/benchmark_v3/configs/utils/dataBindingRe
 
 import { create } from "zustand";
 import { defaultSingleBenchmarkUIConfig } from "./teams/defaults/default_single_view_config";
+import {
+  PytorcAoMicroApiBenchmarkDashoboardConfig,
+  PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+} from "./teams/torchao/ao_micro_api_config";
 
 const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [COMPILTER_BENCHMARK_NAME]: {
@@ -44,6 +48,10 @@ const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [PYTORCH_HELION_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
     [BenchmarkPageType.SinglePage]: PytorchHelionSingleConfig,
+  },
+  [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorcAoMicroApiBenchmarkDashoboardConfig,
   },
 };
 

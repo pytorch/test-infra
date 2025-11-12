@@ -12,6 +12,7 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
@@ -144,7 +145,7 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
 
 export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
-
+  const [timedOut, setTimedOut] = useState(false);
   const isWorkflowsReady =
     !!ctx.lcommit?.workflow_id &&
     !!ctx.rcommit?.workflow_id &&
@@ -159,6 +160,17 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     !!ctx.committedRbranch &&
     isWorkflowsReady &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  useEffect(() => {
+    if (!ready) {
+      const id = setTimeout(() => {
+        setTimedOut(true);
+      }, 60000); // 60 seconds
+      return () => clearTimeout(id);
+    } else {
+      setTimedOut(false);
+    }
+  }, [ready]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
   const uiRenderConfig = config as UIRenderConfig;
@@ -240,9 +252,17 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
-  if (!ready) {
+  if (!ready && !timedOut) {
     return (
       <LoadingPage height={500} content="Waiting for initialization...." />
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <Alert severity="warning">
+        Timeout(60s): unable to fetch data due to no commit infos
+      </Alert>
     );
   }
 
@@ -321,7 +341,7 @@ export function AutoBenchmarkSingleViewNavigation({
 
 export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
-
+  const [timedOut, setTimedOut] = useState(false);
   const isWorkflowsReady =
     !!ctx.lcommit?.workflow_id &&
     !!ctx.rcommit?.workflow_id &&
@@ -336,6 +356,17 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
     !!ctx.committedRbranch &&
     isWorkflowsReady &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  useEffect(() => {
+    if (!ready) {
+      const id = setTimeout(() => {
+        setTimedOut(true);
+      }, 60000); // 60 seconds
+      return () => clearTimeout(id);
+    } else {
+      setTimedOut(false);
+    }
+  }, [ready]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
 
@@ -370,9 +401,17 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
-  if (!ready) {
+  if (!ready && !timedOut) {
     return (
-      <LoadingPage height={100} content="Waiting for initialization...." />
+      <LoadingPage height={500} content="Waiting for initialization...." />
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <Alert severity="warning">
+        Timeout(60s): unable to fetch data due to no commit infos
+      </Alert>
     );
   }
 
