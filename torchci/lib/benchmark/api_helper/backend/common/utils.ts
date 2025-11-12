@@ -217,11 +217,13 @@ export function toTimeSeriesResponse(
 export function emptyTimeSeriesResponse() {
   return {
     total_rows: 0,
-    time_series: [],
-    table: [],
     time_range: {
       start: new Date().toISOString(),
       end: new Date().toISOString(),
+    },
+    data: {
+      time_series: [],
+      table: [],
     },
   };
 }
@@ -265,6 +267,7 @@ export function to_time_series_data(
           diffs.push({
             key: `${key}___${sub_key}`,
             data: item.data,
+            length: item.data.length,
           });
         }
         return item.data[0];
@@ -286,11 +289,11 @@ export function to_time_series_data(
     console.log(
       `we detected multiple datapoints for the same group keys ${
         diffs.length
-      }, peak first on \n ${JSON.stringify(
-        diffs[0].key
-      )}, \n Data1: ${JSON.stringify(
+      }, peak first on \n ${JSON.stringify(diffs[0].key)},\n duplicates ${
+        diffs[0].length
+      } \n Data1: ${JSON.stringify(
         diffs[0].data[0]
-      )}, Data:2 ${JSON.stringify(diffs[0].data[1])}`
+      )},\n Data:2 ${JSON.stringify(diffs[0].data[1])}`
     );
   }
   return result;

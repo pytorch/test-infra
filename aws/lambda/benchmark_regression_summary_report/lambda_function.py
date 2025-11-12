@@ -137,13 +137,14 @@ class BenchmarkSummaryProcessor:
             )
 
         target, ls, le = self.get_target(config, self.end_time)
-        if not target:
+        if not target.time_series:
             self.log_info(
                 f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
             return
         baseline, bs, be = self.get_baseline(config, self.end_time)
-        if not baseline:
+
+        if not baseline.time_series:
             self.log_info(
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
@@ -255,7 +256,7 @@ class BenchmarkSummaryProcessor:
             }
         )
         url = source.api_query_url
-
+        self.log_info(f"query peek: {query}")
         self.log_info(f"trying to call {url}")
         t0 = time.perf_counter()
         try:

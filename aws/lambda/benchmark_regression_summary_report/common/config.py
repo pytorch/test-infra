@@ -11,6 +11,57 @@ from common.config_model import (
 )
 
 
+PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
+    name="Pytorch Operator Microbench Regression",
+    id="pytorch_operator_microbenchmark",
+    source=BenchmarkApiSource(
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
+        type="benchmark_time_series_api",
+        api_endpoint_params_template="""
+                {
+                  "name": "pytorch_operator_microbenchmark",
+                  "query_params": {
+                    "mode": "",
+                    "branches": ["main"],
+                    "repo": "pytorch/pytorch",
+                    "device": "",
+                    "benchmarkName": "PyTorch operator microbenchmark",
+                    "startTime": "{{ startTime }}",
+                    "stopTime": "{{ stopTime }}"
+                    },
+                    "response_formats":["time_series"]
+                }
+                """,
+    ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
+    },
+    # set baseline from past 4-8 days, and compare with the lastest 4 day
+    policy=Policy(
+        frequency=Frequency(value=1, unit="days"),
+        range=RangeConfig(
+            baseline=DayRangeWindow(value=4),
+            comparison=DayRangeWindow(value=4),
+        ),
+        metrics={
+            "latency": RegressionPolicy(
+                name="latency",
+                condition="greater_equal",
+                threshold=0.85,
+                baseline_aggregation="median",
+            ),
+        },
+        notification_config={
+            "type": "github",
+            "repo": "pytorch/test-infra",
+            "issue": "7445",
+        },
+    ),
+    report_config=ReportConfig(
+        report_level="insufficient_data",
+    ),
+)
+
 # Compiler benchmark regression config
 # todo(elainewy): eventually each team should configure
 # their own benchmark regression config, currenlty place
@@ -94,6 +145,7 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
 BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(
     configs={
         "compiler_regression": COMPILER_BENCHMARK_CONFIG,
+        "pytorch_operator_microbenchmark": PYTORCH_OPERATOR_MICROBENCH_CONFIG,
     }
 )
 
