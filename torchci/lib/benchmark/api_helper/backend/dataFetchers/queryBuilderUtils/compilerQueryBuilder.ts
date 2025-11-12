@@ -201,6 +201,11 @@ SETTINGS session_timezone = 'UTC';
       ]);
     }
     const params = compilerParmsToQueryInput(inputs);
+
+    console.log("apply query", {
+      ...this._DEFAULT_QUERY_PARAMS,
+      ...params,
+    });
     return {
       ...this._DEFAULT_QUERY_PARAMS,
       ...params,
@@ -226,10 +231,10 @@ function toPlural(inputs: any) {
     inputs.models = [inputs.model];
   }
   if (inputs.device && !inputs.devices) {
-    inputs.devices = [inputs.devices];
+    inputs.devices = [inputs.device];
   }
   if (inputs.arch && !inputs.arches) {
-    inputs.arch = inputs.arches;
+    inputs.arches = [inputs.arch];
   }
 }
 
