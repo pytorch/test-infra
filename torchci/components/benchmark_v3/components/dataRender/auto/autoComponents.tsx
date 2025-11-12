@@ -11,8 +11,8 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 
 import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
-import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
