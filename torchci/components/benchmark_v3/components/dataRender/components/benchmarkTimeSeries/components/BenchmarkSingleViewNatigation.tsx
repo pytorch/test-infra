@@ -70,6 +70,8 @@ export function toSingleViewUrl(
   const reformattedPrams = stateToQuery({
     lcommit,
     rcommit,
+    rbranch: "",
+    lbranch: commit.branch,
   });
 
   const nextDashboardMainQuery = {

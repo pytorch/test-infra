@@ -16,7 +16,10 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import {
+  BRANCH_METADATA_COLUMN,
+  DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+} from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -219,10 +222,6 @@ const COMPILER_DASHBOARD_BENCHMARK_DATABINDING = {
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
-    field: "branch",
-    displayName: "branch",
-  },
-  {
     field: "suite",
   },
   {
@@ -262,7 +261,10 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: [
+                BRANCH_METADATA_COLUMN,
+                ...DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              ],
               renderOptions: {
                 tableRenderingBook: DashboardRenderBook,
               },

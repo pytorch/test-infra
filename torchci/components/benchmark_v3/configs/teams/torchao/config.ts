@@ -1,6 +1,7 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
+  BRANCH_METADATA_COLUMN,
   DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
@@ -123,7 +124,10 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               type: "AutoBenchmarkRawDataTable",
               title: "Raw Data Table",
               config: {
-                extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+                extraMetadata: [
+                  BRANCH_METADATA_COLUMN,
+                  ...COMPARISON_TABLE_METADATA_COLUMNS,
+                ],
                 renderOptions: {
                   tableRenderingBook: RENDER_MAPPING_BOOK,
                 },
