@@ -33,12 +33,12 @@ export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
   rbranch: "main",
   enableMultiBranchOption: true,
 };
+export const BRANCH_METADATA_COLUMN = {
+  field: "branch",
+  displayName: "Branch",
+};
 
 export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
-  {
-    field: "branch",
-    displayName: "Branch",
-  },
   {
     field: "device",
     displayName: "Hardware type",
@@ -110,7 +110,10 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: [
+                BRANCH_METADATA_COLUMN,
+                ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+              ],
             },
           },
         ],

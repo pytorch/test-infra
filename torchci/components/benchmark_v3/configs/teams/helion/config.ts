@@ -1,5 +1,8 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import {
+  BRANCH_METADATA_COLUMN,
+  DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+} from "../defaults/default_dashboard_config";
 import { DEFAULT_SINGLE_VIEW_BENCHMARK_INITIAL } from "../defaults/default_single_view_config";
 
 export const PYTORCH_HELION_BENCHMARK_ID = "pytorch_helion";
@@ -151,10 +154,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             title: "Raw Data Table",
             config: {
               extraMetadata: [
-                {
-                  field: "branch",
-                  displayName: "branch",
-                },
+                BRANCH_METADATA_COLUMN,
                 ...DETAIL_VIEW_METADATA_COLUMNS,
               ],
               renderOptions: {
