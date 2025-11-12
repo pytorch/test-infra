@@ -108,9 +108,15 @@ on:
         required: false
         default: false
         type: boolean
+      check-run-condition:
+        description: "Enable / Disable running workflow"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   job:
+    if: ${{ inputs.check-run-condition && inputs.gpu-arch-type == 'rocm' && (github.event_name == 'push' || github.event_name == 'schedule') }}
     strategy:
       fail-fast: false
     name: ${{ inputs.job-name }}
