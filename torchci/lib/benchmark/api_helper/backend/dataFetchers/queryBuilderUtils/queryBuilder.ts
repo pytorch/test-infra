@@ -198,8 +198,8 @@ export abstract class ExecutableQueryBase implements BuildableQuery {
     inputs: any,
     executor: QueryExecutor = queryClickhouse
   ): Promise<any> {
-    const sql = this.build();
     const params = this.toQueryParams(inputs);
+    const sql = this.build();
     return executor(sql, params);
   }
 }
