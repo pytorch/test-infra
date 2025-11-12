@@ -429,6 +429,28 @@ function myBot(app: Probot): void {
 
     const filtered = await filterCIFlowLabels(true, newLabels);
     await addNewLabels(existingLabels, filtered, context);
+
+    // Remove PR-only labels from issues
+    if (
+      addedLabel.startsWith("release notes:") ||
+      addedLabel.startsWith("ciflow/")
+    ) {
+      context.log(
+        `Removing PR-only label "${addedLabel}" from issue ${context.payload.issue.html_url}`
+      );
+      await context.octokit.issues.removeLabel(
+        context.repo({
+          issue_number: context.payload.issue.number,
+          name: addedLabel,
+        })
+      );
+      await context.octokit.issues.createComment(
+        context.repo({
+          issue_number: context.payload.issue.number,
+          body: `The label \`${addedLabel}\` is only applicable to pull requests and has been removed. Please only use this label on PRs.`,
+        })
+      );
+    }
   });
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
@@ -541,6 +563,36 @@ function myBot(app: Probot): void {
       }
     }
     await addNewLabels(existingLabels, labelsToAdd, context);
+  });
+
+  app.on("pull_request.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
+    const addedLabel = context.payload.label!.name;
+    context.log({ addedLabel });
+
+    // Remove issue-only labels from PRs
+    if (addedLabel.startsWith("module:") || addedLabel.startsWith("oncall:")) {
+      context.log(
+        `Removing issue-only label "${addedLabel}" from PR ${context.payload.pull_request.html_url}`
+      );
+      await context.octokit.issues.removeLabel(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          name: addedLabel,
+        })
+      );
+      await context.octokit.issues.createComment(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          body: `The label \`${addedLabel}\` is only applicable to issues and has been removed. Please only use this label on issues.`,
+        })
+      );
+    }
   });
 }
 
