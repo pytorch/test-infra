@@ -358,8 +358,6 @@ export function getComparisonResult(
       ? "missing data"
       : config?.renderOptions?.missingText;
 
-  console.log("result", config);
-
   if (ldata?.is_failure || rdata?.is_failure) {
     result.verdict = "warning";
     result.reason = "detect failure";
