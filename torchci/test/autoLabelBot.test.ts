@@ -1363,31 +1363,6 @@ describe("auto-label-bot: label restrictions", () => {
     handleScope(scope);
   });
 
-  test("remove module label from pull request", async () => {
-    nock("https://api.github.com")
-      .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" });
-
-    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
-    payload["label"] = { name: "module: ci" };
-    payload["pull_request"]["labels"] = [{ name: "module: ci" }];
-    emptyMockConfig(payload.repository.full_name);
-
-    const scope = nock("https://api.github.com")
-      .delete("/repos/seemethere/test-repo/issues/20/labels/module%3A%20ci")
-      .reply(200)
-      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
-        expect(body.body).toContain("module: ci");
-        expect(body.body).toContain("only applicable to issues");
-        return true;
-      })
-      .reply(200);
-
-    await probot.receive({ name: "pull_request", payload, id: "2" });
-
-    handleScope(scope);
-  });
-
   test("remove oncall label from pull request", async () => {
     nock("https://api.github.com")
       .post("/app/installations/2/access_tokens")

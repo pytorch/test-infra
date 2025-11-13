@@ -576,7 +576,7 @@ function myBot(app: Probot): void {
     context.log({ addedLabel });
 
     // Remove issue-only labels from PRs
-    if (addedLabel.startsWith("module:") || addedLabel.startsWith("oncall:")) {
+    if (addedLabel.startsWith("oncall:")) {
       context.log(
         `Removing issue-only label "${addedLabel}" from PR ${context.payload.pull_request.html_url}`
       );
