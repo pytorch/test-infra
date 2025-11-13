@@ -617,9 +617,8 @@ export class PytorchAoMicroApiBenchmarkDataFetcher
 }
 
 /**
- * Builder to get TorchAo  Micro API Benchmark
+ * Builder to get Vllm V1 Benchmark
  * It inherits method from BenchmarkDataQuery
- *
  */
 export class VllmBenchmarkDataFetcher
   extends ExecutableQueryBase
@@ -691,6 +690,21 @@ export class VllmBenchmarkDataFetcher
     formats: string[],
     includesAllExtraKey: boolean = true
   ) {
+    // nput and output length is the number of token feed into vLLM and the max output it returns.
+    //  random_input_len is the name of the the parameter on vLLM bench,
+    // for other type of benchmark, it could be called input_len
+    data.forEach((d) => {
+      if (d.extra_key) {
+        const dk = d.extra_key;
+        const input_len = dk?.input_len;
+        const random_input_len = dk?.random_input_len;
+        const output_len = dk?.output_len;
+        const random_output_len = dk?.random_output_len;
+        dk.input_len = input_len || random_input_len;
+        dk.output_len = output_len || random_output_len;
+      }
+    });
+
     return this._data_query.applyFormat(data, formats, includesAllExtraKey);
   }
 

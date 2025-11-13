@@ -33,15 +33,7 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   },
   {
     field: "extra_key.output_len",
-    displayName: "Output Len",
-  },
-  {
-    field: "extra_key.random_input_len",
-    displayName: "Random Input Len",
-  },
-  {
-    field: "extra_key.random_output_len",
-    displayName: "Random Output Len",
+    displayName: "Max Output Len",
   },
 ] as const;
 
@@ -83,8 +75,6 @@ export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
                 "model",
                 "extra_key.use_compile",
                 "extra_key.request_rate",
-                "extra_key.random_input_len",
-                "extra_key.random_output_len",
                 "extra_key.input_len",
                 "extra_key.output_len",
                 "metric",
