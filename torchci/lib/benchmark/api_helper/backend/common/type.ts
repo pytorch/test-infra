@@ -37,10 +37,10 @@ export const defaultCompilerGetBenchmarkDataInputs: any = {
 
 export const defaultListCommitsInputs: any = {
   branches: [],
-  device: "",
+  devices: [],
   arch: [],
-  dtype: "",
-  mode: "",
+  dtypes: [],
+  modes: [],
   startTime: "",
   stopTime: "",
   suites: [],
