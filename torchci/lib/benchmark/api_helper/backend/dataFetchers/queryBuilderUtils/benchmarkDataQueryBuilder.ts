@@ -555,7 +555,6 @@ export class PytorchHelionDataFetcher
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     const params = {
       ...inputs,
-      operatorName: inputs.operatorName ?? "",
     };
     return this._data_query.toQueryParams(params, id);
   }
@@ -720,12 +719,11 @@ export class VllmBenchmarkDataFetcher
   }
 }
 
-
 /**
  * Builder to get Vllm V1 Benchmark
  * It inherits method from BenchmarkDataQuery
  */
-export class CachebenchBenchmarkDataFetcher
+export class GptfastBenchmarkDataFetcher
   extends ExecutableQueryBase
   implements BenchmarkDataFetcher
 {
@@ -733,19 +731,6 @@ export class CachebenchBenchmarkDataFetcher
   constructor() {
     super();
     this._data_query = new BenchmarkDataQuery();
-    // add extra info to the query
-    this._data_query.addExtraInfos(
-      new Map([
-        [
-          "is_dynamic",
-          ` IF(
-                tupleElement(o.benchmark, 'extra_info')['is_dynamic'] = '',
-                'false',
-                tupleElement(o.benchmark, 'extra_info')['is_dynamic']
-            )`,
-        ],
-      ])
-    );
   }
   applyFormat(
     data: any[],
@@ -754,15 +739,9 @@ export class CachebenchBenchmarkDataFetcher
   ) {
     return this._data_query.applyFormat(data, formats, includesAllExtraKey);
   }
-
   toQueryParams(inputs: any, id?: string): Record<string, any> {
-    const params = {
-      ...inputs,
-      operatorName: inputs.operatorName ?? "",
-    };
-    return this._data_query.toQueryParams(params, id);
+    return this._data_query.toQueryParams(inputs, id);
   }
-
   build() {
     return this._data_query.build();
   }

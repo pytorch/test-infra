@@ -20,6 +20,10 @@ import {
   BenchmarkPageType,
 } from "./config_book_types";
 import {
+  PytorcCachebenchBenchmarkDashoboardConfig,
+  PYTORCH_GPTFAST_BENCHMARK_ID,
+} from "./teams/gptfast/config";
+import {
   PytorcAoMicroApiBenchmarkDashoboardConfig,
   PYTORCH_AO_MICRO_API_BENCHMARK_ID,
 } from "./teams/torchao/ao_micro_api_config";
@@ -54,6 +58,10 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [PYTORCH_VLLM_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]: PytorchVllmBenchmarkDashoboardConfig,
   },
+  [PYTORCH_GPTFAST_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorcCachebenchBenchmarkDashoboardConfig,
+  },
 };
 
 export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
@@ -86,6 +94,11 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
     id: PYTORCH_VLLM_BENCHMARK_ID,
     repoName: "vllm-project/vllm",
     benchmarkName: "vLLM benchmark",
+  },
+  [PYTORCH_GPTFAST_BENCHMARK_ID]: {
+    id: PYTORCH_GPTFAST_BENCHMARK_ID,
+    repoName: "pytorch/pytorch",
+    benchmarkName: "PyTorch gpt-fast benchmark",
   },
 };
 /**
@@ -127,7 +140,7 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/dynamo#torchcompile-benchmarking)",
         actions: [
           {
-            label: "New dashboard (WIP)",
+            label: "Dashboard",
             href: "/benchmark/v3/dashboard/compiler_inductor",
           },
           {
@@ -146,9 +159,17 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         ],
       },
       {
-        name: "LLMs Benchmark",
-        route: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+        name: "Gpt Fast Benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_GPTFAST_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/gpt_fast)",
+        description:
+          "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
+        actions: [
+          {
+            label: "Legacy Page/Playground",
+            href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+          },
+        ],
       },
       {
         name: "Operator Microbenchmark",

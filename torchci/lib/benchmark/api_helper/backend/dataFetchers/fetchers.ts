@@ -1,5 +1,6 @@
 import {
   BenchmarkDataQuery,
+  GptfastBenchmarkDataFetcher,
   PytorchAoMicroApiBenchmarkDataFetcher,
   PytorchHelionDataFetcher,
   PytorchOperatorMicroBenchmarkDataFetcher,
@@ -17,6 +18,7 @@ const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
   pytorch_helion: PytorchHelionDataFetcher,
   torchao_micro_api_benchmark: PytorchAoMicroApiBenchmarkDataFetcher,
   vllm_benchmark: VllmBenchmarkDataFetcher,
+  pytorch_gptfast_benchmark: GptfastBenchmarkDataFetcher,
   default: BenchmarkDataQuery,
 };
 
