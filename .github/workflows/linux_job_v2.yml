@@ -40,6 +40,14 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      single-branch:
+        description: 'Whether to fetch only a single branch, defaults to true'
+        default: true
+        type: boolean
+      checkout-mode:
+        description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
+        default: "normal"
+        type: string
       submodules:
         description:
           Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
@@ -124,6 +132,7 @@ jobs:
       # Will be blank outside of this
       PR_NUMBER: ${{ github.event.pull_request.number }}
       SCRIPT: ${{ inputs.script }}
+      filter: ${{ inputs.checkout-mode == 'blobless' && 'blob:none' || inputs.checkout-mode == 'treeless' && 'tree:0' || null }}
     runs-on: ${{ inputs.runner }}
     # TODO: Eventually this should run in a container, we need to make a container that matches up
     #       with the users for our self hosted runner infra since using actions/checkout with a root
@@ -177,14 +186,17 @@ jobs:
                docker exec -it $(docker container ps --format '{{.ID}}') bash
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: ./test-infra/.github/actions/checkout
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
+          single-branch: ${{ inputs.single-branch }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
+          filter: ${{ env.filter }}
+          submodules-filter: ${{ env.filter }}
 
       - name: Calculate docker image
         id: calculate-docker-image
