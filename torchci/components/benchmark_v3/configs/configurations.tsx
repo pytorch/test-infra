@@ -1,8 +1,59 @@
+import {
+  CompilerDashboardBenchmarkUIConfig,
+  CompilerPrecomputeBenchmarkUIConfig,
+  COMPILTER_BENCHMARK_NAME,
+  COMPILTER_PRECOMPUTE_BENCHMARK_ID,
+} from "components/benchmark_v3/configs/teams/compilers/config";
+import {
+  PYTORCH_HELION_BENCHMARK_ID,
+  PytorchHelionDashboardConfig,
+  PytorchHelionSingleConfig,
+} from "components/benchmark_v3/configs/teams/helion/config";
+import {
+  PYTORCH_OPERATOR_MICROBENCHMARK_ID,
+  PytorchOperatorMicroBenchmarkDashoboardConfig,
+} from "components/benchmark_v3/configs/teams/torchao/config";
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
-import { BenchmarkIdMappingItem } from "./config_book_types";
+import {
+  BenchmarkConfigMap,
+  BenchmarkIdMappingItem,
+  BenchmarkPageType,
+} from "./config_book_types";
+import {
+  PytorcAoMicroApiBenchmarkDashoboardConfig,
+  PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+} from "./teams/torchao/ao_micro_api_config";
+import {
+  PYTORCH_VLLM_BENCHMARK_ID,
+  PytorchVllmBenchmarkDashoboardConfig,
+} from "./teams/vllm/config";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",
+};
+
+export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
+  [COMPILTER_BENCHMARK_NAME]: {
+    [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
+  },
+  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
+    [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
+  },
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorchOperatorMicroBenchmarkDashoboardConfig,
+  },
+  [PYTORCH_HELION_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
+    [BenchmarkPageType.SinglePage]: PytorchHelionSingleConfig,
+  },
+  [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorcAoMicroApiBenchmarkDashoboardConfig,
+  },
+  [PYTORCH_VLLM_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchVllmBenchmarkDashoboardConfig,
+  },
 };
 
 export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
@@ -30,6 +81,11 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
     id: "torchao_micro_api_benchmark",
     repoName: "pytorch/ao",
     benchmarkName: "micro-benchmark api",
+  },
+  vllm_benchmark: {
+    id: "vllm_benchmark",
+    repoName: "vllm-project/vllm",
+    benchmarkName: "vLLM benchmark",
   },
 };
 /**

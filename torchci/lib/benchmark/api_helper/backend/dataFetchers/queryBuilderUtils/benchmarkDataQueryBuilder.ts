@@ -615,3 +615,94 @@ export class PytorchAoMicroApiBenchmarkDataFetcher
     return this._data_query.build();
   }
 }
+
+/**
+ * Builder to get TorchAo  Micro API Benchmark
+ * It inherits method from BenchmarkDataQuery
+ *
+ */
+export class VllmBenchmarkDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+    // add extra info to the query
+    this._data_query.addExtraInfos(
+      new Map([
+        [
+          "use_compile",
+          `IF(
+                tupleElement(o.benchmark, 'extra_info')['compile'] = '',
+                'true',
+                tupleElement(o.benchmark, 'extra_info')['compile']
+                )`,
+        ],
+        [
+          "request_rate",
+          `JSONExtractString(
+              tupleElement(o.benchmark, 'extra_info')['args'],
+              'request_rate'
+          )
+          `,
+        ],
+        [
+          "tensor_parallel_size",
+          `JSONExtractString(
+                tupleElement(o.benchmark, 'extra_info')['args'],
+                'tensor_parallel_size'
+            )`,
+        ],
+        [
+          "random_input_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_input_len'
+            )`,
+        ],
+        [
+          "random_output_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_output_len'
+            )`,
+        ],
+        [
+          "input_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'input_len'
+            )`,
+        ],
+        [
+          "output_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'output_len'
+            )`,
+        ],
+      ])
+    );
+  }
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const params = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}

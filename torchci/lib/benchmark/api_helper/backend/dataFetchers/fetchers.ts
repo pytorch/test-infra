@@ -3,6 +3,7 @@ import {
   PytorchAoMicroApiBenchmarkDataFetcher,
   PytorchHelionDataFetcher,
   PytorchOperatorMicroBenchmarkDataFetcher,
+  VllmBenchmarkDataFetcher,
 } from "./queryBuilderUtils/benchmarkDataQueryBuilder";
 import {
   BenchmarkMetadataQuery,
@@ -15,6 +16,7 @@ const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicroBenchmarkDataFetcher,
   pytorch_helion: PytorchHelionDataFetcher,
   torchao_micro_api_benchmark: PytorchAoMicroApiBenchmarkDataFetcher,
+  vllm_benchmark: VllmBenchmarkDataFetcher,
   default: BenchmarkDataQuery,
 };
 

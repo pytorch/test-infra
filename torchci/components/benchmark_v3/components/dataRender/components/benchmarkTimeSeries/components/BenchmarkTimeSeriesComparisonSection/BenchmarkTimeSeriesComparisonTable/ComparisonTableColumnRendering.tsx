@@ -106,10 +106,6 @@ export function getComparisionTableConlumnRendering(
         ldata?.[targetField] ?? rdata?.[targetField];
       const targetVal = findFieldValueFromColData;
 
-      const failureConfig =
-        config?.renderOptions?.tableRenderingBook?.[targetVal]?.failure;
-      // lobr snf gs∂
-
       const { result, text } = getComparisonResult(
         L,
         R,
@@ -357,6 +353,13 @@ export function getComparisonResult(
   const ldisplay = displayNameOf(ldata);
   const rdisplay = displayNameOf(rdata);
 
+  const missingText =
+    config?.renderOptions?.missingText == undefined
+      ? "missing data"
+      : config?.renderOptions?.missingText;
+
+  console.log("result", config);
+
   if (ldata?.is_failure || rdata?.is_failure) {
     result.verdict = "warning";
     result.reason = "detect failure";
@@ -370,7 +373,8 @@ export function getComparisonResult(
     ldisplay,
     rdisplay,
     ldata?.is_failure,
-    rdata?.is_failure
+    rdata?.is_failure,
+    missingText
   );
   return {
     result,

@@ -1,29 +1,59 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import {
   BRANCH_METADATA_COLUMN,
-  DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
 
-export const PYTORCH_AO_MICRO_API_BENCHMARK_ID = "torchao_micro_api_benchmark";
+export const PYTORCH_VLLM_BENCHMARK_ID = "vllm_benchmark";
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
-  ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+  {
+    field: "device",
+    displayName: "Hardware type",
+  },
+  {
+    field: "arch",
+    displayName: "Hardware model",
+  },
   {
     field: "extra_key.use_compile",
     displayName: "Use Compile",
   },
+  {
+    field: "extra_key.request_rate",
+    displayName: "Request Rate",
+  },
+  {
+    field: "extra_key.tensor_parallel_size",
+    displayName: "Tensor Parallel",
+  },
+  {
+    field: "extra_key.input_len",
+    displayName: "Input Len",
+  },
+  {
+    field: "extra_key.output_len",
+    displayName: "Output Len",
+  },
+  {
+    field: "extra_key.random_input_len",
+    displayName: "Random Input Len",
+  },
+  {
+    field: "extra_key.random_output_len",
+    displayName: "Random Output Len",
+  },
 ] as const;
 
-export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
-  benchmarkId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
-  apiId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
-  title: "TorchAo Micro Api Benchmark",
+export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
+  benchmarkId: PYTORCH_VLLM_BENCHMARK_ID,
+  apiId: PYTORCH_VLLM_BENCHMARK_ID,
+  title: "VLLM V1 Benchmark",
   type: "dashboard",
   dataBinding: {
     initial: {
       ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
-      benchmarkId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+      benchmarkId: PYTORCH_VLLM_BENCHMARK_ID,
     },
     required_filter_fields: [],
   },
@@ -49,7 +79,17 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["extra_key.use_compile", "dtype", "metric", "branch"],
+              lineKey: [
+                "model",
+                "extra_key.use_compile",
+                "extra_key.request_rate",
+                "extra_key.random_input_len",
+                "extra_key.random_output_len",
+                "extra_key.input_len",
+                "extra_key.output_len",
+                "metric",
+                "branch",
+              ],
               chart: {
                 renderOptions: {
                   showLegendDetails: true,
@@ -67,6 +107,7 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
               },
               extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
               renderOptions: {
+                missingText: "",
                 flex: {
                   primary: 2,
                 },
@@ -97,11 +138,12 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
             navigation: {
               type: "subSectionRender",
               value: "detail_view",
-              applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
+              applyFilterFields: ["model", "device", "arch"],
             },
           },
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
+            missingText: "none",
             flex: {
               primary: 2,
             },

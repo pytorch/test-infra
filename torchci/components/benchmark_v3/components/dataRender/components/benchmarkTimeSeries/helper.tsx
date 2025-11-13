@@ -66,6 +66,7 @@ export interface BenchmarkComparisonTableRenderingOptions {
   flex?: {
     [key: string]: number;
   };
+  missingText?: string;
 }
 
 export interface BenchmarkComparisonTablePrimaryColumnConfig {
