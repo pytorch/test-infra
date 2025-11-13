@@ -57,33 +57,33 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
 };
 
 export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
-  compiler_inductor: {
-    id: "compiler_inductor",
+  [COMPILTER_BENCHMARK_NAME]: {
+    id: COMPILTER_BENCHMARK_NAME,
     repoName: "pytorch/pytorch",
     benchmarkName: "compiler_inductor",
   },
-  compiler_precompute: {
-    id: "compiler_precompute",
+  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
+    id: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
     repoName: "pytorch/pytorch",
     benchmarkName: "compiler_precompute",
   },
-  pytorch_operator_microbenchmark: {
-    id: "pytorch_operator_microbenchmark",
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
+    id: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
     repoName: "pytorch/pytorch",
     benchmarkName: "PyTorch operator microbenchmark",
   },
-  pytorch_helion: {
-    id: "pytorch_helion",
+  [PYTORCH_HELION_BENCHMARK_ID]: {
+    id: PYTORCH_HELION_BENCHMARK_ID,
     repoName: "pytorch/helion",
     benchmarkName: "Helion Benchmark",
   },
-  torchao_micro_api_benchmark: {
-    id: "torchao_micro_api_benchmark",
+  [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
+    id: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
     repoName: "pytorch/ao",
     benchmarkName: "micro-benchmark api",
   },
-  vllm_benchmark: {
-    id: "vllm_benchmark",
+  [PYTORCH_VLLM_BENCHMARK_ID]: {
+    id: PYTORCH_VLLM_BENCHMARK_ID,
     repoName: "vllm-project/vllm",
     benchmarkName: "vLLM benchmark",
   },
@@ -176,7 +176,7 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     items: [
       {
         name: "TorchAO Micro API Benchmark",
-        route: "/benchmark/v3/dashboard/torchao_micro_api_benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_AO_MICRO_API_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
         actions: [
           {
@@ -196,6 +196,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         name: "VLLM V1 Benchmark",
         route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
         info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
+        actions: [
+          {
+            label: "new UI (wip)",
+            href: `/benchmark/v3/dashboard/${PYTORCH_VLLM_BENCHMARK_ID}`,
+          },
+        ],
       },
     ],
   },
