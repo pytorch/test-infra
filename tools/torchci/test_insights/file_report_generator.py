@@ -44,6 +44,7 @@ except ImportError:
     boto3 = None  # type: ignore[assignment]
 
 from torchci.clickhouse import query_clickhouse
+from torchci.test_insights.ec2_pricing import get_price_for_label
 
 
 logger = logging.getLogger(__name__)
@@ -75,21 +76,6 @@ class FileReportGenerator:
         self.dry_run = dry_run
 
     @lru_cache
-    def load_runner_costs(self) -> Dict[str, float]:
-        """Load runner costs from the S3 endpoint"""
-        logger.debug("Fetching EC2 pricing data from S3...")
-        with urllib.request.urlopen(self.EC2_PRICING_URL) as response:
-            compressed_data = response.read()
-
-        decompressed_data = gzip.decompress(compressed_data)
-        pricing_data = {}
-        for line in decompressed_data.decode("utf-8").splitlines():
-            if line.strip():
-                line_json = json.loads(line)
-                pricing_data[line_json[0]] = float(line_json[2])
-        return pricing_data
-
-    @lru_cache
     def load_test_owners(self) -> List[Dict[str, Any]]:
         """Load the test owner labels JSON file from S3"""
         S3_URL = "https://ossci-metrics.s3.us-east-1.amazonaws.com/test_owner_labels/test_owner_labels.json.gz"
@@ -105,10 +91,12 @@ class FileReportGenerator:
 
     def get_runner_cost(self, runner_label: str) -> float:
         """Get the cost per hour for a given runner"""
-        runner_costs = self.load_runner_costs()
         if runner_label.startswith("lf."):
             runner_label = runner_label[3:]
-        return runner_costs.get(runner_label, 0.0)
+        cost = get_price_for_label(runner_label)
+        if cost is None:
+            return 0.0
+        return cost
 
     def _get_first_suitable_sha(self, shas: list[dict[str, Any]]) -> Optional[str]:
         """Get the first suitable SHA from a list of SHAs."""
@@ -282,7 +270,7 @@ class FileReportGenerator:
         for label in job_labels:
             if label.startswith("lf."):
                 label = label[3:]
-            if label in self.load_runner_costs():
+            if get_price_for_label(label) is not None:
                 return label
 
         return "unknown"
