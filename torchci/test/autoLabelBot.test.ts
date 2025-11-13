@@ -1374,18 +1374,13 @@ describe("auto-label-bot: label restrictions", () => {
     emptyMockConfig(payload.repository.full_name);
 
     const scope = nock("https://api.github.com")
-      .delete(
-        "/repos/seemethere/test-repo/issues/20/labels/module%3A%20ci"
-      )
+      .delete("/repos/seemethere/test-repo/issues/20/labels/module%3A%20ci")
       .reply(200)
-      .post(
-        "/repos/seemethere/test-repo/issues/20/comments",
-        (body) => {
-          expect(body.body).toContain("module: ci");
-          expect(body.body).toContain("only applicable to issues");
-          return true;
-        }
-      )
+      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
+        expect(body.body).toContain("module: ci");
+        expect(body.body).toContain("only applicable to issues");
+        return true;
+      })
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
@@ -1408,14 +1403,11 @@ describe("auto-label-bot: label restrictions", () => {
         "/repos/seemethere/test-repo/issues/20/labels/oncall%3A%20distributed"
       )
       .reply(200)
-      .post(
-        "/repos/seemethere/test-repo/issues/20/comments",
-        (body) => {
-          expect(body.body).toContain("oncall: distributed");
-          expect(body.body).toContain("only applicable to issues");
-          return true;
-        }
-      )
+      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
+        expect(body.body).toContain("oncall: distributed");
+        expect(body.body).toContain("only applicable to issues");
+        return true;
+      })
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
