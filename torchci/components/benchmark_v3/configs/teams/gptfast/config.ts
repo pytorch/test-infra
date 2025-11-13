@@ -95,9 +95,9 @@ export const PytorcCachebenchBenchmarkDashoboardConfig: BenchmarkUIConfig = {
               groupByFields: ["metric"],
               lineKey: ["extra_key.use_compile", "dtype", "metric", "branch"],
               chart: {
-                title_group_mapping: CHART_TITLE_GROUP_MAPPING,
                 renderOptions: {
                   showLegendDetails: true,
+                  title_group_mapping: CHART_TITLE_GROUP_MAPPING,
                   chartRenderBook: RENDER_MAPPING_BOOK,
                 },
               },

@@ -718,31 +718,3 @@ export class VllmBenchmarkDataFetcher
     return this._data_query.build();
   }
 }
-
-/**
- * Builder to get Vllm V1 Benchmark
- * It inherits method from BenchmarkDataQuery
- */
-export class GptfastBenchmarkDataFetcher
-  extends ExecutableQueryBase
-  implements BenchmarkDataFetcher
-{
-  private _data_query: BenchmarkDataQuery;
-  constructor() {
-    super();
-    this._data_query = new BenchmarkDataQuery();
-  }
-  applyFormat(
-    data: any[],
-    formats: string[],
-    includesAllExtraKey: boolean = true
-  ) {
-    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
-  }
-  toQueryParams(inputs: any, id?: string): Record<string, any> {
-    return this._data_query.toQueryParams(inputs, id);
-  }
-  build() {
-    return this._data_query.build();
-  }
-}
