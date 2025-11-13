@@ -719,3 +719,51 @@ export class VllmBenchmarkDataFetcher
     return this._data_query.build();
   }
 }
+
+
+/**
+ * Builder to get Vllm V1 Benchmark
+ * It inherits method from BenchmarkDataQuery
+ */
+export class CachebenchBenchmarkDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+    // add extra info to the query
+    this._data_query.addExtraInfos(
+      new Map([
+        [
+          "is_dynamic",
+          ` IF(
+                tupleElement(o.benchmark, 'extra_info')['is_dynamic'] = '',
+                'false',
+                tupleElement(o.benchmark, 'extra_info')['is_dynamic']
+            )`,
+        ],
+      ])
+    );
+  }
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const params = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}
