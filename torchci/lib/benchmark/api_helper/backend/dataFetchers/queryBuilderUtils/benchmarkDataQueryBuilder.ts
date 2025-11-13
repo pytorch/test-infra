@@ -711,7 +711,6 @@ export class VllmBenchmarkDataFetcher
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     const params = {
       ...inputs,
-      operatorName: inputs.operatorName ?? "",
     };
     return this._data_query.toQueryParams(params, id);
   }
