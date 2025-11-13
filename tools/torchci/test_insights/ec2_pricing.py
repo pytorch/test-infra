@@ -6,6 +6,7 @@ Get pricing info for EC2 instances by reading .github/scale-config.yml and
 fetching current AWS pricing data.
 """
 
+import json
 from functools import lru_cache
 from typing import Optional
 
@@ -91,3 +92,24 @@ def get_price_for_label(label: str) -> Optional[float]:
     if instance_type is not None:
         return get_price_for_ec2_instance(instance_type, os_type)
     return None
+
+
+if __name__ == "__main__":
+    # Example usage
+    info = []
+    scale_config = _get_scale_config()
+    for runner_label in scale_config.get("runner_types", {}):
+        price = get_price_for_label(runner_label)
+        info.append(
+            {
+                "label": runner_label,
+                "price_per_hour": price,
+                "instance_type": get_ec2_instance_for_label(runner_label)[
+                    "ec2_instance"
+                ],
+            }
+        )
+    with open("ec2_pricing.json", "w") as f:
+        for line in info:
+            json.dump(line, f)
+            f.write("\n")
