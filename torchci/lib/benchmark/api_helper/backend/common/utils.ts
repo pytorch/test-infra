@@ -1,5 +1,6 @@
 // Utility to extract params from either GET or POST
 import dayjs from "dayjs";
+import { queryClickhouseSaved } from "lib/clickhouse";
 import { NextApiRequest } from "next";
 import { BenchmarkCompilerListCommitQueryBuilder } from "../dataFetchers/queryBuilderUtils/compilerQueryBuilder";
 import { CommitResult } from "./type";
@@ -380,7 +381,7 @@ function subsampleCommitsByDate(data: any[], maxCount: number | undefined) {
   };
 }
 
-async function listCommitsFromDb(queryParams: any) {
+async function listCompilerCommitsFromDb(queryParams: any) {
   // fetch metadata from db
   const fetcher = new BenchmarkCompilerListCommitQueryBuilder();
   const data = await fetcher.applyQuery(queryParams);
@@ -388,11 +389,26 @@ async function listCommitsFromDb(queryParams: any) {
   return result;
 }
 
-export async function getCommitsWithSampling(
+export async function listGeneralCommits(tableName: string, queryParams: any) {
+  const commit_results = await queryClickhouseSaved(tableName, queryParams);
+  let maxCount = undefined;
+  // if subsampling is specified, use it
+  if (queryParams.sampling) {
+    maxCount = queryParams.sampling.max;
+    const res = subsampleCommitsByDate(commit_results, maxCount);
+    return res;
+  }
+  return {
+    data: commit_results,
+    is_sampled: false,
+  };
+}
+
+export async function getCompilerCommitsWithSampling(
   tableName: string,
   queryParams: any
 ): Promise<CommitResult> {
-  const commit_results = await listCommitsFromDb(queryParams);
+  const commit_results = await listCompilerCommitsFromDb(queryParams);
   let maxCount = undefined;
   // if subsampling is specified, use it
   if (queryParams.sampling) {

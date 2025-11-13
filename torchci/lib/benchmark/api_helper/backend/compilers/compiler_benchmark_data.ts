@@ -5,7 +5,7 @@ import {
 } from "../common/type";
 import {
   emptyTimeSeriesResponse,
-  getCommitsWithSampling,
+  getCompilerCommitsWithSampling,
 } from "../common/utils";
 import { BenchmarkCompilerBenchmarkDataQueryBuilder } from "../dataFetchers/queryBuilderUtils/compilerQueryBuilder";
 import { extractBackendSqlStyle, toApiArch } from "./helpers/common";
@@ -63,7 +63,7 @@ export async function getCompilerCommits(
   if (!inputParams.startTime || !inputParams.stopTime) {
     throw new Error("no start/end time provided in request");
   }
-  return await getCommitsWithSampling(
+  return await getCompilerCommitsWithSampling(
     COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
     inputParams
   );
@@ -91,7 +91,7 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
     );
   }
   if (!queryParams.workflows || queryParams.workflows.length == 0) {
-    const { data: commit_results } = await getCommitsWithSampling(
+    const { data: commit_results } = await getCompilerCommitsWithSampling(
       COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
       queryParams
     );

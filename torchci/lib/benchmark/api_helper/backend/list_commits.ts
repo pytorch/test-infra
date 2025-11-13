@@ -1,5 +1,5 @@
 import { CommitResult } from "./common/type";
-import { getCommitsWithSampling, groupByBenchmarkData } from "./common/utils";
+import { groupByBenchmarkData, listGeneralCommits } from "./common/utils";
 import { getCompilerCommits } from "./compilers/compiler_benchmark_data";
 
 const BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME =
@@ -62,7 +62,7 @@ async function getBenmarkCommits(
     case "compiler_precompute":
       return await getCompilerCommits(query_params);
     default:
-      return await getCommits(query_params);
+      return await getGeneralCommits(query_params);
   }
 }
 
@@ -91,7 +91,7 @@ const defaultGetCommitsInputs: any = {
   mode: "",
 };
 
-export async function getCommits(inputparams: any) {
+export async function getGeneralCommits(inputparams: any) {
   if (!inputparams.repo) {
     throw new Error("no repo provided in request");
   }
@@ -126,7 +126,7 @@ export async function getCommits(inputparams: any) {
     queryParams
   );
 
-  return await getCommitsWithSampling(
+  return await listGeneralCommits(
     BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME,
     queryParams
   );
