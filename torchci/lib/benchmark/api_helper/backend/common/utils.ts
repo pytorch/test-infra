@@ -404,7 +404,7 @@ export async function listGeneralCommits(tableName: string, queryParams: any) {
   };
 }
 
-export async function getCommitsWithSampling(
+export async function getCompilerCommitsWithSampling(
   tableName: string,
   queryParams: any
 ): Promise<CommitResult> {
