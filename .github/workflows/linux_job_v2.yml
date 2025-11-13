@@ -40,6 +40,10 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      checkout-mode:
+        description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
+        default: "normal"
+        type: string
       submodules:
         description:
           Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
@@ -185,6 +189,7 @@ jobs:
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
+          filter: ${{ inputs.checkout-mode == 'blobless' && 'blob:none' || inputs.checkout-mode == 'treeless' && 'tree:0' || null }}
 
       - name: Calculate docker image
         id: calculate-docker-image
