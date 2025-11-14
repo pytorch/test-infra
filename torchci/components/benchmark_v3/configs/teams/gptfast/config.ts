@@ -152,6 +152,7 @@ export const PytorcCachebenchBenchmarkDashoboardConfig: BenchmarkUIConfig = {
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
             missingText: "n/a",
+            bothMissingText: "",
             flex: {
               primary: 2,
             },
