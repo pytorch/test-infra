@@ -15,7 +15,7 @@ PYTORCH_HELION_CONFIG = BenchmarkConfig(
     name="Helion Benchmark Regression",
     id="pytorch_helion",
     source=BenchmarkApiSource(
-        api_query_url="http://localhost:3000/api/benchmark/get_time_series",
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
         type="benchmark_time_series_api",
         api_endpoint_params_template="""
                 {

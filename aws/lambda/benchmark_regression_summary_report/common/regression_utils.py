@@ -77,16 +77,18 @@ class BenchmarkRegressionReport(TypedDict):
 
 
 def get_regression_status(regression_summary: BenchmarkRegressionSummary) -> str:
-    status = (
-        "regression"
-        if regression_summary.get("regression_count", 0) > 0
-        else (
-            "suspicious"
-            if regression_summary.get("suspicious_count", 0) > 0
-            else "no_regression"
-        )
-    )
-    return status
+    if regression_summary.get("regression_count", 0) > 0:
+        return "regression"
+    if regression_summary.get("suspicious_count", 0) > 0:
+        return "suspicious"
+    if regression_summary.get("insufficient_data_count", 0) > 0:
+        insufficient_data = regression_summary.get("insufficient_data_count", 0)
+        # default to 1 to avoid dividen issue
+        total = regression_summary.get("total_count", 1)
+        percentage = insufficient_data / total
+        if percentage >= 0.9:
+            return "insufficient_data"
+    return "no_regression"
 
 
 class BenchmarkRegressionReportGenerator:
@@ -251,7 +253,19 @@ class BenchmarkRegressionReportGenerator:
             for d in sorted(
                 ts_group.data, key=lambda d: isoparse(d["granularity_bucket"])
             ):
+                # skip if field is not in data, or field is None
                 if field not in d:
+                    logger.warning(
+                        "[_to_data_map] field %s not found or value is undefined", field
+                    )
+                    continue
+                if d[field] is None or math.isnan(float(d[field])):
+                    logger.warning(
+                        "[_to_data_map] Skip %s with value %s with group key [%s]",
+                        field,
+                        d[field],
+                        group_keys,
+                    )
                     continue
 
                 p: BenchmarkRegressionPoint = {
