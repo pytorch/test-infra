@@ -67,6 +67,7 @@ export interface BenchmarkComparisonTableRenderingOptions {
     [key: string]: number;
   };
   missingText?: string;
+  bothMissingText?: string;
 }
 
 export interface BenchmarkComparisonTablePrimaryColumnConfig {

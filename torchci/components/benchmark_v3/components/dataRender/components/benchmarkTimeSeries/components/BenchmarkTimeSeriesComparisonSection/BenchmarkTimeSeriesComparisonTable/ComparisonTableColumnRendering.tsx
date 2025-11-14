@@ -265,7 +265,8 @@ export function getFieldRender(
   rdisplay?: string,
   lfailed?: boolean,
   rfailed?: boolean,
-  missingText: string = "missing data"
+  missingText: string = "missing data",
+  bothMissingText: string = ""
 ) {
   if (ldisplay || rdisplay) {
     return `${ldisplay ?? missingText}→${rdisplay ?? missingText}`;
@@ -281,7 +282,8 @@ export function getFieldRender(
     lfailed,
     rfailed,
     rc?.unit,
-    missingText
+    missingText,
+    bothMissingText
   );
 }
 export function formatTransitionWithUnit(
@@ -291,6 +293,7 @@ export function formatTransitionWithUnit(
   rfailed?: boolean,
   table_unit?: BenchmarkUnitConfig,
   missingText: string = "missing data",
+  bothMissingText?: string,
   failureText: string = "Failure"
 ): string {
   const formatValue = (v: any) => {
@@ -316,7 +319,7 @@ export function formatTransitionWithUnit(
   }
 
   if (L == null && R == null) {
-    return missingText;
+    return bothMissingText ?? missingText;
   }
 
   if (L == null) {
@@ -357,6 +360,10 @@ export function getComparisonResult(
     config?.renderOptions?.missingText == undefined
       ? "missing data"
       : config?.renderOptions?.missingText;
+  const bothMissingText =
+    config?.renderOptions?.bothMissingText == undefined
+      ? missingText
+      : config?.renderOptions?.bothMissingText;
 
   if (ldata?.is_failure || rdata?.is_failure) {
     result.verdict = "warning";
@@ -372,7 +379,8 @@ export function getComparisonResult(
     rdisplay,
     ldata?.is_failure,
     rdata?.is_failure,
-    missingText
+    missingText,
+    bothMissingText
   );
   return {
     result,
