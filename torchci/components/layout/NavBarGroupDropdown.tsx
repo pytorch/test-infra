@@ -68,13 +68,12 @@ export function NavBarGroupDropdown({
     []
   );
 
-    // Set dropdown state only on non-touch devices
+  // Set dropdown state only on non-touch devices
   const setDropdownIfNotTouch = (value: HTMLElement | null) => {
     if (!isTouchDevice) {
       setAnchorEl(value);
     }
   };
-
 
   // Close dropdown when clicking outside
   useEffect(() => {
