@@ -716,9 +716,19 @@ export class VllmBenchmarkDataFetcher
   }
 
   toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const excludedMetrics = [
+      "mean_itl_ms",
+      "mean_tpot_ms",
+      "mean_ttft_ms",
+      "std_itl_ms",
+      "std_tpot_ms",
+      "std_ttft_ms",
+    ];
     const params = {
       ...inputs,
+      excludedMetrics: excludedMetrics,
     };
+
     return this._data_query.toQueryParams(params, id);
   }
 
