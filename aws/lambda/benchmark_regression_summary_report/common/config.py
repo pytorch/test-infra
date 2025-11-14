@@ -10,10 +10,6 @@ from common.config_model import (
     ReportConfig,
 )
 
-# id: "pytorch_helion",
-# repoName: "pytorch/helion",
-# benchmarkName: "Helion Benchmark",
-
 PYTORCH_HELION_CONFIG = BenchmarkConfig(
     name="Helion Benchmark Regression",
     id="pytorch_helion",

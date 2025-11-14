@@ -290,7 +290,6 @@ export function ReportPageToV3MainPageNavigationButton({
     );
     return null;
   }
-  console.log("report id: ", report_id, "id: ", id)
   const route = getBenchmarkMainRouteById(id);
 
   const url = getNavigationRouteByReportId(

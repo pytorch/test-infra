@@ -12,7 +12,7 @@ export function getBenchmarkMainRouteById(id: string): string | undefined {
       }
     }
   }
-  // by default, form the v3 route to dashboard
+  // by default, form the v3 route to dashboard page
   return `/benchmark/v3/dashboard/${id}`;
 }
 
