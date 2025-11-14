@@ -133,7 +133,7 @@ export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
           },
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
-            missingText: "",
+            missingText: "n/a",
             flex: {
               primary: 2,
             },
