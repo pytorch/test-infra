@@ -75,6 +75,11 @@ export interface IGitSourceSettings {
   nestedSubmodules: boolean
 
   /**
+   * Filter to use for submodules
+   */
+  submodulesFilter: string | undefined
+
+  /**
    * The auth token to use when fetching the repository
    */
   authToken: string

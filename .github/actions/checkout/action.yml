@@ -92,6 +92,9 @@ inputs:
       When the `ssh-key` input is not provided, SSH URLs beginning with `git@github.com:` are
       converted to HTTPS.
     default: false
+  submodules-filter:
+    description: 'Filter to use for submodules.'
+    default: null
   set-safe-directory:
     description: Add repository path as safe.directory for Git global config by running `git config --global --add safe.directory <path>`
     default: true

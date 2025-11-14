@@ -56,7 +56,11 @@ export interface IGitCommandManager {
   shaExists(sha: string): Promise<boolean>
   submoduleForeach(command: string, recursive: boolean): Promise<string>
   submoduleSync(recursive: boolean): Promise<void>
-  submoduleUpdate(fetchDepth: number, recursive: boolean): Promise<void>
+  submoduleUpdate(
+    fetchDepth: number,
+    recursive: boolean,
+    filter?: string
+  ): Promise<void>
   submoduleStatus(): Promise<boolean>
   tagExists(pattern: string): Promise<boolean>
   tryClean(): Promise<boolean>
@@ -448,7 +452,11 @@ class GitCommandManager {
     await this.execGit(args)
   }
 
-  async submoduleUpdate(fetchDepth: number, recursive: boolean): Promise<void> {
+  async submoduleUpdate(
+    fetchDepth: number,
+    recursive: boolean,
+    filter?: string
+  ): Promise<void> {
     const args = ['-c', 'protocol.version=2']
     args.push('submodule', 'update', '--init', '--force')
     if (fetchDepth > 0) {
@@ -457,6 +465,10 @@ class GitCommandManager {
 
     if (recursive) {
       args.push('--recursive')
+    }
+
+    if (filter) {
+      args.push(`--filter=${filter}`)
     }
 
     await this.execGit(args)
