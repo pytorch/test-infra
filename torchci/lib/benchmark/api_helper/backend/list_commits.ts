@@ -62,7 +62,7 @@ async function getBenmarkCommits(
     case "compiler_precompute":
       return await getCompilerCommits(query_params);
     default:
-      return await getGeneralCommits(query_params);
+      return await getGeneralCommits(request_name, query_params);
   }
 }
 
@@ -91,7 +91,7 @@ const defaultGetCommitsInputs: any = {
   mode: "",
 };
 
-export async function getGeneralCommits(inputparams: any) {
+export async function getGeneralCommits(id: string, inputparams: any) {
   if (!inputparams.repo) {
     throw new Error("no repo provided in request");
   }
@@ -121,13 +121,7 @@ export async function getGeneralCommits(inputparams: any) {
     ...inputparams, // override with caller's values
   };
 
-  console.log(
-    "[API]list commits, defaultGetCommitsInputs query params: ",
-    queryParams
-  );
+  console.log("[API]list commits,list general query params: ", queryParams);
 
-  return await listGeneralCommits(
-    BENCHMARK_DEFAULT_LIST_COMMITS_QUERY_NAME,
-    queryParams
-  );
+  return await listGeneralCommits(id, queryParams);
 }
