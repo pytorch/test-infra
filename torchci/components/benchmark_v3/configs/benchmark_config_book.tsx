@@ -9,51 +9,12 @@ import {
   NotFoundComponent,
   resolveComponent,
 } from "components/benchmark_v3/configs/helpers/configRegistration";
-import {
-  CompilerDashboardBenchmarkUIConfig,
-  CompilerPrecomputeBenchmarkUIConfig,
-  COMPILTER_BENCHMARK_NAME,
-  COMPILTER_PRECOMPUTE_BENCHMARK_ID,
-} from "components/benchmark_v3/configs/teams/compilers/config";
 import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
-import {
-  PYTORCH_HELION_BENCHMARK_ID,
-  PytorchHelionDashboardConfig,
-  PytorchHelionSingleConfig,
-} from "components/benchmark_v3/configs/teams/helion/config";
-import {
-  PYTORCH_OPERATOR_MICROBENCHMARK_ID,
-  PytorchOperatorMicroBenchmarkDashoboardConfig,
-} from "components/benchmark_v3/configs/teams/torchao/config";
 import { DataBinding } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
 
 import { create } from "zustand";
+import { PREDEFINED_BENCHMARK_CONFIG } from "./configurations";
 import { defaultSingleBenchmarkUIConfig } from "./teams/defaults/default_single_view_config";
-import {
-  PytorcAoMicroApiBenchmarkDashoboardConfig,
-  PYTORCH_AO_MICRO_API_BENCHMARK_ID,
-} from "./teams/torchao/ao_micro_api_config";
-
-const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
-  [COMPILTER_BENCHMARK_NAME]: {
-    [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
-  },
-  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
-    [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
-  },
-  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]:
-      PytorchOperatorMicroBenchmarkDashoboardConfig,
-  },
-  [PYTORCH_HELION_BENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
-    [BenchmarkPageType.SinglePage]: PytorchHelionSingleConfig,
-  },
-  [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]:
-      PytorcAoMicroApiBenchmarkDashoboardConfig,
-  },
-};
 
 /**
  * A class to host a single benchmark UI config

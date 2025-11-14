@@ -8,7 +8,6 @@ import {
   Popper,
 } from "@mui/material";
 import { Box } from "@mui/system";
-import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 export type NavItem = { label: string; route: string };
@@ -131,9 +130,7 @@ export function NavBarGroupDropdown({
             {singles.map((item) => (
               <MenuItem
                 key={`single-${item.label}`}
-                component={Link as any}
-                href={item.route}
-                prefetch={false}
+                component="a"
                 sx={{
                   color: "primary.main",
                 }}
@@ -169,9 +166,8 @@ export function NavBarGroupDropdown({
                   {group.items.map((item) => (
                     <MenuItem
                       key={`${group.label}-${item.label}`}
-                      component={Link as any}
+                      component="a"
                       href={item.route}
-                      prefetch={false}
                       sx={{
                         color: "primary.main",
                         pl: 1,
@@ -188,9 +184,8 @@ export function NavBarGroupDropdown({
                 <Divider sx={{ mt: 1 }} />
                 <MenuItem
                   key={`bottom-${bottom.label}`}
-                  component={Link as any}
+                  component="a"
                   href={bottom.route}
-                  prefetch={false}
                   sx={{
                     color: "primary.main",
                   }}

@@ -1,35 +1,104 @@
+import {
+  CompilerDashboardBenchmarkUIConfig,
+  CompilerPrecomputeBenchmarkUIConfig,
+  COMPILTER_BENCHMARK_NAME,
+  COMPILTER_PRECOMPUTE_BENCHMARK_ID,
+} from "components/benchmark_v3/configs/teams/compilers/config";
+import {
+  PYTORCH_HELION_BENCHMARK_ID,
+  PytorchHelionDashboardConfig,
+  PytorchHelionSingleConfig,
+} from "components/benchmark_v3/configs/teams/helion/config";
+import {
+  PYTORCH_OPERATOR_MICROBENCHMARK_ID,
+  PytorchOperatorMicroBenchmarkDashoboardConfig,
+} from "components/benchmark_v3/configs/teams/torchao/config";
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
-import { BenchmarkIdMappingItem } from "./config_book_types";
+import {
+  BenchmarkConfigMap,
+  BenchmarkIdMappingItem,
+  BenchmarkPageType,
+} from "./config_book_types";
+import {
+  PytorcCachebenchBenchmarkDashoboardConfig,
+  PYTORCH_GPTFAST_BENCHMARK_ID,
+} from "./teams/gptfast/config";
+import {
+  PytorcAoMicroApiBenchmarkDashoboardConfig,
+  PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+} from "./teams/torchao/ao_micro_api_config";
+import {
+  PYTORCH_VLLM_BENCHMARK_ID,
+  PytorchVllmBenchmarkDashoboardConfig,
+} from "./teams/vllm/config";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",
 };
 
+export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
+  [COMPILTER_BENCHMARK_NAME]: {
+    [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
+  },
+  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
+    [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
+  },
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorchOperatorMicroBenchmarkDashoboardConfig,
+  },
+  [PYTORCH_HELION_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
+    [BenchmarkPageType.SinglePage]: PytorchHelionSingleConfig,
+  },
+  [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorcAoMicroApiBenchmarkDashoboardConfig,
+  },
+  [PYTORCH_VLLM_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchVllmBenchmarkDashoboardConfig,
+  },
+  [PYTORCH_GPTFAST_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]:
+      PytorcCachebenchBenchmarkDashoboardConfig,
+  },
+};
+
 export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
-  compiler_inductor: {
-    id: "compiler_inductor",
+  [COMPILTER_BENCHMARK_NAME]: {
+    id: COMPILTER_BENCHMARK_NAME,
     repoName: "pytorch/pytorch",
     benchmarkName: "compiler_inductor",
   },
-  compiler_precompute: {
-    id: "compiler_precompute",
+  [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
+    id: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
     repoName: "pytorch/pytorch",
     benchmarkName: "compiler_precompute",
   },
-  pytorch_operator_microbenchmark: {
-    id: "pytorch_operator_microbenchmark",
+  [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
+    id: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
     repoName: "pytorch/pytorch",
     benchmarkName: "PyTorch operator microbenchmark",
   },
-  pytorch_helion: {
-    id: "pytorch_helion",
+  [PYTORCH_HELION_BENCHMARK_ID]: {
+    id: PYTORCH_HELION_BENCHMARK_ID,
     repoName: "pytorch/helion",
     benchmarkName: "Helion Benchmark",
   },
-  torchao_micro_api_benchmark: {
-    id: "torchao_micro_api_benchmark",
+  [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
+    id: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
     repoName: "pytorch/ao",
     benchmarkName: "micro-benchmark api",
+  },
+  [PYTORCH_VLLM_BENCHMARK_ID]: {
+    id: PYTORCH_VLLM_BENCHMARK_ID,
+    repoName: "vllm-project/vllm",
+    benchmarkName: "vLLM benchmark",
+  },
+  [PYTORCH_GPTFAST_BENCHMARK_ID]: {
+    id: PYTORCH_GPTFAST_BENCHMARK_ID,
+    repoName: "pytorch/pytorch",
+    benchmarkName: "PyTorch gpt-fast benchmark",
   },
 };
 /**
@@ -71,7 +140,7 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/dynamo#torchcompile-benchmarking)",
         actions: [
           {
-            label: "New dashboard (WIP)",
+            label: "Dashboard",
             href: "/benchmark/v3/dashboard/compiler_inductor",
           },
           {
@@ -90,9 +159,17 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         ],
       },
       {
-        name: "LLMs Benchmark",
-        route: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+        name: "Gpt-fast Benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_GPTFAST_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/gpt_fast)",
+        description:
+          "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
+        actions: [
+          {
+            label: "Legacy Page/Playground",
+            href: "/benchmark/llms?repoName=pytorch%2Fpytorch",
+          },
+        ],
       },
       {
         name: "Operator Microbenchmark",
@@ -120,7 +197,7 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     items: [
       {
         name: "TorchAO Micro API Benchmark",
-        route: "/benchmark/v3/dashboard/torchao_micro_api_benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_AO_MICRO_API_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
         actions: [
           {
@@ -140,6 +217,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         name: "VLLM V1 Benchmark",
         route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
         info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
+        actions: [
+          {
+            label: "new UI (wip)",
+            href: `/benchmark/v3/dashboard/${PYTORCH_VLLM_BENCHMARK_ID}`,
+          },
+        ],
       },
     ],
   },

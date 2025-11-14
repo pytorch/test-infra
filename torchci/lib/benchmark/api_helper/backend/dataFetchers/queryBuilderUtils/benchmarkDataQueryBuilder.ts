@@ -125,15 +125,23 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
-        IF(
-            empty(o.runners),
-            tupleElement(o.benchmark, 'extra_info')['device'],
-            tupleElement(o.runners[1], 'name')
+        multiIf(
+            NOT empty(tupleElement(o.benchmark, 'extra_info')['device']),
+                tupleElement(o.benchmark, 'extra_info')['device'],
+
+            NOT empty(tupleElement(o.runners[1], 'name')),
+                tupleElement(o.runners[1], 'name'),
+
+            'cpu'   -- final fallback
         ) AS device,
-        IF(
-            empty(o.runners),
-            tupleElement(o.benchmark, 'extra_info')['arch'],
-            tupleElement(o.runners[1], 'type')
+       multiIf(
+            NOT empty(tupleElement(o.benchmark, 'extra_info')['arch']),
+                tupleElement(o.benchmark, 'extra_info')['arch'],
+
+            NOT empty(tupleElement(o.runners[1], 'type')),
+                tupleElement(o.runners[1], 'type'),
+
+            tupleElement(o.runners[1], 'cpu_info')   -- final fallback
         ) AS arch,
         DATE_TRUNC(
             {granularity: String },
@@ -555,7 +563,6 @@ export class PytorchHelionDataFetcher
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     const params = {
       ...inputs,
-      operatorName: inputs.operatorName ?? "",
     };
     return this._data_query.toQueryParams(params, id);
   }
@@ -608,6 +615,120 @@ export class PytorchAoMicroApiBenchmarkDataFetcher
       ...inputs,
       operatorName: inputs.operatorName ?? "",
     };
+    return this._data_query.toQueryParams(params, id);
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+}
+
+/**
+ * Builder to get Vllm V1 Benchmark
+ * It inherits method from BenchmarkDataQuery
+ */
+export class VllmBenchmarkDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkDataFetcher
+{
+  private _data_query: BenchmarkDataQuery;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkDataQuery();
+    // add extra info to the query
+    this._data_query.addExtraInfos(
+      new Map([
+        [
+          "use_compile",
+          `IF(
+                tupleElement(o.benchmark, 'extra_info')['compile'] = '',
+                'true',
+                tupleElement(o.benchmark, 'extra_info')['compile']
+                )`,
+        ],
+        [
+          "request_rate",
+          `JSONExtractString(
+              tupleElement(o.benchmark, 'extra_info')['args'],
+              'request_rate'
+          )
+          `,
+        ],
+        [
+          "tensor_parallel_size",
+          `JSONExtractString(
+                tupleElement(o.benchmark, 'extra_info')['args'],
+                'tensor_parallel_size'
+            )`,
+        ],
+        [
+          "random_input_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_input_len'
+            )`,
+        ],
+        [
+          "random_output_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'random_output_len'
+            )`,
+        ],
+        [
+          "input_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'input_len'
+            )`,
+        ],
+        [
+          "output_len",
+          `JSONExtractString(
+              tupleElement(benchmark, 'extra_info')['args'],
+              'output_len'
+            )`,
+        ],
+      ])
+    );
+  }
+  applyFormat(
+    data: any[],
+    formats: string[],
+    includesAllExtraKey: boolean = true
+  ) {
+    // nput and output length is the number of token feed into vLLM and the max output it returns.
+    //  random_input_len is the name of the the parameter on vLLM bench,
+    // for other type of benchmark, it could be called input_len
+    data.forEach((d) => {
+      if (d.extra_key) {
+        const dk = d.extra_key;
+        const input_len = dk?.input_len;
+        const random_input_len = dk?.random_input_len;
+        const output_len = dk?.output_len;
+        const random_output_len = dk?.random_output_len;
+        dk.input_len = input_len || random_input_len;
+        dk.output_len = output_len || random_output_len;
+      }
+    });
+
+    return this._data_query.applyFormat(data, formats, includesAllExtraKey);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const excludedMetrics = [
+      "mean_itl_ms",
+      "mean_tpot_ms",
+      "mean_ttft_ms",
+      "std_itl_ms",
+      "std_tpot_ms",
+      "std_ttft_ms",
+    ];
+    const params = {
+      ...inputs,
+      excludedMetrics: excludedMetrics,
+    };
+
     return this._data_query.toQueryParams(params, id);
   }
 

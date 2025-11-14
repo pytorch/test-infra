@@ -77,16 +77,12 @@ async function getBenchmarkTimeSeriesData(
         CompilerQueryType.GENERAL,
         formats
       );
-    case "pytorch_operator_microbenchmark":
-    case "pytorch_helion":
-    case "torchao_micro_api_benchmark":
+    default:
       return await getGenernalBenchmarkTimeSeries(
         query_params,
         formats,
         request_name
       );
-    default:
-      throw new Error(`Unsupported request_name: ${request_name}`);
   }
 }
 

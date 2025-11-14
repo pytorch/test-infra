@@ -1,7 +1,7 @@
 // Utility to extract params from either GET or POST
 import dayjs from "dayjs";
-import { queryClickhouseSaved } from "lib/clickhouse";
 import { NextApiRequest } from "next";
+import { getListBenchmarkCommitsFetcher } from "../dataFetchers/fetchers";
 import { BenchmarkCompilerListCommitQueryBuilder } from "../dataFetchers/queryBuilderUtils/compilerQueryBuilder";
 import { CommitResult } from "./type";
 
@@ -389,8 +389,11 @@ async function listCompilerCommitsFromDb(queryParams: any) {
   return result;
 }
 
-export async function listGeneralCommits(tableName: string, queryParams: any) {
-  const commit_results = await queryClickhouseSaved(tableName, queryParams);
+export async function listGeneralCommits(id: string, queryParams: any) {
+  // fetch list commits from db
+  const fetcher = getListBenchmarkCommitsFetcher(id);
+  const data = await fetcher.applyQuery(queryParams);
+  const commit_results = fetcher.postProcess(data);
   let maxCount = undefined;
   // if subsampling is specified, use it
   if (queryParams.sampling) {
