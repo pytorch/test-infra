@@ -131,6 +131,7 @@ export function NavBarGroupDropdown({
               <MenuItem
                 key={`single-${item.label}`}
                 component="a"
+                href={item.route}
                 sx={{
                   color: "primary.main",
                 }}
