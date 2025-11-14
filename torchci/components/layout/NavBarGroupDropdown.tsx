@@ -8,7 +8,6 @@ import {
   Popper,
 } from "@mui/material";
 import { Box } from "@mui/system";
-import Link from "next/link";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 export type NavItem = { label: string; route: string };
