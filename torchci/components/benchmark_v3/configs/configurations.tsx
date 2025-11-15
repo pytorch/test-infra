@@ -107,7 +107,7 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
  * @returns
  */
 export function getBenchmarkIdFromReportId(reportId: string): string {
-  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? "";
+  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? reportId;
 }
 
 export function getBenchmarkIdMappingItem(

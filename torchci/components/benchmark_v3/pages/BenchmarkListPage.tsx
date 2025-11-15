@@ -12,7 +12,8 @@ export function getBenchmarkMainRouteById(id: string): string | undefined {
       }
     }
   }
-  return undefined;
+  // by default, form the v3 route to dashboard page
+  return `/benchmark/v3/dashboard/${id}`;
 }
 
 export function benchmarkCategoryCardToNavGroup(
