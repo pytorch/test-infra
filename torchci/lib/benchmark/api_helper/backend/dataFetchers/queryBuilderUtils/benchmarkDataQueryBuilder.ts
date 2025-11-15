@@ -67,16 +67,16 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   private _extra_keys = new Set<string>();
 
   DEFAULT_PARAMS = {
-    arch: "",
-    mode: "",
-    device: "",
+    branches: [],
+    backends: [],
+    devices: [],
+    arches: [],
+    dtypes: [],
+    modes: [],
     granularity: "hour",
     excludedMetrics: [],
     models: [],
-    branches: [],
     workflows: [],
-    backends: [],
-    dtypes: [],
   };
 
   // must included in all select statement
@@ -169,8 +169,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             OR empty({backends: Array(String) })
         )
         AND (
-            o.benchmark.'mode' = {mode: String }
-            OR {mode: String } = ''
+            has({modes: Array(String) }, o.benchmark.'mode')
+            OR empty({modes: Array(String) })
         )
         AND (
             has({dtypes: Array(String) }, o.benchmark.'dtype')
@@ -356,6 +356,9 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
       inputs.dtypes = [inputs.dtype];
     }
 
+    if (inputs.mode && !inputs.modes) {
+      inputs.modes = [inputs.mode];
+    }
     if (inputs.model && !inputs.models) {
       inputs.models = [inputs.model];
     }
@@ -368,6 +371,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     }
 
     const params = { ...this.DEFAULT_PARAMS, ...inputs };
+
+    console.log("elainetest:", params)
     return params;
   }
 }

@@ -12,6 +12,7 @@ export class BenchmarkListCommitQueryBuilder
     arches: [],
     dtypes: [],
     modes: [],
+    backends: [],
     startTime: "",
     stopTime: "",
   };
@@ -113,6 +114,7 @@ ORDER BY
     if (inputs.device && !inputs.devices) {
       inputs.devices = [inputs.device];
     }
+
 
     const params=  {
       ...this._DEFAULT_QUERY_PARAMS,
