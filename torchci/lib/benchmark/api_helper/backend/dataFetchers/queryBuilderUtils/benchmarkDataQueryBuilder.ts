@@ -222,9 +222,9 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
             startsWith({device: String }, device)
             OR {device: String } = ''
         )
-        AND (
-            arch LIKE concat('%', {arch: String }, '%')
-            OR {arch: String } = ''
+         AND (
+            multiSearchAnyCaseInsensitive(arch, {arches: Array(String)})
+            OR empty({arches: Array(String)})
         )
         {{WHERE}}
         ORDER BY
@@ -361,6 +361,10 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
     }
     if (inputs.branch && !inputs.branches) {
       inputs.branches = [inputs.branch];
+    }
+
+    if (inputs.arch && !inputs.arches) {
+      inputs.arches = [inputs.arch];
     }
 
     const params = { ...this.DEFAULT_PARAMS, ...inputs };

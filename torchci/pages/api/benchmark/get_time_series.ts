@@ -1,5 +1,5 @@
 import { CompilerQueryType } from "lib/benchmark/api_helper/backend/common/type";
-import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import { listGeneralCommits, readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
 import { getCompilerBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/compilers/compiler_benchmark_data";
 import { getBenchmarkDataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -91,6 +91,8 @@ async function getGenernalBenchmarkTimeSeries(
   formats: string[],
   id: string
 ) {
+
+
   const fetcher = getBenchmarkDataFetcher(id);
   const result = await fetcher.applyQuery(query_params);
   return fetcher.applyFormat(result, formats);
