@@ -107,12 +107,13 @@ export class PytorchOperatorMicroListCommitsDataFetcher
     super();
     this._data_query = new BenchmarkListCommitQueryBuilder();
     this._data_query.addWhere([
-      "startsWith(model_name, {operatorName: String}) OR {operatorName: String} = ''",
+      "(startsWith(model_name, {operatorName: String}) OR {operatorName: String} = '')",
     ]);
   }
 
   toQueryParams(inputs: any, id?: string): Record<string, any> {
-    return this._data_query.toQueryParams(inputs);
+    const params = this._data_query.toQueryParams(inputs);
+    return params;
   }
 
   build() {
