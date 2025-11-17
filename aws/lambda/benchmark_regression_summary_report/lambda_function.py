@@ -372,6 +372,12 @@ def main(
         minute=0, second=0, microsecond=0
     )
     end_time_ts = int(end_time.timestamp())
+
+    # override end_time if args is provided
+    if args and args.end_time:
+        end_time = isoparse(args.end_time)
+        end_time = truncate_to_hour(end_time)
+        end_time_ts = int(end_time.timestamp())
     logger.info(
         "[Main] current time with hour granularity(utc) %s with unix timestamp %s",
         end_time,
@@ -461,6 +467,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         default=ENVS["GITHUB_TOKEN"],
         help="the github access token to access github api",
+    )
+    parser.add_argument(
+        "--end-time",
+        type=str,
+        help="the end time to run, in format of YYYY-MM-DD HH:MM:SS",
     )
     parser.set_defaults(dry_run=True)  # default is True
     args, _ = parser.parse_known_args()
