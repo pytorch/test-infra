@@ -20,6 +20,9 @@ import {
   GridRenderCellParams,
   GridTreeNodeWithRender,
 } from "@mui/x-data-grid";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
 import RegexButton from "components/common/RegexButton";
@@ -898,6 +901,12 @@ export default function Page() {
   const jobInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
+    dayjs().subtract(5, "hour")
+  );
+  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
+    dayjs().subtract(5, "hour").subtract(7, "day")
+  );
 
   // Keep input fields in sync when filters are set programmatically
   useEffect(() => {
@@ -1027,20 +1036,23 @@ export default function Page() {
           Select a commit to view data from the week leading up to that commit.
         </Typography>
       </Stack>
-      <Select
-        name="commit"
-        value={headShaIndex}
-        onChange={(e) => {
-          const selectedIndex = e.target.value;
-          setHeadShaIndex(selectedIndex);
-        }}
-      >
-        {commitMetadata.map((commit, index) => (
-          <MenuItem value={index} key={index}>
-            {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
-          </MenuItem>
-        ))}
-      </Select>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Typography variant="body2">Date Range:</Typography>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            label="Start Date & Time"
+            value={startDate}
+            onChange={(newValue) => setStartDate(newValue)}
+            slotProps={{ textField: { size: "small" } }}
+          />
+          <DateTimePicker
+            label="End Date & Time"
+            value={endDate}
+            onChange={(newValue) => setEndDate(newValue)}
+            slotProps={{ textField: { size: "small" } }}
+          />
+        </LocalizationProvider>
+      </Stack>
       <Box
         component="form"
         noValidate
