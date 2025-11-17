@@ -1,3 +1,8 @@
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
 import {
   Box,
   Button,
@@ -26,6 +31,7 @@ import { encodeParams } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import useSWRImmutable from "swr/immutable";
 
 dayjs.extend(isoWeek);
 
@@ -713,75 +719,225 @@ function Graphs({ data }: { data: any[] }) {
   );
 }
 
+function StatusIcon({ status }: { status: string }) {
+  let icon = null;
+  if (status === "failure") {
+    icon = <ErrorIcon sx={{ color: "red", fontSize: "1rem" }} />;
+  } else if (status === "flaky") {
+    icon = <WarningRoundedIcon sx={{ color: "orange", fontSize: "1rem" }} />;
+  } else if (status === "success") {
+    icon = <CheckCircleIcon sx={{ color: "green", fontSize: "1rem" }} />;
+  } else if (status === "skipped") {
+    icon = <WarningRoundedIcon sx={{ color: "grey", fontSize: "1rem" }} />;
+  } else if (status === "removed") {
+    icon = <RemoveCircleOutlineIcon sx={{ color: "red", fontSize: "1rem" }} />;
+  } else if (status === "added") {
+    icon = <AddCircleOutlineIcon sx={{ color: "green", fontSize: "1rem" }} />;
+  }
+  return icon;
+}
+
+function useStatusChangeData(
+  uniqueFiles: string[],
+  uniqueJobs: string[],
+  sha1: string,
+  sha2: string
+) {
+  // Sort for consistent cache keys and remove .py suffixes
+  const sortedFiles = [...uniqueFiles]
+    .sort()
+    .map((f) => f.slice(0, f.length - 3));
+  const sortedJobs = [...uniqueJobs].sort();
+
+  const swrKey =
+    sha1 && sha2
+      ? `/api/flaky-tests/statusChanges:${sha1}:${sha2}:${JSON.stringify(
+          sortedFiles
+        )}:${JSON.stringify(sortedJobs)}`
+      : null;
+
+  // Custom fetcher for POST requests to get around URL header length limits
+  const postFetcher = async () => {
+    const response = await fetch("/api/flaky-tests/statusChanges", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sha1,
+        sha2,
+        files: sortedFiles,
+        jobs: sortedJobs,
+        fuzzy: true, // Enable fuzzy matching to find nearest jobs
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const { data, error, isLoading } = useSWRImmutable(swrKey, postFetcher);
+
+  return {
+    data: data || [],
+    error,
+    isLoading,
+  };
+}
+
 function TestStatus({
   shas,
-  rowMatchesFilters,
+  data,
 }: {
   shas: { sha: string; push_date: number }[];
-  rowMatchesFilters: (row: any) => boolean;
+  data: any[];
 }) {
-  const options = shas;
-  const [selectedIndex, setSelectedIndex] = useState<number>(
-    shas.length > 0 ? shas.length - 1 : 0
-  );
+  // Sort commits by date ascending (oldest first)
+  const allCommits = [...shas].sort((a, b) => a.push_date - b.push_date);
 
+  // State for selected commits (default to first and last)
+  const [firstCommitIndex, setFirstCommitIndex] = useState(0);
+  const [lastCommitIndex, setLastCommitIndex] = useState(allCommits.length - 1);
+
+  // Update indices when data changes
   useEffect(() => {
-    if (shas.length > 0 && selectedIndex === 0) {
-      setSelectedIndex(shas.length - 1);
-    }
-  }, [shas, selectedIndex]);
-  let data = useData(
-    selectedIndex !== 0
-      ? `${S3_LOCATION}/status_changes_${options[selectedIndex - 1].sha}_${
-          options[selectedIndex].sha
-        }.json.gz`
-      : undefined
+    setFirstCommitIndex(0);
+    setLastCommitIndex(allCommits.length - 1);
+  }, [allCommits.length]);
+
+  // Extract unique files and jobs from the filtered data
+  const uniqueFiles = _.uniq(data.map((d) => d.file));
+  const uniqueJobs = _.uniq(data.map((d) => d.short_job_name));
+
+  // Fetch status changes from API
+  const sha1 = allCommits[firstCommitIndex]?.sha;
+  const sha2 = allCommits[lastCommitIndex]?.sha;
+
+  const statusChangeResult = useStatusChangeData(
+    uniqueFiles,
+    uniqueJobs,
+    sha1,
+    sha2
   );
 
-  // Apply the same file/job/label filter to statusChangeData
-  data = data?.filter(rowMatchesFilters);
+  // Transform the data
+  const statusData = (statusChangeResult.data || []).map(
+    (row: any, index: number) => ({
+      id: index,
+      prev_status: row.prev_status,
+      new_status: row.new_status,
+      file: row.invoking_file,
+      test_name: row.name,
+      short_job_name: `${row.workflow_name} / ${row.job_name}`,
+      classname: row.classname,
+    })
+  );
 
   const columns: any[] = [
-    { field: "status", headerName: "Status", flex: 1 },
-    { field: "file", headerName: "File", flex: 4 },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 2,
+      valueGetter: (_value: any, row: any) => {
+        // Create a sortable string from prev_status and new_status
+        const prev = row.prev_status || "none";
+        const next = row.new_status || "none";
+        return `${prev} → ${next}`;
+      },
+      renderCell: (params: any) => {
+        const prevStatus = params.row.prev_status || "";
+        const newStatus = params.row.new_status || "";
+
+        const prevText = prevStatus === "" ? "none" : prevStatus;
+        const newText = newStatus === "" ? "none" : newStatus;
+
+        return (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {prevStatus && <StatusIcon status={prevStatus} />}
+            <span
+              key="prev-status"
+              style={{
+                fontStyle: prevStatus === "" ? "italic" : "normal",
+                color: prevStatus === "" ? "gray" : "inherit",
+              }}
+            >
+              {prevText}
+            </span>
+            <span key="arrow">→</span>
+            {newStatus && <StatusIcon status={newStatus} />}
+            <span
+              key="new-status"
+              style={{
+                fontStyle: newStatus === "" ? "italic" : "normal",
+                color: newStatus === "" ? "gray" : "inherit",
+              }}
+            >
+              {newText}
+            </span>
+          </Stack>
+        );
+      },
+    },
+    { field: "file", headerName: "File", flex: 2 },
     { field: "test_name", headerName: "Test", flex: 4 },
     { field: "short_job_name", headerName: "Job", flex: 4 },
-    { field: "sha", headerName: "SHA", flex: 1 },
-    {
-      field: "push_date",
-      headerName: "Push Date",
-      flex: 1,
-      renderCell: (params: any) => formatTimestamp(params.value),
-    },
   ];
 
   return (
-    <Box height={"600px"}>
-      <Select name="compare" value={selectedIndex}>
-        {options.map((option, index) => {
-          if (index === 0)
-            return (
-              <MenuItem key={0} value="">
-                Select Commit Pair
-              </MenuItem>
-            );
-          return (
-            <MenuItem
-              key={index}
-              value={index}
-              onClick={() => setSelectedIndex(index)}
-            >
-              {options[index - 1].sha.slice(0, 7)} (
-              {formatTimestamp(options[index - 1].push_date)}) ➡️{" "}
-              {options[index].sha.slice(0, 7)} (
-              {formatTimestamp(options[index].push_date)})
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Typography variant="body2">Compare:</Typography>
+        <Select
+          size="small"
+          value={firstCommitIndex}
+          onChange={(e) => setFirstCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
             </MenuItem>
-          );
-        })}
-      </Select>
+          ))}
+        </Select>
+        <Typography variant="body2">vs</Typography>
+        <Select
+          size="small"
+          value={lastCommitIndex}
+          onChange={(e) => setLastCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
 
-      <DataGrid density="compact" rows={[...data]} columns={columns} />
-    </Box>
+      {statusChangeResult.isLoading && (
+        <Typography variant="body2" color="text.secondary">
+          Loading status changes...
+        </Typography>
+      )}
+
+      {statusChangeResult.error && (
+        <Typography variant="body2" color="error">
+          Error loading status changes: {statusChangeResult.error.message}
+        </Typography>
+      )}
+
+      <Box height={"600px"}>
+        <DataGrid
+          density="compact"
+          rows={statusData}
+          columns={columns}
+          loading={statusChangeResult.isLoading}
+        />
+      </Box>
+    </Stack>
   );
 }
 
@@ -941,7 +1097,9 @@ export default function Page() {
     .uniqBy("sha")
     .value();
 
-  data = data.filter(rowMatchesFilters);
+  const filteredData = data.filter(rowMatchesFilters);
+  data = filteredData;
+
   return (
     <Stack spacing={4}>
       <Stack direction="row" spacing={2}>
@@ -1128,16 +1286,10 @@ export default function Page() {
         <Typography variant="h6">Status Changes</Typography>
         <Typography variant="body1">
           This table lists the tests that were added, removed, started skipping,
-          or stopped skipping. This will only show at most 50 entries per commit
-          pair due to file size.
+          or stopped skipping. This will only show at most 200 entries due to
+          API limits.
         </Typography>
-        <TestStatus
-          shas={commitMetadata.slice(
-            headShaIndex - 7 >= 0 ? headShaIndex - 7 : 0,
-            headShaIndex + 1
-          )}
-          rowMatchesFilters={rowMatchesFilters}
-        />
+        <TestStatus shas={shas} data={data} />
       </Stack>
     </Stack>
   );
