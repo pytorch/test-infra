@@ -107,41 +107,95 @@ function Diffs({
   setFileFilter: (v: string) => void;
   setJobFilter: (v: string) => void;
 }) {
-  const groupByOptions = {};
-  // Compute diffs for every row (except the earliest) in each (file, short_job_name) group
-  const groupedDiff = _.groupBy(data, (d) => `${d.file}|||${d.short_job_name}`);
-  // Map from id (row) to diff object for every row (except the first in group)
-  const rowDiffs: Record<string, any> = {};
-  Object.entries(groupedDiff).forEach(([key, arr]) => {
-    // Sort by push_date ascending (oldest to newest)
-    const sorted = _.sortBy(arr, (d) => d.push_date);
-    for (let i = 1; i < sorted.length; ++i) {
-      const curr = sorted[i];
-      const prev = sorted[i - 1];
-      function diff(field: string) {
-        if (!curr || !prev) return null;
-        return (curr[field] || 0) - (prev[field] || 0);
+  // Get all unique commits sorted by push_date
+  const allCommits = _.uniqBy(data, "sha")
+    .map((d) => ({ sha: d.sha, push_date: d.push_date }))
+    .sort((a, b) => a.push_date - b.push_date);
+
+  // State for selected commits (default to first and last)
+  const [firstCommitIndex, setFirstCommitIndex] = useState(0);
+  const [lastCommitIndex, setLastCommitIndex] = useState(allCommits.length - 1);
+
+  // Update indices when data changes
+  useEffect(() => {
+    setFirstCommitIndex(0);
+    setLastCommitIndex(allCommits.length - 1);
+  }, [allCommits.length]);
+
+  const firstCommit = allCommits[firstCommitIndex] || allCommits[0];
+  const lastCommit =
+    allCommits[lastCommitIndex] || allCommits[allCommits.length - 1];
+
+  // Group data by (file, short_job_name)
+  const groupedData = _.groupBy(data, (d) => `${d.file}|||${d.short_job_name}`);
+
+  // Create one row per (file, job) with diffs.  If the data is missing for the
+  // specific shas, use interpolation based on nearest available data points.
+  const diffRows = Object.entries(groupedData).map(([key, arr], index) => {
+    const [file, jobName] = key.split("|||");
+
+    // Helper to get interpolated value for a commit
+    const getInterpolatedValue = (targetCommit: any, field: string) => {
+      // Find exact match first
+      const exactMatch = arr.find((row) => row.sha === targetCommit.sha);
+      if (exactMatch) {
+        return exactMatch[field] || 0;
       }
-      rowDiffs[curr.id] = {
-        count_diff: diff("count"),
-        cost_diff: diff("cost"),
-        time_diff: diff("time"),
-        skipped_diff: diff("skipped"),
-        errors_diff: diff("errors"),
-        failures_diff: diff("failures"),
-        successes_diff: diff("successes"),
-      };
-    }
+
+      // Sort by push_date for interpolation
+      const sorted = _.sortBy(arr, "push_date");
+
+      // Find the closest existing values before and after
+      const before = sorted
+        .filter((row) => row.push_date <= targetCommit.push_date)
+        .sort((a, b) => b.push_date - a.push_date)[0];
+      const after = sorted
+        .filter((row) => row.push_date > targetCommit.push_date)
+        .sort((a, b) => a.push_date - b.push_date)[0];
+
+      // If we have data on the target commit or later, use the first available
+      if (after) return after[field] || 0;
+      // Otherwise use the last available before
+      if (before) return before[field] || 0;
+      // Default to 0 if no data exists
+      return 0;
+    };
+
+    // Get interpolated values for first and last commits
+    const firstValues = {
+      time: getInterpolatedValue(firstCommit, "time"),
+      cost: getInterpolatedValue(firstCommit, "cost"),
+      count: getInterpolatedValue(firstCommit, "count"),
+      skipped: getInterpolatedValue(firstCommit, "skipped"),
+    };
+
+    const lastValues = {
+      time: getInterpolatedValue(lastCommit, "time"),
+      cost: getInterpolatedValue(lastCommit, "cost"),
+      count: getInterpolatedValue(lastCommit, "count"),
+      skipped: getInterpolatedValue(lastCommit, "skipped"),
+      frequency: getInterpolatedValue(lastCommit, "frequency"),
+    };
+
+    return {
+      id: index,
+      file,
+      short_job_name: jobName,
+      // Last commit values
+      time: lastValues.time,
+      cost: lastValues.cost,
+      skipped: lastValues.skipped,
+      count: lastValues.count,
+      frequency: lastValues.frequency,
+      // Deltas (last - first)
+      time_diff: lastValues.time - firstValues.time,
+      cost_diff: lastValues.cost - firstValues.cost,
+      skipped_diff: lastValues.skipped - firstValues.skipped,
+      count_diff: lastValues.count - firstValues.count,
+    };
   });
 
   const columns: GridColDef[] = [
-    { field: "sha", headerName: "SHA", flex: 1 },
-    {
-      field: "push_date",
-      headerName: "Push Date",
-      flex: 1,
-      renderCell: (params: any) => formatTimestamp(params.value),
-    },
     {
       field: "file",
       headerName: "File",
@@ -314,24 +368,50 @@ function Diffs({
       <Typography variant="h6">File Test Counts</Typography>
       <Typography variant="body1">
         This table displays test run statistics for each test file and job
-        combination. The Δ (delta) columns show the change in each metric
-        compared to the previous commit for the same file and job. Double click
-        on the file or job to filter by that value. Highlighted cells are large
-        changes (either by percent or absolute value) and may indicate
-        regressions or improvements.
+        combination, comparing two selected commits. The Δ (delta) columns show
+        the change in each metric. Values are interpolated if a file/job
+        combination does not exist on the exact commits (using the nearest
+        available data point). Double click on the file or job to filter by that
+        value. Highlighted cells are large changes (either by percent or
+        absolute value) and may indicate regressions or improvements.
       </Typography>
-
       <Typography variant="body1">
         Pricing is approximate and per commit. Some pricing data may be missing
         (ex mac, rocm), in those cases the cost will be 0.
       </Typography>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="body2">Compare:</Typography>
+        <Select
+          size="small"
+          value={firstCommitIndex}
+          onChange={(e) => setFirstCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+            </MenuItem>
+          ))}
+        </Select>
+        <Typography variant="body2">vs</Typography>
+        <Select
+          size="small"
+          value={lastCommitIndex}
+          onChange={(e) => setLastCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
+
       <Box height={"600px"}>
         <DataGrid
           density="compact"
-          rows={data.map((row) => ({
-            ...row,
-            ...(rowDiffs[row.id] || {}),
-          }))}
+          rows={diffRows}
           sx={styling}
           columns={columns}
           initialState={{
