@@ -38,9 +38,6 @@ import useSWRImmutable from "swr/immutable";
 
 dayjs.extend(isoWeek);
 
-const S3_LOCATION =
-  "https://ossci-raw-job-status.s3.amazonaws.com/additional_info/weekly_file_report";
-
 function formatTimestamp(ts: number) {
   return new Date(ts * 1000).toLocaleDateString().slice(0, 10);
 }
@@ -806,65 +803,6 @@ function TestStatus({
       </Box>
     </Stack>
   );
-}
-
-// Custom hook to fetch real data from the local JSON file
-function useData(link: string | undefined) {
-  const [data, setData] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!link) return;
-
-    fetch(link)
-      .then((response) =>
-        response.ok ? response.text() : Promise.reject("Failed to load")
-      )
-      .then((text) => {
-        const final = [];
-        for (const line of text.split("\n")) {
-          if (line.trim()) {
-            final.push(JSON.parse(line));
-          }
-        }
-        setData(final.map((item, index) => ({ ...item, id: index })));
-      });
-  }, [link]);
-  return data;
-}
-
-function useWeeksData(commitMetadata: any[], headShaIndex: number) {
-  const [data, setData] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (headShaIndex == -1 || commitMetadata.length === 0) return;
-
-    const shasToFetch = [];
-    for (let i = headShaIndex; i >= 0 && i > headShaIndex - 7; --i) {
-      shasToFetch.push(commitMetadata[i].sha);
-    }
-
-    Promise.all(
-      shasToFetch.map((sha) =>
-        fetch(`${S3_LOCATION}/data_${sha}.json.gz`)
-          .then((response) =>
-            response.ok ? response.text() : Promise.reject("Failed to load")
-          )
-          .then((text) => {
-            const final = [];
-            for (const line of text.split("\n")) {
-              if (line.trim()) {
-                final.push(JSON.parse(line));
-              }
-            }
-            return final.map((item, index) => ({ ...item, id: index }));
-          })
-      )
-    ).then((allData) => {
-      // Flatten the array of arrays
-      setData(allData.flat());
-    });
-  }, [commitMetadata, headShaIndex]);
-  return data;
 }
 
 export default function Page() {
