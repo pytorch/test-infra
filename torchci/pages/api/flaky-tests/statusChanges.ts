@@ -147,7 +147,11 @@ WITH ref AS (
 )
 SELECT
     workflow_name,
-    regexp_replace(t.name, '\\(([^,]+),.*\\)', '(\\1)') as name,
+    regexp_replace(
+        t.name,
+        '(\\\\([^,]+, )(?:[0-9]+, )*(?:lf\\\\.)?([^)]+\\\\))',
+        '\\\\1\\\\2'
+    ) as name,
     argMax(t.id, commit_ts) AS id,
     argMax(sha, commit_ts) AS head_sha
 FROM
@@ -157,7 +161,11 @@ WHERE
     concat(
         workflow_name,
         ' / ',
-        regexp_replace(t.name, '\\(([^,]+),.*\\)', '(\\1)')
+        regexp_replace(
+            t.name,
+            '(\\\\([^,]+, )(?:[0-9]+, )*(?:lf\\\\.)?([^)]+\\\\))',
+            '\\\\1\\\\2'
+        )
     ) IN {names :Array(String) } -- input list of names
     and t.id in (
         select
@@ -174,7 +182,11 @@ WHERE
     )
 GROUP BY
     workflow_name,
-    regexp_replace(t.name, '\\(([^,]+),.*\\)', '(\\1)')
+    regexp_replace(
+        t.name,
+        '(\\\\([^,]+, )(?:[0-9]+, )*(?:lf\\\\.)?([^)]+\\\\))',
+        '\\\\1\\\\2'
+    )
 `;
 }
 

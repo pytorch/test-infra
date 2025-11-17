@@ -30,7 +30,7 @@ import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import ReactECharts from "echarts-for-react";
-import { encodeParams } from "lib/GeneralUtils";
+import { encodeParams, fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
@@ -102,18 +102,18 @@ function matchLabel(
 }
 
 function Diffs({
+  shas,
   data,
   setFileFilter,
   setJobFilter,
 }: {
+  shas: { sha: string; push_date: number }[];
   data: { [key: string]: any }[];
   setFileFilter: (v: string) => void;
   setJobFilter: (v: string) => void;
 }) {
   // Get all unique commits sorted by push_date
-  const allCommits = _.uniqBy(data, "sha")
-    .map((d) => ({ sha: d.sha, push_date: d.push_date }))
-    .sort((a, b) => a.push_date - b.push_date);
+  const allCommits = shas.sort((a, b) => a.push_date - b.push_date);
 
   // State for selected commits (default to first and last)
   const [firstCommitIndex, setFirstCommitIndex] = useState(0);
@@ -170,6 +170,7 @@ function Diffs({
       cost: getInterpolatedValue(firstCommit, "cost"),
       count: getInterpolatedValue(firstCommit, "count"),
       skipped: getInterpolatedValue(firstCommit, "skipped"),
+      success: getInterpolatedValue(firstCommit, "success"),
     };
 
     const lastValues = {
@@ -177,6 +178,7 @@ function Diffs({
       cost: getInterpolatedValue(lastCommit, "cost"),
       count: getInterpolatedValue(lastCommit, "count"),
       skipped: getInterpolatedValue(lastCommit, "skipped"),
+      success: getInterpolatedValue(lastCommit, "success"),
       frequency: getInterpolatedValue(lastCommit, "frequency"),
     };
 
@@ -189,12 +191,14 @@ function Diffs({
       cost: lastValues.cost,
       skipped: lastValues.skipped,
       count: lastValues.count,
+      success: lastValues.success,
       frequency: lastValues.frequency,
       // Deltas (last - first)
       time_diff: lastValues.time - firstValues.time,
       cost_diff: lastValues.cost - firstValues.cost,
       skipped_diff: lastValues.skipped - firstValues.skipped,
       count_diff: lastValues.count - firstValues.count,
+      success_diff: lastValues.success - firstValues.success,
     };
   });
 
@@ -229,28 +233,6 @@ function Diffs({
           {params.value}
         </span>
       ),
-    },
-    {
-      field: "count",
-      headerName: "Count",
-      flex: 1,
-      renderHeader: () => renderHeader("Count", "Number of tests"),
-    },
-    {
-      field: "count_diff",
-      headerName: "Δ Count",
-      flex: 1,
-      cellClassName: (params: any) => {
-        const value = parseFloat(params.value);
-        const base = parseFloat(params.row?.count);
-        if (!isNaN(value) && base && Math.abs(value) / base > 0.2) {
-          return "highlight";
-        }
-        if (Math.abs(value) > 20) {
-          return "highlight";
-        }
-        return "change";
-      },
     },
     {
       field: "time",
@@ -304,6 +286,12 @@ function Diffs({
       },
       renderCell: roundedCostCell,
     },
+    { field: "success", headerName: "Success", flex: 1 },
+    {
+      field: "success_diff",
+      headerName: "Δ Success",
+      flex: 1,
+    },
     // { field: "errors", headerName: "Errors", flex: 1 },
     // {
     //   field: "errors_diff",
@@ -345,13 +333,6 @@ function Diffs({
           "Estimated frequency of test runs for this file (# commits it is run on) in the last week"
         ),
     },
-    // { field: "successes", headerName: "Successes", flex: 1 },
-    // {
-    //   field: "successes_diff",
-    //   headerName: "Δ Successes",
-    //   flex: 1,
-    //   getCellClassName: () => "change",
-    // },
   ];
 
   const styling = {
@@ -633,9 +614,7 @@ function useStatusChangeData(
   sha2: string
 ) {
   // Sort for consistent cache keys and remove .py suffixes
-  const sortedFiles = [...uniqueFiles]
-    .sort()
-    .map((f) => f.slice(0, f.length - 3));
+  const sortedFiles = [...uniqueFiles].sort();
   const sortedJobs = [...uniqueJobs].sort();
 
   const swrKey =
@@ -926,21 +905,20 @@ export default function Page() {
   }, [labelFilter]);
 
   const router = useRouter();
-  const commitMetadata = useData(`${S3_LOCATION}/commits_metadata.json.gz`);
-  const [headShaIndex, setHeadShaIndex] = useState<number>(
-    commitMetadata.length - 1
+
+  const {
+    data: rawData,
+    isLoading,
+    error,
+  } = useSWRImmutable(
+    startDate && endDate
+      ? `/api/flaky-tests/fileReport?${encodeParams({
+          startDate: startDate.unix().toString(),
+          endDate: endDate.unix().toString(),
+        })}`
+      : null,
+    fetcher
   );
-
-  let data = useWeeksData(commitMetadata, headShaIndex).map((item, index) => ({
-    ...item,
-    id: index,
-  }));
-
-  useEffect(() => {
-    if (headShaIndex == -1 && commitMetadata.length > 0) {
-      setHeadShaIndex(commitMetadata.length - 1);
-    }
-  }, [commitMetadata, headShaIndex]);
 
   useEffect(() => {
     // Sync filters from the router query params in one effect to avoid
@@ -964,6 +942,40 @@ export default function Page() {
     );
   }, [router.query]);
 
+  let {
+    results: data,
+    costInfo,
+    shas,
+    testOwnerLabels,
+  } = rawData || {
+    results: [],
+    costInfo: [],
+    shas: [],
+    testOwnerLabels: [],
+  };
+
+  data = data.map((row: any, index: number) => {
+    const match = costInfo.find((r: any) => r.label === row.label);
+    const ownerLabels = testOwnerLabels.find(
+      (r: any) => r.file === `${row.file}.py`
+    );
+    const commit = shas.find((s: any) => s.sha === row.sha);
+    const { workflow_name, job_name, ...rest } = row;
+    return {
+      ...rest,
+      id: index,
+      cost: (row.time * (match?.price_per_hour ?? 0)) / 3600,
+      short_job_name: `${workflow_name} / ${job_name}`,
+      labels: ownerLabels ? ownerLabels.owner_labels : ["unknown"],
+      push_date: commit ? commit.push_date : 0,
+      sha: commit ? commit.sha : "unknown",
+    };
+  });
+
+  shas.forEach((commit: any, index: number) => {
+    commit.id = index;
+  });
+
   if (!router.isReady) {
     return <LoadingPage />;
   }
@@ -983,14 +995,6 @@ export default function Page() {
     }
     return fileMatch && jobMatch && labelMatch;
   }
-
-  const shas = _(data)
-    .map((row) => ({
-      sha: row.sha,
-      push_date: row.push_date,
-    }))
-    .uniqBy("sha")
-    .value();
 
   const filteredData = data.filter(rowMatchesFilters);
   data = filteredData;
@@ -1154,6 +1158,7 @@ export default function Page() {
       </Box>
       <CommitTimeline data={shas} />
       <Diffs
+        shas={shas}
         data={data}
         setFileFilter={(input) => {
           setFileFilter(input);
