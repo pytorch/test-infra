@@ -472,78 +472,88 @@ function CommitTimeline({ data }: { data: any[] }) {
 }
 
 function Graphs({ data }: { data: any[] }) {
-  // Map selector value to field and label
-  const groupByOptions = {
-    file: {
-      getGroupByField: (d: any) => d.file,
-      groupByButtonText: "Group by File",
-    },
-    job: {
-      getGroupByField: (d: any) => d.short_job_name,
-      groupByButtonText: "Group by Job",
-    },
-    filejob: {
-      getGroupByField: (d: any) => `${d.short_job_name} | ${d.file}`,
-      groupByButtonText: "Group by File + Job",
-    },
-    total: {
-      getGroupByField: (_: any) => `total`,
-      groupByButtonText: "Total",
-    },
-  };
+  data = data.map((item) => {
+    return { ...item, push_date: item.push_date * 1000 };
+  });
+  const shasByDate: Record<number, string> = data.reduce((acc, item) => {
+    acc[item.push_date] = item.sha;
+    return acc;
+  }, {} as Record<number, string>);
+
   const metricOptions = {
-    count: { label: "Count", field: "count" },
     cost: { label: "Cost", field: "cost" },
     duration: { label: "Duration", field: "time" },
     skips: { label: "Skips", field: "skipped" },
+    successes: { label: "Success", field: "success" },
   };
 
-  const [metric, setMetric] = useState<keyof typeof metricOptions>("count");
-  const [groupBy, setGroupBy] = useState<keyof typeof groupByOptions>("file");
+  const [metric, setMetric] = useState<keyof typeof metricOptions>("cost");
 
-  const chartData = _.map(
-    // Group by the sha and the option that is selected
-    _.groupBy(data, (d) => {
-      return [d.sha, groupByOptions[groupBy].getGroupByField(d)];
-    }),
-    // Sum over each group
-    (rows, key) => {
+  const fieldName = metricOptions[metric].field;
+
+  const echartData = _.map(
+    _.groupBy(data, (row) => `${row.file} | ${row.short_job_name}`),
+    (rows) => {
+      // Sort each series by push_date to ensure lines go forward in time and
+      // strip out the unnecessary data
+      const lineData = rows
+        .sort((a, b) => a.push_date - b.push_date)
+        .map((r) => [r.push_date, Number(r[fieldName]) || 0]);
+
       return {
-        push_date: rows[0].push_date,
-        key: key.split(",")[1],
-        [metricOptions[metric].field]: _.sumBy(
-          rows,
-          (d) => d[metricOptions[metric].field]
-        ),
+        name: `${rows[0].file} | ${rows[0].short_job_name}`,
+        type: "line",
+        data: lineData,
+        connectNulls: false,
       };
     }
   );
-  // Convert to series
-  const echartData = _.map(_.groupBy(chartData, "key"), (rows) => ({
-    name: rows[0].key,
-    type: "line",
-    data: rows.map((r) => [r.push_date, r[metricOptions[metric].field]]),
-  }));
+
   const option = {
-    tooltip: { trigger: "axis" },
+    tooltip: {
+      trigger: "item",
+      formatter: (params: any) => {
+        const date = new Date(params.value[0]).toLocaleString();
+        return `${params.seriesName}<br/>Date: ${date}<br/>${
+          metricOptions[metric].label
+        }: ${params.value[1]}<br/>${shasByDate[params.value[0]]}`;
+      },
+    },
     legend: {
-      type: "scroll",
-      orient: "vertical",
-      right: 10,
-      selector: [
-        {
-          type: "all",
-          title: "All",
-        },
-        {
-          type: "inverse",
-          title: "Inv",
-        },
-      ],
+      show: false,
     },
     xAxis: { type: "time", name: "Push Date" },
     yAxis: { type: "value", name: metricOptions[metric].label },
     series: echartData,
+    grid: {
+      left: "10%",
+      right: "5%",
+      bottom: "10%",
+      top: "5%",
+      containLabel: true,
+    },
+    dataZoom: [
+      {
+        type: "slider", // horizontal slider for x-axis
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+      },
+      {
+        type: "inside", // enable mouse wheel/pinch zoom for x-axis
+        xAxisIndex: 0,
+      },
+      {
+        type: "slider", // vertical slider for y-axis
+        yAxisIndex: 0,
+        start: 0,
+        end: 100,
+      },
+      {
+        type: "inside", // enable mouse wheel/pinch zoom for y-axis
+        yAxisIndex: 0,
+      },
+    ],
   };
 
   return (
@@ -566,21 +576,10 @@ function Graphs({ data }: { data: any[] }) {
           </Button>
         ))}
       </ButtonGroup>
-      <ButtonGroup variant="outlined" size="small" sx={{ mb: 2 }}>
-        {Object.entries(groupByOptions).map(([key, option]) => (
-          <Button
-            key={key}
-            variant={groupBy === key ? "contained" : "outlined"}
-            onClick={() => setGroupBy(key as keyof typeof groupByOptions)}
-          >
-            {option.groupByButtonText}
-          </Button>
-        ))}
-      </ButtonGroup>
       <Box height="600px">
         <ReactECharts
           // key is needed to force re-rendering when data changes
-          key={JSON.stringify(chartData)}
+          key={JSON.stringify(echartData)}
           option={option}
           style={{ height: 600 }}
         />
