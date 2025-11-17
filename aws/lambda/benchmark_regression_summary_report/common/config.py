@@ -10,6 +10,7 @@ from common.config_model import (
     ReportConfig,
 )
 
+
 PYTORCH_HELION_CONFIG = BenchmarkConfig(
     name="Helion Benchmark Regression",
     id="pytorch_helion",
@@ -61,8 +62,6 @@ PYTORCH_HELION_CONFIG = BenchmarkConfig(
         report_level="insufficient_data",
     ),
 )
-
-
 
 
 TORCHAO_MICRO_API_CONFIG = BenchmarkConfig(
