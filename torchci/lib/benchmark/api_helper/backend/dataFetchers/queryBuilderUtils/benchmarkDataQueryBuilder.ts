@@ -126,22 +126,21 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
         multiIf(
-            NOT empty(tupleElement(o.benchmark, 'extra_info')['device']),
-                tupleElement(o.benchmark, 'extra_info')['device'],
-
-            NOT empty(tupleElement(o.runners[1], 'name')),
-                tupleElement(o.runners[1], 'name'),
-
-            'cpu'   -- final fallback
+          empty(tupleElement(runners[1], 'name')),
+              multiIf(
+                  empty(tupleElement(benchmark, 'extra_info')['device']),
+                  'cpu',
+                  tupleElement(benchmark, 'extra_info')['device']
+                ),
+            tupleElement(runners[1], 'name')
         ) AS device,
        multiIf(
-            NOT empty(tupleElement(o.benchmark, 'extra_info')['arch']),
-                tupleElement(o.benchmark, 'extra_info')['arch'],
-
-            NOT empty(tupleElement(o.runners[1], 'type')),
-                tupleElement(o.runners[1], 'type'),
-
-            tupleElement(o.runners[1], 'cpu_info')   -- final fallback
+            empty(tupleElement(runners[1], 'type')) AND empty(tupleElement(benchmark, 'extra_info')['arch']),
+                tupleElement(runners[1], 'cpu_info'),
+            empty(tupleElement(runners[1], 'type')),
+                tupleElement(benchmark, 'extra_info')['arch'],
+            /* default */
+            tupleElement(runners[1], 'type')
         ) AS arch,
         DATE_TRUNC(
             {granularity: String },
