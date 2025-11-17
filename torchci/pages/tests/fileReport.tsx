@@ -339,6 +339,68 @@ function Diffs({
   );
 }
 
+function CommitTimeline({ data }: { data: any[] }) {
+  const sortedData = [...data].sort(
+    (a, b) => new Date(a.push_date).getTime() - new Date(b.push_date).getTime()
+  );
+
+  const option = {
+    tooltip: {
+      trigger: "axis",
+      formatter: (params: any) => {
+        const p = params[0].data;
+        return `SHA: ${p.sha}<br/>Date: ${new Date(
+          p.date * 1000
+        ).toLocaleString()}`;
+      },
+    },
+    xAxis: {
+      type: "time",
+      name: "Push Date",
+    },
+    yAxis: {
+      type: "value",
+      show: false, // optional, since commits are all on the same level
+    },
+    series: [
+      {
+        type: "line",
+        data: sortedData.map((commit) => ({
+          value: [new Date(commit.push_date * 1000), 1],
+          sha: commit.sha,
+          date: commit.push_date,
+        })),
+        symbolSize: 10,
+        lineStyle: {
+          color: "#1976d2",
+        },
+        itemStyle: {
+          color: "#1976d2",
+        },
+        showSymbol: true, // show dots at commits
+      },
+    ],
+    grid: {
+      left: "10%",
+      right: "10%",
+      bottom: "20%",
+      top: "20%",
+    },
+  };
+
+  return (
+    <>
+      <Typography variant="body1" sx={{ mb: 2 }}>
+        <strong>Commit Timeline:</strong> The timeline below visualizes the
+        sequence of commits included in this report. Each point represents a
+        commit, arranged chronologically from left to right. Hover over a point
+        to see the commit SHA and its push date.
+      </Typography>
+      <ReactECharts option={option} style={{ height: 200, width: "100%" }} />
+    </>
+  );
+}
+
 function Overview({
   data,
   setFileFilter,
@@ -529,47 +591,6 @@ function Overview({
           }}
         />
       </Box>
-    </Stack>
-  );
-}
-
-function CommitInfo({ data }: { data: any[] }) {
-  const commits = _.reduce(
-    data,
-    (acc, row) => {
-      const key = row.sha;
-      acc[key] = row.push_date;
-      return acc;
-    },
-    {} as Record<string, any[]>
-  );
-  return (
-    <Stack spacing={2}>
-      <Typography variant="h6">Commits</Typography>
-      <Typography variant="body1">
-        These are the commits that are included in the report.
-      </Typography>
-      <DataGrid
-        density="compact"
-        rows={Object.entries(commits).map(([sha, pushDate]) => ({
-          id: sha,
-          push_date: pushDate,
-        }))}
-        columns={[
-          { field: "id", headerName: "SHA", flex: 1 },
-          {
-            field: "push_date",
-            headerName: "Push Date",
-            flex: 1,
-            renderCell: (params: any) => formatTimestamp(params.value),
-          },
-        ]}
-        initialState={{
-          sorting: {
-            sortModel: [{ field: "push_date", sort: "asc" }],
-          },
-        }}
-      />
     </Stack>
   );
 }
@@ -912,6 +933,14 @@ export default function Page() {
     return fileMatch && jobMatch && labelMatch;
   }
 
+  const shas = _(data)
+    .map((row) => ({
+      sha: row.sha,
+      push_date: row.push_date,
+    }))
+    .uniqBy("sha")
+    .value();
+
   data = data.filter(rowMatchesFilters);
   return (
     <Stack spacing={4}>
@@ -1067,7 +1096,7 @@ export default function Page() {
           Clear Filters
         </Button>
       </Box>
-      <CommitInfo data={data} />
+      <CommitTimeline data={shas} />
       <Overview
         data={data}
         setFileFilter={(input) => {
