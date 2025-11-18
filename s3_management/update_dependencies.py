@@ -544,6 +544,19 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
 }
 
 
+def is_nvidia_package(pkg_name: str) -> bool:
+    """Check if a package is from NVIDIA and should use pypi.nvidia.com"""
+    return pkg_name.startswith("nvidia-")
+
+
+def get_package_source_url(pkg_name: str) -> str:
+    """Get the source URL for a package based on its type"""
+    if is_nvidia_package(pkg_name):
+        return f"https://pypi.nvidia.com/{pkg_name}/"
+    else:
+        return f"https://pypi.org/simple/{pkg_name}/"
+
+
 def download(url: str) -> bytes:
     from urllib.request import urlopen
 
@@ -551,101 +564,123 @@ def download(url: str) -> bytes:
         return conn.read()
 
 
-def is_stable(package_version: str) -> bool:
-    return bool(re.match(r"^([0-9]+\.)+[0-9]+$", package_version))
+def replace_relative_links_with_absolute(html: str, base_url: str) -> str:
+    """
+    Replace all relative links in HTML with absolute links.
+
+    Args:
+        html: HTML content as string
+        base_url: Base URL to prepend to relative links
+
+    Returns:
+        Modified HTML with absolute links
+    """
+    # Ensure base_url ends with /
+    if not base_url.endswith('/'):
+        base_url += '/'
+
+    # Pattern to match href attributes with relative URLs (not starting with http:// or https://)
+    def replace_href(match):
+        full_match = match.group(0)
+        url = match.group(1)
+
+        # If URL is already absolute, don't modify it
+        if url.startswith('http://') or url.startswith('https://') or url.startswith('//'):
+            return full_match
+
+        # Remove leading ./ or /
+        url = url.lstrip('./')
+        url = url.lstrip('/')
+
+        # Replace with absolute URL
+        return f'href="{base_url}{url}"'
+
+    # Replace href="..." patterns
+    html = re.sub(r'href="([^"]+)"', replace_href, html)
+
+    return html
 
 
-def parse_simple_idx(url: str) -> Dict[str, str]:
-    html = download(url).decode("ascii")
-    return {
+def parse_simple_idx(url: str) -> Tuple[Dict[str, str], str]:
+    """
+    Parse a simple package index and return package dict and raw HTML.
+
+    Returns:
+        Tuple of (package_dict, raw_html)
+    """
+    html = download(url).decode("utf-8", errors="ignore")
+    packages = {
         name: url
         for (url, name) in re.findall('<a href="([^"]+)"[^>]*>([^>]+)</a>', html)
     }
+    return packages, html
 
 
-def get_whl_versions(idx: Dict[str, str]) -> List[str]:
-    return [
-        k.split("-")[1]
-        for k in idx.keys()
-        if k.endswith(".whl") and is_stable(k.split("-")[1])
-    ]
-
-
-def get_wheels_of_version(idx: Dict[str, str], version: str) -> Dict[str, str]:
-    return {
-        k: v
-        for (k, v) in idx.items()
-        if k.endswith(".whl") and k.split("-")[1] == version
-    }
-
-
-def upload_missing_whls(
-    pkg_name: str = "numpy",
-    prefix: str = "whl/test",
+def upload_index_html(
+    pkg_name: str,
+    prefix: str,
+    html: str,
+    base_url: str,
     *,
     dry_run: bool = False,
-    only_pypi: bool = False,
-    target_version: str = "latest",
 ) -> None:
-    pypi_idx = parse_simple_idx(f"https://pypi.org/simple/{pkg_name}")
-    pypi_versions = get_whl_versions(pypi_idx)
+    """Upload modified index.html to S3 with absolute links"""
+    # Replace relative links with absolute links
+    modified_html = replace_relative_links_with_absolute(html, base_url)
 
-    # Determine which version to use
-    if target_version == "latest" or not target_version:
-        selected_version = pypi_versions[-1] if pypi_versions else None
-    elif target_version in pypi_versions:
-        selected_version = target_version
-    else:
-        print(
-            f"Warning: Version {target_version} not found for {pkg_name}, using latest"
-        )
-        selected_version = pypi_versions[-1] if pypi_versions else None
+    index_key = f"{prefix}/{pkg_name}/index.html"
 
-    if not selected_version:
-        print(f"No stable versions found for {pkg_name}")
+    if dry_run:
+        print(f"Dry Run - not uploading index.html to s3://pytorch/{index_key}")
         return
 
-    pypi_latest_packages = get_wheels_of_version(pypi_idx, selected_version)
+    print(f"Uploading index.html to s3://pytorch/{index_key}")
+    BUCKET.Object(key=index_key).put(
+        ACL="public-read",
+        ContentType="text/html",
+        Body=modified_html.encode("utf-8")
+    )
 
-    download_latest_packages: Dict[str, str] = {}
-    if not only_pypi:
-        download_idx = parse_simple_idx(
-            f"https://download.pytorch.org/{prefix}/{pkg_name}"
-        )
-        download_latest_packages = get_wheels_of_version(download_idx, selected_version)
 
-    has_updates = False
-    for pkg in pypi_latest_packages:
-        if pkg in download_latest_packages:
-            continue
-        # Skip pp packages
-        if "-pp3" in pkg:
-            continue
-        # Skip win32 packages
-        if "-win32" in pkg:
-            continue
-        # Skip muslinux packages
-        if "-musllinux" in pkg:
-            continue
-        print(f"Downloading {pkg}")
-        if dry_run:
-            has_updates = True
-            print(f"Dry Run - not Uploading {pkg} to s3://pytorch/{prefix}/")
-            continue
-        data = download(pypi_idx[pkg])
-        print(f"Uploading {pkg} to s3://pytorch/{prefix}/")
-        BUCKET.Object(key=f"{prefix}/{pkg}").put(
-            ACL="public-read", ContentType="binary/octet-stream", Body=data
-        )
-        has_updates = True
-    if not has_updates:
-        print(f"{pkg_name} is already at version {selected_version} for {prefix}")
+def upload_package_using_simple_index(
+    pkg_name: str,
+    prefix: str,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """
+    Upload package index.html from PyPI Simple Index.
+    Simply copies the index.html with absolute links - no wheel uploads or version filtering.
+    Works for both NVIDIA and non-NVIDIA packages.
+    """
+    source_url = get_package_source_url(pkg_name)
+    is_nvidia = is_nvidia_package(pkg_name)
+    
+    print(f"Processing {pkg_name} using {'NVIDIA' if is_nvidia else 'PyPI'} Simple Index: {source_url}")
+
+    # Parse the index and get raw HTML
+    try:
+        _, raw_html = parse_simple_idx(source_url)
+    except Exception as e:
+        print(f"Error fetching package {pkg_name}: {e}")
+        return
+
+    # Upload modified index.html with absolute links
+    upload_index_html(
+        pkg_name,
+        prefix,
+        raw_html,
+        source_url,
+        dry_run=dry_run
+    )
+    
+    print(f"Successfully processed index.html for {pkg_name}")
 
 
 def main() -> None:
     from argparse import ArgumentParser
 
-    parser = ArgumentParser("Upload dependent packages to s3://pytorch")
+    parser = ArgumentParser("Upload dependent package indexes to s3://pytorch")
     # Get unique paths from the packages list
     project_paths = list(
         {
@@ -657,7 +692,6 @@ def main() -> None:
     project_paths += ["all"]
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
-    parser.add_argument("--only-pypi", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
     args = parser.parse_args()
 
@@ -682,12 +716,10 @@ def main() -> None:
                 else:
                     full_path = f"{prefix}"
 
-                upload_missing_whls(
+                upload_package_using_simple_index(
                     pkg_name,
                     full_path,
-                    dry_run=args.dry_run,
-                    only_pypi=args.only_pypi,
-                    target_version=pkg_config["version"],
+                    dry_run=args.dry_run
                 )
 
 
