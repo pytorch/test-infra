@@ -19,6 +19,29 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "fsspec": [{"version": "latest", "project": "torch"}],
     "nvidia-cudnn-cu11": [{"version": "latest", "project": "torch"}],
     "typing-extensions": [{"version": "latest", "project": "torch"}],
+    "cuda-bindings": [
+        {
+            "version": "12.9.4",
+            "project": "torch",
+            "target": "cu126",
+        },
+        {
+            "version": "12.9.4",
+            "project": "torch",
+            "target": "cu128",
+        },
+        {
+            "version": "12.9.4",
+            "project": "torch",
+            "target": "cu129",
+        },
+        {
+            "version": "13.0.3",
+            "project": "torch",
+            "target": "cu130",
+        }
+
+    ],
     "nvidia-cuda-nvrtc-cu12": [
         {
             "version": "12.6.77",
