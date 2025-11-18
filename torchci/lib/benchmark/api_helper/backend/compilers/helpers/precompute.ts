@@ -43,18 +43,7 @@ const COMPILER_PRECOMPUTE_TABLE_GROUP_KEY = [
 ];
 const COMPILER_PRECOMPUTE_TABLE_SUB_GROUP_KEY = ["suite"];
 
-export function toPrecomputeCompilerData(
-  rawData: any[],
-  formats: string[] = ["time_series"]
-) {
-  const metadata = {
-    dtype: rawData[0].dtype,
-    arch: toApiArch(rawData[0].device, rawData[0].arch),
-    mode: rawData[0].mode,
-    device: rawData[0].device,
-  };
-
-  // get CompilerPerformanceData
+function toPrecomputeCompilerDataPerGroup(rawData: any[], metadata: any) {
   const data = convertToCompilerPerformanceData(rawData);
   const commit_map = toWorkflowIdMap(data);
 
@@ -67,9 +56,7 @@ export function toPrecomputeCompilerData(
   const executionTime = computeExecutionTime(data, models);
   const peakMemoryUsage = computePeakMemoryUsage(data, models);
 
-  // filter out export for compiler since it's always 0
-
-  let all_data = [
+  let processed = [
     passrate,
     geomean,
     peakMemory,
@@ -78,39 +65,60 @@ export function toPrecomputeCompilerData(
     peakMemoryUsage,
   ].flat();
 
+  addMetadata(processed, commit_map, metadata);
+
   // only show export for passrate
-  all_data = all_data.filter((row) =>
+  processed = processed.filter((row) =>
     row.compiler == "export" && row.metric != "passrate" ? false : true
   );
-  all_data = [...all_data].sort(
+  return processed;
+}
+
+export function toPrecomputeCompilerData(
+  rawData: any[],
+  formats: string[] = ["time_series"]
+) {
+  const { groups, metadataMapping } = groupByBenchmark(rawData);
+
+  let all_data: any[] = [];
+  for (const [key, items] of Object.entries(groups)) {
+    console.log("Per group info:", key);
+    const meta = metadataMapping[key];
+    const dataPerGroup = toPrecomputeCompilerDataPerGroup(items, meta);
+    all_data = [...all_data, ...dataPerGroup];
+  }
+  const data = [...all_data].sort(
     (a, b) =>
       Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
   );
-
   if (!data || data.length === 0) {
     return emptyTimeSeriesResponse();
   }
 
   // post process data to get start_ts and end_ts, and add commit metadata
-  const { start_ts, end_ts } = postFetchProcess(all_data, commit_map, metadata);
-
+  const { start_ts, end_ts } = postFetchProcess(all_data);
   let res: any = {};
   formats.forEach((format) => {
     const f = getFormat(all_data, format);
     res[format] = f;
   });
-
   return toTimeSeriesResponse(res, rawData.length, start_ts, end_ts);
 }
 
-function postFetchProcess(
-  data: any[],
-  commit_map: Map<string, any>,
-  metadata: any
-) {
+function addMetadata(data: any[], commit_map: Map<string, any>, metadata: any) {
+  data.map((row) => {
+    row["commit"] = commit_map.get(row.workflow_id)?.commit;
+    row["branch"] = commit_map.get(row.workflow_id)?.branch;
+    row["dtype"] = metadata["dtype"];
+    row["arch"] = metadata["arch"];
+    row["device"] = metadata["device"];
+    row["mode"] = metadata["mode"];
+  });
+}
+
+function postFetchProcess(data: any[]) {
   let start_ts = new Date(data[0]?.granularity_bucket).getTime();
   let end_ts = new Date(data[data.length - 1]?.granularity_bucket).getTime();
-
   // Handle invalid dates (NaN from getTime)
   if (isNaN(start_ts) || isNaN(end_ts)) {
     console.warn(
@@ -120,22 +128,10 @@ function postFetchProcess(
       `(postFetchProcess)Invalid granularity_bucket values detected peek first data: ${data[0]}`
     );
   }
-
   // Swap if needed
   if (end_ts < start_ts) {
     [start_ts, end_ts] = [end_ts, start_ts];
   }
-
-  data.map((row) => {
-    row["commit"] = commit_map.get(row.workflow_id)?.commit;
-    row["branch"] = commit_map.get(row.workflow_id)?.branch;
-
-    row["dtype"] = metadata["dtype"];
-    row["arch"] = metadata["arch"];
-    row["device"] = metadata["device"];
-    row["mode"] = metadata["mode"];
-  });
-
   return {
     start_ts,
     end_ts,
@@ -164,4 +160,28 @@ function getFormat(data: any, format: string) {
     default:
       throw new Error("Invalid type");
   }
+}
+
+export function groupByBenchmark(rawData: any[]) {
+  const groups: Record<string, any[]> = {};
+  const metadataMapping: Record<string, any> = {};
+  for (const item of rawData) {
+    const apiArch = toApiArch(item.device, item.arch);
+    // composite grouping key
+    const key = `${apiArch}_${item.device}_${item.dtype}_${item.mode}`;
+    if (!metadataMapping[key]) {
+      metadataMapping[key] = {
+        dtype: item.dtype,
+        arch: apiArch,
+        mode: item.mode,
+        device: item.device,
+      };
+    }
+    if (!groups[key]) {
+      groups[key] = [];
+    }
+    groups[key].push(item);
+  }
+
+  return { groups, metadataMapping };
 }
