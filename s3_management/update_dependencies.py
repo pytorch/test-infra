@@ -40,6 +40,10 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "torch",
             "target": "cu130",
         },
+        {
+            "version": "12.9.2",
+            "project": "vllm",
+        },
     ],
     "nvidia-cuda-nvrtc-cu12": [
         {
@@ -473,7 +477,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     # vLLM
     "ninja": [{"version": "latest", "project": "vllm"}],
     "cuda-python": [{"version": "12.9.0", "project": "vllm"}],
-    "cuda-bindings": [{"version": "12.9.2", "project": "vllm"}],
     "cuda-pathfinder": [{"version": "latest", "project": "vllm"}],
     "pynvml": [{"version": "latest", "project": "vllm"}],
     "nvidia-ml-py": [{"version": "latest", "project": "vllm"}],
