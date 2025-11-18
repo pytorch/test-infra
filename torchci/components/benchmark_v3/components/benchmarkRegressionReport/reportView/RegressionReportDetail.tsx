@@ -86,6 +86,10 @@ export function RegressionReportDetail({
           sx={{
             minWidth: 100,
           }}
+          stackSx={{
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
         />
       </Box>
       <Divider sx={{ mb: 2, mt: 1 }} />
