@@ -655,7 +655,7 @@ def upload_package_using_simple_index(
     """
     source_url = get_package_source_url(pkg_name)
     is_nvidia = is_nvidia_package(pkg_name)
-    
+
     print(f"Processing {pkg_name} using {'NVIDIA' if is_nvidia else 'PyPI'} Simple Index: {source_url}")
 
     # Parse the index and get raw HTML
@@ -673,7 +673,7 @@ def upload_package_using_simple_index(
         source_url,
         dry_run=dry_run
     )
-    
+
     print(f"Successfully processed index.html for {pkg_name}")
 
 
