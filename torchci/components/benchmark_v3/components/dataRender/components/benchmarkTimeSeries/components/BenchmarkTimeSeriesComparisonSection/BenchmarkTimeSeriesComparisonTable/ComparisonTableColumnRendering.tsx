@@ -369,11 +369,7 @@ export function getComparisonResult(
       ? missingText
       : config?.renderOptions?.bothMissingText;
 
-  if (ldata?.is_failure || rdata?.is_failure) {
-    result.verdict = "warning";
-    result.reason = "detect failure";
-  }
-
+  // if either side missing, mark as missing
   if (config?.renderOptions?.renderMissing) {
     if (ldata == null && rdata == null) {
       result.verdict = "missing";
@@ -385,6 +381,12 @@ export function getComparisonResult(
       result.verdict = "missing";
       result.reason = "right missing";
     }
+  }
+
+  // if either side failed, mark as failure, failure is higher priority than missing
+  if (ldata?.is_failure || rdata?.is_failure) {
+    result.verdict = "warning";
+    result.reason = "detect failure";
   }
 
   const text = getFieldRender(
