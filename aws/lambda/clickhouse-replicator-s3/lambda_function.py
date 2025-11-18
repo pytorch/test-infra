@@ -108,16 +108,16 @@ def handle_test_run_s3_small(table, bucket, key) -> List[Dict[str, Any]]:
     select
         classname,
         duration,
-        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'message')},
-        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("error", "Tuple(type String, message String, text String)", "message")},
+        {get_skipped_failure_parser_helper("failure", "Tuple(type String, message String, text String)", "message")},
         file,
         invoking_file,
         job_id,
         line::Int64,
         name,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("rerun", "Tuple(message String, text String)", "message")},
         result,
-        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("skipped", "Tuple(type String, message String, text String)", "message")},
         status,
         time,
         now()::DateTime64(9) as time_inserted,
@@ -214,20 +214,20 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
     select
         classname,
         duration,
-        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'message')},
-        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("error", "Tuple(type String, message String, text String)", "message")},
+        {get_skipped_failure_parser_helper("failure", "Tuple(type String, message String, text String)", "message")},
         file,
         invoking_file,
         job_id,
         line::Int64,
         name,
         properties,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("rerun", "Tuple(message String, text String)", "message")},
         result,
-        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("skipped", "Tuple(type String, message String, text String)", "message")},
         status,
-        {get_sys_err_out_parser('system-err')},
-        {get_sys_err_out_parser('system-out')},
+        {get_sys_err_out_parser("system-err")},
+        {get_sys_err_out_parser("system-out")},
         time,
         now()::DateTime64(9) as time_inserted,
         type_param,
@@ -735,11 +735,11 @@ def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
 
 
 def extract_bucket(record: Any) -> Optional[str]:
-    return record.get("s3", {}).get("bucket", {}).get("name", None)
+    return record.get("s3", {}).get("bucket", {}).get("name")
 
 
 def extract_key(record: Any) -> Optional[str]:
-    return record.get("s3", {}).get("object", {}).get("key", None)
+    return record.get("s3", {}).get("object", {}).get("key")
 
 
 def upsert_document(record: Any) -> None:

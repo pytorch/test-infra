@@ -19,6 +19,32 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "fsspec": [{"version": "latest", "project": "torch"}],
     "nvidia-cudnn-cu11": [{"version": "latest", "project": "torch"}],
     "typing-extensions": [{"version": "latest", "project": "torch"}],
+    "cuda-bindings": [
+        {
+            "version": "12.9.4",
+            "project": "torch",
+            "target": "cu126",
+        },
+        {
+            "version": "12.9.4",
+            "project": "torch",
+            "target": "cu128",
+        },
+        {
+            "version": "12.9.4",
+            "project": "torch",
+            "target": "cu129",
+        },
+        {
+            "version": "13.0.3",
+            "project": "torch",
+            "target": "cu130",
+        },
+        {
+            "version": "12.9.2",
+            "project": "vllm",
+        },
+    ],
     "nvidia-cuda-nvrtc-cu12": [
         {
             "version": "12.6.77",
@@ -451,7 +477,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     # vLLM
     "ninja": [{"version": "latest", "project": "vllm"}],
     "cuda-python": [{"version": "12.9.0", "project": "vllm"}],
-    "cuda-bindings": [{"version": "12.9.2", "project": "vllm"}],
     "cuda-pathfinder": [{"version": "latest", "project": "vllm"}],
     "pynvml": [{"version": "latest", "project": "vllm"}],
     "nvidia-ml-py": [{"version": "latest", "project": "vllm"}],

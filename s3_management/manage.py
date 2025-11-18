@@ -132,6 +132,7 @@ PACKAGE_ALLOW_LIST = {
         "charset_normalizer",
         "cmake",
         "colorama",
+        "cuda_bindings",
         "fbgemm_gpu",
         "fbgemm_gpu_genai",
         "filelock",
@@ -544,7 +545,7 @@ class S3Index:
                 attributes += ' data-requires-python="&gt;=3.10"'
 
             out.append(
-                f'    <a href="/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B","+")}</a><br/>'
+                f'    <a href="/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B", "+")}</a><br/>'
             )
         # Adding html footer
         out.append("  </body>")
@@ -564,7 +565,7 @@ class S3Index:
         out.append("  <body>")
         for pkg_name in sorted(self.get_package_names(subdir)):
             out.append(
-                f'    <a href="{pkg_name.lower().replace("_","-")}/">{pkg_name.replace("_","-")}</a><br/>'
+                f'    <a href="{pkg_name.lower().replace("_", "-")}/">{pkg_name.replace("_", "-")}</a><br/>'
             )
         # Adding html footer
         out.append("  </body>")
@@ -813,7 +814,7 @@ def main() -> None:
         )
         etime = time.time()
         print(
-            f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime-stime:.2f} seconds"
+            f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime - stime:.2f} seconds"
         )
         if args.compute_sha256:
             idx.compute_sha256()

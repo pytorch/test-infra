@@ -12,13 +12,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - mypy.ini
-      - '**.py'
-      - '**requirements.txt'
-      - .github/scripts/**
-      - tools/tests/assets/**
-      - .github/workflows/tests.yml
 
 jobs:
   test-tools:
