@@ -157,6 +157,7 @@ export function getComparisionTableConlumnRendering(
 const VIOLATE_RULE_COLOR = "#ffebee"; // red[50]
 const IMPROVEMENT_COLOR = "#e8f5e9"; // green[50]
 const WARNING_COLOR = "#fff9c4"; // yellow[50]
+const MISSING_DATA_COLOR = "#F5F5F5"; // ~ MUI grey[300]
 
 export function ComparisonTablePrimaryFieldValueCell({
   params,
@@ -221,6 +222,9 @@ export function ComparisonTableColumnFieldValueCell({
       break;
     case "warning":
       bgColor = WARNING_COLOR;
+      break;
+    case "missing":
+      bgColor = MISSING_DATA_COLOR;
       break;
     case "neutral":
     default:
@@ -370,6 +374,19 @@ export function getComparisonResult(
     result.reason = "detect failure";
   }
 
+  if (config?.renderOptions?.renderMissing) {
+    if (ldata == null && rdata == null) {
+      result.verdict = "missing";
+      result.reason = "both missing";
+    } else if (ldata == null) {
+      result.verdict = "missing";
+      result.reason = "left missing";
+    } else if (rdata == null) {
+      result.verdict = "missing";
+      result.reason = "right missing";
+    }
+  }
+
   const text = getFieldRender(
     targetVal,
     L,
@@ -382,6 +399,7 @@ export function getComparisonResult(
     missingText,
     bothMissingText
   );
+
   return {
     result,
     text,

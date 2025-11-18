@@ -323,6 +323,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
           extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
             tableRenderingBook: DashboardRenderBook,
+            renderMissing: true,
             flex: {
               primary: 2,
             },
@@ -478,13 +479,14 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                   text: "Geometric mean speedup (threshold = 0.95x)",
                 },
                 compilation_latency: {
-                  text: "compilation time (seconds)",
+                  text: "Compilation time (seconds)",
                 },
                 compression_ratio: {
                   text: "Peak memory footprint compression ratio (threshold = 0.95x)",
                 },
               },
               tableRenderingBook: RENDER_MAPPING_BOOK,
+              renderMissing: true,
             },
           },
         },
