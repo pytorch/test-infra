@@ -35,18 +35,10 @@ export function RegressionReportDetail({
     Record<string, string | null>
   >({});
   const [view, setView] = useState<"chart" | "table">("table");
-  if (!report) {
-    return <Box>Report not found</Box>;
-  }
-
-  if (!report?.details) {
-    return <Box>Report details not found</Box>;
-  }
 
   const report_id = report.report_id;
   const details = report.details;
   const filterOptions = report.filters;
-
   const filtereddetails = useMemo(() => {
     const shouldFilter = Object.entries(selectedFilters).filter(
       ([_, v]) => v !== null && v !== ""
@@ -64,6 +56,14 @@ export function RegressionReportDetail({
       suspicious: details.suspicious.filter(applyFilter),
     };
   }, [details, selectedFilters]);
+
+  if (!report) {
+    return <Box>Report not found</Box>;
+  }
+
+  if (!report?.details) {
+    return <Box>Report details not found</Box>;
+  }
 
   return (
     <Box>
