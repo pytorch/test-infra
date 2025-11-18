@@ -228,8 +228,8 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 threshold=0.9,
                 baseline_aggregation="max",
             ),
-            "geomean": RegressionPolicy(
-                name="geomean",
+            "geomean_speedup": RegressionPolicy(
+                name="geomean_speedup",
                 condition="greater_equal",
                 threshold=0.95,
                 baseline_aggregation="max",

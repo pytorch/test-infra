@@ -166,7 +166,7 @@ export function computeGeomean(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedGeomean.push({
-      metric: "geomean",
+      metric: "geomean_speedup",
       value: Number(gm),
       granularity_bucket: bucket,
       workflow_id: workflowId,
