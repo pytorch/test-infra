@@ -576,8 +576,8 @@ def replace_relative_links_with_absolute(html: str, base_url: str) -> str:
         Modified HTML with absolute links
     """
     # Ensure base_url ends with /
-    if not base_url.endswith('/'):
-        base_url += '/'
+    if not base_url.endswith("/"):
+        base_url += "/"
 
     # Pattern to match href attributes with relative URLs (not starting with http:// or https://)
     def replace_href(match):
@@ -585,12 +585,16 @@ def replace_relative_links_with_absolute(html: str, base_url: str) -> str:
         url = match.group(1)
 
         # If URL is already absolute, don't modify it
-        if url.startswith('http://') or url.startswith('https://') or url.startswith('//'):
+        if (
+            url.startswith("http://")
+            or url.startswith("https://")
+            or url.startswith("//")
+        ):
             return full_match
 
         # Remove leading ./ or /
-        url = url.lstrip('./')
-        url = url.lstrip('/')
+        url = url.lstrip("./")
+        url = url.lstrip("/")
 
         # Replace with absolute URL
         return f'href="{base_url}{url}"'
@@ -636,9 +640,7 @@ def upload_index_html(
 
     print(f"Uploading index.html to s3://pytorch/{index_key}")
     BUCKET.Object(key=index_key).put(
-        ACL="public-read",
-        ContentType="text/html",
-        Body=modified_html.encode("utf-8")
+        ACL="public-read", ContentType="text/html", Body=modified_html.encode("utf-8")
     )
 
 
@@ -656,7 +658,9 @@ def upload_package_using_simple_index(
     source_url = get_package_source_url(pkg_name)
     is_nvidia = is_nvidia_package(pkg_name)
 
-    print(f"Processing {pkg_name} using {'NVIDIA' if is_nvidia else 'PyPI'} Simple Index: {source_url}")
+    print(
+        f"Processing {pkg_name} using {'NVIDIA' if is_nvidia else 'PyPI'} Simple Index: {source_url}"
+    )
 
     # Parse the index and get raw HTML
     try:
@@ -666,13 +670,7 @@ def upload_package_using_simple_index(
         return
 
     # Upload modified index.html with absolute links
-    upload_index_html(
-        pkg_name,
-        prefix,
-        raw_html,
-        source_url,
-        dry_run=dry_run
-    )
+    upload_index_html(pkg_name, prefix, raw_html, source_url, dry_run=dry_run)
 
     print(f"Successfully processed index.html for {pkg_name}")
 
@@ -717,9 +715,7 @@ def main() -> None:
                     full_path = f"{prefix}"
 
                 upload_package_using_simple_index(
-                    pkg_name,
-                    full_path,
-                    dry_run=args.dry_run
+                    pkg_name, full_path, dry_run=args.dry_run
                 )
 
 
