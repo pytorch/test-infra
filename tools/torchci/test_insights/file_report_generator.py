@@ -72,7 +72,7 @@ class FileReportGenerator:
         self.dry_run = dry_run
 
     @lru_cache
-    def get_all_shas(self, start_date: str, stop_date: str) -> List[Dict[str, Any]]:
+    def get_all_shas(self) -> List[Dict[str, Any]]:
         """
         Get all shas and commit dates between two dates on pytorch/pytorch main
         branch.  Date is in epoch timestamp format.
@@ -83,17 +83,13 @@ class FileReportGenerator:
             [
                 "git",
                 "log",
-                "--since",
-                start_date,
-                "--until",
-                stop_date,
                 "--pretty=format:%H %ct",
                 "origin/main",
             ],
             cwd=repo_root / ".." / "pytorch",
         ).decode("utf-8")
         return [
-            {"sha": line.split(" ")[0], "push_date": line.split(" ")[1]}
+            {"sha": line.split(" ")[0], "push_date": int(line.split(" ")[1])}
             for line in commits.splitlines()
         ]
 
@@ -123,6 +119,11 @@ class FileReportGenerator:
         result = query_clickhouse_saved(
             "tests/test_status_counts_on_commits_by_file", params
         )
+        for key in ["success", "flaky", "skipped", "failure"]:
+            for row in result:
+                row[key] = int(row[key])
+
+        logger.debug(f"Retrieved {len(result)} status count records for SHA: {sha}")
         return result
 
     def get_status_counts_for_sha(self, sha: str) -> List[Dict[str, Any]]:
@@ -283,8 +284,7 @@ Examples:
     # and choose which to compare
 
     # Construct and upload the commit metadata everytime since it's cheap
-    now = datetime.now(timezone.utc)
-    commit_data = generator.get_all_shas("2025-11-01", f"@{now.timestamp()}")
+    commit_data = generator.get_all_shas()
     generator.upload_to_s3(
         commit_data,
         "ossci-raw-job-status",
@@ -295,6 +295,7 @@ Examples:
 
     if args.add_dates:
         start_date, stop_date = args.add_dates
+        start_date, stop_date = int(start_date), int(stop_date)
         logger.info(f"Adding SHAs between dates: {start_date} to {stop_date}")
         for commit in commit_data:
             # if the commit is within the date range, add its SHA

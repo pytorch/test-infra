@@ -2,6 +2,7 @@ import datetime
 from typing import Any
 from urllib.parse import quote
 
+import requests
 from torchci.test_insights.file_report_generator import FileReportGenerator
 from torchci.test_insights.weekly_notification import send_to_aws_alerting_lambda
 
@@ -90,7 +91,7 @@ class RegressionNotification:
         "time",
         "skipped",
         "success",
-        "failed",
+        "failure",
         "flaky",
     ]
 
@@ -149,7 +150,9 @@ class RegressionNotification:
                 regression[field]["previous"],
             )
 
-        return any(_diff_exceeds_threshold(key) for key in self.keys)
+        keys = self.keys.copy()
+        keys.remove("flaky")
+        return any(_diff_exceeds_threshold(key) for key in keys)
 
     def format_regression_string(self, team, regression: dict[str, Any]) -> str:
         def _get_change(field: str, additional_processing) -> str:
@@ -171,8 +174,8 @@ class RegressionNotification:
             + f"Time (min) change: {_get_change('time', additional_processing=lambda x: round(x / 60, 2))}\n"
             + f"\\# skipped change: {_get_change('skipped', additional_processing=lambda x: round(x, 2))}\n"
             + f"\\# success change: {_get_change('success', additional_processing=lambda x: round(x, 2))}\n"
-            + f"\\# failed change: {_get_change('failed', additional_processing=lambda x: round(x, 2))}\n"
-            + f"\\# flaky change: {_get_change('flaky', additional_processing=lambda x: round(x, 2))}\n"
+            + f"\\# failure change: {_get_change('failure', additional_processing=lambda x: round(x, 2))}\n"
+            # + f"\\# flaky change: {_get_change('flaky', additional_processing=lambda x: round(x, 2))}\n"
         )
 
     def generate_alert_json(
@@ -207,20 +210,55 @@ class RegressionNotification:
     def get_representative_data_for_time(
         self, start_date, stop_date
     ) -> list[dict[str, Any]]:
-        commits = self.file_report_generator.get_all_shas()
-        sha_data = {}
-        for commit in commits:
-            if start_date <= commit["push_date"] <= stop_date:
-                data = self.file_report_generator.get_status_counts_for_sha(
-                    commit["sha"]
-                )
-                sha_data[commit["sha"]] = data
+        response = requests.get(
+            f"http://localhost:3000/api/flaky-tests/fileReport?startDate={start_date}&endDate={stop_date}"
+        )
+
+        if response.status_code != 200:
+            raise RuntimeError(
+                f"Failed to fetch file report data: {response.status_code} {response.text}"
+            )
+        data = response.json()
+        results = data["results"]
+        costInfo = data["costInfo"]
+        shas = data["shas"]
+        testOwnerLabels = data["testOwnerLabels"]
+
+        for row in results:
+            costMatch = next((r for r in costInfo if r["label"] == row["label"]), None)
+            ownerLabels = next(
+                (r for r in testOwnerLabels if r["file"] == f"{row['file']}.py"), None
+            )
+            commit = next((s for s in shas if s["sha"] == row["sha"]), None)
+            row["cost"] = (
+                row["time"] * (costMatch["price_per_hour"] if costMatch else 0)
+            ) / 3600
+            row["short_job_name"] = f"{row['workflow_name']} / {row['job_name']}"
+            row["labels"] = ownerLabels["owner_labels"] if ownerLabels else ["unknown"]
+            row["push_date"] = commit["push_date"] if commit else 0
+            row["sha"] = commit["sha"] if commit else "unknown"
 
         # choose a commit with the median number of rows
-        median_sha = sorted(sha_data, key=lambda x: len(sha_data[x]))[
-            len(sha_data) // 2
-        ]
-        return sha_data[median_sha]
+        if not results:
+            raise RuntimeError("No data found for the given time range.")
+
+        # group by job name, file
+        grouped_data: dict[str, list[dict[str, Any]]] = {}
+        for row in results:
+            key = f"{row['short_job_name']}|{row['file']}"
+            if key not in grouped_data:
+                grouped_data[key] = []
+            grouped_data[key].append(row)
+
+        # get median for each job name, file
+        representative_data: list[dict[str, Any]] = []
+        for key, rows in grouped_data.items():
+            median_row = sorted(
+                rows,
+                key=lambda x: (x["failure"], x["flaky"], x["skipped"], x["success"]),
+            )[len(rows) // 2]
+            representative_data.append(median_row)
+        return representative_data
 
     def determine_regressions(self) -> None:
         """
@@ -253,8 +291,7 @@ class RegressionNotification:
                     report_url=team["link"],
                     regression_str=self.format_regression_string(team, change),
                 )
-                print(alert)
-                # send_to_aws_alerting_lambda(alert)
+                send_to_aws_alerting_lambda(alert)
             else:
                 print(f"No significant regression for team: {team['team']}")
 
