@@ -85,7 +85,7 @@ def format_string_for_markdown_long(
     else:
         s = f"- [{commit.title}](https://github.com/pytorch/pytorch/commit/{commit.commit_hash})"
     if db_result is not None:
-        s += f'\n  - {db_result["message"]} ([comment]({db_result["comment_url"]}))'
+        s += f"\n  - {db_result['message']} ([comment]({db_result['comment_url']}))"
     s += "\n"
     return s
 

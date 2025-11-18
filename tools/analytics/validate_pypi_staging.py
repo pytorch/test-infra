@@ -39,11 +39,11 @@ def get_size(path):
     if size < 1024:
         return f"{size} bytes"
     elif size < pow(1024, 2):
-        return f"{round(size/1024, 2)} KB"
+        return f"{round(size / 1024, 2)} KB"
     elif size < pow(1024, 3):
-        return f"{round(size/(pow(1024,2)), 2)} MB"
+        return f"{round(size / (pow(1024, 2)), 2)} MB"
     elif size < pow(1024, 4):
-        return f"{round(size/(pow(1024,3)), 2)} GB"
+        return f"{round(size / (pow(1024, 3)), 2)} GB"
 
 
 def generate_expected_builds(platform: str, package: str, release: str) -> list:

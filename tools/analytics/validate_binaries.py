@@ -70,9 +70,9 @@ def main() -> None:
             )
 
         assert len(expected_builds) > 0, "expected builds set should not be empty."
-        assert (
-            expected_builds == actual_builds
-        ), f"Missing following builds in conda: {expected_builds.difference(actual_builds)} for platform {platform}"
+        assert expected_builds == actual_builds, (
+            f"Missing following builds in conda: {expected_builds.difference(actual_builds)} for platform {platform}"
+        )
 
         print(
             f"\nSuccessfully verified following binaries are available in Conda for {platform}..."

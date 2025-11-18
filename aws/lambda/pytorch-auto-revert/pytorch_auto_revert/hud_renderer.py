@@ -468,7 +468,7 @@ def render_html_from_state(
                         f'<span class="ev" title="{title_attr}">{icon}</span>'
                     )
             html_parts.append(
-                f"<td class=\"cell {cell_classes}\">{''.join(cell_parts)}</td>"
+                f'<td class="cell {cell_classes}">{"".join(cell_parts)}</td>'
             )
         html_parts.append("</tr>")
     html_parts.append("</tbody>")
