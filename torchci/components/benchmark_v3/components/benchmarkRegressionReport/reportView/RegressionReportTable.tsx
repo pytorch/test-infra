@@ -1,12 +1,9 @@
 import CloseIcon from "@mui/icons-material/Close";
-import { Drawer, IconButton, Tooltip, Typography } from "@mui/material";
+import { Drawer, IconButton, Typography } from "@mui/material";
 import { Box, Stack } from "@mui/system";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
-import { useCallback, useState } from "react";
-import {
-  GroupInfoChips,
-  ReportPageToV3MainPageNavigationButton,
-} from "../common";
+import { useCallback, useMemo, useState } from "react";
+import { ReportPageToV3MainPageNavigationButton } from "../common";
 import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
 
 export default function RegressionReportTable({
@@ -16,7 +13,7 @@ export default function RegressionReportTable({
   enableSidePanel = true,
 }: {
   data: any[];
-  title: string;
+  title?: string;
   report_id: string;
   enableSidePanel?: boolean;
 }) {
@@ -47,38 +44,60 @@ export default function RegressionReportTable({
       latest_commit: latest?.commit?.slice(0, 7) ?? "",
     };
   });
-
-  // Add group info for metadata
-  const metaCol: GridColDef = {
-    field: "group",
-    headerName: "Labels",
-    renderCell: ({ row }) => {
+  const allUniqueGroupInfo = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    rows.forEach((row) => {
       const info = row._raw?.group_info ?? {};
-      const text = Object.entries(info)
-        .map(([k, v]) => `${k}:${v}`)
-        .join(" • "); // separator between pairs
-      return (
-        <Tooltip
-          title={
-            <>
-              <GroupInfoChips info={info} />
-            </>
-          }
-        >
-          <Typography
-            variant="body2"
-            sx={{
-              minWidth: 200,
-              whiteSpace: "normal", // allow wrapping
-              wordBreak: "break-word", // break long words if needed
-            }}
-          >
-            {text}
-          </Typography>
-        </Tooltip>
-      );
-    },
-  };
+      Object.entries(info).forEach(([key, value]) => {
+        if (value === "" || value === null || value === undefined) {
+          return; // skip empty values
+        }
+
+        if (!map.has(key)) {
+          map.set(key, new Set<string>());
+        }
+        map.get(key)!.add(String(value));
+      });
+    });
+    // Remove keys that collected no valid values
+    for (const [key, set] of map.entries()) {
+      if (set.size === 0) {
+        map.delete(key);
+      }
+    }
+    return map;
+  }, [rows]);
+
+  console.log("allUniqueGroupInfo", allUniqueGroupInfo);
+
+  const metaCols: GridColDef[] = useMemo(() => {
+    return Array.from(allUniqueGroupInfo.keys()).map(
+      (groupKey): GridColDef => ({
+        field: groupKey,
+        headerName: groupKey,
+        minWidth: 80,
+        sortable: true,
+        filterable: true,
+        valueGetter: (_value: any, row: any) => {
+          return row._raw?.group_info?.[groupKey] ?? "";
+        },
+        renderCell: ({ row }) => {
+          const value = row._raw?.group_info?.[groupKey] ?? "";
+          return (
+            <Typography
+              variant="body2"
+              sx={{
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+              }}
+            >
+              {value}
+            </Typography>
+          );
+        },
+      })
+    );
+  }, [allUniqueGroupInfo]);
   // Add navigate column
   const navigateCol: GridColDef = {
     field: "__actions",
@@ -111,22 +130,25 @@ export default function RegressionReportTable({
       field: "baseline_commit",
       headerName: "Baseline Commit",
       minWidth: 80,
-      flex: 2,
+      flex: 1,
     },
     {
       field: "latest_commit",
       minWidth: 80,
-      flex: 3,
+      flex: 1,
       headerName: "Last Regression Commit",
     },
-    { flex: 4, ...metaCol },
+    ...metaCols,
   ];
+
   const columns: GridColDef[] = mainCols;
   return (
     <Box sx={{ width: "100%" }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        {title}
-      </Typography>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          {title}
+        </Typography>
+      )}
       <DataGrid
         rowHeight={70}
         rows={rows}

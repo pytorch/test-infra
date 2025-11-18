@@ -22,14 +22,16 @@ export default function BenchmarkDropdownGroup({
   props,
   config,
   optionListMap,
+  horizontal = false,
 }: {
   onChange: (_key: string, _value: any) => void;
   props: any;
   optionListMap: BenchmarkDropdownGroupItem[];
   config?: BenchmarkUIConfigFilterConstarintConfig;
+  horizontal?: boolean;
 }) {
   return (
-    <Stack spacing={1}>
+    <Stack spacing={1} direction={horizontal ? "row" : "column"}>
       {optionListMap.length > 1 &&
         optionListMap.map((option, index) => {
           const type = option.type;

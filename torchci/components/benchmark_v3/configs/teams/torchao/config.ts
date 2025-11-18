@@ -20,6 +20,10 @@ const initialOptions = {
   },
 };
 
+export const PYTORCH_OPERATOR_MICROBENCHMARK_MAPPING_FIELDS = {
+  "extra_key.operator_name": "operatorName",
+};
+
 export const LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "latency",
   type: "ratio",
@@ -71,6 +75,15 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
     },
     dataRender: {
       type: "auto",
+      sideRender: {
+        RegressionReportFeature: {
+          type: "RegressionReportFeature",
+          title: "Regression Report Section",
+          config: {
+            report_id: "pytorch_operator_microbenchmark",
+          },
+        },
+      },
       subSectionRenders: {
         detail_view: {
           filterConstraint: {
