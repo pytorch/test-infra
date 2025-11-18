@@ -62,10 +62,9 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       triggerUpdate();
       return;
     }
-
     const cell = await navigateToDataGrid(
       tableId,
-      [`${left?.compiler}`],
+      [`${left?.compiler}|`],
       `${left?.suite}`,
       toggleSectonId
     );

@@ -67,6 +67,8 @@ export function toPrecomputeCompilerData(
   const executionTime = computeExecutionTime(data, models);
   const peakMemoryUsage = computePeakMemoryUsage(data, models);
 
+  // filter out export for compiler since it's always 0
+
   let all_data = [
     passrate,
     geomean,
@@ -76,6 +78,10 @@ export function toPrecomputeCompilerData(
     peakMemoryUsage,
   ].flat();
 
+  // only show export for passrate
+  all_data = all_data.filter((row) =>
+    row.compiler == "export" && row.metric != "passrate" ? false : true
+  );
   all_data = [...all_data].sort(
     (a, b) =>
       Date.parse(a.granularity_bucket) - Date.parse(b.granularity_bucket)
