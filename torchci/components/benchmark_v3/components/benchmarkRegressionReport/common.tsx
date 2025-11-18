@@ -226,7 +226,6 @@ export function getNavigationRouteByReportId(
     end: dayjs(endCommit?.timestamp).endOf("day"),
   };
 
-  console.log("getNavigationRouteByReportId", id);
   const fields = getBenchmarkFields(group_info, id);
   const lcommit: BenchmarkCommitMeta = {
     commit: startCommit?.commit,
