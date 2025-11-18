@@ -479,7 +479,7 @@ def commits_missing_in_branch(
             # if Issue is mentioned is release branch, than it was picked already
             if mentioned_in_release:
                 continue
-        print(f'{issue_url} ;{issue["title"]};{state}')
+        print(f"{issue_url} ;{issue['title']};{state}")
 
 
 def commits_missing_in_release(
@@ -539,7 +539,7 @@ def analyze_stacks(repo: GitRepo) -> None:
             print(f"{author} has 1 stack of depth {slen[0]}")
             continue
         print(
-            f"{author} has {len(slen)} stacks max depth is {max(slen)} avg depth is {sum(slen)/len(slen):.2f} mean is {slen[len(slen)//2]}"
+            f"{author} has {len(slen)} stacks max depth is {max(slen)} avg depth is {sum(slen) / len(slen):.2f} mean is {slen[len(slen) // 2]}"
         )
 
 
@@ -735,7 +735,7 @@ def main():
     print(f"Parsing git history with remote {remote}...", end="", flush=True)
     start_time = time.time()
     x = repo._run_git_log(f"{remote}/main")
-    print(f"done in {time.time()-start_time:.1f} sec")
+    print(f"done in {time.time() - start_time:.1f} sec")
     if args.analyze_reverts:
         analyze_reverts(x)
     elif args.contributor_stats:
