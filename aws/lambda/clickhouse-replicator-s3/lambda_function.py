@@ -735,11 +735,11 @@ def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
 
 
 def extract_bucket(record: Any) -> Optional[str]:
-    return record.get("s3", {}).get("bucket", {}).get("name", None)
+    return record.get("s3", {}).get("bucket", {}).get("name")
 
 
 def extract_key(record: Any) -> Optional[str]:
-    return record.get("s3", {}).get("object", {}).get("key", None)
+    return record.get("s3", {}).get("object", {}).get("key")
 
 
 def upsert_document(record: Any) -> None:
