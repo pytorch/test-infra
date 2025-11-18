@@ -132,6 +132,7 @@ PACKAGE_ALLOW_LIST = {
         "charset_normalizer",
         "cmake",
         "colorama",
+        "cuda_bindings",
         "fbgemm_gpu",
         "fbgemm_gpu_genai",
         "filelock",
