@@ -59,8 +59,6 @@ export function RegressionReportDetail({
         return row.group_info[key] === value;
       });
     };
-
-    console.log("shouldFilter", shouldFilter);
     return {
       regression: details.regression.filter(applyFilter),
       suspicious: details.suspicious.filter(applyFilter),
@@ -85,6 +83,9 @@ export function RegressionReportDetail({
             }));
           }}
           props={selectedFilters}
+          sx={{
+            minWidth: 100,
+          }}
         />
       </Box>
       <Divider sx={{ mb: 2, mt: 1 }} />

@@ -12,9 +12,13 @@ export function getBenchmarkFields(data: any, id: string) {
         deviceName,
       };
     case PYTORCH_OPERATOR_MICROBENCHMARK_ID:
-      applyMapping(data, PYTORCH_OPERATOR_MICROBENCHMARK_MAPPING_FIELDS);
+      const newInfo = applyMapping(
+        data,
+        PYTORCH_OPERATOR_MICROBENCHMARK_MAPPING_FIELDS
+      );
       return {
         ...data,
+        ...newInfo,
       };
     default:
       return {
@@ -44,11 +48,13 @@ function applyMapping(
   info: Record<string, any>,
   mappingBook: Record<string, string>
 ) {
+  const newInfo: any = {};
   for (const [key, value] of Object.entries(info)) {
     if (mappingBook[key]) {
       // mapped field name
       const newKey = mappingBook[key];
-      info[newKey] = value;
+      newInfo[newKey] = value;
     }
   }
+  return newInfo;
 }

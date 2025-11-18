@@ -68,35 +68,39 @@ export default function RegressionReportTable({
     return map;
   }, [rows]);
 
-  console.log("allUniqueGroupInfo", allUniqueGroupInfo);
-
   const metaCols: GridColDef[] = useMemo(() => {
-    return Array.from(allUniqueGroupInfo.keys()).map(
-      (groupKey): GridColDef => ({
-        field: groupKey,
-        headerName: groupKey,
-        minWidth: 80,
-        sortable: true,
-        filterable: true,
-        valueGetter: (_value: any, row: any) => {
-          return row._raw?.group_info?.[groupKey] ?? "";
-        },
-        renderCell: ({ row }) => {
-          const value = row._raw?.group_info?.[groupKey] ?? "";
-          return (
-            <Typography
-              variant="body2"
-              sx={{
-                whiteSpace: "normal",
-                wordBreak: "break-word",
-              }}
-            >
-              {value}
-            </Typography>
-          );
-        },
-      })
-    );
+    return Array.from(allUniqueGroupInfo.keys())
+      .map(
+        (groupKey): GridColDef => ({
+          field: groupKey,
+          headerName: groupKey,
+          sortable: true,
+          filterable: true,
+          flex: 1,
+          valueGetter: (_value: any, row: any) => {
+            return row._raw?.group_info?.[groupKey] ?? "";
+          },
+          renderCell: ({ row }) => {
+            const value = row._raw?.group_info?.[groupKey] ?? "";
+            return (
+              <Typography
+                variant="body2"
+                sx={{
+                  whiteSpace: "normal",
+                  wordBreak: "break-word",
+                }}
+              >
+                {value}
+              </Typography>
+            );
+          },
+        })
+      )
+      .sort((a, b) => {
+        const A = a.headerName ?? a.field;
+        const B = b.headerName ?? b.field;
+        return A.localeCompare(B);
+      });
   }, [allUniqueGroupInfo]);
   // Add navigate column
   const navigateCol: GridColDef = {
@@ -123,18 +127,15 @@ export default function RegressionReportTable({
     {
       field: "baseline_vs_latest",
       headerName: "Compare",
-      minWidth: 80,
       flex: 1,
     },
     {
       field: "baseline_commit",
       headerName: "Baseline Commit",
-      minWidth: 80,
       flex: 1,
     },
     {
       field: "latest_commit",
-      minWidth: 80,
       flex: 1,
       headerName: "Last Regression Commit",
     },
@@ -150,11 +151,19 @@ export default function RegressionReportTable({
         </Typography>
       )}
       <DataGrid
-        rowHeight={70}
         rows={rows}
         columns={columns}
         disableRowSelectionOnClick={enableSidePanel}
         onRowClick={(params) => handleRowClick(params)}
+        initialState={{
+          pagination: {
+            paginationModel: {
+              pageSize: 25,
+              page: 0,
+            },
+          },
+        }}
+        pageSizeOptions={[25, 50, 100]}
         sx={{
           cursor: "pointer",
           "& .MuiDataGrid-row": {

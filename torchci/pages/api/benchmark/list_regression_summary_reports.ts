@@ -171,7 +171,6 @@ function safeJsonParse<T = unknown>(s: unknown): T | null {
   }
 }
 
-
 /** Map ClickHouse rows so `report` (JSON string) becomes an object. */
 export function mapReportField<T = unknown>(
   rows: Array<Record<string, any>>,
