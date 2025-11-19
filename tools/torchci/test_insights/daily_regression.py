@@ -211,7 +211,7 @@ class RegressionNotification:
         self, start_date, stop_date
     ) -> list[dict[str, Any]]:
         response = requests.get(
-            f"http://localhost:3000/api/flaky-tests/fileReport?startDate={start_date}&endDate={stop_date}"
+            f"https://hud.pytorch.org/api/flaky-tests/fileReport?startDate={start_date}&endDate={stop_date}"
         )
 
         if response.status_code != 200:
