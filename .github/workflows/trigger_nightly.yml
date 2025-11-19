@@ -87,7 +87,7 @@ jobs:
         uses: ./.github/actions/trigger-nightly
         with:
           ref: main
-          repository: meta-pytorch/fbgemm
+          repository: meta-pytorch/mslk
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: mslk
       - name: Trigger nightly executorch build
