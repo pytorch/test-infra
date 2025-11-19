@@ -1,5 +1,9 @@
 import { Box, Typography } from "@mui/material";
-import { NavCategory, NavItem } from "components/layout/NavBarGroupDropdown";
+import {
+  NavCategory,
+  NavDivider,
+  NavItem,
+} from "components/layout/NavBarGroupDropdown";
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
 import BenchmarkCategoryCardList from "../components/benchmarkList/BenchmarkCategoryCardList";
 import { BENCHMARK_CATEGORIES } from "../configs/configurations";
@@ -18,30 +22,48 @@ export function getBenchmarkMainRouteById(id: string): string | undefined {
 
 export function benchmarkCategoryCardToNavGroup(
   categories: BenchmarkCategoryGroup[]
-): NavCategory[] {
-  const items: NavCategory[] = categories
-    .map((c: BenchmarkCategoryGroup) => ({
-      label: c.title,
-      items: c.items
-        .map((i: any) => ({ label: i.name, route: i.route }))
-        .sort((a: NavItem, b: NavItem) => a.label.localeCompare(b.label)),
-    }))
-    .sort((a: NavCategory, b: NavCategory) => a.label.localeCompare(b.label));
-  // Add a "All Benchmarks" item to the top of the list
-  items.push({
-    label: "View All Benchmarks",
-    type: "bottom",
-    items: [
-      {
-        label: "View All Benchmarks",
-        route: "/benchmark/benchmark_list",
-      },
-    ],
-  });
-  return items;
+): (NavCategory | NavItem | NavDivider)[] {
+  const items: (NavCategory | NavItem)[] = categories
+    .map((c: BenchmarkCategoryGroup) => {
+      if (c.items.length === 1) {
+        const item: NavItem = {
+          label: c.items[0].name,
+          route: c.items[0].route,
+          type: "item",
+        };
+        return item;
+      }
+      const group: NavCategory = {
+        label: c.title,
+        items: c.items
+          .sort((a, b) => a.name.localeCompare(b.name))
+          .map((i) => ({ label: i.name, route: i.route, type: "item" })),
+        type: "group",
+      };
+      return group;
+    })
+    .sort((a, b) =>
+      // group comes after item, then sort by label
+      a.type != b.type
+        ? a.type === "item"
+          ? -1
+          : 1
+        : a.label.localeCompare(b.label)
+    );
+  console.log("benchmark nav items:", items);
+
+  return [
+    ...items,
+    { type: "divider" },
+    {
+      label: "View All Benchmarks",
+      type: "item",
+      route: "/benchmark/benchmark_list",
+    },
+  ];
 }
 
-export const benchmarkNavGroup: NavCategory[] =
+export const benchmarkNavGroup: (NavCategory | NavItem | NavDivider)[] =
   benchmarkCategoryCardToNavGroup(BENCHMARK_CATEGORIES);
 
 export function BenchmarkListPage() {

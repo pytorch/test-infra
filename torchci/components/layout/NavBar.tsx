@@ -239,7 +239,7 @@ function NavBar() {
               KPIs
             </Link>
           </li>
-          <NavBarGroupDropdown title="Benchmarks" groups={benchmarkDropdown} />
+          <NavBarGroupDropdown title="Benchmarks" items={benchmarkDropdown} />{" "}
           <NavBarDropdown title="Metrics" items={metricsDropdown} />
           <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
