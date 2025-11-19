@@ -605,7 +605,7 @@ def replace_relative_links_with_absolute(html: str, base_url: str) -> str:
     return html
 
 
-def parse_simple_idx(url: str) -> Tuple[Dict[str, str], str]:
+def parse_simple_idx(url: str) -> tuple[Dict[str, str], str]:
     """
     Parse a simple package index and return package dict and raw HTML.
 
