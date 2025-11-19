@@ -143,6 +143,10 @@ function NavBar() {
       name: "PyTorch Runners",
       href: "/runners/pytorch",
     },
+    {
+      name: "Test File Reports",
+      href: "/tests/fileReport",
+    },
   ];
 
   const metricsDropdown = [
