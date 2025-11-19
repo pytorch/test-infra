@@ -1,3 +1,8 @@
+import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline";
+import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import ErrorIcon from "@mui/icons-material/Error";
+import RemoveCircleOutlineIcon from "@mui/icons-material/RemoveCircleOutline";
+import WarningRoundedIcon from "@mui/icons-material/WarningRounded";
 import {
   Box,
   Button,
@@ -15,6 +20,9 @@ import {
   GridRenderCellParams,
   GridTreeNodeWithRender,
 } from "@mui/x-data-grid";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DateTimePicker } from "@mui/x-date-pickers/DateTimePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import CopyLink from "components/common/CopyLink";
 import LoadingPage from "components/common/LoadingPage";
 import RegexButton from "components/common/RegexButton";
@@ -22,15 +30,13 @@ import { durationDisplay } from "components/common/TimeUtils";
 import dayjs from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 import ReactECharts from "echarts-for-react";
-import { encodeParams } from "lib/GeneralUtils";
+import { encodeParams, fetcher } from "lib/GeneralUtils";
 import _ from "lodash";
 import { useRouter } from "next/router";
 import { useEffect, useRef, useState } from "react";
+import useSWRImmutable from "swr/immutable";
 
 dayjs.extend(isoWeek);
-
-const S3_LOCATION =
-  "https://ossci-raw-job-status.s3.amazonaws.com/additional_info/weekly_file_report";
 
 function formatTimestamp(ts: number) {
   return new Date(ts * 1000).toLocaleDateString().slice(0, 10);
@@ -93,49 +99,107 @@ function matchLabel(
 }
 
 function Diffs({
+  shas,
   data,
   setFileFilter,
   setJobFilter,
 }: {
+  shas: { sha: string; push_date: number }[];
   data: { [key: string]: any }[];
   setFileFilter: (v: string) => void;
   setJobFilter: (v: string) => void;
 }) {
-  const groupByOptions = {};
-  // Compute diffs for every row (except the earliest) in each (file, short_job_name) group
-  const groupedDiff = _.groupBy(data, (d) => `${d.file}|||${d.short_job_name}`);
-  // Map from id (row) to diff object for every row (except the first in group)
-  const rowDiffs: Record<string, any> = {};
-  Object.entries(groupedDiff).forEach(([key, arr]) => {
-    // Sort by push_date ascending (oldest to newest)
-    const sorted = _.sortBy(arr, (d) => d.push_date);
-    for (let i = 1; i < sorted.length; ++i) {
-      const curr = sorted[i];
-      const prev = sorted[i - 1];
-      function diff(field: string) {
-        if (!curr || !prev) return null;
-        return (curr[field] || 0) - (prev[field] || 0);
+  // Get all unique commits sorted by push_date
+  const allCommits = shas.sort((a, b) => a.push_date - b.push_date);
+
+  // State for selected commits (default to first and last)
+  const [firstCommitIndex, setFirstCommitIndex] = useState(0);
+  const [lastCommitIndex, setLastCommitIndex] = useState(allCommits.length - 1);
+
+  // Update indices when data changes
+  useEffect(() => {
+    setFirstCommitIndex(0);
+    setLastCommitIndex(allCommits.length - 1);
+  }, [allCommits.length]);
+
+  const firstCommit = allCommits[firstCommitIndex] || allCommits[0];
+  const lastCommit =
+    allCommits[lastCommitIndex] || allCommits[allCommits.length - 1];
+
+  // Group data by (file, short_job_name)
+  const groupedData = _.groupBy(data, (d) => `${d.file}|||${d.short_job_name}`);
+
+  // Create one row per (file, job) with diffs.  If the data is missing for the
+  // specific shas, use interpolation based on nearest available data points.
+  const diffRows = Object.entries(groupedData).map(([key, arr], index) => {
+    const [file, jobName] = key.split("|||");
+
+    // Helper to get interpolated value for a commit
+    const getInterpolatedValue = (targetCommit: any, field: string) => {
+      // Find exact match first
+      const exactMatch = arr.find((row) => row.sha === targetCommit.sha);
+      if (exactMatch) {
+        return exactMatch[field] || 0;
       }
-      rowDiffs[curr.id] = {
-        count_diff: diff("count"),
-        cost_diff: diff("cost"),
-        time_diff: diff("time"),
-        skipped_diff: diff("skipped"),
-        errors_diff: diff("errors"),
-        failures_diff: diff("failures"),
-        successes_diff: diff("successes"),
-      };
-    }
+
+      // Sort by push_date for interpolation
+      const sorted = _.sortBy(arr, "push_date");
+
+      // Find the closest existing values before and after
+      const before = sorted
+        .filter((row) => row.push_date <= targetCommit.push_date)
+        .sort((a, b) => b.push_date - a.push_date)[0];
+      const after = sorted
+        .filter((row) => row.push_date > targetCommit.push_date)
+        .sort((a, b) => a.push_date - b.push_date)[0];
+
+      // If we have data on the target commit or later, use the first available
+      if (after) return after[field] || 0;
+      // Otherwise use the last available before
+      if (before) return before[field] || 0;
+      // Default to 0 if no data exists
+      return 0;
+    };
+
+    // Get interpolated values for first and last commits
+    const firstValues = {
+      time: getInterpolatedValue(firstCommit, "time"),
+      cost: getInterpolatedValue(firstCommit, "cost"),
+      count: getInterpolatedValue(firstCommit, "count"),
+      skipped: getInterpolatedValue(firstCommit, "skipped"),
+      success: getInterpolatedValue(firstCommit, "success"),
+    };
+
+    const lastValues = {
+      time: getInterpolatedValue(lastCommit, "time"),
+      cost: getInterpolatedValue(lastCommit, "cost"),
+      count: getInterpolatedValue(lastCommit, "count"),
+      skipped: getInterpolatedValue(lastCommit, "skipped"),
+      success: getInterpolatedValue(lastCommit, "success"),
+      frequency: getInterpolatedValue(lastCommit, "frequency"),
+    };
+
+    return {
+      id: index,
+      file,
+      short_job_name: jobName,
+      // Last commit values
+      time: lastValues.time,
+      cost: lastValues.cost,
+      skipped: lastValues.skipped,
+      count: lastValues.count,
+      success: lastValues.success,
+      frequency: lastValues.frequency,
+      // Deltas (last - first)
+      time_diff: lastValues.time - firstValues.time,
+      cost_diff: lastValues.cost - firstValues.cost,
+      skipped_diff: lastValues.skipped - firstValues.skipped,
+      count_diff: lastValues.count - firstValues.count,
+      success_diff: lastValues.success - firstValues.success,
+    };
   });
 
   const columns: GridColDef[] = [
-    { field: "sha", headerName: "SHA", flex: 1 },
-    {
-      field: "push_date",
-      headerName: "Push Date",
-      flex: 1,
-      renderCell: (params: any) => formatTimestamp(params.value),
-    },
     {
       field: "file",
       headerName: "File",
@@ -166,28 +230,6 @@ function Diffs({
           {params.value}
         </span>
       ),
-    },
-    {
-      field: "count",
-      headerName: "Count",
-      flex: 1,
-      renderHeader: () => renderHeader("Count", "Number of tests"),
-    },
-    {
-      field: "count_diff",
-      headerName: "Δ Count",
-      flex: 1,
-      cellClassName: (params: any) => {
-        const value = parseFloat(params.value);
-        const base = parseFloat(params.row?.count);
-        if (!isNaN(value) && base && Math.abs(value) / base > 0.2) {
-          return "highlight";
-        }
-        if (Math.abs(value) > 20) {
-          return "highlight";
-        }
-        return "change";
-      },
     },
     {
       field: "time",
@@ -241,6 +283,12 @@ function Diffs({
       },
       renderCell: roundedCostCell,
     },
+    { field: "success", headerName: "Success", flex: 1 },
+    {
+      field: "success_diff",
+      headerName: "Δ Success",
+      flex: 1,
+    },
     // { field: "errors", headerName: "Errors", flex: 1 },
     // {
     //   field: "errors_diff",
@@ -282,13 +330,6 @@ function Diffs({
           "Estimated frequency of test runs for this file (# commits it is run on) in the last week"
         ),
     },
-    // { field: "successes", headerName: "Successes", flex: 1 },
-    // {
-    //   field: "successes_diff",
-    //   headerName: "Δ Successes",
-    //   flex: 1,
-    //   getCellClassName: () => "change",
-    // },
   ];
 
   const styling = {
@@ -308,24 +349,50 @@ function Diffs({
       <Typography variant="h6">File Test Counts</Typography>
       <Typography variant="body1">
         This table displays test run statistics for each test file and job
-        combination. The Δ (delta) columns show the change in each metric
-        compared to the previous commit for the same file and job. Double click
-        on the file or job to filter by that value. Highlighted cells are large
-        changes (either by percent or absolute value) and may indicate
-        regressions or improvements.
+        combination, comparing two selected commits. The Δ (delta) columns show
+        the change in each metric. Values are interpolated if a file/job
+        combination does not exist on the exact commits (using the nearest
+        available data point). Double click on the file or job to filter by that
+        value. Highlighted cells are large changes (either by percent or
+        absolute value) and may indicate regressions or improvements.
       </Typography>
-
       <Typography variant="body1">
         Pricing is approximate and per commit. Some pricing data may be missing
         (ex mac, rocm), in those cases the cost will be 0.
       </Typography>
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+        <Typography variant="body2">Compare:</Typography>
+        <Select
+          size="small"
+          value={firstCommitIndex}
+          onChange={(e) => setFirstCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+            </MenuItem>
+          ))}
+        </Select>
+        <Typography variant="body2">vs</Typography>
+        <Select
+          size="small"
+          value={lastCommitIndex}
+          onChange={(e) => setLastCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
+
       <Box height={"600px"}>
         <DataGrid
           density="compact"
-          rows={data.map((row) => ({
-            ...row,
-            ...(rowDiffs[row.id] || {}),
-          }))}
+          rows={diffRows}
           sx={styling}
           columns={columns}
           initialState={{
@@ -339,314 +406,151 @@ function Diffs({
   );
 }
 
-function Overview({
-  data,
-  setFileFilter,
-  setJobFilter,
-  setLabelFilter,
-}: {
-  data: { [key: string]: any }[];
-  setFileFilter: (_: string) => void;
-  setJobFilter: (_: string) => void;
-  setLabelFilter: (_: string) => void;
-}) {
-  const groupByOptions = {
-    file: {
-      headerName: "File",
-      field: "file",
-      buttonText: "Group by File",
-      onDoubleClick: (value: any) => setFileFilter(value),
-      onDoubleClickHelpText: "Double-click to filter by this file",
-      groupByKey: (v: any) => [v.file],
+function CommitTimeline({ data }: { data: any[] }) {
+  const sortedData = [...data].sort(
+    (a, b) => new Date(a.push_date).getTime() - new Date(b.push_date).getTime()
+  );
+
+  const option = {
+    tooltip: {
+      trigger: "axis",
+      formatter: (params: any) => {
+        const p = params[0].data;
+        return `SHA: ${p.sha}<br/>Date: ${new Date(
+          p.date * 1000
+        ).toLocaleString()}`;
+      },
     },
-    job: {
-      headerName: "Job",
-      field: "short_job_name",
-      buttonText: "Group by Job",
-      onDoubleClick: (value: any) => setJobFilter(value),
-      onDoubleClickHelpText: "Double-click to filter by this job",
-      groupByKey: (v: any) => [v.short_job_name],
+    xAxis: {
+      type: "time",
+      name: "Push Date",
     },
-    label: {
-      headerName: "Label",
-      field: "labels",
-      buttonText: "Group by Label",
-      onDoubleClick: (value: any) => setLabelFilter(value),
-      onDoubleClickHelpText: "Double-click to filter by this label",
-      groupByKey: (v: any) => v.labels,
+    yAxis: {
+      type: "value",
+      show: false, // optional, since commits are all on the same level
     },
-    total: {
-      headerName: "Total",
-      field: "total",
-      buttonText: "Total",
-      onDoubleClick: () => {},
-      onDoubleClickHelpText: "",
-      groupByKey: (_: any) => ["total"],
+    series: [
+      {
+        type: "line",
+        data: sortedData.map((commit) => ({
+          value: [new Date(commit.push_date * 1000), 1],
+          sha: commit.sha,
+          date: commit.push_date,
+        })),
+        symbolSize: 10,
+        lineStyle: {
+          color: "#1976d2",
+        },
+        itemStyle: {
+          color: "#1976d2",
+        },
+        showSymbol: true, // show dots at commits
+      },
+    ],
+    grid: {
+      left: "10%",
+      right: "10%",
+      bottom: "20%",
+      top: "20%",
     },
   };
-  const [groupBy, setGroupBy] = useState<keyof typeof groupByOptions>("file");
-  const columns: any[] = [
-    {
-      field: groupByOptions[groupBy].field,
-      headerName: groupByOptions[groupBy].headerName,
-      flex: 4,
-      renderCell: (params: any) => (
-        <span
-          style={{ cursor: "pointer" }}
-          onDoubleClick={() =>
-            groupByOptions[groupBy].onDoubleClick(params.value)
-          }
-          title={groupByOptions[groupBy].onDoubleClickHelpText}
-        >
-          {params.value}
-        </span>
-      ),
-      renderHeader: () =>
-        renderHeader(
-          groupByOptions[groupBy].headerName,
-          groupByOptions[groupBy].onDoubleClickHelpText
-        ),
-    },
-    {
-      field: "count",
-      headerName: "Count",
-      flex: 1,
-      renderHeader: () => renderHeader("Count", "Number of tests"),
-    },
-    {
-      field: "time",
-      headerName: "Duration",
-      flex: 1,
-      renderCell: renderTimeCell,
-      renderHeader: () =>
-        renderHeader(
-          "Duration",
-          "Duration of the test(s) for one commit if run sequentially"
-        ),
-    },
-    {
-      field: "cost",
-      headerName: "Cost ($)",
-      flex: 1,
-      renderCell: roundedCostCell,
-      renderHeader: () =>
-        renderHeader(
-          "Cost ($)",
-          "Estimated cost of the test(s) for one commit"
-        ),
-    },
-    {
-      field: "skipped",
-      headerName: "Skipped",
-      flex: 1,
-      renderHeader: () => renderHeader("Skipped", "Number of skipped tests"),
-    },
-    // {
-    //   field: "frequency",
-    //   headerName: "Frequency",
-    //   flex: 1,
-    //   renderHeader: () =>
-    //     renderHeader("Frequency", "Frequency of test runs for this file"),
-    // },
-  ];
-
-  const groupByTarget = _.reduce(
-    data,
-    (acc, row) => {
-      const keys = groupByOptions[groupBy].groupByKey(row) as string[];
-      keys.forEach((key) => {
-        acc[key] = acc[key] || [];
-        acc[key].push(row);
-      });
-      return acc;
-    },
-    {} as Record<string, any[]>
-  );
-
-  const groupedRows = _.map(groupByTarget, (rows, key) => {
-    // Sum
-    const summed = _.reduce(
-      rows,
-      (acc, row) => {
-        acc.count += row.count || 0;
-        acc.time += row.time || 0;
-        acc.cost += row.cost || 0;
-        acc.skipped += row.skipped || 0;
-        acc.frequency += row.frequency || 0;
-        return acc;
-      },
-      { count: 0, time: 0, cost: 0, skipped: 0, frequency: 0 }
-    );
-
-    // Average across sha data points
-    const numShas = _.uniq(rows.map((r) => r.sha)).length;
-    return {
-      id: rows[0].id,
-      file: rows[0].file,
-      short_job_name: rows[0].short_job_name,
-      labels: key,
-      count: summed.count / numShas,
-      time: summed.time / numShas,
-      cost: summed.cost / numShas,
-      skipped: summed.skipped / numShas,
-      frequency: summed.frequency / numShas,
-    };
-  });
 
   return (
-    <Stack spacing={2}>
-      <Typography variant="h6">Overview</Typography>
-      <Typography variant="body1">
-        This section provides an overview of the test statistics. Values are
-        summed within a commit, then averaged.
+    <>
+      <Typography variant="body1" sx={{ mb: 2 }}>
+        <strong>Commit Timeline:</strong> The timeline below visualizes the
+        sequence of commits included in this report. Each point represents a
+        commit, arranged chronologically from left to right. Hover over a point
+        to see the commit SHA and its push date.
       </Typography>
-      <Typography variant="body1">
-        Pricing is approximate and per commit. Some pricing data may be missing
-        (ex mac, rocm), in those cases the cost will be 0.
-      </Typography>
-      <Box mb={2}>
-        <ButtonGroup variant="outlined" size="small">
-          {Object.entries(groupByOptions).map(([key, setting]) => (
-            <Button
-              key={setting.field}
-              variant={groupBy === key ? "contained" : "outlined"}
-              onClick={() => setGroupBy(key as keyof typeof groupByOptions)}
-            >
-              {setting.buttonText}
-            </Button>
-          ))}
-        </ButtonGroup>
-      </Box>
-      <Box height={"600px"}>
-        <DataGrid
-          density="compact"
-          rows={groupedRows}
-          columns={columns}
-          initialState={{
-            sorting: {
-              sortModel: [{ field: "cost", sort: "desc" }],
-            },
-          }}
-        />
-      </Box>
-    </Stack>
-  );
-}
-
-function CommitInfo({ data }: { data: any[] }) {
-  const commits = _.reduce(
-    data,
-    (acc, row) => {
-      const key = row.sha;
-      acc[key] = row.push_date;
-      return acc;
-    },
-    {} as Record<string, any[]>
-  );
-  return (
-    <Stack spacing={2}>
-      <Typography variant="h6">Commits</Typography>
-      <Typography variant="body1">
-        These are the commits that are included in the report.
-      </Typography>
-      <DataGrid
-        density="compact"
-        rows={Object.entries(commits).map(([sha, pushDate]) => ({
-          id: sha,
-          push_date: pushDate,
-        }))}
-        columns={[
-          { field: "id", headerName: "SHA", flex: 1 },
-          {
-            field: "push_date",
-            headerName: "Push Date",
-            flex: 1,
-            renderCell: (params: any) => formatTimestamp(params.value),
-          },
-        ]}
-        initialState={{
-          sorting: {
-            sortModel: [{ field: "push_date", sort: "asc" }],
-          },
-        }}
-      />
-    </Stack>
+      <ReactECharts option={option} style={{ height: 200, width: "100%" }} />
+    </>
   );
 }
 
 function Graphs({ data }: { data: any[] }) {
-  // Map selector value to field and label
-  const groupByOptions = {
-    file: {
-      getGroupByField: (d: any) => d.file,
-      groupByButtonText: "Group by File",
-    },
-    job: {
-      getGroupByField: (d: any) => d.short_job_name,
-      groupByButtonText: "Group by Job",
-    },
-    filejob: {
-      getGroupByField: (d: any) => `${d.short_job_name} | ${d.file}`,
-      groupByButtonText: "Group by File + Job",
-    },
-    total: {
-      getGroupByField: (_: any) => `total`,
-      groupByButtonText: "Total",
-    },
-  };
+  data = data.map((item) => {
+    return { ...item, push_date: item.push_date * 1000 };
+  });
+  const shasByDate: Record<number, string> = data.reduce((acc, item) => {
+    acc[item.push_date] = item.sha;
+    return acc;
+  }, {} as Record<number, string>);
+
   const metricOptions = {
-    count: { label: "Count", field: "count" },
     cost: { label: "Cost", field: "cost" },
     duration: { label: "Duration", field: "time" },
     skips: { label: "Skips", field: "skipped" },
+    successes: { label: "Success", field: "success" },
   };
 
-  const [metric, setMetric] = useState<keyof typeof metricOptions>("count");
-  const [groupBy, setGroupBy] = useState<keyof typeof groupByOptions>("file");
+  const [metric, setMetric] = useState<keyof typeof metricOptions>("cost");
 
-  const chartData = _.map(
-    // Group by the sha and the option that is selected
-    _.groupBy(data, (d) => {
-      return [d.sha, groupByOptions[groupBy].getGroupByField(d)];
-    }),
-    // Sum over each group
-    (rows, key) => {
+  const fieldName = metricOptions[metric].field;
+
+  const echartData = _.map(
+    _.groupBy(data, (row) => `${row.file} | ${row.short_job_name}`),
+    (rows) => {
+      // Sort each series by push_date to ensure lines go forward in time and
+      // strip out the unnecessary data
+      const lineData = rows
+        .sort((a, b) => a.push_date - b.push_date)
+        .map((r) => [r.push_date, Number(r[fieldName]) || 0]);
+
       return {
-        push_date: rows[0].push_date,
-        key: key.split(",")[1],
-        [metricOptions[metric].field]: _.sumBy(
-          rows,
-          (d) => d[metricOptions[metric].field]
-        ),
+        name: `${rows[0].file} | ${rows[0].short_job_name}`,
+        type: "line",
+        data: lineData,
+        connectNulls: false,
       };
     }
   );
-  // Convert to series
-  const echartData = _.map(_.groupBy(chartData, "key"), (rows) => ({
-    name: rows[0].key,
-    type: "line",
-    data: rows.map((r) => [r.push_date, r[metricOptions[metric].field]]),
-  }));
+
   const option = {
-    tooltip: { trigger: "axis" },
+    tooltip: {
+      trigger: "item",
+      formatter: (params: any) => {
+        const date = new Date(params.value[0]).toLocaleString();
+        return `${params.seriesName}<br/>Date: ${date}<br/>${
+          metricOptions[metric].label
+        }: ${params.value[1]}<br/>${shasByDate[params.value[0]]}`;
+      },
+    },
     legend: {
-      type: "scroll",
-      orient: "vertical",
-      right: 10,
-      selector: [
-        {
-          type: "all",
-          title: "All",
-        },
-        {
-          type: "inverse",
-          title: "Inv",
-        },
-      ],
+      show: false,
     },
     xAxis: { type: "time", name: "Push Date" },
     yAxis: { type: "value", name: metricOptions[metric].label },
     series: echartData,
+    grid: {
+      left: "10%",
+      right: "5%",
+      bottom: "10%",
+      top: "5%",
+      containLabel: true,
+    },
+    dataZoom: [
+      {
+        type: "slider", // horizontal slider for x-axis
+        xAxisIndex: 0,
+        start: 0,
+        end: 100,
+      },
+      {
+        type: "inside", // enable mouse wheel/pinch zoom for x-axis
+        xAxisIndex: 0,
+      },
+      {
+        type: "slider", // vertical slider for y-axis
+        yAxisIndex: 0,
+        start: 0,
+        end: 100,
+      },
+      {
+        type: "inside", // enable mouse wheel/pinch zoom for y-axis
+        yAxisIndex: 0,
+      },
+    ],
   };
 
   return (
@@ -669,21 +573,10 @@ function Graphs({ data }: { data: any[] }) {
           </Button>
         ))}
       </ButtonGroup>
-      <ButtonGroup variant="outlined" size="small" sx={{ mb: 2 }}>
-        {Object.entries(groupByOptions).map(([key, option]) => (
-          <Button
-            key={key}
-            variant={groupBy === key ? "contained" : "outlined"}
-            onClick={() => setGroupBy(key as keyof typeof groupByOptions)}
-          >
-            {option.groupByButtonText}
-          </Button>
-        ))}
-      </ButtonGroup>
       <Box height="600px">
         <ReactECharts
           // key is needed to force re-rendering when data changes
-          key={JSON.stringify(chartData)}
+          key={JSON.stringify(echartData)}
           option={option}
           style={{ height: 600 }}
         />
@@ -692,135 +585,224 @@ function Graphs({ data }: { data: any[] }) {
   );
 }
 
+function StatusIcon({ status }: { status: string }) {
+  let icon = null;
+  if (status === "failure") {
+    icon = <ErrorIcon sx={{ color: "red", fontSize: "1rem" }} />;
+  } else if (status === "flaky") {
+    icon = <WarningRoundedIcon sx={{ color: "orange", fontSize: "1rem" }} />;
+  } else if (status === "success") {
+    icon = <CheckCircleIcon sx={{ color: "green", fontSize: "1rem" }} />;
+  } else if (status === "skipped") {
+    icon = <WarningRoundedIcon sx={{ color: "grey", fontSize: "1rem" }} />;
+  } else if (status === "removed") {
+    icon = <RemoveCircleOutlineIcon sx={{ color: "red", fontSize: "1rem" }} />;
+  } else if (status === "added") {
+    icon = <AddCircleOutlineIcon sx={{ color: "green", fontSize: "1rem" }} />;
+  }
+  return icon;
+}
+
+function useStatusChangeData(
+  uniqueFiles: string[],
+  uniqueJobs: string[],
+  sha1: string,
+  sha2: string
+) {
+  // Sort for consistent cache keys and remove .py suffixes
+  const sortedFiles = [...uniqueFiles].sort();
+  const sortedJobs = [...uniqueJobs].sort();
+
+  const swrKey =
+    sha1 && sha2
+      ? `/api/flaky-tests/statusChanges:${sha1}:${sha2}:${JSON.stringify(
+          sortedFiles
+        )}:${JSON.stringify(sortedJobs)}`
+      : null;
+
+  // Custom fetcher for POST requests to get around URL header length limits
+  const postFetcher = async () => {
+    const response = await fetch("/api/flaky-tests/statusChanges", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        sha1,
+        sha2,
+        files: sortedFiles,
+        jobs: sortedJobs,
+        fuzzy: true, // Enable fuzzy matching to find nearest jobs
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  };
+
+  const { data, error, isLoading } = useSWRImmutable(swrKey, postFetcher);
+
+  return {
+    data: data || [],
+    error,
+    isLoading,
+  };
+}
+
 function TestStatus({
   shas,
-  rowMatchesFilters,
+  data,
 }: {
   shas: { sha: string; push_date: number }[];
-  rowMatchesFilters: (row: any) => boolean;
+  data: any[];
 }) {
-  const options = shas;
-  const [selectedIndex, setSelectedIndex] = useState<number>(
-    shas.length > 0 ? shas.length - 1 : 0
-  );
+  // Sort commits by date ascending (oldest first)
+  const allCommits = [...shas].sort((a, b) => a.push_date - b.push_date);
 
+  // State for selected commits (default to first and last)
+  const [firstCommitIndex, setFirstCommitIndex] = useState(0);
+  const [lastCommitIndex, setLastCommitIndex] = useState(allCommits.length - 1);
+
+  // Update indices when data changes
   useEffect(() => {
-    if (shas.length > 0 && selectedIndex === 0) {
-      setSelectedIndex(shas.length - 1);
-    }
-  }, [shas, selectedIndex]);
-  let data = useData(
-    selectedIndex !== 0
-      ? `${S3_LOCATION}/status_changes_${options[selectedIndex - 1].sha}_${
-          options[selectedIndex].sha
-        }.json.gz`
-      : undefined
+    setFirstCommitIndex(0);
+    setLastCommitIndex(allCommits.length - 1);
+  }, [allCommits.length]);
+
+  // Extract unique files and jobs from the filtered data
+  const uniqueFiles = _.uniq(data.map((d) => d.file));
+  const uniqueJobs = _.uniq(data.map((d) => d.short_job_name));
+
+  // Fetch status changes from API
+  const sha1 = allCommits[firstCommitIndex]?.sha;
+  const sha2 = allCommits[lastCommitIndex]?.sha;
+
+  const statusChangeResult = useStatusChangeData(
+    uniqueFiles,
+    uniqueJobs,
+    sha1,
+    sha2
   );
 
-  // Apply the same file/job/label filter to statusChangeData
-  data = data?.filter(rowMatchesFilters);
+  // Transform the data
+  const statusData = (statusChangeResult.data || []).map(
+    (row: any, index: number) => ({
+      id: index,
+      prev_status: row.prev_status,
+      new_status: row.new_status,
+      file: row.invoking_file,
+      test_name: row.name,
+      short_job_name: `${row.workflow_name} / ${row.job_name}`,
+      classname: row.classname,
+    })
+  );
 
   const columns: any[] = [
-    { field: "status", headerName: "Status", flex: 1 },
-    { field: "file", headerName: "File", flex: 4 },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 2,
+      valueGetter: (_value: any, row: any) => {
+        // Create a sortable string from prev_status and new_status
+        const prev = row.prev_status || "none";
+        const next = row.new_status || "none";
+        return `${prev} → ${next}`;
+      },
+      renderCell: (params: any) => {
+        const prevStatus = params.row.prev_status || "";
+        const newStatus = params.row.new_status || "";
+
+        const prevText = prevStatus === "" ? "none" : prevStatus;
+        const newText = newStatus === "" ? "none" : newStatus;
+
+        return (
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            {prevStatus && <StatusIcon status={prevStatus} />}
+            <span
+              key="prev-status"
+              style={{
+                fontStyle: prevStatus === "" ? "italic" : "normal",
+                color: prevStatus === "" ? "gray" : "inherit",
+              }}
+            >
+              {prevText}
+            </span>
+            <span key="arrow">→</span>
+            {newStatus && <StatusIcon status={newStatus} />}
+            <span
+              key="new-status"
+              style={{
+                fontStyle: newStatus === "" ? "italic" : "normal",
+                color: newStatus === "" ? "gray" : "inherit",
+              }}
+            >
+              {newText}
+            </span>
+          </Stack>
+        );
+      },
+    },
+    { field: "file", headerName: "File", flex: 2 },
     { field: "test_name", headerName: "Test", flex: 4 },
     { field: "short_job_name", headerName: "Job", flex: 4 },
-    { field: "sha", headerName: "SHA", flex: 1 },
-    {
-      field: "push_date",
-      headerName: "Push Date",
-      flex: 1,
-      renderCell: (params: any) => formatTimestamp(params.value),
-    },
   ];
 
   return (
-    <Box height={"600px"}>
-      <Select name="compare" value={selectedIndex}>
-        {options.map((option, index) => {
-          if (index === 0)
-            return (
-              <MenuItem key={0} value="">
-                Select Commit Pair
-              </MenuItem>
-            );
-          return (
-            <MenuItem
-              key={index}
-              value={index}
-              onClick={() => setSelectedIndex(index)}
-            >
-              {options[index - 1].sha.slice(0, 7)} (
-              {formatTimestamp(options[index - 1].push_date)}) ➡️{" "}
-              {options[index].sha.slice(0, 7)} (
-              {formatTimestamp(options[index].push_date)})
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Typography variant="body2">Compare:</Typography>
+        <Select
+          size="small"
+          value={firstCommitIndex}
+          onChange={(e) => setFirstCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
             </MenuItem>
-          );
-        })}
-      </Select>
+          ))}
+        </Select>
+        <Typography variant="body2">vs</Typography>
+        <Select
+          size="small"
+          value={lastCommitIndex}
+          onChange={(e) => setLastCommitIndex(Number(e.target.value))}
+          sx={{ minWidth: 200 }}
+        >
+          {allCommits.map((commit, index) => (
+            <MenuItem key={index} value={index}>
+              {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
+            </MenuItem>
+          ))}
+        </Select>
+      </Stack>
 
-      <DataGrid density="compact" rows={[...data]} columns={columns} />
-    </Box>
+      {statusChangeResult.isLoading && (
+        <Typography variant="body2" color="text.secondary">
+          Loading status changes...
+        </Typography>
+      )}
+
+      {statusChangeResult.error && (
+        <Typography variant="body2" color="error">
+          Error loading status changes: {statusChangeResult.error.message}
+        </Typography>
+      )}
+
+      <Box height={"600px"}>
+        <DataGrid
+          density="compact"
+          rows={statusData}
+          columns={columns}
+          loading={statusChangeResult.isLoading}
+        />
+      </Box>
+    </Stack>
   );
-}
-
-// Custom hook to fetch real data from the local JSON file
-function useData(link: string | undefined) {
-  const [data, setData] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (!link) return;
-
-    fetch(link)
-      .then((response) =>
-        response.ok ? response.text() : Promise.reject("Failed to load")
-      )
-      .then((text) => {
-        const final = [];
-        for (const line of text.split("\n")) {
-          if (line.trim()) {
-            final.push(JSON.parse(line));
-          }
-        }
-        setData(final.map((item, index) => ({ ...item, id: index })));
-      });
-  }, [link]);
-  return data;
-}
-
-function useWeeksData(commitMetadata: any[], headShaIndex: number) {
-  const [data, setData] = useState<any[]>([]);
-
-  useEffect(() => {
-    if (headShaIndex == -1 || commitMetadata.length === 0) return;
-
-    const shasToFetch = [];
-    for (let i = headShaIndex; i >= 0 && i > headShaIndex - 7; --i) {
-      shasToFetch.push(commitMetadata[i].sha);
-    }
-
-    Promise.all(
-      shasToFetch.map((sha) =>
-        fetch(`${S3_LOCATION}/data_${sha}.json.gz`)
-          .then((response) =>
-            response.ok ? response.text() : Promise.reject("Failed to load")
-          )
-          .then((text) => {
-            const final = [];
-            for (const line of text.split("\n")) {
-              if (line.trim()) {
-                final.push(JSON.parse(line));
-              }
-            }
-            return final.map((item, index) => ({ ...item, id: index }));
-          })
-      )
-    ).then((allData) => {
-      // Flatten the array of arrays
-      setData(allData.flat());
-    });
-  }, [commitMetadata, headShaIndex]);
-  return data;
 }
 
 export default function Page() {
@@ -835,6 +817,12 @@ export default function Page() {
   const jobInputRef = useRef<HTMLInputElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
   const [baseUrl, setBaseUrl] = useState<string>("");
+  const [endDate, setEndDate] = useState<dayjs.Dayjs | null>(
+    dayjs().subtract(5, "hour")
+  );
+  const [startDate, setStartDate] = useState<dayjs.Dayjs | null>(
+    dayjs().subtract(5, "hour").subtract(7, "day")
+  );
 
   // Keep input fields in sync when filters are set programmatically
   useEffect(() => {
@@ -854,21 +842,20 @@ export default function Page() {
   }, [labelFilter]);
 
   const router = useRouter();
-  const commitMetadata = useData(`${S3_LOCATION}/commits_metadata.json.gz`);
-  const [headShaIndex, setHeadShaIndex] = useState<number>(
-    commitMetadata.length - 1
+
+  const {
+    data: rawData,
+    isLoading,
+    error,
+  } = useSWRImmutable(
+    startDate && endDate
+      ? `/api/flaky-tests/fileReport?${encodeParams({
+          startDate: startDate.unix().toString(),
+          endDate: endDate.unix().toString(),
+        })}`
+      : null,
+    fetcher
   );
-
-  let data = useWeeksData(commitMetadata, headShaIndex).map((item, index) => ({
-    ...item,
-    id: index,
-  }));
-
-  useEffect(() => {
-    if (headShaIndex == -1 && commitMetadata.length > 0) {
-      setHeadShaIndex(commitMetadata.length - 1);
-    }
-  }, [commitMetadata, headShaIndex]);
 
   useEffect(() => {
     // Sync filters from the router query params in one effect to avoid
@@ -892,6 +879,40 @@ export default function Page() {
     );
   }, [router.query]);
 
+  let {
+    results: data,
+    costInfo,
+    shas,
+    testOwnerLabels,
+  } = rawData || {
+    results: [],
+    costInfo: [],
+    shas: [],
+    testOwnerLabels: [],
+  };
+
+  data = data.map((row: any, index: number) => {
+    const match = costInfo.find((r: any) => r.label === row.label);
+    const ownerLabels = testOwnerLabels.find(
+      (r: any) => r.file === `${row.file}.py`
+    );
+    const commit = shas.find((s: any) => s.sha === row.sha);
+    const { workflow_name, job_name, ...rest } = row;
+    return {
+      ...rest,
+      id: index,
+      cost: (row.time * (match?.price_per_hour ?? 0)) / 3600,
+      short_job_name: `${workflow_name} / ${job_name}`,
+      labels: ownerLabels ? ownerLabels.owner_labels : ["unknown"],
+      push_date: commit ? commit.push_date : 0,
+      sha: commit ? commit.sha : "unknown",
+    };
+  });
+
+  shas.forEach((commit: any, index: number) => {
+    commit.id = index;
+  });
+
   if (!router.isReady) {
     return <LoadingPage />;
   }
@@ -912,7 +933,9 @@ export default function Page() {
     return fileMatch && jobMatch && labelMatch;
   }
 
-  data = data.filter(rowMatchesFilters);
+  const filteredData = data.filter(rowMatchesFilters);
+  data = filteredData;
+
   return (
     <Stack spacing={4}>
       <Stack direction="row" spacing={2}>
@@ -954,20 +977,23 @@ export default function Page() {
           Select a commit to view data from the week leading up to that commit.
         </Typography>
       </Stack>
-      <Select
-        name="commit"
-        value={headShaIndex}
-        onChange={(e) => {
-          const selectedIndex = e.target.value;
-          setHeadShaIndex(selectedIndex);
-        }}
-      >
-        {commitMetadata.map((commit, index) => (
-          <MenuItem value={index} key={index}>
-            {commit.sha.slice(0, 7)} ({formatTimestamp(commit.push_date)})
-          </MenuItem>
-        ))}
-      </Select>
+      <Stack direction="row" spacing={2} alignItems="center">
+        <Typography variant="body2">Date Range:</Typography>
+        <LocalizationProvider dateAdapter={AdapterDayjs}>
+          <DateTimePicker
+            label="Start Date & Time"
+            value={startDate}
+            onChange={(newValue) => setStartDate(newValue)}
+            slotProps={{ textField: { size: "small" } }}
+          />
+          <DateTimePicker
+            label="End Date & Time"
+            value={endDate}
+            onChange={(newValue) => setEndDate(newValue)}
+            slotProps={{ textField: { size: "small" } }}
+          />
+        </LocalizationProvider>
+      </Stack>
       <Box
         component="form"
         noValidate
@@ -1067,23 +1093,9 @@ export default function Page() {
           Clear Filters
         </Button>
       </Box>
-      <CommitInfo data={data} />
-      <Overview
-        data={data}
-        setFileFilter={(input) => {
-          setFileFilter(input);
-          setFileRegex(false);
-        }}
-        setJobFilter={(input) => {
-          setJobFilter(input);
-          setJobRegex(false);
-        }}
-        setLabelFilter={(input) => {
-          setLabelFilter(input);
-          setLabelRegex(false);
-        }}
-      />
+      <CommitTimeline data={shas} />
       <Diffs
+        shas={shas}
         data={data}
         setFileFilter={(input) => {
           setFileFilter(input);
@@ -1099,16 +1111,10 @@ export default function Page() {
         <Typography variant="h6">Status Changes</Typography>
         <Typography variant="body1">
           This table lists the tests that were added, removed, started skipping,
-          or stopped skipping. This will only show at most 50 entries per commit
-          pair due to file size.
+          or stopped skipping. This will only show at most 200 entries due to
+          API limits.
         </Typography>
-        <TestStatus
-          shas={commitMetadata.slice(
-            headShaIndex - 7 >= 0 ? headShaIndex - 7 : 0,
-            headShaIndex + 1
-          )}
-          rowMatchesFilters={rowMatchesFilters}
-        />
+        <TestStatus shas={shas} data={data} />
       </Stack>
     </Stack>
   );
