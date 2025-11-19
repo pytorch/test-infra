@@ -18,6 +18,7 @@ on:
           - tensorrt
           - data
           - fbgemm
+          - mslk
           - executorch
           - torchtune
           - torchcodec
@@ -81,6 +82,14 @@ jobs:
           repository: pytorch/fbgemm
           token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           path: fbgemm
+      - name: Trigger nightly mslk build
+        if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'mslk' || inputs.domain == 'all' }}
+        uses: ./.github/actions/trigger-nightly
+        with:
+          ref: main
+          repository: meta-pytorch/fbgemm
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
+          path: mslk
       - name: Trigger nightly executorch build
         if: ${{ github.event_name == 'schedule' ||  inputs.domain == 'executorch' || inputs.domain == 'all' }}
         uses: ./.github/actions/trigger-nightly
