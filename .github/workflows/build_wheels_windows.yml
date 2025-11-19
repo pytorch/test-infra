@@ -163,7 +163,7 @@ jobs:
       - name: Install XPU support package
         if: ${{ matrix.gpu_arch_type == 'xpu' }}
         env:
-          XPU_VERSION: '2025.2'
+          XPU_VERSION: '2025.3'
         run: |
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Checkout Target Repository (${{ env.REPOSITORY }})
