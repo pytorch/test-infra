@@ -473,6 +473,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "onemkl-sycl-lapack": [{"version": "latest", "project": "torch_xpu"}],
     "onemkl-sycl-sparse": [{"version": "latest", "project": "torch_xpu"}],
     "onemkl-sycl-rng": [{"version": "latest", "project": "torch_xpu"}],
+    "onemkl-license": [{"version": "latest", "project": "torch_xpu"}],
     "mkl": [{"version": "latest", "project": "torch_xpu"}],
     # vLLM
     "ninja": [{"version": "latest", "project": "vllm"}],
