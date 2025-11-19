@@ -139,14 +139,18 @@ class BenchmarkSummaryProcessor:
         target, ls, le = self.get_target(config, self.end_time)
         if not target.time_series:
             self.log_info(
-                f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
+                "skip generate report. no target data found"
+                f"for time range [{format_ts_with_t(ls)},{format_ts_with_t(le)}]"
+                f"with frequency {report_freq.get_text()}..."
             )
             return
         baseline, bs, be = self.get_baseline(config, self.end_time)
 
         if not baseline.time_series:
             self.log_info(
-                f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
+                "skip generate report. no baseline data found for"
+                f"time range[{format_ts_with_t(bs)},{format_ts_with_t(be)}]"
+                f"with frequency {report_freq.get_text()}..."
             )
             return
         generator = BenchmarkRegressionReportGenerator(
@@ -170,7 +174,7 @@ class BenchmarkSummaryProcessor:
         target_s = end_time - data_range.comparison_timedelta_s()
         target_e = end_time
         self.log_info(
-            "getting target data for time range "
+            "getting target data (newest) for time range "
             f"[{format_ts_with_t(target_s)},{format_ts_with_t(target_e)}] ..."
         )
         target_data = self._fetch_from_benchmark_ts_api(
@@ -180,7 +184,9 @@ class BenchmarkSummaryProcessor:
             source=config.source,
         )
         self.log_info(
-            f"done. found {len(target_data.time_series)} # of data groups, with time range {target_data.time_range}",
+            "Done fetching target data (newest)."
+            f"found {len(target_data.time_series)} # of groups,"
+            f"with time range {target_data.time_range}",
         )
         if not target_data.time_range or not target_data.time_range.end:
             return None, target_s, target_e
@@ -207,7 +213,9 @@ class BenchmarkSummaryProcessor:
         )
 
         self.log_info(
-            f"Done. found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
+            "Done fetching baseline data."
+            f"found {len(raw_data.time_series)} # of data,"
+            f"with time range {raw_data.time_range}"
         )
 
         baseline_latest_ts = int(isoparse(raw_data.time_range.end).timestamp())
@@ -237,7 +245,9 @@ class BenchmarkSummaryProcessor:
 
         if latest_ts >= cutoff:
             return True
-        self.log_info(f"expect latest data to be after {cutoff}, but got {latest_ts}")
+        self.log_info(
+            f"expect latest data to be after unixtime {format_ts_with_t(cutoff)}, but got {format_ts_with_t(latest_ts)}"
+        )
         return False
 
     def _fetch_from_benchmark_ts_api(
