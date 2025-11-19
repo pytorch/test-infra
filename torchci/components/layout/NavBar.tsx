@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
-import { NavBarGroupDropdown } from "./NavBarGroupDropdown";
+import { NavBarGroupDropdown, NavItem } from "./NavBarGroupDropdown";
 
 const NavBarDropdown = ({
   title,
@@ -89,7 +89,7 @@ const NavBarDropdown = ({
 function NavBar() {
   const benchmarkDropdown = benchmarkNavGroup;
 
-  const devInfraDropdown = [
+  const devInfraDropdown: NavItem[] = [
     {
       name: "TTS",
       href: "/tts",
@@ -147,7 +147,11 @@ function NavBar() {
       name: "Test File Reports",
       href: "/tests/fileReport",
     },
-  ];
+  ].map((item) => ({
+    label: item.name,
+    route: item.href,
+    type: "item",
+  }));
 
   const metricsDropdown = [
     {
@@ -245,7 +249,7 @@ function NavBar() {
           </li>
           <NavBarGroupDropdown title="Benchmarks" items={benchmarkDropdown} />{" "}
           <NavBarDropdown title="Metrics" items={metricsDropdown} />
-          <NavBarDropdown title="Dev Infra" items={devInfraDropdown} />
+          <NavBarGroupDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
           >
