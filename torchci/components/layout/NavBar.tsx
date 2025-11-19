@@ -145,8 +145,8 @@ function NavBar() {
     },
     {
       name: "Test File Reports",
-      href: "/tests/fileReport"
-    }
+      href: "/tests/fileReport",
+    },
   ];
 
   const metricsDropdown = [
