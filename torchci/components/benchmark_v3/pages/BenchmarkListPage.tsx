@@ -27,7 +27,7 @@ export function benchmarkCategoryCardToNavGroup(
     .map((c: BenchmarkCategoryGroup) => {
       if (c.items.length === 1) {
         const item: NavItem = {
-          label: c.title,
+          label: c.items[0].name,
           route: c.items[0].route,
           type: "item",
         };
@@ -50,7 +50,7 @@ export function benchmarkCategoryCardToNavGroup(
           : 1
         : a.label.localeCompare(b.label)
     );
-    console.log("benchmark nav items:", items);
+  console.log("benchmark nav items:", items);
 
   return [
     ...items,
