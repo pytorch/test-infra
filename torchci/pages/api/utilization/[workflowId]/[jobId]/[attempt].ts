@@ -8,6 +8,7 @@ export default async function handler(
   res: NextApiResponse
 ) {
   const { workflowId, jobId, attempt } = req.query;
+
   if (workflowId === undefined || jobId === undefined || attempt == undefined) {
     return res.status(200).json({});
   }

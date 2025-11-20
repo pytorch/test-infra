@@ -9,8 +9,9 @@ const JobUtilization = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
 
+  let shouldFetch = workflowId && jobId;
   let { data, error } = useSWRImmutable(
-    `/api/utilization/${workflowId}/${jobId}/${attempt}`,
+    shouldFetch ? `/api/utilization/${workflowId}/${jobId}/${attempt}` : null,
     fetcherHandleError,
     {
       errorRetryCount: 3,

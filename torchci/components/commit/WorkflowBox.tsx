@@ -1,5 +1,9 @@
 import { Button, Stack, styled, Tooltip, Typography } from "@mui/material";
-import { isPending, TestInfo } from "components/additionalTestInfo/TestInfo";
+import {
+  isPending,
+  isPendingJob,
+  TestInfo,
+} from "components/additionalTestInfo/TestInfo";
 import styles from "components/commit/commit.module.css";
 import LogViewer, { SearchLogViewer } from "components/common/log/LogViewer";
 import { durationDisplay } from "components/common/TimeUtils";
@@ -97,18 +101,13 @@ function WorkflowJobSummary({
       </JobButton>
     );
   }
-  if (utilMetadata && utilMetadata.length > 0) {
-    if (utilMetadata.length > 1) {
-      console.log(
-        `Multiple util metadata found for job ${job.id}, currently only showing the first one`
-      );
-    }
-    const m = utilMetadata[0];
+  if (job.id && !isPendingJob(job)) {
+    const m = job;
     subInfo.push(
       <>
         <JobButton
           variant="outlined"
-          href={`/utilization/${m.workflow_id}/${m.job_id}/${m.run_attempt}`}
+          href={`/utilization/${m.workflowId}/${m.id}/${m.runAttempt}`}
           data-ga-action="utilization_report_click"
           data-ga-label="nav_button"
           data-ga-category="user_interaction"
