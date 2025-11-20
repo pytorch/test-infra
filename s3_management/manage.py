@@ -219,6 +219,7 @@ PACKAGE_ALLOW_LIST = {
         "torchvision_extra_decoders",
         "triton",
         "tqdm",
+        "typing_extensions",
         "typing_inspect",
         "urllib3",
         "xformers",
