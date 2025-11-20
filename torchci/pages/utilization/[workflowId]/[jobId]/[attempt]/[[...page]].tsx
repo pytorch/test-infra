@@ -11,7 +11,7 @@ const JobUtilization = () => {
 
   let shouldFetch = workflowId && jobId;
   let { data, error } = useSWRImmutable(
-    shouldFetch ? `/api/utilization/${workflowId}/${jobId}/${attempt}` : null,
+    shouldFetch ? `/api/job_utilization/${workflowId}/${jobId}/${attempt}` : null,
     fetcherHandleError,
     {
       errorRetryCount: 3,
