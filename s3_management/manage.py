@@ -620,8 +620,6 @@ class S3Index:
 
             for bucket in INDEX_BUCKETS:
                 print(f"INFO Uploading {subdir}/index.html to {bucket.name}")
-                print(f"{index_html}")
-
                 bucket.Object(key=f"{subdir}/index.html").put(
                     ACL="public-read",
                     CacheControl="no-cache,no-store,must-revalidate",
