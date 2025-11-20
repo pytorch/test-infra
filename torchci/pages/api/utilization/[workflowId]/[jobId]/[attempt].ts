@@ -18,6 +18,17 @@ export default async function handler(
   };
 
   try {
+    // TODO: get better validation
+    if (
+      isNaN(parseInt(params.run_attempt)) ||
+      isNaN(parseInt(params.workflow_id)) ||
+      isNaN(parseInt(params.job_id))
+    ) {
+      return res
+        .status(400)
+        .json({ error: `Invalid parameters: ${JSON.stringify(params)}` });
+    }
+
     const utilData = await fetchUtilization(params);
     if (utilData == null) {
       return res
