@@ -50,7 +50,6 @@ export function benchmarkCategoryCardToNavGroup(
           : 1
         : a.label.localeCompare(b.label)
     );
-  console.log("benchmark nav items:", items);
 
   return [
     ...items,
