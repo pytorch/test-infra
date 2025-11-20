@@ -9,10 +9,6 @@ const JobUtilization = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
 
-  if (!workflowId || !jobId) {
-    return <LoadingPage />;
-  }
-
   let { data, error } = useSWRImmutable(
     `/api/utilization/${workflowId}/${jobId}/${attempt}`,
     fetcherHandleError,
