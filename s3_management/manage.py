@@ -574,15 +574,19 @@ class S3Index:
         prefix_to_search = f"{resolved_subdir}/"
         for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
             # Check if this is a packagename/index.html file
-            relative_key = obj.key[len(prefix_to_search):]
+            relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
             if len(parts) == 2 and parts[1] == "index.html":
                 package_name = parts[0].replace("-", "_")
                 # Convert back to the format used in wheel names (use _ not -)
                 # But we need to check if this package already has wheels
-                if package_name.lower() not in {p.lower() for p in packages_from_wheels}:
+                if package_name.lower() not in {
+                    p.lower() for p in packages_from_wheels
+                }:
                     packages_with_index_only.add(package_name)
-                    print(f"INFO: Including package '{package_name}' (has index.html but no wheels)")
+                    print(
+                        f"INFO: Including package '{package_name}' in {prefix_to_search} (has index.html but no wheels)"
+                    )
 
         # Combine both sets of packages
         all_packages = packages_from_wheels | packages_with_index_only
@@ -612,8 +616,11 @@ class S3Index:
     def upload_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
             index_html = self.to_simple_packages_html(subdir=subdir)
+
             for bucket in INDEX_BUCKETS:
                 print(f"INFO Uploading {subdir}/index.html to {bucket.name}")
+                print(f"{index_html}")
+
                 bucket.Object(key=f"{subdir}/index.html").put(
                     ACL="public-read",
                     CacheControl="no-cache,no-store,must-revalidate",
@@ -727,7 +734,7 @@ class S3Index:
                         obj.orig_key,
                     )
                     futures[idx] = future
-        
+
             for idx, future in futures.items():
                 response = future.result()
                 raw = response.get("ChecksumSHA256")
