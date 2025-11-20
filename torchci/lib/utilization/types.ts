@@ -7,6 +7,11 @@ export const EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE: ListUtilizationM
     metadata_list: [],
   };
 
+
+  export const EMPTY_LIST_WORKFLOWS_UTILIZATION_METADATA_INFO_API_RESPONSE: ListWorkflowsUtilizationMetadataInfoAPIResponse =
+  {
+     metadata_map: {},
+  };
 export interface UtilizationParams {
   workflow_id: string;
   job_id: string;
@@ -92,6 +97,13 @@ export interface UtilizationAggreStats {
   gpu_allocated_memory_max?: number;
   gpu_allocated_memory_avg?: number;
   gpu_allocated_memory_p90?: number;
+}
+
+
+export interface ListWorkflowsUtilizationMetadataInfoAPIResponse {
+  metadata_map:{
+    [key: number]: UtilizationMetadataInfo[];
+  }
 }
 
 /**

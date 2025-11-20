@@ -138,7 +138,7 @@ function useUtilMetadata(workflowId: string | undefined): {
   metaError: any;
 } {
   const { data, error } = useSWR<ListUtilizationMetadataInfoAPIResponse>(
-    `/api/list_utilization_metadata_info/${workflowId}?includes_stats=true`,
+    `/api/list_utilization_metadata_info/workflow/${workflowId}?includes_stats=true`,
     fetcher,
     {
       refreshInterval: 20 * 60 * 1000, // refresh every 20 minuts

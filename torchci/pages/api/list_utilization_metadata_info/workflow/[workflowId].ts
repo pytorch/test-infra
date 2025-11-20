@@ -1,5 +1,5 @@
 import { getErrorMessage } from "lib/error_utils";
-import fetchListUtilizationMetadataInfo from "lib/utilization/fetchListUtilizationMetadataInfo";
+import { fetchListUtilizationMetadataInfoForSingleWorkflow } from "lib/utilization/fetchListUtilizationMetadataInfo";
 import {
   EMPTY_LIST_UTILIZATION_METADATA_INFO_API_RESPONSE,
   ListUtilizationMetadataInfoParams,
@@ -26,7 +26,7 @@ export default async function handler(
   };
 
   try {
-    const resp = await fetchListUtilizationMetadataInfo(params);
+    const resp = await fetchListUtilizationMetadataInfoForSingleWorkflow(params);
     if (!resp) {
       return res
         .status(200)
