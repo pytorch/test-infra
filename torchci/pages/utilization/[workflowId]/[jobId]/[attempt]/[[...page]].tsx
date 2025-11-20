@@ -13,9 +13,7 @@ const JobUtilization = () => {
     `/api/utilization/${workflowId}/${jobId}/${attempt}`,
     fetcherHandleError,
     {
-      onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
-        if (retryCount >= 5) return;
-      }
+      errorRetryCount: 3,
     }
   );
 
