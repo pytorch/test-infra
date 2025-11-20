@@ -5,8 +5,7 @@ SELECT
     job_name,
     run_attempt,
     repo
-FROM
-    misc.oss_ci_utilization_metadata
+FROM misc.oss_ci_utilization_metadata
 WHERE
-    workflow_id = { workflowId: UInt64}
-    AND repo = {repo: String }
+    workflow_id IN {workflowIds: Array(UInt64)}
+    AND repo IN  {repos: Array(String)}

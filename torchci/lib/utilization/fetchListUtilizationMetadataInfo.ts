@@ -12,7 +12,7 @@ const LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME =
 const LIST_UTIL_METADATA_WITH_STATS_QUERY =
   "oss_ci_util/oss_ci_list_util_stats";
 
-export default async function fetchListUtilizationMetadataInfo(
+export async function fetchListUtilizationMetadataInfoForSingleWorkflow(
   params: ListUtilizationMetadataInfoParams
 ): Promise<ListUtilizationMetadataInfoAPIResponse> {
   let meta_resp = null;
@@ -29,8 +29,8 @@ export default async function fetchListUtilizationMetadataInfo(
       `[api][list_utilization_metadata_info][${params.workflow_id}]list util metadata without runtime aggregated stats`
     );
     meta_resp = await listUtilizationMetadataInfo(
-      params.workflow_id,
-      params.repo
+      [params.workflow_id],
+      params.repo? [params.repo] : [UTILIZATION_DEFAULT_REPO]
     );
   }
 
@@ -45,15 +45,15 @@ export default async function fetchListUtilizationMetadataInfo(
   };
 }
 
-async function listUtilizationMetadataInfo(
-  workflow_id: string,
-  repo: string = UTILIZATION_DEFAULT_REPO
+export async function listUtilizationMetadataInfo(
+  workflow_ids: string[],
+  repos: string[] = [UTILIZATION_DEFAULT_REPO]
 ) {
   const response = await queryClickhouseSaved(
     LIST_UTIL_METADATA_INFO_QUERY_FOLDER_NAME,
     {
-      workflowId: workflow_id,
-      repo: repo,
+      workflowIds: workflow_ids,
+      repo: repos,
     }
   );
   return response;
@@ -79,6 +79,7 @@ async function listUtilizationMetadataWithStats(
   }
   return res;
 }
+
 function toMetadata(metadata: any) {
   const data: UtilizationMetadataInfo = {
     workflow_id: metadata.workflow_id,
@@ -90,6 +91,7 @@ function toMetadata(metadata: any) {
   };
   return data;
 }
+
 function toUtilizationStats(metadata: any) {
   const stats: UtilizationAggreStats = {
     cpu_max: metadata.cpu_max,
