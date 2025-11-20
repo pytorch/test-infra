@@ -11,7 +11,12 @@ const JobUtilization = () => {
 
   let { data, error } = useSWRImmutable(
     `/api/utilization/${workflowId}/${jobId}/${attempt}`,
-    fetcherHandleError
+    fetcherHandleError,
+    {
+      onErrorRetry: (error, key, config, revalidate, { retryCount }) => {
+        if (retryCount >= 5) return;
+      }
+    }
   );
 
   if (error) {
