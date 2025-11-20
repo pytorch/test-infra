@@ -1,11 +1,6 @@
 name: Update S3 HTML dependencies for download.pytorch.org nightly and test
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - s3_management/update_dependencies.py
   workflow_dispatch:
     inputs:
       dryrun:
