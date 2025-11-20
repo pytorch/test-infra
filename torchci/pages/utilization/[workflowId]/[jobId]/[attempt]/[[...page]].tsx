@@ -9,7 +9,7 @@ const JobUtilization = () => {
   const router = useRouter();
   const { workflowId, jobId, attempt } = router.query;
 
-  if(!workflowId || !jobId) {
+  if (!workflowId || !jobId) {
     return <LoadingPage />;
   }
 
