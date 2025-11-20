@@ -725,7 +725,6 @@ class S3Index:
             futures = {}
             for idx, obj in enumerate(self.objects):
                 if obj.size is None:
-                    print(f"Fetching metadata for: {obj.orig_key}")
                     future = executor.submit(
                         lambda key: CLIENT.head_object(
                             Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
