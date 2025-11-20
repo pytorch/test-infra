@@ -257,4 +257,16 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
       },
     ],
   },
+  {
+    title: "ExecuTorch Benchmarks",
+    subtitle: "Benchmarks related to repo pytorch/executorch",
+    tags: ["repo:pytorch/executorch"],
+    items: [
+      {
+        name: "ExecuTorch Benchmark",
+        route: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
+        info: "Powered by [code](https://github.com/pytorch/executorch/tree/main/.github/workflows)",
+      },
+    ],
+  },
 ];
