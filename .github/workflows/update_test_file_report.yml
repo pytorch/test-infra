@@ -11,9 +11,9 @@ on:
 
 jobs:
   file-report:
-    if: >
-      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *') ||
-      (github.event_name == 'workflow_dispatch')
+    # if: >
+    #   (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *') ||
+    #   (github.event_name == 'workflow_dispatch')
     permissions:
       issues: write
     runs-on: linux.2xlarge
