@@ -89,12 +89,12 @@ TORCHAO_MICRO_API_CONFIG = BenchmarkConfig(
     hud_info={
         "url": "https://hud.pytorch.org/benchmark/v3/dashboard/torchao_micro_api_benchmark",
     },
-    # set baseline from past 4-8 days, and compare with the lastest 4 day
+    # set baseline from past 3-6 days, and compare with the lastest 4 day
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
         range=RangeConfig(
-            baseline=DayRangeWindow(value=4),
-            comparison=DayRangeWindow(value=4),
+            baseline=DayRangeWindow(value=3),
+            comparison=DayRangeWindow(value=3),
         ),
         metrics={
             "bfloat16 fwd time (ms)": RegressionPolicy(
@@ -152,12 +152,12 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
     hud_info={
         "url": "https://hud.pytorch.org/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
     },
-    # set baseline from past 4-8 days, and compare with the lastest 4 day
+    # set baseline from past 3-6 days, and compare with the lastest 4 day
     policy=Policy(
         frequency=Frequency(value=1, unit="days"),
         range=RangeConfig(
-            baseline=DayRangeWindow(value=4),
-            comparison=DayRangeWindow(value=4),
+            baseline=DayRangeWindow(value=3),
+            comparison=DayRangeWindow(value=3),
         ),
         metrics={
             "latency": RegressionPolicy(
