@@ -14,12 +14,10 @@ export default async function handler(
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
   if (!session?.user || !session?.accessToken) {
-    return res
-      .status(401)
-      .json({
-        error:
-          "Authentication required to require utilization data, please login in the main hud page",
-      });
+    return res.status(401).json({
+      error:
+        "Authentication required to require utilization data, please login in the main hud page",
+    });
   }
 
   if (!workflowId || !jobId || !attempt) {
