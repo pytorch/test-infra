@@ -48,14 +48,12 @@ const JobButton = styled(Button)({
 });
 function WorkflowJobSummary({
   job,
-  utilMetadata,
   artifacts,
   artifactsToShow,
   setArtifactsToShow,
   unstableIssues,
 }: {
   job: JobData;
-  utilMetadata?: UtilizationMetadataInfo[];
   artifacts?: Artifact[];
   artifactsToShow: Set<string>;
   setArtifactsToShow: any;
@@ -183,10 +181,6 @@ export default function WorkflowBox({
     : styles.workflowBoxSuccess;
 
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
-
-  const { utilMetadataList } = useUtilMetadata(workflowId?.toString());
-  const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
-
   const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
@@ -304,11 +298,6 @@ export default function WorkflowBox({
           <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
-              utilMetadata={
-                job.id
-                  ? groupUtilMetadataList.get(job.id.toString())
-                  : undefined
-              }
               artifacts={groupedArtifacts?.get(job.id?.toString())}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}
