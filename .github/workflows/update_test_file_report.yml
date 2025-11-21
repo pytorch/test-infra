@@ -42,7 +42,7 @@ jobs:
         run: |
           cd test-infra
           now=$(date +%s)
-          TWO_DAYS_AGO=$((now - 2*86400))
+          TWO_DAYS_AGO=$((now - 3*86400))
           python3 tools/torchci/test_insights/file_report_generator.py \
             --add-dates "$TWO_DAYS_AGO" "$now"
 
