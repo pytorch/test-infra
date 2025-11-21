@@ -361,7 +361,7 @@ jobs:
   upload-r2:
     needs: build
     uses: ./.github/workflows/_binary_upload_r2.yml
-    if: always()
+    if: false
     with:
       repository: ${{ inputs.repository }}
       ref: ${{ inputs.ref }}
