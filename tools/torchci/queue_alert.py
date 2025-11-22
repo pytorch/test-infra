@@ -113,6 +113,7 @@ def queuing_alert(dry_run: bool) -> None:
     response = requests.get(url, headers=fake_browser_headers())
     print(response.status_code)
     print(response.text)
+    print(response.raise_for_status())
     response = response.json()
 
     large_queue = filter_long_queues(response)
