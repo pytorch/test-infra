@@ -45,7 +45,7 @@ class BenchmarkTimeSeriesApiResponse:
 
     @classmethod
     def from_request(
-        cls, url: str, query: dict, timeout: int = 180
+        cls, url: str, query: dict, access_token:str, timeout: int = 180
     ) -> "BenchmarkTimeSeriesApiResponse":
         """
         Send a POST request and parse into BenchmarkTimeSeriesApiResponse.
@@ -62,14 +62,7 @@ class BenchmarkTimeSeriesApiResponse:
         """
 
         headers = {
-            # Looks like a real browser instead of python-requests
-            "User-Agent": (
-                "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                "AppleWebKit/537.36 (KHTML, like Gecko) "
-                "Chrome/120.0.0.0 Safari/537.36"
-            ),
-            "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
-            "Accept-Language": "en-US,en;q=0.9",
+            "x-hud-internal-bot": access_token,
         }
         resp = requests.post(url, json=query, timeout=timeout, headers=headers)
         resp.raise_for_status()
