@@ -4,7 +4,7 @@ import os
 import pathlib
 import subprocess
 from hashlib import sha256
-from typing import List, Union
+from typing import Any, List, Union
 
 
 FILE_CACHE_LIFESPAN_SECONDS = 60 * 60 * 24  # 1 day
@@ -66,3 +66,19 @@ def cache_json(func):
         return res
 
     return wrapper
+
+
+def fake_browser_headers() -> dict[str, Any]:
+    # Same as
+    # https://github.com/pytorch/test-infra/pull/7509/files#diff-de488f3b0cabe84bb81be2693e800c5736d35372778cb5c9944fe1301992a692L63
+    # TODO: get better auth tokens
+    return {
+        # Looks like a real browser instead of python-requests
+        "User-Agent": (
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/120.0.0.0 Safari/537.36"
+        ),
+        "Accept": "application/json,text/html;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
