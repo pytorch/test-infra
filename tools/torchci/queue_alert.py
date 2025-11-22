@@ -110,7 +110,10 @@ def queuing_alert(dry_run: bool) -> None:
     url = (
         "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
     )
-    response = requests.get(url, headers=fake_browser_headers()).json()
+    response = requests.get(url, headers=fake_browser_headers())
+    print(response.status_code)
+    print(response.text)
+    response = response.json()
 
     large_queue = filter_long_queues(response)
 
