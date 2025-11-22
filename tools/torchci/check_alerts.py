@@ -12,7 +12,6 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 from setuptools import distutils  # type: ignore[import]
-
 from torchci.utils import fake_browser_headers
 
 
