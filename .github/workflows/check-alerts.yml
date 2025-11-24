@@ -68,3 +68,5 @@ jobs:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+          AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
+          QUEUE_ALERT_AWS_LAMBDA_TOKEN: ${{ secrets.QUEUE_ALERT_AWS_LAMBDA_TOKEN }}
