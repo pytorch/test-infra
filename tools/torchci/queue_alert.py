@@ -124,7 +124,9 @@ def gen_issue(queues: List[QueueInfo]) -> Any:
 @lru_cache
 def get_queues() -> List[Dict[str, Any]]:
     # %7B%7D = encoded {}
-    url = "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+    url = (
+        "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+    )
     response = requests.get(url, headers=get_hud_headers())
     response.raise_for_status()
     return response.json()
