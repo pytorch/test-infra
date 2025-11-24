@@ -14,10 +14,16 @@ SELECT DISTINCT
     tupleElement(build, 'commit') AS commit,
     -- Determine build type
     if(
-        positionCaseInsensitive(tupleElement(build, 'message'), 'Full CI run - daily') > 0,
+        positionCaseInsensitive(
+            tupleElement(build, 'message'), 'Full CI run - daily'
+        )
+        > 0,
         'Daily',
         if(
-            positionCaseInsensitive(tupleElement(build, 'message'), 'Nightly run - All tests') > 0,
+            positionCaseInsensitive(
+                tupleElement(build, 'message'), 'Nightly run - All tests'
+            )
+            > 0,
             'Nightly',
             'Other'
         )
@@ -49,8 +55,13 @@ WHERE
     AND tupleElement(build, 'finished_at') >= {startTime: DateTime64(3)}
     AND tupleElement(build, 'finished_at') < {stopTime: DateTime64(3)}
     AND (
-        positionCaseInsensitive(tupleElement(build, 'message'), 'Full CI run - daily') > 0
-        OR positionCaseInsensitive(tupleElement(build, 'message'), 'Nightly run - All tests') > 0
+        positionCaseInsensitive(
+            tupleElement(build, 'message'), 'Full CI run - daily'
+        )
+        > 0
+        OR positionCaseInsensitive(
+            tupleElement(build, 'message'), 'Nightly run - All tests'
+        )
+        > 0
     )
 ORDER BY build_finished_at DESC
-

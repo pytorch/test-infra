@@ -71,7 +71,11 @@ function getStateColor(
   softFailed: boolean
 ): { bg: string; text: string } {
   const stateLower = state.toLowerCase();
-  if (stateLower === "passed" || stateLower === "finished" || stateLower === "success") {
+  if (
+    stateLower === "passed" ||
+    stateLower === "finished" ||
+    stateLower === "success"
+  ) {
     return { bg: COLOR_SUCCESS, text: "#fff" };
   }
   if (stateLower === "failed") {
@@ -154,10 +158,7 @@ export default function JobBuildsPanel({
   // Auto-select first job if nothing is selected or if selected job is no longer in the list
   React.useEffect(() => {
     if (sortedJobs.length > 0) {
-      if (
-        !selectedJob ||
-        !sortedJobs.some((j) => j.job_name === selectedJob)
-      ) {
+      if (!selectedJob || !sortedJobs.some((j) => j.job_name === selectedJob)) {
         setSelectedJob(sortedJobs[0].job_name);
       }
     }
@@ -224,7 +225,9 @@ export default function JobBuildsPanel({
                   <TableCell align="right">
                     <TableSortLabel
                       active={sortField === "total_runs"}
-                      direction={sortField === "total_runs" ? sortOrder : "desc"}
+                      direction={
+                        sortField === "total_runs" ? sortOrder : "desc"
+                      }
                       onClick={() => handleSort("total_runs")}
                     >
                       Runs
@@ -233,7 +236,9 @@ export default function JobBuildsPanel({
                   <TableCell align="right">
                     <TableSortLabel
                       active={sortField === "passed_count"}
-                      direction={sortField === "passed_count" ? sortOrder : "desc"}
+                      direction={
+                        sortField === "passed_count" ? sortOrder : "desc"
+                      }
                       onClick={() => handleSort("passed_count")}
                     >
                       ✓
@@ -242,7 +247,9 @@ export default function JobBuildsPanel({
                   <TableCell align="right">
                     <TableSortLabel
                       active={sortField === "failed_count"}
-                      direction={sortField === "failed_count" ? sortOrder : "desc"}
+                      direction={
+                        sortField === "failed_count" ? sortOrder : "desc"
+                      }
                       onClick={() => handleSort("failed_count")}
                     >
                       ✗
@@ -339,13 +346,19 @@ export default function JobBuildsPanel({
                     build.soft_failed
                   );
                   return (
-                    <TableRow key={`${build.build_number}-${build.build_id}`} hover>
+                    <TableRow
+                      key={`${build.build_number}-${build.build_id}`}
+                      hover
+                    >
                       <TableCell sx={{ fontFamily: "monospace" }}>
                         {build.build_number}
                       </TableCell>
                       <TableCell>
                         <Chip
-                          label={getStateLabel(build.job_state, build.soft_failed)}
+                          label={getStateLabel(
+                            build.job_state,
+                            build.soft_failed
+                          )}
                           size="small"
                           sx={{
                             backgroundColor: stateColors.bg,
@@ -383,7 +396,13 @@ export default function JobBuildsPanel({
                         </Tooltip>
                       </TableCell>
                       <TableCell align="right">
-                        <Box sx={{ display: "flex", gap: 0.5, justifyContent: "flex-end" }}>
+                        <Box
+                          sx={{
+                            display: "flex",
+                            gap: 0.5,
+                            justifyContent: "flex-end",
+                          }}
+                        >
                           <Link
                             href={build.job_url}
                             target="_blank"
@@ -425,4 +444,3 @@ export default function JobBuildsPanel({
     </Paper>
   );
 }
-

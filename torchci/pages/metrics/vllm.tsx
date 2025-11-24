@@ -16,10 +16,10 @@ import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPan
 import ContinuousBuildTracker from "components/metrics/vllm/ContinuousBuildTracker";
 import DockerBuildRuntimePanel from "components/metrics/vllm/DockerBuildRuntimePanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
+import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobGroupFilter, {
   JobGroup,
 } from "components/metrics/vllm/JobGroupFilter";
-import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import JobRuntimePanel from "components/metrics/vllm/JobRuntimePanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";

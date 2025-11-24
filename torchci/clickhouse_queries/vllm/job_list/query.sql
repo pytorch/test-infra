@@ -6,7 +6,11 @@
 SELECT
     tupleElement(job, 'name') AS job_name,
     COUNT(*) AS total_runs,
-    countIf(lowerUTF8(tupleElement(job, 'state')) IN ('passed', 'finished', 'success')) AS passed_count,
+    countIf(
+        lowerUTF8(tupleElement(job, 'state')) IN (
+            'passed', 'finished', 'success'
+        )
+    ) AS passed_count,
     countIf(lowerUTF8(tupleElement(job, 'state')) = 'failed') AS failed_count,
     max(tupleElement(job, 'finished_at')) AS last_run_at
 FROM vllm.vllm_buildkite_jobs
@@ -25,14 +29,19 @@ WHERE
         )
         OR (
             has({jobGroups: Array(String)}, 'torch_nightly')
-            AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') > 0
+            AND positionCaseInsensitive(
+                tupleElement(job, 'name'), 'Torch Nightly'
+            )
+            > 0
         )
         OR (
             has({jobGroups: Array(String)}, 'main')
             AND positionCaseInsensitive(tupleElement(job, 'name'), 'AMD') = 0
-            AND positionCaseInsensitive(tupleElement(job, 'name'), 'Torch Nightly') = 0
+            AND positionCaseInsensitive(
+                tupleElement(job, 'name'), 'Torch Nightly'
+            )
+            = 0
         )
     )
 GROUP BY job_name
 ORDER BY last_run_at DESC, total_runs DESC
-

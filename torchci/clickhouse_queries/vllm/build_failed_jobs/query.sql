@@ -27,4 +27,3 @@ WHERE
     AND lowerUTF8(tupleElement(job, 'state')) = 'failed'
     AND tupleElement(job, 'soft_failed') = FALSE
 ORDER BY job_name ASC
-

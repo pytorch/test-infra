@@ -10,7 +10,6 @@ import {
   TableContainer,
   TableHead,
   TableRow,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import dayjs from "dayjs";
@@ -217,7 +216,9 @@ export default function ContinuousBuildTracker({
                           label={build.build_type}
                           size="small"
                           sx={{
-                            backgroundColor: getBuildTypeColor(build.build_type),
+                            backgroundColor: getBuildTypeColor(
+                              build.build_type
+                            ),
                             color: "#fff",
                             fontSize: "0.7rem",
                             height: 20,
@@ -259,7 +260,9 @@ export default function ContinuousBuildTracker({
                       </TableCell>
                       <TableCell sx={{ fontSize: "0.85rem" }}>
                         {build.build_finished_at
-                          ? dayjs(build.build_finished_at).format("M/D/YY h:mm A")
+                          ? dayjs(build.build_finished_at).format(
+                              "M/D/YY h:mm A"
+                            )
                           : "-"}
                       </TableCell>
                       <TableCell align="right">
@@ -305,7 +308,9 @@ export default function ContinuousBuildTracker({
                 </Typography>
                 <Typography variant="caption" sx={{ color: "text.secondary" }}>
                   {selectedBuild.build_type} build from{" "}
-                  {dayjs(selectedBuild.build_finished_at).format("M/D/YY h:mm A")}
+                  {dayjs(selectedBuild.build_finished_at).format(
+                    "M/D/YY h:mm A"
+                  )}
                 </Typography>
               </Box>
             )}
@@ -381,4 +386,3 @@ export default function ContinuousBuildTracker({
     </Paper>
   );
 }
-

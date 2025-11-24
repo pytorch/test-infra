@@ -54,4 +54,3 @@ SELECT
     duration_hours
 FROM job_builds
 ORDER BY job_finished_at DESC
-
