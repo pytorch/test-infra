@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
+import ContinuousBuildTracker from "components/metrics/vllm/ContinuousBuildTracker";
 import DockerBuildRuntimePanel from "components/metrics/vllm/DockerBuildRuntimePanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
 import JobGroupFilter, {
@@ -406,6 +407,15 @@ export default function Page() {
     pipelineName: PIPELINE_NAME,
     jobGroups: selectedJobGroups,
   });
+
+  const { data: continuousBuildsData } = useClickHouseAPIImmutable(
+    "vllm/continuous_builds",
+    {
+      ...timeParams,
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+    }
+  );
 
   const { data: dockerBuildRuntimeData } = useClickHouseAPIImmutable(
     "vllm/docker_build_runtime",
@@ -886,6 +896,7 @@ export default function Page() {
           <Tab label="Duration Analysis" />
           <Tab label="Source Control" />
           <Tab label="Utilization & Cost" />
+          <Tab label="CI Builds" />
         </Tabs>
       </Box>
 
@@ -997,15 +1008,6 @@ export default function Page() {
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
               <UnreliableJobsTable data={jobReliabilityData} />
-            </Grid>
-          </DashboardRow>
-          <DashboardRow spacing={2}>
-            <Grid size={{ xs: 12 }} height={JOB_BUILDS_PANEL_HEIGHT}>
-              <JobBuildsPanel
-                data={jobListData}
-                timeParams={timeParams}
-                jobGroups={selectedJobGroups}
-              />
             </Grid>
           </DashboardRow>
         </>
@@ -1135,6 +1137,29 @@ export default function Page() {
                 </Grid>
               </>
             )}
+          </DashboardRow>
+        </>
+      )}
+
+      {/* Tab 4: CI Builds */}
+      {selectedTab === 4 && (
+        <>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12 }} height={JOB_BUILDS_PANEL_HEIGHT}>
+              <ContinuousBuildTracker
+                data={continuousBuildsData}
+                timeParams={timeParams}
+              />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12 }} height={JOB_BUILDS_PANEL_HEIGHT}>
+              <JobBuildsPanel
+                data={jobListData}
+                timeParams={timeParams}
+                jobGroups={selectedJobGroups}
+              />
+            </Grid>
           </DashboardRow>
         </>
       )}
