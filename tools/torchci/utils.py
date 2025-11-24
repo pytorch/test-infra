@@ -69,8 +69,14 @@ def cache_json(func):
 
 
 def get_hud_headers() -> dict[str, Any]:
-    # Get headers for requests to the HUD API.  This includes the
-    # x-hud-internal-bot header which is required for authentication.
+    """
+    Get headers for requests to the HUD API.  This includes the
+    x-hud-internal-bot header which is required for authentication. If the
+    HUD_API_TOKEN environment variable is not set, this function returns an
+    empty dictionary.
+    """
+    if "HUD_API_TOKEN" not in os.environ:
+        return {}
     return {
         # Looks like a real browser instead of python-requests
         "x-hud-internal-bot": os.environ["HUD_API_TOKEN"],
