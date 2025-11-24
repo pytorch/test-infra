@@ -12,14 +12,15 @@ import {
   Typography,
 } from "@mui/material";
 import CiDurationsPanel from "components/metrics/vllm/CiDurationsPanel";
+import CiStabilityTrendPanel from "components/metrics/vllm/CiStabilityTrendPanel";
 import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPanel";
 import ContinuousBuildTracker from "components/metrics/vllm/ContinuousBuildTracker";
 import DockerBuildRuntimePanel from "components/metrics/vllm/DockerBuildRuntimePanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
-import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobGroupFilter, {
   JobGroup,
 } from "components/metrics/vllm/JobGroupFilter";
+import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import JobRuntimePanel from "components/metrics/vllm/JobRuntimePanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
@@ -571,6 +572,58 @@ export default function Page() {
       ? null
       : 1 - trunkHealthPct;
 
+  // Calculate CI health volatility metrics
+  // Volatility = standard deviation of daily trunk health percentages
+  const dailyHealthPercentages =
+    trunkHealthData === undefined
+      ? undefined
+      : Object.entries(buildsByDay).map(([day, builds]) => {
+          const sortedBuilds = _.sortBy(builds, "build_started_at");
+          const mostRecent = sortedBuilds[sortedBuilds.length - 1];
+          return mostRecent?.is_green === 1 ? 1.0 : 0.0;
+        });
+
+  const ciHealthVolatility =
+    dailyHealthPercentages === undefined
+      ? undefined
+      : dailyHealthPercentages.length === 0
+      ? null
+      : (() => {
+          const mean = _.mean(dailyHealthPercentages);
+          const squaredDiffs = dailyHealthPercentages.map((x) =>
+            Math.pow(x - mean, 2)
+          );
+          const variance = _.mean(squaredDiffs);
+          return Math.sqrt(variance);
+        })();
+
+  // Count state transitions (green->red or red->green)
+  const stateTransitions =
+    dailyHealthPercentages === undefined
+      ? undefined
+      : dailyHealthPercentages.length <= 1
+      ? 0
+      : dailyHealthPercentages.reduce((count, current, index) => {
+          if (index === 0) return 0;
+          const previous = dailyHealthPercentages[index - 1];
+          return current !== previous ? count + 1 : count;
+        }, 0);
+
+  // Calculate stability score (lower volatility + fewer transitions = higher score)
+  // Score from 0-100, where 100 is perfect stability
+  const ciStabilityScore =
+    ciHealthVolatility === undefined || stateTransitions === undefined
+      ? undefined
+      : ciHealthVolatility === null || stateTransitions === null
+      ? null
+      : (() => {
+          const volatilityPenalty = ciHealthVolatility * 50; // 0-50 penalty
+          const transitionPenalty =
+            Math.min(stateTransitions / (dailyHealthPercentages?.length || 1), 1) *
+            50; // 0-50 penalty
+          return Math.max(0, 100 - volatilityPenalty - transitionPenalty) / 100;
+        })();
+
   // Calculate previous period metrics for deltas
   const prevReliabilityPoints = (prevReliabilityData || []) as any[];
   const prevTotalPassed = _.sumBy(prevReliabilityPoints, "passed_count");
@@ -609,6 +662,56 @@ export default function Page() {
       : prevTrunkHealthPct === null
       ? null
       : 1 - prevTrunkHealthPct;
+
+  // Calculate previous period volatility metrics
+  const prevDailyHealthPercentages =
+    prevTrunkHealthData === undefined
+      ? undefined
+      : Object.entries(prevBuildsByDay).map(([day, builds]) => {
+          const sortedBuilds = _.sortBy(builds, "build_started_at");
+          const mostRecent = sortedBuilds[sortedBuilds.length - 1];
+          return mostRecent?.is_green === 1 ? 1.0 : 0.0;
+        });
+
+  const prevCiHealthVolatility =
+    prevDailyHealthPercentages === undefined
+      ? undefined
+      : prevDailyHealthPercentages.length === 0
+      ? null
+      : (() => {
+          const mean = _.mean(prevDailyHealthPercentages);
+          const squaredDiffs = prevDailyHealthPercentages.map((x) =>
+            Math.pow(x - mean, 2)
+          );
+          const variance = _.mean(squaredDiffs);
+          return Math.sqrt(variance);
+        })();
+
+  const prevStateTransitions =
+    prevDailyHealthPercentages === undefined
+      ? undefined
+      : prevDailyHealthPercentages.length <= 1
+      ? 0
+      : prevDailyHealthPercentages.reduce((count, current, index) => {
+          if (index === 0) return 0;
+          const previous = prevDailyHealthPercentages[index - 1];
+          return current !== previous ? count + 1 : count;
+        }, 0);
+
+  const prevCiStabilityScore =
+    prevCiHealthVolatility === undefined || prevStateTransitions === undefined
+      ? undefined
+      : prevCiHealthVolatility === null || prevStateTransitions === null
+      ? null
+      : (() => {
+          const volatilityPenalty = prevCiHealthVolatility * 50;
+          const transitionPenalty =
+            Math.min(
+              prevStateTransitions / (prevDailyHealthPercentages?.length || 1),
+              1
+            ) * 50;
+          return Math.max(0, 100 - volatilityPenalty - transitionPenalty) / 100;
+        })();
 
   const prevManualMergedFailures =
     prevMergesData === undefined || prevMergesData.length === 0
@@ -675,6 +778,12 @@ export default function Page() {
   const manualMergedPctDelta = calculateDelta(
     manualMergedPct,
     prevManualMergedPct
+  );
+
+  // Calculate deltas for volatility metrics
+  const ciStabilityScoreDelta = calculateDelta(
+    ciStabilityScore,
+    prevCiStabilityScore
   );
 
   // Calculate deltas for time to first review
@@ -815,6 +924,21 @@ export default function Page() {
           height={METRIC_CARD_HEIGHT}
           metrics={[
             {
+              title: "CI Stability Score",
+              value: ciStabilityScore,
+              valueRenderer: formatPercentage,
+              badThreshold: (v) => (v ?? 1) < 0.7,
+              tooltip:
+                "Measures consistency of trunk health over time (0-100%). Penalizes both volatility (daily health swings) and frequent state changes (green↔red flips). Higher is better. Low scores indicate unpredictable CI that frequently oscillates between passing and failing.",
+              delta: ciStabilityScoreDelta,
+            },
+          ]}
+        />
+        <MetricColumn
+          size={{ xs: 6, md: 3, lg: 2 }}
+          height={METRIC_CARD_HEIGHT}
+          metrics={[
+            {
               title: "% commits on red",
               value: commitsOnRedPct,
               valueRenderer: formatPercentage,
@@ -940,6 +1064,23 @@ export default function Page() {
               height={METRIC_CARD_HEIGHT}
               metrics={[
                 {
+                  title: "State Transitions",
+                  value:
+                    stateTransitions === undefined ? undefined : stateTransitions,
+                  valueRenderer: formatCount,
+                  badThreshold: (v) =>
+                    (v ?? 0) > (dailyHealthPercentages?.length || 1) * 0.3,
+                  tooltip:
+                    "Number of times trunk flipped between green (healthy) and red (broken) states. Lower is better. High values indicate frequent CI instability. Calculated over the selected time period.",
+                  delta: null,
+                },
+              ]}
+            />
+            <MetricColumn
+              size={{ xs: 6, md: 3, lg: 2 }}
+              height={METRIC_CARD_HEIGHT}
+              metrics={[
+                {
                   title: "% Jobs Retried",
                   value: overallRetryRate,
                   valueRenderer: formatPercentage,
@@ -971,28 +1112,28 @@ export default function Page() {
               <ReliabilityPanel data={reliabilityData} />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <RetryTrendPanel data={retryData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <CiStabilityTrendPanel data={trunkHealthData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <TrunkHealthTrendPanel data={dailyTrunkHealthData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <CommitsOnRedTrendPanel data={dailyTrunkHealthData} />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
               <ReliabilityTrendPanel data={reliabilityData} />
             </Grid>
           </DashboardRow>
           <DashboardRow spacing={2}>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-              <TrunkHealthTrendPanel data={dailyTrunkHealthData} />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-              <CommitsOnRedTrendPanel data={dailyTrunkHealthData} />
-            </Grid>
-          </DashboardRow>
-          <DashboardRow spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-              <RetryTrendPanel data={retryData} />
-            </Grid>
-            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
               <MostRetriedJobsTable data={jobRetryStatsData} />
-            </Grid>
-          </DashboardRow>
-          <DashboardRow spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-              <TrunkHealthPanel data={trunkHealthData} />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
               <TrunkRecoveryPanel
@@ -1004,9 +1145,14 @@ export default function Page() {
           </DashboardRow>
           <DashboardRow spacing={2}>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-              <JobReliabilityPanel data={jobReliabilityData} />
+              <TrunkHealthPanel data={trunkHealthData} />
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
+              <JobReliabilityPanel data={jobReliabilityData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
               <UnreliableJobsTable data={jobReliabilityData} />
             </Grid>
           </DashboardRow>
