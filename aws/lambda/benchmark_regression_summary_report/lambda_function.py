@@ -139,13 +139,15 @@ class BenchmarkSummaryProcessor:
                 f"with frequency {report_freq.get_text()}..."
             )
 
-        target, ls, le = self.get_target(config, self.end_time,self.hud_access_token)
+        target, ls, le = self.get_target(config, self.end_time, self.hud_access_token)
         if not target.time_series:
             self.log_info(
                 f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
             return
-        baseline, bs, be = self.get_baseline(config, self.end_time, self.hud_access_token)
+        baseline, bs, be = self.get_baseline(
+            config, self.end_time, self.hud_access_token
+        )
 
         if not baseline.time_series:
             self.log_info(
@@ -199,7 +201,9 @@ class BenchmarkSummaryProcessor:
             return None, target_s, target_e
         return target_data, target_s, target_e
 
-    def get_baseline(self, config: BenchmarkConfig, end_time: int, hud_access_token: str):
+    def get_baseline(
+        self, config: BenchmarkConfig, end_time: int, hud_access_token: str
+    ):
         data_range = config.policy.range
         baseline_s = end_time - data_range.total_timedelta_s()
         baseline_e = end_time - data_range.comparison_timedelta_s()
@@ -501,6 +505,7 @@ def parse_args() -> argparse.Namespace:
     parser.set_defaults(dry_run=True)  # default is True
     args, _ = parser.parse_known_args()
     return args
+
 
 def local_run() -> None:
     """

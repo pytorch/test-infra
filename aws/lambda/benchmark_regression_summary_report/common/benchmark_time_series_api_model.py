@@ -45,7 +45,7 @@ class BenchmarkTimeSeriesApiResponse:
 
     @classmethod
     def from_request(
-        cls, url: str, query: dict, access_token:str, timeout: int = 180
+        cls, url: str, query: dict, access_token: str, timeout: int = 180
     ) -> "BenchmarkTimeSeriesApiResponse":
         """
         Send a POST request and parse into BenchmarkTimeSeriesApiResponse.
