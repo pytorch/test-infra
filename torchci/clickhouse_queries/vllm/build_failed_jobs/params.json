@@ -1,0 +1,14 @@
+{
+  "params": {
+    "repo": "String",
+    "pipelineName": "String",
+    "buildNumber": "UInt32"
+  },
+  "tests": [
+    {
+      "repo": "https://github.com/vllm-project/vllm.git",
+      "pipelineName": "CI",
+      "buildNumber": 12345
+    }
+  ]
+}
