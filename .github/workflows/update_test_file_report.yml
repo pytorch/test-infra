@@ -53,6 +53,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
           TEST_REPORT_AWS_LAMBDA_TOKEN: ${{ secrets.TEST_REPORT_AWS_LAMBDA_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
         run: |
           cd test-infra
           python3 tools/torchci/test_insights/daily_regression.py
