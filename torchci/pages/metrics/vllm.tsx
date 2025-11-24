@@ -18,6 +18,7 @@ import DurationDistributionPanel from "components/metrics/vllm/DurationDistribut
 import JobGroupFilter, {
   JobGroup,
 } from "components/metrics/vllm/JobGroupFilter";
+import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import JobRuntimePanel from "components/metrics/vllm/JobRuntimePanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
@@ -39,6 +40,7 @@ import {
 import {
   DEFAULT_MIN_RUNS_JOB_RELIABILITY,
   DEFAULT_MIN_RUNS_RETRY_STATS,
+  JOB_BUILDS_PANEL_HEIGHT,
   JOB_RUNTIME_PANEL_HEIGHT,
   METRIC_CARD_HEIGHT,
   PIPELINE_NAME,
@@ -397,6 +399,13 @@ export default function Page() {
       jobGroups: selectedJobGroups,
     }
   );
+
+  const { data: jobListData } = useClickHouseAPIImmutable("vllm/job_list", {
+    ...timeParams,
+    repo: VLLM_REPO_URL,
+    pipelineName: PIPELINE_NAME,
+    jobGroups: selectedJobGroups,
+  });
 
   const { data: dockerBuildRuntimeData } = useClickHouseAPIImmutable(
     "vllm/docker_build_runtime",
@@ -988,6 +997,15 @@ export default function Page() {
             </Grid>
             <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
               <UnreliableJobsTable data={jobReliabilityData} />
+            </Grid>
+          </DashboardRow>
+          <DashboardRow spacing={2}>
+            <Grid size={{ xs: 12 }} height={JOB_BUILDS_PANEL_HEIGHT}>
+              <JobBuildsPanel
+                data={jobListData}
+                timeParams={timeParams}
+                jobGroups={selectedJobGroups}
+              />
             </Grid>
           </DashboardRow>
         </>

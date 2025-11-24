@@ -6,6 +6,7 @@
 export const ROW_HEIGHT = 375;
 export const METRIC_CARD_HEIGHT = 200;
 export const JOB_RUNTIME_PANEL_HEIGHT = ROW_HEIGHT + 150;
+export const JOB_BUILDS_PANEL_HEIGHT = 600;
 
 // ============================================================================
 // Repository Constants
