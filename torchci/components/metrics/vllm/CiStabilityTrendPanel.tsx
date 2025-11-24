@@ -226,4 +226,3 @@ export default function CiStabilityTrendPanel({
     />
   );
 }
-

@@ -423,6 +423,7 @@ export default function Page() {
     {
       ...timeParams,
       repo: VLLM_REPO_URL,
+      jobName: ":docker: build image",
     }
   );
 

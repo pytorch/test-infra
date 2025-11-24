@@ -1,6 +1,6 @@
--- vLLM Docker Build Image Runtime Trends (main branch only)
--- Tracks runtime for the ":docker: build image" job specifically
--- This is a critical job for build speed monitoring
+-- vLLM Single Job Runtime Trends (main branch only)
+-- Tracks runtime for a specific job (parameterized for reusability)
+-- Default use case: ":docker: build image" job for build speed monitoring
 
 WITH jobs AS (
     SELECT
@@ -13,7 +13,7 @@ WITH jobs AS (
     WHERE
         tupleElement(pipeline, 'repository') = {repo: String }
         AND tupleElement(build, 'branch') = 'main'
-        AND tupleElement(job, 'name') = ':docker: build image'
+        AND tupleElement(job, 'name') = {jobName: String}
         AND tupleElement(job, 'started_at') IS NOT NULL
         AND tupleElement(job, 'finished_at') IS NOT NULL
         AND tupleElement(job, 'started_at') >= {startTime: DateTime64(3) }
