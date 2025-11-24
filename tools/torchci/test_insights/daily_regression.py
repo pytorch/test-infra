@@ -5,7 +5,7 @@ from urllib.parse import quote
 import requests
 from torchci.test_insights.file_report_generator import FileReportGenerator
 from torchci.test_insights.weekly_notification import send_to_aws_alerting_lambda
-from torchci.utils import fake_browser_headers
+from torchci.utils import get_hud_headers
 
 
 FILE_REPORT_URL = "https://hud.pytorch.org/tests/fileReport"
@@ -213,7 +213,7 @@ class RegressionNotification:
     ) -> list[dict[str, Any]]:
         response = requests.get(
             f"https://hud.pytorch.org/api/flaky-tests/fileReport?startDate={start_date}&endDate={stop_date}",
-            headers=fake_browser_headers(),
+            headers=get_hud_headers(),
         )
 
         if response.status_code != 200:

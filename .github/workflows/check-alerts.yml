@@ -13,40 +13,41 @@ on:
 
 
 jobs:
-  # update-alerts:
-  #   strategy:
-  #     matrix:
-  #       include:
-  #         - repo: pytorch/pytorch
-  #           branch: main
-  #           with_flaky_test_alerting: YES
-  #           job_filter_regex: "^(pull|trunk|lint|linux-binary-)"
-  #         - repo: pytorch/pytorch
-  #           branch: nightly
-  #           with_flaky_test_alerting: NO
-  #           job_filter_regex: ""
-  #   env:
-  #     REPO_TO_CHECK: ${{ matrix.repo }}
-  #     BRANCH_TO_CHECK: ${{ matrix.branch }}
-  #     WITH_FLAKY_TEST_ALERT: ${{ matrix.with_flaky_test_alerting }}
-  #     JOB_NAME_REGEX: ${{ matrix.job_filter_regex }}
-  #     # Don't do actual work on pull request
-  #     DRY_RUN: ${{ github.event_name == 'pull_request'}}
-  #   runs-on: ubuntu-24.04
-  #   permissions:
-  #     issues: write
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-  #     - name: Install Dependencies
-  #       run: pip3 install requests setuptools==80.9.0
-  #     - name: Check for alerts and creates issue
-  #       run: |
-  #         cd tools
-  #         python3 -m torchci.check_alerts
-  #       env:
-  #         # NOTE: Should be a blank string for pull requests
-  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  update-alerts:
+    strategy:
+      matrix:
+        include:
+          - repo: pytorch/pytorch
+            branch: main
+            with_flaky_test_alerting: YES
+            job_filter_regex: "^(pull|trunk|lint|linux-binary-)"
+          - repo: pytorch/pytorch
+            branch: nightly
+            with_flaky_test_alerting: NO
+            job_filter_regex: ""
+    env:
+      REPO_TO_CHECK: ${{ matrix.repo }}
+      BRANCH_TO_CHECK: ${{ matrix.branch }}
+      WITH_FLAKY_TEST_ALERT: ${{ matrix.with_flaky_test_alerting }}
+      JOB_NAME_REGEX: ${{ matrix.job_filter_regex }}
+      # Don't do actual work on pull request
+      DRY_RUN: ${{ github.event_name == 'pull_request'}}
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Dependencies
+        run: pip3 install requests setuptools==80.9.0
+      - name: Check for alerts and creates issue
+        run: |
+          cd tools
+          python3 -m torchci.check_alerts
+        env:
+          # NOTE: Should be a blank string for pull requests
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
 
   update-queue-alert:
     env:
@@ -66,3 +67,4 @@ jobs:
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
