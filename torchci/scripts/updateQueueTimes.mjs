@@ -14,7 +14,12 @@ const s3client = getS3Client();
 
 // %7B%7D = encoded {}
 const response = await fetch(
-  "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
+  "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D",
+  {
+    headers: {
+      "x-hud-internal-bot": process.env.HUD_API_TOKEN
+    },
+  }
 ).then((r) => r.json());
 for (const r of response) {
   const unixTime = parseInt((new Date(r.time).getTime() / 1000).toFixed(0));
