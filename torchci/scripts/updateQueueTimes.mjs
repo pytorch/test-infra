@@ -17,7 +17,7 @@ const response = await fetch(
   "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D",
   {
     headers: {
-      "x-hud-internal-bot": process.env.HUD_API_TOKEN
+      "x-hud-internal-bot": process.env.HUD_API_TOKEN,
     },
   }
 ).then((r) => r.json());
