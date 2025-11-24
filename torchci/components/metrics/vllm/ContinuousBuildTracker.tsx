@@ -109,13 +109,11 @@ export default function ContinuousBuildTracker({
   // Fetch failed jobs for selected build
   const { data: failedJobsData } = useClickHouseAPIImmutable(
     "vllm/build_failed_jobs",
-    selectedBuildNumber !== null
-      ? {
-          repo: VLLM_REPO_URL,
-          pipelineName: PIPELINE_NAME,
-          buildNumber: selectedBuildNumber,
-        }
-      : null,
+    {
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+      buildNumber: selectedBuildNumber || 0,
+    },
     selectedBuildNumber !== null
   );
 

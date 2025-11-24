@@ -17,10 +17,10 @@ import CommitsOnRedTrendPanel from "components/metrics/vllm/CommitsOnRedTrendPan
 import ContinuousBuildTracker from "components/metrics/vllm/ContinuousBuildTracker";
 import DockerBuildRuntimePanel from "components/metrics/vllm/DockerBuildRuntimePanel";
 import DurationDistributionPanel from "components/metrics/vllm/DurationDistributionPanel";
+import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobGroupFilter, {
   JobGroup,
 } from "components/metrics/vllm/JobGroupFilter";
-import JobBuildsPanel from "components/metrics/vllm/JobBuildsPanel";
 import JobReliabilityPanel from "components/metrics/vllm/JobReliabilityPanel";
 import JobRuntimePanel from "components/metrics/vllm/JobRuntimePanel";
 import MergesPanel from "components/metrics/vllm/MergesPanel";
@@ -604,7 +604,7 @@ export default function Page() {
       ? undefined
       : dailyHealthPercentages.length <= 1
       ? 0
-      : dailyHealthPercentages.reduce((count, current, index) => {
+      : dailyHealthPercentages.reduce((count: number, current, index) => {
           if (index === 0) return 0;
           const previous = dailyHealthPercentages[index - 1];
           return current !== previous ? count + 1 : count;
@@ -620,8 +620,10 @@ export default function Page() {
       : (() => {
           const volatilityPenalty = ciHealthVolatility * 50; // 0-50 penalty
           const transitionPenalty =
-            Math.min(stateTransitions / (dailyHealthPercentages?.length || 1), 1) *
-            50; // 0-50 penalty
+            Math.min(
+              stateTransitions / (dailyHealthPercentages?.length || 1),
+              1
+            ) * 50; // 0-50 penalty
           return Math.max(0, 100 - volatilityPenalty - transitionPenalty) / 100;
         })();
 
@@ -693,7 +695,7 @@ export default function Page() {
       ? undefined
       : prevDailyHealthPercentages.length <= 1
       ? 0
-      : prevDailyHealthPercentages.reduce((count, current, index) => {
+      : prevDailyHealthPercentages.reduce((count: number, current, index) => {
           if (index === 0) return 0;
           const previous = prevDailyHealthPercentages[index - 1];
           return current !== previous ? count + 1 : count;
@@ -1067,7 +1069,9 @@ export default function Page() {
                 {
                   title: "State Transitions",
                   value:
-                    stateTransitions === undefined ? undefined : stateTransitions,
+                    stateTransitions === undefined
+                      ? undefined
+                      : stateTransitions,
                   valueRenderer: formatCount,
                   badThreshold: (v) =>
                     (v ?? 0) > (dailyHealthPercentages?.length || 1) * 0.3,

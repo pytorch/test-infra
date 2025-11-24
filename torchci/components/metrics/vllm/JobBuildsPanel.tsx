@@ -53,7 +53,12 @@ interface RecentBuildData {
   duration_hours: number | null;
 }
 
-type JobSortField = "job_name" | "total_runs" | "passed_count" | "failed_count";
+type JobSortField =
+  | "job_name"
+  | "total_runs"
+  | "passed_count"
+  | "failed_count"
+  | "last_run_at";
 type SortOrder = "asc" | "desc";
 
 // Helper function to format duration
@@ -117,14 +122,12 @@ export default function JobBuildsPanel({
   // Fetch recent builds for selected job
   const { data: recentBuildsData } = useClickHouseAPIImmutable(
     "vllm/recent_job_builds",
-    selectedJob
-      ? {
-          ...timeParams,
-          repo: VLLM_REPO_URL,
-          pipelineName: PIPELINE_NAME,
-          jobName: selectedJob,
-        }
-      : null,
+    {
+      ...timeParams,
+      repo: VLLM_REPO_URL,
+      pipelineName: PIPELINE_NAME,
+      jobName: selectedJob || "",
+    },
     selectedJob !== null
   );
 

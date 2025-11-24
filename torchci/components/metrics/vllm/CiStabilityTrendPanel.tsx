@@ -7,7 +7,7 @@ import {
   getCrosshairTooltipConfig,
   GRID_DEFAULT,
 } from "./chartUtils";
-import { COLOR_SUCCESS, COLOR_ERROR, COLOR_WARNING } from "./constants";
+import { COLOR_ERROR, COLOR_SUCCESS, COLOR_WARNING } from "./constants";
 
 interface TrunkHealthData {
   build_started_at: string;
@@ -33,8 +33,7 @@ function calculateStabilityScore(healthValues: number[]): number {
 
   // Calculate penalties
   const volatilityPenalty = volatility * 50;
-  const transitionPenalty =
-    Math.min(transitions / healthValues.length, 1) * 50;
+  const transitionPenalty = Math.min(transitions / healthValues.length, 1) * 50;
 
   // Return score as percentage (0-1)
   return Math.max(0, 100 - volatilityPenalty - transitionPenalty) / 100;
@@ -51,7 +50,9 @@ function formatTooltip(params: any, stabilityData: any[]): string {
   if (!data) return "";
 
   let result = `<b>${date}</b><br/>`;
-  result += `${params[0].marker} Stability Score: <b>${(data.score * 100).toFixed(1)}%</b><br/>`;
+  result += `${params[0].marker} Stability Score: <b>${(
+    data.score * 100
+  ).toFixed(1)}%</b><br/>`;
   result += `<span style="color: #999; font-size: 0.85em;">`;
   result += `Volatility: ${(data.volatility * 100).toFixed(1)}% | `;
   result += `Transitions: ${data.transitions}`;
