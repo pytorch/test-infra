@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Callable, Dict, List, NamedTuple
 
 import requests
-from setuptools import distutils
+from setuptools import distutils  # type: ignore[import]
 from torchci.check_alerts import (
     clear_alerts,
     close_if_too_many_comments,
