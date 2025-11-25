@@ -1,9 +1,8 @@
+import { checkAuthWithLogin } from "lib/auth/auth";
 import { getErrorMessage } from "lib/error_utils";
 import fetchUtilization from "lib/utilization/fetchUtilization";
 import { UtilizationParams } from "lib/utilization/types";
 import { NextApiRequest, NextApiResponse } from "next";
-import { getServerSession } from "next-auth";
-import { authOptions } from "pages/api/auth/[...nextauth]";
 
 export default async function handler(
   req: NextApiRequest,
@@ -12,8 +11,8 @@ export default async function handler(
   const { workflowId, jobId, attempt } = req.query;
 
   // @ts-ignore
-  const session = await getServerSession(req, res, authOptions);
-  if (!session?.user || !session?.accessToken) {
+  const auth = await checkAuthWithLogin(req, res);
+  if (!auth.ok) {
     return res.status(401).json({
       error:
         "Authentication required to require utilization data, please login in the main hud page",
