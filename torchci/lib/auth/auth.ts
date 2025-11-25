@@ -6,13 +6,11 @@ const API_TOKEN_HEADER = "x-hud-internal-bot";
 export async function checkAuthWithApiToken(req: any, res: any) {
   // Check Custom Header
   const headerToken = req.headers[API_TOKEN_HEADER];
-
   if (headerToken && headerToken == process.env.INTERNAL_API_TOKEN) {
-    console.log("headerToken works");
     return { ok: true, type: "header" };
   }
 
-  // NextAuth Session
+  // if no headertoken provided, falls back to NextAuth Session.
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
   if (session?.user && session?.accessToken) {
