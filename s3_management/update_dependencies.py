@@ -261,24 +261,24 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     ],
     "nvidia-nccl-cu12": [
         {
-            "version": "2.27.5",
+            "version": "2.28.9",
             "project": "torch",
             "target": "cu126",
         },
         {
-            "version": "2.27.5",
+            "version": "2.28.9",
             "project": "torch",
             "target": "cu128",
         },
         {
-            "version": "2.27.5",
+            "version": "2.28.9",
             "project": "torch",
             "target": "cu129",
         },
     ],
     "nvidia-nccl-cu13": [
         {
-            "version": "2.27.7",
+            "version": "2.28.9",
             "project": "torch",
             "target": "cu130",
         }
