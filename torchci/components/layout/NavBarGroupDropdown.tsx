@@ -10,7 +10,11 @@ import {
 import { Box } from "@mui/system";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
-export type NavItem = { label: string; route: string; type: "item" };
+export type NavItem = {
+  label: string | JSX.Element;
+  route: string;
+  type: "item";
+};
 export type NavCategory = { label: string; items: NavItem[]; type: "group" };
 export type NavDivider = { type: "divider" };
 
@@ -23,9 +27,11 @@ export type NavDivider = { type: "divider" };
 export function NavBarGroupDropdown({
   title,
   items,
+  showCarrot = true,
 }: {
-  title: string;
+  title: string | JSX.Element;
   items: (NavCategory | NavItem | NavDivider)[];
+  showCarrot?: boolean;
 }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
@@ -86,9 +92,11 @@ export function NavBarGroupDropdown({
           fontFamily: "inherit",
           fontSize: "inherit",
           fontWeight: 400,
+          minWidth: 0,
         }}
       >
-        {title} ▾
+        {title}
+        {showCarrot && " ▾"}
       </Button>
       <Popper
         open={open}
