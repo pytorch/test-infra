@@ -40,8 +40,8 @@ export const authOptions = {
 
     // 🔹 GitHub OAuth (always enabled)
     GithubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
       authorization: { params: { scope: "public_repo workflow" } },
     }),
   ],
@@ -59,6 +59,7 @@ export const authOptions = {
   },
 
   callbacks: {
+    // @ts-ignore
     async jwt({ token, user, account }) {
       // If GitHub OAuth returns a token
       if (account && account.access_token) {
@@ -76,7 +77,7 @@ export const authOptions = {
 
       return token;
     },
-
+    // @ts-ignore
     async session({ session, token, user }) {
       session.user.id = token.id;
       session.accessToken = token.accessToken;
@@ -85,7 +86,8 @@ export const authOptions = {
     },
   },
 };
-
+// @ts-ignore
 export default function handler(req, res) {
+  // @ts-ignore
   return NextAuth(req, res, authOptions);
 }
