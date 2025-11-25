@@ -10,6 +10,9 @@ export async function checkAuthWithApiToken(req: any, res: any) {
     return { ok: true, type: "header" };
   }
 
+  console.log("NEXTAUTH_URL at runtime:", process.env.NEXTAUTH_URL);
+
+
   // if no headertoken provided, falls back to NextAuth Session.
   // @ts-ignore
   const session = await getServerSession(req, res, authOptions);
