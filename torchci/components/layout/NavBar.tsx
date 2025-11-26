@@ -185,7 +185,11 @@ function NavBar() {
       name: "vLLM CI metrics",
       href: "/metrics/vllm",
     },
-  ];
+  ].map((item) => ({
+    label: item.name,
+    route: item.href,
+    type: "item" as const,
+  }));
 
   return (
     <div className={styles.navbar}>
@@ -247,8 +251,29 @@ function NavBar() {
               KPIs
             </Link>
           </li>
-          <NavBarGroupDropdown title="Benchmarks" items={benchmarkDropdown} />{" "}
-          <NavBarDropdown title="Metrics" items={metricsDropdown} />
+          <NavBarGroupDropdown title="Benchmarks" items={benchmarkDropdown} />
+          <NavBarGroupDropdown
+            title={
+              <Link
+                href="/metrics"
+                prefetch={false}
+                onClick={(e) => {
+                  const isTouchDevice =
+                    typeof window !== "undefined" &&
+                    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+                  if (isTouchDevice) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                Metrics ▾
+              </Link>
+            }
+            // showCarrot false since the spacing is unusual if we use the
+            // default
+            showCarrot={false}
+            items={metricsDropdown}
+          />
           <NavBarGroupDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
