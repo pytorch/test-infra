@@ -1,4 +1,4 @@
 *.zip
 deployment/
 venv/
-./*.html
+/*.html
