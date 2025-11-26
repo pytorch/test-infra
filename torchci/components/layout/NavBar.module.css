@@ -23,15 +23,6 @@
   align-items: center;
 }
 
-.navbar a {
-  display: block;
-}
-
-.navbar span {
-  padding: 0;
-  margin: 0;
-}
-
 .navbar ul {
   list-style: none;
 }

@@ -1,43 +1,21 @@
+import { Box } from "@mui/material";
 import { ThemeMode, useDarkMode } from "lib/DarkModeContext";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BsMoon, BsSun } from "react-icons/bs";
+import { NavBarGroupDropdown, NavItem } from "../layout/NavBarGroupDropdown";
 import styles from "./ThemeModePicker.module.css";
 
 export default function ThemeModePicker(): JSX.Element {
   const { themeMode, setThemeMode, darkMode } = useDarkMode();
   const [isMounted, setIsMounted] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // This ensures hydration mismatch is avoided
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Handle click outside to close dropdown
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    }
-
-    // Add event listener when dropdown is open
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-    }
-
-    // Clean up event listener
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [isOpen]);
-
   // Don't render anything until client-side
-  if (!isMounted) return <div className={styles.togglePlaceholder} />;
+  if (!isMounted) return <div style={{ width: "40px", height: "40px" }} />;
 
   // Get the icon component based on active theme
   const getIconComponent = () => {
@@ -50,54 +28,68 @@ export default function ThemeModePicker(): JSX.Element {
     return <Icon size={18} color={darkMode ? "#E0E0E0" : "#212529"} />;
   };
 
-  const handleThemeChange = (mode: ThemeMode) => {
+  const onClick = (e: React.MouseEvent, mode: ThemeMode) => {
+    e.preventDefault();
+    e.stopPropagation();
     setThemeMode(mode);
-    setIsOpen(false);
   };
 
-  return (
-    <div className={styles.container} ref={containerRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={styles.toggleButton}
-        title="Change theme"
-        aria-label="Change theme"
-      >
-        {getIconComponent()}
-      </button>
+  const DropDownItem = ({
+    mode,
+    icon,
+    label,
+  }: {
+    mode: ThemeMode;
+    icon: React.ReactNode;
+    label: string;
+  }): NavItem => {
+    return {
+      label: (
+        <Box
+          component="span"
+          onClick={(e) => onClick(e, mode)}
+          sx={{
+            fontWeight: themeMode === mode ? 600 : 400,
+            backgroundColor:
+              themeMode === mode ? "rgba(107, 151, 201, 0.23)" : "transparent",
+            display: "flex",
+            gap: 1,
+            alignItems: "center",
+            width: "100%",
+            color: "text.primary",
+            borderRadius: 1,
+            margin: "-6px 0px -6px 0px",
+            padding: "6px 16px 6px 8px",
+          }}
+        >
+          {icon} <span>{label}</span>
+        </Box>
+      ),
+      route: "#",
+      type: "item" as const,
+    };
+  };
 
-      {isOpen && (
-        <div className={styles.dropdown}>
-          <button
-            className={`${styles.option} ${
-              themeMode === "light" ? styles.active : ""
-            }`}
-            onClick={() => handleThemeChange("light")}
-          >
-            <BsSun size={16} /> <span>Light</span>
-          </button>
-          <button
-            className={`${styles.option} ${
-              themeMode === "dark" ? styles.active : ""
-            }`}
-            onClick={() => handleThemeChange("dark")}
-          >
-            <BsMoon size={16} /> <span>Dark</span>
-          </button>
-          <button
-            className={`${styles.option} ${
-              themeMode === "system" ? styles.active : ""
-            }`}
-            onClick={() => handleThemeChange("system")}
-          >
-            <div className={styles.iconGroup}>
-              <BsSun size={12} className={styles.sunIcon} />
-              <BsMoon size={12} className={styles.moonIcon} />
-            </div>
-            <span>Use system setting</span>
-          </button>
+  const themeItems = [
+    DropDownItem({ mode: "light", icon: <BsSun size={16} />, label: "Light" }),
+    DropDownItem({ mode: "dark", icon: <BsMoon size={16} />, label: "Dark" }),
+    DropDownItem({
+      mode: "system",
+      icon: (
+        <div className={styles.iconGroup}>
+          <BsSun size={12} className={styles.sunIcon} />
+          <BsMoon size={12} className={styles.moonIcon} />
         </div>
-      )}
-    </div>
+      ),
+      label: "Use system setting",
+    }),
+  ];
+
+  return (
+    <NavBarGroupDropdown
+      title={getIconComponent()}
+      items={themeItems}
+      showCarrot={false}
+    />
   );
 }
