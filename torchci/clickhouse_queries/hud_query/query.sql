@@ -4,6 +4,7 @@ WITH job AS (
         job.name as job_name,
         job.workflow_name as workflow_name,
         job.id as id,
+        job.run_id as workflowId,
         job.status as status,
         job.conclusion_kg as conclusion,
         job.html_url as html_url,
@@ -42,6 +43,7 @@ SELECT
     sha,
     CONCAT(workflow_name, ' / ', job_name) as name,
     id,
+    workflowId,
     multiIf(
         conclusion = ''
         and status = 'queued' ,
