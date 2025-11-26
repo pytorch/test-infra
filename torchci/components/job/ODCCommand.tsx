@@ -273,7 +273,7 @@ function TerminalCopyBox({ text }: { text: string }) {
   return (
     <Box
       sx={{
-        backgroundColor: "#f5f5f5",
+        backgroundColor: "#b4b4b43f",
         padding: "10px",
         borderRadius: "5px",
         marginTop: "10px",
