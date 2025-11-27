@@ -19,6 +19,27 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "fsspec": [{"project": "torch"}],
     "nvidia-cudnn-cu11": [{"project": "torch"}],
     "typing-extensions": [{"project": "torch"}],
+    "cuda-bindings": [
+        {
+            "project": "torch",
+            "target": "cu126",
+        },
+        {
+            "project": "torch",
+            "target": "cu128",
+        },
+        {
+            "project": "torch",
+            "target": "cu129",
+        },
+        {
+            "project": "torch",
+            "target": "cu130",
+        },
+        {
+            "project": "vllm",
+        },
+    ],
     "nvidia-cuda-nvrtc-cu12": [
         {
             "project": "torch",
@@ -387,6 +408,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "onemkl-sycl-lapack": [{"project": "torch_xpu"}],
     "onemkl-sycl-sparse": [{"project": "torch_xpu"}],
     "onemkl-sycl-rng": [{"project": "torch_xpu"}],
+    "onemkl-license": [{"project": "torch_xpu"}],
     "mkl": [{"project": "torch_xpu"}],
     # vLLM
     "ninja": [{"project": "vllm"}],
