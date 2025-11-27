@@ -413,7 +413,6 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     # vLLM
     "ninja": [{"project": "vllm"}],
     "cuda-python": [{"project": "vllm"}],
-    "cuda-bindings": [{"project": "vllm"}],
     "cuda-pathfinder": [{"project": "vllm"}],
     "pynvml": [{"project": "vllm"}],
     "nvidia-ml-py": [{"project": "vllm"}],
