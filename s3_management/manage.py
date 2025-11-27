@@ -5,6 +5,7 @@ import base64
 import concurrent.futures
 import dataclasses
 import functools
+import os
 import time
 from collections import defaultdict
 from os import makedirs, path
@@ -16,14 +17,49 @@ import botocore  # type: ignore[import]
 from packaging.version import InvalidVersion, parse as _parse_version, Version
 
 
+# S3 client for reading
 S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 
-# bucket for download.pytorch.org
+# bucket for download.pytorch.org (reading only)
 BUCKET = S3.Bucket("pytorch")
-# bucket mirror just to hold index used with META CDN
-BUCKET_META_CDN = S3.Bucket("pytorch-test")
-INDEX_BUCKETS = {BUCKET, BUCKET_META_CDN}
+
+# Cloudflare R2 configuration for writing indexes
+# Set these environment variables:
+# - R2_ACCOUNT_ID
+# - R2_ACCESS_KEY_ID
+# - R2_SECRET_ACCESS_KEY
+# - R2_BUCKET_NAME (e.g., "pytorch-downloads")
+
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "pytorch-downloads")
+
+# Create R2 client with custom endpoint
+if R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY:
+    R2_CLIENT = boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name="auto",  # R2 uses 'auto' as region
+    )
+    R2_RESOURCE = boto3.resource(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name="auto",
+    )
+    R2_BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
+    INDEX_BUCKETS = {R2_BUCKET}
+    print(f"INFO: Using Cloudflare R2 bucket '{R2_BUCKET_NAME}' for index uploads")
+else:
+    # Fallback to original S3 buckets if R2 not configured
+    print("WARNING: R2 credentials not configured, falling back to S3 for uploads")
+    BUCKET_META_CDN = S3.Bucket("pytorch-test")
+    INDEX_BUCKETS = {BUCKET, BUCKET_META_CDN}
 
 ACCEPTED_FILE_EXTENSIONS = ("whl", "zip", "tar.gz", "json")
 ACCEPTED_SUBDIR_PATTERNS = [
@@ -126,7 +162,6 @@ PACKAGE_ALLOW_LIST = {
         "onemkl_sycl_lapack",
         "onemkl_sycl_sparse",
         "onemkl_sycl_rng",
-        "onemkl_license",
         # ----
         "Pillow",
         "certifi",
@@ -366,6 +401,16 @@ PACKAGE_ALLOW_LIST = {
     ]
 }
 
+# PyTorch foundation packages that should use relative URLs
+# All other packages will use CloudFront absolute URLs
+PT_FOUNDATION_PACKAGES = {
+    "torch",
+    "torchaudio",
+    "torchvision",
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+}
+
 
 # How many packages should we keep of a specific package?
 KEEP_THRESHOLD = 60
@@ -545,8 +590,16 @@ class S3Index:
             ):
                 attributes += ' data-requires-python="&gt;=3.10"'
 
+            # Use CloudFront URL for packages not in PT_FOUNDATION_PACKAGES
+            if package_name.lower() in PT_FOUNDATION_PACKAGES:
+                # Use relative URL for PT foundation packages
+                base_url = ""
+            else:
+                # Use CloudFront absolute URL for all other packages
+                base_url = "https://d21usjoq99fcb9.cloudfront.net"
+
             out.append(
-                f'    <a href="/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B", "+")}</a><br/>'
+                f'    <a href="{base_url}/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B", "+")}</a><br/>'
             )
         # Adding html footer
         out.append("  </body>")
@@ -574,12 +627,21 @@ class S3Index:
 
         # List all objects in the subdir to find packagename/index.html patterns
         prefix_to_search = f"{resolved_subdir}/"
+        print(
+            f"DEBUG: Searching for package index.html files with prefix '{prefix_to_search}'"
+        )
+        index_html_count = 0
         for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
+            print(f"DEBUG: Checking object: {obj.key}")
             # Check if this is a packagename/index.html file
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
             if len(parts) == 2 and parts[1] == "index.html":
+                index_html_count += 1
                 package_name = parts[0].replace("-", "_")
+                print(
+                    f"DEBUG: Found package index.html: {obj.key} -> package '{package_name}'"
+                )
                 # Convert back to the format used in wheel names (use _ not -)
                 # But we need to check if this package already has wheels
                 if package_name.lower() not in {
@@ -589,6 +651,7 @@ class S3Index:
                     print(
                         f"INFO: Including package '{package_name}' in {prefix_to_search} (has index.html but no wheels)"
                     )
+        print(f"DEBUG: Found {index_html_count} index.html files in {prefix_to_search}")
 
         # Combine both sets of packages
         all_packages = packages_from_wheels | packages_with_index_only
@@ -706,7 +769,22 @@ class S3Index:
     @classmethod
     def fetch_object_names(cls, prefix: str) -> List[str]:
         obj_names = []
+        print(
+            f"DEBUG: Starting to list objects with prefix '{prefix}' from S3",
+            flush=True,
+        )
+        print(
+            f"DEBUG: About to call BUCKET.objects.filter(Prefix='{prefix}')...",
+            flush=True,
+        )
+        obj_count = 0
         for obj in BUCKET.objects.filter(Prefix=prefix):
+            obj_count += 1
+            if obj_count % 100 == 0:
+                print(f"DEBUG: Processed {obj_count} objects so far...", flush=True)
+            if obj_count == 1:
+                print(f"DEBUG: First object received from S3: {obj.key}", flush=True)
+            print(f"DEBUG: Found S3 object: {obj.key} (size: {obj.size})", flush=True)
             is_acceptable = any(
                 [path.dirname(obj.key) == prefix]
                 + [
@@ -715,8 +793,14 @@ class S3Index:
                 ]
             ) and obj.key.endswith(ACCEPTED_FILE_EXTENSIONS)
             if not is_acceptable:
+                print(f"DEBUG: Skipping {obj.key} - does not match acceptance criteria")
                 continue
+            print(f"DEBUG: Accepting object: {obj.key}")
             obj_names.append(obj.key)
+        print(
+            f"DEBUG: Finished listing objects. Total found: {obj_count}, Accepted: {len(obj_names)}",
+            flush=True,
+        )
         return obj_names
 
     def fetch_metadata(self) -> None:
@@ -784,7 +868,12 @@ class S3Index:
     @classmethod
     def from_S3(cls, prefix: str, with_metadata: bool = True) -> "S3Index":
         prefix = prefix.rstrip("/")
+        print(
+            f"DEBUG: from_S3 called with prefix='{prefix}', with_metadata={with_metadata}",
+            flush=True,
+        )
         obj_names = cls.fetch_object_names(prefix)
+        print(f"DEBUG: Retrieved {len(obj_names)} object names from S3")
 
         def sanitize_key(key: str) -> str:
             return key.replace("+", "%2B")
@@ -802,10 +891,15 @@ class S3Index:
             ],
             prefix,
         )
+        print(f"DEBUG: Created S3Index with {len(rc.objects)} objects")
         if prefix == "whl/nightly":
+            print("DEBUG: Filtering nightly packages...")
             rc.objects = rc.nightly_packages_to_show()
+            print(f"DEBUG: After filtering, {len(rc.objects)} nightly packages to show")
         if with_metadata:
+            print("DEBUG: Fetching metadata for objects...")
             rc.fetch_metadata()
+            print("DEBUG: Fetching PEP658 metadata...")
             rc.fetch_pep658()
         return rc
 
