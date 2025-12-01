@@ -44,7 +44,7 @@ jobs:
             pip install -r s3_management/requirements.txt
 
             # Use manage_v2.py for whl/nightly and whl/test, otherwise use manage.py
-            if [[ "${{ matrix.prefix }}" == "whl/nightly" || "${{ matrix.prefix }}" == "whl/test" ]]; then
+            if [[ "${{ matrix.prefix }}" == "whl/test" ]]; then
               python s3_management/manage_v2.py ${{ matrix.prefix }}
             else
               python s3_management/manage.py ${{ matrix.prefix }}
