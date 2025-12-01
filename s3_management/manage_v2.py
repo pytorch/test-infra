@@ -369,7 +369,6 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "fsspec",
         "typing-extensions",
         "cuda-bindings",
-        "nvidia-cudnn-cu11",
         "nvidia-cuda-nvrtc-cu12",
         "nvidia-cuda-nvrtc",
         "nvidia-cuda-runtime-cu12",
