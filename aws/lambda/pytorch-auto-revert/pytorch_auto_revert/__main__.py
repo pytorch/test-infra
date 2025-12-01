@@ -14,6 +14,18 @@ from dotenv import load_dotenv
 
 from .autorevert_circuit_breaker import check_autorevert_disabled
 from .clickhouse_client_helper import CHCliFactory
+from .config import (
+    DEFAULT_CLICKHOUSE_DATABASE,
+    DEFAULT_CLICKHOUSE_HOST,
+    DEFAULT_CLICKHOUSE_PORT,
+    DEFAULT_HOURS,
+    DEFAULT_LOG_LEVEL,
+    DEFAULT_NOTIFY_ISSUE_NUMBER,
+    DEFAULT_REPO_FULL_NAME,
+    DEFAULT_WORKFLOW_RESTART_DAYS,
+    DEFAULT_WORKFLOWS,
+    AutorevertConfig,
+)
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
@@ -87,13 +99,15 @@ class DefaultConfig:
 
 
 def validate_actions_dry_run(
-    opts: argparse.Namespace, default_config: DefaultConfig
+    config: AutorevertConfig, env_has_explicit_actions: bool
 ) -> None:
-    """Validate the actions to be taken in dry run mode."""
-    if (
-        default_config.restart_action is not None
-        or default_config.revert_action is not None
-    ) and opts.dry_run:
+    """Validate the actions to be taken in dry run mode.
+
+    Args:
+        config: The AutorevertConfig instance with all configuration values.
+        env_has_explicit_actions: Whether explicit actions were set via environment variables.
+    """
+    if env_has_explicit_actions and config.dry_run:
         logging.error(
             "Dry run mode: using dry-run flag with environment variables is not allowed."
         )
@@ -101,9 +115,9 @@ def validate_actions_dry_run(
             "Conflicting options: --dry-run with explicit actions via environment variables"
         )
     if (
-        opts.subcommand == "autorevert-checker"
-        and (opts.restart_action is not None or opts.revert_action is not None)
-        and opts.dry_run
+        config.subcommand == "autorevert-checker"
+        and (config.restart_action is not None or config.revert_action is not None)
+        and config.dry_run
     ):
         logging.error(
             "Dry run mode: using dry-run flag with explicit actions is not allowed."
@@ -299,6 +313,139 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
     return parser.parse_args()
 
 
+def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
+    """Build an AutorevertConfig from parsed argparse options.
+
+    This function maps the argparse Namespace to the centralized config dataclass,
+    handling subcommand-specific attributes that may not be present on all opts.
+
+    Args:
+        opts: Parsed argparse.Namespace from the CLI argument parser.
+
+    Returns:
+        AutorevertConfig with all values populated from opts.
+    """
+
+    def _get(attr: str, default=None):
+        """Safely get an attribute from opts, returning default if not present."""
+        return getattr(opts, attr, default)
+
+    return AutorevertConfig(
+        # ClickHouse Connection Settings
+        clickhouse_host=_get("clickhouse_host", DEFAULT_CLICKHOUSE_HOST),
+        clickhouse_port=_get("clickhouse_port", DEFAULT_CLICKHOUSE_PORT),
+        clickhouse_username=_get("clickhouse_username", ""),
+        clickhouse_password=_get("clickhouse_password", ""),
+        clickhouse_database=_get("clickhouse_database", DEFAULT_CLICKHOUSE_DATABASE),
+        # GitHub Authentication Settings
+        github_access_token=_get("github_access_token", ""),
+        github_app_id=_get("github_app_id", ""),
+        github_app_secret=_get("github_app_secret", ""),
+        github_installation_id=_get("github_installation_id", ""),
+        # AWS Secrets Manager Settings
+        secret_store_name=_get("secret_store_name", ""),
+        # Autorevert Core Parameters
+        repo_full_name=_get("repo_full_name", DEFAULT_REPO_FULL_NAME),
+        workflows=_get("workflows", list(DEFAULT_WORKFLOWS)),
+        hours=_get("hours", DEFAULT_HOURS),
+        notify_issue_number=_get("notify_issue_number", DEFAULT_NOTIFY_ISSUE_NUMBER),
+        restart_action=_get("restart_action", None),
+        revert_action=_get("revert_action", None),
+        bisection_limit=_get("bisection_limit", None),
+        # Application Settings
+        log_level=_get("log_level", DEFAULT_LOG_LEVEL),
+        dry_run=_get("dry_run", False),
+        subcommand=_get("subcommand", None),
+        # Subcommand: workflow-restart-checker
+        workflow=_get("workflow", None),
+        commit=_get("commit", None),
+        days=_get("days", DEFAULT_WORKFLOW_RESTART_DAYS),
+        # Subcommand: hud
+        timestamp=_get("timestamp", None),
+        hud_html=_get("hud_html", None),
+    )
+
+
+def build_config_from_event(
+    event: dict, default_config: DefaultConfig
+) -> AutorevertConfig:
+    """Build an AutorevertConfig from an EventBridge event payload.
+
+    This function creates a config by:
+    1. Starting with defaults from DefaultConfig (environment variables)
+    2. Overriding with any matching parameters from the event JSON
+    3. Forcing subcommand to "autorevert-checker"
+
+    Args:
+        event: The EventBridge event dict. Parameters matching AutorevertConfig
+            field names will be used to override defaults.
+        default_config: Configuration loaded from environment variables.
+
+    Returns:
+        AutorevertConfig with values from event overriding defaults.
+    """
+    # Start with defaults from environment
+    config_kwargs: dict = {
+        # ClickHouse Connection Settings
+        "clickhouse_host": default_config.clickhouse_host,
+        "clickhouse_port": default_config.clickhouse_port,
+        "clickhouse_username": default_config.clickhouse_username,
+        "clickhouse_password": default_config.clickhouse_password,
+        "clickhouse_database": default_config.clickhouse_database,
+        # GitHub Authentication Settings
+        "github_access_token": default_config.github_access_token,
+        "github_app_id": default_config.github_app_id,
+        "github_app_secret": default_config.github_app_secret,
+        "github_installation_id": default_config.github_installation_id,
+        # AWS Secrets Manager Settings
+        "secret_store_name": default_config.secret_store_name,
+        # Autorevert Core Parameters
+        "repo_full_name": default_config.repo_full_name,
+        "workflows": default_config.workflows,
+        "hours": default_config.hours,
+        "notify_issue_number": default_config.notify_issue_number,
+        "restart_action": default_config.restart_action,
+        "revert_action": default_config.revert_action,
+        "bisection_limit": default_config.bisection_limit,
+        # Application Settings
+        "log_level": default_config.log_level,
+        # Force subcommand to autorevert-checker for Lambda
+        "subcommand": "autorevert-checker",
+        "dry_run": False,
+    }
+
+    # Keys that are explicitly not allowed to be overridden from event
+    ignored_keys = {"subcommand", "dry_run"}
+
+    # Override with values from event if present
+    for key, value in event.items():
+        if key in ignored_keys:
+            logging.warning(
+                "Ignoring '%s' from event payload - this parameter cannot be overridden",
+                key,
+            )
+            continue
+        if key not in config_kwargs:
+            logging.warning(
+                "Unknown key '%s' in event payload - check for typos. Valid keys: %s",
+                key,
+                sorted(config_kwargs.keys()),
+            )
+            continue
+        if value is None:
+            continue
+
+        # Handle type conversions for special fields
+        if key == "restart_action" and isinstance(value, str):
+            config_kwargs[key] = RestartAction.from_str(value)
+        elif key == "revert_action" and isinstance(value, str):
+            config_kwargs[key] = RevertAction.from_str(value)
+        else:
+            config_kwargs[key] = value
+
+    return AutorevertConfig(**config_kwargs)
+
+
 @dataclass
 class AWSSecretsFromStore:
     github_app_secret: str
@@ -330,35 +477,73 @@ def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
         sys.exit(1)
 
 
-def main(*args, **kwargs) -> None:
+def main_cli() -> None:
+    """Entry point for CLI invocation (python -m pytorch_auto_revert)."""
     load_dotenv()
     default_config = DefaultConfig()
     opts = get_opts(default_config)
+    config = build_config_from_opts(opts)
+
+    main_run(default_config, config, check_circuit_breaker=False)
+
+
+def main_lambda(event: dict, context: object) -> None:
+    """Entry point for AWS Lambda invocation via EventBridge.
+
+    Args:
+        event: The event data from EventBridge.
+        context: The Lambda context object (provides runtime information).
+    """
+    default_config = DefaultConfig()
+    config = build_config_from_event(event, default_config)
+
+    main_run(default_config, config, check_circuit_breaker=True)
+
+
+def main_run(
+    default_config: DefaultConfig,
+    config: AutorevertConfig,
+    *,
+    check_circuit_breaker: bool,
+) -> None:
+    """Core execution logic shared by CLI and Lambda entry points.
+
+    Args:
+        default_config: Configuration loaded from environment variables.
+        config: The unified AutorevertConfig with all settings.
+        check_circuit_breaker: If True, check if autorevert is disabled via circuit breaker
+            before running. Used by Lambda to allow disabling autorevert via GitHub issue.
+    """
+    # Track if explicit actions were set via environment variables (for validation)
+    env_has_explicit_actions = (
+        default_config.restart_action is not None
+        or default_config.revert_action is not None
+    )
 
     gh_app_secret = ""
-    if opts.github_app_secret:
-        gh_app_secret = base64.b64decode(opts.github_app_secret).decode("utf-8")
+    if config.github_app_secret:
+        gh_app_secret = base64.b64decode(config.github_app_secret).decode("utf-8")
 
-    ch_password = opts.clickhouse_password
+    ch_password = config.clickhouse_password
 
-    if opts.secret_store_name:
-        secrets = get_secret_from_aws(opts.secret_store_name)
+    if config.secret_store_name:
+        secrets = get_secret_from_aws(config.secret_store_name)
         gh_app_secret = secrets.github_app_secret
         ch_password = secrets.clickhouse_password
 
-    setup_logging(opts.log_level)
+    setup_logging(config.log_level)
     CHCliFactory.setup_client(
-        opts.clickhouse_host,
-        opts.clickhouse_port,
-        opts.clickhouse_username,
+        config.clickhouse_host,
+        config.clickhouse_port,
+        config.clickhouse_username,
         ch_password,
-        opts.clickhouse_database,
+        config.clickhouse_database,
     )
     GHClientFactory.setup_client(
-        opts.github_app_id,
+        config.github_app_id,
         gh_app_secret,
-        opts.github_installation_id,
-        opts.github_access_token,
+        config.github_installation_id,
+        config.github_access_token,
     )
 
     if not CHCliFactory().connection_test():
@@ -366,57 +551,48 @@ def main(*args, **kwargs) -> None:
             "ClickHouse connection test failed. Please check your configuration."
         )
 
-    if opts.subcommand is None:
-        if check_autorevert_disabled(default_config.repo_full_name):
+    if config.subcommand is None or config.subcommand == "autorevert-checker":
+        if check_circuit_breaker and check_autorevert_disabled(config.repo_full_name):
             logging.error(
                 "Autorevert is disabled via circuit breaker (ci: disable-autorevert issue found). "
                 "Exiting successfully."
             )
             return
 
-        validate_actions_dry_run(opts, default_config)
+        validate_actions_dry_run(config, env_has_explicit_actions)
 
-        autorevert_v2(
-            **default_config.to_autorevert_v2_params(
-                default_restart_action=RestartAction.RUN,
-                default_revert_action=RevertAction.RUN_NOTIFY,
-                dry_run=opts.dry_run,
-            )
-        )
-    elif opts.subcommand == "autorevert-checker":
-        validate_actions_dry_run(opts, default_config)
         _, _, state_json = autorevert_v2(
-            opts.workflows,
-            hours=opts.hours,
-            notify_issue_number=opts.notify_issue_number,
-            repo_full_name=opts.repo_full_name,
+            config.workflows,
+            hours=config.hours,
+            notify_issue_number=config.notify_issue_number,
+            repo_full_name=config.repo_full_name,
             restart_action=(
                 RestartAction.LOG
-                if opts.dry_run
-                else (opts.restart_action or RestartAction.RUN)
+                if config.dry_run
+                else (config.restart_action or RestartAction.RUN)
             ),
             revert_action=(
                 RevertAction.LOG
-                if opts.dry_run
-                else (opts.revert_action or RevertAction.LOG)
+                if config.dry_run
+                else (config.revert_action or RevertAction.LOG)
             ),
-            bisection_limit=opts.bisection_limit,
+            bisection_limit=config.bisection_limit,
         )
-        write_hud_html_from_cli(opts.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
-    elif opts.subcommand == "workflow-restart-checker":
-        workflow_restart_checker(opts.workflow, commit=opts.commit, days=opts.days)
-    elif opts.subcommand == "hud":
+        write_hud_html_from_cli(config.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
+    elif config.subcommand == "workflow-restart-checker":
+        workflow_restart_checker(config.workflow, commit=config.commit, days=config.days)
+    elif config.subcommand == "hud":
         out_path: Optional[str] = (
-            None if opts.hud_html is HUD_HTML_NO_VALUE_FLAG else opts.hud_html
+            None if config.hud_html is HUD_HTML_NO_VALUE_FLAG else config.hud_html
         )
 
         # Delegate to testers.hud module
         render_hud_html_from_clickhouse(
-            opts.timestamp,
-            repo_full_name=opts.repo_full_name,
+            config.timestamp,
+            repo_full_name=config.repo_full_name,
             out_path=out_path,
         )
 
 
 if __name__ == "__main__":
-    main()
+    main_cli()
