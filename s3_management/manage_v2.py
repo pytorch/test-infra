@@ -54,7 +54,9 @@ if R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY:
         region_name="auto",
     )
     R2_BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
-    print(f"INFO: Will upload indexes to both S3 'pytorch' bucket and R2 '{R2_BUCKET_NAME}' bucket")
+    print(
+        f"INFO: Will upload indexes to both S3 'pytorch' bucket and R2 '{R2_BUCKET_NAME}' bucket"
+    )
 else:
     print("WARNING: R2 credentials not configured, will only upload to S3")
 
@@ -142,85 +144,30 @@ PACKAGE_ALLOW_LIST = {
         "importlib_metadata",
         "importlib_resources",
         "zipp",
-        # ---- torch xpu additional packages ----
-        "dpcpp_cpp_rt",
-        "intel_cmplr_lib_rt",
-        "intel_cmplr_lib_ur",
-        "intel_cmplr_lic_rt",
-        "intel_opencl_rt",
-        "intel_sycl_rt",
-        "intel_openmp",
-        "tcmlib",
-        "umf",
-        "intel_pti",
-        "oneccl_devel",
-        "oneccl",
-        "impi_rt",
-        "onemkl_sycl_blas",
-        "onemkl_sycl_dft",
-        "onemkl_sycl_lapack",
-        "onemkl_sycl_sparse",
-        "onemkl_sycl_rng",
         # ----
         "certifi",
         "charset_normalizer",
         "cmake",
         "colorama",
-        "cuda_bindings",
         "fbgemm_gpu",
         "fbgemm_gpu_genai",
-        "fsspec",
         "idna",
         "iopath",
-        "intel_openmp",
         "lit",
         "lightning_utilities",
         "MarkupSafe",
-        "mpmath",
-        "mkl",
         "mypy_extensions",
         "nestedtensor",
         "nvidia_cublas_cu11",
         "nvidia_cuda_cupti_cu11",
         "nvidia_cuda_nvrtc_cu11",
         "nvidia_cuda_runtime_cu11",
-        "nvidia_cudnn_cu11",
         "nvidia_cufft_cu11",
         "nvidia_curand_cu11",
         "nvidia_cusolver_cu11",
         "nvidia_cusparse_cu11",
         "nvidia_nccl_cu11",
         "nvidia_nvtx_cu11",
-        "nvidia_cublas_cu12",
-        "nvidia_cuda_cupti_cu12",
-        "nvidia_cuda_nvrtc_cu12",
-        "nvidia_cuda_runtime_cu12",
-        "nvidia_cudnn_cu12",
-        "nvidia_cufft_cu12",
-        "nvidia_cufile_cu12",
-        "nvidia_nvshmem_cu12",
-        "nvidia_curand_cu12",
-        "nvidia_cusolver_cu12",
-        "nvidia_cusparse_cu12",
-        "nvidia_cusparselt_cu12",
-        "nvidia_nccl_cu12",
-        "nvidia_nvtx_cu12",
-        "nvidia_nvjitlink_cu12",
-        "nvidia_cublas",
-        "nvidia_cuda_cupti",
-        "nvidia_cuda_nvrtc",
-        "nvidia_cuda_runtime",
-        "nvidia_cudnn_cu13",
-        "nvidia_cufft",
-        "nvidia_cufile",
-        "nvidia_nvshmem_cu13",
-        "nvidia_curand",
-        "nvidia_cusolver",
-        "nvidia_cusparse",
-        "nvidia_cusparselt_cu13",
-        "nvidia_nccl_cu13",
-        "nvidia_nvtx",
-        "nvidia_nvjitlink",
         "packaging",
         "portalocker",
         "pyre_extensions",
@@ -228,7 +175,6 @@ PACKAGE_ALLOW_LIST = {
         "pytorch_triton_rocm",
         "pytorch_triton_xpu",
         "requests",
-        "tbb",
         "torch_no_python",
         "torch",
         "torch_tensorrt",
@@ -248,7 +194,6 @@ PACKAGE_ALLOW_LIST = {
         "torchvision_extra_decoders",
         "triton",
         "tqdm",
-        "typing_extensions",
         "typing_inspect",
         "urllib3",
         "xformers",
@@ -416,10 +361,67 @@ PACKAGE_LINKS_ALLOW_LIST = {
     for x in [
         "filelock",
         "sympy",
+        "mpmath",
         "pillow",
         "networkx",
         "numpy",
         "jinja2",
+        "fsspec",
+        "typing-extensions",
+        "cuda-bindings",
+        "nvidia-cudnn-cu11",
+        "nvidia-cuda-nvrtc-cu12",
+        "nvidia-cuda-nvrtc",
+        "nvidia-cuda-runtime-cu12",
+        "nvidia-cuda-runtime",
+        "nvidia-cuda-cupti-cu12",
+        "nvidia-cuda-cupti",
+        "nvidia-cudnn-cu12",
+        "nvidia-cudnn-cu13",
+        "nvidia-cublas-cu12",
+        "nvidia-cublas",
+        "nvidia-cufft-cu12",
+        "nvidia-cufft",
+        "nvidia-curand-cu12",
+        "nvidia-curand",
+        "nvidia-cusolver-cu12",
+        "nvidia-cusolver",
+        "nvidia-cusparse-cu12",
+        "nvidia-cusparse",
+        "nvidia-cusparselt-cu12",
+        "nvidia-cusparselt-cu13",
+        "nvidia-nccl-cu12",
+        "nvidia-nccl-cu13",
+        "nvidia-nvshmem-cu12",
+        "nvidia-nvshmem-cu13",
+        "nvidia-nvtx-cu12",
+        "nvidia-nvtx",
+        "nvidia-nvjitlink-cu12",
+        "nvidia-nvjitlink",
+        "nvidia-cufile-cu12",
+        "nvidia-cufile",
+        # torch_xpu packages
+        "dpcpp-cpp-rt",
+        "intel-cmplr-lib-rt",
+        "intel-cmplr-lib-ur",
+        "intel-cmplr-lic-rt",
+        "intel-opencl-rt",
+        "intel-sycl-rt",
+        "intel-openmp",
+        "tcmlib",
+        "umf",
+        "intel-pti",
+        "tbb",
+        "oneccl-devel",
+        "oneccl",
+        "impi-rt",
+        "onemkl-sycl-blas",
+        "onemkl-sycl-dft",
+        "onemkl-sycl-lapack",
+        "onemkl-sycl-sparse",
+        "onemkl-sycl-rng",
+        "onemkl-license",
+        "mkl",
     ]
 }
 
@@ -581,7 +583,12 @@ class S3Index:
             out.append(f'<a href="/{obj.key}">{sanitized_obj}</a><br/>')
         return "\n".join(sorted(out))
 
-    def to_simple_package_html(self, subdir: Optional[str], package_name: str, use_cloudfront_for_non_foundation: bool = False) -> str:
+    def to_simple_package_html(
+        self,
+        subdir: Optional[str],
+        package_name: str,
+        use_cloudfront_for_non_foundation: bool = False,
+    ) -> str:
         """Generates a string that can be used as the package simple HTML index
 
         Args:
@@ -613,7 +620,10 @@ class S3Index:
                 attributes = f' data-dist-info-metadata="{pep658_sha}" data-core-metadata="{pep658_sha}"'
 
             # Determine URL strategy based on parameter and package name
-            if use_cloudfront_for_non_foundation and package_name.lower() not in PT_FOUNDATION_PACKAGES:
+            if (
+                use_cloudfront_for_non_foundation
+                and package_name.lower() not in PT_FOUNDATION_PACKAGES
+            ):
                 # Use CloudFront absolute URL for non-foundation packages when requested
                 base_url = "https://d21usjoq99fcb9.cloudfront.net"
             else:
@@ -694,7 +704,9 @@ class S3Index:
             index_html = self.to_libtorch_html(subdir=subdir)
 
             # Upload to S3
-            print(f"INFO Uploading {subdir}/{self.html_name} to S3 bucket {BUCKET.name}")
+            print(
+                f"INFO Uploading {subdir}/{self.html_name} to S3 bucket {BUCKET.name}"
+            )
             BUCKET.Object(key=f"{subdir}/{self.html_name}").put(
                 ACL="public-read",
                 CacheControl="no-cache,no-store,must-revalidate",
@@ -704,7 +716,9 @@ class S3Index:
 
             # Upload to R2 if configured (same content with relative URLs)
             if R2_BUCKET:
-                print(f"INFO Uploading {subdir}/{self.html_name} to R2 bucket {R2_BUCKET.name}")
+                print(
+                    f"INFO Uploading {subdir}/{self.html_name} to R2 bucket {R2_BUCKET.name}"
+                )
                 R2_BUCKET.Object(key=f"{subdir}/{self.html_name}").put(
                     ACL="public-read",
                     CacheControl="no-cache,no-store,must-revalidate",
@@ -734,7 +748,9 @@ class S3Index:
 
             # Upload package list to R2 if configured
             if R2_BUCKET:
-                print(f"INFO Uploading {subdir}/index.html to R2 bucket {R2_BUCKET.name}")
+                print(
+                    f"INFO Uploading {subdir}/index.html to R2 bucket {R2_BUCKET.name}"
+                )
                 R2_BUCKET.Object(key=f"{subdir}/index.html").put(
                     ACL="public-read",
                     CacheControl="no-cache,no-store,must-revalidate",
@@ -765,13 +781,17 @@ class S3Index:
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
-                    root_index_key = f"{copy_source_prefix}/{compat_pkg_name}/index.html"
-                    print(f"INFO Copying {root_index_key} to {subdir}/{compat_pkg_name}/index.html for S3 bucket {BUCKET.name}")
+                    root_index_key = (
+                        f"{copy_source_prefix}/{compat_pkg_name}/index.html"
+                    )
+                    print(
+                        f"INFO Copying {root_index_key} to {subdir}/{compat_pkg_name}/index.html for S3 bucket {BUCKET.name}"
+                    )
 
                     try:
                         # Fetch the root index.html from S3
                         root_obj = BUCKET.Object(key=root_index_key)
-                        root_index_html = root_obj.get()['Body'].read().decode('utf-8')
+                        root_index_html = root_obj.get()["Body"].read().decode("utf-8")
 
                         # Upload to subdirectory in S3
                         BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
@@ -783,8 +803,12 @@ class S3Index:
 
                         # Upload to R2 if configured
                         if R2_BUCKET:
-                            print(f"INFO Copying {root_index_key} to {subdir}/{compat_pkg_name}/index.html for R2 bucket {R2_BUCKET.name}")
-                            R2_BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
+                            print(
+                                f"INFO Copying {root_index_key} to {subdir}/{compat_pkg_name}/index.html for R2 bucket {R2_BUCKET.name}"
+                            )
+                            R2_BUCKET.Object(
+                                key=f"{subdir}/{compat_pkg_name}/index.html"
+                            ).put(
                                 ACL="public-read",
                                 CacheControl="no-cache,no-store,must-revalidate",
                                 ContentType="text/html",
@@ -797,9 +821,13 @@ class S3Index:
 
                 # Generate S3 index with relative URLs
                 s3_index_html = self.to_simple_package_html(
-                    subdir=subdir, package_name=pkg_name, use_cloudfront_for_non_foundation=False
+                    subdir=subdir,
+                    package_name=pkg_name,
+                    use_cloudfront_for_non_foundation=False,
                 )
-                print(f"INFO Uploading {subdir}/{compat_pkg_name}/index.html to S3 bucket {BUCKET.name}")
+                print(
+                    f"INFO Uploading {subdir}/{compat_pkg_name}/index.html to S3 bucket {BUCKET.name}"
+                )
                 BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                     ACL="public-read",
                     CacheControl="no-cache,no-store,must-revalidate",
@@ -810,9 +838,13 @@ class S3Index:
                 # Generate and upload R2 index with CloudFront URLs for non-foundation packages
                 if R2_BUCKET:
                     r2_index_html = self.to_simple_package_html(
-                        subdir=subdir, package_name=pkg_name, use_cloudfront_for_non_foundation=True
+                        subdir=subdir,
+                        package_name=pkg_name,
+                        use_cloudfront_for_non_foundation=True,
                     )
-                    print(f"INFO Uploading {subdir}/{compat_pkg_name}/index.html to R2 bucket {R2_BUCKET.name}")
+                    print(
+                        f"INFO Uploading {subdir}/{compat_pkg_name}/index.html to R2 bucket {R2_BUCKET.name}"
+                    )
                     R2_BUCKET.Object(key=f"{subdir}/{compat_pkg_name}/index.html").put(
                         ACL="public-read",
                         CacheControl="no-cache,no-store,must-revalidate",
@@ -866,7 +898,9 @@ class S3Index:
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
-                    root_index_path = path.join(copy_source_prefix, compat_pkg_name, "index.html")
+                    root_index_path = path.join(
+                        copy_source_prefix, compat_pkg_name, "index.html"
+                    )
                     print(f"INFO Copying {root_index_path} to {pkg_dir}/index.html")
 
                     try:
@@ -884,9 +918,13 @@ class S3Index:
 
                         # Also save R2 version if R2 is configured
                         if R2_BUCKET:
-                            root_r2_path = path.join(copy_source_prefix, compat_pkg_name, "index-r2.html")
+                            root_r2_path = path.join(
+                                copy_source_prefix, compat_pkg_name, "index-r2.html"
+                            )
                             if path.exists(root_r2_path):
-                                with open(root_r2_path, mode="r", encoding="utf-8") as src:
+                                with open(
+                                    root_r2_path, mode="r", encoding="utf-8"
+                                ) as src:
                                     root_r2_html = src.read()
                                 with open(
                                     path.join(pkg_dir, "index-r2.html"),
@@ -907,7 +945,9 @@ class S3Index:
                 ) as f:
                     f.write(
                         self.to_simple_package_html(
-                            subdir=subdir, package_name=pkg_name, use_cloudfront_for_non_foundation=False
+                            subdir=subdir,
+                            package_name=pkg_name,
+                            use_cloudfront_for_non_foundation=False,
                         )
                     )
 
@@ -920,7 +960,9 @@ class S3Index:
                     ) as f:
                         f.write(
                             self.to_simple_package_html(
-                                subdir=subdir, package_name=pkg_name, use_cloudfront_for_non_foundation=True
+                                subdir=subdir,
+                                package_name=pkg_name,
+                                use_cloudfront_for_non_foundation=True,
                             )
                         )
 
@@ -1085,14 +1127,22 @@ class S3Index:
         # Apply PACKAGE_ALLOW_LIST filtering to whl, whl/nightly, and whl/test
         if prefix == "whl/nightly":
             # For nightly: filter by allow list AND limit to 60 versions per package
-            print(f"DEBUG: Filtering nightly packages using PACKAGE_ALLOW_LIST and version threshold...")
+            print(
+                "DEBUG: Filtering nightly packages using PACKAGE_ALLOW_LIST and version threshold..."
+            )
             rc.objects = rc.nightly_packages_to_show()
-            print(f"DEBUG: After filtering, {len(rc.objects)} packages to show for {prefix}")
+            print(
+                f"DEBUG: After filtering, {len(rc.objects)} packages to show for {prefix}"
+            )
         elif prefix in ("whl", "whl/test"):
             # For whl and whl/test: filter by allow list only (no version limit)
-            print(f"DEBUG: Filtering packages for {prefix} using PACKAGE_ALLOW_LIST (no version limit)...")
+            print(
+                f"DEBUG: Filtering packages for {prefix} using PACKAGE_ALLOW_LIST (no version limit)..."
+            )
             rc.objects = rc.packages_by_allow_list()
-            print(f"DEBUG: After filtering, {len(rc.objects)} packages to show for {prefix}")
+            print(
+                f"DEBUG: After filtering, {len(rc.objects)} packages to show for {prefix}"
+            )
         if with_metadata:
             print("DEBUG: Fetching metadata for objects...")
             rc.fetch_metadata()
