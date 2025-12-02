@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import requests
 from setuptools import distutils  # type: ignore[import]
+from torchci.utils import get_hud_headers
 
 
 FAILURE_CHAIN_THRESHOLD = 2
@@ -351,7 +352,10 @@ def create_issue(issue: Dict, dry_run: bool) -> Dict:
 
 
 def fetch_hud_data(repo: str, branch: str) -> Tuple[List[str], list[list[JobData]]]:
-    response = requests.get(f"https://hud.pytorch.org/api/hud/{repo}/{branch}/0")
+    response = requests.get(
+        f"https://hud.pytorch.org/api/hud/{repo}/{branch}/0",
+        headers=get_hud_headers(),
+    )
     response.raise_for_status()
     hud_data = json.loads(response.text)
 

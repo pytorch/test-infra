@@ -126,6 +126,7 @@ PACKAGE_ALLOW_LIST = {
         "onemkl_sycl_lapack",
         "onemkl_sycl_sparse",
         "onemkl_sycl_rng",
+        "onemkl_license",
         # ----
         "Pillow",
         "certifi",
@@ -563,7 +564,36 @@ class S3Index:
         out.append("<!DOCTYPE html>")
         out.append("<html>")
         out.append("  <body>")
-        for pkg_name in sorted(self.get_package_names(subdir)):
+
+        # Get packages from wheel files
+        packages_from_wheels = set(self.get_package_names(subdir))
+
+        # Also find packages that have index.html but no wheels
+        packages_with_index_only = set()
+        resolved_subdir = self._resolve_subdir(subdir)
+
+        # List all objects in the subdir to find packagename/index.html patterns
+        prefix_to_search = f"{resolved_subdir}/"
+        for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
+            # Check if this is a packagename/index.html file
+            relative_key = obj.key[len(prefix_to_search) :]
+            parts = relative_key.split("/")
+            if len(parts) == 2 and parts[1] == "index.html":
+                package_name = parts[0].replace("-", "_")
+                # Convert back to the format used in wheel names (use _ not -)
+                # But we need to check if this package already has wheels
+                if package_name.lower() not in {
+                    p.lower() for p in packages_from_wheels
+                }:
+                    packages_with_index_only.add(package_name)
+                    print(
+                        f"INFO: Including package '{package_name}' in {prefix_to_search} (has index.html but no wheels)"
+                    )
+
+        # Combine both sets of packages
+        all_packages = packages_from_wheels | packages_with_index_only
+
+        for pkg_name in sorted(all_packages):
             out.append(
                 f'    <a href="{pkg_name.lower().replace("_", "-")}/">{pkg_name.replace("_", "-")}</a><br/>'
             )
@@ -588,6 +618,7 @@ class S3Index:
     def upload_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
             index_html = self.to_simple_packages_html(subdir=subdir)
+
             for bucket in INDEX_BUCKETS:
                 print(f"INFO Uploading {subdir}/index.html to {bucket.name}")
                 bucket.Object(key=f"{subdir}/index.html").put(
@@ -692,16 +723,18 @@ class S3Index:
         # Add PEP 503-compatible hashes to URLs to allow clients to avoid spurious downloads, if possible.
         regex_multipart_upload = r"^[A-Za-z0-9+/=]+=-[0-9]+$"
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
-            for idx, future in {
-                idx: executor.submit(
-                    lambda key: CLIENT.head_object(
-                        Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
-                    ),
-                    obj.orig_key,
-                )
-                for (idx, obj) in enumerate(self.objects)
-                if obj.size is None
-            }.items():
+            futures = {}
+            for idx, obj in enumerate(self.objects):
+                if obj.size is None:
+                    future = executor.submit(
+                        lambda key: CLIENT.head_object(
+                            Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
+                        ),
+                        obj.orig_key,
+                    )
+                    futures[idx] = future
+
+            for idx, future in futures.items():
                 response = future.result()
                 raw = response.get("ChecksumSHA256")
                 if raw and match(regex_multipart_upload, raw):

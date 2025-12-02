@@ -13,6 +13,7 @@ from torchci.check_alerts import (
     fetch_alerts,
     update_issue,
 )
+from torchci.utils import get_hud_headers
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -109,7 +110,7 @@ def queuing_alert(dry_run: bool) -> None:
     url = (
         "https://hud.pytorch.org/api/clickhouse/queued_jobs_by_label?parameters=%7B%7D"
     )
-    response = requests.get(url).json()
+    response = requests.get(url, headers=get_hud_headers()).json()
 
     large_queue = filter_long_queues(response)
 

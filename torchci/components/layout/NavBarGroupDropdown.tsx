@@ -10,33 +10,9 @@ import {
 import { Box } from "@mui/system";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
-export type NavItem = { label: string; route: string };
-export type NavCategory = { label: string; items: NavItem[]; type?: string };
-
-function sortForMenu(groups: NavCategory[]) {
-  const singles: NavItem[] = [];
-  const multis: NavCategory[] = [];
-  let bottom: NavItem | undefined = undefined;
-
-  for (const g of groups) {
-    if (g.type === "bottom") {
-      if (g.items.length !== 1) {
-        continue;
-      }
-      bottom = g?.items[0];
-    } else if (g.items.length === 1) {
-      singles.push(g.items[0]);
-    } else if (g.items.length > 1) {
-      multis.push({
-        label: g.label,
-        items: [...g.items].sort((a, b) => a.label.localeCompare(b.label)),
-      });
-    }
-  }
-  singles.sort((a, b) => a.label.localeCompare(b.label));
-  multis.sort((a, b) => a.label.localeCompare(b.label));
-  return { singles, multis, bottom };
-}
+export type NavItem = { label: string; route: string; type: "item" };
+export type NavCategory = { label: string; items: NavItem[]; type: "group" };
+export type NavDivider = { type: "divider" };
 
 /**
  * NavBarGroupDropdown
@@ -46,18 +22,14 @@ function sortForMenu(groups: NavCategory[]) {
  */
 export function NavBarGroupDropdown({
   title,
-  groups,
+  items,
 }: {
   title: string;
-  groups: NavCategory[];
+  items: (NavCategory | NavItem | NavDivider)[];
 }) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const boxRef = useRef<HTMLDivElement>(null);
-  const { singles, multis, bottom } = useMemo(
-    () => sortForMenu(groups),
-    [groups]
-  );
 
   // Check if device is touch-enabled
   const isTouchDevice = useMemo(
@@ -127,74 +99,67 @@ export function NavBarGroupDropdown({
         <Paper>
           <MenuList>
             {/* Singles first (no headers), sorted by item label */}
-            {singles.map((item) => (
-              <MenuItem
-                key={`single-${item.label}`}
-                component="a"
-                href={item.route}
-                sx={{
-                  color: "primary.main",
-                }}
-              >
-                {item.label}
-              </MenuItem>
-            ))}
+            {items.map((item) => {
+              if (item.type === "item")
+                return (
+                  <MenuItem
+                    key={`single-${item.label}`}
+                    component="a"
+                    href={item.route}
+                    sx={{
+                      color: "primary.main",
+                    }}
+                  >
+                    {item.label}
+                  </MenuItem>
+                );
 
-            {/* Multi-item groups next, sorted by group label; each group header + its sorted items */}
-            {multis.map((group) => (
-              <Fragment key={`multi-${group.label}`}>
-                <ListSubheader
-                  disableSticky
-                  sx={{
-                    bgcolor: "transparent",
-                    fontSize: 13,
-                    fontWeight: 800,
-                    textTransform: "uppercase",
-                    letterSpacing: 0.5,
-                    lineHeight: 2,
-                  }}
-                >
-                  {group.label}
-                </ListSubheader>
-                <Box
-                  sx={{
-                    borderLeft: "2px solid",
-                    borderColor: "divider",
-                    ml: 2,
-                    pl: 1.5,
-                  }}
-                >
-                  {group.items.map((item) => (
-                    <MenuItem
-                      key={`${group.label}-${item.label}`}
-                      component="a"
-                      href={item.route}
+              if (item.type === "group") {
+                const group = item;
+                return (
+                  <Fragment key={`multi-${group.label}`}>
+                    <ListSubheader
+                      disableSticky
                       sx={{
-                        color: "primary.main",
-                        pl: 1,
+                        bgcolor: "transparent",
+                        fontSize: 13,
+                        fontWeight: 800,
+                        textTransform: "uppercase",
+                        letterSpacing: 0.5,
+                        lineHeight: 2,
                       }}
                     >
-                      {item.label}
-                    </MenuItem>
-                  ))}
-                </Box>
-              </Fragment>
-            ))}
-            {bottom != undefined && (
-              <>
-                <Divider sx={{ mt: 1 }} />
-                <MenuItem
-                  key={`bottom-${bottom.label}`}
-                  component="a"
-                  href={bottom.route}
-                  sx={{
-                    color: "primary.main",
-                  }}
-                >
-                  {bottom.label}
-                </MenuItem>
-              </>
-            )}
+                      {group.label}
+                    </ListSubheader>
+                    <Box
+                      sx={{
+                        borderLeft: "2px solid",
+                        borderColor: "divider",
+                        ml: 2,
+                        pl: 1.5,
+                      }}
+                    >
+                      {group.items.map((item) => (
+                        <MenuItem
+                          key={`${group.label}-${item.label}`}
+                          component="a"
+                          href={item.route}
+                          sx={{
+                            color: "primary.main",
+                            pl: 1,
+                          }}
+                        >
+                          {item.label}
+                        </MenuItem>
+                      ))}
+                    </Box>
+                  </Fragment>
+                );
+              }
+              if (item.type === "divider") {
+                return <Divider sx={{ mt: 1 }} />;
+              }
+            })}
           </MenuList>
         </Paper>
       </Popper>
