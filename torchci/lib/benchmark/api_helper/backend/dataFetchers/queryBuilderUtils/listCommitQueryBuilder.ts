@@ -119,6 +119,8 @@ ORDER BY
       ...this._DEFAULT_QUERY_PARAMS,
       ...inputs,
     };
+
+    console.log("[listCommitQueryBuilder] query calls to db:", params);
     return params;
   }
   postProcess(data: any) {
