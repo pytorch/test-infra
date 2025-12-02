@@ -10,7 +10,7 @@ export function BenchmarkComparisonGithubExternalLink({
   repo = "pytorch/pytorch",
   title,
 }: {
-  benchmarkId: string;
+  benchmarkId?: string;
   lcommit?: BenchmarkCommitMeta | null;
   rcommit?: BenchmarkCommitMeta | null;
   repo?: string;

@@ -317,10 +317,11 @@ export function AutoBenchmarkComparisonGithubExternalLink({
     !!ctx.rcommit?.workflow_id &&
     ctx.lcommit.branch === ctx.committedLbranch &&
     ctx.rcommit.branch === ctx.committedRbranch;
+  const uiRenderConfig = config as UIRenderConfig;
 
   const lcommit = ctx.lcommit;
   const rcommit = ctx.rcommit;
-
+  const repo = uiRenderConfig.config?.repo ?? ctx.repo;
   if (!isWorkflowsReady || !lcommit || !rcommit) {
     return <></>;
   }
@@ -329,7 +330,7 @@ export function AutoBenchmarkComparisonGithubExternalLink({
       benchmarkId={ctx.benchmarkId}
       lcommit={ctx.lcommit}
       rcommit={ctx.rcommit}
-      repo={ctx.repo}
+      repo={repo}
       title={{
         text: config?.title,
         description: config?.description,
