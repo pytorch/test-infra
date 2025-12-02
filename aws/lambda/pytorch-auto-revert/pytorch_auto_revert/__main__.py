@@ -38,7 +38,35 @@ HUD_HTML_NO_VALUE_FLAG = object()
 
 
 class DefaultConfig:
-    def __init__(self):
+    """Configuration loaded from environment variables.
+
+    This class reads configuration values from environment variables at instantiation
+    time, providing defaults for the pytorch-auto-revert system. It serves as the
+    base configuration that can be overridden by CLI arguments or EventBridge events.
+
+    Attributes:
+        bisection_limit: Max new pending jobs to schedule per signal (from BISECTION_LIMIT).
+        clickhouse_database: ClickHouse database name (from CLICKHOUSE_DATABASE).
+        clickhouse_host: ClickHouse server hostname (from CLICKHOUSE_HOST).
+        clickhouse_password: ClickHouse password (from CLICKHOUSE_PASSWORD).
+        clickhouse_port: ClickHouse server port (from CLICKHOUSE_PORT).
+        clickhouse_username: ClickHouse username (from CLICKHOUSE_USERNAME).
+        github_access_token: GitHub personal access token (from GITHUB_TOKEN).
+        github_app_id: GitHub App ID for authentication (from GITHUB_APP_ID).
+        github_app_secret: GitHub App secret, base64 encoded (from GITHUB_APP_SECRET).
+        github_installation_id: GitHub App installation ID (from GITHUB_INSTALLATION_ID).
+        hours: Lookback window in hours (from HOURS).
+        log_level: Logging level (from LOG_LEVEL).
+        notify_issue_number: GitHub issue number for notifications (from NOTIFY_ISSUE_NUMBER).
+        repo_full_name: Repository in owner/repo format (from REPO_FULL_NAME).
+        restart_action: Action to take for restarts (from RESTART_ACTION).
+        revert_action: Action to take for reverts (from REVERT_ACTION).
+        secret_store_name: AWS Secrets Manager secret name (from SECRET_STORE_NAME).
+        workflows: List of workflow names to analyze (from WORKFLOWS).
+    """
+
+    def __init__(self) -> None:
+        """Initialize configuration from environment variables."""
         self.bisection_limit = (
             int(os.environ["BISECTION_LIMIT"])
             if "BISECTION_LIMIT" in os.environ
@@ -82,7 +110,16 @@ class DefaultConfig:
         default_revert_action: RevertAction,
         dry_run: bool,
     ) -> dict:
-        """Convert the configuration to a dictionary."""
+        """Convert the configuration to parameters for autorevert_v2.
+
+        Args:
+            default_restart_action: Default restart action if none specified in config.
+            default_revert_action: Default revert action if none specified in config.
+            dry_run: If True, override actions to LOG mode (no side effects).
+
+        Returns:
+            Dictionary of keyword arguments for autorevert_v2 function.
+        """
         return {
             "workflows": self.workflows,
             "repo_full_name": self.repo_full_name,
@@ -126,7 +163,17 @@ def validate_actions_dry_run(
 
 
 def setup_logging(log_level: str) -> None:
-    """Set up logging configuration."""
+    """Configure the root logger with the specified log level.
+
+    Sets up a StreamHandler with a standard format if no handlers exist,
+    or updates existing handlers that have NOTSET level.
+
+    Args:
+        log_level: Logging level as a string (e.g., "DEBUG", "INFO", "WARNING").
+
+    Raises:
+        ValueError: If the log level string is not a valid logging level.
+    """
     numeric_level = getattr(logging, log_level.upper(), None)
     if not isinstance(numeric_level, int):
         raise ValueError(f"Invalid log level: {log_level}")
@@ -149,6 +196,21 @@ def setup_logging(log_level: str) -> None:
 
 
 def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
+    """Parse command-line arguments for the pytorch-auto-revert CLI.
+
+    Configures an argument parser with:
+    - Global options (logging, ClickHouse, GitHub, secrets)
+    - Subcommands: autorevert-checker, workflow-restart-checker, hud
+
+    Default values for all arguments are taken from the provided DefaultConfig,
+    allowing environment variables to set defaults that CLI args can override.
+
+    Args:
+        default_config: Configuration with default values from environment variables.
+
+    Returns:
+        Parsed arguments as an argparse.Namespace object.
+    """
     parser = argparse.ArgumentParser()
 
     # General options and configurations
@@ -448,11 +510,39 @@ def build_config_from_event(
 
 @dataclass
 class AWSSecretsFromStore:
+    """Secrets retrieved from AWS Secrets Manager.
+
+    Contains sensitive credentials that should not be stored in environment
+    variables or code, fetched at runtime from AWS Secrets Manager.
+
+    Attributes:
+        github_app_secret: The GitHub App private key (PEM format, decoded from base64).
+        clickhouse_password: The ClickHouse database password.
+    """
+
     github_app_secret: str
     clickhouse_password: str
 
 
 def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
+    """Retrieve secrets from AWS Secrets Manager.
+
+    Fetches the 'pytorch-autorevert-secrets' secret which contains:
+    - GITHUB_APP_SECRET: Base64-encoded GitHub App private key
+    - CLICKHOUSE_PASSWORD: ClickHouse database password
+
+    Uses exponential backoff retry logic for resilience.
+
+    Args:
+        secret_store_name: Name of the secret in AWS Secrets Manager (unused,
+            hardcoded to 'pytorch-autorevert-secrets' for now).
+
+    Returns:
+        AWSSecretsFromStore with the decoded secrets.
+
+    Raises:
+        SystemExit: If secrets cannot be retrieved after retries.
+    """
     try:
         for attempt in RetryWithBackoff():
             with attempt:
