@@ -115,12 +115,10 @@ ORDER BY
       inputs.devices = [inputs.device];
     }
 
-
     const params=  {
       ...this._DEFAULT_QUERY_PARAMS,
       ...inputs,
     };
-    console.log("elaine check params: ",params)
     return params
   }
   postProcess(data: any) {
