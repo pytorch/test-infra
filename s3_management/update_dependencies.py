@@ -1,3 +1,4 @@
+import os
 import re
 from typing import Dict, List
 
@@ -7,6 +8,42 @@ import boto3  # type: ignore[import-untyped]
 S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
+
+# Cloudflare R2 configuration for writing indexes
+# Set these environment variables:
+# - R2_ACCOUNT_ID
+# - R2_ACCESS_KEY_ID
+# - R2_SECRET_ACCESS_KEY
+# - R2_BUCKET_NAME (e.g., "pytorch-downloads")
+
+R2_ACCOUNT_ID = os.environ.get("R2_ACCOUNT_ID", "")
+R2_ACCESS_KEY_ID = os.environ.get("R2_ACCESS_KEY_ID", "")
+R2_SECRET_ACCESS_KEY = os.environ.get("R2_SECRET_ACCESS_KEY", "")
+R2_BUCKET_NAME = os.environ.get("R2_BUCKET_NAME", "pytorch-downloads")
+
+# Create R2 client with custom endpoint
+R2_BUCKET = None
+if R2_ACCOUNT_ID and R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY:
+    R2_CLIENT = boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name="auto",  # R2 uses 'auto' as region
+    )
+    R2_RESOURCE = boto3.resource(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY_ID,
+        aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+        region_name="auto",
+    )
+    R2_BUCKET = R2_RESOURCE.Bucket(R2_BUCKET_NAME)
+    print(
+        f"INFO: Will upload indexes to both S3 'pytorch' bucket and R2 '{R2_BUCKET_NAME}' bucket"
+    )
+else:
+    print("WARNING: R2 credentials not configured, will only upload to S3")
 
 PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "sympy": [{"project": "torch"}],
@@ -589,7 +626,7 @@ def upload_index_html(
     *,
     dry_run: bool = False,
 ) -> None:
-    """Upload modified index.html to S3 with absolute links"""
+    """Upload modified index.html to S3 and R2 with absolute links"""
     # Replace relative links with absolute links
     modified_html = replace_relative_links_with_absolute(html, base_url)
 
@@ -597,12 +634,22 @@ def upload_index_html(
 
     if dry_run:
         print(f"Dry Run - not uploading index.html to s3://pytorch/{index_key}")
+        if R2_BUCKET:
+            print(f"Dry Run - not uploading index.html to R2 bucket {R2_BUCKET.name}/{index_key}")
         return
 
+    # Upload to S3
     print(f"Uploading index.html to s3://pytorch/{index_key}")
     BUCKET.Object(key=index_key).put(
         ACL="public-read", ContentType="text/html", Body=modified_html.encode("utf-8")
     )
+
+    # Upload to R2 if configured
+    if R2_BUCKET:
+        print(f"Uploading index.html to R2 bucket {R2_BUCKET.name}/{index_key}")
+        R2_BUCKET.Object(key=index_key).put(
+            ACL="public-read", ContentType="text/html", Body=modified_html.encode("utf-8")
+        )
 
 
 def upload_package_using_simple_index(
