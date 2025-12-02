@@ -54,4 +54,3 @@ runs:
 
         printf 'HAS_NVIDIA=%s\n' "$has_gpu" >> "$GITHUB_OUTPUT"
         printf 'DETECTED_DEVICES<<EOF\n%s\nEOF\n' "$devices" >> "$GITHUB_OUTPUT"
-
