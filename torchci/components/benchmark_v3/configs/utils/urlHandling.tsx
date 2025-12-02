@@ -16,22 +16,25 @@ export function getBenchmarkFields(data: any, id: string) {
         data,
         PYTORCH_OPERATOR_MICROBENCHMARK_MAPPING_FIELDS
       );
+      const dn = toDeviceNameField(data.device, data.arch);
       return {
         ...data,
         ...newInfo,
+        deviceName: dn,
       };
     default:
       return {
-        deviceName: toDeviceName(data.device, data.arch),
+        deviceName: toDeviceNameField(data.device, data.arch),
         ...data,
       };
   }
 }
-export function toDeviceName(device: string, arch?: string) {
+
+export function toDeviceNameField(device: string, arch?: string) {
   if (!arch) {
     return device;
   }
-  return `${device} (${arch})`;
+  return `${device}||${arch}`;
 }
 
 export function toCompilerBenchmarkDisplayName(device: string, arch: string) {
