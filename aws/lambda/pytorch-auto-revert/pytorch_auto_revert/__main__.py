@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from .autorevert_circuit_breaker import check_autorevert_disabled
 from .clickhouse_client_helper import CHCliFactory
 from .config import (
+    AutorevertConfig,
     DEFAULT_CLICKHOUSE_DATABASE,
     DEFAULT_CLICKHOUSE_HOST,
     DEFAULT_CLICKHOUSE_PORT,
@@ -24,7 +25,6 @@ from .config import (
     DEFAULT_REPO_FULL_NAME,
     DEFAULT_WORKFLOW_RESTART_DAYS,
     DEFAULT_WORKFLOWS,
-    AutorevertConfig,
 )
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
@@ -97,7 +97,9 @@ class DefaultConfig:
             if "REVERT_ACTION" in os.environ
             else None
         )
-        self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "pytorch-autorevert-secrets")
+        self.secret_store_name = os.environ.get(
+            "SECRET_STORE_NAME", "pytorch-autorevert-secrets"
+        )
         self.workflows = os.environ.get(
             "WORKFLOWS",
             ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]),
@@ -669,7 +671,9 @@ def main_run(
         )
         write_hud_html_from_cli(config.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
     elif config.subcommand == "workflow-restart-checker":
-        workflow_restart_checker(config.workflow, commit=config.commit, days=config.days)
+        workflow_restart_checker(
+            config.workflow, commit=config.commit, days=config.days
+        )
     elif config.subcommand == "hud":
         out_path: Optional[str] = (
             None if config.hud_html is HUD_HTML_NO_VALUE_FLAG else config.hud_html

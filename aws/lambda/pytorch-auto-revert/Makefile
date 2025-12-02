@@ -13,7 +13,7 @@ venv/bin/python:
 	venv/bin/pip install -r requirements.txt
 
 venv/bin/lintrunner: venv/bin/python
-	venv/bin/pip install lintrunner==0.12.5 boto3-stubs==1.34.51
+	venv/bin/pip install -r dev_requirements.txt
 	# lintrunner only works properly with virtualenv if you activate it first
 	. venv/bin/activate && lintrunner init --config ../../../.lintrunner.toml
 
