@@ -97,7 +97,7 @@ class DefaultConfig:
             if "REVERT_ACTION" in os.environ
             else None
         )
-        self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "")
+        self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "pytorch-autorevert-secrets")
         self.workflows = os.environ.get(
             "WORKFLOWS",
             ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]),
@@ -527,15 +527,14 @@ class AWSSecretsFromStore:
 def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
     """Retrieve secrets from AWS Secrets Manager.
 
-    Fetches the 'pytorch-autorevert-secrets' secret which contains:
+    Fetches the `secret_store_name` secret which contains:
     - GITHUB_APP_SECRET: Base64-encoded GitHub App private key
     - CLICKHOUSE_PASSWORD: ClickHouse database password
 
     Uses exponential backoff retry logic for resilience.
 
     Args:
-        secret_store_name: Name of the secret in AWS Secrets Manager (unused,
-            hardcoded to 'pytorch-autorevert-secrets' for now).
+        secret_store_name: Name of the secret in AWS Secrets Manager
 
     Returns:
         AWSSecretsFromStore with the decoded secrets.
@@ -551,7 +550,7 @@ def get_secret_from_aws(secret_store_name: str) -> AWSSecretsFromStore:
                     service_name="secretsmanager", region_name="us-east-1"
                 )
                 get_secret_value_response = client.get_secret_value(
-                    SecretId="pytorch-autorevert-secrets"
+                    SecretId=secret_store_name
                 )
                 secret_value_string = json.loads(
                     get_secret_value_response["SecretString"]
