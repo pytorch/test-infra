@@ -250,9 +250,13 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     items: [
       {
         name: "Helion Benchmark",
-        route: `/benchmark/v3/dashboard/${PYTORCH_HELION_BENCHMARK_ID}`,
+        route: `/benchmark/v3/single/${PYTORCH_HELION_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/helion/tree/main/benchmarks)",
         actions: [
+          {
+            label: "dashboard",
+            href: `/benchmark/v3/dashboard/${PYTORCH_HELION_BENCHMARK_ID}`,
+          },
           {
             label: "Regression Reports",
             type: "regression_report",
