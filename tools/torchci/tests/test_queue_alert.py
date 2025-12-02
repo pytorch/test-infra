@@ -77,18 +77,18 @@ class TestAWSAlert(TestCase):
 
         rules = [
             AWSAlertRule(
-                machines=["machine1", "machine2"],
+                machine_regexes=["machine1", "machine2"],
                 rule=lambda count, seconds: count > 1 and seconds > 1,
                 team="team1",
             ),
             AWSAlertRule(
-                machines=["machine3"],
+                machine_regexes=["machine3"],
                 rule=lambda count, seconds: count > 2 and seconds > 2,
                 team="team2",
             ),
         ]
 
-        alerts = get_aws_alerts(db_results, rules)
+        alerts = get_aws_alerts(db_results, rules, ["machine1", "machine2", "machine3"])
         self.assertEqual(len(alerts), 3)
         alerts.sort(key=lambda a: a.queue_info.machine)
         self.assertEqual(alerts[0].status, "RESOLVED")
@@ -107,19 +107,43 @@ class TestAWSAlert(TestCase):
 
         rules = [
             AWSAlertRule(
-                machines=["machine1"],
+                machine_regexes=["machine1"],
                 rule=lambda count, seconds: count > 0 and seconds > 0,
                 team="team1",
             ),
             AWSAlertRule(
-                machines=["machine1"],
+                machine_regexes=["machine1"],
                 rule=lambda count, seconds: count > 0 and seconds > 0,
                 team="team2",
             ),
         ]
 
-        alerts = get_aws_alerts(db_results, rules)
+        alerts = get_aws_alerts(db_results, rules, ["machine1"])
         self.assertEqual(len(alerts), 2)
+
+    def test_regex(self):
+        # AWS Alert Rule with regex matching
+
+        db_results = [
+            self.create_queue_row(1, 1, "aaaaa"),
+            self.create_queue_row(1, 1, "bbbbb"),
+        ]
+
+        rules = [
+            AWSAlertRule(
+                machine_regexes=["a.*"],
+                rule=lambda count, seconds: count > 0 and seconds > 0,
+                team="team1",
+            ),
+        ]
+
+        alerts = get_aws_alerts(db_results, rules, ["aaaaa", "bbbbb", "abbbb"])
+        self.assertEqual(len(alerts), 2)
+        alerts = sorted(alerts, key=lambda a: a.queue_info.machine)
+        self.assertEqual(alerts[0].queue_info.machine, "aaaaa")
+        self.assertEqual(alerts[0].status, "FIRING")
+        self.assertEqual(alerts[1].queue_info.machine, "abbbb")
+        self.assertEqual(alerts[1].status, "RESOLVED")
 
 
 if __name__ == "__main__":

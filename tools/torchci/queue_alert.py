@@ -43,7 +43,7 @@ RULES = [
 
 
 class AWSAlertRule(NamedTuple):
-    machines: list[str]
+    machine_regexes: list[str]
     rule: Callable[[int, int], bool]
     team: str
 
@@ -53,21 +53,8 @@ class AWSAlertRule(NamedTuple):
 # even if it is the same rule
 AWS_ALERT_RULES = [
     AWSAlertRule(
-        machines=[
-            "linux.rocm.gfx942.docker-cache",
-            "linux.rocm.gpu.2",
-            "linux.rocm.gpu.4",
-            "linux.rocm.gpu.gfx1100",
-            "linux.rocm.gpu.gfx942.1",
-            "linux.rocm.gpu.gfx942.1.b",
-            "linux.rocm.gpu.gfx942.2",
-            "linux.rocm.gpu.gfx942.4",
-            "linux.rocm.gpu.gfx942.4.b",
-            "linux.rocm.gpu.gfx942.8",
-            "linux.rocm.gpu.mi250",
-            "linux.rocm.gpu.mi250.1",
-            "linux.rocm.gpu.mi250.4",
-            "linux.rocm.gpu.mi355.1",
+        machine_regexes=[
+            ".*rocm.*",
         ],
         rule=lambda count, seconds: count > 20 and seconds > 1 * 60 * 60,
         team="rocm-queue",
@@ -194,8 +181,19 @@ class AWSAlert(NamedTuple):
     status: str  # "FIRING" or "RESOLVED"
 
 
+def get_all_machines() -> list[str]:
+    # %7B%7D = encoded {}
+    url = "https://hud.pytorch.org/api/clickhouse/all_machine_types?parameters=%7B%7D"
+    response = requests.get(url, headers=get_hud_headers())
+    response.raise_for_status()
+    machines = response.json()
+    return [m["machine_type"] for m in machines]
+
+
 def get_aws_alerts(
-    queues: List[Dict[str, Any]], alert_rules: list[AWSAlertRule]
+    queues: List[Dict[str, Any]],
+    alert_rules: list[AWSAlertRule],
+    all_machines: list[str],
 ) -> list[AWSAlert]:
     """
     Given a list of queues and alerting rules, return a list of AWSAlert objects
@@ -207,7 +205,11 @@ def get_aws_alerts(
     machine_to_queue_map = {q["machine_type"]: q for q in queues}
 
     for alerting_rule in alert_rules:
-        for machine in alerting_rule.machines:
+        for machine in all_machines:
+            if not any(
+                re.match(regex, machine) for regex in alerting_rule.machine_regexes
+            ):
+                continue
             queue = machine_to_queue_map.get(machine)
             if queue is None or not alerting_rule.rule(
                 queue["count"], queue["avg_queue_s"]
@@ -292,7 +294,7 @@ def aws_queue_alert_system(dry_run: bool) -> None:
     def gen_title(machine: str) -> str:
         return f"[Pytorch] Machine {machine} has a long queue"
 
-    alerts = get_aws_alerts(get_queues(), AWS_ALERT_RULES)
+    alerts = get_aws_alerts(get_queues(), AWS_ALERT_RULES, get_all_machines())
     for alert in alerts:
         send_to_aws_alerting_lambda(
             team=alert.alerting_rule.team,
