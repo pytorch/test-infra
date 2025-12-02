@@ -3,6 +3,7 @@ import { CompilerQueryType } from "lib/benchmark/api_helper/backend/common/type"
 import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
 import { getCompilerBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/compilers/compiler_benchmark_data";
 import { getBenchmarkDataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
+import { getGeneralCommits } from "lib/benchmark/api_helper/backend/list_commits";
 import type { NextApiRequest, NextApiResponse } from "next";
 
 /**
@@ -101,7 +102,43 @@ async function getGenernalBenchmarkTimeSeries(
   formats: string[],
   id: string
 ) {
+  const params = await getGeneralBenchmarkTimeRangeQueryParams(
+    id,
+    query_params
+  );
+
   const fetcher = getBenchmarkDataFetcher(id);
-  const result = await fetcher.applyQuery(query_params);
+  const result = await fetcher.applyQuery(params);
   return fetcher.applyFormat(result, formats);
+}
+
+export async function getGeneralBenchmarkTimeRangeQueryParams(
+  id: string,
+  inputparams: any
+) {
+  const queryParams = {
+    ...inputparams, // override with caller's values
+  };
+
+  if (!queryParams.workflows || queryParams.workflows.length == 0) {
+    const { data: commit_results } = await getGeneralCommits(id, queryParams);
+    const unique_workflows = [
+      ...new Set(commit_results.map((c: any) => c.workflow_id)),
+    ];
+    console.log(
+      `no workflows provided in request, searched unqiue workflows based on
+      start/end time unique_workflows: ${unique_workflows.length}`
+    );
+    if (commit_results.length > 0) {
+      queryParams["workflows"] = unique_workflows;
+    } else {
+      console.log(`no workflow found in clickhouse using ${queryParams}`);
+      return [];
+    }
+  } else {
+    console.log(
+      `input provided workflows found using ${queryParams.workflows}`
+    );
+  }
+  return queryParams;
 }

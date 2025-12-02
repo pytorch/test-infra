@@ -9,9 +9,10 @@ export class BenchmarkListCommitQueryBuilder
   private _DEFAULT_QUERY_PARAMS = {
     branches: [],
     devices: [],
-    arch: [],
+    arches: [],
     dtypes: [],
     modes: [],
+    backends: [],
     startTime: "",
     stopTime: "",
   };
@@ -58,15 +59,17 @@ WHERE
         has({backends: Array(String)}, model_backend)
         OR empty({backends: Array(String)})
     )
-    AND notEmpty(device)
-    AND (benchmark_dtype = {dtype: String} OR empty({dtype: String}))
     AND (
-        arch LIKE concat('%', {arch: String}, '%')
-        OR {arch: String} = ''
+      has({dtypes: Array(String) },benchmark_dtype)
+      OR empty({dtypes: Array(String) })
     )
     AND (
-        startsWith(device, {device: String})
-        OR {device: String} = ''
+        multiSearchAnyCaseInsensitive(arch, {arches: Array(String)})
+        OR empty({arches: Array(String)})
+    )
+    AND (
+        has({devices: Array(String)}, device)
+        OR empty({devices: Array(String) })
     )
     {{WHERE}}
 GROUP BY
@@ -83,15 +86,42 @@ ORDER BY
   build() {
     return this.builder.build();
   }
+
   addWhere(where: string[]) {
     this.builder.addWhere(where);
   }
 
   toQueryParams(inputs: any, id?: string) {
-    return {
+    if (inputs.backend && !inputs.backends) {
+      inputs.backends = [inputs.backend];
+    }
+
+    if (inputs.dtype && !inputs.dtypes) {
+      inputs.dtypes = [inputs.dtype];
+    }
+
+    if (inputs.model && !inputs.models) {
+      inputs.models = [inputs.model];
+    }
+    if (inputs.branch && !inputs.branches) {
+      inputs.branches = [inputs.branch];
+    }
+
+    if (inputs.arch && !inputs.arches) {
+      inputs.arches = [inputs.arch];
+    }
+
+    if (inputs.device && !inputs.devices) {
+      inputs.devices = [inputs.device];
+    }
+
+    const params = {
       ...this._DEFAULT_QUERY_PARAMS,
       ...inputs,
     };
+
+    console.log("[listCommitQueryBuilder] query calls to db:", params);
+    return params;
   }
   postProcess(data: any) {
     return data;
