@@ -295,6 +295,12 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
     },
     renders: [
       {
+        type: "AutoBenchmarkComparisonGithubExternalLink",
+        title: "Github Link (external)",
+        description: "See original github runs for left and right runs",
+        config: {},
+      },
+      {
         type: "AutoBenchmarkLogs",
         title: "Logs",
         config: {
