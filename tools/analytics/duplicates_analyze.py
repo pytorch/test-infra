@@ -56,10 +56,10 @@ def humansize(size):
     if size < 1024:
         return f"{size} bytes"
     if size < 1024**2:
-        return f"{int(size/1024)} Kb"
+        return f"{int(size / 1024)} Kb"
     if size < 1024**3:
-        return f"{size/(1024.0**2):.2f} Mb"
-    return f"{size/(1024.0**3):.2f} Gb"
+        return f"{size / (1024.0**2):.2f} Mb"
+    return f"{size / (1024.0**3):.2f} Gb"
 
 
 def print_sizes(libname, depth: int = 2) -> None:
@@ -104,7 +104,7 @@ def print_symbols_overlap(libname1: str, libname2: str) -> None:
         )
         return
     print(
-        f"{libname1} symbols size {humansize(sym1_size)} overlap {humansize(overlap_size)} ({100.0 * overlap_size/sym1_size :.2f}%)"
+        f"{libname1} symbols size {humansize(sym1_size)} overlap {humansize(overlap_size)} ({100.0 * overlap_size / sym1_size:.2f}%)"
     )
     for sym in sym_overlap:
         print(sym)

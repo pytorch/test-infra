@@ -103,6 +103,15 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     type: "auto",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: PYTORCH_HELION_BENCHMARK_ID,
+        },
+      },
+    },
     subSectionRenders: {
       detail_view: {
         filterConstraint: {

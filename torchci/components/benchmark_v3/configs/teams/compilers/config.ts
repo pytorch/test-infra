@@ -32,7 +32,7 @@ const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
-  target: "geomean",
+  target: "geomean_speedup",
   type: "ratio",
   ratioPolicy: {
     badRatio: 0.95,
@@ -107,7 +107,7 @@ const RENDER_MAPPING_BOOK = {
       scale: 100,
     },
   },
-  geomean: {
+  geomean_speedup: {
     unit: {
       unit: "x",
     },
@@ -323,6 +323,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
           extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
             tableRenderingBook: DashboardRenderBook,
+            renderMissing: true,
             flex: {
               primary: 2,
             },
@@ -418,7 +419,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                   passrate: {
                     text: "Passrate",
                   },
-                  geomean: {
+                  geomean_speedup: {
                     text: "Geometric mean speedup",
                   },
                   compilation_latency: {
@@ -447,7 +448,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
           filterByFieldValues: {
             metric: [
               "passrate",
-              "geomean",
+              "geomean_speedup",
               "compilation_latency",
               "compression_ratio",
             ],
@@ -465,7 +466,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             targetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,
-              geomean: GEOMEAN_COMPARISON_POLICY,
+              geomean_speedup: GEOMEAN_COMPARISON_POLICY,
               compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
               compression_ratio: COMPRESSION_RATIO_POLICY,
             },
@@ -474,17 +475,18 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                 passrate: {
                   text: "Passrate (threshold: 95%)",
                 },
-                geomean: {
+                geomean_speedup: {
                   text: "Geometric mean speedup (threshold = 0.95x)",
                 },
                 compilation_latency: {
-                  text: "compilation time (seconds)",
+                  text: "Compilation time (seconds)",
                 },
                 compression_ratio: {
                   text: "Peak memory footprint compression ratio (threshold = 0.95x)",
                 },
               },
               tableRenderingBook: RENDER_MAPPING_BOOK,
+              renderMissing: true,
             },
           },
         },

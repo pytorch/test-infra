@@ -29,6 +29,15 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     type: "auto",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+        },
+      },
+    },
     subSectionRenders: {
       detail_view: {
         filterConstraint: {

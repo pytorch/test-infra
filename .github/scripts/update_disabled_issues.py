@@ -28,7 +28,10 @@ def main() -> None:
         with urlopen(
             Request(
                 f"{HUD_URL}/api/flaky-tests/getDisabledTestsAndJobs",
-                headers={"Authorization": os.environ["FLAKY_TEST_BOT_KEY"]},
+                headers={
+                    "Authorization": os.environ["FLAKY_TEST_BOT_KEY"],
+                    "x-hud-internal-bot": os.environ["HUD_API_TOKEN"],
+                },
             )
         ) as result:
             if result.status != 200:

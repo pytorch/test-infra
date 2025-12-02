@@ -31,7 +31,8 @@ jobs:
       - name: Retrieve query results and update Dr. CI comments
         run: |
           curl --request POST \
-            --url 'https://www.torch-ci.com/api/drci/drci' \
+            --url 'https://hud.pytorch.org/api/drci/drci' \
             --header 'Authorization: ${{ secrets.DRCI_BOT_KEY }}' \
+            --header 'x-hud-internal-bot: ${{ secrets.HUD_API_TOKEN }}' \
             --data 'repo=${{ matrix.repo }}&org=${{ matrix.org }}' \
             --silent --output /dev/null --show-error --fail

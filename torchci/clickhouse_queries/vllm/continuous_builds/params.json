@@ -1,0 +1,16 @@
+{
+  "params": {
+    "repo": "String",
+    "pipelineName": "String",
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)"
+  },
+  "tests": [
+    {
+      "repo": "https://github.com/vllm-project/vllm.git",
+      "pipelineName": "CI",
+      "startTime": "2025-11-17T00:00:00.000",
+      "stopTime": "2025-11-24T00:00:00.000"
+    }
+  ]
+}

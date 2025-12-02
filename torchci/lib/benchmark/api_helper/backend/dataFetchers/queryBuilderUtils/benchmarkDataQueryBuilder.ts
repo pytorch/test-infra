@@ -125,23 +125,23 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
         floor(toFloat64(o.metric.'target_value'), 2) AS target,
         o.benchmark.'mode' AS mode,
         o.benchmark.'dtype' AS dtype,
-        multiIf(
-            NOT empty(tupleElement(o.benchmark, 'extra_info')['device']),
-                tupleElement(o.benchmark, 'extra_info')['device'],
-
-            NOT empty(tupleElement(o.runners[1], 'name')),
-                tupleElement(o.runners[1], 'name'),
-
-            'cpu'   -- final fallback
+        if(
+          empty(tupleElement(runners[1], 'name')),
+          if(
+              empty(tupleElement(benchmark, 'extra_info')['device']),
+              'cpu',
+              tupleElement(benchmark, 'extra_info')['device']
+            ),
+            tupleElement(runners[1], 'name')
         ) AS device,
-       multiIf(
-            NOT empty(tupleElement(o.benchmark, 'extra_info')['arch']),
-                tupleElement(o.benchmark, 'extra_info')['arch'],
-
-            NOT empty(tupleElement(o.runners[1], 'type')),
-                tupleElement(o.runners[1], 'type'),
-
-            tupleElement(o.runners[1], 'cpu_info')   -- final fallback
+       if(
+        empty(tupleElement(runners[1], 'type')),
+          if(
+            empty(tupleElement(benchmark, 'extra_info')['arch']),
+            tupleElement(runners[1], 'cpu_info'),
+            tupleElement(benchmark, 'extra_info')['arch']
+          ),
+          tupleElement(runners[1], 'type')
         ) AS arch,
         DATE_TRUNC(
             {granularity: String },

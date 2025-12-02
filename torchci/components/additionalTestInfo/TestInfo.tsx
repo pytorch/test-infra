@@ -37,6 +37,10 @@ export function genMessage({
   return errorString.trim();
 }
 
+export function isPendingJob(job: JobData) {
+  return IsJobInProgress(job.conclusion);
+}
+
 export function isPending(jobs: JobData[]) {
   return jobs.some((job) => IsJobInProgress(job.conclusion));
 }

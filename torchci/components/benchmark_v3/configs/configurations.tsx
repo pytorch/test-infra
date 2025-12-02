@@ -201,6 +201,11 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
         actions: [
           {
+            label: "Regression Reports",
+            type: "regression_report",
+            href: `/benchmark/regression/reports/${PYTORCH_AO_MICRO_API_BENCHMARK_ID}`,
+          },
+          {
             label: "Legacy dashboard",
             href: "/benchmark/llms?repoName=pytorch%2Fao&benchmarkName=micro-benchmark+api",
           },
@@ -245,15 +250,31 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     items: [
       {
         name: "Helion Benchmark",
-        route:
-          "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_HELION_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/helion/tree/main/benchmarks)",
         actions: [
           {
-            label: "New dashboard (WIP)",
-            href: "/benchmark/v3/dashboard/pytorch_helion",
+            label: "Regression Reports",
+            type: "regression_report",
+            href: `/benchmark/regression/reports/${PYTORCH_HELION_BENCHMARK_ID}`,
+          },
+          {
+            label: "legacy dashboard",
+            href: "/benchmark/llms?repoName=pytorch%2Fhelion&benchmarkName=Helion+Benchmark",
           },
         ],
+      },
+    ],
+  },
+  {
+    title: "ExecuTorch Benchmarks",
+    subtitle: "Benchmarks related to repo pytorch/executorch",
+    tags: ["repo:pytorch/executorch"],
+    items: [
+      {
+        name: "ExecuTorch Benchmark",
+        route: "/benchmark/llms?repoName=pytorch%2Fexecutorch",
+        info: "Powered by [code](https://github.com/pytorch/executorch/tree/main/.github/workflows)",
       },
     ],
   },

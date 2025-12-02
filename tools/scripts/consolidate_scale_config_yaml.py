@@ -105,7 +105,7 @@ def check_being_used(org, repo, name, user, token):
             found[ocurrence["path"]] = 1
     if len(found) > 0:
         return True
-    print(f'No usage found for {name} in {org}/{repo} = {query["q"]}', file=sys.stderr)
+    print(f"No usage found for {name} in {org}/{repo} = {query['q']}", file=sys.stderr)
     return False
 
 
@@ -173,7 +173,7 @@ def main():
                         os, is_ephemeral, ref_repo = type_warning[v["instance_type"]][k]
                         if os != v["os"] or is_ephemeral != v["is_ephemeral"]:
                             print(
-                                f'WARNING! Found runner_types with same name && instance_type [{v["instance_type"]}, {k}] but different OS or is_ephemeral tag, this will fail [({ref_repo}, {os}, {is_ephemeral}), ({repo}, {v["os"]}, {v["is_ephemeral"]})]',
+                                f"WARNING! Found runner_types with same name && instance_type [{v['instance_type']}, {k}] but different OS or is_ephemeral tag, this will fail [({ref_repo}, {os}, {is_ephemeral}), ({repo}, {v['os']}, {v['is_ephemeral']})]",
                                 file=sys.stderr,
                             )
                     else:
@@ -184,11 +184,11 @@ def main():
                             os, is_ephemeral, ref_repo = runn_cfg
                             if os != v["os"] or is_ephemeral != v["is_ephemeral"]:
                                 print(
-                                    f'INFO! Found runner_types with same instance_type [{v["instance_type"]}, {k}] and different OS or is_ephemeral tag, this is not encouraged, but it is OK [({ref_repo}, {os}, {is_ephemeral}), ({repo}, {v["os"], v["is_ephemeral"]})]'
+                                    f"INFO! Found runner_types with same instance_type [{v['instance_type']}, {k}] and different OS or is_ephemeral tag, this is not encouraged, but it is OK [({ref_repo}, {os}, {is_ephemeral}), ({repo}, {v['os'], v['is_ephemeral']})]"
                                 )
                             else:
                                 print(
-                                    f'WARNING! Found runner_types with same instance_type [{v["instance_type"]}, {k}] and same OS or is_ephemeral tags, but they have different names, this is bad [({ref_repo}, {os}, {is_ephemeral}), ({repo}, {v["os"], v["is_ephemeral"]})]',
+                                    f"WARNING! Found runner_types with same instance_type [{v['instance_type']}, {k}] and same OS or is_ephemeral tags, but they have different names, this is bad [({ref_repo}, {os}, {is_ephemeral}), ({repo}, {v['os'], v['is_ephemeral']})]",
                                     file=sys.stderr,
                                 )
                 else:
