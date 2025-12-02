@@ -140,7 +140,7 @@ class BenchmarkSummaryProcessor:
             )
 
         target, ls, le = self.get_target(config, self.end_time, self.hud_access_token)
-        if not target.time_series:
+        if not target or not target.time_series:
             self.log_info(
                 f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
@@ -149,7 +149,7 @@ class BenchmarkSummaryProcessor:
             config, self.end_time, self.hud_access_token
         )
 
-        if not baseline.time_series:
+        if not baseline or not baseline.time_series:
             self.log_info(
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
