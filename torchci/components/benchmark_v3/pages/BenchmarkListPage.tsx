@@ -23,22 +23,26 @@ export function getBenchmarkMainRouteById(id: string): string | undefined {
 export function benchmarkCategoryCardToNavGroup(
   categories: BenchmarkCategoryGroup[]
 ): (NavCategory | NavItem | NavDivider)[] {
-  const items: (NavCategory | NavItem)[] = categories
+  const items = categories
     .map((c: BenchmarkCategoryGroup) => {
       if (c.items.length === 1) {
-        const item: NavItem = {
+        const item = {
           label: c.items[0].name,
           route: c.items[0].route,
-          type: "item",
+          type: "item" as const,
         };
         return item;
       }
-      const group: NavCategory = {
+      const group = {
         label: c.title,
         items: c.items
           .sort((a, b) => a.name.localeCompare(b.name))
-          .map((i) => ({ label: i.name, route: i.route, type: "item" })),
-        type: "group",
+          .map((i) => ({
+            label: i.name,
+            route: i.route,
+            type: "item" as const,
+          })),
+        type: "group" as const,
       };
       return group;
     })
@@ -53,10 +57,10 @@ export function benchmarkCategoryCardToNavGroup(
 
   return [
     ...items,
-    { type: "divider" },
+    { type: "divider" as const },
     {
       label: "View All Benchmarks",
-      type: "item",
+      type: "item" as const,
       route: "/benchmark/benchmark_list",
     },
   ];

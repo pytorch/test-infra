@@ -268,9 +268,7 @@ function NavBar() {
           <li>
             <ThemeModePicker />
           </li>
-          <li>
-            <LoginSection></LoginSection>
-          </li>
+          <LoginSection></LoginSection>
         </ul>
       </div>
     </div>
