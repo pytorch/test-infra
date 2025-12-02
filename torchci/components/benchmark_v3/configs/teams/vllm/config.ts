@@ -66,13 +66,6 @@ export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
         },
         renders: [
           {
-            type: "AutoBenchmarkComparisonGithubExternalLink",
-            description: "See original github runs for left and right runs",
-            config: {
-              repo: "pytorch/pytorch-integration-testing",
-            },
-          },
-          {
             type: "AutoBenchmarkTimeSeriesChartGroup",
             title: "Metrics Time Series Chart Detail View",
             config: {
