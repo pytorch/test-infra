@@ -17,10 +17,6 @@ venv/bin/lintrunner: venv/bin/python
 	# lintrunner only works properly with virtualenv if you activate it first
 	. venv/bin/activate && lintrunner init --config ../../../.lintrunner.toml
 
-.PHONY: run-local
-run-local: venv/bin/python
-	NOTIFY_ISSUE_NUMBER=265 REPO_FULL_NAME=pytorch/pytorch-canary venv/bin/python -m pytorch_auto_revert --dry-run
-
 .PHONY: run-local-workflows
 run-local-workflows: venv/bin/python
 	NOTIFY_ISSUE_NUMBER=265 REPO_FULL_NAME=pytorch/pytorch-canary venv/bin/python -m pytorch_auto_revert --dry-run autorevert-checker Lint trunk pull inductor linux-binary-manywheel --hours 8
