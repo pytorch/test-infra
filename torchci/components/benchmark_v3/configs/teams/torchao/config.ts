@@ -99,6 +99,11 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
           },
           renders: [
             {
+              type: "AutoBenchmarkComparisonGithubExternalLink",
+              description: "See original github runs for left and right runs",
+              config: {},
+            },
+            {
               type: "AutoBenchmarkTimeSeriesChartGroup",
               title: "Metrics Time Series Chart Detail View",
               config: {
