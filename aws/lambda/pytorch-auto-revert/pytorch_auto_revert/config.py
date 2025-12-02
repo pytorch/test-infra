@@ -91,4 +91,3 @@ class AutorevertConfig:
     # -------------------------------------------------------------------------
     timestamp: Optional[str] = None
     hud_html: Optional[str] = None
-
