@@ -9,35 +9,10 @@ inputs:
     type: string
     default: "580.65.06" # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-580-65-06/
 
-outputs:
-  has-nvidia:
-    description: '"true" if this runner exposes an NVIDIA GPU device.'
-    value: ${{ steps.detect-gpu.outputs.has-nvidia }}
-  in-container-runner:
-    description: '"true" if the runner is already inside a container.'
-    value: ${{ steps.detect-gpu.outputs.in-container-runner }}
-
 runs:
   using: composite
   steps:
-    - name: Detect NVIDIA GPU availability
-      id: detect-gpu
-      uses: ./.github/actions/detect-nvidia-gpu
-
-    - name: Export GPU detection result
-      shell: bash
-      env:
-        HAS_NVIDIA: ${{ steps.detect-gpu.outputs.has-nvidia }}
-      run: |
-        if [ "${HAS_NVIDIA}" = "true" ]; then
-          echo "HAS_NVIDIA_GPU=true" >> "${GITHUB_ENV}"
-          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
-        else
-          echo "HAS_NVIDIA_GPU=false" >> "${GITHUB_ENV}"
-        fi
-
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
-      if: ${{ steps.detect-gpu.outputs.has-nvidia == 'true' && steps.detect-gpu.outputs.in-container-runner != 'true' }}
       uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
       env:
         DRIVER_VERSION: ${{ inputs.driver-version }}
@@ -275,6 +250,7 @@ runs:
                   exit 1
                   ;;
           esac
+          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
 
           # Fix https://github.com/NVIDIA/nvidia-docker/issues/1648 on runners with
           # more than one GPUs. This just needs to be run once. The command fails
