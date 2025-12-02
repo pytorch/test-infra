@@ -372,7 +372,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
 
     const params = { ...this.DEFAULT_PARAMS, ...inputs };
 
-    console.log("elainetest:", params)
+    console.log("elainetest:", params);
     return params;
   }
 }

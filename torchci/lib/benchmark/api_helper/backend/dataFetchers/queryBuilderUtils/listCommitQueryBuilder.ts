@@ -115,11 +115,11 @@ ORDER BY
       inputs.devices = [inputs.device];
     }
 
-    const params=  {
+    const params = {
       ...this._DEFAULT_QUERY_PARAMS,
       ...inputs,
     };
-    return params
+    return params;
   }
   postProcess(data: any) {
     return data;

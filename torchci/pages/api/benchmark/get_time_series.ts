@@ -1,8 +1,8 @@
 import { checkAuthWithApiToken } from "lib/auth/auth";
 import { CompilerQueryType } from "lib/benchmark/api_helper/backend/common/type";
-import { listGeneralCommits, readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
 import { getCompilerBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/compilers/compiler_benchmark_data";
-import { getBenchmarkDataFetcher, getListBenchmarkCommitsFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
+import { getBenchmarkDataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
 import { getGeneralCommits } from "lib/benchmark/api_helper/backend/list_commits";
 import type { NextApiRequest, NextApiResponse } from "next";
 
@@ -102,13 +102,15 @@ async function getGenernalBenchmarkTimeSeries(
   formats: string[],
   id: string
 ) {
-  const params = await getGeneralBenchmarkTimeRangeQueryParams(id, query_params);
-  
+  const params = await getGeneralBenchmarkTimeRangeQueryParams(
+    id,
+    query_params
+  );
+
   const fetcher = getBenchmarkDataFetcher(id);
   const result = await fetcher.applyQuery(params);
   return fetcher.applyFormat(result, formats);
 }
-
 
 export async function getGeneralBenchmarkTimeRangeQueryParams(
   id: string,
@@ -119,12 +121,9 @@ export async function getGeneralBenchmarkTimeRangeQueryParams(
   };
 
   if (!queryParams.workflows || queryParams.workflows.length == 0) {
-    const { data: commit_results } = await getGeneralCommits(
-      id,
-      queryParams
-    );
+    const { data: commit_results } = await getGeneralCommits(id, queryParams);
     const unique_workflows = [
-      ...new Set(commit_results.map((c:any) => c.workflow_id)),
+      ...new Set(commit_results.map((c: any) => c.workflow_id)),
     ];
     console.log(
       `no workflows provided in request, searched unqiue workflows based on
