@@ -9,10 +9,70 @@ inputs:
     type: string
     default: "580.65.06" # https://docs.nvidia.com/datacenter/tesla/tesla-release-notes-580-65-06/
 
+outputs:
+  has-nvidia:
+    description: '"true" if this runner exposes an NVIDIA GPU device.'
+    value: ${{ steps.detect-gpu.outputs.HAS_NVIDIA }}
+  in-container-runner:
+    description: '"true" if the runner is already inside a container.'
+    value: ${{ steps.check-container.outputs.IN_CONTAINER_RUNNER }}
+
 runs:
   using: composite
   steps:
+    - id: check-container
+      name: Check if running inside container runner
+      shell: bash
+      run: |
+        echo "IN_CONTAINER_RUNNER=$(if [ -f /.inarc ] || [ -f /.incontainer ]; then echo true ; else echo false; fi)" >> "$GITHUB_OUTPUT"
+
+    - id: detect-gpu
+      name: Detect NVIDIA GPU availability
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        has_gpu=false
+        devices=""
+
+        if command -v nvidia-smi >/dev/null 2>&1; then
+          if nvidia-smi -L >/tmp/nvidia_devices 2>/dev/null; then
+            has_gpu=true
+            devices=$(cat /tmp/nvidia_devices)
+          fi
+        fi
+
+        if [ "$has_gpu" = false ]; then
+          if ls /dev/nvidia* >/tmp/nvidia_devices 2>/dev/null; then
+            has_gpu=true
+            devices=$(cat /tmp/nvidia_devices)
+          fi
+        fi
+
+        if [ "$has_gpu" = false ] && command -v lspci >/dev/null 2>&1; then
+          if lspci | grep -i 'nvidia' >/tmp/nvidia_devices 2>/dev/null; then
+            has_gpu=true
+            devices=$(cat /tmp/nvidia_devices)
+          fi
+        fi
+
+        printf 'HAS_NVIDIA=%s\n' "$has_gpu" >> "$GITHUB_OUTPUT"
+        printf 'DETECTED_DEVICES<<EOF\n%s\nEOF\n' "$devices" >> "$GITHUB_OUTPUT"
+
+    - name: Export GPU detection result
+      shell: bash
+      env:
+        HAS_NVIDIA: ${{ steps.detect-gpu.outputs.HAS_NVIDIA }}
+      run: |
+        if [ "${HAS_NVIDIA}" = "true" ]; then
+          echo "HAS_NVIDIA_GPU=true" >> "${GITHUB_ENV}"
+          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
+        else
+          echo "HAS_NVIDIA_GPU=false" >> "${GITHUB_ENV}"
+        fi
+
     - name: Install nvidia driver, nvidia-docker runtime, set GPU_FLAG
+      if: ${{ steps.detect-gpu.outputs.HAS_NVIDIA == 'true' && steps.check-container.outputs.IN_CONTAINER_RUNNER != 'true' }}
       uses: nick-fields/retry@3e91a01664abd3c5cd539100d10d33b9c5b68482
       env:
         DRIVER_VERSION: ${{ inputs.driver-version }}
@@ -250,7 +310,6 @@ runs:
                   exit 1
                   ;;
           esac
-          echo "GPU_FLAG=--gpus all -e NVIDIA_DRIVER_CAPABILITIES=all" >> "${GITHUB_ENV}"
 
           # Fix https://github.com/NVIDIA/nvidia-docker/issues/1648 on runners with
           # more than one GPUs. This just needs to be run once. The command fails
