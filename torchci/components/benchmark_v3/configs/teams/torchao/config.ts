@@ -151,6 +151,11 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
       },
       renders: [
         {
+          type: "AutoBenchmarkComparisonGithubExternalLink",
+          description: "See original github runs for left and right runs",
+          config: {},
+        },
+        {
           type: "AutoBenchmarkPairwiseTable",
           title: "Comparison Table",
           config: {

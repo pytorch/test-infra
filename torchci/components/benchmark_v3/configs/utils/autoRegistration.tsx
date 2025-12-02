@@ -1,4 +1,5 @@
 import {
+  AutoBenchmarkComparisonGithubExternalLink,
   AutoBenchmarkLogs,
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
@@ -54,6 +55,9 @@ export class AutoComponentRegistry {
       AutoBenchmarkSingleViewNavigation: {
         Component: AutoBenchmarkSingleViewNavigation,
       },
+      AutoBenchmarkComparisonGithubExternalLink: {
+        Component: AutoBenchmarkComparisonGithubExternalLink,
+      },
       AutoBenchmarkTimeSeriesChartGroup: {
         Component: AutoBenchmarkTimeSeriesChartGroup,
       },
@@ -66,6 +70,7 @@ export class AutoComponentRegistry {
       AutoBenchmarkLogs: {
         Component: AutoBenchmarkLogs,
       },
+
       // Add your auto components here
     };
     this.map = Object.freeze({ ...registry });

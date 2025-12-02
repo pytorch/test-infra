@@ -295,6 +295,12 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
     },
     renders: [
       {
+        type: "AutoBenchmarkComparisonGithubExternalLink",
+        title: "Github Link (external)",
+        description: "See original github runs for left and right runs",
+        config: {},
+      },
+      {
         type: "AutoBenchmarkLogs",
         title: "Logs",
         config: {
@@ -398,6 +404,13 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
       },
     },
     renders: [
+      {
+        type: "FanoutBenchmarkComparisonGithubExternalLink",
+        title: "Github Link (external)",
+        config: {
+          description: "See original github runs for left and right runs",
+        },
+      },
       {
         type: "FanoutBenchmarkTimeSeriesChartSection",
         title: "Time Series Chart Section",

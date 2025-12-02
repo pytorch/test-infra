@@ -121,6 +121,11 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
     },
     renders: [
       {
+        type: "AutoBenchmarkComparisonGithubExternalLink",
+        description: "See original github runs for left and right runs",
+        config: {},
+      },
+      {
         type: "AutoBenchmarkTimeSeriesTable",
         title: "Comparison Table",
         config: {

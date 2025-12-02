@@ -18,6 +18,7 @@ import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/componen
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
+import { BenchmarkComparisonGithubExternalLink } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/GithubExternalLink";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -304,6 +305,37 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
         />
       </Grid>
     </Grid>
+  );
+}
+
+export function AutoBenchmarkComparisonGithubExternalLink({
+  config,
+}: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const lcommit = ctx.lcommit;
+  const rcommit = ctx.rcommit;
+  const repo = uiRenderConfig.config?.repo ?? ctx.repo;
+  if (!isWorkflowsReady || !lcommit || !rcommit) {
+    return <></>;
+  }
+  return (
+    <BenchmarkComparisonGithubExternalLink
+      benchmarkId={ctx.benchmarkId}
+      lcommit={ctx.lcommit}
+      rcommit={ctx.rcommit}
+      repo={repo}
+      title={{
+        text: config?.title,
+        description: config?.description,
+      }}
+    />
   );
 }
 
