@@ -635,7 +635,9 @@ def upload_index_html(
     if dry_run:
         print(f"Dry Run - not uploading index.html to s3://pytorch/{index_key}")
         if R2_BUCKET:
-            print(f"Dry Run - not uploading index.html to R2 bucket {R2_BUCKET.name}/{index_key}")
+            print(
+                f"Dry Run - not uploading index.html to R2 bucket {R2_BUCKET.name}/{index_key}"
+            )
         return
 
     # Upload to S3
@@ -648,7 +650,9 @@ def upload_index_html(
     if R2_BUCKET:
         print(f"Uploading index.html to R2 bucket {R2_BUCKET.name}/{index_key}")
         R2_BUCKET.Object(key=index_key).put(
-            ACL="public-read", ContentType="text/html", Body=modified_html.encode("utf-8")
+            ACL="public-read",
+            ContentType="text/html",
+            Body=modified_html.encode("utf-8"),
         )
 
 
