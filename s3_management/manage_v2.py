@@ -554,6 +554,47 @@ class S3Index:
             {self.obj_to_package_name(obj) for obj in self.gen_file_list(subdir)}
         )
 
+    def get_packages_to_copy_from_parent(
+        self, subdir: str, parent_prefix: str
+    ) -> Set[str]:
+        """Get packages from PACKAGE_LINKS_ALLOW_LIST that exist in parent but not in subdir
+
+        Args:
+            subdir: The subdirectory being processed (e.g., "whl/nightly/cu128")
+            parent_prefix: The parent prefix to copy from (e.g., "whl/nightly")
+
+        Returns:
+            Set of package names that should be copied from parent
+        """
+        packages_to_copy = set()
+
+        # Get packages in the subdirectory
+        packages_in_subdir = set(self.get_package_names(subdir=subdir))
+
+        # Check if parent indexes exist for PACKAGE_LINKS_ALLOW_LIST packages
+        prefix_to_search = f"{parent_prefix}/"
+        for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
+            # Check if this is a packagename/index.html file at the parent level
+            relative_key = obj.key[len(prefix_to_search) :]
+            parts = relative_key.split("/")
+            if len(parts) == 2 and parts[1] == "index.html":
+                # Convert from URL format (dashes) to package name format (underscores)
+                pkg_name_with_dashes = parts[0]
+                pkg_name_with_underscores = pkg_name_with_dashes.replace("-", "_")
+
+                # Check if this package is in PACKAGE_LINKS_ALLOW_LIST
+                if pkg_name_with_underscores.lower() in PACKAGE_LINKS_ALLOW_LIST:
+                    # Only add if it's not already in the subdirectory
+                    if pkg_name_with_underscores.lower() not in {
+                        p.lower() for p in packages_in_subdir
+                    }:
+                        packages_to_copy.add(pkg_name_with_underscores)
+                        print(
+                            f"INFO: Found PACKAGE_LINKS_ALLOW_LIST package '{pkg_name_with_underscores}' in '{parent_prefix}' to copy to '{subdir}'"
+                        )
+
+        return packages_to_copy
+
     def normalize_package_version(self, obj: S3Object) -> str:
         # removes the GPU specifier from the package name as well as
         # unnecessary things like the file extension, architecture name, etc.
@@ -658,21 +699,12 @@ class S3Index:
 
         # List all objects in the subdir to find packagename/index.html patterns
         prefix_to_search = f"{resolved_subdir}/"
-        print(
-            f"DEBUG: Searching for package index.html files with prefix '{prefix_to_search}'"
-        )
-        index_html_count = 0
         for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
-            print(f"DEBUG: Checking object: {obj.key}")
             # Check if this is a packagename/index.html file
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
             if len(parts) == 2 and parts[1] == "index.html":
-                index_html_count += 1
                 package_name = parts[0].replace("-", "_")
-                print(
-                    f"DEBUG: Found package index.html: {obj.key} -> package '{package_name}'"
-                )
                 # Convert back to the format used in wheel names (use _ not -)
                 # But we need to check if this package already has wheels
                 if package_name.lower() not in {
@@ -682,7 +714,6 @@ class S3Index:
                     print(
                         f"INFO: Including package '{package_name}' in {prefix_to_search} (has index.html but no wheels)"
                     )
-        print(f"DEBUG: Found {index_html_count} index.html files in {prefix_to_search}")
 
         # Combine both sets of packages
         all_packages = packages_from_wheels | packages_with_index_only
@@ -758,13 +789,30 @@ class S3Index:
                 )
 
             # Generate and upload per-package indexes
-            for pkg_name in self.get_package_names(subdir=subdir):
+            packages_with_wheels = self.get_package_names(subdir=subdir)
+
+            # Also get packages from PACKAGE_LINKS_ALLOW_LIST that exist in parent
+            packages_to_copy_from_parent = set()
+            if subdir != self.prefix and parent_prefix is not None:
+                # For subdirectories like whl/nightly/cu128, check for packages in whl/nightly
+                packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
+                    subdir=subdir, parent_prefix=self.prefix
+                )
+            elif subdir == self.prefix and parent_prefix is not None:
+                # For root of nested prefix like whl/nightly, check for packages in whl
+                packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
+                    subdir=subdir, parent_prefix=parent_prefix
+                )
+
+            # Combine packages with wheels and packages to copy
+            all_packages = sorted(
+                set(packages_with_wheels) | packages_to_copy_from_parent
+            )
+
+            for pkg_name in all_packages:
                 compat_pkg_name = pkg_name.lower().replace("_", "-")
 
                 # Check if this package should copy from parent instead of processing wheels
-                # This applies to:
-                # 1. Subdirectories (e.g., whl/nightly/cu128 copies from whl/nightly)
-                # 2. Root of nested prefixes (e.g., whl/nightly copies from whl, whl/test copies from whl)
                 should_copy_from_parent = False
                 copy_source_prefix = None
 
@@ -780,12 +828,7 @@ class S3Index:
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
-                    root_index_key = (
-                        f"{copy_source_prefix}/{compat_pkg_name}/index.html"
-                    )
-                    print(
-                        f"INFO Copying {root_index_key} to {subdir}/{compat_pkg_name}/index.html for S3 bucket {BUCKET.name}"
-                    )
+                    root_index_key = f"{copy_source_prefix}/{compat_pkg_name}/index.html"
 
                     try:
                         # Fetch the root index.html from S3
@@ -802,9 +845,6 @@ class S3Index:
 
                         # Upload to R2 if configured
                         if R2_BUCKET:
-                            print(
-                                f"INFO Copying {root_index_key} to {subdir}/{compat_pkg_name}/index.html for R2 bucket {R2_BUCKET.name}"
-                            )
                             R2_BUCKET.Object(
                                 key=f"{subdir}/{compat_pkg_name}/index.html"
                             ).put(
@@ -814,7 +854,7 @@ class S3Index:
                                 Body=root_index_html,
                             )
                     except Exception as e:
-                        print(f"WARNING: Failed to copy {root_index_key}: {e}")
+                        print(f"ERROR: Failed to copy {root_index_key}: {e}")
 
                     continue
 
@@ -873,7 +913,27 @@ class S3Index:
             with open(path.join(subdir, "index.html"), mode="w", encoding="utf-8") as f:
                 f.write(self.to_simple_packages_html(subdir=subdir))
 
-            for pkg_name in self.get_package_names(subdir=subdir):
+            packages_with_wheels = self.get_package_names(subdir=subdir)
+
+            # Also get packages from PACKAGE_LINKS_ALLOW_LIST that exist in parent
+            packages_to_copy_from_parent = set()
+            if subdir != self.prefix and parent_prefix is not None:
+                # For subdirectories like whl/nightly/cu128, check for packages in whl/nightly
+                packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
+                    subdir=subdir, parent_prefix=self.prefix
+                )
+            elif subdir == self.prefix and parent_prefix is not None:
+                # For root of nested prefix like whl/nightly, check for packages in whl
+                packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
+                    subdir=subdir, parent_prefix=parent_prefix
+                )
+
+            # Combine packages with wheels and packages to copy
+            all_packages = sorted(
+                set(packages_with_wheels) | packages_to_copy_from_parent
+            )
+
+            for pkg_name in all_packages:
                 compat_pkg_name = pkg_name.lower().replace("_", "-")
                 pkg_dir = path.join(subdir, compat_pkg_name)
                 makedirs(pkg_dir, exist_ok=True)
@@ -886,21 +946,36 @@ class S3Index:
                 copy_source_prefix = None
 
                 if pkg_name.lower() in PACKAGE_LINKS_ALLOW_LIST:
+                    print(
+                        f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' is in PACKAGE_LINKS_ALLOW_LIST - checking copy strategy"
+                    )
                     if subdir != self.prefix:
                         # Case 1: Processing subdirectory, copy from root of current prefix
                         should_copy_from_parent = True
                         copy_source_prefix = self.prefix
+                        print(
+                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' will copy index from '{copy_source_prefix}' to '{subdir}' (subdirectory copy)"
+                        )
                     elif parent_prefix is not None:
                         # Case 2: Processing root of nested prefix, copy from parent prefix
                         should_copy_from_parent = True
                         copy_source_prefix = parent_prefix
+                        print(
+                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' will copy index from '{copy_source_prefix}' to '{subdir}' (parent prefix copy)"
+                        )
+                    else:
+                        print(
+                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' is at root level, will generate index normally"
+                        )
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
                     root_index_path = path.join(
                         copy_source_prefix, compat_pkg_name, "index.html"
                     )
-                    print(f"INFO Copying {root_index_path} to {pkg_dir}/index.html")
+                    print(
+                        f"INFO PACKAGE_LINKS_ALLOW_LIST: Copying {root_index_path} to {pkg_dir}/index.html"
+                    )
 
                     try:
                         # Read the root index.html
@@ -914,6 +989,9 @@ class S3Index:
                             encoding="utf-8",
                         ) as dst:
                             dst.write(root_index_html)
+                        print(
+                            f"SUCCESS PACKAGE_LINKS_ALLOW_LIST: Copied to {pkg_dir}/index.html"
+                        )
 
                         # Also save R2 version if R2 is configured
                         if R2_BUCKET:
@@ -931,8 +1009,11 @@ class S3Index:
                                     encoding="utf-8",
                                 ) as dst:
                                     dst.write(root_r2_html)
+                                print(
+                                    f"SUCCESS PACKAGE_LINKS_ALLOW_LIST: Copied to {pkg_dir}/index-r2.html"
+                                )
                     except Exception as e:
-                        print(f"WARNING: Failed to copy {root_index_path}: {e}")
+                        print(f"ERROR PACKAGE_LINKS_ALLOW_LIST: Failed to copy {root_index_path}: {e}")
 
                     continue
 
@@ -1000,22 +1081,7 @@ class S3Index:
     @classmethod
     def fetch_object_names(cls, prefix: str) -> List[str]:
         obj_names = []
-        print(
-            f"DEBUG: Starting to list objects with prefix '{prefix}' from S3",
-            flush=True,
-        )
-        print(
-            f"DEBUG: About to call BUCKET.objects.filter(Prefix='{prefix}')...",
-            flush=True,
-        )
-        obj_count = 0
         for obj in BUCKET.objects.filter(Prefix=prefix):
-            obj_count += 1
-            if obj_count % 100 == 0:
-                print(f"DEBUG: Processed {obj_count} objects so far...", flush=True)
-            if obj_count == 1:
-                print(f"DEBUG: First object received from S3: {obj.key}", flush=True)
-            print(f"DEBUG: Found S3 object: {obj.key} (size: {obj.size})", flush=True)
             is_acceptable = any(
                 [path.dirname(obj.key) == prefix]
                 + [
@@ -1024,14 +1090,8 @@ class S3Index:
                 ]
             ) and obj.key.endswith(ACCEPTED_FILE_EXTENSIONS)
             if not is_acceptable:
-                print(f"DEBUG: Skipping {obj.key} - does not match acceptance criteria")
                 continue
-            print(f"DEBUG: Accepting object: {obj.key}")
             obj_names.append(obj.key)
-        print(
-            f"DEBUG: Finished listing objects. Total found: {obj_count}, Accepted: {len(obj_names)}",
-            flush=True,
-        )
         return obj_names
 
     def fetch_metadata(self) -> None:
@@ -1099,12 +1159,7 @@ class S3Index:
     @classmethod
     def from_S3(cls, prefix: str, with_metadata: bool = True) -> "S3Index":
         prefix = prefix.rstrip("/")
-        print(
-            f"DEBUG: from_S3 called with prefix='{prefix}', with_metadata={with_metadata}",
-            flush=True,
-        )
         obj_names = cls.fetch_object_names(prefix)
-        print(f"DEBUG: Retrieved {len(obj_names)} object names from S3")
 
         def sanitize_key(key: str) -> str:
             return key.replace("+", "%2B")
@@ -1122,30 +1177,29 @@ class S3Index:
             ],
             prefix,
         )
-        print(f"DEBUG: Created S3Index with {len(rc.objects)} objects")
+        print(f"INFO: Retrieved {len(rc.objects)} objects from S3 for prefix '{prefix}'")
+
         # Apply PACKAGE_ALLOW_LIST filtering to whl, whl/nightly, and whl/test
         if prefix == "whl/nightly":
             # For nightly: filter by allow list AND limit to 60 versions per package
             print(
-                "DEBUG: Filtering nightly packages using PACKAGE_ALLOW_LIST and version threshold..."
+                f"INFO: Filtering nightly packages using PACKAGE_ALLOW_LIST and version threshold (keeping {KEEP_THRESHOLD} versions per package)..."
             )
             rc.objects = rc.nightly_packages_to_show()
             print(
-                f"DEBUG: After filtering, {len(rc.objects)} packages to show for {prefix}"
+                f"INFO: After filtering, {len(rc.objects)} packages to show for {prefix}"
             )
         elif prefix in ("whl", "whl/test"):
             # For whl and whl/test: filter by allow list only (no version limit)
             print(
-                f"DEBUG: Filtering packages for {prefix} using PACKAGE_ALLOW_LIST (no version limit)..."
+                f"INFO: Filtering packages for {prefix} using PACKAGE_ALLOW_LIST (no version limit)..."
             )
             rc.objects = rc.packages_by_allow_list()
             print(
-                f"DEBUG: After filtering, {len(rc.objects)} packages to show for {prefix}"
+                f"INFO: After filtering, {len(rc.objects)} packages to show for {prefix}"
             )
         if with_metadata:
-            print("DEBUG: Fetching metadata for objects...")
             rc.fetch_metadata()
-            print("DEBUG: Fetching PEP658 metadata...")
             rc.fetch_pep658()
         return rc
 
@@ -1173,6 +1227,19 @@ def create_parser() -> argparse.ArgumentParser:
 def main() -> None:
     parser = create_parser()
     args = parser.parse_args()
+
+    # Display PACKAGE_LINKS_ALLOW_LIST summary
+    print(f"\n{'='*80}")
+    print(f"PACKAGE_LINKS_ALLOW_LIST Configuration:")
+    print(f"{'='*80}")
+    print(f"Total packages in PACKAGE_LINKS_ALLOW_LIST: {len(PACKAGE_LINKS_ALLOW_LIST)}")
+    print(f"\nPackages in PACKAGE_LINKS_ALLOW_LIST will have their index.html copied")
+    print(f"from parent directories instead of being regenerated from wheels.")
+    print(f"\nThis is used for dependency packages (numpy, nvidia-*, intel-*, etc.)")
+    print(f"that should point to external package sources.")
+    print(f"\nPackages: {', '.join(sorted(list(PACKAGE_LINKS_ALLOW_LIST)[:10]))}...")
+    print(f"{'='*80}\n")
+
     action = "Saving indices" if args.do_not_upload else "Uploading indices"
     if args.compute_sha256:
         action = "Computing checksums"
@@ -1187,7 +1254,7 @@ def main() -> None:
         )
         etime = time.time()
         print(
-            f"DEBUG: Fetched {len(idx.objects)} objects for '{prefix}' in {etime - stime:.2f} seconds"
+            f"INFO: Processing completed for '{prefix}' in {etime - stime:.2f} seconds"
         )
         if args.compute_sha256:
             idx.compute_sha256()
