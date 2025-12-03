@@ -20,7 +20,7 @@ import {
   BenchmarkPageType,
 } from "./config_book_types";
 import {
-  PytorcCachebenchBenchmarkDashoboardConfig,
+  PytorcGptFastBenchmarkDashoboardConfig,
   PYTORCH_GPTFAST_BENCHMARK_ID,
 } from "./teams/gptfast/config";
 import {
@@ -59,8 +59,7 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
     [BenchmarkPageType.DashboardPage]: PytorchVllmBenchmarkDashoboardConfig,
   },
   [PYTORCH_GPTFAST_BENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]:
-      PytorcCachebenchBenchmarkDashoboardConfig,
+    [BenchmarkPageType.DashboardPage]: PytorcGptFastBenchmarkDashoboardConfig,
   },
 };
 
@@ -125,12 +124,6 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     subtitle: "Benchmarks related to repo pytorch/pytorch",
     tags: ["repo:pytorch/pytorch"],
     items: [
-      {
-        name: "CacheBench Benchmark",
-        route:
-          "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=+Benchmark",
-        info: "Powered by [code](https://github.com/search?q=repo%3Apytorch%2Fpytorch%20%20TorchCache&type=code)",
-      },
       {
         name: "Compiler Inductor Benchmark",
         id: "compiler_inductor",
