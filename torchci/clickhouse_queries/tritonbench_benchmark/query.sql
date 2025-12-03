@@ -19,7 +19,7 @@ WITH results AS (
         AND dependencies['triton'].repo = {repo: String}
         AND suite = {suite: String}
         AND name = {benchmark_name: String}
-        AND metric_name = {metric_name: String}
+        AND ({metric_name: String} = '*' OR metric_name = {metric_name: String})
         AND head_branch = {branch: String}
 )
 
