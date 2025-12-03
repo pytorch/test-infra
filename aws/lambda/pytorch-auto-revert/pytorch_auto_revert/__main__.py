@@ -98,7 +98,7 @@ class DefaultConfig:
             else None
         )
         self.secret_store_name = os.environ.get(
-            "SECRET_STORE_NAME", "pytorch-autorevert-secrets"
+            "SECRET_STORE_NAME", ""
         )
         self.workflows = os.environ.get(
             "WORKFLOWS",
