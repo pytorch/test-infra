@@ -828,7 +828,9 @@ class S3Index:
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
-                    root_index_key = f"{copy_source_prefix}/{compat_pkg_name}/index.html"
+                    root_index_key = (
+                        f"{copy_source_prefix}/{compat_pkg_name}/index.html"
+                    )
 
                     try:
                         # Fetch the root index.html from S3
@@ -1013,7 +1015,9 @@ class S3Index:
                                     f"SUCCESS PACKAGE_LINKS_ALLOW_LIST: Copied to {pkg_dir}/index-r2.html"
                                 )
                     except Exception as e:
-                        print(f"ERROR PACKAGE_LINKS_ALLOW_LIST: Failed to copy {root_index_path}: {e}")
+                        print(
+                            f"ERROR PACKAGE_LINKS_ALLOW_LIST: Failed to copy {root_index_path}: {e}"
+                        )
 
                     continue
 
@@ -1177,7 +1181,9 @@ class S3Index:
             ],
             prefix,
         )
-        print(f"INFO: Retrieved {len(rc.objects)} objects from S3 for prefix '{prefix}'")
+        print(
+            f"INFO: Retrieved {len(rc.objects)} objects from S3 for prefix '{prefix}'"
+        )
 
         # Apply PACKAGE_ALLOW_LIST filtering to whl, whl/nightly, and whl/test
         if prefix == "whl/nightly":
@@ -1229,16 +1235,18 @@ def main() -> None:
     args = parser.parse_args()
 
     # Display PACKAGE_LINKS_ALLOW_LIST summary
-    print(f"\n{'='*80}")
-    print(f"PACKAGE_LINKS_ALLOW_LIST Configuration:")
-    print(f"{'='*80}")
-    print(f"Total packages in PACKAGE_LINKS_ALLOW_LIST: {len(PACKAGE_LINKS_ALLOW_LIST)}")
-    print(f"\nPackages in PACKAGE_LINKS_ALLOW_LIST will have their index.html copied")
-    print(f"from parent directories instead of being regenerated from wheels.")
-    print(f"\nThis is used for dependency packages (numpy, nvidia-*, intel-*, etc.)")
-    print(f"that should point to external package sources.")
+    print(f"\n{'=' * 80}")
+    print("PACKAGE_LINKS_ALLOW_LIST Configuration:")
+    print(f"{'=' * 80}")
+    print(
+        f"Total packages in PACKAGE_LINKS_ALLOW_LIST: {len(PACKAGE_LINKS_ALLOW_LIST)}"
+    )
+    print("\nPackages in PACKAGE_LINKS_ALLOW_LIST will have their index.html copied")
+    print("from parent directories instead of being regenerated from wheels.")
+    print("\nThis is used for dependency packages (numpy, nvidia-*, intel-*, etc.)")
+    print("that should point to external package sources.")
     print(f"\nPackages: {', '.join(sorted(list(PACKAGE_LINKS_ALLOW_LIST)[:10]))}...")
-    print(f"{'='*80}\n")
+    print(f"{'=' * 80}\n")
 
     action = "Saving indices" if args.do_not_upload else "Uploading indices"
     if args.compute_sha256:
