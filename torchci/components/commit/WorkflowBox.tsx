@@ -9,6 +9,10 @@ import LogViewer, { SearchLogViewer } from "components/common/log/LogViewer";
 import { durationDisplay } from "components/common/TimeUtils";
 import JobArtifact from "components/job/JobArtifact";
 import JobSummary from "components/job/JobSummary";
+import {
+  canShowODCCommand,
+  ODCommandInstructions,
+} from "components/job/ODCCommand";
 import { fetcher } from "lib/GeneralUtils";
 import { getConclusionSeverityForSorting } from "lib/JobClassifierUtil";
 import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
@@ -115,6 +119,19 @@ function WorkflowJobSummary({
         </JobButton>
       </>
     );
+  }
+
+  if (canShowODCCommand(job)) {
+    const ODCCommand = ODCommandInstructions({
+      jobId: parseInt(job.id),
+      workflowId: parseInt(job.workflowId),
+      failureLineNum: job.failureLineNumbers[0],
+      headSha: job.sha,
+      jobName: job.name,
+    });
+    if (ODCCommand != null) {
+      subInfo.push(ODCCommand);
+    }
   }
 
   return (
