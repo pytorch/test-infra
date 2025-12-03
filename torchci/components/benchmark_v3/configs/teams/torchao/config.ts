@@ -150,7 +150,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
         },
       },
       renders: [
-        {ch
+        {
           type: "AutoBenchmarkComparisonGithubExternalLink",
           description: "See original github runs for left and right runs",
           config: {},
