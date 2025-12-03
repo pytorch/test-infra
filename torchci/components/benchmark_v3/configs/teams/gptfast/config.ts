@@ -59,7 +59,7 @@ const RENDER_MAPPING_BOOK = {
   },
 };
 
-export const PytorcGptFastBenchmarkDashoboardConfig: BenchmarkUIConfig = {
+export const PytorchGptFastBenchmarkDashoboardConfig: BenchmarkUIConfig = {
   benchmarkId: PYTORCH_GPTFAST_BENCHMARK_ID,
   apiId: PYTORCH_GPTFAST_BENCHMARK_ID,
   title: "Gpt-fast Benchmark Dashboard",

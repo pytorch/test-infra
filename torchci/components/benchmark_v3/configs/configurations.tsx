@@ -20,7 +20,7 @@ import {
   BenchmarkPageType,
 } from "./config_book_types";
 import {
-  PytorcGptFastBenchmarkDashoboardConfig,
+  PytorchGptFastBenchmarkDashoboardConfig,
   PYTORCH_GPTFAST_BENCHMARK_ID,
 } from "./teams/gptfast/config";
 import {
@@ -59,7 +59,7 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
     [BenchmarkPageType.DashboardPage]: PytorchVllmBenchmarkDashoboardConfig,
   },
   [PYTORCH_GPTFAST_BENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]: PytorcGptFastBenchmarkDashoboardConfig,
+    [BenchmarkPageType.DashboardPage]: PytorchGptFastBenchmarkDashoboardConfig,
   },
 };
 
