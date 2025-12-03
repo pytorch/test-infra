@@ -20,8 +20,8 @@ import {
   BenchmarkPageType,
 } from "./config_book_types";
 import {
-  PytorchGptFastBenchmarkDashoboardConfig,
   PYTORCH_GPTFAST_BENCHMARK_ID,
+  PytorchGptFastBenchmarkDashoboardConfig,
 } from "./teams/gptfast/config";
 import {
   PytorcAoMicroApiBenchmarkDashoboardConfig,
