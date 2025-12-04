@@ -7,6 +7,7 @@ WITH results AS (
         model.name AS operator,
         model.type AS suite,
         model.backend AS backend,
+        tupleElement(runners[1], 'name') AS device,
         workflow_id,
         replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
         metric.name AS metric_name,
@@ -26,6 +27,7 @@ WITH results AS (
 SELECT DISTINCT
     results.workflow_id,
     results.head_branch,
+    results.device,
     results.name,
     results.operator,
     results.suite,
