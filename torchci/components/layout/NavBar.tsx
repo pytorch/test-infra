@@ -1,90 +1,10 @@
 import { benchmarkNavGroup } from "components/benchmark_v3/pages/BenchmarkListPage";
 import styles from "components/layout/NavBar.module.css";
 import Link from "next/link";
-import React, { useState } from "react";
 import { AiFillGithub } from "react-icons/ai";
 import ThemeModePicker from "../common/ThemeModePicker";
 import LoginSection from "./LoginSection";
 import { NavBarGroupDropdown, NavItem } from "./NavBarGroupDropdown";
-
-const NavBarDropdown = ({
-  title,
-  items,
-}: {
-  title: string;
-  items: any;
-}): JSX.Element => {
-  const [dropdown, setDropdown] = useState(false);
-  const dropdownStyle = dropdown ? { display: "block" } : {};
-  const firstItemHref = items.length > 0 ? items[0].href : "#";
-
-  // Check if device is touch-enabled
-  const isTouchDevice = React.useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      ("ontouchstart" in window || navigator.maxTouchPoints > 0),
-    []
-  );
-
-  // Set dropdown state only on non-touch devices
-  const setDropdownIfNotTouch = (value: boolean) => {
-    if (!isTouchDevice) {
-      setDropdown(value);
-    }
-  };
-
-  // Close dropdown when clicking outside
-  React.useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest(`.${styles.dropdownContainer}`)) {
-        setDropdown(false);
-      }
-    };
-
-    if (dropdown) {
-      document.addEventListener("click", handleClickOutside);
-      return () => {
-        document.removeEventListener("click", handleClickOutside);
-      };
-    }
-  }, [dropdown]);
-
-  return (
-    <li
-      onMouseEnter={() => setDropdownIfNotTouch(true)}
-      onMouseLeave={() => setDropdownIfNotTouch(false)}
-      style={{ padding: 0 }}
-      className={`${styles.dropdownContainer} ${
-        dropdown ? styles.dropdownOpen : ""
-      }`}
-    >
-      <Link
-        href={firstItemHref}
-        prefetch={false}
-        className={styles.dropdowntitle}
-        onClick={(e) => {
-          if (isTouchDevice) {
-            // otherwise the menu will close immediately on touch devices
-            e.preventDefault();
-          }
-          setDropdown(!dropdown);
-        }}
-      >
-        {title} ▾
-      </Link>
-      <ul className={styles.dropdown} style={dropdownStyle}>
-        {items.map((item: any) => (
-          <li key={item.href}>
-            <Link href={item.href} prefetch={false}>
-              {item.name}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </li>
-  );
-};
 
 function NavBar() {
   const benchmarkDropdown = benchmarkNavGroup;
@@ -185,7 +105,11 @@ function NavBar() {
       name: "vLLM CI metrics",
       href: "/metrics/vllm",
     },
-  ];
+  ].map((item) => ({
+    label: item.name,
+    route: item.href,
+    type: "item" as const,
+  }));
 
   return (
     <div className={styles.navbar}>
@@ -247,8 +171,29 @@ function NavBar() {
               KPIs
             </Link>
           </li>
-          <NavBarGroupDropdown title="Benchmarks" items={benchmarkDropdown} />{" "}
-          <NavBarDropdown title="Metrics" items={metricsDropdown} />
+          <NavBarGroupDropdown title="Benchmarks" items={benchmarkDropdown} />
+          <NavBarGroupDropdown
+            title={
+              <Link
+                href="/metrics"
+                prefetch={false}
+                onClick={(e) => {
+                  const isTouchDevice =
+                    typeof window !== "undefined" &&
+                    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+                  if (isTouchDevice) {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                Metrics ▾
+              </Link>
+            }
+            // showCarrot false since the spacing is unusual if we use the
+            // default
+            showCarrot={false}
+            items={metricsDropdown}
+          />
           <NavBarGroupDropdown title="Dev Infra" items={devInfraDropdown} />
           <li
             style={{ cursor: "pointer", display: "flex", alignItems: "center" }}
