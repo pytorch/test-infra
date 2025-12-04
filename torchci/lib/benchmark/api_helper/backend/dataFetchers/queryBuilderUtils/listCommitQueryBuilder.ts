@@ -142,7 +142,11 @@ export class PytorchOperatorMicroListCommitsDataFetcher
   }
 
   toQueryParams(inputs: any, id?: string): Record<string, any> {
-    const params = this._data_query.toQueryParams(inputs);
+    const pq = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    const params = this._data_query.toQueryParams(pq);
     return params;
   }
 
