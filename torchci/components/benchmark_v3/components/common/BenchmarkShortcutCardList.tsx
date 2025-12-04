@@ -40,11 +40,7 @@ export const BenchmarkShortcutCardList: React.FC<
   // ---- map API response -> cardList ----
   const cardList: BenchmarkShortcutItem[] = useMemo(() => {
     if (!data) return [];
-
-    // TODO: adapt this to your real response shape.
-    // Example assumes resp.items = [{ name, summary, url }, ...]
-    const items = data;
-    return items;
+    return data;
   }, [data]);
 
   // ---- scrolling helpers ----

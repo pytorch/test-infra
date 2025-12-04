@@ -707,14 +707,16 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
     return (
       <LoadingPage
         height={300}
-        content="loading data for AutoBenchmarkRawDataTable..."
+        content="loading data for AutoBenchmarkShortcutCardList..."
       />
     );
   }
 
   if (error) {
     return (
-      <Alert severity="error">(AutoBenchmarkRawDataTable){error.message}</Alert>
+      <Alert severity="error">
+        (AutoBenchmarkShortcutCardList){error.message}
+      </Alert>
     );
   }
   const filters = uiRenderConfig.config?.filters;
