@@ -742,7 +742,6 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
 
   return (
     <>
-      <RenderRawContent data={resp.data} />
       <BenchmarkShortcutCardList
         benchmarkId={ctx.benchmarkId}
         data={data}
