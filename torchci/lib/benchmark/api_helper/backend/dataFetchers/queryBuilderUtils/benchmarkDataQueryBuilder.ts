@@ -345,6 +345,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     this.validateInputs(inputs);
 
+    console.log("[benchmarkDatQueryBuilder] inputs:", inputs);
+
     if (inputs.benchmarkName && !inputs.benchmarkNames) {
       inputs.benchmarkNames = [inputs.benchmarkName];
     }

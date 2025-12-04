@@ -86,7 +86,7 @@ const defaultGetCommitsInputs: any = {
   models: [],
   backends: [],
   device: "",
-  arch: [],
+  arches: [],
   dtype: "",
   mode: "",
 };
