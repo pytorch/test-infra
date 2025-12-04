@@ -693,7 +693,7 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
         repo: ctx.repo,
         benchmarkName: ctx.benchmarkName,
         timeRange: ctx.committedTime,
-        filters: {}, // the dropdown does not rerender when filter changes, since it manages the filter optons
+        filters: {}, // does not rerender when filter changes, since it fetches the filter optons
       })
     : null;
 
@@ -719,6 +719,8 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
       </Alert>
     );
   }
+
+  // ------------------ convert to the shortcut items ------------------
   const filters = uiRenderConfig.config?.filters;
   let data: BenchmarkShortcutItem[] = [];
   resp?.data?.forEach((item: any) => {
@@ -731,11 +733,11 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
           value: option.value,
           description: item?.type,
           fieldName: name,
-          url: `${window.location.pathname}${window.location.search}&filters.${name}=${option.value}`,
         });
       });
     }
   });
+
   return (
     <>
       <RenderRawContent data={data} />
