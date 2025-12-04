@@ -1,6 +1,9 @@
 import { checkAuthWithApiToken } from "lib/auth/auth";
 import { CompilerQueryType } from "lib/benchmark/api_helper/backend/common/type";
-import { emptyTimeSeriesResponse, readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import {
+  emptyTimeSeriesResponse,
+  readApiGetParams,
+} from "lib/benchmark/api_helper/backend/common/utils";
 import { getCompilerBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/compilers/compiler_benchmark_data";
 import { getBenchmarkDataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
 import { getGeneralCommits } from "lib/benchmark/api_helper/backend/list_commits";
@@ -108,7 +111,7 @@ async function getGenernalBenchmarkTimeSeries(
   );
 
   if (!params) {
-    return emptyTimeSeriesResponse()
+    return emptyTimeSeriesResponse();
   }
   const fetcher = getBenchmarkDataFetcher(id);
   const result = await fetcher.applyQuery(params);
