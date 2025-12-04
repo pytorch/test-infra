@@ -28,6 +28,9 @@ export async function getCompilerBenchmarkTimeSeriesData(
   const queryParams = await getCompilerBenchmarkTimeRangeQueryParams(
     inputparams
   );
+  if (!queryParams) {
+    return emptyTimeSeriesResponse();
+  }
   const rows = await fetchCompilerDataFromDb(queryParams);
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
@@ -106,7 +109,7 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
       queryParams["workflows"] = unique_workflows;
     } else {
       console.log(`no workflow found in clickhouse using ${queryParams}`);
-      return [];
+      return undefined;
     }
   } else {
     console.log(

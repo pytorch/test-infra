@@ -1,6 +1,6 @@
 import { checkAuthWithApiToken } from "lib/auth/auth";
 import { CompilerQueryType } from "lib/benchmark/api_helper/backend/common/type";
-import { readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
+import { emptyTimeSeriesResponse, readApiGetParams } from "lib/benchmark/api_helper/backend/common/utils";
 import { getCompilerBenchmarkTimeSeriesData } from "lib/benchmark/api_helper/backend/compilers/compiler_benchmark_data";
 import { getBenchmarkDataFetcher } from "lib/benchmark/api_helper/backend/dataFetchers/fetchers";
 import { getGeneralCommits } from "lib/benchmark/api_helper/backend/list_commits";
@@ -107,6 +107,9 @@ async function getGenernalBenchmarkTimeSeries(
     query_params
   );
 
+  if (!params) {
+    return emptyTimeSeriesResponse()
+  }
   const fetcher = getBenchmarkDataFetcher(id);
   const result = await fetcher.applyQuery(params);
   return fetcher.applyFormat(result, formats);
@@ -132,8 +135,8 @@ export async function getGeneralBenchmarkTimeRangeQueryParams(
     if (commit_results.length > 0) {
       queryParams["workflows"] = unique_workflows;
     } else {
-      console.log(`no workflow found in clickhouse using ${queryParams}`);
-      return [];
+      console.log("no workflow found in clickhouse using", queryParams);
+      return undefined;
     }
   } else {
     console.log(

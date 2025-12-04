@@ -334,7 +334,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   validateInputs(inputs: any) {
     if (!inputs.benchmarkName && !inputs.benchmarkNames) {
       throw new Error(
-        "Either benchmarkName or benchmarkNames must be provided"
+        "[BenchmarkDataQuery]Either benchmarkName or benchmarkNames must be provided"
       );
     }
     if (!inputs.repo) {
