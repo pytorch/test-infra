@@ -1,5 +1,5 @@
 import { Alert, Typography } from "@mui/material";
-import { Grid, Stack } from "@mui/system";
+import { Box, Grid, Stack } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
@@ -332,16 +332,18 @@ export function AutoBenchmarkComparisonGithubExternalLink({
     return <></>;
   }
   return (
-    <BenchmarkComparisonGithubExternalLink
-      benchmarkId={ctx.benchmarkId}
-      lcommit={ctx.lcommit}
-      rcommit={ctx.rcommit}
-      repo={repo}
-      title={{
-        text: config?.title,
-        description: config?.description,
-      }}
-    />
+    <Box sx={{ ml: 1 }}>
+      <BenchmarkComparisonGithubExternalLink
+        benchmarkId={ctx.benchmarkId}
+        lcommit={ctx.lcommit}
+        rcommit={ctx.rcommit}
+        repo={repo}
+        title={{
+          text: config?.title,
+          description: config?.description,
+        }}
+      />
+    </Box>
   );
 }
 
@@ -731,7 +733,7 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
         data.push({
           displayName: option.displayName ?? "unkown",
           value: option.value,
-          description: item?.type,
+          description: item?.labelName ?? "",
           fieldName: name,
         });
       });
@@ -740,7 +742,7 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
 
   return (
     <>
-      <RenderRawContent data={data} />
+      <RenderRawContent data={resp.data} />
       <BenchmarkShortcutCardList
         benchmarkId={ctx.benchmarkId}
         data={data}

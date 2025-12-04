@@ -10,6 +10,10 @@ export const PYTORCH_AO_MICRO_API_BENCHMARK_ID = "torchao_micro_api_benchmark";
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   {
+    field: "dtype",
+    displayName: "Quant Type",
+  },
+  {
     field: "extra_key.use_compile",
     displayName: "Use Compile",
   },
@@ -104,6 +108,7 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
       },
       {
         type: "AutoBenchmarkComparisonGithubExternalLink",
+        title: "Github Runs",
         description: "See original github runs for left and right runs",
         config: {},
       },
