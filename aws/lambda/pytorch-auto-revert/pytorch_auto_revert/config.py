@@ -77,7 +77,7 @@ class AutorevertConfig:
     # -------------------------------------------------------------------------
     log_level: str = DEFAULT_LOG_LEVEL
     dry_run: bool = False
-    subcommand: Optional[str] = None
+    subcommand: str = "autorevert-checker"
 
     # -------------------------------------------------------------------------
     # Subcommand: workflow-restart-checker

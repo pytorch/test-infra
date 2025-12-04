@@ -97,9 +97,7 @@ class DefaultConfig:
             if "REVERT_ACTION" in os.environ
             else None
         )
-        self.secret_store_name = os.environ.get(
-            "SECRET_STORE_NAME", ""
-        )
+        self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "")
         self.workflows = os.environ.get(
             "WORKFLOWS",
             ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]),
@@ -261,7 +259,7 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
     )
 
     # no subcommand runs the lambda flow
-    subparsers = parser.add_subparsers(dest="subcommand")
+    subparsers = parser.add_subparsers(dest="subcommand", required=True)
 
     # autorevert-checker subcommand
     workflow_parser = subparsers.add_parser(
@@ -419,7 +417,7 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         # Application Settings
         log_level=_get("log_level", DEFAULT_LOG_LEVEL),
         dry_run=_get("dry_run", False),
-        subcommand=_get("subcommand", None),
+        subcommand=_get("subcommand", "autorevert-checker"),
         # Subcommand: workflow-restart-checker
         workflow=_get("workflow", None),
         commit=_get("commit", None),
@@ -642,7 +640,7 @@ def main_run(
             "ClickHouse connection test failed. Please check your configuration."
         )
 
-    if config.subcommand is None or config.subcommand == "autorevert-checker":
+    if config.subcommand == "autorevert-checker":
         if check_circuit_breaker and check_autorevert_disabled(config.repo_full_name):
             logging.error(
                 "Autorevert is disabled via circuit breaker (ci: disable-autorevert issue found). "
