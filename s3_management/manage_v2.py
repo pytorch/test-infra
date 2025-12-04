@@ -757,12 +757,6 @@ class S3Index:
                 )
 
     def upload_pep503_htmls(self) -> None:
-        # Determine parent prefix for copying PACKAGE_LINKS_ALLOW_LIST packages
-        # For example, if self.prefix is "whl/nightly", parent should be "whl"
-        parent_prefix = None
-        if "/" in self.prefix:
-            parent_prefix = "/".join(self.prefix.split("/")[:-1])
-
         for subdir in self.subdirs:
             # Generate the package list index (same for both S3 and R2)
             index_html = self.to_simple_packages_html(subdir=subdir)
@@ -791,17 +785,22 @@ class S3Index:
             # Generate and upload per-package indexes
             packages_with_wheels = self.get_package_names(subdir=subdir)
 
+            # Filter out packages that are in PACKAGE_LINKS_ALLOW_LIST
+            # Those packages should only be copied from parent, not recomputed from wheels
+            packages_with_wheels = [
+                pkg
+                for pkg in packages_with_wheels
+                if pkg.lower() not in PACKAGE_LINKS_ALLOW_LIST
+            ]
+
             # Also get packages from PACKAGE_LINKS_ALLOW_LIST that exist in parent
+            # Only copy from parent within the same prefix hierarchy
+            # Do NOT copy from whl to whl/nightly or whl/test
             packages_to_copy_from_parent = set()
-            if subdir != self.prefix and parent_prefix is not None:
+            if subdir != self.prefix:
                 # For subdirectories like whl/nightly/cu128, check for packages in whl/nightly
                 packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
                     subdir=subdir, parent_prefix=self.prefix
-                )
-            elif subdir == self.prefix and parent_prefix is not None:
-                # For root of nested prefix like whl/nightly, check for packages in whl
-                packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
-                    subdir=subdir, parent_prefix=parent_prefix
                 )
 
             # Combine packages with wheels and packages to copy
@@ -819,17 +818,15 @@ class S3Index:
                 if pkg_name.lower() in PACKAGE_LINKS_ALLOW_LIST:
                     if subdir != self.prefix:
                         # Case 1: Processing subdirectory, copy from root of current prefix
+                        # e.g., whl/nightly/cu128 copies from whl/nightly
                         should_copy_from_parent = True
                         copy_source_prefix = self.prefix
-                    elif parent_prefix is not None:
-                        # Case 2: Processing root of nested prefix, copy from parent prefix
-                        should_copy_from_parent = True
-                        copy_source_prefix = parent_prefix
                     else:
-                        # Case 3: At root level with no parent - skip this package
-                        # PACKAGE_LINKS_ALLOW_LIST packages should only be copied from parent
+                        # Case 2: Processing root of prefix (e.g., whl/nightly or whl/test)
+                        # Do NOT copy from parent prefix (whl)
+                        # PACKAGE_LINKS_ALLOW_LIST packages should only exist in whl root level
                         print(
-                            f"INFO: Skipping PACKAGE_LINKS_ALLOW_LIST package '{pkg_name}' at root level (no parent to copy from)"
+                            f"INFO: Skipping PACKAGE_LINKS_ALLOW_LIST package '{pkg_name}' at root level '{subdir}' (not copying from parent)"
                         )
                         continue
 
@@ -910,12 +907,6 @@ class S3Index:
                 f.write(self.to_libtorch_html(subdir=subdir))
 
     def save_pep503_htmls(self) -> None:
-        # Determine parent prefix for copying PACKAGE_LINKS_ALLOW_LIST packages
-        # For example, if self.prefix is "whl/nightly", parent should be "whl"
-        parent_prefix = None
-        if "/" in self.prefix:
-            parent_prefix = "/".join(self.prefix.split("/")[:-1])
-
         for subdir in self.subdirs:
             print(f"INFO Saving {subdir}/index.html")
             makedirs(subdir, exist_ok=True)
@@ -924,17 +915,22 @@ class S3Index:
 
             packages_with_wheels = self.get_package_names(subdir=subdir)
 
+            # Filter out packages that are in PACKAGE_LINKS_ALLOW_LIST
+            # Those packages should only be copied from parent, not recomputed from wheels
+            packages_with_wheels = [
+                pkg
+                for pkg in packages_with_wheels
+                if pkg.lower() not in PACKAGE_LINKS_ALLOW_LIST
+            ]
+
             # Also get packages from PACKAGE_LINKS_ALLOW_LIST that exist in parent
+            # Only copy from parent within the same prefix hierarchy
+            # Do NOT copy from whl to whl/nightly or whl/test
             packages_to_copy_from_parent = set()
-            if subdir != self.prefix and parent_prefix is not None:
+            if subdir != self.prefix:
                 # For subdirectories like whl/nightly/cu128, check for packages in whl/nightly
                 packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
                     subdir=subdir, parent_prefix=self.prefix
-                )
-            elif subdir == self.prefix and parent_prefix is not None:
-                # For root of nested prefix like whl/nightly, check for packages in whl
-                packages_to_copy_from_parent = self.get_packages_to_copy_from_parent(
-                    subdir=subdir, parent_prefix=parent_prefix
                 )
 
             # Combine packages with wheels and packages to copy
@@ -948,9 +944,9 @@ class S3Index:
                 makedirs(pkg_dir, exist_ok=True)
 
                 # Check if this package should copy from parent instead of processing wheels
-                # This applies to:
-                # 1. Subdirectories (e.g., whl/nightly/cu128 copies from whl/nightly)
-                # 2. Root of nested prefixes (e.g., whl/nightly copies from whl, whl/test copies from whl)
+                # This applies only to subdirectories:
+                # - Subdirectories (e.g., whl/nightly/cu128 copies from whl/nightly)
+                # - Root level prefixes (whl/nightly, whl/test) do NOT copy from whl
                 should_copy_from_parent = False
                 copy_source_prefix = None
 
@@ -960,23 +956,18 @@ class S3Index:
                     )
                     if subdir != self.prefix:
                         # Case 1: Processing subdirectory, copy from root of current prefix
+                        # e.g., whl/nightly/cu128 copies from whl/nightly
                         should_copy_from_parent = True
                         copy_source_prefix = self.prefix
                         print(
                             f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' will copy index from '{copy_source_prefix}' to '{subdir}' (subdirectory copy)"
                         )
-                    elif parent_prefix is not None:
-                        # Case 2: Processing root of nested prefix, copy from parent prefix
-                        should_copy_from_parent = True
-                        copy_source_prefix = parent_prefix
-                        print(
-                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' will copy index from '{copy_source_prefix}' to '{subdir}' (parent prefix copy)"
-                        )
                     else:
-                        # Case 3: At root level with no parent - skip this package
-                        # PACKAGE_LINKS_ALLOW_LIST packages should only be copied from parent
+                        # Case 2: Processing root of prefix (e.g., whl/nightly or whl/test)
+                        # Do NOT copy from parent prefix (whl)
+                        # PACKAGE_LINKS_ALLOW_LIST packages should only exist in whl root level
                         print(
-                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Skipping package '{pkg_name}' at root level (no parent to copy from)"
+                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Skipping package '{pkg_name}' at root level '{subdir}' (not copying from parent)"
                         )
                         continue
 
