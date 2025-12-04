@@ -19,7 +19,6 @@ import {
   BenchmarkShortcutCardList,
   BenchmarkShortcutItem,
 } from "../../common/BenchmarkShortcutCardList";
-import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
@@ -745,6 +744,7 @@ export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
       <BenchmarkShortcutCardList
         benchmarkId={ctx.benchmarkId}
         data={data}
+        title={uiRenderConfig?.title}
         onNavigate={(item: BenchmarkShortcutItem) => {
           const changed: Record<string, string> = {};
           changed[item.fieldName] = item.value;

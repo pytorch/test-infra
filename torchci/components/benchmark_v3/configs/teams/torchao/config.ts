@@ -152,6 +152,7 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
       renders: [
         {
           type: "AutoBenchmarkShortcutCardList",
+          title: "Operator Lists",
           config: {
             filters: ["operatorName"],
           },

@@ -102,6 +102,7 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
     renders: [
       {
         type: "AutoBenchmarkShortcutCardList",
+        title: "Dtype Lists",
         config: {
           filters: ["dtype"],
         },
