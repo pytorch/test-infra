@@ -334,7 +334,7 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
   validateInputs(inputs: any) {
     if (!inputs.benchmarkName && !inputs.benchmarkNames) {
       throw new Error(
-        "Either benchmarkName or benchmarkNames must be provided"
+        "[BenchmarkDataQuery]Either benchmarkName or benchmarkNames must be provided"
       );
     }
     if (!inputs.repo) {
@@ -344,6 +344,8 @@ export class BenchmarkDataQuery extends ExecutableQueryBase {
 
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     this.validateInputs(inputs);
+
+    console.log("[benchmarkDatQueryBuilder] inputs:", inputs);
 
     if (inputs.benchmarkName && !inputs.benchmarkNames) {
       inputs.benchmarkNames = [inputs.benchmarkName];

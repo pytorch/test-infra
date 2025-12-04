@@ -12,6 +12,7 @@ import {
 import {
   BenchmarkMetadataQuery,
   PytorchOperatorMicrobenchmarkMetadataFetcher,
+  TorchAoMicrobApienchmarkMetadataFetcher,
 } from "./queryBuilderUtils/listMetadataQueryBuilder";
 import {
   BenchmarkDataFetcher,
@@ -31,6 +32,7 @@ const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
 // Register benchmark metadata fetchers. this is mainly used in list_metadata api
 const metaCtors: Record<string, new () => BenchmarkMetadataFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicrobenchmarkMetadataFetcher,
+  torchao_micro_api_benchmark: TorchAoMicrobApienchmarkMetadataFetcher,
   default: BenchmarkMetadataQuery,
 };
 

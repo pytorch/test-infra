@@ -81,12 +81,12 @@ function getFormat(data: any, format: string = "raw") {
   }
 }
 
-const defaultGetCommitsInputs: any = {
+const defaultGeneralListCommitsInputs: any = {
   branches: [],
   models: [],
   backends: [],
   device: "",
-  arch: [],
+  arches: [],
   dtype: "",
   mode: "",
 };
@@ -117,7 +117,7 @@ export async function getGeneralCommits(id: string, inputparams: any) {
   }
 
   const queryParams = {
-    ...defaultGetCommitsInputs, // base defaults
+    ...defaultGeneralListCommitsInputs, // base defaults
     ...inputparams, // override with caller's values
   };
 

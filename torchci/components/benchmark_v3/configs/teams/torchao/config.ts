@@ -151,7 +151,15 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
       },
       renders: [
         {
+          type: "AutoBenchmarkShortcutCardList",
+          title: "Operator Lists",
+          config: {
+            filters: ["operatorName"],
+          },
+        },
+        {
           type: "AutoBenchmarkComparisonGithubExternalLink",
+          title: "Github runs (external)",
           description: "See original github runs for left and right runs",
           config: {},
         },

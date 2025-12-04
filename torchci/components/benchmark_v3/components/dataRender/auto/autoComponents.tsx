@@ -1,10 +1,11 @@
 import { Alert, Typography } from "@mui/material";
-import { Grid, Stack } from "@mui/system";
+import { Box, Grid, Stack } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
   useBenchmarkCommittedContext,
   useBenchmarkTimeSeriesData,
+  useListBenchmarkMetadata,
 } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
@@ -14,6 +15,10 @@ import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_type
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
+import {
+  BenchmarkShortcutCardList,
+  BenchmarkShortcutItem,
+} from "../../common/BenchmarkShortcutCardList";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
@@ -326,16 +331,18 @@ export function AutoBenchmarkComparisonGithubExternalLink({
     return <></>;
   }
   return (
-    <BenchmarkComparisonGithubExternalLink
-      benchmarkId={ctx.benchmarkId}
-      lcommit={ctx.lcommit}
-      rcommit={ctx.rcommit}
-      repo={repo}
-      title={{
-        text: config?.title,
-        description: config?.description,
-      }}
-    />
+    <Box sx={{ ml: 1 }}>
+      <BenchmarkComparisonGithubExternalLink
+        benchmarkId={ctx.benchmarkId}
+        lcommit={ctx.lcommit}
+        rcommit={ctx.rcommit}
+        repo={repo}
+        title={{
+          text: config?.title,
+          description: config?.description,
+        }}
+      />
+    </Box>
   );
 }
 
@@ -672,6 +679,84 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
         />
       </Grid>
     </Grid>
+  );
+}
+
+export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const update = useDashboardSelector((s) => s.update);
+
+  const ready = !!ctx && !!ctx.committedTime;
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+  const queryParams = ready
+    ? dataBinding.toQueryParams({
+        repo: ctx.repo,
+        benchmarkName: ctx.benchmarkName,
+        timeRange: ctx.committedTime,
+        filters: {}, // does not rerender when filter changes, since it fetches the filter optons
+      })
+    : null;
+
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useListBenchmarkMetadata(ctx.benchmarkId, queryParams);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={300}
+        content="loading data for AutoBenchmarkShortcutCardList..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkShortcutCardList){error.message}
+      </Alert>
+    );
+  }
+
+  // ------------------ convert to the shortcut items ------------------
+  const filters = uiRenderConfig.config?.filters;
+  let data: BenchmarkShortcutItem[] = [];
+  resp?.data?.forEach((item: any) => {
+    const name = filters?.find((f: string) => f === item?.type);
+    if (name) {
+      const options = item?.options;
+      options.forEach((option: any) => {
+        data.push({
+          displayName: option.displayName ?? "unkown",
+          value: option.value,
+          description: item?.labelName ?? "",
+          fieldName: name,
+        });
+      });
+    }
+  });
+
+  return (
+    <>
+      <BenchmarkShortcutCardList
+        benchmarkId={ctx.benchmarkId}
+        data={data}
+        title={uiRenderConfig?.title}
+        onNavigate={(item: BenchmarkShortcutItem) => {
+          const changed: Record<string, string> = {};
+          changed[item.fieldName] = item.value;
+          update({
+            filters: {
+              ...ctx.committedFilters,
+              ...changed,
+            },
+          });
+        }}
+      />
+    </>
   );
 }
 
