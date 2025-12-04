@@ -3,6 +3,7 @@ import {
   AutoBenchmarkLogs,
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
+  AutoBenchmarkShortcutCardList,
   AutoBenchmarkSingleDataTable,
   AutoBenchmarkSingleViewNavigation,
   AutoBenchmarkTimeSeriesChartGroup,
@@ -70,7 +71,9 @@ export class AutoComponentRegistry {
       AutoBenchmarkLogs: {
         Component: AutoBenchmarkLogs,
       },
-
+      AutoBenchmarkShortcutCardList: {
+        Component: AutoBenchmarkShortcutCardList,
+      },
       // Add your auto components here
     };
     this.map = Object.freeze({ ...registry });

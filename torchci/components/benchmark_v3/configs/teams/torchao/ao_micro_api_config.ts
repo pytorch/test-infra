@@ -97,6 +97,12 @@ export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
     },
     renders: [
       {
+        type: "AutoBenchmarkShortcutCardList",
+        config: {
+          filters: ["dtype"],
+        },
+      },
+      {
         type: "AutoBenchmarkComparisonGithubExternalLink",
         description: "See original github runs for left and right runs",
         config: {},

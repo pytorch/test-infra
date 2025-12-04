@@ -5,6 +5,7 @@ import LoadingPage from "components/common/LoadingPage";
 import {
   useBenchmarkCommittedContext,
   useBenchmarkTimeSeriesData,
+  useListBenchmarkMetadata,
 } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
@@ -14,6 +15,11 @@ import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_type
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
+import {
+  BenchmarkShortcutCardList,
+  BenchmarkShortcutItem,
+} from "../../common/BenchmarkShortcutCardList";
+import { RenderRawContent } from "../../common/RawContentDialog";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
@@ -672,6 +678,80 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
         />
       </Grid>
     </Grid>
+  );
+}
+
+export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const update = useDashboardSelector((s) => s.update);
+
+  const ready = !!ctx && !!ctx.committedTime;
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+  const queryParams = ready
+    ? dataBinding.toQueryParams({
+        repo: ctx.repo,
+        benchmarkName: ctx.benchmarkName,
+        timeRange: ctx.committedTime,
+        filters: {}, // the dropdown does not rerender when filter changes, since it manages the filter optons
+      })
+    : null;
+
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useListBenchmarkMetadata(ctx.benchmarkId, queryParams);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={300}
+        content="loading data for AutoBenchmarkRawDataTable..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">(AutoBenchmarkRawDataTable){error.message}</Alert>
+    );
+  }
+  const filters = uiRenderConfig.config?.filters;
+  let data: BenchmarkShortcutItem[] = [];
+  resp?.data?.forEach((item: any) => {
+    const name = filters?.find((f: string) => f === item?.type);
+    if (name) {
+      const options = item?.options;
+      options.forEach((option: any) => {
+        data.push({
+          displayName: option.displayName ?? "unkown",
+          value: option.value,
+          description: item?.type,
+          fieldName: name,
+          url: `${window.location.pathname}${window.location.search}&filters.${name}=${option.value}`,
+        });
+      });
+    }
+  });
+  return (
+    <>
+      <RenderRawContent data={data} />
+      <BenchmarkShortcutCardList
+        benchmarkId={ctx.benchmarkId}
+        data={data}
+        onNavigate={(item: BenchmarkShortcutItem) => {
+          const changed: Record<string, string> = {};
+          changed[item.fieldName] = item.value;
+          update({
+            filters: {
+              ...ctx.committedFilters,
+              ...changed,
+            },
+          });
+        }}
+      />
+    </>
   );
 }
 
