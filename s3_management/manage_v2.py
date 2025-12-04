@@ -825,6 +825,13 @@ class S3Index:
                         # Case 2: Processing root of nested prefix, copy from parent prefix
                         should_copy_from_parent = True
                         copy_source_prefix = parent_prefix
+                    else:
+                        # Case 3: At root level with no parent - skip this package
+                        # PACKAGE_LINKS_ALLOW_LIST packages should only be copied from parent
+                        print(
+                            f"INFO: Skipping PACKAGE_LINKS_ALLOW_LIST package '{pkg_name}' at root level (no parent to copy from)"
+                        )
+                        continue
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
@@ -966,9 +973,12 @@ class S3Index:
                             f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' will copy index from '{copy_source_prefix}' to '{subdir}' (parent prefix copy)"
                         )
                     else:
+                        # Case 3: At root level with no parent - skip this package
+                        # PACKAGE_LINKS_ALLOW_LIST packages should only be copied from parent
                         print(
-                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Package '{pkg_name}' is at root level, will generate index normally"
+                            f"INFO PACKAGE_LINKS_ALLOW_LIST: Skipping package '{pkg_name}' at root level (no parent to copy from)"
                         )
+                        continue
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
