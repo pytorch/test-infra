@@ -15,7 +15,7 @@ export default function ThemeModePicker(): JSX.Element {
   }, []);
 
   // Don't render anything until client-side
-  if (!isMounted) return <div style={{ width: "40px", height: "40px" }} />;
+  if (!isMounted) return <div className={styles.togglePlaceholder} />;
 
   // Get the icon component based on active theme
   const getIconComponent = () => {
