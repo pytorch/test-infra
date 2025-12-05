@@ -69,6 +69,15 @@ ACCEPTED_SUBDIR_PATTERNS = [
     "cpu",
     "xpu",
 ]
+
+# These are legacy build todo: delete these
+NOT_ACCEPTED_SUBDIR_PATTERNS = [
+    "cpu-cxx11-abi",
+    "cpu_pypi_pkg",
+    "cu126_full",
+    "cu128_full",
+]
+
 PREFIXES = [
     "whl",
     "whl/nightly",
@@ -1094,7 +1103,14 @@ class S3Index:
                     for pattern in ACCEPTED_SUBDIR_PATTERNS
                 ]
             ) and obj.key.endswith(ACCEPTED_FILE_EXTENSIONS)
-            if not is_acceptable:
+
+            # Check if the subdir matches any NOT_ACCEPTED_SUBDIR_PATTERNS
+            is_not_accepted = any(
+                match(f"{prefix}/{pattern}", path.dirname(obj.key))
+                for pattern in NOT_ACCEPTED_SUBDIR_PATTERNS
+            )
+
+            if not is_acceptable or is_not_accepted:
                 continue
             obj_names.append(obj.key)
         return obj_names
