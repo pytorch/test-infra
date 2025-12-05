@@ -40,6 +40,10 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      checkout-mode:
+        description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
+        default: "normal"
+        type: string
       submodules:
         description:
           Same as actions/checkout, set to `true` to checkout submodules or `recursive` to
@@ -177,7 +181,8 @@ jobs:
                docker exec -it $(docker container ps --format '{{.ID}}') bash
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: zklaus/checkout@4a5ddcafe75fd4cd42b59eff291c317d66eea084  # submodules filter enabled
+        # uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
@@ -185,6 +190,8 @@ jobs:
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
+          filter: ${{ inputs.checkout-mode == 'blobless' && 'blob:none' || inputs.checkout-mode == 'treeless' && 'tree:0' || null }}
+          submodules-filter: ${{ inputs.checkout-mode == 'blobless' && 'blob:none' || inputs.checkout-mode == 'treeless' && 'tree:0' || null }}
 
       - name: Calculate docker image
         id: calculate-docker-image
