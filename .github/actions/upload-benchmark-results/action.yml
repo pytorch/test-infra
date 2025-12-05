@@ -43,6 +43,9 @@ runs:
           # GPU device name coming from rocminfo instead
           DEVICE_NAME=rocm
           DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
+          ELAINE_TESTING_TYPE=$(rocminfo | grep "Marketing Name")
+          echo "GPU(s) found:"
+          echo "$ELAINE_TESTING_TYPE"
         fi
 
         echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
