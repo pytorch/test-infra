@@ -344,6 +344,7 @@ PACKAGE_ALLOW_LIST = {
         "Werkzeug",
         "yarl",
         "zipp",
+        "mslk",
     ]
 }
 
