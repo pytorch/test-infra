@@ -6,12 +6,7 @@ from typing import Any, Dict, List
 
 import requests
 from setuptools import distutils  # type: ignore[import]
-from torchci.check_alerts import (
-    clear_alerts,
-    create_issue,
-    fetch_alerts,
-    update_issue,
-)
+from torchci.check_alerts import clear_alerts, create_issue, fetch_alerts, update_issue
 from torchci.utils import get_hud_headers
 
 
@@ -125,11 +120,16 @@ def check_live_runners_alert(dry_run: bool) -> None:
         clear_alerts(existing_alerts, dry_run)
         if existing_alerts and not existing_alerts[-1]["closed"]:
             new_issue = gen_clean_issue()
-            update_issue(new_issue, existing_alerts[-1], "All live runners issues have been cleared.", dry_run)
+            update_issue(
+                new_issue,
+                existing_alerts[-1],
+                "All live runners issues have been cleared.",
+                dry_run,
+            )
         return
 
     if not existing_alerts:
-        existing_alerts.append(create_issue(gen_issue([]), dry_run))       
+        existing_alerts.append(create_issue(gen_issue([]), dry_run))
 
     new_issue = gen_issue(alerting_items)
     existing_issue = existing_alerts[-1]
