@@ -11,6 +11,11 @@ on:
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
+# Only allow one run at a time for scheduled/manual triggers.
+# If a new run is triggered while one is running, the new one will be canceled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'singleton' }}
+  cancel-in-progress: false
 
 jobs:
   update-alerts:

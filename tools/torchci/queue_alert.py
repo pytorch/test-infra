@@ -31,7 +31,8 @@ RULES = [
     ),
     (
         # common linux machines: >50 in queue for >30 minutes
-        lambda machine_type: "linux.2xlarge" or "linux.4xlarge" in machine_type,
+        lambda machine_type: "linux.2xlarge" in machine_type
+        or "linux.4xlarge" in machine_type,
         lambda count, seconds: count > 50 and seconds > 30 * 60,
     ),
     (
