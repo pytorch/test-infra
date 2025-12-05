@@ -480,6 +480,9 @@ class S3Index:
         self.subdirs = {
             path.dirname(obj.key) for obj in objects if path.dirname != prefix
         }
+        # Cache for expensive computations
+        self._package_name_cache: Dict[str, str] = {}
+        self._parent_packages_cache: Dict[str, Set[str]] = {}
 
     def packages_by_allow_list(self) -> List[S3Object]:
         """Filter packages to only include those in PACKAGE_ALLOW_LIST
@@ -575,33 +578,41 @@ class S3Index:
         Returns:
             Set of package names that should be copied from parent
         """
+        # Use cache to avoid repeated S3 API calls
+        cache_key = f"{parent_prefix}:{subdir}"
+        if cache_key in self._parent_packages_cache:
+            return self._parent_packages_cache[cache_key]
+
         packages_to_copy = set()
 
         # Get packages in the subdirectory
         packages_in_subdir = set(self.get_package_names(subdir=subdir))
 
-        # Check if parent indexes exist for PACKAGE_LINKS_ALLOW_LIST packages
+        # Batch process all objects with a single filter call
         prefix_to_search = f"{parent_prefix}/"
+
+        # Collect all package index files in one pass
+        parent_packages = set()
         for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
             # Check if this is a packagename/index.html file at the parent level
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
             if len(parts) == 2 and parts[1] == "index.html":
                 # Convert from URL format (dashes) to package name format (underscores)
-                pkg_name_with_dashes = parts[0]
-                pkg_name_with_underscores = pkg_name_with_dashes.replace("-", "_")
+                pkg_name_with_underscores = parts[0].replace("-", "_")
+                parent_packages.add(pkg_name_with_underscores)
 
-                # Check if this package is in PACKAGE_LINKS_ALLOW_LIST
-                if pkg_name_with_underscores.lower() in PACKAGE_LINKS_ALLOW_LIST:
-                    # Only add if it's not already in the subdirectory
-                    if pkg_name_with_underscores.lower() not in {
-                        p.lower() for p in packages_in_subdir
-                    }:
-                        packages_to_copy.add(pkg_name_with_underscores)
-                        print(
-                            f"INFO: Found PACKAGE_LINKS_ALLOW_LIST package '{pkg_name_with_underscores}' in '{parent_prefix}' to copy to '{subdir}'"
-                        )
+        # Now filter for PACKAGE_LINKS_ALLOW_LIST packages not in subdirectory
+        for pkg_name in parent_packages:
+            if pkg_name.lower() in PACKAGE_LINKS_ALLOW_LIST:
+                if pkg_name.lower() not in {p.lower() for p in packages_in_subdir}:
+                    packages_to_copy.add(pkg_name)
+                    print(
+                        f"INFO: Found PACKAGE_LINKS_ALLOW_LIST package '{pkg_name}' in '{parent_prefix}' to copy to '{subdir}'"
+                    )
 
+        # Cache the result
+        self._parent_packages_cache[cache_key] = packages_to_copy
         return packages_to_copy
 
     def normalize_package_version(self, obj: S3Object) -> str:
@@ -610,7 +621,12 @@ class S3Index:
         return sub(r"%2B.*", "", "-".join(path.basename(obj.key).split("-")[:2]))
 
     def obj_to_package_name(self, obj: S3Object) -> str:
-        return path.basename(obj.key).split("-", 1)[0].lower()
+        # Use cache to avoid repeated string operations
+        if obj.key not in self._package_name_cache:
+            self._package_name_cache[obj.key] = (
+                path.basename(obj.key).split("-", 1)[0].lower()
+            )
+        return self._package_name_cache[obj.key]
 
     def to_libtorch_html(self, subdir: Optional[str] = None) -> str:
         """Generates a string that can be used as the HTML index
@@ -654,30 +670,35 @@ class S3Index:
         out.append(
             "    <h1>Links for {}</h1>".format(package_name.lower().replace("_", "-"))
         )
+
+        # Determine URL strategy once before the loop
+        if (
+            use_cloudfront_for_non_foundation
+            and package_name.lower() not in PT_FOUNDATION_PACKAGES
+        ):
+            # Use CloudFront absolute URL for non-foundation packages when requested
+            base_url = "https://d21usjoq99fcb9.cloudfront.net"
+        else:
+            # Use relative URL for S3 index or foundation packages in R2 index
+            base_url = ""
+
+        # Pre-check if this is a nightly package to avoid repeated startswith checks
+        is_nightly = any(
+            obj.orig_key.startswith("whl/nightly")
+            for obj in self.gen_file_list(subdir, package_name)
+        )
+
         for obj in sorted(self.gen_file_list(subdir, package_name)):
             # Do not include checksum for nightly packages, see
             # https://github.com/pytorch/test-infra/pull/6307
             maybe_fragment = (
-                f"#sha256={obj.checksum}"
-                if obj.checksum and not obj.orig_key.startswith("whl/nightly")
-                else ""
+                f"#sha256={obj.checksum}" if obj.checksum and not is_nightly else ""
             )
             attributes = ""
             if obj.pep658:
                 pep658_sha = f"sha256={obj.pep658}"
                 # pep714 renames the attribute to data-core-metadata
                 attributes = f' data-dist-info-metadata="{pep658_sha}" data-core-metadata="{pep658_sha}"'
-
-            # Determine URL strategy based on parameter and package name
-            if (
-                use_cloudfront_for_non_foundation
-                and package_name.lower() not in PT_FOUNDATION_PACKAGES
-            ):
-                # Use CloudFront absolute URL for non-foundation packages when requested
-                base_url = "https://d21usjoq99fcb9.cloudfront.net"
-            else:
-                # Use relative URL for S3 index or foundation packages in R2 index
-                base_url = ""
 
             out.append(
                 f'    <a href="{base_url}/{obj.key}{maybe_fragment}"{attributes}>{path.basename(obj.key).replace("%2B", "+")}</a><br/>'
@@ -708,6 +729,8 @@ class S3Index:
 
         # List all objects in the subdir to find packagename/index.html patterns
         prefix_to_search = f"{resolved_subdir}/"
+
+        # Optimize: collect package names in a single pass
         for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
             # Check if this is a packagename/index.html file
             relative_key = obj.key[len(prefix_to_search) :]
@@ -716,13 +739,16 @@ class S3Index:
                 package_name = parts[0].replace("-", "_")
                 # Convert back to the format used in wheel names (use _ not -)
                 # But we need to check if this package already has wheels
-                if package_name.lower() not in {
-                    p.lower() for p in packages_from_wheels
-                }:
+                package_name_lower = package_name.lower()
+                if package_name_lower not in {p.lower() for p in packages_from_wheels}:
                     packages_with_index_only.add(package_name)
-                    print(
-                        f"INFO: Including package '{package_name}' in {prefix_to_search} (has index.html but no wheels)"
-                    )
+
+        # Only print if there are packages with index only
+        if packages_with_index_only:
+            for pkg in packages_with_index_only:
+                print(
+                    f"INFO: Including package '{pkg}' in {prefix_to_search} (has index.html but no wheels)"
+                )
 
         # Combine both sets of packages
         all_packages = packages_from_wheels | packages_with_index_only
@@ -817,7 +843,8 @@ class S3Index:
                 set(packages_with_wheels) | packages_to_copy_from_parent
             )
 
-            for pkg_name in all_packages:
+            # Batch upload using ThreadPoolExecutor for better performance
+            def upload_package_index(pkg_name: str) -> None:
                 compat_pkg_name = pkg_name.lower().replace("_", "-")
 
                 # Check if this package should copy from parent instead of processing wheels
@@ -837,7 +864,7 @@ class S3Index:
                         print(
                             f"INFO: Skipping PACKAGE_LINKS_ALLOW_LIST package '{pkg_name}' at root level '{subdir}' (not copying from parent)"
                         )
-                        continue
+                        return
 
                 if should_copy_from_parent and copy_source_prefix is not None:
                     # Copy HTML from parent/root directory
@@ -871,7 +898,7 @@ class S3Index:
                     except Exception as e:
                         print(f"ERROR: Failed to copy {root_index_key}: {e}")
 
-                    continue
+                    return
 
                 # Generate S3 index with relative URLs
                 s3_index_html = self.to_simple_package_html(
@@ -905,6 +932,13 @@ class S3Index:
                         ContentType="text/html",
                         Body=r2_index_html,
                     )
+
+            # Parallel upload of package indexes
+            max_workers = min(10, len(all_packages)) if all_packages else 1
+            with concurrent.futures.ThreadPoolExecutor(
+                max_workers=max_workers
+            ) as executor:
+                executor.map(upload_package_index, all_packages)
 
     def save_libtorch_html(self) -> None:
         for subdir in self.subdirs:
@@ -1118,7 +1152,9 @@ class S3Index:
     def fetch_metadata(self) -> None:
         # Add PEP 503-compatible hashes to URLs to allow clients to avoid spurious downloads, if possible.
         regex_multipart_upload = r"^[A-Za-z0-9+/=]+=-[0-9]+$"
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        # Increase worker count for better parallelism (from 6 to 20)
+        max_workers = min(20, len(self.objects)) if self.objects else 6
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             futures = {}
             for idx, obj in enumerate(self.objects):
                 if obj.size is None:
@@ -1164,7 +1200,9 @@ class S3Index:
                     return ""
                 raise
 
-        with concurrent.futures.ThreadPoolExecutor(max_workers=6) as executor:
+        # Increase worker count for better parallelism (from 6 to 20)
+        max_workers = min(20, len(self.objects)) if self.objects else 6
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
             metadata_futures = {
                 idx: executor.submit(
                     _fetch_metadata,
