@@ -19,12 +19,17 @@ def get_pytorch_pip_install_command(
     channel: str,
 ) -> List[str]:
     torch_pkg = "torch"
+    download_pytorch_org = "download.pytorch.org"
     if pytorch_version != "":
         torch_pkg += f"=={pytorch_version}"
     pip_install = f"pip install {torch_pkg}"
     if channel == "nightly":
         pip_install += " --pre"
-    extra_index = f"https://download.pytorch.org/whl/{channel}/{gpu_arch_version}"
+
+    if channel in ["nightly", "test"]:
+        download_pytorch_org = "r2-test.pytorch.org"
+
+    extra_index = f"https://{download_pytorch_org}/whl/{channel}/{gpu_arch_version}"
     return [f"export PIP_INSTALL_TORCH='{pip_install} --index-url {extra_index}'"]
 
 
