@@ -46,7 +46,7 @@ all_jobs AS (
         all_runs.sha AS sha,
         job.name AS job_name,
         job.conclusion AS raw_conclusion,
-        ROW_NUMBER() OVER(
+        ROW_NUMBER() OVER (
             PARTITION BY job.name, all_runs.sha
             ORDER BY job.run_attempt DESC
         ) AS row_num
@@ -70,9 +70,18 @@ job_status AS (
         sha,
         job_name,
         -- Did this job ever fail?
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled')) AS ever_failed,
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
+            AS ever_failed,
         -- Did the final attempt fail?
-        MAX(CASE WHEN row_num = 1 AND raw_conclusion IN ('failure', 'timed_out', 'cancelled') THEN 1 ELSE 0 END) AS final_failed,
+        MAX(
+            CASE
+                WHEN
+                    row_num = 1
+                    AND raw_conclusion IN ('failure', 'timed_out', 'cancelled')
+                    THEN 1
+                ELSE 0
+            END
+        ) AS final_failed,
         -- Is there a pending job?
         MAX(CASE WHEN raw_conclusion = '' THEN 1 ELSE 0 END) AS has_pending
     FROM all_jobs
