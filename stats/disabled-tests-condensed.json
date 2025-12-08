@@ -248,13 +248,6 @@
       "dynamo"
     ]
   ],
-  "test_checkpointing_without_reentrant_dataparallel (__main__.TestAutogradWithCompiledAutograd)": [
-    "153608",
-    "https://github.com/pytorch/pytorch/issues/153608",
-    [
-      "linux"
-    ]
-  ],
   "test_circular_dependencies (__main__.TestImports)": [
     "110040",
     "https://github.com/pytorch/pytorch/issues/110040",
