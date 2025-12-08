@@ -478,8 +478,6 @@ export default function Page() {
         "lint",
         "pull",
         "trunk",
-        "linux-binary-libtorch-release",
-        "linux-binary-manywheel",
         "linux-aarch64",
       ],
     })

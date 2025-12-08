@@ -31,8 +31,6 @@ all_runs AS (
             'Lint',
             'pull',
             'trunk',
-            'linux-binary-libtorch-release',
-            'linux-binary-manywheel',
             'linux-aarch64'
         )
         AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
