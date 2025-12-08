@@ -82,16 +82,6 @@ on:
         description: 'CPU architecture to build for'
         default: "x64"
         type: string
-    secrets:
-      R2_ACCOUNT_ID:
-        description: Cloudflare R2 account ID
-        required: false
-      R2_ACCESS_KEY_ID:
-        description: Cloudflare R2 access key ID
-        required: false
-      R2_SECRET_ACCESS_KEY:
-        description: Cloudflare R2 secret access key
-        required: false
 
 permissions:
   id-token: write
@@ -401,23 +391,6 @@ jobs:
       build-matrix: ${{ inputs.build-matrix }}
       trigger-event: ${{ inputs.trigger-event }}
       architecture: ${{ inputs.architecture }}
-
-  upload-r2:
-    needs: build
-    uses: ./.github/workflows/_binary_upload_r2.yml
-    if: false
-    with:
-      repository: ${{ inputs.repository }}
-      ref: ${{ inputs.ref }}
-      test-infra-repository: ${{ inputs.test-infra-repository }}
-      test-infra-ref: ${{ inputs.test-infra-ref }}
-      build-matrix: ${{ inputs.build-matrix }}
-      trigger-event: ${{ inputs.trigger-event }}
-      architecture: ${{ inputs.architecture }}
-    secrets:
-      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
-      R2_ACCESS_KEY_ID:  ${{ secrets.R2_ACCESS_KEY_ID }}
-      R2_SECRET_ACCESS_KEY:  ${{ secrets.R2_SECRET_ACCESS_KEY }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}-${{ inputs.repository }}-${{ github.event_name == 'workflow_dispatch' }}
