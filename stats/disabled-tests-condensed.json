@@ -572,20 +572,6 @@
       "rocm"
     ]
   ],
-  "test_ddp_apply_optim_in_backward_grad_as_bucket_view_false (__main__.TestDistBackendWithSpawn)": [
-    "155750",
-    "https://github.com/pytorch/pytorch/issues/155750",
-    [
-      "rocm"
-    ]
-  ],
-  "test_ddp_apply_optim_in_backward_ignored_params (__main__.TestDistBackendWithSpawn)": [
-    "155751",
-    "https://github.com/pytorch/pytorch/issues/155751",
-    [
-      "rocm"
-    ]
-  ],
   "test_ddp_has_finalized (__main__.TestDistBackendWithSpawn)": [
     "102751",
     "https://github.com/pytorch/pytorch/issues/102751",
