@@ -48,6 +48,7 @@ all_jobs AS (
         all_runs.sha AS sha,
         job.run_attempt AS run_attempt,
         job.conclusion AS raw_conclusion,
+        job.run_id AS run_id,
         -- Normalize job name to group shards together (same as auto-revert logic)
         trim(
             replaceRegexpAll(
@@ -80,13 +81,14 @@ attempt_status AS (
         sha,
         base_name,
         run_attempt,
+        run_id,
         -- Does this attempt have ANY shard with failure?
         MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
             AS attempt_has_failure,
         -- Does this attempt have any pending jobs?
         MAX(raw_conclusion = '') AS attempt_has_pending
     FROM all_jobs
-    GROUP BY time, sha, base_name, run_attempt
+    GROUP BY time, sha, base_name, run_attempt, run_id
 ),
 
 -- Step 2: For each (sha, base_name), aggregate across all run_attempts
