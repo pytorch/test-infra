@@ -2057,6 +2057,17 @@
       "linux"
     ]
   ],
+  "test_std_cuda_kernel_launch_check_error_show_cpp_stacktraces_True_cuda (__main__.TestLibtorchAgnosticCUDA)": [
+    "169883",
+    "https://github.com/pytorch/pytorch/issues/169883",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_subclass (__main__.CustomOpTests)": [
     "160447",
     "https://github.com/pytorch/pytorch/issues/160447",
