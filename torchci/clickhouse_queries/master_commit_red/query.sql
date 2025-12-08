@@ -133,7 +133,7 @@ commit_overall_conclusion AS (
 
 SELECT
     toDate(
-        date_trunc('hour', time),
+        date_trunc({granularity: String}, time),
         {timezone: String}
     ) AS granularity_bucket,
     countIf(overall_conclusion = 'red') AS red,

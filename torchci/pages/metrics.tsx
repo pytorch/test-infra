@@ -33,15 +33,22 @@ const DISABLED_TESTS_CONDENSED_URL =
 
 function MasterCommitRedPanel({
   params,
+  timeRange,
 }: {
   params: { [key: string]: string };
+  timeRange: number;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
 
+  // Choose granularity based on time range (-1 means custom, default to day)
+  const granularity =
+    timeRange === -1 ? "day" : timeRange >= 90 ? "week" : timeRange >= 14 ? "day" : "hour";
+
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
       ...params,
+      granularity,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
   )}`;
@@ -54,9 +61,12 @@ function MasterCommitRedPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+  const granularityLabel =
+    timeRange === -1 ? "day" : timeRange >= 90 ? "week" : timeRange >= 14 ? "day" : "hour";
+
   const options: EChartsOption = {
     title: {
-      text: "Commits red on main, by day",
+      text: `Commits red on main, by ${granularityLabel}`,
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -532,7 +542,7 @@ export default function Page() {
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParams} />
+          <MasterCommitRedPanel params={timeParams} timeRange={timeRange} />
         </Grid>
 
         <Grid
