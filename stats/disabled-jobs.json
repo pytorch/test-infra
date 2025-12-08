@@ -23,6 +23,14 @@
     "_composable",
     "fsdp/test_fully_shard_training.py::TestFullyShard1DTrainingCompose::test_train_parity_with_activation_checkpointing"
   ],
+  "periodic-rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "169842",
+    "https://github.com/pytorch/pytorch/issues/169842",
+    "periodic-rocm-mi200",
+    "linux-jammy-rocm-py3.10",
+    "test"
+  ],
   "rocm / linux-jammy-rocm-py3_10-gfx1100 / test (default)": [
     "jithunnair-amd",
     "165040",
