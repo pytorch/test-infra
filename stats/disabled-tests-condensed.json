@@ -172,13 +172,6 @@
       "rocm"
     ]
   ],
-  "test_binomial_sample (__main__.TestDistributions)": [
-    "165720",
-    "https://github.com/pytorch/pytorch/issues/165720",
-    [
-      "xpu"
-    ]
-  ],
   "test_bmm_out_dtype (__main__.TestMaxAutotune)": [
     "167418",
     "https://github.com/pytorch/pytorch/issues/167418",
@@ -903,34 +896,6 @@
   "test_float8_scale_fast_accum_xpu (__main__.TestFP8MatmulXPU)": [
     "169556",
     "https://github.com/pytorch/pytorch/issues/169556",
-    [
-      "xpu"
-    ]
-  ],
-  "test_flop_counter_op_options0_xpu_float16 (__main__.TestSchedulerXPU)": [
-    "166704",
-    "https://github.com/pytorch/pytorch/issues/166704",
-    [
-      "xpu"
-    ]
-  ],
-  "test_flop_counter_op_options0_xpu_float32 (__main__.TestSchedulerXPU)": [
-    "166705",
-    "https://github.com/pytorch/pytorch/issues/166705",
-    [
-      "xpu"
-    ]
-  ],
-  "test_flop_counter_op_options1_xpu_float16 (__main__.TestSchedulerXPU)": [
-    "166706",
-    "https://github.com/pytorch/pytorch/issues/166706",
-    [
-      "xpu"
-    ]
-  ],
-  "test_flop_counter_op_options1_xpu_float32 (__main__.TestSchedulerXPU)": [
-    "166707",
-    "https://github.com/pytorch/pytorch/issues/166707",
     [
       "xpu"
     ]
