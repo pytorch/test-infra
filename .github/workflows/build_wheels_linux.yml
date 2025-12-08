@@ -319,14 +319,7 @@ jobs:
 
           if [[ (! -f "${{ inputs.repository }}"/${SMOKE_TEST_SCRIPT}) ]]; then
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} not found"
-            if [[ "${PACKAGE_NAME}" = "torchrec" ]]; then
-              # Special case for torchrec temporarily since __version__ does not
-              # work correctly on main in torchrec. This block will be
-              # removed once we fix it.
-              ${CONDA_RUN} python -c "import ${PACKAGE_NAME}"
-            else
-              ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
-            fi
+            ${CONDA_RUN} python -c "import ${PACKAGE_NAME}; print('package version is ', ${PACKAGE_NAME}.__version__)"
           else
             echo "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT} found"
             ${CONDA_RUN} python "${{ inputs.repository }}/${SMOKE_TEST_SCRIPT}"
