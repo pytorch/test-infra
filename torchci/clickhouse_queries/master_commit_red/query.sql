@@ -69,21 +69,14 @@ job_status AS (
         time,
         sha,
         job_name,
-        -- Did this job ever fail?
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
-            AS ever_failed,
-        -- Did the final attempt fail?
-        MAX(
-            CASE
-                WHEN
-                    row_num = 1
-                    AND raw_conclusion IN ('failure', 'timed_out', 'cancelled')
-                    THEN 1
-                ELSE 0
-            END
-        ) AS final_failed,
         -- Is there a pending job?
-        MAX(CASE WHEN raw_conclusion = '' THEN 1 ELSE 0 END) AS has_pending
+        MAX(CASE WHEN raw_conclusion = '' THEN 1 ELSE 0 END) AS has_pending,
+        -- Job is flaky if it both failed AND succeeded
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
+        AND MAX(raw_conclusion IN ('success', 'neutral')) AS is_flaky,
+        -- Job is truly red if it failed but never succeeded
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
+        AND NOT MAX(raw_conclusion IN ('success', 'neutral', '')) AS ever_failed
     FROM all_jobs
     GROUP BY time, sha, job_name
 ),
@@ -93,13 +86,13 @@ commit_overall_conclusion AS (
         time,
         sha,
         CASE
-            -- Any job's final attempt still failing = red
-            WHEN SUM(final_failed) > 0 THEN 'red'
             -- Any job pending = pending
             WHEN SUM(has_pending) > 0 THEN 'pending'
-            -- Jobs failed but all passed on retry = flaky
-            WHEN SUM(ever_failed) > 0 THEN 'flaky'
-            -- Everything green on first try
+            -- Any job that only failed (never succeeded) = red
+            WHEN SUM(ever_failed) > 0 THEN 'red'
+            -- Any job that was flaky (failed but also succeeded) = flaky
+            WHEN SUM(is_flaky) > 0 THEN 'flaky'
+            -- Everything passed
             ELSE 'green'
         END AS overall_conclusion
     FROM
