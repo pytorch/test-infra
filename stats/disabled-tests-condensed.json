@@ -1072,6 +1072,13 @@
       "rocm"
     ]
   ],
+  "test_graph_partition_cudagraphs_aot_eager_compat_equal (__main__.TestSAC)": [
+    "167274",
+    "https://github.com/pytorch/pytorch/issues/167274",
+    [
+      "linux"
+    ]
+  ],
   "test_guard_serialization_fsdp_module (__main__.TestGuardSerializationFSDP)": [
     "162793",
     "https://github.com/pytorch/pytorch/issues/162793",
