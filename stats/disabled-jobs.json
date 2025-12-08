@@ -55,6 +55,14 @@
     "linux-jammy-rocm-py3.10",
     "test"
   ],
+  "slow-rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "169852",
+    "https://github.com/pytorch/pytorch/issues/169852",
+    "slow-rocm-mi200",
+    "linux-jammy-rocm-py3.10",
+    "test"
+  ],
   "testAssertNotRegex (__main__.CPythonTest_Assertions)": [
     "pytorch-bot",
     "152869",
