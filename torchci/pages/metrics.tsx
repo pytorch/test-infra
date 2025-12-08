@@ -47,7 +47,13 @@ function MasterCommitRedPanel({
 
   // Choose granularity based on time range (-1 means custom, default to day)
   const granularity =
-    timeRange === -1 ? "day" : timeRange >= 90 ? "week" : timeRange >= 14 ? "day" : "hour";
+    timeRange === -1
+      ? "day"
+      : timeRange >= 90
+      ? "week"
+      : timeRange >= 14
+      ? "day"
+      : "hour";
 
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
@@ -67,7 +73,13 @@ function MasterCommitRedPanel({
   }
 
   const granularityLabel =
-    timeRange === -1 ? "day" : timeRange >= 90 ? "week" : timeRange >= 14 ? "day" : "hour";
+    timeRange === -1
+      ? "day"
+      : timeRange >= 90
+      ? "week"
+      : timeRange >= 14
+      ? "day"
+      : "hour";
 
   const options: EChartsOption = {
     title: {
@@ -125,7 +137,11 @@ function MasterCommitRedPanel({
         const total = params[0].data.total;
 
         if (usePercentage) {
-          return `Red: ${red.toFixed(2)}%<br/>Flaky: ${flaky.toFixed(2)}%<br/>Green: ${green.toFixed(2)}%<br/>Pending: ${pending.toFixed(2)}%<br/>Total commits: ${total}`;
+          return `Red: ${red.toFixed(2)}%<br/>Flaky: ${flaky.toFixed(
+            2
+          )}%<br/>Green: ${green.toFixed(2)}%<br/>Pending: ${pending.toFixed(
+            2
+          )}%<br/>Total commits: ${total}`;
         }
 
         const redPct = ((red / total) * 100).toFixed(2) + "%";
