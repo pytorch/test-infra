@@ -136,10 +136,26 @@ SELECT
         date_trunc({granularity: String}, time),
         {timezone: String}
     ) AS granularity_bucket,
-    countIf(overall_conclusion = 'red') AS red,
-    countIf(overall_conclusion = 'flaky') AS flaky,
-    countIf(overall_conclusion = 'pending') AS pending,
-    countIf(overall_conclusion = 'green') AS green,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'red') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'red'))
+    ) AS red,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'flaky') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'flaky'))
+    ) AS flaky,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'pending') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'pending'))
+    ) AS pending,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'green') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'green'))
+    ) AS green,
     COUNT(*) AS total
 FROM
     commit_overall_conclusion

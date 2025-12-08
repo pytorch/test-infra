@@ -1,5 +1,7 @@
 import {
+  Checkbox,
   FormControl,
+  FormControlLabel,
   Grid,
   InputLabel,
   MenuItem,
@@ -34,9 +36,11 @@ const DISABLED_TESTS_CONDENSED_URL =
 function MasterCommitRedPanel({
   params,
   timeRange,
+  usePercentage,
 }: {
   params: { [key: string]: string };
   timeRange: number;
+  usePercentage: boolean;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
@@ -49,6 +53,7 @@ function MasterCommitRedPanel({
     JSON.stringify({
       ...params,
       granularity,
+      usePercentage,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
   )}`;
@@ -118,6 +123,10 @@ function MasterCommitRedPanel({
         const green = params[0].data.green;
         const pending = params[0].data.pending;
         const total = params[0].data.total;
+
+        if (usePercentage) {
+          return `Red: ${red.toFixed(2)}%<br/>Flaky: ${flaky.toFixed(2)}%<br/>Green: ${green.toFixed(2)}%<br/>Pending: ${pending.toFixed(2)}%<br/>Total commits: ${total}`;
+        }
 
         const redPct = ((red / total) * 100).toFixed(2) + "%";
         const flakyPct = ((flaky / total) * 100).toFixed(2) + "%";
@@ -484,6 +493,7 @@ export default function Page() {
   const [machineTypeFilter, setMachineTypeFilter] = useState<string | null>(
     null
   );
+  const [usePercentage, setUsePercentage] = useState<boolean>(false);
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
@@ -538,11 +548,24 @@ export default function Page() {
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
         />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={usePercentage}
+              onChange={(e) => setUsePercentage(e.target.checked)}
+            />
+          }
+          label="Show %"
+        />
       </Stack>
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParams} timeRange={timeRange} />
+          <MasterCommitRedPanel
+            params={timeParams}
+            timeRange={timeRange}
+            usePercentage={usePercentage}
+          />
         </Grid>
 
         <Grid
