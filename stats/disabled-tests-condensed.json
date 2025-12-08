@@ -1775,6 +1775,13 @@
       "asan"
     ]
   ],
+  "test_raw_amdsmi_device_uuids (__main__.TestCudaMallocAsync)": [
+    "169881",
+    "https://github.com/pytorch/pytorch/issues/169881",
+    [
+      "rocm"
+    ]
+  ],
   "test_record_stream_on_shifted_view (__main__.TestCuda)": [
     "120318",
     "https://github.com/pytorch/pytorch/issues/120318",
