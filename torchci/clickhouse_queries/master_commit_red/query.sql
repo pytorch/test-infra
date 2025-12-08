@@ -1,5 +1,5 @@
 --- This query is used to show the histogram of trunk red commits on HUD metrics page
---- during a period of time
+--- during a period of time, separating real failures from flaky ones
 -- Split up the query into multiple CTEs to make it faster.
 WITH commits AS (
     SELECT
@@ -43,14 +43,13 @@ all_runs AS (
 all_jobs AS (
     SELECT
         all_runs.time AS time,
-        CASE
-            WHEN job.conclusion = 'failure' THEN 'red'
-            WHEN job.conclusion = 'timed_out' THEN 'red'
-            WHEN job.conclusion = 'cancelled' THEN 'red'
-            WHEN job.conclusion = '' THEN 'pending'
-            ELSE 'green'
-        END AS conclusion,
-        all_runs.sha AS sha
+        all_runs.sha AS sha,
+        job.name AS job_name,
+        job.conclusion AS raw_conclusion,
+        ROW_NUMBER() OVER(
+            PARTITION BY job.name, all_runs.sha
+            ORDER BY job.run_attempt DESC
+        ) AS row_num
     FROM
         default.workflow_job job FINAL
     JOIN all_runs all_runs ON all_runs.id = workflow_job.run_id
@@ -65,17 +64,37 @@ all_jobs AS (
         )
 ),
 
+job_status AS (
+    SELECT
+        time,
+        sha,
+        job_name,
+        -- Did this job ever fail?
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled')) AS ever_failed,
+        -- Did the final attempt fail?
+        MAX(CASE WHEN row_num = 1 AND raw_conclusion IN ('failure', 'timed_out', 'cancelled') THEN 1 ELSE 0 END) AS final_failed,
+        -- Is there a pending job?
+        MAX(CASE WHEN raw_conclusion = '' THEN 1 ELSE 0 END) AS has_pending
+    FROM all_jobs
+    GROUP BY time, sha, job_name
+),
+
 commit_overall_conclusion AS (
     SELECT
         time,
         sha,
         CASE
-            WHEN countIf(conclusion = 'red') > 0 THEN 'red'
-            WHEN countIf(conclusion = 'pending') > 0 THEN 'pending'
+            -- Any job's final attempt still failing = red
+            WHEN SUM(final_failed) > 0 THEN 'red'
+            -- Any job pending = pending
+            WHEN SUM(has_pending) > 0 THEN 'pending'
+            -- Jobs failed but all passed on retry = flaky
+            WHEN SUM(ever_failed) > 0 THEN 'flaky'
+            -- Everything green on first try
             ELSE 'green'
         END AS overall_conclusion
     FROM
-        all_jobs
+        job_status
     GROUP BY
         time,
         sha
@@ -91,6 +110,7 @@ SELECT
         {timezone: String}
     ) AS granularity_bucket,
     countIf(overall_conclusion = 'red') AS red,
+    countIf(overall_conclusion = 'flaky') AS flaky,
     countIf(overall_conclusion = 'pending') AS pending,
     countIf(overall_conclusion = 'green') AS green,
     COUNT(*) AS total

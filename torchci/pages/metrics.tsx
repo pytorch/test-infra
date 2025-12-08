@@ -79,6 +79,14 @@ function MasterCommitRedPanel({
         stack: "all",
         encode: {
           x: "granularity_bucket",
+          y: "flaky",
+        },
+      },
+      {
+        type: "bar",
+        stack: "all",
+        encode: {
+          x: "granularity_bucket",
           y: "red",
         },
       },
@@ -91,19 +99,21 @@ function MasterCommitRedPanel({
         },
       },
     ],
-    color: ["#3ba272", "#ee6666", "#f2d643"],
+    color: ["#3ba272", "#ffbb00", "#ee6666", "#8c8c8c"],
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {
         const red = params[0].data.red;
+        const flaky = params[0].data.flaky;
         const green = params[0].data.green;
         const pending = params[0].data.pending;
         const total = params[0].data.total;
 
         const redPct = ((red / total) * 100).toFixed(2) + "%";
+        const flakyPct = ((flaky / total) * 100).toFixed(2) + "%";
         const greenPct = ((green / total) * 100).toFixed(2) + "%";
         const pendingPct = ((pending / total) * 100).toFixed(2) + "%";
-        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
+        return `Red: ${red} (${redPct})<br/>Flaky: ${flaky} (${flakyPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
       },
     },
   };
@@ -474,12 +484,7 @@ export default function Page() {
     JSON.stringify({
       ...timeParams,
       // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-      workflowNames: [
-        "lint",
-        "pull",
-        "trunk",
-        "linux-aarch64",
-      ],
+      workflowNames: ["lint", "pull", "trunk", "linux-aarch64"],
     })
   )}`;
 
