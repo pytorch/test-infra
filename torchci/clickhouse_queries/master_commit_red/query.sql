@@ -81,7 +81,8 @@ attempt_status AS (
         base_name,
         run_attempt,
         -- Does this attempt have ANY shard with failure?
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled')) AS attempt_has_failure,
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
+            AS attempt_has_failure,
         -- Does this attempt have any pending jobs?
         MAX(raw_conclusion = '') AS attempt_has_pending
     FROM all_jobs
