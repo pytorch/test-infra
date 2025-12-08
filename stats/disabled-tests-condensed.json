@@ -2271,6 +2271,13 @@
       "linux"
     ]
   ],
+  "test_uuid_visible_devices (__main__.TestCudaMallocAsync)": [
+    "169878",
+    "https://github.com/pytorch/pytorch/issues/169878",
+    [
+      "rocm"
+    ]
+  ],
   "test_var_mean_tile_reduction_True_cuda (__main__.GPUTests)": [
     "165879",
     "https://github.com/pytorch/pytorch/issues/165879",
