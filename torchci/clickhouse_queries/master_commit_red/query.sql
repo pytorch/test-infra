@@ -1,5 +1,7 @@
 --- This query is used to show the histogram of trunk red commits on HUD metrics page
---- during a period of time, separating real failures from flaky ones
+--- during a period of time, separating real failures from flaky ones.
+--- Jobs are grouped by base_name (stripping shard numbers) to handle flaky tests
+--- that move between shards.
 -- Split up the query into multiple CTEs to make it faster.
 WITH commits AS (
     SELECT
@@ -44,12 +46,18 @@ all_jobs AS (
     SELECT
         all_runs.time AS time,
         all_runs.sha AS sha,
-        job.name AS job_name,
+        job.run_attempt AS run_attempt,
         job.conclusion AS raw_conclusion,
-        ROW_NUMBER() OVER (
-            PARTITION BY job.name, all_runs.sha
-            ORDER BY job.run_attempt DESC
-        ) AS row_num
+        -- Normalize job name to group shards together (same as auto-revert logic)
+        trim(
+            replaceRegexpAll(
+                replaceRegexpAll(
+                    replaceRegexpAll(job.name, '\\s*\\(.*\\)$', ''),
+                    ', \\d+, \\d+, ', ', '
+                ),
+                '\\s+', ' '
+            )
+        ) AS base_name
     FROM
         default.workflow_job job FINAL
     JOIN all_runs all_runs ON all_runs.id = workflow_job.run_id
@@ -64,21 +72,37 @@ all_jobs AS (
         )
 ),
 
-job_status AS (
+-- Step 1: For each (sha, base_name, run_attempt), determine if this attempt
+-- has any failures or is all green across all shards
+attempt_status AS (
     SELECT
         time,
         sha,
-        job_name,
-        -- Is there a pending job?
-        MAX(CASE WHEN raw_conclusion = '' THEN 1 ELSE 0 END) AS has_pending,
-        -- Job is flaky if it both failed AND succeeded
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
-        AND MAX(raw_conclusion IN ('success', 'neutral')) AS is_flaky,
-        -- Job is truly red if it failed but never succeeded
-        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
-        AND NOT MAX(raw_conclusion IN ('success', 'neutral', '')) AS ever_failed
+        base_name,
+        run_attempt,
+        -- Does this attempt have ANY shard with failure?
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled')) AS attempt_has_failure,
+        -- Does this attempt have any pending jobs?
+        MAX(raw_conclusion = '') AS attempt_has_pending
     FROM all_jobs
-    GROUP BY time, sha, job_name
+    GROUP BY time, sha, base_name, run_attempt
+),
+
+-- Step 2: For each (sha, base_name), aggregate across all run_attempts
+-- to determine: red (all attempts failed), flaky (some failed, some green), green (all green)
+job_group_status AS (
+    SELECT
+        time,
+        sha,
+        base_name,
+        -- Any attempt still pending?
+        MAX(attempt_has_pending) AS has_pending,
+        -- Did ALL attempts have at least one failure? (MIN=1 means all had failure)
+        MIN(attempt_has_failure) AS all_attempts_failed,
+        -- Did ANY attempt have a failure?
+        MAX(attempt_has_failure) AS any_attempt_failed
+    FROM attempt_status
+    GROUP BY time, sha, base_name
 ),
 
 commit_overall_conclusion AS (
@@ -86,17 +110,17 @@ commit_overall_conclusion AS (
         time,
         sha,
         CASE
-            -- Any job pending = pending
+            -- Any job group pending = pending
             WHEN SUM(has_pending) > 0 THEN 'pending'
-            -- Any job that only failed (never succeeded) = red
-            WHEN SUM(ever_failed) > 0 THEN 'red'
-            -- Any job that was flaky (failed but also succeeded) = flaky
-            WHEN SUM(is_flaky) > 0 THEN 'flaky'
-            -- Everything passed
+            -- Any job group where ALL attempts failed = red (never recovered)
+            WHEN SUM(all_attempts_failed) > 0 THEN 'red'
+            -- Any job group where SOME attempts failed but not all = flaky (recovered)
+            WHEN SUM(any_attempt_failed) > 0 THEN 'flaky'
+            -- Everything passed on all attempts
             ELSE 'green'
         END AS overall_conclusion
     FROM
-        job_status
+        job_group_status
     GROUP BY
         time,
         sha
