@@ -71,6 +71,13 @@
       "rocm"
     ]
   ],
+  "test_addmm_activation_fusion (__main__.TestPatternMatcher)": [
+    "169910",
+    "https://github.com/pytorch/pytorch/issues/169910",
+    [
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
