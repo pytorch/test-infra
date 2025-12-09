@@ -39,6 +39,14 @@
     "inductor-smoke-test",
     "test (inductor_torchbench_smoketest_perf)"
   ],
+  "inductor-rocm-mi200 / rocm-py3.10-inductor / test": [
+    "jithunnair-amd",
+    "169966",
+    "https://github.com/pytorch/pytorch/issues/169966",
+    "inductor-rocm-mi200",
+    "rocm-py3.10-inductor",
+    "test"
+  ],
   "periodic / linux-jammy-cuda12.4-py3.10-gcc11 / test (legacy_nvidia_driver)": [
     "atalman",
     "163657",
@@ -47,6 +55,14 @@
     "linux-jammy-cuda12.4-py3.10-gcc11",
     "test (legacy_nvidia_driver)"
   ],
+  "periodic-rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "166875",
+    "https://github.com/pytorch/pytorch/issues/166875",
+    "periodic-rocm-mi200",
+    "linux-jammy-rocm-py3.10",
+    "test"
+  ],
   "pull / linux-jammy-py3_9-clang9-xla / test (xla)": [
     "ZainRizvi",
     "158876",
@@ -54,6 +70,22 @@
     "pull",
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
+  ],
+  "rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "169965",
+    "https://github.com/pytorch/pytorch/issues/169965",
+    "rocm-mi200",
+    "linux-jammy-rocm-py3.10",
+    "test"
+  ],
+  "slow-rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "169967",
+    "https://github.com/pytorch/pytorch/issues/169967",
+    "slow-rocm-mi200",
+    "linux-jammy-rocm-py3.10",
+    "test"
   ],
   "trunk / linux-jammy-py3-clang12-executorch / test (executorch)": [
     "clee2000",
