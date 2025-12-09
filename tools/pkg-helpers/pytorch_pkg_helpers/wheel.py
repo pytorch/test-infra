@@ -26,7 +26,7 @@ def get_pytorch_pip_install_command(
     if channel == "nightly":
         pip_install += " --pre"
 
-    if channel in ["nightly", "test"]:
+    if channel in ["nightly"]:
         download_pytorch_org = "r2-test.pytorch.org"
 
     extra_index = f"https://{download_pytorch_org}/whl/{channel}/{gpu_arch_version}"
