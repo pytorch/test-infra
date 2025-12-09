@@ -15,12 +15,7 @@ class TestWorkflowResolverRealRepo(unittest.TestCase):
     def setUpClass(cls):
         token = os.environ.get("GITHUB_TOKEN") or os.environ.get("GH_TOKEN")
         if token:
-            GHClientFactory.setup_client(
-                app_id="",
-                app_secret="",
-                installation_id=0,
-                token=token,
-            )
+            GHClientFactory.setup_client(token=token)
         else:
             raise unittest.SkipTest(
                 "Skipping real GitHub resolver tests: GITHUB_TOKEN not configured"
