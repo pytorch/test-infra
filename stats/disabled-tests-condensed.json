@@ -1796,6 +1796,13 @@
       "mac"
     ]
   ],
+  "test_reduce_scatter_collective (__main__.FxGraphRunnableTest)": [
+    "169924",
+    "https://github.com/pytorch/pytorch/issues/169924",
+    [
+      "xpu"
+    ]
+  ],
   "test_reduce_scatter_float8 (__main__.ProcessGroupNCCLOpTest)": [
     "157897",
     "https://github.com/pytorch/pytorch/issues/157897",
@@ -2169,6 +2176,13 @@
       "asan",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_toy_model_dynamic_batch (__main__.FxGraphRunnableTest)": [
+    "161580",
+    "https://github.com/pytorch/pytorch/issues/161580",
+    [
+      "xpu"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
