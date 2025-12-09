@@ -54,7 +54,7 @@ class AutorevertConfig:
     github_access_token: str = ""
     github_app_id: str = ""
     github_app_secret: str = ""
-    github_installation_id: str = ""
+    github_installation_id: int = 0
 
     # -------------------------------------------------------------------------
     # AWS Secrets Manager Settings

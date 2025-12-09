@@ -80,7 +80,7 @@ class DefaultConfig:
         self.github_access_token = os.environ.get("GITHUB_TOKEN", "")
         self.github_app_id = os.environ.get("GITHUB_APP_ID", "")
         self.github_app_secret = os.environ.get("GITHUB_APP_SECRET", "")
-        self.github_installation_id = os.environ.get("GITHUB_INSTALLATION_ID", "")
+        self.github_installation_id = int(os.environ.get("GITHUB_INSTALLATION_ID", ""))
         self.hours = int(os.environ.get("HOURS", 16))
         self.log_level = os.environ.get("LOG_LEVEL", "INFO")
         self.notify_issue_number = int(
@@ -403,7 +403,7 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         github_access_token=_get("github_access_token", ""),
         github_app_id=_get("github_app_id", ""),
         github_app_secret=_get("github_app_secret", ""),
-        github_installation_id=_get("github_installation_id", ""),
+        github_installation_id=int(_get("github_installation_id", "")),
         # AWS Secrets Manager Settings
         secret_store_name=_get("secret_store_name", ""),
         # Autorevert Core Parameters
