@@ -431,6 +431,7 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "onemkl-sycl-rng",
         "onemkl-license",
         "mkl",
+        "pyelftools",
     ]
 }
 
