@@ -48,8 +48,5 @@ jobs:
             # Install requirements
             pip install -r s3_management/requirements.txt
 
-            if [[ "${{ matrix.prefix }}" == "whl/nightly" || "${{ matrix.prefix }}" == "whl/test" ]]; then
-              python s3_management/manage_v2.py ${{ matrix.prefix }}
-            else
-              python s3_management/manage.py ${{ matrix.prefix }}
-            fi
+            # Run index update workflow
+            python s3_management/manage_v2.py ${{ matrix.prefix }}
