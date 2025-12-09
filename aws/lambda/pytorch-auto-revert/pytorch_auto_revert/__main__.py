@@ -629,10 +629,10 @@ def main_run(
         config.clickhouse_database,
     )
     GHClientFactory.setup_client(
-        config.github_app_id,
-        gh_app_secret,
-        config.github_installation_id,
-        config.github_access_token,
+        app_id=config.github_app_id,
+        app_secret=gh_app_secret,
+        installation_id=config.github_installation_id,
+        token=config.github_access_token,
     )
 
     if not CHCliFactory().connection_test():

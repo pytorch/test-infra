@@ -13,13 +13,13 @@ class GHClientFactory:
 
     @classmethod
     def setup_client(cls, *args, **kwargs) -> None:
-        if "app_id" in kwargs:
+        if "app_id" in kwargs and kwargs["app_id"]:
             cls._app_id = kwargs.get("app_id")
-        if "app_secret" in kwargs:
+        if "app_secret" in kwargs and kwargs["app_secret"]:
             cls._app_secret = kwargs.get("app_secret")
-        if "installation_id" in kwargs:
+        if "installation_id" in kwargs and kwargs["installation_id"]:
             cls._installation_id = kwargs.get("installation_id")
-        if "token" in kwargs:
+        if "token" in kwargs and kwargs["token"]:
             cls._token = kwargs.get("token")
         cls._validate_client_setup()
 
