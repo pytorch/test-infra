@@ -969,13 +969,6 @@
       "linux"
     ]
   ],
-  "test_fw_bw_graph_correctness_xpu (__main__.TestFlexAttentionXPU)": [
-    "162435",
-    "https://github.com/pytorch/pytorch/issues/162435",
-    [
-      "xpu"
-    ]
-  ],
   "test_get_mode_stack (__main__.TestTorchFunctionMode)": [
     "133994",
     "https://github.com/pytorch/pytorch/issues/133994",
@@ -1153,13 +1146,6 @@
       "rocm"
     ]
   ],
-  "test_inductor_offload (__main__.ActivationOffloadingTests)": [
-    "169774",
-    "https://github.com/pytorch/pytorch/issues/169774",
-    [
-      "xpu"
-    ]
-  ],
   "test_inlined_optimized_graph (__main__.TestTEFuserDynamic)": [
     "156438",
     "https://github.com/pytorch/pytorch/issues/156438",
@@ -1204,13 +1190,6 @@
   "test_layer_norm_sharing_weights_split_reductions_False_bfloat16_has_bias_True (__main__.MixOrderReductionTest)": [
     "169773",
     "https://github.com/pytorch/pytorch/issues/169773",
-    [
-      "xpu"
-    ]
-  ],
-  "test_layer_norm_sharing_weights_split_reductions_True_bfloat16_has_bias_True (__main__.MixOrderReductionTest)": [
-    "169770",
-    "https://github.com/pytorch/pytorch/issues/169770",
     [
       "xpu"
     ]
@@ -1560,13 +1539,6 @@
       "rocm"
     ]
   ],
-  "test_partitioner_offload_sep_stream_reorder (__main__.ActivationOffloadingTests)": [
-    "169771",
-    "https://github.com/pytorch/pytorch/issues/169771",
-    [
-      "xpu"
-    ]
-  ],
   "test_pending_fusions_multiple (__main__.TestPrologueFusion)": [
     "152221",
     "https://github.com/pytorch/pytorch/issues/152221",
@@ -1798,13 +1770,6 @@
     "https://github.com/pytorch/pytorch/issues/69178",
     [
       "mac"
-    ]
-  ],
-  "test_remove_noop_pass_with_remove_passes (__main__.TestPatternMatcher)": [
-    "167807",
-    "https://github.com/pytorch/pytorch/issues/167807",
-    [
-      "xpu"
     ]
   ],
   "test_remove_noop_slice1_cpu (__main__.CpuTests)": [
