@@ -1,5 +1,7 @@
 import {
+  Checkbox,
   FormControl,
+  FormControlLabel,
   Grid,
   InputLabel,
   MenuItem,
@@ -33,15 +35,31 @@ const DISABLED_TESTS_CONDENSED_URL =
 
 function MasterCommitRedPanel({
   params,
+  timeRange,
+  usePercentage,
 }: {
   params: { [key: string]: string };
+  timeRange: number;
+  usePercentage: boolean;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
 
+  // Choose granularity based on time range (-1 means custom, default to day)
+  const granularity =
+    timeRange === -1
+      ? "day"
+      : timeRange >= 90
+      ? "week"
+      : timeRange >= 14
+      ? "day"
+      : "hour";
+
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
       ...params,
+      granularity,
+      usePercentage,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
   )}`;
@@ -54,9 +72,18 @@ function MasterCommitRedPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
+  const granularityLabel =
+    timeRange === -1
+      ? "day"
+      : timeRange >= 90
+      ? "week"
+      : timeRange >= 14
+      ? "day"
+      : "hour";
+
   const options: EChartsOption = {
     title: {
-      text: "Commits red on main, by day",
+      text: `Commits red on main, by ${granularityLabel}`,
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -79,6 +106,14 @@ function MasterCommitRedPanel({
         stack: "all",
         encode: {
           x: "granularity_bucket",
+          y: "flaky",
+        },
+      },
+      {
+        type: "bar",
+        stack: "all",
+        encode: {
+          x: "granularity_bucket",
           y: "red",
         },
       },
@@ -91,19 +126,29 @@ function MasterCommitRedPanel({
         },
       },
     ],
-    color: ["#3ba272", "#ee6666", "#f2d643"],
+    color: ["#3ba272", "#ffbb00", "#ee6666", "#8c8c8c"],
     tooltip: {
       trigger: "axis",
       formatter: (params: any) => {
         const red = params[0].data.red;
+        const flaky = params[0].data.flaky;
         const green = params[0].data.green;
         const pending = params[0].data.pending;
         const total = params[0].data.total;
 
+        if (usePercentage) {
+          return `Red: ${red.toFixed(2)}%<br/>Flaky: ${flaky.toFixed(
+            2
+          )}%<br/>Green: ${green.toFixed(2)}%<br/>Pending: ${pending.toFixed(
+            2
+          )}%<br/>Total commits: ${total}`;
+        }
+
         const redPct = ((red / total) * 100).toFixed(2) + "%";
+        const flakyPct = ((flaky / total) * 100).toFixed(2) + "%";
         const greenPct = ((green / total) * 100).toFixed(2) + "%";
         const pendingPct = ((pending / total) * 100).toFixed(2) + "%";
-        return `Red: ${red} (${redPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
+        return `Red: ${red} (${redPct})<br/>Flaky: ${flaky} (${flakyPct})<br/>Green: ${green} (${greenPct})<br/>Pending: ${pending} (${pendingPct})<br/>Total: ${total}`;
       },
     },
   };
@@ -464,6 +509,7 @@ export default function Page() {
   const [machineTypeFilter, setMachineTypeFilter] = useState<string | null>(
     null
   );
+  const [usePercentage, setUsePercentage] = useState<boolean>(false);
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
@@ -474,14 +520,7 @@ export default function Page() {
     JSON.stringify({
       ...timeParams,
       // TODO (huydhn): Figure out a way to have default parameters for ClickHouse queries
-      workflowNames: [
-        "lint",
-        "pull",
-        "trunk",
-        "linux-binary-libtorch-release",
-        "linux-binary-manywheel",
-        "linux-aarch64",
-      ],
+      workflowNames: ["lint", "pull", "trunk", "linux-aarch64"],
     })
   )}`;
 
@@ -525,11 +564,24 @@ export default function Page() {
           ttsPercentile={ttsPercentile}
           setTtsPercentile={setTtsPercentile}
         />
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={usePercentage}
+              onChange={(e) => setUsePercentage(e.target.checked)}
+            />
+          }
+          label="Show %"
+        />
       </Stack>
 
       <Grid container spacing={2}>
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
-          <MasterCommitRedPanel params={timeParams} />
+          <MasterCommitRedPanel
+            params={timeParams}
+            timeRange={timeRange}
+            usePercentage={usePercentage}
+          />
         </Grid>
 
         <Grid
