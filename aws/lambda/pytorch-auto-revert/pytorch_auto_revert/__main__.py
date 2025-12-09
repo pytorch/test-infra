@@ -631,7 +631,7 @@ def main_run(
     GHClientFactory.setup_client(
         config.github_app_id,
         gh_app_secret,
-        config.github_installation_id,
+        int(config.github_installation_id),
         config.github_access_token,
     )
 
