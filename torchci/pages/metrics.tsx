@@ -21,7 +21,9 @@ import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import TimeSeriesPanel, {
+  Granularity,
+} from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
@@ -32,6 +34,13 @@ import { default as useSWR, default as useSWRImmutable } from "swr";
 
 const DISABLED_TESTS_CONDENSED_URL =
   "https://raw.githubusercontent.com/pytorch/test-infra/refs/heads/generated-stats/stats/disabled-tests-condensed.json";
+
+function getGranularityForDays(days: number): Granularity {
+  if (days < 0) return "day";
+  if (days >= 90) return "week";
+  if (days >= 14) return "day";
+  return "hour";
+}
 
 function MasterCommitRedPanel({
   params,
@@ -268,25 +277,7 @@ export function TimeRangePicker({
       return;
     }
 
-    // When setGranularity is provided, this picker can use it to switch to a
-    // bigger granularity automatically when a longer time range is selected.
-    // The users can still select a smaller granularity if they want to
-    switch (e.target.value as number) {
-      case 1:
-      case 3:
-      case 7:
-      case 14:
-        setGranularity("hour");
-        break;
-      case 30:
-        setGranularity("day");
-        break;
-      case 90:
-      case 180:
-      case 365:
-        setGranularity("week");
-        break;
-    }
+    setGranularity(getGranularityForDays(e.target.value as number));
   }
 
   return (
@@ -491,16 +482,7 @@ export default function Page() {
     null
   );
   const [usePercentage, setUsePercentage] = useState<boolean>(false);
-
-  // Choose granularity based on time range (-1 means custom, default to day)
-  const granularity =
-    timeRange === -1
-      ? "day"
-      : timeRange >= 90
-      ? "week"
-      : timeRange >= 14
-      ? "day"
-      : "hour";
+  const granularity = getGranularityForDays(timeRange);
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
