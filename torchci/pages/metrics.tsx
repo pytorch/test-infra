@@ -36,7 +36,6 @@ const DISABLED_TESTS_CONDENSED_URL =
   "https://raw.githubusercontent.com/pytorch/test-infra/refs/heads/generated-stats/stats/disabled-tests-condensed.json";
 
 function getGranularityForDays(days: number): Granularity {
-  if (days < 0) return "day";
   if (days >= 90) return "week";
   if (days >= 14) return "day";
   return "hour";
@@ -482,7 +481,11 @@ export default function Page() {
     null
   );
   const [usePercentage, setUsePercentage] = useState<boolean>(false);
-  const granularity = getGranularityForDays(timeRange);
+
+  // For custom time range, calculate actual days; otherwise use the preset timeRange
+  const effectiveDays =
+    timeRange === -1 ? stopTime.diff(startTime, "day") : timeRange;
+  const granularity = getGranularityForDays(effectiveDays);
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
