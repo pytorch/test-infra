@@ -497,10 +497,10 @@ export default function Page() {
     timeRange === -1
       ? "day"
       : timeRange >= 90
-        ? "week"
-        : timeRange >= 14
-          ? "day"
-          : "hour";
+      ? "week"
+      : timeRange >= 14
+      ? "day"
+      : "hour";
 
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
@@ -936,7 +936,11 @@ export default function Page() {
           <TimeSeriesPanel
             title={`Workflow load per ${granularity}`}
             queryName={"workflow_load"}
-            queryParams={{ ...timeParams, granularity, repo: "pytorch/pytorch" }}
+            queryParams={{
+              ...timeParams,
+              granularity,
+              repo: "pytorch/pytorch",
+            }}
             granularity={granularity}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
