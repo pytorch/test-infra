@@ -35,25 +35,15 @@ const DISABLED_TESTS_CONDENSED_URL =
 
 function MasterCommitRedPanel({
   params,
-  timeRange,
+  granularity,
   usePercentage,
 }: {
   params: { [key: string]: string };
-  timeRange: number;
+  granularity: string;
   usePercentage: boolean;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
-
-  // Choose granularity based on time range (-1 means custom, default to day)
-  const granularity =
-    timeRange === -1
-      ? "day"
-      : timeRange >= 90
-      ? "week"
-      : timeRange >= 14
-      ? "day"
-      : "hour";
 
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
@@ -72,18 +62,9 @@ function MasterCommitRedPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const granularityLabel =
-    timeRange === -1
-      ? "day"
-      : timeRange >= 90
-      ? "week"
-      : timeRange >= 14
-      ? "day"
-      : "hour";
-
   const options: EChartsOption = {
     title: {
-      text: `Commits red on main, by ${granularityLabel}`,
+      text: `Commits red on main, by ${granularity}`,
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -511,6 +492,16 @@ export default function Page() {
   );
   const [usePercentage, setUsePercentage] = useState<boolean>(false);
 
+  // Choose granularity based on time range (-1 means custom, default to day)
+  const granularity =
+    timeRange === -1
+      ? "day"
+      : timeRange >= 90
+        ? "week"
+        : timeRange >= 14
+          ? "day"
+          : "hour";
+
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
 
@@ -579,7 +570,7 @@ export default function Page() {
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <MasterCommitRedPanel
             params={timeParams}
-            timeRange={timeRange}
+            granularity={granularity}
             usePercentage={usePercentage}
           />
         </Grid>
@@ -931,9 +922,9 @@ export default function Page() {
             queryName={"queue_times_historical"}
             queryParams={{
               ...timeParams,
-              granlarity: "hour",
+              granularity,
             }}
-            granularity={"hour"}
+            granularity={granularity}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
@@ -943,10 +934,10 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Workflow load per Day"}
+            title={`Workflow load per ${granularity}`}
             queryName={"workflow_load"}
-            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
-            granularity={"hour"}
+            queryParams={{ ...timeParams, granularity, repo: "pytorch/pytorch" }}
+            granularity={granularity}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"count"}
