@@ -2120,6 +2120,14 @@
       "slow"
     ]
   ],
+  "test_toy_model_basic (__main__.FxGraphRunnableTest)": [
+    "163595",
+    "https://github.com/pytorch/pytorch/issues/163595",
+    [
+      "asan",
+      "linux"
+    ]
+  ],
   "test_toy_model_batch_processing (__main__.FxGraphRunnableTest)": [
     "162231",
     "https://github.com/pytorch/pytorch/issues/162231",
