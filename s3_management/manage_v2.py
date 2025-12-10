@@ -183,6 +183,8 @@ PACKAGE_ALLOW_LIST = {
         "pytorch_triton",
         "pytorch_triton_rocm",
         "pytorch_triton_xpu",
+        "triton_rocm",
+        "triton_xpu",
         "requests",
         "torch_no_python",
         "torch",
