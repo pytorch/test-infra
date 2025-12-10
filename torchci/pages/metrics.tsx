@@ -1038,10 +1038,10 @@ export default function Page() {
 
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Percentage of jobs rolled over to Linux Foundation"}
+            title={`Percentage of jobs rolled over to Linux Foundation (per ${granularity})`}
             queryName={"lf_rollover_percentage"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"hour"}
+            queryParams={{ ...timeParams, days_ago: timeRange, granularity }}
+            granularity={granularity}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
@@ -1067,14 +1067,15 @@ export default function Page() {
 
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Percentage of jobs running on experiment"}
+            title={`Percentage of jobs running on experiment (per ${granularity})`}
             queryName={"experiment_rollover_percentage"}
             queryParams={{
               ...timeParams,
               days_ago: timeRange,
               experiment_name: experimentName,
+              granularity,
             }}
-            granularity={"hour"}
+            granularity={granularity}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}

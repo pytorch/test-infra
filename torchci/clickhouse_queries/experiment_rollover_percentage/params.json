@@ -1,7 +1,8 @@
 {
   "params": {
     "days_ago": "Int64",
-    "experiment_name": "String"
+    "experiment_name": "String",
+    "granularity": "String"
   },
   "tests": []
 }
