@@ -21,7 +21,9 @@ import ScalarPanel, {
   ScalarPanelWithValue,
 } from "components/metrics/panels/ScalarPanel";
 import TablePanel from "components/metrics/panels/TablePanel";
-import TimeSeriesPanel from "components/metrics/panels/TimeSeriesPanel";
+import TimeSeriesPanel, {
+  Granularity,
+} from "components/metrics/panels/TimeSeriesPanel";
 import dayjs from "dayjs";
 import { EChartsOption } from "echarts";
 import ReactECharts from "echarts-for-react";
@@ -33,27 +35,23 @@ import { default as useSWR, default as useSWRImmutable } from "swr";
 const DISABLED_TESTS_CONDENSED_URL =
   "https://raw.githubusercontent.com/pytorch/test-infra/refs/heads/generated-stats/stats/disabled-tests-condensed.json";
 
+function getGranularityForDays(days: number): Granularity {
+  if (days >= 90) return "week";
+  if (days >= 14) return "day";
+  return "hour";
+}
+
 function MasterCommitRedPanel({
   params,
-  timeRange,
+  granularity,
   usePercentage,
 }: {
   params: { [key: string]: string };
-  timeRange: number;
+  granularity: string;
   usePercentage: boolean;
 }) {
   // Use the dark mode context to determine whether to use the dark theme
   const { darkMode } = useDarkMode();
-
-  // Choose granularity based on time range (-1 means custom, default to day)
-  const granularity =
-    timeRange === -1
-      ? "day"
-      : timeRange >= 90
-      ? "week"
-      : timeRange >= 14
-      ? "day"
-      : "hour";
 
   const url = `/api/clickhouse/master_commit_red?parameters=${encodeURIComponent(
     JSON.stringify({
@@ -72,18 +70,9 @@ function MasterCommitRedPanel({
     return <Skeleton variant={"rectangular"} height={"100%"} />;
   }
 
-  const granularityLabel =
-    timeRange === -1
-      ? "day"
-      : timeRange >= 90
-      ? "week"
-      : timeRange >= 14
-      ? "day"
-      : "hour";
-
   const options: EChartsOption = {
     title: {
-      text: `Commits red on main, by ${granularityLabel}`,
+      text: `Commits red on main, by ${granularity}`,
       subtext: "Based on workflows which block viable/strict upgrade",
     },
     grid: { top: 60, right: 8, bottom: 24, left: 36 },
@@ -287,25 +276,7 @@ export function TimeRangePicker({
       return;
     }
 
-    // When setGranularity is provided, this picker can use it to switch to a
-    // bigger granularity automatically when a longer time range is selected.
-    // The users can still select a smaller granularity if they want to
-    switch (e.target.value as number) {
-      case 1:
-      case 3:
-      case 7:
-      case 14:
-        setGranularity("hour");
-        break;
-      case 30:
-        setGranularity("day");
-        break;
-      case 90:
-      case 180:
-      case 365:
-        setGranularity("week");
-        break;
-    }
+    setGranularity(getGranularityForDays(e.target.value as number));
   }
 
   return (
@@ -511,6 +482,11 @@ export default function Page() {
   );
   const [usePercentage, setUsePercentage] = useState<boolean>(false);
 
+  // For custom time range, calculate actual days; otherwise use the preset timeRange
+  const effectiveDays =
+    timeRange === -1 ? stopTime.diff(startTime, "day") : timeRange;
+  const granularity = getGranularityForDays(effectiveDays);
+
   // Split the aggregated red % into broken trunk and flaky red %
   const queryName = "master_commit_red_avg";
 
@@ -579,7 +555,7 @@ export default function Page() {
         <Grid size={{ xs: 12, md: 6 }} height={ROW_HEIGHT}>
           <MasterCommitRedPanel
             params={timeParams}
-            timeRange={timeRange}
+            granularity={granularity}
             usePercentage={usePercentage}
           />
         </Grid>
@@ -931,9 +907,9 @@ export default function Page() {
             queryName={"queue_times_historical"}
             queryParams={{
               ...timeParams,
-              granlarity: "hour",
+              granularity,
             }}
-            granularity={"hour"}
+            granularity={granularity}
             groupByFieldName={"machine_type"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"avg_queue_s"}
@@ -943,10 +919,14 @@ export default function Page() {
 
         <Grid size={{ xs: 6 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Workflow load per Day"}
+            title={`Workflow load per ${granularity}`}
             queryName={"workflow_load"}
-            queryParams={{ ...timeParams, repo: "pytorch/pytorch" }}
-            granularity={"hour"}
+            queryParams={{
+              ...timeParams,
+              granularity,
+              repo: "pytorch/pytorch",
+            }}
+            granularity={granularity}
             groupByFieldName={"name"}
             timeFieldName={"granularity_bucket"}
             yAxisFieldName={"count"}
@@ -1047,10 +1027,10 @@ export default function Page() {
 
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Percentage of jobs rolled over to Linux Foundation"}
+            title={`Percentage of jobs rolled over to Linux Foundation (per ${granularity})`}
             queryName={"lf_rollover_percentage"}
-            queryParams={{ ...timeParams, days_ago: timeRange }}
-            granularity={"hour"}
+            queryParams={{ ...timeParams, granularity }}
+            granularity={granularity}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
@@ -1076,14 +1056,14 @@ export default function Page() {
 
         <Grid size={{ xs: 12 }} height={ROW_HEIGHT}>
           <TimeSeriesPanel
-            title={"Percentage of jobs running on experiment"}
+            title={`Percentage of jobs running on experiment (per ${granularity})`}
             queryName={"experiment_rollover_percentage"}
             queryParams={{
               ...timeParams,
-              days_ago: timeRange,
               experiment_name: experimentName,
+              granularity,
             }}
-            granularity={"hour"}
+            granularity={granularity}
             timeFieldName={"bucket"}
             yAxisFieldName={"percentage"}
             groupByFieldName={"fleet"}
