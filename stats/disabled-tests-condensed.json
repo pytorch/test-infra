@@ -1697,6 +1697,13 @@
       "linux"
     ]
   ],
+  "test_qlinear_add_int8_mixed_bf16_xpu_use_relu_True_is_qat_False_is_dynamic_False (__main__.TestPatternMatcher)": [
+    "170021",
+    "https://github.com/pytorch/pytorch/issues/170021",
+    [
+      "xpu"
+    ]
+  ],
   "test_quantized_conv_no_asan_failures (__main__.TestOptimizer)": [
     "157254",
     "https://github.com/pytorch/pytorch/issues/157254",
