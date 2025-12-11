@@ -1153,6 +1153,7 @@ async function setup(testName: string): Promise<void> {
     authToken: 'some auth token',
     clean: true,
     commit: '',
+    singleBranch: false,
     filter: undefined,
     sparseCheckout: [],
     sparseCheckoutConeMode: true,

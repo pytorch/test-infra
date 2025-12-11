@@ -25,6 +25,11 @@ export interface IGitSourceSettings {
   commit: string
 
   /**
+   * Allows single branch fetches
+   */
+  singleBranch: boolean
+
+  /**
    * Indicates whether to clean the repository
    */
   clean: boolean

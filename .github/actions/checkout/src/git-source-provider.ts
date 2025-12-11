@@ -170,11 +170,9 @@ export async function getSource(settings: IGitSourceSettings): Promise<void> {
     }
 
     if (settings.fetchDepth <= 0) {
-      // Fetch all branches and tags
-      let refSpec = refHelper.getRefSpecForAllHistory(
-        settings.ref,
-        settings.commit
-      )
+      let refSpec: string[] = settings.singleBranch
+        ? refHelper.getRefSpec(settings.ref, settings.commit)
+        : refHelper.getRefSpecForAllHistory(settings.ref, settings.commit)
       await git.fetch(refSpec, fetchOptions)
 
       // When all history is fetched, the ref we're interested in may have moved to a different
