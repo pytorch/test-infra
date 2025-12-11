@@ -31,6 +31,7 @@ locals {
 }
 
 data "aws_ami" "runner_ami_linux" {
+  count = var.ami_id_pining_linux == null ? 1 : 0
   most_recent = "true"
 
   dynamic "filter" {
@@ -45,6 +46,7 @@ data "aws_ami" "runner_ami_linux" {
 }
 
 data "aws_ami" "runner_ami_linux_arm64" {
+  count = var.ami_id_pining_linux_arm64 == null ? 1 : 0
   most_recent = "true"
 
   dynamic "filter" {
@@ -81,7 +83,7 @@ resource "aws_launch_template" "linux_runner" {
 
   instance_initiated_shutdown_behavior = "terminate"
 
-  image_id      = data.aws_ami.runner_ami_linux.id
+  image_id      = var.ami_id_pining_linux == null ? data.aws_ami.runner_ami_linux.id : var.ami_id_pining_linux
   instance_type = var.instance_type
   key_name      = var.key_name
 
@@ -138,7 +140,7 @@ resource "aws_launch_template" "linux_runner_nvidia" {
 
   instance_initiated_shutdown_behavior = "terminate"
 
-  image_id      = data.aws_ami.runner_ami_linux.id
+  image_id      = var.ami_id_pining_linux == null ? data.aws_ami.runner_ami_linux.id : var.ami_id_pining_linux
   instance_type = var.instance_type
   key_name      = var.key_name
 
@@ -195,7 +197,7 @@ resource "aws_launch_template" "linux_arm64_runner" {
 
   instance_initiated_shutdown_behavior = "terminate"
 
-  image_id      = data.aws_ami.runner_ami_linux_arm64.id
+  image_id      = var.ami_id_pining_linux_arm64 == null ? data.aws_ami.runner_ami_linux_arm64.id : var.ami_id_pining_linux_arm64
   instance_type = var.instance_type
   key_name      = var.key_name
 
