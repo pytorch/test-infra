@@ -7,16 +7,16 @@ from unittest.mock import MagicMock, Mock, patch
 
 import requests
 from benchmark_regression_summary_report.common.benchmark_time_series_api_model import (
+    BenchmarkTimeSeriesApiData,
     BenchmarkTimeSeriesApiResponse,
-    BenchmarkTimeSeriesDataModel,
     TimeRange,
 )
 from benchmark_regression_summary_report.common.config_model import (
     BenchmarkApiSource,
     BenchmarkConfig,
     Frequency,
-    PolicyConfig,
     RangeConfig,
+    RegressionPolicy,
 )
 from benchmark_regression_summary_report.lambda_function import (
     BenchmarkSummaryProcessor,
@@ -69,16 +69,19 @@ def get_default_environment_variables():
 
 def create_mock_config(
     config_id: str = "test_config",
-    frequency: Frequency = Frequency.DAILY,
+    frequency: Frequency = None,
     comparison_time_s: int = 7 * 24 * 3600,
     total_time_s: int = 14 * 24 * 3600,
 ) -> BenchmarkConfig:
     """Helper to create a mock BenchmarkConfig"""
+    if frequency is None:
+        frequency = Frequency(value=1, unit="days")
+
     mock_range = Mock(spec=RangeConfig)
     mock_range.comparison_timedelta_s.return_value = comparison_time_s
     mock_range.total_timedelta_s.return_value = total_time_s
 
-    mock_policy = Mock(spec=PolicyConfig)
+    mock_policy = Mock(spec=RegressionPolicy)
     mock_policy.frequency = frequency
     mock_policy.range = mock_range
 
@@ -97,9 +100,9 @@ def create_mock_config(
 def create_mock_time_series_data(
     num_series: int = 1,
     end_time: dt.datetime = _TEST_DATETIME,
-) -> BenchmarkTimeSeriesDataModel:
+) -> BenchmarkTimeSeriesApiData:
     """Helper to create mock time series data"""
-    mock_data = Mock(spec=BenchmarkTimeSeriesDataModel)
+    mock_data = Mock(spec=BenchmarkTimeSeriesApiData)
     mock_data.time_series = [{"metric": f"test_metric_{i}"} for i in range(num_series)]
     mock_data.time_range = Mock(spec=TimeRange)
     mock_data.time_range.end = end_time.isoformat()
@@ -139,9 +142,10 @@ class EnvironmentBaseTest(unittest.TestCase):
 # ------------------------ UTILITY FUNCTION TESTS START ----------------------------------
 class TestUtilityFunctions(unittest.TestCase):
     def test_format_ts_with_t_returns_correct_format(self):
-        ts = 1705320600  # 2024-01-15 10:30:00 UTC
+        ts = 1705320600  # 2024-01-15 12:10:00+00:00 UTC
+        print("converted =", dt.datetime.fromtimestamp(ts, tz=dt.timezone.utc))
         result = format_ts_with_t(ts)
-        self.assertEqual(result, "2024-01-15T10:30:00")
+        self.assertEqual(result, "2024-01-15T12:10:00")
 
     def test_truncate_to_hour_removes_minutes_and_seconds(self):
         dt_with_minutes = dt.datetime(
@@ -345,7 +349,7 @@ class TestBenchmarkSummaryProcessor(unittest.TestCase):
         )
 
         result = self.processor._should_generate_report(
-            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency.DAILY
+            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency(value=1, unit="days")
         )
 
         self.assertTrue(result)
@@ -362,7 +366,7 @@ class TestBenchmarkSummaryProcessor(unittest.TestCase):
         )
 
         result = self.processor._should_generate_report(
-            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency.DAILY
+            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency(value=1, unit="days")
         )
 
         self.assertTrue(result)
@@ -379,7 +383,7 @@ class TestBenchmarkSummaryProcessor(unittest.TestCase):
         )
 
         result = self.processor._should_generate_report(
-            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency.DAILY
+            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency(value=1, unit="days")
         )
 
         self.assertFalse(result)
@@ -402,7 +406,7 @@ class TestBenchmarkSummaryProcessor(unittest.TestCase):
         )
 
         result = processor._should_generate_report(
-            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency.DAILY
+            mock_cc, _TEST_TIMESTAMP, "test_config", Frequency(value=1, unit="days")
         )
 
         self.assertTrue(result)
@@ -412,7 +416,7 @@ class TestBenchmarkSummaryProcessor(unittest.TestCase):
     )
     def test_get_target_returns_none_when_no_data(self, mock_from_request):
         mock_config = create_mock_config()
-        mock_data = Mock(spec=BenchmarkTimeSeriesDataModel)
+        mock_data = Mock(spec=BenchmarkTimeSeriesApiData)
         mock_data.time_series = []
         mock_data.time_range = None
         mock_response = Mock()
