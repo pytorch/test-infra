@@ -370,11 +370,3 @@ class ReportManager:
             r for r in report["results"] if level_order[r["label"]] >= threshold
         ]
         return new_report
-
-
-def make_array_literal(items: list[str]) -> str:
-    parts = []
-    for v in items:
-        esc = v.replace("\\", "\\\\").replace("'", "\\'")
-        parts.append(f"'{esc}'")
-    return "[" + ", ".join(parts) + "]"
