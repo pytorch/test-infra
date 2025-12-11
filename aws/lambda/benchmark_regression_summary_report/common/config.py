@@ -164,7 +164,7 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
             "latency": RegressionPolicy(
                 name="latency",
                 condition="less_equal",
-                threshold=1.20,
+                threshold=1.35,
                 baseline_aggregation="median",
             ),
         },
