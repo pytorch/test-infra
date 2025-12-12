@@ -997,6 +997,13 @@
       "linux"
     ]
   ],
+  "test_fuzzer_issue_164185 (__main__.TestFuzzerCompileIssues)": [
+    "170259",
+    "https://github.com/pytorch/pytorch/issues/170259",
+    [
+      "rocm"
+    ]
+  ],
   "test_get_mode_stack (__main__.TestTorchFunctionMode)": [
     "133994",
     "https://github.com/pytorch/pytorch/issues/133994",
