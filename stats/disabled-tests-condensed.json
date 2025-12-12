@@ -614,13 +614,6 @@
       "xpu"
     ]
   ],
-  "test_default_device_factory_functions_priority (__main__.TorchFunctionModeTests)": [
-    "170005",
-    "https://github.com/pytorch/pytorch/issues/170005",
-    [
-      "xpu"
-    ]
-  ],
   "test_defined_in_python (__main__.TestCustomOp)": [
     "167815",
     "https://github.com/pytorch/pytorch/issues/167815",
@@ -1213,13 +1206,6 @@
     "https://github.com/pytorch/pytorch/issues/153707",
     [
       "dynamo"
-    ]
-  ],
-  "test_layer_norm_sharing_weights_split_reductions_False_bfloat16_has_bias_True (__main__.MixOrderReductionTest)": [
-    "169773",
-    "https://github.com/pytorch/pytorch/issues/169773",
-    [
-      "xpu"
     ]
   ],
   "test_like_channels_last_cpu (__main__.CpuTritonTests)": [
