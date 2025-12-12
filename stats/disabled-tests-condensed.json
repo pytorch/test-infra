@@ -1509,6 +1509,13 @@
       "inductor"
     ]
   ],
+  "test_opaque_obj_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
+    "170302",
+    "https://github.com/pytorch/pytorch/issues/170302",
+    [
+      "rocm"
+    ]
+  ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
     "137027",
     "https://github.com/pytorch/pytorch/issues/137027",
