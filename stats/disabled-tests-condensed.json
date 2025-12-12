@@ -851,20 +851,6 @@
       "linux"
     ]
   ],
-  "test_float8_basics_xpu (__main__.TestFP8MatmulXPU)": [
-    "169772",
-    "https://github.com/pytorch/pytorch/issues/169772",
-    [
-      "xpu"
-    ]
-  ],
-  "test_float8_scale_fast_accum_xpu (__main__.TestFP8MatmulXPU)": [
-    "169556",
-    "https://github.com/pytorch/pytorch/issues/169556",
-    [
-      "xpu"
-    ]
-  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -1964,13 +1950,6 @@
     "https://github.com/pytorch/pytorch/issues/156436",
     [
       "linux"
-    ]
-  ],
-  "test_small_stability (__main__.TestBase)": [
-    "160290",
-    "https://github.com/pytorch/pytorch/issues/160290",
-    [
-      "dynamo"
     ]
   ],
   "test_sparse_add_cuda_float32 (__main__.TestSparseCSRCUDA)": [
