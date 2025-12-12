@@ -365,6 +365,14 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
         ),
     )
     hud_parser.add_argument(
+        "--workflow",
+        default=None,
+        help=(
+            "Optional workflow filter (e.g. trunk). Only consider run states whose stored workflow"
+            " list includes this value."
+        ),
+    )
+    hud_parser.add_argument(
         "--hud-html",
         nargs="?",
         const=HUD_HTML_NO_VALUE_FLAG,
@@ -681,6 +689,7 @@ def main_run(
         render_hud_html_from_clickhouse(
             config.timestamp,
             repo_full_name=config.repo_full_name,
+            workflow=config.workflow,
             out_path=out_path,
         )
 
