@@ -17,6 +17,7 @@ WITH results AS (
         tupleElement(runners[1], 'extra_info')['cuda_version'] AS cuda_version,
         workflow_id,
         replaceOne(head_branch, 'refs/heads/', '') AS head_branch,
+        tupleElement(metric, 'extra_info')['input_shape'] AS input_shape,
         metric.name AS metric_name,
         arrayAvg(metric.benchmark_values) AS metric_value
     FROM
@@ -48,10 +49,11 @@ SELECT DISTINCT
     results.mode,
     results.dtype,
     results.backend,
+    results.input_shape,
     results.metric_name,
     results.metric_value,
     DATE_TRUNC(
-        {granularity: String },
+        {granularity: String},
         fromUnixTimestamp(results.timestamp)
     ) AS granularity_bucket
 FROM
