@@ -1474,6 +1474,13 @@
       "dynamo"
     ]
   ],
+  "test_nested_wrapped_model_offload_true_no_shard_cuda (__main__.TestParityWithDDPCUDA)": [
+    "170373",
+    "https://github.com/pytorch/pytorch/issues/170373",
+    [
+      "linux"
+    ]
+  ],
   "test_new_subgroups (__main__.TestDistBackendWithSpawn)": [
     "164195",
     "https://github.com/pytorch/pytorch/issues/164195",
