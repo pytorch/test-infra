@@ -802,13 +802,6 @@
       "dynamo"
     ]
   ],
-  "test_extern_kernel_benchmark_request_variations (__main__.TestExternKernelCaller)": [
-    "170020",
-    "https://github.com/pytorch/pytorch/issues/170020",
-    [
-      "xpu"
-    ]
-  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
