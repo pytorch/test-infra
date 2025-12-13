@@ -1,6 +1,7 @@
 import datetime as dt
 import logging
 import math
+import json
 import statistics
 from typing import Any, Counter, Dict, List, Literal, Optional, TypedDict
 
@@ -75,6 +76,7 @@ class BenchmarkRegressionReport(TypedDict):
     baseline_meta_data: TimeSeriesMetaInfo
     new_meta_data: TimeSeriesMetaInfo
     device_info: List[str]
+    metadata: Optional[Any]
 
 
 def get_regression_status(regression_summary: BenchmarkRegressionSummary) -> str:
@@ -208,6 +210,7 @@ class BenchmarkRegressionReportGenerator:
             )
         logger.info("Done. Generated %s regression results", len(results))
         summary = self.summarize_label_counts(results)
+        metadata = self.generate_metadata(results)
 
         logger.info(
             "Found metrics existed in data, but no regression policy detected: %s",
@@ -220,7 +223,40 @@ class BenchmarkRegressionReportGenerator:
             baseline_meta_data=self.baseline_ts_info,
             new_meta_data=self.lastest_ts_info,
             device_info=self.device_info,
+            metadata=metadata,
         )
+
+    def generate_metadata(
+        self, results: list[PerGroupResult]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """
+        Fetch distinct (arch, device) pairs that have label 'regression' or 'suspicious'.
+
+        Returns:
+            Dict with 'regression_devices' and 'suspicious_devices' keys,
+            each containing a list of {"arch": ..., "device": ...} dicts.
+        """
+        regression_devices: set[tuple[str, str]] = set()
+        suspicious_devices: set[tuple[str, str]] = set()
+
+        for result in results:
+            label = result.get("label")
+            group_info = result.get("group_info", {})
+            arch = group_info.get("arch", "")
+            device = group_info.get("device", "")
+
+            if label == "regression":
+                regression_devices.add((arch, device))
+            elif label == "suspicious":
+                suspicious_devices.add((arch, device))
+        return {
+            "regression_devices": [
+                {"arch": arch, "device": device} for arch, device in regression_devices
+            ],
+            "suspicious_devices": [
+                {"arch": arch, "device": device} for arch, device in suspicious_devices
+            ],
+        }
 
     def summarize_label_counts(
         self, results: list[PerGroupResult]
@@ -427,3 +463,15 @@ class BenchmarkRegressionReportGenerator:
             "workflow_id": start_data.get("workflow_id", ""),
         }
         return {"start": start, "end": end}
+
+
+def dict_to_string_map(d: dict) -> dict[str, str]:
+    return {
+        str(k): (
+            v
+            if isinstance(v, str)
+            else json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+        )
+        for k, v in d.items()
+        if v is not None
+    }

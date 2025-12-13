@@ -12,7 +12,7 @@ CREATE TABLE benchmark.benchmark_regression_report
     `insufficient_data_count` UInt32 DEFAULT 0,
     `suspected_regression_count` UInt32 DEFAULT 0,
     `total_count` UInt32 DEFAULT 0,
-    `details` Map(String, String) DEFAULT map(),
+    `metadata` String DEFAULT '{}',
     `device_info` Array(String) DEFAULT [],
     `labels` Array(String) DEFAULT [],
     `repo` String,

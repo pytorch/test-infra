@@ -181,7 +181,11 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
                 {
                     "type": "github",
                     "repo": "pytorch/test-infra",
-                    "issue": "7445",
+                    "issue": "7584",
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "cuda"}],
+                    },
                 }
             ]
         },

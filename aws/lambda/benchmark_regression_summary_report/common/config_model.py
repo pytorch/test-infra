@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import dataclasses
 import json
+import logging
 from dataclasses import dataclass, field
 from datetime import timedelta
 from typing import Any, ClassVar, Dict, Literal, Optional
 
 import requests
 from jinja2 import Environment, meta, Template
+
+
+logger = logging.getLogger(__name__)
 
 
 # -------- Frequency --------
@@ -178,6 +182,52 @@ class BaseNotificationConfig:
 
 
 @dataclass
+class NotificationCondition:
+    # subclasses override this
+    type: str = "all"
+    device_arches: Optional[list[dict[str, str]]] = None
+
+    @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> "NotificationCondition":
+        return cls(
+            type=d.get("type", "all"),
+            device_arches=d.get("device_arches", None),
+        )
+
+    def match_condition(self, detail_list: list[Dict[str, str]]) -> bool:
+        """
+        Check if any {device, arch} dict in detail_list matches any combo in device_arches.
+
+        Args:
+            detail_list: List of {"device": ..., "arch": ...} dicts to check
+
+        Returns:
+            True if at least one pair from detail_list matches any combo in device_arches
+        """
+        if self.type == "all":
+            return True
+
+        if not detail_list or len(detail_list) == 0:
+            return False
+
+        if self.type == "device_arch":
+            # return not match if device_arches is none or empty
+            if not self.device_arches:
+                return False
+            for item in detail_list:
+                device = item.get("device", "")
+                arch = item.get("arch", "")
+                for condition in self.device_arches:
+                    cond_device = condition.get("device", "")
+                    cond_arch = condition.get("arch", "")
+                    device_matches = not cond_device or cond_device == device
+                    arch_matches = not cond_arch or cond_arch == arch
+                    if device_matches and arch_matches:
+                        return True
+        return False
+
+
+@dataclass
 class GitHubNotificationConfig(BaseNotificationConfig):
     type_tag: ClassVar[str] = "github"
 
@@ -185,7 +235,7 @@ class GitHubNotificationConfig(BaseNotificationConfig):
     type: str = "github"
     repo: str = ""  # e.g. "owner/repo"
     issue_number: str = ""  # store as str for simplicity
-    condition: str = "all"
+    condition: Optional[NotificationCondition] = None
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "GitHubNotificationConfig":
@@ -195,6 +245,7 @@ class GitHubNotificationConfig(BaseNotificationConfig):
             type="github",
             repo=d.get("repo", ""),
             issue_number=str(issue),
+            condition=NotificationCondition.from_dict(d.get("condition", {})),
         )
 
     def create_github_comment(self, body: str, github_token: str) -> Dict[str, Any]:
@@ -216,6 +267,7 @@ class Policy:
     metrics: Dict[str, "RegressionPolicy"]
 
     notification_config: Optional[dict[str, Any]] = None
+
     def get_github_notification_configs(self) -> list[GitHubNotificationConfig]:
         if not self.notification_config or not self.notification_config.get("configs"):
             return []
@@ -227,6 +279,7 @@ class Policy:
             if config.get("type") == "github":
                 results.append(GitHubNotificationConfig.from_dict(config))
         return results
+
 
 ReportSeverity = Literal[
     "none",
