@@ -158,7 +158,7 @@ jobs:
           cmd //c .\\test-infra\\.github\\scripts\\install_xpu.bat
       - name: Checkout Target Repository (${{ env.REPOSITORY }})
         if: inputs.architecture == 'arm64'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
             repository: ${{ env.REPOSITORY }}
             ref: ${{ env.REF }}
@@ -166,7 +166,7 @@ jobs:
             submodules: recursive
       - name: Bootstrap python
         if: inputs.architecture == 'arm64'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python_version }}
           architecture: arm64
