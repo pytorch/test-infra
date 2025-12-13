@@ -12,8 +12,12 @@ CREATE TABLE benchmark.benchmark_regression_report
     `insufficient_data_count` UInt32 DEFAULT 0,
     `suspected_regression_count` UInt32 DEFAULT 0,
     `total_count` UInt32 DEFAULT 0,
+    `device_info` Array(String) DEFAULT [],
+    `labels` Array(String) DEFAULT [],
     `repo` String,
-    `report` String DEFAULT '{}'
+    `report` String DEFAULT '{}',
+    INDEX idx_device_keys device_info TYPE set(0) GRANULARITY 64
+    INDEX idx_labels labels TYPE set(0) GRANULARITY 64;
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
 PARTITION BY toYYYYMM(created_at)
@@ -26,7 +30,6 @@ ORDER BY (
     last_record_commit,
     created_at,
     repo,
-    id
-)
+    id)
 TTL created_at + toIntervalYear(10)
 SETTINGS index_granularity = 8192

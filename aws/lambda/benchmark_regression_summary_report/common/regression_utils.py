@@ -74,6 +74,7 @@ class BenchmarkRegressionReport(TypedDict):
     results: List[PerGroupResult]
     baseline_meta_data: TimeSeriesMetaInfo
     new_meta_data: TimeSeriesMetaInfo
+    device_info: List[str]
 
 
 def get_regression_status(regression_summary: BenchmarkRegressionSummary) -> str:
@@ -103,6 +104,8 @@ class BenchmarkRegressionReportGenerator:
         self.lastest_ts_info = self._get_meta_info(target_ts.time_series)
         self.target_ts = self._to_data_map(target_ts)
         self.baseline_ts = self._to_data_map(baseline_ts)
+        # collect device info from target_ts
+        self.device_info = self._to_device_info(target_ts)
 
     def generate(self) -> BenchmarkRegressionReport:
         if not self.baseline_ts or not self.target_ts:
@@ -148,7 +151,6 @@ class BenchmarkRegressionReportGenerator:
 
             base_item = baseline_map.get(key)
             if not base_item:
-                logger.warning("Skip. No baseline item found for %s", key)
                 results.append(
                     PerGroupResult(
                         group_info=gi,
@@ -217,6 +219,7 @@ class BenchmarkRegressionReportGenerator:
             results=results,
             baseline_meta_data=self.baseline_ts_info,
             new_meta_data=self.lastest_ts_info,
+            device_info=self.device_info,
         )
 
     def summarize_label_counts(
@@ -242,6 +245,22 @@ class BenchmarkRegressionReportGenerator:
             v = x.value
             return (v if isinstance(v, str) else str(v)).lower()
         return str(x).lower()
+
+    def _to_device_info(self, data: "BenchmarkTimeSeriesApiData") -> List[str]:
+        result = set()
+        for ts_group in data.time_series:
+            device = ts_group.group_info.get("device", "")
+            arch = ts_group.group_info.get("arch", "")
+            key = ""
+            if device and arch:
+                key = f"{device}_{arch}"
+            elif device:
+                key = device
+
+            if not key:
+                continue
+            result.add(key)
+        return list(result)
 
     def _to_data_map(
         self, data: "BenchmarkTimeSeriesApiData", field: str = "value"

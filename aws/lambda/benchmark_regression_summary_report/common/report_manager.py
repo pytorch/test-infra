@@ -56,10 +56,10 @@ class ReportManager:
         # extract latest meta data from report
         self.baseline = self.raw_report["baseline_meta_data"]
         self.target = self.raw_report["new_meta_data"]
+        self.device_info = self.raw_report["device_info"]
         self.target_latest_commit = self.target["end"]["commit"]
         self.target_latest_ts_str = self.target["end"]["timestamp"]
         self.status = get_regression_status(self.raw_report["summary"])
-
         self.report_data = self._to_report_data(
             config_id=config.id,
             regression_report=self.raw_report,
@@ -74,22 +74,26 @@ class ReportManager:
         main method used to insert the report to db and create github comment in targeted issue
         """
         try:
-            applied_insertion = self.insert_to_db(cc)
+            applied_insertion = self.insert_to_db(cc, self.db_table_name)
         except Exception as e:
-            logger.error(f"failed to insert report to db, error: {e}")
+            logger.warning(f"failed to insert report to db, error: {str(e)}")
             raise
         if not applied_insertion:
-            logger.info("[%s] skip notification,  already exists in db", self.config_id)
+            logger.info(
+                "[%s] skip notification, already exists in db or this is dry-run",
+                self.config_id,
+            )
             return
         self.notify_github_comment(github_token)
+        logger.info("[%s] Done. ReportManager run is completed.", self.config_id)
 
-    def notify_github_comment(self, github_token: str):
+    def notify_github_comment(self, github_token: str) -> str:
         if self.status != "regression":
             logger.info(
                 "[%s] no regression found, skip notification",
                 self.config_id,
             )
-            return
+            return "skip_no_regression"
 
         github_notification = self.config.policy.get_github_notification_config()
         if not github_notification:
@@ -97,7 +101,7 @@ class ReportManager:
                 "[%s] no github notification config found, skip notification",
                 self.config_id,
             )
-            return
+            return "skip_no_notification_config"
         logger.info("[%s] prepareing gitub comment content", self.config_id)
         content = self._to_markdown()
         if self.is_dry_run:
@@ -109,10 +113,14 @@ class ReportManager:
             logger.info("[dry run] printing comment content")
             print(json.dumps(content, indent=2, default=str))
             logger.info("[dry run] Done! Finish printing comment content")
-            return
-        logger.info("[%s] create comment to github issue", self.config_id)
-        github_notification.create_github_comment(content, github_token)
-        logger.info("[%s] done. comment is sent to github", self.config_id)
+            return "skip_dry_run"
+        try:
+            github_notification.create_github_comment(content, github_token)
+            logger.info("[%s] done. comment is sent to github", self.config_id)
+            return "success"
+        except Exception as e:
+            logger.warning(f"failed to insert report to db, error: {str(e)}")
+            return "failure"
 
     def _to_markdown(self) -> str:
         regression_items = [
@@ -134,8 +142,7 @@ class ReportManager:
         )
 
     def insert_to_db(
-        self,
-        cc: clickhouse_connect.driver.client.Client,
+        self, cc: clickhouse_connect.driver.client.Client, table: str
     ) -> bool:
         logger.info(
             "[%s]prepare data for db insertion report (%s)...", self.config_id, self.id
@@ -176,6 +183,7 @@ class ReportManager:
             "total_count": regression_summary["total_count"],
             "repo": self.repo,
             "report_json": report_json,
+            "device_info": self.device_info,
         }
 
         if self.is_dry_run:
@@ -196,7 +204,7 @@ class ReportManager:
         try:
             if self._row_exists(
                 cc,
-                self.db_table_name,
+                table,
                 params["report_id"],
                 params["type"],
                 params["repo"],
@@ -208,7 +216,7 @@ class ReportManager:
                     self.id,
                 )
                 return False
-            self._db_insert(cc, self.db_table_name, params)
+            self._db_insert(cc, table, params)
             logger.info(
                 "[%s] Done. inserted benchmark regression report(%s)",
                 self.config_id,
@@ -219,7 +227,7 @@ class ReportManager:
             logger.exception(
                 "[%s] failed to insert report to target table %s",
                 self.config_id,
-                self.db_table_name,
+                table,
             )
             raise
 
@@ -256,7 +264,8 @@ class ReportManager:
                 suspected_regression_count,
                 total_count,
                 repo,
-                report
+                report,
+                device_info
             )
             VALUES
             (
@@ -271,9 +280,12 @@ class ReportManager:
                 %(suspected_regression_count)s,
                 %(total_count)s,
                 %(repo)s,
-                %(report_json)s
+                %(report_json)s,
+                %(device_info)s
             )
             """
+        # debugging only - uncomment to see the sql
+        # logger.info("[%s]inserting report to db, sql: %s", self.config_id, sql)
         cc.command(sql, parameters=params)
 
     def _row_exists(
