@@ -81,18 +81,17 @@ class ReportManager:
         if not applied_insertion:
             logger.info("[%s] skip notification,  already exists in db", self.config_id)
             return
-        self.notify_github_comment(github_token)
+        self.notify_github_comments(github_token)
 
-    def notify_github_comment(self, github_token: str):
+    def notify_github_comments(self, github_token: str):
         if self.status != "regression":
             logger.info(
                 "[%s] no regression found, skip notification",
                 self.config_id,
             )
             return
-
-        github_notification = self.config.policy.get_github_notification_config()
-        if not github_notification:
+        github_notifications = self.config.policy.get_github_notification_configs()
+        if not github_notifications or len(github_notifications) == 0:
             logger.info(
                 "[%s] no github notification config found, skip notification",
                 self.config_id,
@@ -110,9 +109,10 @@ class ReportManager:
             print(json.dumps(content, indent=2, default=str))
             logger.info("[dry run] Done! Finish printing comment content")
             return
-        logger.info("[%s] create comment to github issue", self.config_id)
-        github_notification.create_github_comment(content, github_token)
-        logger.info("[%s] done. comment is sent to github", self.config_id)
+        logger.info("[%s] create comment to github issues", self.config_id)
+        for github_notification in github_notifications:
+            github_notification.create_github_comment(content, github_token)
+        logger.info("[%s] done. comments are sent to github", self.config_id)
 
     def _to_markdown(self) -> str:
         regression_items = [

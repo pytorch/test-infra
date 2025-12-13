@@ -185,6 +185,7 @@ class GitHubNotificationConfig(BaseNotificationConfig):
     type: str = "github"
     repo: str = ""  # e.g. "owner/repo"
     issue_number: str = ""  # store as str for simplicity
+    condition: str = "all"
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> "GitHubNotificationConfig":
@@ -215,14 +216,17 @@ class Policy:
     metrics: Dict[str, "RegressionPolicy"]
 
     notification_config: Optional[dict[str, Any]] = None
+    def get_github_notification_configs(self) -> list[GitHubNotificationConfig]:
+        if not self.notification_config or not self.notification_config.get("configs"):
+            return []
 
-    def get_github_notification_config(self) -> Optional[GitHubNotificationConfig]:
-        if not self.notification_config:
-            return None
-        if self.notification_config.get("type") != "github":
-            return None
-        return GitHubNotificationConfig.from_dict(self.notification_config)
-
+        results = []
+        for config in self.notification_config.get("configs"):
+            if not config.get("type"):
+                continue
+            if config.get("type") == "github":
+                results.append(GitHubNotificationConfig.from_dict(config))
+        return results
 
 ReportSeverity = Literal[
     "none",
