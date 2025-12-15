@@ -1229,34 +1229,6 @@
       "rocm"
     ]
   ],
-  "test_max_autotune_contiguous_transform_addmm_float32_sizes2 (__main__.TestMaxAutotune)": [
-    "162121",
-    "https://github.com/pytorch/pytorch/issues/162121",
-    [
-      "rocm"
-    ]
-  ],
-  "test_max_autotune_contiguous_transform_mm_float32_sizes0 (__main__.TestMaxAutotune)": [
-    "162121",
-    "https://github.com/pytorch/pytorch/issues/162121",
-    [
-      "rocm"
-    ]
-  ],
-  "test_max_autotune_contiguous_transform_mm_float32_sizes1 (__main__.TestMaxAutotune)": [
-    "162121",
-    "https://github.com/pytorch/pytorch/issues/162121",
-    [
-      "rocm"
-    ]
-  ],
-  "test_max_autotune_contiguous_transform_mm_float32_sizes2 (__main__.TestMaxAutotune)": [
-    "162121",
-    "https://github.com/pytorch/pytorch/issues/162121",
-    [
-      "rocm"
-    ]
-  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
