@@ -106,8 +106,6 @@ def get_version_variables(
         gpu_arch_version=gpu_arch_version,
         no_build_suffix=(
             platform == "darwin"
-            or platform == "linux-aarch64"
-            or package_type == "conda"
         ),
         base_build_version=base_build_version,
     )
