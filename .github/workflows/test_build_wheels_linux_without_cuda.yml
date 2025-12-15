@@ -9,6 +9,7 @@ on:
       - .github/workflows/generate_binary_build_matrix.yml
       - .github/workflows/test_build_wheels_linux_without_cuda.yml
       - tools/scripts/generate_binary_build_matrix.py
+      - tools/pkg-helpers/pytorch_pkg_helpers/version.py
   workflow_dispatch:
 
 permissions:
