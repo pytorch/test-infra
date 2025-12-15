@@ -1516,6 +1516,13 @@
       "inductor"
     ]
   ],
+  "test_nonzero_static_stride_xpu (__main__.GPUTests)": [
+    "170412",
+    "https://github.com/pytorch/pytorch/issues/170412",
+    [
+      "xpu"
+    ]
+  ],
   "test_opaque_obj_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
     "170302",
     "https://github.com/pytorch/pytorch/issues/170302",
