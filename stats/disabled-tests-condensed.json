@@ -1537,6 +1537,13 @@
       "xpu"
     ]
   ],
+  "test_opaque_obj_retraceability_nonstrict (__main__.RetraceExportNonStrictTestExport)": [
+    "170449",
+    "https://github.com/pytorch/pytorch/issues/170449",
+    [
+      "linux"
+    ]
+  ],
   "test_opaque_obj_training_ir_to_decomp_nonstrict (__main__.TrainingIRToRunDecompExportNonStrictTestExport)": [
     "170302",
     "https://github.com/pytorch/pytorch/issues/170302",
