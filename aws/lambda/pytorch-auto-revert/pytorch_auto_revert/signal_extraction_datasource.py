@@ -280,7 +280,11 @@ class SignalExtractionDatasource:
         return rows
 
     def fetch_autorevert_state_rows(
-        self, *, ts: str, repo_full_name: Optional[str] = None
+        self,
+        *,
+        ts: str,
+        repo_full_name: Optional[str] = None,
+        workflow: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Fetch run state rows from misc.autorevert_state for a given timestamp."""
 
@@ -292,6 +296,9 @@ class SignalExtractionDatasource:
         if repo_full_name:
             query += " AND repo = {repo:String}"
             params["repo"] = repo_full_name
+        if workflow:
+            query += " AND has(workflows, {workflow:String})"
+            params["workflow"] = workflow
 
         for attempt in RetryWithBackoff():
             with attempt:
@@ -308,7 +315,7 @@ class SignalExtractionDatasource:
                 return rows
 
     def fetch_latest_non_dry_run_timestamp(
-        self, *, repo_full_name: Optional[str] = None
+        self, *, repo_full_name: Optional[str] = None, workflow: Optional[str] = None
     ) -> Optional[str]:
         """Return the most recent non-dry-run autorevert_state timestamp."""
 
@@ -317,6 +324,9 @@ class SignalExtractionDatasource:
         if repo_full_name:
             query += " AND repo = {repo:String}"
             params["repo"] = repo_full_name
+        if workflow:
+            query += " AND has(workflows, {workflow:String})"
+            params["workflow"] = workflow
         query += " ORDER BY ts DESC LIMIT 1"
 
         for attempt in RetryWithBackoff():
