@@ -12,7 +12,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from .job_agg_index import JobAggIndex, JobMeta, SignalStatus as AggStatus
-from .signal import Signal, SignalCommit, SignalEvent, SignalSource, SignalStatus
+from .signal import Signal, SignalCommit, SignalEvent, SignalStatus
 from .signal_extraction_datasource import SignalExtractionDatasource
 from .signal_extraction_types import (
     JobBaseName,
@@ -82,9 +82,7 @@ class SignalExtractor:
         # Select jobs to participate in test-track details fetch
         test_track_job_ids, failed_job_ids = self._select_test_track_job_ids(jobs)
         test_rows = self._datasource.fetch_tests_for_job_ids(
-            test_track_job_ids,
-            failed_job_ids=failed_job_ids,
-            lookback_hours=self.lookback_hours,
+            test_track_job_ids, failed_job_ids=failed_job_ids
         )
 
         test_signals = self._build_test_signals(jobs, test_rows, commits)
@@ -129,7 +127,6 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
-                    source=s.source,
                 )
             )
         return deduped
@@ -214,13 +211,12 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
-                    source=s.source,
                 )
             )
         return out
 
     # -----------------------------
-    # Phase B — Tests (tests.all_test_runs only)
+    # Phase B — Tests (test_run_s3 only)
     # -----------------------------
     def _select_test_track_job_ids(
         self, jobs: List[JobRow]
@@ -261,11 +257,11 @@ class SignalExtractor:
     ) -> List[Signal]:
         """Build per-test Signals across commits, scoped to job base.
 
-        We index `tests.all_test_runs` rows per (wf_run_id, run_attempt, job_base) and collect
+        We index `default.test_run_s3` rows per (wf_run_id, run_attempt, job_base) and collect
         which base(s) (by normalized job name) a test appears in. For each commit and (workflow, base),
         we compute attempt metadata (pending/completed, start time). Then, for tests that failed at least once in
         that base, we emit events per commit/attempt:
-          - If tests.all_test_runs rows exist → emit at most one FAILURE event if any failed runs exist,
+          - If test_run_s3 rows exist → emit at most one FAILURE event if any failed runs exist,
             and at most one SUCCESS event if any successful runs exist (both may be present).
           - Else if group pending → PENDING
           - Else → no event (missing)
@@ -297,7 +293,7 @@ class SignalExtractor:
             value_fn=lambda j: (j.wf_run_id, j.run_attempt),
         )
 
-        # Index tests.all_test_runs rows per (commit, job_base, wf_run, attempt, test_id)
+        # Index test_run_s3 rows per (commit, job_base, wf_run, attempt, test_id)
         # Store aggregated failure/success counts
         tests_by_group_attempt: Dict[
             Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt, TestId],
@@ -436,7 +432,6 @@ class SignalExtractor:
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(job_base_name),
-                        source=SignalSource.TEST,
                     )
                 )
 
@@ -497,15 +492,16 @@ class SignalExtractor:
                     # Map aggregation verdict to outer SignalStatus
                     if meta.status is None:
                         continue
-                    if meta.status == AggStatus.FAILURE and meta.has_non_test_failures:
+                    if meta.status == AggStatus.FAILURE:
                         # mark presence of non-test failures (relevant for job track)
-                        has_relevant_failures = True
+                        if meta.has_non_test_failures:
+                            has_relevant_failures = True
+
                         ev_status = SignalStatus.FAILURE
-                    elif meta.status == AggStatus.PENDING:
-                        ev_status = SignalStatus.PENDING
-                    else:
-                        # Note: when all failures are caused by tests, we do NOT emit job-level failures
+                    elif meta.status == AggStatus.SUCCESS:
                         ev_status = SignalStatus.SUCCESS
+                    else:
+                        ev_status = SignalStatus.PENDING
 
                     # Extract wf_run_id/run_attempt from the attempt key
                     _, _, _, wf_run_id, run_attempt = akey
@@ -543,7 +539,6 @@ class SignalExtractor:
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(base_name),
-                        source=SignalSource.JOB,
                     )
                 )
 

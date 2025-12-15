@@ -52,11 +52,7 @@ class FakeDatasource(SignalExtractionDatasource):
         return list(self._jobs)
 
     def fetch_tests_for_job_ids(
-        self,
-        job_ids: List[JobId],
-        *,
-        failed_job_ids: List[JobId],
-        lookback_hours: int = 24,
+        self, job_ids: List[JobId], *, failed_job_ids: List[JobId]
     ) -> List[TestRow]:
         ids = {int(j) for j in job_ids}
         return [r for r in self._tests if int(r.job_id) in ids]
@@ -322,46 +318,6 @@ class TestSignalExtraction(unittest.TestCase):
         self.assertIsNotNone(
             self._find_job_signal(signals_b, "trunk", jobs_b[0].base_name)
         )
-
-    def test_job_track_treats_test_failures_as_success(self):
-        # When a base has a non-test (infra) failure somewhere (so a job signal is emitted),
-        # attempts that fail due to tests should NOT appear as FAILURES in the job track.
-        # They should be treated as SUCCESS at the job-track level, leaving the failure to test-track.
-        jobs = [
-            # Newer commit: infra-caused failure (non-test classification)
-            J(
-                sha="Z2",
-                run=9100,
-                job=801,
-                attempt=1,
-                started_at=ts(self.t0, 20),
-                conclusion="failure",
-                rule="infra",  # non-test
-            ),
-            # Older commit: failure caused by tests (test classification)
-            J(
-                sha="Z1",
-                run=9000,
-                job=800,
-                attempt=1,
-                started_at=ts(self.t0, 10),
-                conclusion="failure",
-                rule="pytest failure",  # test-caused
-            ),
-        ]
-
-        signals = self._extract(jobs, tests=[])
-        base = jobs[0].base_name
-        sig = self._find_job_signal(signals, "trunk", base)
-        self.assertIsNotNone(sig)
-        # Expect commits newest->older
-        self.assertEqual([c.head_sha for c in sig.commits], ["Z2", "Z1"])
-        # Newer infra failure remains FAILURE
-        self.assertEqual(len(sig.commits[0].events), 1)
-        self.assertEqual(sig.commits[0].events[0].status, SignalStatus.FAILURE)
-        # Older test-caused failure is mapped to SUCCESS in job track
-        self.assertEqual(len(sig.commits[1].events), 1)
-        self.assertEqual(sig.commits[1].events[0].status, SignalStatus.SUCCESS)
 
     def test_commits_without_jobs_are_included(self):
         # Verify that commits with no jobs at all are still included in signals
