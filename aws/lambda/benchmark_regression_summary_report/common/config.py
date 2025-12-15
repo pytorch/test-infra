@@ -53,9 +53,13 @@ PYTORCH_HELION_CONFIG = BenchmarkConfig(
             ),
         },
         notification_config={
-            "type": "github",
-            "repo": "pytorch/test-infra",
-            "issue": "7472",
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7472",
+                }
+            ]
         },
     ),
     report_config=ReportConfig(
@@ -117,9 +121,13 @@ TORCHAO_MICRO_API_CONFIG = BenchmarkConfig(
             ),
         },
         notification_config={
-            "type": "github",
-            "repo": "pytorch/test-infra",
-            "issue": "7477",
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7477",
+                }
+            ]
         },
     ),
     report_config=ReportConfig(
@@ -169,9 +177,26 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
             ),
         },
         notification_config={
-            "type": "github",
-            "repo": "pytorch/test-infra",
-            "issue": "7445",
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7445",
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "cuda"}],
+                    },
+                },
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7593",
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "rocm"}],
+                    },
+                },
+            ]
         },
     ),
     report_config=ReportConfig(
@@ -248,9 +273,13 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             ),
         },
         notification_config={
-            "type": "github",
-            "repo": "pytorch/test-infra",
-            "issue": "7081",
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7081",
+                }
+            ]
         },
     ),
     report_config=ReportConfig(
