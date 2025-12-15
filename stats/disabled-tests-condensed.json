@@ -1516,6 +1516,13 @@
       "inductor"
     ]
   ],
+  "test_nonzero_static_stride_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
+    "170436",
+    "https://github.com/pytorch/pytorch/issues/170436",
+    [
+      "xpu"
+    ]
+  ],
   "test_nonzero_static_stride_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
     "170420",
     "https://github.com/pytorch/pytorch/issues/170420",
