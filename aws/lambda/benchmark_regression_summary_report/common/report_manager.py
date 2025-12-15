@@ -82,6 +82,7 @@ class ReportManager:
         try:
             noti_metadata = self.form_notification_metadata(self.metadata)
             self.metadata["notification_metadata"] = noti_metadata
+            self.metadata["notification_md"] = self._to_markdown()
             applied_insertion = self.insert_to_db(cc, self.db_table_name)
         except Exception as e:
             logger.warning(f"failed to insert report to db, error: {str(e)}")
@@ -100,7 +101,6 @@ class ReportManager:
             return []
         result = []
         for n in github_notifications:
-
             def form_git_result(trigger: bool):
                 return {
                     "type": "github",
@@ -108,10 +108,8 @@ class ReportManager:
                     "issue_number": n.issue_number,
                     "trigger": trigger,
                 }
-
             regression_devices = metadata.get("regression_devices", [])
             condition = n.condition
-
             if not regression_devices:
                 # if no regression detected, no need to trigger notification, mark as false
                 result.append(form_git_result(False))
