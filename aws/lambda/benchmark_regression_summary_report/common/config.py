@@ -195,7 +195,7 @@ PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
                         "type": "device_arch",
                         "device_arches": [{"device": "rocm"}],
                     },
-                }
+                },
             ]
         },
     ),

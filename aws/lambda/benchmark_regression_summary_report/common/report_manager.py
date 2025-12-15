@@ -101,6 +101,7 @@ class ReportManager:
             return []
         result = []
         for n in github_notifications:
+
             def form_git_result(trigger: bool):
                 return {
                     "type": "github",
@@ -108,6 +109,7 @@ class ReportManager:
                     "issue_number": n.issue_number,
                     "trigger": trigger,
                 }
+
             regression_devices = metadata.get("regression_devices", [])
             condition = n.condition
             if not regression_devices:
