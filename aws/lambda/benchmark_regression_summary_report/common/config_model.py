@@ -191,7 +191,7 @@ class NotificationCondition:
     def from_dict(cls, d: Dict[str, Any]) -> "NotificationCondition":
         return cls(
             type=d.get("type", "all"),
-            device_arches=d.get("device_arches", None),
+            device_arches=d.get("device_arches"),
         )
 
     def match_condition(self, detail_list: list[Dict[str, str]]) -> bool:

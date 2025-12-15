@@ -6,11 +6,9 @@ from typing import Any, Dict
 
 import clickhouse_connect
 from common.config_model import BenchmarkConfig, ReportConfig, to_dict
-from common.regression_utils import (
-    BenchmarkRegressionReport,
-    get_regression_status,
-)
+from common.regression_utils import BenchmarkRegressionReport, get_regression_status
 from jinja2 import Template
+
 
 logger = logging.getLogger()
 
@@ -28,10 +26,11 @@ Report Status: **{{ status }}**
 - Suspicious: {{ summary.suspicious_count | default(0) }}
 - No Regression: {{ summary.no_regression_count | default(0) }}
 - Insufficient Data: {{ summary.insufficient_data_count | default(0) }}
+
 {% if metadata.regression_devices %}
 **Regression Devices:**
 {% for device in metadata.regression_devices %}
-- {{ device.arch }}/{{ device.device }}: {{ device.count }} regression(s)
+- {{ device.device }}({{ device.arch }}): {{ device.count }} regression(s)
 {% endfor %}
 {% endif %}
 """
@@ -108,11 +107,11 @@ class ReportManager:
         result = []
         for n in github_notifications:
 
-            def form_git_result(trigger: bool):
+            def form_git_result(trigger: bool, item: any):
                 return {
                     "type": "github",
-                    "repo": n.repo,
-                    "issue_number": n.issue_number,
+                    "repo": item.repo,
+                    "issue_number": item.issue_number,
                     "trigger": trigger,
                 }
 
@@ -120,7 +119,7 @@ class ReportManager:
             condition = n.condition
             if not regression_devices:
                 # if no regression detected, no need to trigger notification, mark as false
-                result.append(form_git_result(False))
+                result.append(form_git_result(False, n))
             elif not condition:
                 # if condition is not set, assume it is always true
                 result.append(form_git_result(True))
@@ -198,9 +197,7 @@ class ReportManager:
                 )
             except Exception as e:
                 logger.warning(
-                    "[%s] failed to create github comment, error: %s",
-                    self.config_id,
-                    str(e),
+                    f"[{self.config_id}] failed to create github comment, error: {str(e)}",
                 )
         if self.is_dry_run:
             return "skip_dry_run"
