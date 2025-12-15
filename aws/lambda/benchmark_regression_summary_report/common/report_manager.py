@@ -28,6 +28,12 @@ Report Status: **{{ status }}**
 - Suspicious: {{ summary.suspicious_count | default(0) }}
 - No Regression: {{ summary.no_regression_count | default(0) }}
 - Insufficient Data: {{ summary.insufficient_data_count | default(0) }}
+{% if metadata.regression_devices %}
+**Regression Devices:**
+{% for device in metadata.regression_devices %}
+- {{ device.arch }}/{{ device.device }}: {{ device.count }} regression(s)
+{% endfor %}
+{% endif %}
 """
 
 
@@ -218,6 +224,7 @@ class ReportManager:
             target=self.target,
             frequency=self.config.policy.frequency.get_text(),
             regression_items=regression_items,
+            metadata=self.metadata,
         )
 
     def insert_to_db(

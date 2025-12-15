@@ -228,16 +228,17 @@ class BenchmarkRegressionReportGenerator:
 
     def generate_metadata(
         self, results: list[PerGroupResult]
-    ) -> Dict[str, List[Dict[str, str]]]:
+    ) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Fetch distinct (arch, device) pairs that have label 'regression' or 'suspicious'.
+        Fetch distinct (arch, device) pairs that have label 'regression' or 'suspicious',
+        along with the count of regressions for each device.
 
         Returns:
             Dict with 'regression_devices' and 'suspicious_devices' keys,
-            each containing a list of {"arch": ..., "device": ...} dicts.
+            each containing a list of {"arch": ..., "device": ..., "count": ...} dicts.
         """
-        regression_devices: set[tuple[str, str]] = set()
-        suspicious_devices: set[tuple[str, str]] = set()
+        regression_device_counts: Counter[tuple[str, str]] = Counter()
+        suspicious_device_counts: Counter[tuple[str, str]] = Counter()
 
         for result in results:
             label = result.get("label")
@@ -246,15 +247,17 @@ class BenchmarkRegressionReportGenerator:
             device = group_info.get("device", "")
 
             if label == "regression":
-                regression_devices.add((arch, device))
+                regression_device_counts[(arch, device)] += 1
             elif label == "suspicious":
-                suspicious_devices.add((arch, device))
+                suspicious_device_counts[(arch, device)] += 1
         return {
             "regression_devices": [
-                {"arch": arch, "device": device} for arch, device in regression_devices
+                {"arch": arch, "device": device, "count": count}
+                for (arch, device), count in regression_device_counts.items()
             ],
             "suspicious_devices": [
-                {"arch": arch, "device": device} for arch, device in suspicious_devices
+                {"arch": arch, "device": device, "count": count}
+                for (arch, device), count in suspicious_device_counts.items()
             ],
         }
 
