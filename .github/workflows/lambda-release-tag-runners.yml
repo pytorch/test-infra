@@ -41,8 +41,8 @@ jobs:
       - uses: actions/create-github-app-token@v2
         id: app-token
         with:
-          app-id: ${{ secrets.APP_ID }}
-          private-key: ${{ secrets.PRIVATE_KEY }}
+          app-id: 811065
+          private-key: ${{ secrets.TAG_RELEASE }}
 
       - name: Tag snapshot
         uses: tvdias/github-tagger@a570476cc87352c1655c606b29590df6014535e0 # v0.0.1
