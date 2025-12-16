@@ -28,6 +28,7 @@ function convertInfoToMap(info: any) {
       successes: row.success,
       failures: row.failure,
       skipped: row.skipped,
+      flaky: row.flaky,
       time: row.time || 0,
       id: key,
     });
@@ -57,11 +58,15 @@ function TestFileCountsInfo({
       failuresChange: 0,
       skippedChange: 0,
       successesChange: 0,
+      flaky: 0,
+      flakyChange: 0,
     };
     for (const value of headMap?.values() || []) {
       totals.successesChange += value.successesChange || 0;
       totals.skippedChange += value.skippedChange || 0;
       totals.failuresChange += value.failuresChange || 0;
+      totals.flakyChange += value.flakyChange || 0;
+      totals.flaky += value.flaky || 0;
       totals.failures += value.failures || 0;
       totals.skipped += value.skipped || 0;
       totals.successes += value.successes || 0;
@@ -149,6 +154,19 @@ function TestFileCountsInfo({
     },
     {
       field: "skippedChange",
+      headerName: "+/-",
+      type: "number",
+      flex: 1,
+      cellClassName: "change",
+    },
+    {
+      field: "flaky",
+      headerName: "Flaky",
+      type: "number",
+      flex: 2,
+    },
+    {
+      field: "flakyChange",
       headerName: "+/-",
       type: "number",
       flex: 1,
