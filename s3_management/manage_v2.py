@@ -73,8 +73,8 @@ ACCEPTED_SUBDIR_PATTERNS = [
 NOT_ACCEPTED_SUBDIR_PATTERNS = [
     "cpu-cxx11-abi",
     "cpu_pypi_pkg",
-    "cu126_full",
-    "cu128_full",
+    "cu[0-9]+_full",
+    "cu[0-9]+_pypi_cudnn",
 ]
 
 PREFIXES = [
