@@ -38,12 +38,18 @@ jobs:
             echo "tag_name=v${{ steps.date.outputs.date }}-custom" >> "${GITHUB_OUTPUT}"
           fi
 
+      - uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: 811065
+          private-key: ${{ secrets.TAG_RELEASE }}
+
       - name: Tag snapshot
         uses: tvdias/github-tagger@a570476cc87352c1655c606b29590df6014535e0 # v0.0.1
         env:
-          GITHUB_TOKEN: ${{ secrets.TAG_RELEASE }}
+          GITHUB_TOKEN: ${{ steps.app-token.outputs.token }}
         with:
-          repo-token: ${{ secrets.TAG_RELEASE }}
+          repo-token: ${{ steps.app-token.outputs.token }}
           tag: ${{ steps.tag.outputs.tag_name }}
 
       - name: Write tag to summary
