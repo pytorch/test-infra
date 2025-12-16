@@ -100,7 +100,7 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["ciflow/rocm", "module: rocm"] });
+        expect(body).toMatchObject({ labels: ["ciflow/rocm-mi300", "module: rocm"] });
         return true;
       })
       .reply(200);
