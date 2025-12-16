@@ -288,6 +288,7 @@ class Signal:
     - workflow_name: source workflow this signal is derived from
     - commits: newest → older list of SignalCommit objects for this signal
     - job_base_name: optional job base name for job-level signals (recorded when signal is created)
+    - test_module: optional test module path for test-level signals (e.g., "test_torch" or "distributed/test_c10d")
     """
 
     def __init__(
@@ -296,6 +297,7 @@ class Signal:
         workflow_name: str,
         commits: List[SignalCommit],
         job_base_name: Optional[str] = None,
+        test_module: Optional[str] = None,
         source: SignalSource = SignalSource.TEST,
     ):
         self.key = key
@@ -303,6 +305,8 @@ class Signal:
         # commits are ordered from newest to oldest
         self.commits = commits
         self.job_base_name = job_base_name
+        # Test module path without .py extension (e.g., "test_torch", "distributed/test_c10d")
+        self.test_module = test_module
         # Track the origin of the signal (test-track or job-track).
         self.source = source
 

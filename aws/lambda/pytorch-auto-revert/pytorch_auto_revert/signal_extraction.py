@@ -133,6 +133,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    test_module=s.test_module,
                     source=s.source,
                 )
             )
@@ -218,6 +219,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    test_module=s.test_module,
                     source=s.source,
                 )
             )
@@ -434,12 +436,17 @@ class SignalExtractor:
                 )
 
             if has_any_events:
+                # Extract test module from test_id (format: "file.py::test_name")
+                # Result: "file" or "path/to/file" without .py extension
+                test_module = test_id.split("::")[0].replace(".py", "")
+
                 signals.append(
                     Signal(
                         key=test_id,
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(job_base_name),
+                        test_module=test_module,
                         source=SignalSource.TEST,
                     )
                 )
