@@ -122,10 +122,10 @@ class ReportManager:
                 result.append(form_git_result(False, n))
             elif not condition:
                 # if condition is not set, assume it is always true
-                result.append(form_git_result(True))
+                result.append(form_git_result(True, n))
             else:
                 is_matched = condition.match_condition(regression_devices)
-                result.append(form_git_result(is_matched))
+                result.append(form_git_result(is_matched, n))
         return result
 
     def notify_github_comments(self, github_token: str):
