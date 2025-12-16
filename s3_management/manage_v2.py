@@ -62,7 +62,6 @@ else:
 
 ACCEPTED_FILE_EXTENSIONS = ("whl", "zip", "tar.gz", "json")
 
-# Important note here we would like keep indexing only recent binaries
 ACCEPTED_SUBDIR_PATTERNS = [
     r"cu[0-9]+",  # for cuda
     r"rocm[0-9]+\.[0-9]+",  # for rocm
