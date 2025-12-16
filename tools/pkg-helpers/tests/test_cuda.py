@@ -29,6 +29,7 @@ def test_cuda_variables_cpu_wheel_aarch64(platform):
         "export WHEEL_DIR=''",
     ]
 
+
 def test_cuda_variables_wheel_rocm():
     gpu_arch_version = "rocm5.4.1"
     assert get_cuda_variables("wheel", "linux", gpu_arch_version) == [
@@ -37,6 +38,7 @@ def test_cuda_variables_wheel_rocm():
         f"export WHEEL_DIR='{gpu_arch_version}/'",
         "export FORCE_CUDA=1",
     ]
+
 
 @pytest.mark.parametrize("gpu_arch_version", ["cu102", "cu116"])
 def test_cuda_variables_cuda_linux_wheels(gpu_arch_version):
@@ -52,6 +54,7 @@ def test_cuda_variables_cuda_linux_wheels(gpu_arch_version):
         f'export PATH="{cuda_home}/bin:${{PATH}}"',
         "export FORCE_CUDA=1",
     ]
+
 
 @pytest.mark.parametrize("gpu_arch_version", ["cu102", "cu116"])
 def test_cuda_variables_cuda_windows_wheels(gpu_arch_version):
