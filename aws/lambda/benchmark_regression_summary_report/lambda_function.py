@@ -17,7 +17,6 @@ from common.report_manager import ReportManager
 from dateutil.parser import isoparse
 
 
-# TODO(elainewy): change this to benchmark.benchmark_regression_report once the table is created
 BENCHMARK_REGRESSION_REPORT_TABLE = "benchmark.benchmark_regression_report"
 BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 
