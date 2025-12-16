@@ -9,7 +9,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 const DEFAULT_QUERY_LIMIT = 25;
 const MAX_QUERY_LIMIT = 200;
 
-const REPORT_TABLE = "fortesting.benchmark_regression_report";
+const REPORT_TABLE = "benchmark.benchmark_regression_report";
 
 export default async function handler(
   req: NextApiRequest,

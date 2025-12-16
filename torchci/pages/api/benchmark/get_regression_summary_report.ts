@@ -7,7 +7,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 import { mapReportField } from "./list_regression_summary_reports";
 
 const EXCLUDED_FILTER_OPTIONS = ["branch"];
-const REPORT_TABLE = "fortesting.benchmark_regression_report";
+const REPORT_TABLE = "benchmark.benchmark_regression_report";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
