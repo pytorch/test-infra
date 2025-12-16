@@ -62,10 +62,9 @@ else:
 
 ACCEPTED_FILE_EXTENSIONS = ("whl", "zip", "tar.gz", "json")
 
-# Important note here we would like keep indexing only recent binaries
 ACCEPTED_SUBDIR_PATTERNS = [
-    r"cu(126|128|129|13[0-9])",  # for cuda: cu126, cu128, cu129, cu13X
-    r"rocm(6\.4|7\.0|7\.1)",  # for rocm: rocm6.4, rocm7.0, rocm7.1
+    r"cu[0-9]+",  # for cuda
+    r"rocm[0-9]+\.[0-9]+",  # for rocm
     "cpu",
     "xpu",
 ]
@@ -74,8 +73,8 @@ ACCEPTED_SUBDIR_PATTERNS = [
 NOT_ACCEPTED_SUBDIR_PATTERNS = [
     "cpu-cxx11-abi",
     "cpu_pypi_pkg",
-    "cu126_full",
-    "cu128_full",
+    "cu[0-9]+_full",
+    "cu[0-9]+_pypi_cudnn",
 ]
 
 PREFIXES = [
