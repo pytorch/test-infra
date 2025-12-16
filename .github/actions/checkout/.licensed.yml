@@ -1,3 +1,7 @@
+name: "Checkout Action"
+
+root: .
+
 sources:
   npm: true
 

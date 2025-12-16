@@ -4,7 +4,7 @@
 
 ## Purpose
 
-`test-ubuntu-git` is a container image hosted on the GitHub Container Registry, `ghcr.io`.  
+`test-ubuntu-git` is a container image hosted on the GitHub Container Registry, `ghcr.io`.
 
 It is intended primarily for testing the [`actions/checkout` repository](https://github.com/actions/checkout) as part of `actions/checkout`'s CI/CD workflows.
 

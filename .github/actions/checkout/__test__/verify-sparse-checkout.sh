@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -xeo pipefail
+
 # Verify .git folder
 if [ ! -d "./sparse-checkout/.git" ]; then
   echo "Expected ./sparse-checkout/.git folder to exist"
@@ -47,9 +49,8 @@ checkSparse () {
 }
 
 # Check that all folders and their children have been checked out
-checkSparse __test__
-checkSparse .github
-checkSparse dist
+checkSparse .github/actions/checkout/__test__
+checkSparse .github/actions/checkout/dist
 
 # Check that only sparse-checkout folders have been checked out
 for pattern in $(git ls-tree --name-only HEAD)

@@ -1,5 +1,7 @@
 #!/bin/bash
 
+set -xeo pipefail
+
 # Verify .git folder
 if [ ! -d "./sparse-checkout-non-cone-mode/.git" ]; then
   echo "Expected ./sparse-checkout-non-cone-mode/.git folder to exist"

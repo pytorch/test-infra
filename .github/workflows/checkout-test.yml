@@ -1,11 +1,16 @@
 name: Build and Test
 
 on:
-  pull_request:
   push:
     branches:
       - main
-      - releases/*
+    paths:
+      - '.github/actions/checkout/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/actions/checkout/**'
 
 
 # Note that when you see patterns like "ref: test-data/v2/basic" within this workflow,
@@ -15,6 +20,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
     steps:
       - uses: actions/setup-node@v4
         with:
@@ -33,18 +41,26 @@ jobs:
       matrix:
         runs-on: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.runs-on }}
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
 
     steps:
       # Clone this repo
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Activate longpath support
+        if: matrix.runs-on == 'windows-latest'
+        run: git config --system core.longpaths true
+
       # Basic checkout
       - name: Checkout basic
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         shell: bash
         run: __test__/verify-basic.sh
@@ -54,83 +70,84 @@ jobs:
         shell: bash
         run: __test__/modify-work-tree.sh
       - name: Checkout clean
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify clean
         shell: bash
         run: __test__/verify-clean.sh
 
       # Side by side
       - name: Checkout side by side 1
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/side-by-side-1
-          path: side-by-side-1
+          path: .github/actions/checkout/side-by-side-1
       - name: Checkout side by side 2
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/side-by-side-2
-          path: side-by-side-2
+          path: .github/actions/checkout/side-by-side-2
       - name: Verify side by side
         shell: bash
         run: __test__/verify-side-by-side.sh
 
       # Filter
       - name: Fetch filter
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
           filter: 'blob:none'
-          path: fetch-filter
+          path: .github/actions/checkout/fetch-filter
 
       - name: Verify fetch filter
         run: __test__/verify-fetch-filter.sh
 
       # Sparse checkout
       - name: Sparse checkout
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
           sparse-checkout: |
-            __test__
-            .github
-            dist
-          path: sparse-checkout
+            .github/actions/checkout/__test__
+            .github/actions/checkout/dist
+          path: .github/actions/checkout/sparse-checkout
 
       - name: Verify sparse checkout
         run: __test__/verify-sparse-checkout.sh
 
       # Disabled sparse checkout in existing checkout
       - name: Disabled sparse checkout
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
-          path: sparse-checkout
+          path: .github/actions/checkout/sparse-checkout
 
       - name: Verify disabled sparse checkout
         shell: bash
-        run: set -x && ls -l sparse-checkout/src/git-command-manager.ts
+        run: set -x && ls -l sparse-checkout/.github/actions/checkout/src/git-command-manager.ts
 
       # Sparse checkout (non-cone mode)
       - name: Sparse checkout (non-cone mode)
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
           sparse-checkout: |
-            /__test__/
-            /.github/
-            /dist/
+            /.github/actions/checkout/__test__/
+            /.github/actions/checkout/dist/
           sparse-checkout-cone-mode: false
-          path: sparse-checkout-non-cone-mode
+          path: .github/actions/checkout/sparse-checkout-non-cone-mode
 
       - name: Verify sparse checkout (non-cone mode)
         run: __test__/verify-sparse-checkout-non-cone-mode.sh
 
       # LFS
       - name: Checkout LFS
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
           repository: actions/checkout # hardcoded, otherwise doesn't work from a fork
           ref: test-data/v2/lfs
-          path: lfs
+          path: .github/actions/checkout/lfs
           lfs: true
       - name: Verify LFS
         shell: bash
@@ -138,38 +155,41 @@ jobs:
 
       # Submodules false
       - name: Checkout submodules false
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/submodule-ssh-url
-          path: submodules-false
+          path: .github/actions/checkout/submodules-false
       - name: Verify submodules false
         run: __test__/verify-submodules-false.sh
 
       # Submodules one level
       - name: Checkout submodules true
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/submodule-ssh-url
-          path: submodules-true
+          path: .github/actions/checkout/submodules-true
           submodules: true
       - name: Verify submodules true
         run: __test__/verify-submodules-true.sh
 
       # Submodules recursive
       - name: Checkout submodules recursive
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/submodule-ssh-url
-          path: submodules-recursive
+          path: .github/actions/checkout/submodules-recursive
           submodules: recursive
       - name: Verify submodules recursive
         run: __test__/verify-submodules-recursive.sh
 
       # Worktree credentials
       - name: Checkout for worktree test
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
-          path: worktree-test
+          path: .github/actions/checkout/worktree-test
       - name: Verify worktree credentials
         shell: bash
         run: __test__/verify-worktree.sh worktree-test worktree-branch
@@ -177,9 +197,9 @@ jobs:
       # Worktree credentials in container step
       - name: Verify worktree credentials in container step
         if: runner.os == 'Linux'
-        uses: docker://bitnami/git:latest
+        uses: docker://bitnamisecure/git:latest
         with:
-          args: bash __test__/verify-worktree.sh worktree-test container-worktree-branch
+          args: bash .github/actions/checkout/__test__/verify-worktree.sh .github/actions/checkout/worktree-test container-worktree-branch
 
       # Basic checkout using REST API
       - name: Remove basic
@@ -196,15 +216,19 @@ jobs:
         if: runner.os == 'windows'
         run: __test__\\override-git-version.cmd
       - name: Checkout basic using REST API
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         run: __test__/verify-basic.sh --archive
 
   test-proxy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
     container:
       image: ghcr.io/actions/test-ubuntu-git:main.20240221.114913.703z
       options: --dns 127.0.0.1
@@ -222,10 +246,11 @@ jobs:
 
       # Basic checkout using git
       - name: Checkout basic
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         run: __test__/verify-basic.sh
 
@@ -235,15 +260,19 @@ jobs:
       - name: Override git version
         run: __test__/override-git-version.sh
       - name: Basic checkout using REST API
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         run: __test__/verify-basic.sh --archive
 
   test-bypass-proxy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
     env:
       https_proxy: http://no-such-proxy:3128
       no_proxy: api.github.com,github.com
@@ -254,10 +283,11 @@ jobs:
 
       # Basic checkout using git
       - name: Checkout basic
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         run: __test__/verify-basic.sh
       - name: Remove basic
@@ -267,28 +297,34 @@ jobs:
       - name: Override git version
         run: __test__/override-git-version.sh
       - name: Checkout basic using REST API
-        uses: ./
+        uses: ./.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
-          path: basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         run: __test__/verify-basic.sh --archive
 
   test-git-container:
     runs-on: ubuntu-latest
-    container: bitnami/git:latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout/basic
+    container: bitnamisecure/git:latest
     steps:
       # Clone this repo
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          path: localClone
+          path: .github/actions/checkout/localClone
 
       # Basic checkout using git
       - name: Checkout basic
-        uses: ./localClone
+        uses: ./.github/actions/checkout/localClone/.github/actions/checkout/
         with:
+          repository: actions/checkout
           ref: test-data/v2/basic
+          path: .github/actions/checkout/basic
       - name: Verify basic
         run: |
           if [ ! -f "./basic-file.txt" ]; then
@@ -310,23 +346,27 @@ jobs:
       - name: Fix Checkout v6
         uses: actions/checkout@v6
         with:
-          path: localClone
+          path: .github/actions/checkout/localClone
 
   test-output:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
     steps:
       # Clone this repo
       - name: Checkout
         uses: actions/checkout@v6
         with:
-          path: actions-checkout
+          path: .github/actions/checkout/actions-checkout
 
       # Basic checkout using git
       - name: Checkout basic
         id: checkout
-        uses: ./actions-checkout
+        uses: ./.github/actions/checkout/actions-checkout/.github/actions/checkout/
         with:
-          path: cloned-using-local-action
+          repository: actions/checkout
+          path: .github/actions/checkout/cloned-using-local-action
           ref: test-data/v2/basic
 
       # Verify output

@@ -1,5 +1,5 @@
 #!/bin/bash
-set -e
+set -xeo pipefail
 
 # Verify worktree credentials
 # This test verifies that git credentials work in worktrees created after checkout

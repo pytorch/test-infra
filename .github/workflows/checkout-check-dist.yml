@@ -10,24 +10,30 @@ on:
   push:
     branches:
       - main
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '.github/actions/checkout/**'
+      - '!.github/actions/checkout/**.md'
   pull_request:
-    paths-ignore:
-      - '**.md'
+    paths:
+      - '.github/actions/checkout/**'
+      - '!.github/actions/checkout/**.md'
   workflow_dispatch:
 
 jobs:
   check-dist:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
 
     steps:
       - uses: actions/checkout@v6
-
       - name: Set Node.js 24.x
         uses: actions/setup-node@v4
         with:
           node-version: 24.x
+          cache: 'npm'
+          cache-dependency-path: ./.github/actions/checkout/package-lock.json
 
       - name: Install dependencies
         run: npm ci
@@ -36,6 +42,7 @@ jobs:
         run: npm run build
 
       - name: Compare the expected and actual dist/ directories
+        id: diff
         run: |
           if [ "$(git diff --ignore-space-at-eol dist/ | wc -l)" -gt "0" ]; then
             echo "Detected uncommitted changes after build.  See status below:"
