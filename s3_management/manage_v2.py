@@ -486,6 +486,8 @@ class S3Index:
         # Cache for expensive computations
         self._package_name_cache: Dict[str, str] = {}
         self._parent_packages_cache: Dict[str, Set[str]] = {}
+        # Cache for S3 bucket object listings to avoid repeated API calls
+        self._bucket_listing_cache: Dict[str, List] = {}
 
     def packages_by_allow_list(self) -> List[S3Object]:
         """Filter packages to only include those in PACKAGE_ALLOW_LIST
@@ -569,6 +571,12 @@ class S3Index:
             {self.obj_to_package_name(obj) for obj in self.gen_file_list(subdir)}
         )
 
+    def _get_bucket_listing(self, prefix: str) -> List:
+        """Get bucket listing with caching to avoid repeated S3 API calls"""
+        if prefix not in self._bucket_listing_cache:
+            self._bucket_listing_cache[prefix] = list(BUCKET.objects.filter(Prefix=prefix))
+        return self._bucket_listing_cache[prefix]
+
     def get_packages_to_copy_from_parent(
         self, subdir: str, parent_prefix: str
     ) -> Set[str]:
@@ -591,12 +599,12 @@ class S3Index:
         # Get packages in the subdirectory
         packages_in_subdir = set(self.get_package_names(subdir=subdir))
 
-        # Batch process all objects with a single filter call
+        # Batch process all objects with a single cached filter call
         prefix_to_search = f"{parent_prefix}/"
 
-        # Collect all package index files in one pass
+        # Collect all package index files in one pass using cached bucket listing
         parent_packages = set()
-        for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
+        for obj in self._get_bucket_listing(prefix_to_search):
             # Check if this is a packagename/index.html file at the parent level
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
@@ -733,8 +741,8 @@ class S3Index:
         # List all objects in the subdir to find packagename/index.html patterns
         prefix_to_search = f"{resolved_subdir}/"
 
-        # Optimize: collect package names in a single pass
-        for obj in BUCKET.objects.filter(Prefix=prefix_to_search):
+        # Optimize: collect package names in a single pass using cached bucket listing
+        for obj in self._get_bucket_listing(prefix_to_search):
             # Check if this is a packagename/index.html file
             relative_key = obj.key[len(prefix_to_search) :]
             parts = relative_key.split("/")
@@ -795,6 +803,13 @@ class S3Index:
                 )
 
     def upload_pep503_htmls(self) -> None:
+        # Pre-fetch bucket listings for all subdirectories to optimize S3 API calls
+        print("INFO: Pre-fetching S3 bucket listings for optimization...")
+        for subdir in self.subdirs:
+            prefix_to_search = f"{self._resolve_subdir(subdir)}/"
+            self._get_bucket_listing(prefix_to_search)
+        print(f"INFO: Pre-fetched listings for {len(self.subdirs)} subdirectories")
+
         for subdir in self.subdirs:
             # Generate the package list index (same for both S3 and R2)
             index_html = self.to_simple_packages_html(subdir=subdir)
@@ -937,7 +952,8 @@ class S3Index:
                     )
 
             # Parallel upload of package indexes
-            max_workers = min(10, len(all_packages)) if all_packages else 1
+            # Increase parallelism for faster uploads
+            max_workers = min(20, len(all_packages)) if all_packages else 1
             with concurrent.futures.ThreadPoolExecutor(
                 max_workers=max_workers
             ) as executor:
