@@ -29,7 +29,7 @@ from .config import (
 from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
-from .testers.restart_checker import workflow_restart_checker
+from .testers.restart_checker import dispatch_workflow_restart, workflow_restart_checker
 from .utils import parse_datetime, RestartAction, RetryWithBackoff, RevertAction
 
 
@@ -356,6 +356,35 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
         help="If no `--commit` specified, look back days for bulk query (default: 7)",
     )
 
+    # restart-workflow subcommand: dispatch a workflow restart with optional filters
+    restart_workflow_parser = subparsers.add_parser(
+        "restart-workflow",
+        help="Dispatch a workflow restart with optional job/test filters",
+    )
+    restart_workflow_parser.add_argument(
+        "workflow",
+        help="Workflow name (e.g., trunk or trunk.yml)",
+    )
+    restart_workflow_parser.add_argument(
+        "commit",
+        help="Commit SHA to restart",
+    )
+    restart_workflow_parser.add_argument(
+        "--jobs",
+        default=None,
+        help="Space-separated job display names to filter (e.g., 'linux-jammy-cuda12.8-py3.10-gcc11')",
+    )
+    restart_workflow_parser.add_argument(
+        "--tests",
+        default=None,
+        help="Space-separated test module paths to filter (e.g., 'test_torch distributed/test_c10d')",
+    )
+    restart_workflow_parser.add_argument(
+        "--repo-full-name",
+        default=default_config.repo_full_name,
+        help="Repository in owner/repo format (default: pytorch/pytorch)",
+    )
+
     # hud subcommand: generate local HTML report for signals/detections
     hud_parser = subparsers.add_parser(
         "hud", help="Render HUD HTML from a logged autorevert run state"
@@ -437,10 +466,13 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         log_level=_get("log_level", DEFAULT_LOG_LEVEL),
         dry_run=_get("dry_run", False),
         subcommand=_get("subcommand", "autorevert-checker"),
-        # Subcommand: workflow-restart-checker
+        # Subcommand: workflow-restart-checker and restart-workflow
         workflow=_get("workflow", None),
         commit=_get("commit", None),
         days=_get("days", DEFAULT_WORKFLOW_RESTART_DAYS),
+        # Subcommand: restart-workflow (filter inputs)
+        jobs=_get("jobs", None),
+        tests=_get("tests", None),
         # Subcommand: hud
         timestamp=_get("timestamp", None),
         hud_html=_get("hud_html", None),
@@ -692,6 +724,15 @@ def main_run(
     elif config.subcommand == "workflow-restart-checker":
         workflow_restart_checker(
             config.workflow, commit=config.commit, days=config.days
+        )
+    elif config.subcommand == "restart-workflow":
+        dispatch_workflow_restart(
+            workflow=config.workflow,
+            commit=config.commit,
+            jobs=config.jobs,
+            tests=config.tests,
+            repo=config.repo_full_name,
+            dry_run=config.dry_run,
         )
     elif config.subcommand == "hud":
         out_path: Optional[str] = (
