@@ -65,6 +65,6 @@ jobs:
         run: ls -R dist/
       - name: Publish package to PyPI
         if: ${{ inputs.dryrun == 'disabled' }}
-        uses: pypa/gh-action-pypi-publish@v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # release/v1.13
         with:
           verbose: true
