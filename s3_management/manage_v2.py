@@ -574,7 +574,9 @@ class S3Index:
     def _get_bucket_listing(self, prefix: str) -> List:
         """Get bucket listing with caching to avoid repeated S3 API calls"""
         if prefix not in self._bucket_listing_cache:
-            self._bucket_listing_cache[prefix] = list(BUCKET.objects.filter(Prefix=prefix))
+            self._bucket_listing_cache[prefix] = list(
+                BUCKET.objects.filter(Prefix=prefix)
+            )
         return self._bucket_listing_cache[prefix]
 
     def get_packages_to_copy_from_parent(
