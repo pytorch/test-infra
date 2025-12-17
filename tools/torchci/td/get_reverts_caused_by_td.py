@@ -189,7 +189,7 @@ def get_failures_additional_test_info(
     """Fetches additional test info for failures in the given run_id."""
 
     query = """
-    with job as (
+with job as (
     select
         distinct id,
         regexp_replace(
@@ -243,7 +243,8 @@ GROUP BY
     classname,
     job.name,
     job.workflow_name
-having status = 'failure'
+having
+    status = 'failure'
     """
     return query_clickhouse(
         query,
