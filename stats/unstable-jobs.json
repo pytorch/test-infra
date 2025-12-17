@@ -71,14 +71,6 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
-  "rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
-    "jithunnair-amd",
-    "169965",
-    "https://github.com/pytorch/pytorch/issues/169965",
-    "rocm-mi200",
-    "linux-jammy-rocm-py3.10",
-    "test"
-  ],
   "slow-rocm-mi200 / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "169967",
