@@ -1,6 +1,7 @@
 import random
 import time
 import urllib.parse
+from datetime import datetime, timezone
 from enum import Enum
 
 import github
@@ -172,3 +173,40 @@ def proper_workflow_create_dispatch(
     if status != 204:
         raise ValueError(f"Error dispatching workflow: {status}, {headers}, {body}")
     return True
+
+
+def parse_datetime(s: str) -> datetime:
+    """Parse datetime string in various formats (ISO 8601 or common formats).
+
+    The input is interpreted as UTC time and returns a timezone-aware datetime.
+
+    Supported formats:
+        - 2025-12-18T15:31:00 (ISO 8601 with seconds)
+        - 2025-12-18T15:31 (ISO 8601 without seconds)
+        - 2025-12-18 15:31:00 (space-separated with seconds)
+        - 2025-12-18 15:31 (space-separated without seconds)
+        - 2025-12-18 (date only, time defaults to 00:00:00)
+
+    Args:
+        s: Datetime string to parse.
+
+    Returns:
+        Timezone-aware datetime in UTC.
+
+    Raises:
+        ValueError: If the string cannot be parsed in any supported format.
+    """
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%dT%H:%M",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%Y-%m-%d",
+    ):
+        try:
+            naive = datetime.strptime(s, fmt)
+            # Attach UTC timezone since input is expected to be UTC
+            return naive.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    raise ValueError(f"Cannot parse datetime: {s!r}")

@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime, timedelta
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from pytorch_auto_revert.signal import SignalStatus
 from pytorch_auto_revert.signal_extraction import SignalExtractor
@@ -30,7 +30,11 @@ class FakeDatasource(SignalExtractionDatasource):
         self._tests = tests
 
     def fetch_commits_in_time_range(
-        self, *, repo_full_name: str, lookback_hours: int
+        self,
+        *,
+        repo_full_name: str,
+        lookback_hours: int,
+        as_of: Optional[datetime] = None,
     ) -> List[tuple[Sha, datetime]]:
         # Extract unique commits from jobs in the order they appear
         seen = set()
@@ -48,6 +52,7 @@ class FakeDatasource(SignalExtractionDatasource):
         lookback_hours: int,
         repo_full_name: str,
         head_shas: List[Sha],
+        as_of: Optional[datetime] = None,
     ) -> List[JobRow]:
         return list(self._jobs)
 
@@ -394,7 +399,11 @@ class TestSignalExtraction(unittest.TestCase):
 
         class FakeDatasourceWithExtraCommit(FakeDatasource):
             def fetch_commits_in_time_range(
-                self, *, repo_full_name: str, lookback_hours: int
+                self,
+                *,
+                repo_full_name: str,
+                lookback_hours: int,
+                as_of: Optional[datetime] = None,
             ):
                 # Return commits C2, C3 (no jobs), C1 in newest->older order
                 return [

@@ -25,7 +25,11 @@ class SignalExtractionDatasource:
     """
 
     def fetch_commits_in_time_range(
-        self, *, repo_full_name: str, lookback_hours: int
+        self,
+        *,
+        repo_full_name: str,
+        lookback_hours: int,
+        as_of: Optional[datetime] = None,
     ) -> List[tuple[Sha, datetime]]:
         """
         Fetch all commits pushed to main within the lookback window.
@@ -35,34 +39,49 @@ class SignalExtractionDatasource:
         which can contain multiple commits in a single push event.
         For commits with identical timestamps (from the same ghstack push),
         orders by array index descending to match HUD/torchci ordering.
-        """
-        lookback_time = datetime.now() - timedelta(hours=lookback_hours)
 
-        query = """
+        Args:
+            as_of: If set, use this as the reference time instead of now.
+        """
+        reference_time = as_of if as_of else datetime.now()
+        lookback_time = reference_time - timedelta(hours=lookback_hours)
+
+        # Add upper bound filter only when as_of is specified
+        upper_bound_clause = ""
+        if as_of:
+            upper_bound_clause = "AND head_commit.timestamp <= {as_of:DateTime}"
+
+        query = f"""
         SELECT
             commit.id AS sha,
             max(commit.timestamp) AS ts,
             arrayMax(groupArray(arrayFirstIndex(c -> c.'id' = commit.id, commits))) as array_index
         FROM default.push
         ARRAY JOIN commits as commit, commits as c
-        WHERE head_commit.timestamp >= {lookback_time:DateTime}
+        WHERE head_commit.timestamp >= {{lookback_time:DateTime}}
+          {upper_bound_clause}
           AND ref = 'refs/heads/main'
-          AND dynamoKey like {repo:String}
+          AND dynamoKey like {{repo:String}}
         GROUP BY sha
         ORDER BY ts DESC, array_index DESC
         """
 
-        params = {
+        params: Dict[str, Any] = {
             "lookback_time": lookback_time,
             "repo": f"{repo_full_name}%",
         }
+        if as_of:
+            params["as_of"] = as_of
 
         log = logging.getLogger(__name__)
         log.info(
-            "[extract] Fetching commits in time range: repo=%s lookback=%sh",
+            "[extract] Fetching commits in time range: repo=%s lookback=%sh as_of=%s",
             repo_full_name,
             lookback_hours,
+            as_of.isoformat() if as_of else "none",
         )
+        log.debug("[extract] Query params: %s", params)
+        log.debug("[extract] Query: %s", query)
         t0 = time.perf_counter()
         for attempt in RetryWithBackoff():
             with attempt:
@@ -79,13 +98,23 @@ class SignalExtractionDatasource:
         workflows: Iterable[str],
         lookback_hours: int,
         head_shas: List[Sha],
+        as_of: Optional[datetime] = None,
     ) -> List[JobRow]:
         """
         Fetch workflow job rows for the given head_shas and workflows.
 
         Returns rows ordered by head_sha (following the order of head_shas), then by started_at ASC.
+
+        Args:
+            as_of: If set, use this as the reference time instead of now.
         """
-        lookback_time = datetime.now() - timedelta(hours=lookback_hours)
+        reference_time = as_of if as_of else datetime.now()
+        lookback_time = reference_time - timedelta(hours=lookback_hours)
+
+        # Add upper bound filter only when as_of is specified
+        upper_bound_clause = ""
+        if as_of:
+            upper_bound_clause = "AND wf.created_at <= {as_of:DateTime}"
 
         workflow_filter = ""
         params: Dict[str, Any] = {
@@ -93,6 +122,8 @@ class SignalExtractionDatasource:
             "repo": repo_full_name,
             "head_shas": [str(s) for s in head_shas],
         }
+        if as_of:
+            params["as_of"] = as_of
         workflow_list = list(workflows)
         if workflow_list:
             workflow_filter = "AND wf.workflow_name IN {workflows:Array(String)}"
@@ -126,6 +157,7 @@ class SignalExtractionDatasource:
         WHERE wf.repository_full_name = {{repo:String}}
           AND wf.head_sha IN {{head_shas:Array(String)}}
           AND wf.created_at >= {{lookback_time:DateTime}}
+          {upper_bound_clause}
           AND (
                 wf.name NOT LIKE '%mem_leak_check%'
                 AND wf.name NOT LIKE '%rerun_disabled_tests%'

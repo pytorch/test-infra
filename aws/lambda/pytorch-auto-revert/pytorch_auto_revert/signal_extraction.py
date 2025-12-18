@@ -41,10 +41,12 @@ class SignalExtractor:
         workflows: Iterable[str],
         lookback_hours: int = 24,
         repo_full_name: str = "pytorch/pytorch",
+        as_of: Optional[datetime] = None,
     ) -> None:
         self.workflows = list(workflows)
         self.lookback_hours = lookback_hours
         self.repo_full_name = repo_full_name
+        self.as_of = as_of
         # Datasource for DB access
         self._datasource = SignalExtractionDatasource()
 
@@ -69,6 +71,7 @@ class SignalExtractor:
         commits = self._datasource.fetch_commits_in_time_range(
             repo_full_name=self.repo_full_name,
             lookback_hours=self.lookback_hours,
+            as_of=self.as_of,
         )
 
         # Fetch jobs for these commits
@@ -77,6 +80,7 @@ class SignalExtractor:
             workflows=self.workflows,
             lookback_hours=self.lookback_hours,
             head_shas=[sha for sha, _ in commits],
+            as_of=self.as_of,
         )
 
         # Select jobs to participate in test-track details fetch
