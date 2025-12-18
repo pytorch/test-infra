@@ -1917,6 +1917,13 @@
       "rocm"
     ]
   ],
+  "test_rms_norm_sharing_weights_split_reductions_False_bfloat16 (__main__.MixOrderReductionTest)": [
+    "170736",
+    "https://github.com/pytorch/pytorch/issues/170736",
+    [
+      "xpu"
+    ]
+  ],
   "test_rng (__main__.TestCompilerBisector)": [
     "139590",
     "https://github.com/pytorch/pytorch/issues/139590",
