@@ -30,7 +30,7 @@ from .github_client_helper import GHClientFactory
 from .testers.autorevert_v2 import autorevert_v2
 from .testers.hud import render_hud_html_from_clickhouse, write_hud_html_from_cli
 from .testers.restart_checker import workflow_restart_checker
-from .utils import RestartAction, RetryWithBackoff, RevertAction
+from .utils import parse_datetime, RestartAction, RetryWithBackoff, RevertAction
 
 
 # Special constant to indicate --hud-html was passed as a flag (without a value)
@@ -326,6 +326,16 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
         default=default_config.notify_issue_number,
         help="Issue number to notify",
     )
+    workflow_parser.add_argument(
+        "--as-of",
+        type=str,
+        default=None,
+        help=(
+            "Run as if current time is this timestamp (UTC). "
+            "Accepts ISO 8601 or 'YYYY-MM-DD HH:MM[:SS]' format. "
+            "Useful for testing autorevert logic at a specific point in time."
+        ),
+    )
 
     # workflow-restart-checker subcommand
     workflow_restart_parser = subparsers.add_parser(
@@ -422,6 +432,7 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         restart_action=_get("restart_action", None),
         revert_action=_get("revert_action", None),
         bisection_limit=_get("bisection_limit", None),
+        as_of=parse_datetime(_get("as_of")) if _get("as_of") else None,
         # Application Settings
         log_level=_get("log_level", DEFAULT_LOG_LEVEL),
         dry_run=_get("dry_run", False),
@@ -477,6 +488,7 @@ def build_config_from_event(
         "restart_action": default_config.restart_action,
         "revert_action": default_config.revert_action,
         "bisection_limit": default_config.bisection_limit,
+        "as_of": None,  # Not supported in Lambda invocation
         # Application Settings
         "log_level": default_config.log_level,
         # Force subcommand to autorevert-checker for Lambda
@@ -674,6 +686,7 @@ def main_run(
                 else (config.revert_action or RevertAction.LOG)
             ),
             bisection_limit=config.bisection_limit,
+            as_of=config.as_of,
         )
         write_hud_html_from_cli(config.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
     elif config.subcommand == "workflow-restart-checker":

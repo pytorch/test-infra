@@ -6,6 +6,7 @@ unified interface.
 """
 
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Optional
 
 from .utils import RestartAction, RevertAction
@@ -71,6 +72,7 @@ class AutorevertConfig:
     restart_action: Optional[RestartAction] = None
     revert_action: Optional[RevertAction] = None
     bisection_limit: Optional[int] = None
+    as_of: Optional[datetime] = None
 
     # -------------------------------------------------------------------------
     # Application Settings
