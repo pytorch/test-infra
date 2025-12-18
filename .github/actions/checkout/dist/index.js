@@ -981,7 +981,7 @@ class GitCommandManager {
             yield this.execGit(args);
         });
     }
-    submoduleUpdate(fetchDepth, recursive) {
+    submoduleUpdate(fetchDepth, recursive, filter) {
         return __awaiter(this, void 0, void 0, function* () {
             const args = ['-c', 'protocol.version=2'];
             args.push('submodule', 'update', '--init', '--force');
@@ -990,6 +990,9 @@ class GitCommandManager {
             }
             if (recursive) {
                 args.push('--recursive');
+            }
+            if (filter) {
+                args.push(`--filter=${filter}`);
             }
             yield this.execGit(args);
         });
@@ -1521,8 +1524,9 @@ function getSource(settings) {
                 fetchOptions.filter = 'blob:none';
             }
             if (settings.fetchDepth <= 0) {
-                // Fetch all branches and tags
-                let refSpec = refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
+                let refSpec = settings.singleBranch
+                    ? refHelper.getRefSpec(settings.ref, settings.commit)
+                    : refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
                 yield git.fetch(refSpec, fetchOptions);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
@@ -1582,7 +1586,7 @@ function getSource(settings) {
                 // Checkout submodules
                 core.startGroup('Fetching submodules');
                 yield git.submoduleSync(settings.nestedSubmodules);
-                yield git.submoduleUpdate(settings.fetchDepth, settings.nestedSubmodules);
+                yield git.submoduleUpdate(settings.fetchDepth, settings.nestedSubmodules, settings.submodulesFilter);
                 yield git.submoduleForeach('git config --local gc.auto 0', settings.nestedSubmodules);
                 core.endGroup();
                 // Persist credentials
@@ -2005,6 +2009,10 @@ function getInputs() {
         }
         core.debug(`ref = '${result.ref}'`);
         core.debug(`commit = '${result.commit}'`);
+        // Single branch
+        result.singleBranch =
+            (core.getInput('single-branch') || 'false').toUpperCase() === 'TRUE';
+        core.debug(`single branch = ${result.singleBranch}`);
         // Clean
         result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE';
         core.debug(`clean = ${result.clean}`);
@@ -2053,6 +2061,11 @@ function getInputs() {
         }
         core.debug(`submodules = ${result.submodules}`);
         core.debug(`recursive submodules = ${result.nestedSubmodules}`);
+        const submodulesFilter = core.getInput('submodules-filter');
+        if (submodulesFilter) {
+            result.submodulesFilter = submodulesFilter;
+        }
+        core.debug(`submodules filter = ${result.submodulesFilter}`);
         // Auth token
         result.authToken = core.getInput('token', { required: true });
         // SSH

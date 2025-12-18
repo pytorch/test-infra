@@ -63,6 +63,12 @@ Please refer to the [release page](https://github.com/actions/checkout/releases/
     # Otherwise, uses the default branch.
     ref: ''
 
+    # Whether to fetch only a single branch from the history. When true, only the
+    # history leading to the specified ref is fetched. When false, the full history is
+    # fetched.
+    # Default: false
+    single-branch: ''
+
     # Personal access token (PAT) used to fetch the repository. The PAT is configured
     # with the local git config, which enables your scripts to run authenticated git
     # commands. The post-job step removes the PAT.
@@ -149,6 +155,10 @@ Please refer to the [release page](https://github.com/actions/checkout/releases/
     #
     # Default: false
     submodules: ''
+
+    # Filter to use for submodules.
+    # Default: null
+    submodules-filter: ''
 
     # Add repository path as safe.directory for Git global config by running `git
     # config --global --add safe.directory <path>`
