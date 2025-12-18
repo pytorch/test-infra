@@ -631,11 +631,13 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         if ghf_revert_revision:
             tags = repo.get_tags_for_commit(ghf_revert_revision)
             # Filter tags matching pattern: v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+
-            pattern = re.compile(r'^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$')
+            pattern = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$")
             matching_tags = [tag for tag in tags if pattern.match(tag)]
             if matching_tags:
                 has_matching_tags = True
-                print(f"🏷️  Tags matching v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+ for commit {ghf_revert_revision}:")
+                print(
+                    f"🏷️  Tags matching v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+ for commit {ghf_revert_revision}:"
+                )
                 for tag in matching_tags:
                     print(f"   - {tag}")
 

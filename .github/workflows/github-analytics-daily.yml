@@ -12,24 +12,24 @@ on:
     inputs:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
-        default: "release/2.9"
+        default: "release/2.10"
         required: false
         type: string
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
-        default: 55
+        default: 57
         required: false
         type: string
   workflow_dispatch:
     inputs:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
-        default: "release/2.9"
+        default: "release/2.10"
         required: false
         type: string
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
-        default: 55
+        default: 57
         required: false
         type: string
 
@@ -66,7 +66,7 @@ jobs:
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote origin \
-          --branch "${BRANCH:-release/2.9}" \
+          --branch "${BRANCH}" \
           --analyze-missing-reverts-from-branch
 
     - name: Show outstanding milestone issues
@@ -77,6 +77,6 @@ jobs:
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
           --remote origin \
-          --branch "${BRANCH:-release/2.9}" \
-          --milestone-id "${MILESTONE:-55}" \
+          --branch "${BRANCH}" \
+          --milestone-id "${MILESTONE}" \
           --missing-in-branch
