@@ -1,4 +1,32 @@
-[![Build and Test](https://github.com/actions/checkout/actions/workflows/test.yml/badge.svg)](https://github.com/actions/checkout/actions/workflows/test.yml)
+[![Build and Test](https://github.com/pytorch/test-infra/actions/workflows/checkout-test.yml/badge.svg)](https://github.com/pytorch/test-infra/actions/workflows/checkout-test.yml)
+
+# Pytorch's fork of Checkout
+
+This is a fork of the [`actions/checkout` action](https://github.com/actions/checkout).
+The main addition is the ability to apply filters to submodule handling and the ability to do single branch checkouts also for non-shallow checkouts.
+For this, it adds the `single-branch` and `submodules-filter` option as described in the [Usage](#usage) section.
+
+## Updating to a new version of Checkout
+
+The current version is based on version 6.0.1 of `actions/checkout` and was added to the `pytorch/test-infra` repository in [PR #7597](https://github.com/pytorch/test-infra/pull/7597).
+To update to a new release, start from an updated copy of the upstream sources and cherry-pick the commits from that PR in order, adapting them individually as needed.
+The commits are as follows:
+
+### Cleanup fork
+This removes parts of the upstream sources that are not applicable, such as their contributions guide, and adapts the remainder of the code to the different directory layout dictated by the integration of several actions and other parts in the single `test-infra` repository.
+
+### Add submodules filter
+This commit adds the `submodules-filter` option, allowing for filtering also in submodules.
+
+### Add single-branch fetch option
+This commit adds the `single-branch` option, allowing for single-branch clones even in the case of non-shallow clones.
+
+### Transpile
+This commit adds the changes from the previous commits to the `dist/index.js` file and updates this `README.md` file with the documentation for the new options.
+It should be created using the `npm run build` command in the checkout directory.
+
+### Update README.md
+This commit updates the README.md file with the information specific to this fork.
 
 # Checkout v6
 
