@@ -186,7 +186,7 @@ def upload_to_dynamodb(
 
 
 def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
-    benchmark_results = []
+    benchmark_results: List[Dict[str, Any]] = []
     with open(filepath) as f:
         try:
             r = json.load(f)
