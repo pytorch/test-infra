@@ -26,7 +26,6 @@ const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
   pytorch_helion: PytorchHelionDataFetcher,
   torchao_micro_api_benchmark: PytorchAoMicroApiBenchmarkDataFetcher,
   vllm_benchmark: VllmBenchmarkDataFetcher,
-  pytorch_x_vllm_benchmark: VllmBenchmarkDataFetcher,
   default: BenchmarkDataQuery,
 };
 
