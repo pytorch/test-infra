@@ -182,7 +182,7 @@ jobs:
                docker exec -it $(docker container ps --format '{{.ID}}') bash
 
       - name: Checkout repository (${{ inputs.repository || github.repository }}@${{ inputs.ref }})
-        uses: ./.github/actions/checkout@add-checkout-action
+        uses: pytorch/test-infra/.github/actions/checkout@add-checkout-action
         # uses: zklaus/checkout@4a5ddcafe75fd4cd42b59eff291c317d66eea084  # submodules filter enabled
         # uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
