@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import time
 from argparse import Action, ArgumentParser, Namespace
 from decimal import Decimal
@@ -17,7 +18,6 @@ from json.decoder import JSONDecodeError
 from logging import info
 from typing import Any, Callable, Dict, List, Optional
 from warnings import warn
-import sys
 
 import boto3  # type: ignore[import-not-found]
 
