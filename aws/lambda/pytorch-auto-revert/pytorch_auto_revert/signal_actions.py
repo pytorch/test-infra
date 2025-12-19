@@ -412,7 +412,13 @@ class SignalActionProcessor:
                 )
                 return False
 
-        notes = ""
+        # Build notes incrementally
+        notes_parts: list[str] = []
+        if jobs_to_include:
+            notes_parts.append(f"jobs_filter={','.join(jobs_to_include)}")
+        if tests_to_include:
+            notes_parts.append(f"tests_filter={','.join(tests_to_include)}")
+
         ok = True
         if not dry_run:
             try:
@@ -424,21 +430,13 @@ class SignalActionProcessor:
                 )
             except Exception as exc:
                 ok = False
-                notes = str(exc) or repr(exc)
+                notes_parts.append(str(exc) or repr(exc))
                 logging.exception(
                     "[v2][action] restart for sha %s: exception while dispatching",
                     commit_sha[:8],
                 )
 
-        # Build notes with filter information
-        notes_parts = []
-        if jobs_to_include:
-            notes_parts.append(f"jobs_filter={','.join(jobs_to_include)}")
-        if tests_to_include:
-            notes_parts.append(f"tests_filter={','.join(tests_to_include)}")
-        if notes:  # Error message from exception
-            notes_parts.append(notes)
-        notes = "; ".join(notes_parts) if notes_parts else ""
+        notes = "; ".join(notes_parts)
 
         self._logger.insert_event(
             repo=ctx.repo_full_name,

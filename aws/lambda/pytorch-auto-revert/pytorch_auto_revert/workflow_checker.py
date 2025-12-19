@@ -9,7 +9,7 @@ from typing import Dict, FrozenSet, Set
 
 from .clickhouse_client_helper import CHCliFactory
 from .utils import proper_workflow_create_dispatch, RetryWithBackoff
-from .workflow_resolver import WorkflowResolver
+from .workflow_resolver import WorkflowInputSupport, WorkflowResolver
 
 
 class WorkflowRestartChecker:
@@ -146,8 +146,16 @@ class WorkflowRestartChecker:
         # Resolve workflow (exact display or file name)
         wf_ref = self.resolver.require(workflow_name)
 
-        # Check what inputs this workflow supports
-        input_support = self.resolver.get_input_support(workflow_name)
+        # Check what inputs this workflow supports (fail gracefully)
+        try:
+            input_support = self.resolver.get_input_support(workflow_name)
+        except Exception:
+            logging.warning(
+                "Failed to check input support for %s, proceeding without filters",
+                workflow_name,
+                exc_info=True,
+            )
+            input_support = WorkflowInputSupport()
 
         # Build inputs dict based on support and available filters
         inputs: Dict[str, str] = {}
@@ -156,10 +164,14 @@ class WorkflowRestartChecker:
         if input_support.tests_to_include and tests_to_include:
             inputs["tests-to-include"] = " ".join(tests_to_include)
 
+        # Separate retry scopes: don't retry get_repo/get_workflow on dispatch failure
         for attempt in RetryWithBackoff():
             with attempt:
                 repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
                 workflow = repo.get_workflow(wf_ref.file_name)
+
+        for attempt in RetryWithBackoff():
+            with attempt:
                 proper_workflow_create_dispatch(workflow, ref=tag_ref, inputs=inputs)
 
         workflow_url = (
