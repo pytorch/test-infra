@@ -151,6 +151,7 @@ runs:
       shell: bash
       env:
         BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
+        BENCHMARK_NAME: ${{ inputs.benchmark-name || '' }}
         DRY_RUN: ${{ inputs.dry-run }}
         # Additional information about the benchmarks
         BENCHMARK_METADATA: ${{ steps.gather-metadata.outputs.metadata }}
