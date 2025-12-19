@@ -164,6 +164,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         ],
       },
       {
+        name: "PyTorch x vLLM Benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_X_VLLM_BENCHMARK_ID}`,
+        info: "PyTorch integration benchmark for vLLM",
+        description: "Benchmark comparing PyTorch with vLLM performance",
+      },
+      {
         name: "Gpt-fast Benchmark",
         route: `/benchmark/v3/dashboard/${PYTORCH_GPTFAST_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/gpt_fast)",
@@ -192,12 +198,6 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
       {
         name: "Triton Benchmark",
         route: "/tritonbench/commit_view",
-      },
-      {
-        name: "PyTorch x vLLM Benchmark",
-        route: `/benchmark/v3/dashboard/${PYTORCH_X_VLLM_BENCHMARK_ID}`,
-        info: "PyTorch integration benchmark for vLLM",
-        description: "Benchmark comparing PyTorch with vLLM performance",
       },
     ],
   },
