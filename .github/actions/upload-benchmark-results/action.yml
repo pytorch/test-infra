@@ -3,7 +3,10 @@ name: Upload benchmark results
 inputs:
   benchmark-results-dir:
     description: 'The path to the directory with all the results in JSON format'
-    required: True
+    required: true
+  benchmark-name:
+    description: 'Manually set the name of the benchmark'
+    default: ''
   dry-run:
     default: 'true'
   schema-version:
@@ -12,7 +15,6 @@ inputs:
     default: ''
   venv:
     description: 'Path to virtual environment to activate'
-    required: false
     default: ''
 
 runs:
@@ -106,6 +108,7 @@ runs:
         RUN_ATTEMPT: ${{ github.run_attempt }}
         JOB_ID: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-id || '0' }}
         JOB_NAME: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-name || '' }}
+        BENCHMARK_NAME: ${{ inputs.benchmark-name || '' }}
       run: |
         set -eux
 
