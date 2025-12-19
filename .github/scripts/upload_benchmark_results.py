@@ -221,7 +221,9 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
     if os.getenv("BENCHMARK_NAME"):
         benchmark_name = os.getenv("BENCHMARK_NAME")
         for bresult in benchmark_results:
-            if bresult.get("benchmark") and bresult.get("benchmark").get("name"):
+            if bresult.get("benchmark", {}) and bresult.get("benchmark", {}).get(
+                "name"
+            ):
                 bresult["benchmark"]["name"] = benchmark_name
 
     return benchmark_results
