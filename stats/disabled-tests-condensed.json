@@ -71,6 +71,16 @@
       "xpu"
     ]
   ],
+  "test_all_gather_collective (__main__.FxGraphRunnableTest)": [
+    "166484",
+    "https://github.com/pytorch/pytorch/issues/166484",
+    [
+      "asan",
+      "linux",
+      "rocm",
+      "xpu"
+    ]
+  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
@@ -1481,27 +1491,6 @@
       "inductor"
     ]
   ],
-  "test_nonzero_static_stride_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "170436",
-    "https://github.com/pytorch/pytorch/issues/170436",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nonzero_static_stride_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
-    "170420",
-    "https://github.com/pytorch/pytorch/issues/170420",
-    [
-      "xpu"
-    ]
-  ],
-  "test_nonzero_static_stride_xpu (__main__.GPUTests)": [
-    "170412",
-    "https://github.com/pytorch/pytorch/issues/170412",
-    [
-      "xpu"
-    ]
-  ],
   "test_opaque_obj_retraceability_nonstrict (__main__.RetraceExportNonStrictTestExport)": [
     "170449",
     "https://github.com/pytorch/pytorch/issues/170449",
@@ -1917,13 +1906,6 @@
       "rocm"
     ]
   ],
-  "test_rms_norm_sharing_weights_split_reductions_False_bfloat16 (__main__.MixOrderReductionTest)": [
-    "170736",
-    "https://github.com/pytorch/pytorch/issues/170736",
-    [
-      "xpu"
-    ]
-  ],
   "test_rng (__main__.TestCompilerBisector)": [
     "139590",
     "https://github.com/pytorch/pytorch/issues/139590",
@@ -2015,6 +1997,13 @@
     "https://github.com/pytorch/pytorch/issues/91488",
     [
       "linux"
+    ]
+  ],
+  "test_template_bad_epilogue_fusion_use_async_compile_False (__main__.TestEpilogueFusionStaticAnalysis)": [
+    "170854",
+    "https://github.com/pytorch/pytorch/issues/170854",
+    [
+      "xpu"
     ]
   ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
