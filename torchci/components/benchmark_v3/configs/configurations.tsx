@@ -166,8 +166,8 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
       {
         name: "PyTorch x vLLM Benchmark",
         route: `/benchmark/v3/dashboard/${PYTORCH_X_VLLM_BENCHMARK_ID}`,
-        info: "PyTorch integration benchmark for vLLM",
-        description: "Benchmark comparing PyTorch with vLLM performance",
+        info: "PyTorch x vLLM nightly benchmark. Powered by [code](TODO) and [benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
+        description: "Pytorch x vLLM nightly benchmark using vllm bench",
       },
       {
         name: "Gpt-fast Benchmark",
