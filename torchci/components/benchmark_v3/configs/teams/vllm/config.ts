@@ -46,6 +46,8 @@ export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
     initial: {
       ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
       benchmarkId: PYTORCH_VLLM_BENCHMARK_ID,
+      lbranch: "main(main)",
+      rbranch: "main(main)",
     },
     required_filter_fields: [],
   },

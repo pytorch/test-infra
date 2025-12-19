@@ -213,12 +213,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     items: [
       {
         name: "VLLM V1 Benchmark",
-        route: "/benchmark/llms?repoName=vllm-project%2Fvllm",
+        route: `/benchmark/v3/dashboard/${PYTORCH_VLLM_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
         actions: [
           {
-            label: "new UI (wip)",
-            href: `/benchmark/v3/dashboard/${PYTORCH_VLLM_BENCHMARK_ID}`,
+            label: "legacy dashboard",
+            href: "/benchmark/llms?repoName=vllm-project%2Fvllm",
           },
         ],
       },
