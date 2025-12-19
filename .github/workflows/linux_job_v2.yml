@@ -185,8 +185,6 @@ jobs:
         # Once #7597 is merged, the following line should be replaced with:
         # uses: ./.github/actions/checkout
         uses: zklaus/test-infra/.github/actions/checkout@add-checkout-action
-        # uses: zklaus/checkout@4a5ddcafe75fd4cd42b59eff291c317d66eea084  # submodules filter enabled
-        # uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
