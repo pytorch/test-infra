@@ -2252,6 +2252,13 @@
       "rocm"
     ]
   ],
+  "test_view_as_complex_xpu (__main__.TestViewOpsXPU)": [
+    "170853",
+    "https://github.com/pytorch/pytorch/issues/170853",
+    [
+      "xpu"
+    ]
+  ],
   "test_vit_aten_export (__main__.TestQuantizePT2EModels)": [
     "113506",
     "https://github.com/pytorch/pytorch/issues/113506",
