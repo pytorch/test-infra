@@ -319,6 +319,7 @@ def upload_to_s3(
 def main() -> None:
     args = parse_args()
 
+    has_results_uploaded = False
     for file in os.listdir(args.benchmark_results_dir):
         if not file.endswith(".json"):
             continue
@@ -349,6 +350,7 @@ def main() -> None:
         if not benchmark_results:
             continue
 
+        has_results_uploaded = True
         upload_to_s3(
             s3_bucket=OSSCI_BENCHMARKS_BUCKET,
             filepath=filepath,
@@ -356,6 +358,12 @@ def main() -> None:
             benchmark_results=benchmark_results,
             dry_run=args.dry_run,
         )
+
+    # When there is no benchmark results, treat it as a failure. This is better
+    # than failing silently.
+    if not has_results_uploaded:
+        warn(f"Find no benchmark results in {args.benchmark_results}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":
