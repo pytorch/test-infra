@@ -27,20 +27,8 @@ runs:
         elif command -v rocm-smi; then
           DEVICE_NAME=rocm
           rocm-smi
-        elif command -v hl-smi; then
-          DEVICE_NAME=hpu
-          hl-smi
         else
-          arch=$(uname -m)
-
-          case "$arch" in
-            aarch64|arm64)
-              DEVICE_NAME=arm64-cpu
-              ;;
-            *)
-              DEVICE_NAME=cpu
-              ;;
-          esac
+          DEVICE_NAME=cpu
           lscpu
         fi
         echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
@@ -54,12 +42,8 @@ runs:
           DEVICE_TYPE=$(nvidia-smi -i 0 --query-gpu=name --format=csv,noheader | awk '{print $2}')
         elif [[ "${DEVICE_NAME}" == "rocm" ]]; then
           DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
-        elif [[ "${DEVICE_NAME}" == "hpu" ]]; then
-          DEVICE_TYPE="Intel Gaudi3 "$(hl-smi -q | grep "Product Name" | head -n 1 | awk -F ':' '{print $2}' | sed 's/^ *//')
         elif [[ "${DEVICE_NAME}" == "cpu" ]]; then
-          DEVICE_TYPE="$(lscpu | grep "Model name" | sed -E 's/.*Model name:[[:space:]]*//; s/Intel\(R\)//g; s/\(R\)//g; s/\(TM\)//g; s/CPU//g; s/Processor//g; s/[[:space:]]+/ /g; s/^ //; s/ $//; s/ /_/g')_$(awk -F: '/Core\(s\) per socket/ {c=$2} /Socket\(s\)/ {s=$2} END {gsub(/ /,"",c); gsub(/ /,"",s); printf "%sc", c*s}' < <(lscpu))"
-        elif [[ "${DEVICE_NAME}" == "arm64-cpu" ]]; then
-          DEVICE_TYPE=$(lscpu | grep 'Vendor ID' | cut -f 2 -d ":" | awk '{$1=$1}1' | cut -f 2 -d " ")
+          DEVICE_TYPE=$(lscpu | grep 'Model name' | cut -f 2 -d ":" | awk '{$1=$1}1' | cut -f 2 -d " ")
         fi
         echo "DEVICE_TYPE=$DEVICE_TYPE" >> $GITHUB_ENV
 
