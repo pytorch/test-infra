@@ -40,6 +40,10 @@ on:
         description: 'Number of commits to fetch, defaults to 1 similar to actions/checkout'
         default: 1
         type: number
+      single-branch:
+        description: 'Whether to fetch only a single branch, defaults to true'
+        default: true
+        type: boolean
       checkout-mode:
         description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
         default: "normal"
@@ -189,6 +193,7 @@ jobs:
           # Support the use case where we need to checkout someone's fork
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
+          single-branch: ${{ inputs.single-branch }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
