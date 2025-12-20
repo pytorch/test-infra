@@ -836,6 +836,20 @@
       "linux"
     ]
   ],
+  "test_float8_basics_xpu (__main__.TestFP8MatmulXPU)": [
+    "169772",
+    "https://github.com/pytorch/pytorch/issues/169772",
+    [
+      "xpu"
+    ]
+  ],
+  "test_float8_scale_fast_accum_xpu (__main__.TestFP8MatmulXPU)": [
+    "169556",
+    "https://github.com/pytorch/pytorch/issues/169556",
+    [
+      "xpu"
+    ]
+  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -1690,13 +1704,6 @@
       "mac"
     ]
   ],
-  "test_reduce_scatter_collective (__main__.FxGraphRunnableTest)": [
-    "169924",
-    "https://github.com/pytorch/pytorch/issues/169924",
-    [
-      "xpu"
-    ]
-  ],
   "test_reduce_scatter_float8 (__main__.ProcessGroupNCCLOpTest)": [
     "157897",
     "https://github.com/pytorch/pytorch/issues/157897",
@@ -1974,6 +1981,13 @@
       "xpu"
     ]
   ],
+  "test_template_bad_epilogue_fusion_use_async_compile_True (__main__.TestEpilogueFusionStaticAnalysis)": [
+    "170923",
+    "https://github.com/pytorch/pytorch/issues/170923",
+    [
+      "xpu"
+    ]
+  ],
   "test_tensor_as_tensor_shape_prop (test_jit.TestScript)": [
     "91482",
     "https://github.com/pytorch/pytorch/issues/91482",
@@ -2054,14 +2068,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_toy_model_basic (__main__.FxGraphRunnableTest)": [
-    "163595",
-    "https://github.com/pytorch/pytorch/issues/163595",
-    [
-      "asan",
-      "linux"
     ]
   ],
   "test_toy_model_batch_processing (__main__.FxGraphRunnableTest)": [
@@ -2207,6 +2213,13 @@
     "https://github.com/pytorch/pytorch/issues/149016",
     [
       "rocm"
+    ]
+  ],
+  "test_view_as_complex_xpu (__main__.TestViewOpsXPU)": [
+    "170853",
+    "https://github.com/pytorch/pytorch/issues/170853",
+    [
+      "xpu"
     ]
   ],
   "test_vit_aten_export (__main__.TestQuantizePT2EModels)": [
