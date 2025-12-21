@@ -2145,6 +2145,13 @@
       "linux"
     ]
   ],
+  "test_triton_kernel_ill_formed (__main__.KernelTests)": [
+    "170975",
+    "https://github.com/pytorch/pytorch/issues/170975",
+    [
+      "xpu"
+    ]
+  ],
   "test_triu_tril_large_matrix_64bit_cuda (__main__.TestLinalgCUDA)": [
     "165966",
     "https://github.com/pytorch/pytorch/issues/165966",
@@ -2229,6 +2236,13 @@
   "test_view_as_complex_xpu (__main__.TestViewOpsXPU)": [
     "170853",
     "https://github.com/pytorch/pytorch/issues/170853",
+    [
+      "xpu"
+    ]
+  ],
+  "test_view_as_real_xpu_complex64 (__main__.TestViewOpsXPU)": [
+    "170974",
+    "https://github.com/pytorch/pytorch/issues/170974",
     [
       "xpu"
     ]
