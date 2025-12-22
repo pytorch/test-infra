@@ -668,13 +668,6 @@
       "slow"
     ]
   ],
-  "test_disable_external_correlation (__main__.TestProfiler)": [
-    "143373",
-    "https://github.com/pytorch/pytorch/issues/143373",
-    [
-      "rocm"
-    ]
-  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
@@ -814,14 +807,6 @@
       "asan",
       "linux",
       "rocm"
-    ]
-  ],
-  "test_dynamic_toggle (__main__.TestProfiler)": [
-    "134479",
-    "https://github.com/pytorch/pytorch/issues/134479",
-    [
-      "rocm",
-      "windows"
     ]
   ],
   "test_emulate_precision_casts_mean_ratio_chain (__main__.CudaReproTests)": [
