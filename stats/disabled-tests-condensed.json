@@ -1599,6 +1599,13 @@
       "slow"
     ]
   ],
+  "test_pretrained (__main__.TestHFPretrained)": [
+    "171135",
+    "https://github.com/pytorch/pytorch/issues/171135",
+    [
+      "linux"
+    ]
+  ],
   "test_pretrained_non_const_attr (__main__.TestHFPretrained)": [
     "169481",
     "https://github.com/pytorch/pytorch/issues/169481",
