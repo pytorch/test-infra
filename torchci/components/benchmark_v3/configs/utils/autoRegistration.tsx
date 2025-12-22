@@ -1,6 +1,7 @@
 import {
   AutoBenchmarkComparisonGithubExternalLink,
   AutoBenchmarkLogs,
+  AutoBenchmarkMarkDownContent,
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
   AutoBenchmarkShortcutCardList,
@@ -73,6 +74,9 @@ export class AutoComponentRegistry {
       },
       AutoBenchmarkShortcutCardList: {
         Component: AutoBenchmarkShortcutCardList,
+      },
+      AutoBenchmarkMarkDownContent: {
+        Component: AutoBenchmarkMarkDownContent,
       },
       // Add your auto components here
     };
