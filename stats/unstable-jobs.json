@@ -71,6 +71,14 @@
     "linux-docs",
     "build-docs-python-false"
   ],
+  "pull / linux-jammy-py3.10-clang12-onnx / test (default)": [
+    "malfet",
+    "171141",
+    "https://github.com/pytorch/pytorch/issues/171141",
+    "pull",
+    "linux-jammy-py3.10-clang12-onnx",
+    "test (default)"
+  ],
   "pull / linux-jammy-py3.10-gcc11 / test (docs_test)": [
     "clee2000",
     "171130",
