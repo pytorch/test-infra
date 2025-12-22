@@ -189,7 +189,7 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     subtitle: "Benchmarks related to repo pytorch/torchao",
     items: [
       {
-        name: "TorchAO Micro API Benchmark",
+        name: "TorchAo API MicroBenchmark",
         route: `/benchmark/v3/dashboard/${PYTORCH_AO_MICRO_API_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/ao/blob/main/docs/source/benchmarking_api_guide.md)",
         actions: [
