@@ -258,10 +258,18 @@ export class TorchAoMicrobApienchmarkMetadataFetcher
       "Quant Type"
     );
     if (customizedDtype) {
-      li.push(customizedDtype);
+      const modelNameIndex = li.findIndex(
+        (item) => item.type === BenchmarkMetadataType.ModelName
+      );
+      if (modelNameIndex !== -1) {
+        li.splice(modelNameIndex, 0, customizedDtype);
+      } else {
+        li.push(customizedDtype); // fallback if modelName not found
+      }
     }
     return li;
   }
+
   build() {
     return this._data_query.build();
   }
