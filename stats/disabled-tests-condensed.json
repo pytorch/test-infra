@@ -340,11 +340,39 @@
       "inductor"
     ]
   ],
+  "test_comprehensive_fft_fft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171016",
+    "https://github.com/pytorch/pytorch/issues/171016",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_fft_fftshift_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "140484",
     "https://github.com/pytorch/pytorch/issues/140484",
     [
       "inductor"
+    ]
+  ],
+  "test_comprehensive_fft_ifft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171017",
+    "https://github.com/pytorch/pytorch/issues/171017",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_fft_ihfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171018",
+    "https://github.com/pytorch/pytorch/issues/171018",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_fft_rfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171014",
+    "https://github.com/pytorch/pytorch/issues/171014",
+    [
+      "xpu"
     ]
   ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
@@ -2052,6 +2080,13 @@
       "rocm"
     ]
   ],
+  "test_tiling_split_valid (__main__.TestTilingExtra)": [
+    "171010",
+    "https://github.com/pytorch/pytorch/issues/171010",
+    [
+      "xpu"
+    ]
+  ],
   "test_torch_function_all_disabled_api (__main__.TestTorchFunctionMode)": [
     "162704",
     "https://github.com/pytorch/pytorch/issues/162704",
@@ -2236,6 +2271,20 @@
   "test_view_as_complex_xpu (__main__.TestViewOpsXPU)": [
     "170853",
     "https://github.com/pytorch/pytorch/issues/170853",
+    [
+      "xpu"
+    ]
+  ],
+  "test_view_as_real_xpu_complex128 (__main__.TestViewOpsXPU)": [
+    "171013",
+    "https://github.com/pytorch/pytorch/issues/171013",
+    [
+      "xpu"
+    ]
+  ],
+  "test_view_as_real_xpu_complex32 (__main__.TestViewOpsXPU)": [
+    "171012",
+    "https://github.com/pytorch/pytorch/issues/171012",
     [
       "xpu"
     ]
