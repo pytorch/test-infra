@@ -110,12 +110,26 @@ class WorkflowResolver:
         for attempt in RetryWithBackoff():
             with attempt:
                 for w in self._repository.get_workflows():
+                    # Skip disabled workflows (deleted files may leave stale entries)
+                    state = getattr(w, "state", "") or ""
+                    if state != "active":
+                        continue
                     name = getattr(w, "name", "") or ""
                     path = getattr(w, "path", "") or ""
                     base = os.path.basename(path) if path else ""
                     if not (name and base):
                         continue
                     ref = WorkflowRef(display_name=name, file_name=base)
+                    if name in self._by_display:
+                        existing = self._by_display[name]
+                        logging.warning(
+                            "Duplicate workflow display name '%s': %s vs %s, keeping %s",
+                            name,
+                            existing.file_name,
+                            base,
+                            existing.file_name,
+                        )
+                        continue
                     self._by_display[name] = ref
                     self._by_file[base] = ref
 
