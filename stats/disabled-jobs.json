@@ -126,5 +126,13 @@
     "test_symmetric_bias_batch:2_head:4_seq_len:37_headdim:16_dtype:bfloat16_mode_max-autotune-no-cudagraphs_cuda (__main__.TestLearnableBiasesCUDA)",
     "",
     ""
+  ],
+  "trunk-rocm-mi300 / linux-jammy-rocm-py3.10 / test": [
+    "jithunnair-amd",
+    "167849",
+    "https://github.com/pytorch/pytorch/issues/167849",
+    "trunk-rocm-mi300",
+    "linux-jammy-rocm-py3.10",
+    "test"
   ]
 }
