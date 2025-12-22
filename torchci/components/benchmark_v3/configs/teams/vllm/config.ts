@@ -68,6 +68,13 @@ export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
         },
         renders: [
           {
+            type: "AutoBenchmarkMarkDownContent",
+            config: {
+              content:
+                "The data is generaterd based on pinned pytorch with latest vllm, powered by pytorch-integration-testing [workflow](https://github.com/pytorch/pytorch-integration-testing/actions/workflows/vllm-benchmark.yml)",
+            },
+          },
+          {
             type: "AutoBenchmarkTimeSeriesChartGroup",
             title: "Metrics Time Series Chart Detail View",
             config: {
@@ -120,6 +127,13 @@ export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
       },
     },
     renders: [
+      {
+        type: "AutoBenchmarkMarkDownContent",
+        config: {
+          content:
+            "The dashboard is generaterd based on pinned pytorch with latest vllm, powered by pytorch-integration-testing [workflow](https://github.com/pytorch/pytorch-integration-testing/actions/workflows/vllm-benchmark.yml)",
+        },
+      },
       {
         type: "AutoBenchmarkPairwiseTable",
         title: "Comparison Table",
