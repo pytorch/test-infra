@@ -1135,6 +1135,13 @@
       "slow"
     ]
   ],
+  "test_index (__main__.DistTensorOpsTest)": [
+    "171119",
+    "https://github.com/pytorch/pytorch/issues/171119",
+    [
+      "rocm"
+    ]
+  ],
   "test_index_add_correctness (__main__.TestTorch)": [
     "91184",
     "https://github.com/pytorch/pytorch/issues/91184",
