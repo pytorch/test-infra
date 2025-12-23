@@ -49,3 +49,43 @@ jobs:
       dependencies: ${{ needs.test-gather-benchmark-info.outputs.dependencies }}
       schema-version: v3
       dry-run: true
+
+  test-upload-benchmark-results-no-files-found-ignore:
+    runs-on: linux.2xlarge
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Test upload the benchmark results
+        uses: ./.github/actions/upload-benchmark-results
+        with:
+          # There is no benchmark results in this directory
+          benchmark-results-dir: .github/scripts/benchmarks
+          schema-version: v3
+          dry-run: true
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  test-upload-benchmark-results-no-files-found-error:
+    runs-on: linux.2xlarge
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Test upload the benchmark results
+        id: upload
+        continue-on-error: true
+        uses: ./.github/actions/upload-benchmark-results
+        with:
+          # There is no benchmark results in this directory
+          benchmark-results-dir: .github/scripts/benchmarks
+          schema-version: v3
+          dry-run: true
+          if-no-files-found: error
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check that the upload fails
+        env:
+          UPLOAD_STATUS: ${{ steps.upload.conclusion }}
+        shell: bash
+        run: |
+          if [[ "${UPLOAD_STATUS}" != "failure" ]]; then
+            exit 1
+          fi
