@@ -86,6 +86,7 @@ PREFIXES = [
     "whl/test/variant",
     "whl/variant",
     "whl/preview/forge",
+    "source_code/test",
 ]
 
 # NOTE: This refers to the name on the wheels themselves and not the name of
@@ -661,6 +662,21 @@ class S3Index:
             out.append(f'<a href="/{obj.key}">{sanitized_obj}</a><br/>')
         return "\n".join(sorted(out))
 
+    def to_source_code_html(self, subdir: Optional[str] = None) -> str:
+        """Generates a string that can be used as the HTML index for source code packages
+
+        Creates a simple browseable index for pytorch-*.tar.gz source code packages.
+        """
+        out: List[str] = []
+        subdir = self._resolve_subdir(subdir)
+        for obj in self.gen_file_list(subdir):
+            # Strip our prefix
+            sanitized_obj = obj.key.replace(subdir, "", 1)
+            if sanitized_obj.startswith("/"):
+                sanitized_obj = sanitized_obj.lstrip("/")
+            out.append(f'<a href="/{obj.key}">{sanitized_obj}</a><br/>')
+        return "\n".join(sorted(out))
+
     def to_simple_package_html(
         self,
         subdir: Optional[str],
@@ -803,6 +819,34 @@ class S3Index:
                     ContentType="text/html",
                     Body=index_html,
                 )
+
+    def upload_source_code_html(self) -> None:
+        """Upload source code index to S3 and R2"""
+        # For source_code/test, it has a flat structure, so we only upload to the prefix directory
+        index_html = self.to_source_code_html(subdir=self.prefix)
+
+        # Upload to S3
+        print(
+            f"INFO Uploading {self.prefix}/{self.html_name} to S3 bucket {BUCKET.name}"
+        )
+        BUCKET.Object(key=f"{self.prefix}/{self.html_name}").put(
+            ACL="public-read",
+            CacheControl="no-cache,no-store,must-revalidate",
+            ContentType="text/html",
+            Body=index_html,
+        )
+
+        # Upload to R2 if configured
+        if R2_BUCKET:
+            print(
+                f"INFO Uploading {self.prefix}/{self.html_name} to R2 bucket {R2_BUCKET.name}"
+            )
+            R2_BUCKET.Object(key=f"{self.prefix}/{self.html_name}").put(
+                ACL="public-read",
+                CacheControl="no-cache,no-store,must-revalidate",
+                ContentType="text/html",
+                Body=index_html,
+            )
 
     def upload_pep503_htmls(self) -> None:
         # Pre-fetch bucket listings for all subdirectories to optimize S3 API calls
@@ -969,6 +1013,15 @@ class S3Index:
                 path.join(subdir, self.html_name), mode="w", encoding="utf-8"
             ) as f:
                 f.write(self.to_libtorch_html(subdir=subdir))
+
+    def save_source_code_html(self) -> None:
+        """Save source code index to local file"""
+        print(f"INFO Saving {self.prefix}/{self.html_name}")
+        makedirs(self.prefix, exist_ok=True)
+        with open(
+            path.join(self.prefix, self.html_name), mode="w", encoding="utf-8"
+        ) as f:
+            f.write(self.to_source_code_html(subdir=self.prefix))
 
     def save_pep503_htmls(self) -> None:
         for subdir in self.subdirs:
@@ -1150,6 +1203,17 @@ class S3Index:
     @classmethod
     def fetch_object_names(cls, prefix: str) -> List[str]:
         obj_names = []
+
+        # Special handling for source_code prefix - flat structure with only tar.gz files
+        if prefix.startswith("source_code"):
+            for obj in BUCKET.objects.filter(Prefix=prefix):
+                # For source_code, we only want files directly in the prefix directory
+                # and they should be tar.gz files matching pytorch-*.tar.gz
+                if path.dirname(obj.key) == prefix and obj.key.endswith(".tar.gz"):
+                    obj_names.append(obj.key)
+            return obj_names
+
+        # Original logic for whl and libtorch prefixes
         for obj in BUCKET.objects.filter(Prefix=prefix):
             is_acceptable = any(
                 [path.dirname(obj.key) == prefix]
@@ -1331,6 +1395,7 @@ def main() -> None:
     prefixes = PREFIXES if args.prefix == "all" else [args.prefix]
     for prefix in prefixes:
         generate_pep503 = prefix.startswith("whl")
+        generate_source_code = prefix.startswith("source_code")
         print(f"INFO: {action} for '{prefix}'")
         stime = time.time()
         idx = S3Index.from_S3(
@@ -1345,11 +1410,15 @@ def main() -> None:
         elif args.do_not_upload:
             if generate_pep503:
                 idx.save_pep503_htmls()
+            elif generate_source_code:
+                idx.save_source_code_html()
             else:
                 idx.save_libtorch_html()
         else:
             if generate_pep503:
                 idx.upload_pep503_htmls()
+            elif generate_source_code:
+                idx.upload_source_code_html()
             else:
                 idx.upload_libtorch_html()
 
