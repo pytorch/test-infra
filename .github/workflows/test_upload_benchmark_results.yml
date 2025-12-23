@@ -83,7 +83,7 @@ jobs:
 
       - name: Check that the upload fails
         env:
-          UPLOAD_STATUS: ${{ steps.upload.conclusion }}
+          UPLOAD_STATUS: ${{ steps.upload.outcome }}
         shell: bash
         run: |
           if [[ "${UPLOAD_STATUS}" != "failure" ]]; then
