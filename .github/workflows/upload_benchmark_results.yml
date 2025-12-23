@@ -26,6 +26,13 @@ on:
       dry-run:
         default: true
         type: boolean
+      if-no-files-found:
+        description: The desired behavior if no benchmark results are found
+        # Available Options:
+        #   error: Fail the action with an error message
+        #   ignore: Do not output any warnings or errors, the action does not fail
+        # Optional. Default is 'ignore'
+        default: ignore
 
 jobs:
   job:
@@ -55,6 +62,7 @@ jobs:
         env:
           BENCHMARK_RESULTS_DIR: ${{ runner.temp }}/benchmark-artifact
           DRY_RUN: ${{ inputs.dry-run }}
+          IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found || 'ignore' }}
           # Additional information about the benchmarks
           BENCHMARK_METADATA: ${{ inputs.benchmark-metadata }}
           RUNNERS_INFO: ${{ inputs.runners-info }}

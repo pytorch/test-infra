@@ -369,10 +369,12 @@ def main() -> None:
             dry_run=args.dry_run,
         )
 
+    # Remember to keep ignore as the default behavior
+    if_no_files_found = os.getenv("IF_NO_FILES_FOUND", "ignore")
     # When there is no benchmark results, treat it as a failure. This is better
     # than failing silently.
-    if not has_results_uploaded:
-        warn(f"Find no benchmark results in {args.benchmark_results}")
+    if not has_results_uploaded and if_no_files_found == "error":
+        warn(f"Find no benchmark results in {args.benchmark_results_dir}")
         sys.exit(1)
 
 
