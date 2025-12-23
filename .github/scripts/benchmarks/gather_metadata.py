@@ -83,7 +83,7 @@ def main() -> None:
     metadata = {
         "timestamp": int(time.time()),
         "schema_version": args.schema_version,
-        "name": os.getenv("BENCHMARK_NAME", args.job_name),
+        "name": args.job_name,
         "repo": args.repo,
         "head_branch": args.head_branch,
         "head_sha": args.head_sha,
