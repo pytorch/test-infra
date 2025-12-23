@@ -1611,6 +1611,13 @@
       "rocm"
     ]
   ],
+  "test_post_accumulate_grad_hook_e2e (__main__.TestAutograd)": [
+    "137892",
+    "https://github.com/pytorch/pytorch/issues/137892",
+    [
+      "dynamo"
+    ]
+  ],
   "test_pre_grad (__main__.TestCompilerBisector)": [
     "164462",
     "https://github.com/pytorch/pytorch/issues/164462",
