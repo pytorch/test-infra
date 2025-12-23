@@ -167,6 +167,13 @@
       "rocm"
     ]
   ],
+  "test_basic_xpu (__main__.EfficientConvBNEvalGpuTests)": [
+    "171163",
+    "https://github.com/pytorch/pytorch/issues/171163",
+    [
+      "xpu"
+    ]
+  ],
   "test_benchmark_choice_in_subproc (__main__.TestMaxAutotuneSubproc)": [
     "158335",
     "https://github.com/pytorch/pytorch/issues/158335",
@@ -368,6 +375,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_fft_ifftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171164",
+    "https://github.com/pytorch/pytorch/issues/171164",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_fft_ihfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "171018",
     "https://github.com/pytorch/pytorch/issues/171018",
@@ -378,6 +392,13 @@
   "test_comprehensive_fft_ihfft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "171020",
     "https://github.com/pytorch/pytorch/issues/171020",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_fft_irfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171161",
+    "https://github.com/pytorch/pytorch/issues/171161",
     [
       "xpu"
     ]
