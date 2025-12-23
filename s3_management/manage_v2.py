@@ -821,7 +821,7 @@ class S3Index:
                 )
 
     def upload_source_code_html(self) -> None:
-        """Upload source code index to S3"""
+        """Upload source code index to S3 and R2"""
         # For source_code/test, it has a flat structure, so we only upload to the prefix directory
         index_html = self.to_source_code_html(subdir=self.prefix)
 
@@ -835,6 +835,18 @@ class S3Index:
             ContentType="text/html",
             Body=index_html,
         )
+
+        # Upload to R2 if configured
+        if R2_BUCKET:
+            print(
+                f"INFO Uploading {self.prefix}/{self.html_name} to R2 bucket {R2_BUCKET.name}"
+            )
+            R2_BUCKET.Object(key=f"{self.prefix}/{self.html_name}").put(
+                ACL="public-read",
+                CacheControl="no-cache,no-store,must-revalidate",
+                ContentType="text/html",
+                Body=index_html,
+            )
 
     def upload_pep503_htmls(self) -> None:
         # Pre-fetch bucket listings for all subdirectories to optimize S3 API calls
