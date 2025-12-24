@@ -354,6 +354,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_fft_fft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171227",
+    "https://github.com/pytorch/pytorch/issues/171227",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_fft_fftshift_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "140484",
     "https://github.com/pytorch/pytorch/issues/140484",
@@ -371,6 +378,13 @@
   "test_comprehensive_fft_ifft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "171017",
     "https://github.com/pytorch/pytorch/issues/171017",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_fft_ifft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171226",
+    "https://github.com/pytorch/pytorch/issues/171226",
     [
       "xpu"
     ]
