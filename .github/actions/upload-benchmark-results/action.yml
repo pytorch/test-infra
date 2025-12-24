@@ -3,7 +3,10 @@ name: Upload benchmark results
 inputs:
   benchmark-results-dir:
     description: 'The path to the directory with all the results in JSON format'
-    required: True
+    required: true
+  benchmark-name:
+    description: 'Manually set the name of the benchmark'
+    default: ''
   dry-run:
     default: 'true'
   schema-version:
@@ -12,8 +15,14 @@ inputs:
     default: ''
   venv:
     description: 'Path to virtual environment to activate'
-    required: false
     default: ''
+  if-no-files-found:
+    description: The desired behavior if no benchmark results are found
+    # Available Options:
+    #   error: Fail the action with an error message
+    #   ignore: Do not output any warnings or errors, the action does not fail
+    # Optional. Default is 'ignore'
+    default: ignore
 
 runs:
   using: composite
@@ -26,26 +35,53 @@ runs:
         if [[ -n "${{ inputs.venv }}" ]]; then
           source "${{ inputs.venv }}"
         fi
-        python3 -mpip install boto3==1.35.33 psutil==7.0.0 pynvml==12.0.0
+        python3 -mpip install boto3==1.35.33 psutil==7.0.0 nvidia-ml-py==13.580.82
 
-        DEVICE_NAME=""
-        DEVICE_TYPE=""
+    - name: Get device name
+      shell: bash
+      run: |
+        set -eux
 
         if command -v nvidia-smi; then
-          # NB: I'm using PyTorch here to get the device name, however, it needs to
-          # install the correct version of PyTorch manually for now. Any PyTorch
-          # version is fine, I just use 2.7.1 to satify PYPIDEP linter
-          python3 -mpip install torch==2.7.1
-        elif command -v rocminfo; then
-          # NB: Installing torch on ROCm runner with pip here causes CI to fail
-          # with a memoryview is too large error only on MI300 runners. Is pip
-          # version on ROCm runner there too old? As a workaround, let's use the
-          # GPU device name coming from rocminfo instead
+          DEVICE_NAME=cuda
+          nvidia-smi
+        elif command -v rocm-smi; then
           DEVICE_NAME=rocm
-          DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
-        fi
+          rocm-smi
+        elif command -v hl-smi; then
+          DEVICE_NAME=hpu
+          hl-smi
+        else
+          arch=$(uname -m)
 
+          case "$arch" in
+            aarch64|arm64)
+              DEVICE_NAME=arm64-cpu
+              ;;
+            *)
+              DEVICE_NAME=cpu
+              ;;
+          esac
+          lscpu
+        fi
         echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
+
+    - name: Get device type
+      shell: bash
+      run: |
+        set -eux
+
+        if [[ "${DEVICE_NAME}" == "cuda" ]]; then
+          DEVICE_TYPE=$(nvidia-smi -i 0 --query-gpu=name --format=csv,noheader | awk '{print $2}')
+        elif [[ "${DEVICE_NAME}" == "rocm" ]]; then
+          DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
+        elif [[ "${DEVICE_NAME}" == "hpu" ]]; then
+          DEVICE_TYPE="Intel Gaudi3 "$(hl-smi -q | grep "Product Name" | head -n 1 | awk -F ':' '{print $2}' | sed 's/^ *//')
+        elif [[ "${DEVICE_NAME}" == "cpu" ]]; then
+          DEVICE_TYPE="$(lscpu | grep "Model name" | sed -E 's/.*Model name:[[:space:]]*//; s/Intel\(R\)//g; s/\(R\)//g; s/\(TM\)//g; s/CPU//g; s/Processor//g; s/[[:space:]]+/ /g; s/^ //; s/ $//; s/ /_/g')_$(awk -F: '/Core\(s\) per socket/ {c=$2} /Socket\(s\)/ {s=$2} END {gsub(/ /,"",c); gsub(/ /,"",s); printf "%sc", c*s}' < <(lscpu))"
+        elif [[ "${DEVICE_NAME}" == "arm64-cpu" ]]; then
+          DEVICE_TYPE=$(lscpu | grep 'Vendor ID' | cut -f 2 -d ":" | awk '{$1=$1}1' | cut -f 2 -d " ")
+        fi
         echo "DEVICE_TYPE=$DEVICE_TYPE" >> $GITHUB_ENV
 
     - name: Check that GITHUB_TOKEN is defined
@@ -79,6 +115,7 @@ runs:
         RUN_ATTEMPT: ${{ github.run_attempt }}
         JOB_ID: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-id || '0' }}
         JOB_NAME: ${{ inputs.github-token != '' && steps.get-job-id.outputs.job-name || '' }}
+        BENCHMARK_NAME: ${{ inputs.benchmark-name || '' }}
       run: |
         set -eux
 
@@ -121,7 +158,9 @@ runs:
       shell: bash
       env:
         BENCHMARK_RESULTS_DIR: ${{ inputs.benchmark-results-dir }}
+        BENCHMARK_NAME: ${{ inputs.benchmark-name || '' }}
         DRY_RUN: ${{ inputs.dry-run }}
+        IF_NO_FILES_FOUND: ${{ inputs.if-no-files-found || 'ignore' }}
         # Additional information about the benchmarks
         BENCHMARK_METADATA: ${{ steps.gather-metadata.outputs.metadata }}
         RUNNER_INFO: ${{ steps.gather-runner-info.outputs.runners }}
