@@ -62,7 +62,6 @@ runs:
               DEVICE_NAME=cpu
               ;;
           esac
-          lscpu
         fi
         echo "DEVICE_NAME=$DEVICE_NAME" >> $GITHUB_ENV
 
