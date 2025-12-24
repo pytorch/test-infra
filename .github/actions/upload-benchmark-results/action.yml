@@ -79,7 +79,10 @@ runs:
         elif [[ "${DEVICE_NAME}" == "cpu" ]]; then
           DEVICE_TYPE="$(lscpu | grep "Model name" | sed -E 's/.*Model name:[[:space:]]*//; s/Intel\(R\)//g; s/\(R\)//g; s/\(TM\)//g; s/CPU//g; s/Processor//g; s/[[:space:]]+/ /g; s/^ //; s/ $//; s/ /_/g')_$(awk -F: '/Core\(s\) per socket/ {c=$2} /Socket\(s\)/ {s=$2} END {gsub(/ /,"",c); gsub(/ /,"",s); printf "%sc", c*s}' < <(lscpu))"
         elif [[ "${DEVICE_NAME}" == "arm64-cpu" ]]; then
-          DEVICE_TYPE=$(lscpu | grep 'Vendor ID' | cut -f 2 -d ":" | awk '{$1=$1}1' | cut -f 2 -d " ")
+          # TODO (huydhn): This doesn't work on MacOS, only Linux aarch64. Setting
+          # this to an empty string maintains the current behavior until this can
+          # be fixed properly
+          DEVICE_TYPE=""
         fi
         echo "DEVICE_TYPE=$DEVICE_TYPE" >> $GITHUB_ENV
 
