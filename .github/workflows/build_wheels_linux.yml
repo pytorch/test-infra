@@ -122,6 +122,10 @@ on:
         description: 'Timeout for the job (in minutes)'
         default: 120
         type: number
+      channel:
+        description: 'Channel to use for pytorch package. Defaults to nightly, can be set to test for release candidates'
+        default: 'nightly'
+        type: string
     secrets:
       PYPI_API_TOKEN:
         description: An optional token to upload to pypi
@@ -195,6 +199,8 @@ jobs:
           conda config --set ssl_verify False
           echo "/opt/conda/bin" >> $GITHUB_PATH
       - uses: ./test-infra/.github/actions/set-channel
+        with:
+          channel: ${{ inputs.channel }}
       - name: Set PYTORCH_VERSION
         if: ${{ env.CHANNEL == 'test' }}
         run: |
