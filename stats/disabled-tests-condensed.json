@@ -1578,7 +1578,8 @@
     "170302",
     "https://github.com/pytorch/pytorch/issues/170302",
     [
-      "rocm"
+      "rocm",
+      "xpu"
     ]
   ],
   "test_open_device_registration (__main__.ExtensionBackendTests)": [
