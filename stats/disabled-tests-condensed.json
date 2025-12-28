@@ -2025,13 +2025,6 @@
       "macos"
     ]
   ],
-  "test_side_stream_backward_overlap_cuda (__main__.TestAutogradStreamSynchronizationCUDA)": [
-    "167693",
-    "https://github.com/pytorch/pytorch/issues/167693",
-    [
-      "rocm"
-    ]
-  ],
   "test_skip_grad_in_check (__main__.TestTEFuserDynamic)": [
     "156436",
     "https://github.com/pytorch/pytorch/issues/156436",
