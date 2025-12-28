@@ -226,7 +226,7 @@ function IndividualInfo({
     { field: "name", title: "Test Name" },
     { field: "classname", title: "Test Class" },
     { field: "invoking_file", title: "Test File" },
-    { field: "job_name", title: "Build" },
+    { field: "job_name", title: "Job" },
   ];
 
   return (

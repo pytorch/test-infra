@@ -12,17 +12,34 @@ class GHClientFactory:
     _lock = threading.Lock()
 
     @classmethod
-    def setup_client(
-        cls, app_id: str, app_secret: str, installation_id: int, token: str
-    ) -> None:
-        if app_id:
-            cls._app_id = app_id
-        if app_secret:
-            cls._app_secret = app_secret
-        if installation_id:
-            cls._installation_id = installation_id
-        if token:
-            cls._token = token
+    def setup_client(cls, *args, **kwargs) -> None:
+        if "app_id" in kwargs and kwargs["app_id"]:
+            cls._app_id = kwargs.get("app_id")
+        if "app_secret" in kwargs and kwargs["app_secret"]:
+            cls._app_secret = kwargs.get("app_secret")
+        if "installation_id" in kwargs and kwargs["installation_id"]:
+            cls._installation_id = kwargs.get("installation_id")
+        if "token" in kwargs and kwargs["token"]:
+            cls._token = kwargs.get("token")
+        cls._validate_client_setup()
+
+    @classmethod
+    def _validate_client_setup(cls) -> None:
+        if cls.token_auth_provided() and not cls._token:
+            raise RuntimeError(
+                "GitHub token authentication is provided, but no token is set."
+            )
+        if cls.key_auth_provided() and (
+            not cls._app_id or not cls._app_secret or not cls._installation_id
+        ):
+            raise RuntimeError(
+                "GitHub key authentication is provided, but no app ID, app secret, or installation ID is set."
+            )
+        if not cls.token_auth_provided() and not cls.key_auth_provided():
+            raise RuntimeError(
+                "GitHub client not properly configured. Call setup_client first."
+                + " Please note that you can only use one type of authentication at a time."
+            )
 
     def __new__(cls):
         if not hasattr(cls, "_instance"):
@@ -48,18 +65,18 @@ class GHClientFactory:
 
         self._logger = logging.getLogger(__name__)
 
-    @property
-    def token_auth_provided(self) -> bool:
+    @classmethod
+    def token_auth_provided(cls) -> bool:
         """
         Check if token authentication is provided.
 
         Returns:
             bool: True if token authentication is provided, False otherwise.
         """
-        return hasattr(self, "_token")
+        return hasattr(cls, "_token")
 
-    @property
-    def key_auth_provided(self) -> bool:
+    @classmethod
+    def key_auth_provided(cls) -> bool:
         """
         Check if key authentication is provided.
 
@@ -67,17 +84,17 @@ class GHClientFactory:
             bool: True if key authentication is provided, False otherwise.
         """
         return (
-            hasattr(self, "_app_id")
-            and hasattr(self, "_app_secret")
-            and hasattr(self, "_installation_id")
+            hasattr(cls, "_app_id")
+            and hasattr(cls, "_app_secret")
+            and hasattr(cls, "_installation_id")
         )
 
     @property
     def client(self) -> github.Github:
         if "client" not in self._data:
-            if self.token_auth_provided:
+            if self.token_auth_provided():
                 auth = github.Auth.Token(self._token)
-            elif self.key_auth_provided:
+            elif self.key_auth_provided():
                 auth = github.Auth.AppInstallationAuth(
                     github.Auth.AppAuth(
                         app_id=self._app_id,

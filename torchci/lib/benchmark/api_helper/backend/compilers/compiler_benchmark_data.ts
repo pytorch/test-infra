@@ -1,20 +1,14 @@
-import { queryClickhouseSaved } from "lib/clickhouse";
 import {
   CommitResult,
   CompilerQueryType,
-  defaultCompilerGetBenchmarkDataInputs,
   defaultCompilerGetTimeSeriesInputs,
-  defaultListCommitsInputs,
 } from "../common/type";
 import {
   emptyTimeSeriesResponse,
-  getCommitsWithSampling,
+  getCompilerCommitsWithSampling,
 } from "../common/utils";
-import {
-  extractBackendSqlStyle,
-  toApiArch,
-  toQueryArch,
-} from "./helpers/common";
+import { BenchmarkCompilerBenchmarkDataQueryBuilder } from "../dataFetchers/queryBuilderUtils/compilerQueryBuilder";
+import { extractBackendSqlStyle, toApiArch } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
 
@@ -22,26 +16,6 @@ import { toPrecomputeCompilerData } from "./helpers/precompute";
 const COMPILER_BENCHMARK_TABLE_NAME = "compilers_benchmark_api_query";
 const COMPILER_BENCHMARK_COMMITS_TABLE_NAME =
   "compilers_benchmark_api_commit_query";
-
-// TODO(ELAINEWY): add GET BENCHMARK DATA API
-/**
- * backend method to get single compiler benchmark data
- * must provide workflow and branch in inputParams
- */
-export async function getSingleCompilerBenchmarkData(
-  request_name: string,
-  inputParams: any,
-  formats: string[] = ["raw"]
-) {
-  const queryParams = await getSingleCompilerBenchmarkDataQueryParams(
-    inputParams
-  );
-  const rows = await fetchCompilerDataFromDb(queryParams);
-  if (rows.length === 0) {
-    return emptyTimeSeriesResponse();
-  }
-  return toCompilerResponseFormat(rows, formats, request_name);
-}
 
 /**
  * backend method to get time series data
@@ -54,6 +28,9 @@ export async function getCompilerBenchmarkTimeSeriesData(
   const queryParams = await getCompilerBenchmarkTimeRangeQueryParams(
     inputparams
   );
+  if (!queryParams) {
+    return emptyTimeSeriesResponse();
+  }
   const rows = await fetchCompilerDataFromDb(queryParams);
   if (rows.length === 0) {
     return emptyTimeSeriesResponse();
@@ -84,47 +61,15 @@ export function toCompilerResponseFormat(
 }
 
 export async function getCompilerCommits(
-  inputparams: any
+  inputParams: any
 ): Promise<CommitResult> {
-  if (!inputparams.startTime || !inputparams.stopTime) {
+  if (!inputParams.startTime || !inputParams.stopTime) {
     throw new Error("no start/end time provided in request");
   }
-  const queryParams = {
-    ...defaultListCommitsInputs, // base defaults
-    ...inputparams, // override with caller's values
-  };
-
-  const arch_list = toQueryArch(inputparams.device, inputparams.arch);
-  queryParams["arch"] = arch_list;
-  return await getCommitsWithSampling(
+  return await getCompilerCommitsWithSampling(
     COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
-    queryParams
+    inputParams
   );
-}
-
-// TODO(ELAINEWY): add GET BENCHMARK DATA API
-async function getSingleCompilerBenchmarkDataQueryParams(
-  inputparams: any
-): Promise<any> {
-  const queryParams = {
-    ...defaultCompilerGetBenchmarkDataInputs, // base defaults
-    ...inputparams, // override with caller's values
-  };
-  const arch_list = toQueryArch(queryParams.device, queryParams.arch);
-  queryParams["arch"] = arch_list;
-
-  if (!queryParams.workflow || !queryParams.branch) {
-    throw new Error(
-      "no workflow or branch provided in request for single data fetch"
-    );
-  }
-  queryParams["workflows"] = [queryParams.workflow];
-  queryParams["branches"] = [queryParams.branch];
-  console.log(
-    "(getSingleCompilerBenchmarkDataQueryParams) workflows provided in request",
-    queryParams.workflows
-  );
-  return queryParams;
 }
 
 /**
@@ -140,10 +85,6 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
     ...defaultCompilerGetTimeSeriesInputs, // base defaults
     ...inputparams, // override with caller's values
   };
-
-  const arch_list = toQueryArch(queryParams.device, queryParams.arch);
-  queryParams["arch"] = arch_list;
-
   // todo(elainewy): support lworkfow and rworkflow in the future for time range query
 
   // use the startTime and endTime to fetch commits from clickhouse if commits field is not provided
@@ -152,9 +93,8 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
       "(getCompilerBenchmarkTimeRangeQueryParams) no start/end time provided in request"
     );
   }
-
   if (!queryParams.workflows || queryParams.workflows.length == 0) {
-    const { data: commit_results } = await getCommitsWithSampling(
+    const { data: commit_results } = await getCompilerCommitsWithSampling(
       COMPILER_BENCHMARK_COMMITS_TABLE_NAME,
       queryParams
     );
@@ -169,7 +109,7 @@ export async function getCompilerBenchmarkTimeRangeQueryParams(
       queryParams["workflows"] = unique_workflows;
     } else {
       console.log(`no workflow found in clickhouse using ${queryParams}`);
-      return [];
+      return undefined;
     }
   } else {
     console.log(
@@ -188,10 +128,9 @@ async function fetchCompilerDataFromDb(queryParams: any): Promise<any[]> {
   const start = Date.now();
   let rows: any[] = [];
   try {
-    rows = await queryClickhouseSaved(
-      COMPILER_BENCHMARK_TABLE_NAME,
-      queryParams
-    );
+    const fetcher = new BenchmarkCompilerBenchmarkDataQueryBuilder();
+    const data = await fetcher.applyQuery(queryParams);
+    rows = fetcher.postProcess(data);
   } catch (err: any) {
     throw Error(
       `${COMPILER_BENCHMARK_TABLE_NAME}(clickhouse query issue) ${err.message}`

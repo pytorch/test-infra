@@ -1,6 +1,7 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
+  BRANCH_METADATA_COLUMN,
   DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
@@ -17,6 +18,10 @@ const initialOptions = {
     deviceName: "cuda||NVIDIA B200",
     operatorName: "addmm",
   },
+};
+
+export const PYTORCH_OPERATOR_MICROBENCHMARK_MAPPING_FIELDS = {
+  "extra_key.operator_name": "operatorName",
 };
 
 export const LATENCY_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -70,6 +75,15 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
     },
     dataRender: {
       type: "auto",
+      sideRender: {
+        RegressionReportFeature: {
+          type: "RegressionReportFeature",
+          title: "Regression Report Section",
+          config: {
+            report_id: "pytorch_operator_microbenchmark",
+          },
+        },
+      },
       subSectionRenders: {
         detail_view: {
           filterConstraint: {
@@ -123,7 +137,10 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
               type: "AutoBenchmarkRawDataTable",
               title: "Raw Data Table",
               config: {
-                extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+                extraMetadata: [
+                  BRANCH_METADATA_COLUMN,
+                  ...COMPARISON_TABLE_METADATA_COLUMNS,
+                ],
                 renderOptions: {
                   tableRenderingBook: RENDER_MAPPING_BOOK,
                 },
@@ -133,6 +150,19 @@ export const PytorchOperatorMicroBenchmarkDashoboardConfig: BenchmarkUIConfig =
         },
       },
       renders: [
+        {
+          type: "AutoBenchmarkShortcutCardList",
+          title: "Operator Lists",
+          config: {
+            filters: ["operatorName"],
+          },
+        },
+        {
+          type: "AutoBenchmarkComparisonGithubExternalLink",
+          title: "Github runs (external)",
+          description: "See original github runs for left and right runs",
+          config: {},
+        },
         {
           type: "AutoBenchmarkPairwiseTable",
           title: "Comparison Table",

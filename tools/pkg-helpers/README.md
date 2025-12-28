@@ -27,7 +27,7 @@ source env_file
 
 The following environment variables change what environment variables actually get generated:
 
-- `PACKAGE_TYPE`: (wheel, conda)
+- `PACKAGE_TYPE`: wheel
 - `CHANNEl`: (nightly, test)
 - `PLATFORM`: Platform to generate for (default `sys.platform`)
 - `GPU_ARCH_VERSION`: GPU arch version (typically something like: [cpu, cu116, rocm5.4.1, etc.])

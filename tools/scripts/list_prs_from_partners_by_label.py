@@ -197,7 +197,7 @@ def classify_author(user):
                 return "apple"
 
         if isinstance(authors_dict[user].get("company"), str):
-            return f'other: {authors_dict[user]["company"]}'
+            return f"other: {authors_dict[user]['company']}"
 
     return "unknown"
 
@@ -236,7 +236,7 @@ else:
     for pr in all_prs:
         cla = cla_signed(pr["number"])
         cla_status[str(pr["number"])] = cla
-        print(f'cla status for #{pr["number"]} is {cla}')
+        print(f"cla status for #{pr['number']} is {cla}")
 
     if local_cache:
         # save filtered PRs to json file
@@ -316,7 +316,7 @@ def generate_table_by_feature(labels_order):
                             pr["created_at"][:10],
                             link(pr["user"]["login"], pr["user"]["html_url"]),
                             "✅" if cla else ("❌" if cla is False else "❓"),
-                            link(f'#{pr["number"]} {pr["title"]}', pr["html_url"]),
+                            link(f"#{pr['number']} {pr['title']}", pr["html_url"]),
                         )
                     )
             html += '<tr><td colspan="4">&nbsp;</td></tr>'

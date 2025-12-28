@@ -49,7 +49,7 @@
     "lz-string": "^1.5.0",
     "minimatch": "^9.0.3",
     "minimist": "^1.2.6",
-    "next": "15.5.0",
+    "next": "15.5.7",
     "next-auth": "^4.24.11",
     "octokit": "^1.7.1",
     "pino-std-serializers": "^7.0.0",

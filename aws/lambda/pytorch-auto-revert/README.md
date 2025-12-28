@@ -103,3 +103,8 @@ python -m pytorch_auto_revert --help
   ```bash
   python -m pytorch_auto_revert hud "2025-09-17 20:29:15" --repo-full-name pytorch/pytorch --hud-html hud.html
   ```
+
+- If you run multiple autorevert configs and want a specific one, filter by workflow name present in the stored run state:
+  ```bash
+  python -m pytorch_auto_revert hud --workflow trunk --repo-full-name pytorch/pytorch --hud-html hud.html
+  ```

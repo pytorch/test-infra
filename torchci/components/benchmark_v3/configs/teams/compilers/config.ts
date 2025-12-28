@@ -16,7 +16,10 @@ import {
   QueryParameterConverterInputs,
 } from "../../utils/dataBindingRegistration";
 import { toNumberArray } from "../../utils/helper_methods";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import {
+  BRANCH_METADATA_COLUMN,
+  DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+} from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
@@ -29,7 +32,7 @@ const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
-  target: "geomean",
+  target: "geomean_speedup",
   type: "ratio",
   ratioPolicy: {
     badRatio: 0.95,
@@ -104,7 +107,7 @@ const RENDER_MAPPING_BOOK = {
       scale: 100,
     },
   },
-  geomean: {
+  geomean_speedup: {
     unit: {
       unit: "x",
     },
@@ -137,6 +140,21 @@ const RENDER_MAPPING_BOOK = {
   },
 };
 
+export function toQueryArch(device: string, arch: string) {
+  if (arch === undefined) return [];
+  if (!device) return [];
+  switch (device) {
+    case "rocm":
+      if (arch === "mi300x" || arch == "") return ["mi300x", "mi325x"];
+      return [arch];
+    default:
+      if (arch === "") {
+        return [];
+      }
+      return [arch];
+  }
+}
+
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
 ) => {
@@ -151,16 +169,21 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
   }
 
   let models = getModels(f.model);
+
+  const device = DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName];
+  const arch = DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName];
+  const arches = toQueryArch(device, arch);
+
   const params = {
     commits: i.commits ?? [],
     branches: i.branches ?? [],
     workflows: workflows,
     compilers: compilerList,
-    arch: DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName],
-    device: DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName],
-    dtype: f.dtype === "none" ? "" : f.dtype,
+    arches: arches,
+    devices: [device],
+    dtypes: f.dtype === "none" ? [] : [f.dtype],
     granularity: "hour",
-    mode: f.mode,
+    modes: [f.mode],
     models: models,
     startTime: dayjs.utc(i.timeRange.start).format("YYYY-MM-DDTHH:mm:ss"),
     stopTime: dayjs.utc(i.timeRange.end).format("YYYY-MM-DDTHH:mm:ss"),
@@ -219,10 +242,6 @@ const COMPILER_DASHBOARD_BENCHMARK_DATABINDING = {
 
 const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
   {
-    field: "branch",
-    displayName: "branch",
-  },
-  {
     field: "suite",
   },
   {
@@ -262,7 +281,10 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: [
+                BRANCH_METADATA_COLUMN,
+                ...DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
+              ],
               renderOptions: {
                 tableRenderingBook: DashboardRenderBook,
               },
@@ -272,6 +294,12 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
       },
     },
     renders: [
+      {
+        type: "AutoBenchmarkComparisonGithubExternalLink",
+        title: "Github Link (external)",
+        description: "See original github runs for left and right runs",
+        config: {},
+      },
       {
         type: "AutoBenchmarkLogs",
         title: "Logs",
@@ -301,6 +329,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
           extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
             tableRenderingBook: DashboardRenderBook,
+            renderMissing: true,
             flex: {
               primary: 2,
             },
@@ -376,6 +405,13 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
     },
     renders: [
       {
+        type: "FanoutBenchmarkComparisonGithubExternalLink",
+        title: "Github Link (external)",
+        config: {
+          description: "See original github runs for left and right runs",
+        },
+      },
+      {
         type: "FanoutBenchmarkTimeSeriesChartSection",
         title: "Time Series Chart Section",
         config: {
@@ -396,7 +432,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                   passrate: {
                     text: "Passrate",
                   },
-                  geomean: {
+                  geomean_speedup: {
                     text: "Geometric mean speedup",
                   },
                   compilation_latency: {
@@ -425,7 +461,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
           filterByFieldValues: {
             metric: [
               "passrate",
-              "geomean",
+              "geomean_speedup",
               "compilation_latency",
               "compression_ratio",
             ],
@@ -443,7 +479,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             targetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,
-              geomean: GEOMEAN_COMPARISON_POLICY,
+              geomean_speedup: GEOMEAN_COMPARISON_POLICY,
               compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
               compression_ratio: COMPRESSION_RATIO_POLICY,
             },
@@ -452,17 +488,18 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                 passrate: {
                   text: "Passrate (threshold: 95%)",
                 },
-                geomean: {
+                geomean_speedup: {
                   text: "Geometric mean speedup (threshold = 0.95x)",
                 },
                 compilation_latency: {
-                  text: "compilation time (seconds)",
+                  text: "Compilation time (seconds)",
                 },
                 compression_ratio: {
                   text: "Peak memory footprint compression ratio (threshold = 0.95x)",
                 },
               },
               tableRenderingBook: RENDER_MAPPING_BOOK,
+              renderMissing: true,
             },
           },
         },

@@ -65,7 +65,7 @@ def compute_cubin_sizes(file_name, section_name=".nv_fatbin", debug=False):
                     raise RuntimeError(
                         f"Unexpected cubin version {hex(version)} or kind {kind}"
                     )
-                sm_ver = f'{"ptx" if kind == 1 else "sm"}_{sm_ver}'
+                sm_ver = f"{'ptx' if kind == 1 else 'sm'}_{sm_ver}"
                 if debug:
                     print(
                         f"    {idx}: elf_size={elf_size} code_ver={hex(code_ver)} sm={sm_ver}"

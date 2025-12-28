@@ -41,10 +41,12 @@ class SignalExtractor:
         workflows: Iterable[str],
         lookback_hours: int = 24,
         repo_full_name: str = "pytorch/pytorch",
+        as_of: Optional[datetime] = None,
     ) -> None:
         self.workflows = list(workflows)
         self.lookback_hours = lookback_hours
         self.repo_full_name = repo_full_name
+        self.as_of = as_of
         # Datasource for DB access
         self._datasource = SignalExtractionDatasource()
 
@@ -69,6 +71,7 @@ class SignalExtractor:
         commits = self._datasource.fetch_commits_in_time_range(
             repo_full_name=self.repo_full_name,
             lookback_hours=self.lookback_hours,
+            as_of=self.as_of,
         )
 
         # Fetch jobs for these commits
@@ -77,6 +80,7 @@ class SignalExtractor:
             workflows=self.workflows,
             lookback_hours=self.lookback_hours,
             head_shas=[sha for sha, _ in commits],
+            as_of=self.as_of,
         )
 
         # Select jobs to participate in test-track details fetch
@@ -129,6 +133,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    test_module=s.test_module,
                     source=s.source,
                 )
             )
@@ -214,6 +219,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    test_module=s.test_module,
                     source=s.source,
                 )
             )
@@ -430,12 +436,17 @@ class SignalExtractor:
                 )
 
             if has_any_events:
+                # Extract test module from test_id (format: "file.py::test_name")
+                # Result: "file" or "path/to/file" without .py extension
+                test_module = test_id.split("::")[0].replace(".py", "")
+
                 signals.append(
                     Signal(
                         key=test_id,
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(job_base_name),
+                        test_module=test_module,
                         source=SignalSource.TEST,
                     )
                 )

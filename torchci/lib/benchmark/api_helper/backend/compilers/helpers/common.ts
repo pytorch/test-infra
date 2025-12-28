@@ -14,21 +14,6 @@ export function extractBackendSqlStyle(
   return m ? m[1] : null;
 }
 
-export function toQueryArch(device: string, arch: string) {
-  if (arch === undefined) return [];
-  if (!device) return [];
-  switch (device) {
-    case "rocm":
-      if (arch === "mi300x" || arch == "") return ["mi300x", "mi325x"];
-      return [arch];
-    default:
-      if (arch === "") {
-        return [];
-      }
-      return [arch];
-  }
-}
-
 export function toApiArch(device: string, arch: string): string {
   const norm = arch.toLowerCase();
   switch (device) {

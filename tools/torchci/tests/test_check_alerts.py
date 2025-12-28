@@ -199,7 +199,7 @@ class TestGitHubPR(TestCase):
     def test_update_comment_empty(self):
         jobs = [JobStatus("job1", [{}]), JobStatus("job2", [{}])]
         original_issue: Dict[str, Any] = {"closed": False}  # type: ignore[annotation-unchecked]
-        original_issue["body"] = "- [job1](a)\n" "- [job2](a)"
+        original_issue["body"] = "- [job1](a)\n- [job2](a)"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertFalse(update_comment)
 
@@ -210,7 +210,7 @@ class TestGitHubPR(TestCase):
         self.assertTrue("job2" in update_comment)
 
         jobs = [JobStatus("job1", [{}])]
-        original_issue["body"] = "- [job1](a)\n" "- [job2](a)"
+        original_issue["body"] = "- [job1](a)\n- [job2](a)"
         update_comment = gen_update_comment(original_issue, jobs)
         self.assertTrue("stopped failing" in update_comment)
         self.assertTrue("job2" in update_comment)

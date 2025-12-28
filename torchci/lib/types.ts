@@ -210,6 +210,10 @@ export interface CompilerPerformanceData {
   job_id?: number;
   branch?: string;
   commit?: string;
+  device?: string;
+  dtype?: string;
+  mode?: string;
+  arch?: string;
 }
 
 export interface TritonBenchPerformanceData {
@@ -239,6 +243,10 @@ export interface BenchmarkData {
   workflow_id: number;
   commit?: string;
   branch?: string;
+  device?: string;
+  dtype?: string;
+  mode?: string;
+  arch?: string;
 }
 
 export interface RepoBranchAndCommit {

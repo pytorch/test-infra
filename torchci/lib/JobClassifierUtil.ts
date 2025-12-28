@@ -45,6 +45,7 @@ const GROUP_INDUCTOR_PERIODIC = "Inductor Periodic";
 const GROUP_SLOW = "Slow";
 const GROUP_LINT = "Lint";
 const GROUP_INDUCTOR = "Inductor";
+const GROUP_PALLAS = "Pallas";
 const GROUP_ANDROID = "Android";
 const GROUP_ROCM = "ROCm";
 const GROUP_XLA = "XLA";
@@ -112,6 +113,10 @@ export const groups = [
   {
     regex: /inductor/,
     name: GROUP_INDUCTOR,
+  },
+  {
+    regex: /pallas/,
+    name: GROUP_PALLAS,
   },
   {
     regex: /android/,
@@ -218,6 +223,7 @@ const HUD_GROUP_SORTING = [
   GROUP_DOCS,
   GROUP_INDUCTOR,
   GROUP_INDUCTOR_PERIODIC,
+  GROUP_PALLAS,
   GROUP_ANNOTATIONS_AND_LABELING,
   GROUP_BINARY_WINDOWS,
   GROUP_MEMORY_LEAK_CHECK,

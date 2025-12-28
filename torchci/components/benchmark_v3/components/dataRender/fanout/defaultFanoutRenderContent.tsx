@@ -136,13 +136,8 @@ export function DefaultFanoutRenderContent() {
         {fanoutUIConfigs.map((fanoutUIConfig, index) => {
           const { Component, data_path } =
             getFanoutRenderComponent(fanoutUIConfig);
-          if (!data_path) {
-            return (
-              <div key={index} id={toToggleSectionId(index + 1)}>
-                unable to fetch fanout component {fanoutUIConfig.type}
-              </div>
-            );
-          }
+
+          const path = data_path ?? "raw";
           const title = fanoutUIConfig.title ?? `Section ${index + 1}`;
           return (
             <ToggleSection
@@ -151,7 +146,7 @@ export function DefaultFanoutRenderContent() {
               id={toToggleSectionId(index + 1)}
             >
               <Component
-                data={multidata[data_path]}
+                data={multidata[path]}
                 config={fanoutUIConfig.config}
                 onChange={onChange}
                 lcommit={lcommit}

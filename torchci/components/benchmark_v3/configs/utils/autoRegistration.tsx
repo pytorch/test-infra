@@ -1,7 +1,10 @@
 import {
+  AutoBenchmarkComparisonGithubExternalLink,
   AutoBenchmarkLogs,
+  AutoBenchmarkMarkDownContent,
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
+  AutoBenchmarkShortcutCardList,
   AutoBenchmarkSingleDataTable,
   AutoBenchmarkSingleViewNavigation,
   AutoBenchmarkTimeSeriesChartGroup,
@@ -54,6 +57,9 @@ export class AutoComponentRegistry {
       AutoBenchmarkSingleViewNavigation: {
         Component: AutoBenchmarkSingleViewNavigation,
       },
+      AutoBenchmarkComparisonGithubExternalLink: {
+        Component: AutoBenchmarkComparisonGithubExternalLink,
+      },
       AutoBenchmarkTimeSeriesChartGroup: {
         Component: AutoBenchmarkTimeSeriesChartGroup,
       },
@@ -65,6 +71,12 @@ export class AutoComponentRegistry {
       },
       AutoBenchmarkLogs: {
         Component: AutoBenchmarkLogs,
+      },
+      AutoBenchmarkShortcutCardList: {
+        Component: AutoBenchmarkShortcutCardList,
+      },
+      AutoBenchmarkMarkDownContent: {
+        Component: AutoBenchmarkMarkDownContent,
       },
       // Add your auto components here
     };

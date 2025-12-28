@@ -12,13 +12,6 @@ on:
   push:
     branches:
       - main
-    paths:
-      - mypy.ini
-      - '**.py'
-      - '**requirements.txt'
-      - .github/scripts/**
-      - tools/tests/assets/**
-      - .github/workflows/tests.yml
 
 jobs:
   test-tools:
@@ -54,5 +47,5 @@ jobs:
         pip install -r aws/lambda/tests/test_requirements.txt
         echo ::endgroup::
 
-        # Test aws lambda
-        pytest -v aws/lambda/tests
+        # Test aws lambda, add relative path to PYTHONPATH for importing
+        PYTHONPATH=aws/lambda:aws/lambda/benchmark_regression_summary_report pytest -v aws/lambda/tests

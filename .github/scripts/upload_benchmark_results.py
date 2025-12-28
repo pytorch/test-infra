@@ -10,6 +10,7 @@ import hashlib
 import json
 import logging
 import os
+import sys
 import time
 from argparse import Action, ArgumentParser, Namespace
 from decimal import Decimal
@@ -185,7 +186,7 @@ def upload_to_dynamodb(
 
 
 def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
-    benchmark_results = []
+    benchmark_results: List[Dict[str, Any]] = []
     with open(filepath) as f:
         try:
             r = json.load(f)
@@ -215,6 +216,15 @@ def read_benchmark_results(filepath: str) -> List[Dict[str, Any]]:
 
                 except JSONDecodeError:
                     warn(f"Invalid JSON {line}, skipping")
+
+    # Overwrite the benchmark name if needed
+    if os.getenv("BENCHMARK_NAME"):
+        benchmark_name = os.getenv("BENCHMARK_NAME")
+        for bresult in benchmark_results:
+            if bresult.get("benchmark", {}) and bresult.get("benchmark", {}).get(
+                "name"
+            ):
+                bresult["benchmark"]["name"] = benchmark_name
 
     return benchmark_results
 
@@ -319,6 +329,7 @@ def upload_to_s3(
 def main() -> None:
     args = parse_args()
 
+    has_results_uploaded = False
     for file in os.listdir(args.benchmark_results_dir):
         if not file.endswith(".json"):
             continue
@@ -349,6 +360,7 @@ def main() -> None:
         if not benchmark_results:
             continue
 
+        has_results_uploaded = True
         upload_to_s3(
             s3_bucket=OSSCI_BENCHMARKS_BUCKET,
             filepath=filepath,
@@ -356,6 +368,14 @@ def main() -> None:
             benchmark_results=benchmark_results,
             dry_run=args.dry_run,
         )
+
+    # Remember to keep ignore as the default behavior
+    if_no_files_found = os.getenv("IF_NO_FILES_FOUND", "ignore")
+    # When there is no benchmark results, treat it as a failure. This is better
+    # than failing silently.
+    if not has_results_uploaded and if_no_files_found == "error":
+        warn(f"Find no benchmark results in {args.benchmark_results_dir}")
+        sys.exit(1)
 
 
 if __name__ == "__main__":

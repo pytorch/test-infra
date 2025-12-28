@@ -1,5 +1,8 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
-import { DEFAULT_DASHBOARD_BENCHMARK_INITIAL } from "../defaults/default_dashboard_config";
+import {
+  BRANCH_METADATA_COLUMN,
+  DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
+} from "../defaults/default_dashboard_config";
 import { DEFAULT_SINGLE_VIEW_BENCHMARK_INITIAL } from "../defaults/default_single_view_config";
 
 export const PYTORCH_HELION_BENCHMARK_ID = "pytorch_helion";
@@ -9,11 +12,7 @@ const initialOptions = {
   benchmarkId: PYTORCH_HELION_BENCHMARK_ID,
 };
 
-const COMPARISON_TABLE_METADATA_COLUMNS = [
-  {
-    field: "branch",
-    displayName: "branch",
-  },
+const DETAIL_VIEW_METADATA_COLUMNS = [
   {
     field: "device",
     displayName: "Hardware type",
@@ -64,12 +63,30 @@ export const PytorchHelionSingleConfig: BenchmarkUIConfig | any = {
   },
   dataRender: {
     type: "auto",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: PYTORCH_HELION_BENCHMARK_ID,
+        },
+      },
+    },
     renders: [
       {
         type: "AutoBenchmarkSingleDataTable",
         title: "Single Run Table",
         config: {
-          extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+          extraMetadata: [
+            {
+              field: "model",
+              displayName: "Model",
+            },
+            {
+              field: "arch",
+              displayName: "Hardware Type",
+            },
+          ],
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
             highlightPolicy: {
@@ -95,6 +112,15 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     type: "auto",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: PYTORCH_HELION_BENCHMARK_ID,
+        },
+      },
+    },
     subSectionRenders: {
       detail_view: {
         filterConstraint: {
@@ -132,7 +158,7 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
                 fields: ["model"],
                 displayName: "Model",
               },
-              extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: DETAIL_VIEW_METADATA_COLUMNS,
               renderOptions: {
                 tableRenderingBook: RENDER_MAPPING_BOOK,
                 flex: {
@@ -145,7 +171,10 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
             type: "AutoBenchmarkRawDataTable",
             title: "Raw Data Table",
             config: {
-              extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+              extraMetadata: [
+                BRANCH_METADATA_COLUMN,
+                ...DETAIL_VIEW_METADATA_COLUMNS,
+              ],
               renderOptions: {
                 tableRenderingBook: RENDER_MAPPING_BOOK,
               },
@@ -157,7 +186,14 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
     renders: [
       {
         type: "AutoBenchmarkSingleViewNavigation",
+        title: "Benchmark Single View",
         description: "See single view for left and right runs",
+        config: {},
+      },
+      {
+        type: "AutoBenchmarkComparisonGithubExternalLink",
+        title: "Github Link (external)",
+        description: "See original github runs for left and right runs",
         config: {},
       },
       {
@@ -173,7 +209,12 @@ export const PytorchHelionDashboardConfig: BenchmarkUIConfig = {
               applyFilterFields: ["model", "device", "arch"],
             },
           },
-          extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+          extraMetadata: [
+            {
+              field: "arch",
+              displayName: "Hardware model",
+            },
+          ],
           renderOptions: {
             tableRenderingBook: RENDER_MAPPING_BOOK,
             flex: {

@@ -81,6 +81,7 @@ type Props = {
   dtypes: (string | UMDenseDropdownOption)[];
   label: string;
   disable?: boolean;
+  sx?: any;
 };
 
 export const DEFAULT_MODE = "inference";
@@ -101,6 +102,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
   dtypes,
   label,
   disable = false,
+  sx,
 }) => {
   const labelId = "dtype-picker-label";
   const selectId = "dtype-picker-select";
@@ -110,7 +112,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
 
   const safeValue = dtype ?? "";
   return (
-    <FormControl size="small">
+    <FormControl size="small" sx={sx}>
       <InputLabel id={labelId} shrink>
         {label}
       </InputLabel>

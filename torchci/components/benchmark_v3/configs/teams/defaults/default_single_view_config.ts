@@ -18,6 +18,10 @@ export const DEFAULT_SINGLE_VIEW_BENCHMARK_INITIAL = {
 
 export const DEFAULT_TABLE_METADATA_COLUMNS = [
   {
+    field: "model",
+    displayName: "Model",
+  },
+  {
     field: "branch",
     displayName: "Branch",
   },

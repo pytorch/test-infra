@@ -11,6 +11,199 @@ from common.config_model import (
 )
 
 
+PYTORCH_HELION_CONFIG = BenchmarkConfig(
+    name="Helion Benchmark Regression",
+    id="pytorch_helion",
+    source=BenchmarkApiSource(
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
+        type="benchmark_time_series_api",
+        api_endpoint_params_template="""
+                {
+                  "name": "pytorch_helion",
+                  "query_params": {
+                    "mode": "",
+                    "branches": ["main"],
+                    "repo": "pytorch/helion",
+                    "device": "",
+                    "arch":"",
+                    "benchmarkName": "Helion Benchmark",
+                    "startTime": "{{ startTime }}",
+                    "stopTime": "{{ stopTime }}"
+                    },
+                    "response_formats":["time_series"]
+                }
+                """,
+    ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/v3/dashboard/pytorch_helion",
+    },
+    # set baseline from past 4-8 days, and compare with the lastest 4 day
+    policy=Policy(
+        frequency=Frequency(value=1, unit="days"),
+        range=RangeConfig(
+            baseline=DayRangeWindow(value=4),
+            comparison=DayRangeWindow(value=4),
+        ),
+        metrics={
+            "helion_speedup": RegressionPolicy(
+                name="helion_speedup",
+                condition="greater_equal",
+                threshold=0.85,
+                baseline_aggregation="median",
+            ),
+        },
+        notification_config={
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7472",
+                }
+            ]
+        },
+    ),
+    report_config=ReportConfig(
+        report_level="insufficient_data",
+    ),
+)
+
+
+TORCHAO_MICRO_API_CONFIG = BenchmarkConfig(
+    name="Torchao Micro Api Regression",
+    id="torchao_micro_api_benchmark",
+    source=BenchmarkApiSource(
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
+        type="benchmark_time_series_api",
+        api_endpoint_params_template="""
+                {
+                  "name": "torchao_micro_api_benchmark",
+                  "query_params": {
+                    "mode": "",
+                    "branches": ["main"],
+                    "repo": "pytorch/ao",
+                    "device": "",
+                    "benchmarkName": "micro-benchmark api",
+                    "startTime": "{{ startTime }}",
+                    "stopTime": "{{ stopTime }}"
+                    },
+                    "response_formats":["time_series"]
+                }
+                """,
+    ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/v3/dashboard/torchao_micro_api_benchmark",
+    },
+    # set baseline from past 3-6 days, and compare with the lastest 3 days
+    policy=Policy(
+        frequency=Frequency(value=1, unit="days"),
+        range=RangeConfig(
+            baseline=DayRangeWindow(value=3),
+            comparison=DayRangeWindow(value=3),
+        ),
+        metrics={
+            "bfloat16 fwd time (ms)": RegressionPolicy(
+                name="bfloat16 fwd time (ms)",
+                condition="less_equal",
+                threshold=1.20,
+                baseline_aggregation="min",
+            ),
+            "quantized fwd time (ms)": RegressionPolicy(
+                name="quantized fwd time (ms)",
+                condition="less_equal",
+                threshold=1.20,
+                baseline_aggregation="min",
+            ),
+            "fwd speedup (x)": RegressionPolicy(
+                name="fwd speedup (x)",
+                condition="greater_equal",
+                threshold=0.9,
+                baseline_aggregation="median",
+            ),
+        },
+        notification_config={
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7477",
+                }
+            ]
+        },
+    ),
+    report_config=ReportConfig(
+        report_level="clear",
+    ),
+)
+
+PYTORCH_OPERATOR_MICROBENCH_CONFIG = BenchmarkConfig(
+    name="Pytorch Operator Microbench Regression",
+    id="pytorch_operator_microbenchmark",
+    source=BenchmarkApiSource(
+        api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
+        type="benchmark_time_series_api",
+        api_endpoint_params_template="""
+                {
+                  "name": "pytorch_operator_microbenchmark",
+                  "query_params": {
+                    "mode": "",
+                    "branches": ["main"],
+                    "repo": "pytorch/pytorch",
+                    "device": "",
+                    "arch": "",
+                    "benchmarkName": "PyTorch operator microbenchmark",
+                    "startTime": "{{ startTime }}",
+                    "stopTime": "{{ stopTime }}"
+                    },
+                    "response_formats":["time_series"]
+                }
+                """,
+    ),
+    hud_info={
+        "url": "https://hud.pytorch.org/benchmark/v3/dashboard/pytorch_operator_microbenchmark",
+    },
+    # set baseline from past 3-6 days, and compare with the lastest 3 day
+    policy=Policy(
+        frequency=Frequency(value=1, unit="days"),
+        range=RangeConfig(
+            baseline=DayRangeWindow(value=3),
+            comparison=DayRangeWindow(value=3),
+        ),
+        metrics={
+            "latency": RegressionPolicy(
+                name="latency",
+                condition="less_equal",
+                threshold=1.35,
+                baseline_aggregation="median",
+            ),
+        },
+        notification_config={
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7445",
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "cuda"}],
+                    },
+                },
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7593",
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "rocm"}],
+                    },
+                },
+            ]
+        },
+    ),
+    report_config=ReportConfig(
+        report_level="regression",
+    ),
+)
+
 # Compiler benchmark regression config
 # todo(elainewy): eventually each team should configure
 # their own benchmark regression config, currenlty place
@@ -22,20 +215,19 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
     source=BenchmarkApiSource(
         api_query_url="https://hud.pytorch.org/api/benchmark/get_time_series",
         type="benchmark_time_series_api",
-        # currently we only detect the regression for h100 with dtype bfloat16, and mode inference
-        # we can extend this to other devices, dtypes and mode in the future
+        # currently we only detect the regression for h100,b200 with dtype bfloat16,amp,
+        # and float16 with mode inference,training
         api_endpoint_params_template="""
                 {
                   "name": "compiler_precompute",
                   "response_formats":["time_series"],
                   "query_params": {
                     "commits": [],
-                    "compilers": [],
-                    "arch": "h100",
-                    "device": "cuda",
-                    "dtype": "bfloat16",
+                    "arches": ["b200","h100"],
+                    "devices": ["cuda"],
+                    "dtypes": ["bfloat16","amp","float16"],
                     "granularity": "hour",
-                    "mode": "inference",
+                    "modes": ["training","inference"],
                     "startTime": "{{ startTime }}",
                     "stopTime": "{{ stopTime }}",
                     "suites": ["torchbench", "huggingface", "timm_models"],
@@ -61,8 +253,8 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 threshold=0.9,
                 baseline_aggregation="max",
             ),
-            "geomean": RegressionPolicy(
-                name="geomean",
+            "geomean_speedup": RegressionPolicy(
+                name="geomean_speedup",
                 condition="greater_equal",
                 threshold=0.95,
                 baseline_aggregation="max",
@@ -81,9 +273,13 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
             ),
         },
         notification_config={
-            "type": "github",
-            "repo": "pytorch/test-infra",
-            "issue": "7081",
+            "configs": [
+                {
+                    "type": "github",
+                    "repo": "pytorch/test-infra",
+                    "issue": "7081",
+                }
+            ]
         },
     ),
     report_config=ReportConfig(
@@ -94,6 +290,9 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
 BENCHMARK_REGRESSION_CONFIG = BenchmarkRegressionConfigBook(
     configs={
         "compiler_regression": COMPILER_BENCHMARK_CONFIG,
+        "pytorch_operator_microbenchmark": PYTORCH_OPERATOR_MICROBENCH_CONFIG,
+        "pytorch_helion": PYTORCH_HELION_CONFIG,
+        "torchao_micro_api_benchmark": TORCHAO_MICRO_API_CONFIG,
     }
 )
 

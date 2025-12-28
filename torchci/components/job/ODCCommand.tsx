@@ -11,10 +11,32 @@ import {
   Typography,
 } from "@mui/material";
 import { Box, Stack } from "@mui/system";
+import { isFailedJob } from "lib/jobUtils";
+import { JobData } from "lib/types";
 import { useState } from "react";
 import useSWR from "swr";
 
 const STARTING_INSTRUCTIONS = "https://fburl.com/workplace/008py9db";
+
+export function canShowODCCommand(job: JobData): job is JobData & {
+  repo: string;
+  workflowId: string;
+  id: string;
+  failureLineNumbers: number[];
+  sha: string;
+  name: string;
+} {
+  const requirementsMet =
+    job.repo == "pytorch/pytorch" &&
+    isFailedJob(job) &&
+    job.workflowId != null &&
+    job.id != null &&
+    job.failureLineNumbers &&
+    job.failureLineNumbers.length > 0 &&
+    job.sha != null &&
+    job.name?.includes("linux"); // ODC only supports linux jobs for now
+  return requirementsMet || false;
+}
 
 /**
  * Get the reproduction command for the job using osdc gpu-dev CLI
@@ -117,6 +139,7 @@ export function ODCommandInstructions({
           mb: 0,
           pt: 0,
           pb: 0,
+          lineHeight: 1.2,
         }}
       >
         gpu-dev instructions
@@ -273,7 +296,7 @@ function TerminalCopyBox({ text }: { text: string }) {
   return (
     <Box
       sx={{
-        backgroundColor: "#f5f5f5",
+        backgroundColor: "#b4b4b43f",
         padding: "10px",
         borderRadius: "5px",
         marginTop: "10px",

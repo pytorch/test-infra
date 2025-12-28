@@ -7,7 +7,6 @@ import shlex
 import subprocess
 import sys
 
-from .conda import get_conda_variables
 from .cuda import get_cuda_variables
 from .macos import get_macos_variables
 from .version import get_version_variables
@@ -20,7 +19,7 @@ def parse_args() -> argparse.Namespace:
         "--package-type",
         help="Package type to lookup for",
         type=str,
-        choices=["wheel", "conda"],
+        choices=["wheel"],
         # BUILD_TYPE for legacy scripts
         default=os.getenv("PACKAGE_TYPE", os.getenv("BUILD_TYPE", "wheel")),
     )
@@ -90,25 +89,7 @@ def main():
     options = parse_args()
     variables = []
 
-    if options.package_type == "conda":
-        # TODO: Eventually it'd be nice to not have to rely on conda being installed
-        output = subprocess.check_output(
-            shlex.split(
-                f"conda search --json 'pytorch[channel=pytorch-{options.channel}]'"
-            ),
-            stderr=subprocess.STDOUT,
-        )
-        conda_search = json.loads(output)
-        variables.extend(
-            get_conda_variables(
-                conda_search=conda_search,
-                platform=options.platform,
-                gpu_arch_version=options.gpu_arch_version,
-                python_version=options.python_version,
-                pytorch_version=options.pytorch_version,
-            )
-        )
-    elif options.package_type == "wheel":
+    if options.package_type == "wheel":
         variables.extend(
             get_wheel_variables(
                 platform=options.platform,

@@ -9,7 +9,7 @@ import { NextApiRequest, NextApiResponse } from "next";
 const DEFAULT_QUERY_LIMIT = 25;
 const MAX_QUERY_LIMIT = 200;
 
-const REPORT_TABLE = "fortesting.benchmark_regression_report";
+const REPORT_TABLE = "benchmark.benchmark_regression_report";
 
 export default async function handler(
   req: NextApiRequest,
@@ -102,7 +102,19 @@ function buildQuery({
 
   const query = `
     SELECT
-      *
+      id,
+      report_id,
+      created_at,
+      last_record_ts,
+      stamp,
+      last_record_commit,
+      type,
+      status,
+      regression_count,
+      insufficient_data_count,
+      suspected_regression_count,
+      total_count,
+      repo
     FROM ${table}
     WHERE ${whereSql}
     ORDER BY last_record_ts DESC
@@ -118,46 +130,33 @@ function buildQuery({
   return { query, params };
 }
 
-export function toMiniReport(dbResult: any[]): any[] {
+export function toReportMetadata(dbResult: any[]): any[] {
   if (!dbResult || !dbResult.length) return [];
-
   const items = mapReportField(dbResult, "report");
-  const miniReports: any[] = [];
+  const reportMetadata: any[] = [];
   for (const item of items) {
     const { report, ...rest } = item;
-
     const otherFields = rest;
-
     if (!report) {
-      miniReports.push({
+      reportMetadata.push({
         ...otherFields,
       });
       continue;
     }
-
-    const policy = report.policy;
-    const r = report?.report;
-    const startInfo = r?.baseline_meta_data?.start;
-    const endInfo = r?.baseline_meta_data?.end;
-    const buckets = transformReportRows(r?.results ?? []);
-    miniReports.push({
+    reportMetadata.push({
       ...otherFields,
-      policy,
-      start: startInfo,
-      end: endInfo,
-      details: buckets,
     });
   }
-  return miniReports;
+  return reportMetadata;
 }
 
 function toApiFormat(dbResult: any[]) {
   const next_cursor = dbResult.length
     ? dbResult[dbResult.length - 1].last_record_ts
     : null;
-  const miniReports = toMiniReport(dbResult);
+  const metadata = toReportMetadata(dbResult);
   return {
-    reports: miniReports,
+    reports: metadata,
     next_cursor,
   };
 }
@@ -173,7 +172,7 @@ function safeJsonParse<T = unknown>(s: unknown): T | null {
 }
 
 /** Map ClickHouse rows so `report` (JSON string) becomes an object. */
-function mapReportField<T = unknown>(
+export function mapReportField<T = unknown>(
   rows: Array<Record<string, any>>,
   fieldName: string = "report"
 ): Array<Record<string, any>> {
@@ -189,22 +188,4 @@ function getQueryLimit(limit: any) {
     query_limit = DEFAULT_QUERY_LIMIT;
   query_limit = Math.min(query_limit, MAX_QUERY_LIMIT);
   return query_limit;
-}
-
-export function transformReportRows(
-  results: Array<Record<string, any>>
-): Record<"regression" | "suspicious", any[]> {
-  const resultBuckets: Record<"regression" | "suspicious", any[]> = {
-    regression: [],
-    suspicious: [],
-  };
-
-  for (const item of results) {
-    if (item.label === "regression") {
-      resultBuckets.regression.push(item);
-    } else if (item.label === "suspicious") {
-      resultBuckets.suspicious.push(item);
-    }
-  }
-  return resultBuckets;
 }

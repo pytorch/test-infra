@@ -1,10 +1,11 @@
 import { Alert, Typography } from "@mui/material";
-import { Grid, Stack } from "@mui/system";
+import { Box, Grid, Stack } from "@mui/system";
 import { AutoComponentProps } from "components/benchmark_v3/configs/utils/autoRegistration";
 import LoadingPage from "components/common/LoadingPage";
 import {
   useBenchmarkCommittedContext,
   useBenchmarkTimeSeriesData,
+  useListBenchmarkMetadata,
 } from "lib/benchmark/api_helper/fe/hooks";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
 import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/BenchmarkRawDataTable";
@@ -12,11 +13,18 @@ import BenchmarkRawDataTable from "../components/benchmarkTimeSeries/components/
 import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
 import { useRouter } from "next/router";
+import { useEffect, useState } from "react";
+import { MarkdownText } from "../../benchmarkList/BenchmarkCategoryCard";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
+import {
+  BenchmarkShortcutCardList,
+  BenchmarkShortcutItem,
+} from "../../common/BenchmarkShortcutCardList";
 import BenchmarkSingleDataTable from "../components/benchmarkTimeSeries/components/BenchmarkSingleDataTable";
 import { BenchmarkSingleViewNavigation } from "../components/benchmarkTimeSeries/components/BenchmarkSingleViewNatigation";
 import BenchmarkTimeSeriesChartGroup from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesChart/BenchmarkTimeSeriesChartGroup";
 import { ComparisonTable } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTable";
+import { BenchmarkComparisonGithubExternalLink } from "../components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/GithubExternalLink";
 
 export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
@@ -144,7 +152,7 @@ export function AutoBenchmarkTimeSeriesTable({ config }: AutoComponentProps) {
 
 export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
-
+  const [timedOut, setTimedOut] = useState(false);
   const isWorkflowsReady =
     !!ctx.lcommit?.workflow_id &&
     !!ctx.rcommit?.workflow_id &&
@@ -159,6 +167,17 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     !!ctx.committedRbranch &&
     isWorkflowsReady &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  useEffect(() => {
+    if (!ready) {
+      const id = setTimeout(() => {
+        setTimedOut(true);
+      }, 60000); // 60 seconds
+      return () => clearTimeout(id);
+    } else {
+      setTimedOut(false);
+    }
+  }, [ready]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
   const uiRenderConfig = config as UIRenderConfig;
@@ -240,9 +259,17 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
-  if (!ready) {
+  if (!ready && !timedOut) {
     return (
       <LoadingPage height={500} content="Waiting for initialization...." />
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <Alert severity="warning">
+        Timeout(60s): unable to fetch data due to no commit infos
+      </Alert>
     );
   }
 
@@ -287,6 +314,39 @@ export function AutoBenchmarkPairwiseTable({ config }: AutoComponentProps) {
   );
 }
 
+export function AutoBenchmarkComparisonGithubExternalLink({
+  config,
+}: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const isWorkflowsReady =
+    !!ctx.lcommit?.workflow_id &&
+    !!ctx.rcommit?.workflow_id &&
+    ctx.lcommit.branch === ctx.committedLbranch &&
+    ctx.rcommit.branch === ctx.committedRbranch;
+  const uiRenderConfig = config as UIRenderConfig;
+
+  const lcommit = ctx.lcommit;
+  const rcommit = ctx.rcommit;
+  const repo = uiRenderConfig.config?.repo ?? ctx.repo;
+  if (!isWorkflowsReady || !lcommit || !rcommit) {
+    return <></>;
+  }
+  return (
+    <Box sx={{ ml: 1 }}>
+      <BenchmarkComparisonGithubExternalLink
+        benchmarkId={ctx.benchmarkId}
+        lcommit={ctx.lcommit}
+        rcommit={ctx.rcommit}
+        repo={repo}
+        title={{
+          text: config?.title,
+          description: config?.description,
+        }}
+      />
+    </Box>
+  );
+}
+
 export function AutoBenchmarkSingleViewNavigation({
   config,
 }: AutoComponentProps) {
@@ -321,7 +381,7 @@ export function AutoBenchmarkSingleViewNavigation({
 
 export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
-
+  const [timedOut, setTimedOut] = useState(false);
   const isWorkflowsReady =
     !!ctx.lcommit?.workflow_id &&
     !!ctx.rcommit?.workflow_id &&
@@ -336,6 +396,17 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
     !!ctx.committedRbranch &&
     isWorkflowsReady &&
     ctx.requiredFilters.every((k: string) => !!ctx.committedFilters[k]);
+
+  useEffect(() => {
+    if (!ready) {
+      const id = setTimeout(() => {
+        setTimedOut(true);
+      }, 60000); // 60 seconds
+      return () => clearTimeout(id);
+    } else {
+      setTimedOut(false);
+    }
+  }, [ready]);
 
   const dataBinding = ctx?.configHandler.dataBinding;
 
@@ -370,9 +441,17 @@ export function AutoBenchmarkLogs({ config }: AutoComponentProps) {
     error,
   } = useBenchmarkTimeSeriesData(ctx.benchmarkId, queryParams, ["table"]);
 
-  if (!ready) {
+  if (!ready && !timedOut) {
     return (
-      <LoadingPage height={100} content="Waiting for initialization...." />
+      <LoadingPage height={500} content="Waiting for initialization...." />
+    );
+  }
+
+  if (timedOut) {
+    return (
+      <Alert severity="warning">
+        Timeout(60s): unable to fetch data due to no commit infos
+      </Alert>
     );
   }
 
@@ -604,6 +683,84 @@ export function AutoBenchmarkRawDataTable({ config }: AutoComponentProps) {
   );
 }
 
+export function AutoBenchmarkShortcutCardList({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const update = useDashboardSelector((s) => s.update);
+
+  const ready = !!ctx && !!ctx.committedTime;
+  const dataBinding = ctx?.configHandler.dataBinding;
+  const uiRenderConfig = config as UIRenderConfig;
+  const queryParams = ready
+    ? dataBinding.toQueryParams({
+        repo: ctx.repo,
+        benchmarkName: ctx.benchmarkName,
+        timeRange: ctx.committedTime,
+        filters: {}, // does not rerender when filter changes, since it fetches the filter optons
+      })
+    : null;
+
+  const {
+    data: resp,
+    isLoading,
+    error,
+  } = useListBenchmarkMetadata(ctx.benchmarkId, queryParams);
+
+  if (isLoading) {
+    return (
+      <LoadingPage
+        height={300}
+        content="loading data for AutoBenchmarkShortcutCardList..."
+      />
+    );
+  }
+
+  if (error) {
+    return (
+      <Alert severity="error">
+        (AutoBenchmarkShortcutCardList){error.message}
+      </Alert>
+    );
+  }
+
+  // ------------------ convert to the shortcut items ------------------
+  const filters = uiRenderConfig.config?.filters;
+  let data: BenchmarkShortcutItem[] = [];
+  resp?.data?.forEach((item: any) => {
+    const name = filters?.find((f: string) => f === item?.type);
+    if (name) {
+      const options = item?.options;
+      options.forEach((option: any) => {
+        data.push({
+          displayName: option.displayName ?? "unkown",
+          value: option.value,
+          description: item?.labelName ?? "",
+          fieldName: name,
+        });
+      });
+    }
+  });
+
+  return (
+    <>
+      <BenchmarkShortcutCardList
+        benchmarkId={ctx.benchmarkId}
+        data={data}
+        title={uiRenderConfig?.title}
+        onNavigate={(item: BenchmarkShortcutItem) => {
+          const changed: Record<string, string> = {};
+          changed[item.fieldName] = item.value;
+          update({
+            filters: {
+              ...ctx.committedFilters,
+              ...changed,
+            },
+          });
+        }}
+      />
+    </>
+  );
+}
+
 export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
   const ctx = useBenchmarkCommittedContext();
   const isWorkflowsReady =
@@ -676,6 +833,38 @@ export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
             description: config?.description ?? "list single workflow run data",
           }}
         />
+      </Grid>
+    </Grid>
+  );
+}
+
+/**
+ * Render customized content for the benchmark context
+ *
+ */
+export function AutoBenchmarkMarkDownContent({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const uiRenderConfig = config as UIRenderConfig;
+  const content = uiRenderConfig.config?.content;
+
+  if (!content) {
+    return <></>;
+  }
+
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
+        <Typography
+          variant="subtitle1"
+          color="text.secondary"
+          sx={{
+            "& p": { margin: 0, lineHeight: 1.2 },
+            "& ul, & ol": { margin: 0, paddingLeft: "1.2rem" },
+            "& li": { margin: 0, lineHeight: 1.2 },
+          }}
+        >
+          <MarkdownText text={content} />
+        </Typography>
       </Grid>
     </Grid>
   );

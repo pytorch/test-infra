@@ -227,7 +227,6 @@ export function getNavigationRouteByReportId(
   };
 
   const fields = getBenchmarkFields(group_info, id);
-
   const lcommit: BenchmarkCommitMeta = {
     commit: startCommit?.commit,
     branch: startCommit?.branch,

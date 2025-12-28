@@ -5,11 +5,11 @@ dispatching workflows via GitHub with consistent workflow name resolution.
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Set
+from typing import Dict, FrozenSet, Set
 
 from .clickhouse_client_helper import CHCliFactory
 from .utils import proper_workflow_create_dispatch, RetryWithBackoff
-from .workflow_resolver import WorkflowResolver
+from .workflow_resolver import WorkflowInputSupport, WorkflowResolver
 
 
 class WorkflowRestartChecker:
@@ -110,13 +110,21 @@ class WorkflowRestartChecker:
         """Clear the results cache."""
         self._cache.clear()
 
-    def restart_workflow(self, workflow_name: str, commit_sha: str) -> None:
+    def restart_workflow(
+        self,
+        workflow_name: str,
+        commit_sha: str,
+        jobs_to_include: FrozenSet[str] = frozenset(),
+        tests_to_include: FrozenSet[str] = frozenset(),
+    ) -> None:
         """
-        Restart a workflow for a specific commit SHA.
+        Restart a workflow for a specific commit SHA with optional filtering.
 
         Args:
             workflow_name: Name of the workflow (e.g., "trunk" or "trunk.yml")
             commit_sha: The commit SHA to restart workflow for
+            jobs_to_include: Job display names to filter (empty = all jobs)
+            tests_to_include: Test module paths to filter (empty = all tests)
 
         Raises:
             RuntimeError: If GitHub authentication is not configured.
@@ -138,20 +146,54 @@ class WorkflowRestartChecker:
         # Resolve workflow (exact display or file name)
         wf_ref = self.resolver.require(workflow_name)
 
+        # Check what inputs this workflow supports (fail gracefully)
+        try:
+            input_support = self.resolver.get_input_support(workflow_name)
+        except Exception:
+            logging.warning(
+                "Failed to check input support for %s, proceeding without filters",
+                workflow_name,
+                exc_info=True,
+            )
+            input_support = WorkflowInputSupport()
+
+        # Build inputs dict based on support and available filters
+        inputs: Dict[str, str] = {}
+        if input_support.jobs_to_include and jobs_to_include:
+            inputs["jobs-to-include"] = " ".join(jobs_to_include)
+        if input_support.tests_to_include and tests_to_include:
+            inputs["tests-to-include"] = " ".join(tests_to_include)
+
+        # Separate retry scopes: don't retry get_repo/get_workflow on dispatch failure
         for attempt in RetryWithBackoff():
             with attempt:
                 repo = client.get_repo(f"{self.repo_owner}/{self.repo_name}")
                 workflow = repo.get_workflow(wf_ref.file_name)
-                proper_workflow_create_dispatch(workflow, ref=tag_ref, inputs={})
+
+        for attempt in RetryWithBackoff():
+            with attempt:
+                proper_workflow_create_dispatch(workflow, ref=tag_ref, inputs=inputs)
 
         workflow_url = (
             f"https://github.com/{self.repo_owner}/{self.repo_name}"
             f"/actions/workflows/{wf_ref.file_name}?query=branch%3Atrunk%2F{commit_sha}"
         )
+
+        # Log what was dispatched with filter info
+        filter_info = ""
+        if inputs:
+            filter_parts = []
+            if "jobs-to-include" in inputs:
+                filter_parts.append(f"jobs={inputs['jobs-to-include']}")
+            if "tests-to-include" in inputs:
+                filter_parts.append(f"tests={inputs['tests-to-include']}")
+            filter_info = f" with filters: {', '.join(filter_parts)}"
+
         logging.info(
-            "Successfully dispatched workflow %s for commit %s (run: %s)",
+            "Successfully dispatched workflow %s for commit %s%s (run: %s)",
             wf_ref.display_name,
             commit_sha,
+            filter_info,
             workflow_url,
         )
 

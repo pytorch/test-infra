@@ -4,9 +4,10 @@ import {
 } from "lib/benchmark/api_helper/backend/common/utils";
 import { queryClickhouse } from "lib/clickhouse";
 import { NextApiRequest, NextApiResponse } from "next";
-import { toMiniReport } from "./list_regression_summary_reports";
+import { mapReportField } from "./list_regression_summary_reports";
 
-const REPORT_TABLE = "fortesting.benchmark_regression_report";
+const EXCLUDED_FILTER_OPTIONS = ["branch"];
+const REPORT_TABLE = "benchmark.benchmark_regression_report";
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -56,4 +57,94 @@ function buildQuery({ table, id }: { table: string; id: string }) {
   const params = { id };
 
   return { query, params };
+}
+
+function toMiniReport(dbResult: any[]): any[] {
+  if (!dbResult || !dbResult.length) return [];
+  const items = mapReportField(dbResult, "report");
+  const miniReports: any[] = [];
+  for (const item of items) {
+    const { report, ...rest } = item;
+
+    const otherFields = rest;
+
+    if (!report) {
+      miniReports.push({
+        ...otherFields,
+      });
+      continue;
+    }
+    const policy = report.policy;
+    const r = report?.report;
+    const startInfo = r?.baseline_meta_data?.start;
+    const endInfo = r?.baseline_meta_data?.end;
+    const { buckets, filterOptions } = transformReportRows(r?.results ?? []);
+    miniReports.push({
+      ...otherFields,
+      filters: filterOptions,
+      policy,
+      start: startInfo,
+      end: endInfo,
+      details: buckets,
+    });
+  }
+  return miniReports;
+}
+
+export function transformReportRows(results: Array<Record<string, any>>): {
+  buckets: Record<"regression" | "suspicious", any[]>;
+  filterOptions: { type: string; options: string | any[]; labelName: string }[];
+} {
+  const filterOptions: Record<string, Set<string>> = {};
+  const buckets: Record<"regression" | "suspicious", any[]> = {
+    regression: [],
+    suspicious: [],
+  };
+
+  for (const item of results) {
+    const groupInfo = item.group_info ?? {};
+    // --- collect unique values for each groupInfo key ---
+    if (item.label === "regression" || item.label === "suspicious") {
+      for (const key of Object.keys(groupInfo)) {
+        if (EXCLUDED_FILTER_OPTIONS.includes(key)) continue;
+        const value = String(groupInfo[key]);
+
+        if (!filterOptions[key]) {
+          filterOptions[key] = new Set();
+        }
+        filterOptions[key].add(value);
+      }
+    }
+
+    // --- bucket results ---
+    if (item.label === "regression") {
+      buckets.regression.push(item);
+    } else if (item.label === "suspicious") {
+      buckets.suspicious.push(item);
+    }
+  }
+  // Convert Set → string[]
+  const filterOptionsArr: {
+    type: string;
+    options: string | any[];
+    labelName: string;
+  }[] = [];
+  const prefix = "extra_key.";
+  for (const key of Object.keys(filterOptions)) {
+    const list = Array.from(filterOptions[key]);
+    if (list.length === 0) continue;
+    if ((list.length === 1 && list[0] === "") || list[0] === null) continue;
+    filterOptionsArr.push({
+      type: key,
+      labelName: key.startsWith(prefix) ? key.slice(prefix.length) : key,
+      options: [
+        {
+          value: "",
+          displayName: "All",
+        },
+        ...Array.from(filterOptions[key]),
+      ],
+    });
+  }
+  return { buckets, filterOptions: filterOptionsArr };
 }
