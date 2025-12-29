@@ -115,7 +115,7 @@ Event naming (for debuggability):
     - Within the same run, separate events for retries via `run_attempt` (name hints like "Attempt #2" are not relied upon).
 
 ### Non‑test mapping
-- Similar to test‑track but grouping is coarser (by normalized job base name):
+- Similar to test‑track but grouping is coarser (by normalized job base name plus classification rule):
 - For each (run_id, run_attempt, job_base_name) group in the commit
   - Within each group compute event status:
     - FAILURE if any row concluded failure.
