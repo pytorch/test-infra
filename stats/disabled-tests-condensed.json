@@ -64,13 +64,6 @@
       "rocm"
     ]
   ],
-  "test_addmm_activation_fusion (__main__.TestPatternMatcher)": [
-    "169910",
-    "https://github.com/pytorch/pytorch/issues/169910",
-    [
-      "xpu"
-    ]
-  ],
   "test_all_gather_collective (__main__.FxGraphRunnableTest)": [
     "166484",
     "https://github.com/pytorch/pytorch/issues/166484",
