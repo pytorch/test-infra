@@ -78,7 +78,12 @@ matched_relands AS (
         r.reland_time,
         substring(r.reland_message, 1, 100) AS reland_message_snippet,
         dateDiff('hour', a.revert_time, r.reland_time) AS hours_to_reland,
-        row_number() OVER (PARTITION BY a.pr_number ORDER BY r.reland_time ASC) AS rn
+        row_number()
+            OVER (
+                PARTITION BY a.pr_number
+                ORDER BY r.reland_time ASC
+            )
+            AS rn
     FROM autorevert_with_pr a
     JOIN reland_commits r ON r.primary_mentioned_pr = a.pr_number
     WHERE

@@ -195,6 +195,7 @@ recovery_with_reverted_sha AS (
         -- Check if recovery commit is a revert
         (
             r.recovery_message LIKE 'Revert %'
+            OR r.recovery_message LIKE 'Reapply %'
             OR r.recovery_message LIKE 'Back out%'
         ) AS is_revert,
         -- Extract reverted PR number if it's a revert

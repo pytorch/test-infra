@@ -47,7 +47,8 @@ revert_commits AS (
         push.head_commit.'timestamp' AS revert_time,
         push.head_commit.'message' AS revert_message,
         -- Extract mentioned PR numbers from revert message
-        -- Use the first non-empty PR reference
+        -- For nested reverts like 'Reapply "Back out "..." (#164939)" (#165910)" (#166812)',
+        -- the actual PR is the LAST one mentioned in the title line (before newline)
         if(
             arrayElement(
                 extractAll(
@@ -61,8 +62,15 @@ revert_commits AS (
                     'Reverted https://github.com/pytorch/pytorch/pull/(\\d+)'
                 ), 1
             ),
+            -- Get the LAST PR number from title (use -1 for last element)
             arrayElement(
-                extractAll(push.head_commit.'message', '#(\\d+)'), 1
+                extractAll(
+                    -- Extract just the first line (title) to get the correct PR
+                    arrayElement(
+                        splitByChar('\n', push.head_commit.'message'), 1
+                    ),
+                    '#(\\d+)'
+                ), -1
             )
         ) AS pr_reference
     FROM push
@@ -73,6 +81,7 @@ revert_commits AS (
         AND push.head_commit.'timestamp' < {stopTime: DateTime64(3)}
         AND (
             push.head_commit.'message' LIKE 'Revert %'
+            OR push.head_commit.'message' LIKE 'Reapply %'
             OR push.head_commit.'message' LIKE 'Back out%'
         )
 ),
@@ -95,7 +104,8 @@ matched_reverts AS (
     WHERE
         a.pr_number != ''
         AND (
-            r.revert_sha IS NULL  -- Keep autoreverts even if no linked revert found
+            -- Keep autoreverts even if no linked revert found
+            r.revert_sha IS NULL
             OR (
                 r.revert_time > a.autorevert_time
                 AND r.revert_time < a.autorevert_time + INTERVAL 1 HOUR

@@ -180,7 +180,11 @@ SELECT
     red_streak_length,
     green_streak_length,
     -- Check if recovery commit is a revert
-    (recovery_message LIKE 'Revert %' OR recovery_message LIKE 'Back out%')
+    (
+        recovery_message LIKE 'Revert %'
+        OR recovery_message LIKE 'Reapply %'
+        OR recovery_message LIKE 'Back out%'
+    )
         AS is_revert,
     -- Extract reverted PR number if it's a revert
     extractAll(

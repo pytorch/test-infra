@@ -181,6 +181,7 @@ recovery_with_reverted_sha AS (
         r.*,
         (
             r.recovery_message LIKE 'Revert %'
+            OR r.recovery_message LIKE 'Reapply %'
             OR r.recovery_message LIKE 'Back out%'
         ) AS is_revert,
         -- Extract the actual reverted commit SHA from message (e.g., "This reverts commit abc123...")
