@@ -1,0 +1,29 @@
+{
+  "params": {
+    "startTime": "DateTime64(3)",
+    "stopTime": "DateTime64(3)",
+    "workflowNames": "Array(String)",
+    "minRedCommits": "UInt8",
+    "minGreenCommits": "UInt8"
+  },
+  "tests": [
+    {
+      "startTime": "2024-12-01 00:00:00.000",
+      "stopTime": "2024-12-29 00:00:00.000",
+      "workflowNames": ["Lint", "pull", "trunk", "linux-aarch64"],
+      "minRedCommits": 2,
+      "minGreenCommits": 2
+    },
+    {
+      "startTime": {
+        "from_now": -14
+      },
+      "stopTime": {
+        "from_now": 0
+      },
+      "workflowNames": ["Lint", "pull", "trunk", "linux-aarch64"],
+      "minRedCommits": 2,
+      "minGreenCommits": 2
+    }
+  ]
+}
