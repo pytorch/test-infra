@@ -375,6 +375,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_fft_hfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171507",
+    "https://github.com/pytorch/pytorch/issues/171507",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_fft_ifft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "171017",
     "https://github.com/pytorch/pytorch/issues/171017",
@@ -413,6 +420,13 @@
   "test_comprehensive_fft_irfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "171161",
     "https://github.com/pytorch/pytorch/issues/171161",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_fft_irfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171510",
+    "https://github.com/pytorch/pytorch/issues/171510",
     [
       "xpu"
     ]
@@ -2368,6 +2382,20 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_wrap_triton_handled_during_tracing (__main__.FunctionTests)": [
+    "171509",
+    "https://github.com/pytorch/pytorch/issues/171509",
+    [
+      "xpu"
+    ]
+  ],
+  "test_wrap_triton_handled_during_tracing_dynamic_shapes (__main__.DynamicShapesFunctionTests)": [
+    "171508",
+    "https://github.com/pytorch/pytorch/issues/171508",
+    [
+      "xpu"
     ]
   ]
 }
