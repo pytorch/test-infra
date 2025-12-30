@@ -160,13 +160,6 @@
       "rocm"
     ]
   ],
-  "test_basic_xpu (__main__.EfficientConvBNEvalGpuTests)": [
-    "171163",
-    "https://github.com/pytorch/pytorch/issues/171163",
-    [
-      "xpu"
-    ]
-  ],
   "test_benchmark_choice_in_subproc (__main__.TestMaxAutotuneSubproc)": [
     "158335",
     "https://github.com/pytorch/pytorch/issues/158335",
