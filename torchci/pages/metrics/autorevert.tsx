@@ -125,7 +125,7 @@ function MetricsLegend() {
             </Typography>
           </Box>
         </Tooltip>
-        <Tooltip title="Signal recoveries from non-revert commits (e.g., fixes)">
+        <Tooltip title="Signal recoveries from non-revert commits (e.g., flakes, infrastructure issues, fixes)">
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Box
               sx={{
