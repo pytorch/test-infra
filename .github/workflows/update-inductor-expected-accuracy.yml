@@ -32,17 +32,19 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pandas requests
+          python -m pip install pandas==2.3.3 requests==2.32.5
 
       - name: Determine PyTorch SHA
         id: determine-sha
         run: |
+          # shellcheck disable=SC2086
           if [ -n "${{ github.event.inputs.pytorch_sha }}" ]; then
-            SHA="${{ github.event.inputs.pytorch_sha }}"
+            SHA=${{ github.event.inputs.pytorch_sha }}
           else
             # Use the latest commit SHA from main branch if not manually specified
             SHA=$(git rev-parse HEAD)
           fi
+          # shellcheck disable=SC2086
           echo "sha=${SHA}" >> $GITHUB_OUTPUT
           echo "Using PyTorch SHA: ${SHA}"
 
@@ -56,6 +58,7 @@ jobs:
       - name: Check for changes
         id: check-changes
         run: |
+          # shellcheck disable=SC2086
           if git diff --quiet benchmarks/dynamo/ci_expected_accuracy/; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "No changes detected"
