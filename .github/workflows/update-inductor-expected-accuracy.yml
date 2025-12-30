@@ -12,19 +12,16 @@ on:
         required: true
         type: string
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   update-expected-accuracy:
     runs-on: ubuntu-latest
+    environment: trigger-nightly
     steps:
       - name: Checkout PyTorch repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: pytorch/pytorch
-          token: ${{ secrets.FLAKY_TEST_BOT_KEY }}
+          token: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
           fetch-depth: 0
 
       - name: Set up Python 3.10
@@ -70,7 +67,7 @@ jobs:
       - name: Create Pull Request
         if: steps.check-changes.outputs.has_changes == 'true'
         env:
-          GH_TOKEN: ${{ secrets.FLAKY_TEST_BOT_KEY }}
+          GH_TOKEN: ${{ secrets.GH_PYTORCHBOT_TOKEN }}
         run: |
           # Configure git
           git config user.name "pytorchbot"
