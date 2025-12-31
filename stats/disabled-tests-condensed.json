@@ -1069,13 +1069,6 @@
       "linux"
     ]
   ],
-  "test_fuse_mix_order_reductions_combo_kernels (__main__.ComboKernelTests)": [
-    "170296",
-    "https://github.com/pytorch/pytorch/issues/170296",
-    [
-      "xpu"
-    ]
-  ],
   "test_fuzzer_issue_164185 (__main__.TestFuzzerCompileIssues)": [
     "170259",
     "https://github.com/pytorch/pytorch/issues/170259",
