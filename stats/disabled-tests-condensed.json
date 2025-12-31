@@ -431,6 +431,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_fft_irfft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "171562",
+    "https://github.com/pytorch/pytorch/issues/171562",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_fft_irfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "171510",
     "https://github.com/pytorch/pytorch/issues/171510",
@@ -2389,20 +2396,6 @@
       "inductor",
       "linux",
       "rocm"
-    ]
-  ],
-  "test_wrap_triton_handled_during_tracing (__main__.FunctionTests)": [
-    "171509",
-    "https://github.com/pytorch/pytorch/issues/171509",
-    [
-      "xpu"
-    ]
-  ],
-  "test_wrap_triton_handled_during_tracing_dynamic_shapes (__main__.DynamicShapesFunctionTests)": [
-    "171508",
-    "https://github.com/pytorch/pytorch/issues/171508",
-    [
-      "xpu"
     ]
   ]
 }
