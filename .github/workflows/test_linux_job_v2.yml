@@ -19,6 +19,7 @@ jobs:
       runner: linux.2xlarge
       test-infra-repository: ${{ github.repository }}
       test-infra-ref: ${{ github.ref }}
+      checkout-mode: "treeless"
       submodules: "recursive"
       gpu-arch-type: cpu
       gpu-arch-version: ""
