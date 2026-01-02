@@ -31,6 +31,10 @@ import {
   PYTORCH_VLLM_BENCHMARK_ID,
   PytorchVllmBenchmarkDashoboardConfig,
 } from "./teams/vllm/config";
+import {
+  PYTORCH_X_VLLM_BENCHMARK_ID,
+  PytorchXVllmBenchmarkDashboardConfig,
+} from "./teams/vllm/pytorch_x_vllm_config";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",
@@ -39,6 +43,9 @@ export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
 export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [COMPILTER_BENCHMARK_NAME]: {
     [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
+  },
+  [PYTORCH_X_VLLM_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchXVllmBenchmarkDashboardConfig,
   },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
     [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
@@ -68,6 +75,11 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
     id: COMPILTER_BENCHMARK_NAME,
     repoName: "pytorch/pytorch",
     benchmarkName: "compiler_inductor",
+  },
+  [PYTORCH_X_VLLM_BENCHMARK_ID]: {
+    id: PYTORCH_X_VLLM_BENCHMARK_ID,
+    repoName: "pytorch/pytorch",
+    benchmarkName: "PyTorch x vLLM benchmark",
   },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
     id: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
@@ -150,6 +162,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
             href: "https://docs.pytorch.org/docs/main/torch.compiler_performance_dashboard.html",
           },
         ],
+      },
+      {
+        name: "PyTorch x vLLM Benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_X_VLLM_BENCHMARK_ID}`,
+        info: "PyTorch x vLLM nightly benchmark. Powered by [code](TODO) and [benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
+        description: "Pytorch x vLLM nightly benchmark using vllm bench",
       },
       {
         name: "Gpt-fast Benchmark",
