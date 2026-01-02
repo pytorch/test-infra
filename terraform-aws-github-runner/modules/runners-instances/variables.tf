@@ -62,6 +62,18 @@ variable "instance_type" {
   default     = "m5.large"
 }
 
+variable "ami_id_pining_linux" {
+  description = "The AMI ID to pin the linux action runner instances to."
+  type        = string
+  default     = null
+}
+
+variable "ami_id_pining_linux_arm64" {
+  description = "The AMI ID to pin the linux action runner instances to."
+  type        = string
+  default     = null
+}
+
 variable "ami_filter_linux" {
   description = "List of maps used to create the AMI filter for the action runner AMI."
   type        = map(list(string))
