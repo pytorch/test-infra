@@ -1762,14 +1762,6 @@
       "macos"
     ]
   ],
-  "test_qlinear_add_cpu_use_relu_False_is_qat_False_is_dynamic_True (__main__.TestPatternMatcher)": [
-    "167273",
-    "https://github.com/pytorch/pytorch/issues/167273",
-    [
-      "asan",
-      "linux"
-    ]
-  ],
   "test_quantized_conv_no_asan_failures (__main__.TestOptimizer)": [
     "157254",
     "https://github.com/pytorch/pytorch/issues/157254",
