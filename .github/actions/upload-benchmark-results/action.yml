@@ -53,7 +53,7 @@ runs:
           hl-smi
         elif command -v xpu-smi; then
           DEVICE_NAME=xpu
-          xpu-smi
+          xpu-smi discovery
         else
           arch=$(uname -m)
 
