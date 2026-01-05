@@ -60,7 +60,7 @@ else
     fi
     # use-cloudflare-cdn: use cloudflare cdn for pypi download
     if [[ ${USE_CLOUDFLARE_CDN} == 'true' ]]; then
-        INSTALLATION=${INSTALLATION/"download.pytorch.org"/"r2-test.pytorch.org"}
+        INSTALLATION=${INSTALLATION/"download.pytorch.org"/"download-r2.pytorch.org"}
     fi
     # torch-only option: remove vision and audio
     if [[ ${TORCH_ONLY} == 'true' ]]; then
