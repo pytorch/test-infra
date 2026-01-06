@@ -19,7 +19,7 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   },
 ] as const;
 
-export const PytorcAoMicroApiBenchmarkDashoboardConfig: BenchmarkUIConfig = {
+export const PytorchAoMicroApiBenchmarkDashboardConfig: BenchmarkUIConfig = {
   benchmarkId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
   apiId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
   title: "TorchAo API MicroBenchmark",
