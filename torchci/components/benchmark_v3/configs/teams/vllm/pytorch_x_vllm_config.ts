@@ -129,7 +129,7 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
         type: "AutoBenchmarkMarkDownContent",
         config: {
           content:
-            "The data is generaterd based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml)",
+            "The data is generaterd based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml) + [the benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
         },
       },
 
