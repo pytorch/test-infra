@@ -1,47 +1,56 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
 import {
   BRANCH_METADATA_COLUMN,
-  DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
 
-export const PYTORCH_AO_MICRO_API_BENCHMARK_ID = "torchao_micro_api_benchmark";
+export const PYTORCH_X_VLLM_BENCHMARK_ID = "pytorch_x_vllm_benchmark";
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
-  ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   {
-    field: "dtype",
-    displayName: "Quant Type",
+    field: "device",
+    displayName: "Hardware type",
+  },
+  {
+    field: "arch",
+    displayName: "Hardware model",
   },
   {
     field: "extra_key.use_compile",
     displayName: "Use Compile",
   },
+  {
+    field: "extra_key.request_rate",
+    displayName: "Request Rate",
+  },
+  {
+    field: "extra_key.tensor_parallel_size",
+    displayName: "Tensor Parallel",
+  },
+  {
+    field: "extra_key.input_len",
+    displayName: "Input Len",
+  },
+  {
+    field: "extra_key.output_len",
+    displayName: "Max Output Len",
+  },
 ] as const;
 
-export const PytorchAoMicroApiBenchmarkDashboardConfig: BenchmarkUIConfig = {
-  benchmarkId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
-  apiId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
-  title: "TorchAo API MicroBenchmark",
+export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
+  benchmarkId: PYTORCH_X_VLLM_BENCHMARK_ID,
+  apiId: PYTORCH_X_VLLM_BENCHMARK_ID,
+  title: "PyTorch x vLLM Benchmark",
   type: "dashboard",
   dataBinding: {
     initial: {
       ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
-      benchmarkId: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+      benchmarkId: PYTORCH_X_VLLM_BENCHMARK_ID,
     },
     required_filter_fields: [],
   },
   dataRender: {
     type: "auto",
-    sideRender: {
-      RegressionReportFeature: {
-        type: "RegressionReportFeature",
-        title: "Regression Report Section",
-        config: {
-          report_id: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
-        },
-      },
-    },
     subSectionRenders: {
       detail_view: {
         filterConstraint: {
@@ -57,12 +66,27 @@ export const PytorchAoMicroApiBenchmarkDashboardConfig: BenchmarkUIConfig = {
         },
         renders: [
           {
+            type: "AutoBenchmarkMarkDownContent",
+            config: {
+              content:
+                "The data is generaterd based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml)",
+            },
+          },
+          {
             type: "AutoBenchmarkTimeSeriesChartGroup",
             title: "Metrics Time Series Chart Detail View",
             config: {
               type: "line",
               groupByFields: ["metric"],
-              lineKey: ["extra_key.use_compile", "dtype", "metric", "branch"],
+              lineKey: [
+                "model",
+                "extra_key.use_compile",
+                "extra_key.request_rate",
+                "extra_key.input_len",
+                "extra_key.output_len",
+                "metric",
+                "branch",
+              ],
               chart: {
                 renderOptions: {
                   showLegendDetails: true,
@@ -80,6 +104,7 @@ export const PytorchAoMicroApiBenchmarkDashboardConfig: BenchmarkUIConfig = {
               },
               extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
               renderOptions: {
+                missingText: "",
                 flex: {
                   primary: 2,
                 },
@@ -101,18 +126,13 @@ export const PytorchAoMicroApiBenchmarkDashboardConfig: BenchmarkUIConfig = {
     },
     renders: [
       {
-        type: "AutoBenchmarkShortcutCardList",
-        title: "Dtype Lists",
+        type: "AutoBenchmarkMarkDownContent",
         config: {
-          filters: ["dtype"],
+          content:
+            "The data is generaterd based on the [pinned vllm commit on PyTorch](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt), powered by PyTorch [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml) + [the benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
         },
       },
-      {
-        type: "AutoBenchmarkComparisonGithubExternalLink",
-        title: "Github Runs",
-        description: "See original github runs for left and right runs",
-        config: {},
-      },
+
       {
         type: "AutoBenchmarkPairwiseTable",
         title: "Comparison Table",
@@ -123,11 +143,13 @@ export const PytorchAoMicroApiBenchmarkDashboardConfig: BenchmarkUIConfig = {
             navigation: {
               type: "subSectionRender",
               value: "detail_view",
-              applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
+              applyFilterFields: ["model", "device", "arch"],
             },
           },
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
+            missingText: "none",
+            bothMissingText: "",
             flex: {
               primary: 2,
             },

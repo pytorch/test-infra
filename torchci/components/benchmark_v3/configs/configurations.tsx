@@ -11,7 +11,7 @@ import {
 } from "components/benchmark_v3/configs/teams/helion/config";
 import {
   PYTORCH_OPERATOR_MICROBENCHMARK_ID,
-  PytorchOperatorMicroBenchmarkDashoboardConfig,
+  PytorchOperatorMicroBenchmarkDashboardConfig,
 } from "components/benchmark_v3/configs/teams/torchao/config";
 import { BenchmarkCategoryGroup } from "../components/benchmarkList/BenchmarkCategoryCard";
 import {
@@ -24,13 +24,17 @@ import {
   PytorchGptFastBenchmarkDashboardConfig,
 } from "./teams/gptfast/config";
 import {
-  PytorcAoMicroApiBenchmarkDashoboardConfig,
   PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+  PytorchAoMicroApiBenchmarkDashboardConfig,
 } from "./teams/torchao/ao_micro_api_config";
 import {
-  PYTORCH_VLLM_BENCHMARK_ID,
-  PytorchVllmBenchmarkDashoboardConfig,
+  VLLM_BENCHMARK_ID,
+  VllmBenchmarkDashboardConfig,
 } from "./teams/vllm/config";
+import {
+  PYTORCH_X_VLLM_BENCHMARK_ID,
+  PytorchXVllmBenchmarkDashboardConfig,
+} from "./teams/vllm/pytorch_x_vllm_config";
 
 export const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
   compiler_regression: "compiler_inductor",
@@ -40,12 +44,15 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   [COMPILTER_BENCHMARK_NAME]: {
     [BenchmarkPageType.DashboardPage]: CompilerDashboardBenchmarkUIConfig,
   },
+  [PYTORCH_X_VLLM_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: PytorchXVllmBenchmarkDashboardConfig,
+  },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
     [BenchmarkPageType.AggregatePage]: CompilerPrecomputeBenchmarkUIConfig,
   },
   [PYTORCH_OPERATOR_MICROBENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]:
-      PytorchOperatorMicroBenchmarkDashoboardConfig,
+      PytorchOperatorMicroBenchmarkDashboardConfig,
   },
   [PYTORCH_HELION_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]: PytorchHelionDashboardConfig,
@@ -53,10 +60,10 @@ export const PREDEFINED_BENCHMARK_CONFIG: BenchmarkConfigMap = {
   },
   [PYTORCH_AO_MICRO_API_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]:
-      PytorcAoMicroApiBenchmarkDashoboardConfig,
+      PytorchAoMicroApiBenchmarkDashboardConfig,
   },
-  [PYTORCH_VLLM_BENCHMARK_ID]: {
-    [BenchmarkPageType.DashboardPage]: PytorchVllmBenchmarkDashoboardConfig,
+  [VLLM_BENCHMARK_ID]: {
+    [BenchmarkPageType.DashboardPage]: VllmBenchmarkDashboardConfig,
   },
   [PYTORCH_GPTFAST_BENCHMARK_ID]: {
     [BenchmarkPageType.DashboardPage]: PytorchGptFastBenchmarkDashboardConfig,
@@ -68,6 +75,11 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
     id: COMPILTER_BENCHMARK_NAME,
     repoName: "pytorch/pytorch",
     benchmarkName: "compiler_inductor",
+  },
+  [PYTORCH_X_VLLM_BENCHMARK_ID]: {
+    id: PYTORCH_X_VLLM_BENCHMARK_ID,
+    repoName: "pytorch/pytorch",
+    benchmarkName: "PyTorch x vLLM benchmark",
   },
   [COMPILTER_PRECOMPUTE_BENCHMARK_ID]: {
     id: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
@@ -89,8 +101,8 @@ export const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
     repoName: "pytorch/ao",
     benchmarkName: "micro-benchmark api",
   },
-  [PYTORCH_VLLM_BENCHMARK_ID]: {
-    id: PYTORCH_VLLM_BENCHMARK_ID,
+  [VLLM_BENCHMARK_ID]: {
+    id: VLLM_BENCHMARK_ID,
     repoName: "vllm-project/vllm",
     benchmarkName: "vLLM benchmark",
   },
@@ -152,6 +164,12 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
         ],
       },
       {
+        name: "PyTorch x vLLM Benchmark",
+        route: `/benchmark/v3/dashboard/${PYTORCH_X_VLLM_BENCHMARK_ID}`,
+        info: "PyTorch x vLLM nightly benchmark using [vLLM pinned commit](https://github.com/pytorch/pytorch/blob/main/.github/ci_commit_pins/vllm.txt). Powered by [vllm-benchmark workflow](https://github.com/pytorch/pytorch/blob/main/.github/workflows/vllm-benchmark.yml) + [the benchmark configs](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
+        description: "Pytorch x vLLM nightly benchmark on PyTorch",
+      },
+      {
         name: "Gpt-fast Benchmark",
         route: `/benchmark/v3/dashboard/${PYTORCH_GPTFAST_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/pytorch/tree/main/benchmarks/gpt_fast)",
@@ -207,13 +225,13 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
     ],
   },
   {
-    title: "vLLM Benchmarks ",
+    title: "vLLM Benchmarks",
     tags: ["repo:vllm-project/vllm"],
     subtitle: "Benchmarks related to repo vllm-project/vllm",
     items: [
       {
         name: "VLLM V1 Benchmark",
-        route: `/benchmark/v3/dashboard/${PYTORCH_VLLM_BENCHMARK_ID}`,
+        route: `/benchmark/v3/dashboard/${VLLM_BENCHMARK_ID}`,
         info: "Powered by [code](https://github.com/pytorch/pytorch-integration-testing/tree/main/vllm-benchmarks/benchmarks)",
         actions: [
           {

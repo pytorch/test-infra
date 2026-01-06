@@ -4,7 +4,7 @@ import {
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
 
-export const PYTORCH_VLLM_BENCHMARK_ID = "vllm_benchmark";
+export const VLLM_BENCHMARK_ID = "vllm_benchmark";
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
@@ -37,15 +37,15 @@ const COMPARISON_TABLE_METADATA_COLUMNS = [
   },
 ] as const;
 
-export const PytorchVllmBenchmarkDashoboardConfig: BenchmarkUIConfig = {
-  benchmarkId: PYTORCH_VLLM_BENCHMARK_ID,
-  apiId: PYTORCH_VLLM_BENCHMARK_ID,
+export const VllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
+  benchmarkId: VLLM_BENCHMARK_ID,
+  apiId: VLLM_BENCHMARK_ID,
   title: "VLLM V1 Benchmark",
   type: "dashboard",
   dataBinding: {
     initial: {
       ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
-      benchmarkId: PYTORCH_VLLM_BENCHMARK_ID,
+      benchmarkId: VLLM_BENCHMARK_ID,
       lbranch: "main(main)",
       rbranch: "main(main)",
     },
