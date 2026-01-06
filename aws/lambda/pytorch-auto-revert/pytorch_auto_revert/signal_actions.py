@@ -6,7 +6,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import Enum
-from typing import Dict, Iterable, List, Optional, Tuple, Union
+from typing import Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
 
 import github
 
@@ -40,8 +40,31 @@ class SignalMetadata:
     workflow_name: str
     key: str
     job_base_name: Optional[str] = None
+    test_module: Optional[str] = None
     wf_run_id: Optional[int] = None
     job_id: Optional[int] = None
+
+
+def _derive_job_filter(job_base_name: Optional[str]) -> Optional[str]:
+    """Extract job display name for jobs-to-include filter.
+
+    For jobs with " / " separator (e.g., "linux-jammy-cuda12.8 / test"),
+    returns the prefix before the separator.
+
+    For jobs without separator (e.g., "linux-jammy-py3.10-gcc11", "inductor-build"),
+    returns the full job_base_name as the display name.
+
+    Examples:
+        "linux-jammy-cuda12.8 / test" -> "linux-jammy-cuda12.8"
+        "linux-jammy-py3.10-gcc11"    -> "linux-jammy-py3.10-gcc11"
+        "inductor-build"              -> "inductor-build"
+        "job-filter"                  -> "job-filter"
+    """
+    if not job_base_name:
+        return None
+    if " / " in job_base_name:
+        return job_base_name.split(" / ")[0].strip()
+    return job_base_name.strip()
 
 
 @dataclass(frozen=True)
@@ -52,12 +75,16 @@ class ActionGroup:
     - commit_sha: target commit
     - workflow_target: workflow to restart (restart only); None/'' for revert
     - sources: contributing signals (workflow_name, key, outcome)
+    - jobs_to_include: job display names to filter for restart (empty = all jobs)
+    - tests_to_include: test module paths to filter for restart (empty = all tests)
     """
 
     type: str  # 'revert' | 'restart'
     commit_sha: str
     workflow_target: str | None  # restart-only; None/'' for revert
     sources: List[SignalMetadata]
+    jobs_to_include: FrozenSet[str] = frozenset()
+    tests_to_include: FrozenSet[str] = frozenset()
 
 
 class ActionLogger:
@@ -229,6 +256,7 @@ class SignalActionProcessor:
                 workflow_name=sig.workflow_name,
                 key=sig.key,
                 job_base_name=sig.job_base_name,
+                test_module=sig.test_module,
                 wf_run_id=wf_run_id,
                 job_id=job_id,
             )
@@ -251,12 +279,18 @@ class SignalActionProcessor:
                 )
             )
         for (wf, sha), sources in restart_map.items():
+            jobs = [_derive_job_filter(src.job_base_name) for src in sources]
+
             groups.append(
                 ActionGroup(
                     type="restart",
                     commit_sha=sha,
                     workflow_target=wf,
                     sources=sources,
+                    jobs_to_include=frozenset(j for j in jobs if j is not None),
+                    tests_to_include=frozenset(
+                        src.test_module for src in sources if src.test_module
+                    ),
                 )
             )
         return groups
@@ -279,6 +313,8 @@ class SignalActionProcessor:
                 commit_sha=group.commit_sha,
                 sources=group.sources,
                 ctx=ctx,
+                jobs_to_include=group.jobs_to_include,
+                tests_to_include=group.tests_to_include,
             )
         return False
 
@@ -330,6 +366,8 @@ class SignalActionProcessor:
         commit_sha: str,
         sources: List[SignalMetadata],
         ctx: RunContext,
+        jobs_to_include: FrozenSet[str] = frozenset(),
+        tests_to_include: FrozenSet[str] = frozenset(),
     ) -> bool:
         """Dispatch a workflow restart subject to pacing, cap, and backoff; always logs the event."""
         if ctx.restart_action == RestartAction.SKIP:
@@ -374,18 +412,32 @@ class SignalActionProcessor:
                 )
                 return False
 
-        notes = ""
+        # Build notes incrementally
+        notes_parts: list[str] = []
+        if jobs_to_include:
+            notes_parts.append(f"jobs_filter={','.join(jobs_to_include)}")
+        if tests_to_include:
+            notes_parts.append(f"tests_filter={','.join(tests_to_include)}")
+
         ok = True
         if not dry_run:
             try:
-                self._restart.restart_workflow(workflow_target, commit_sha)
+                self._restart.restart_workflow(
+                    workflow_target,
+                    commit_sha,
+                    jobs_to_include=jobs_to_include,
+                    tests_to_include=tests_to_include,
+                )
             except Exception as exc:
                 ok = False
-                notes = str(exc) or repr(exc)
+                notes_parts.append(str(exc) or repr(exc))
                 logging.exception(
                     "[v2][action] restart for sha %s: exception while dispatching",
                     commit_sha[:8],
                 )
+
+        notes = "; ".join(notes_parts)
+
         self._logger.insert_event(
             repo=ctx.repo_full_name,
             ts=ctx.ts,

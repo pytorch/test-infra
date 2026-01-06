@@ -14,6 +14,7 @@ import { LOG_PREFIX } from "components/benchmark/common";
 import { UIRenderConfig } from "components/benchmark_v3/configs/config_book_types";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
+import { MarkdownText } from "../../benchmarkList/BenchmarkCategoryCard";
 import { BenchmarkLogSidePanelWrapper } from "../../common/BenchmarkLogViewer/BenchmarkSidePanel";
 import {
   BenchmarkShortcutCardList,
@@ -832,6 +833,38 @@ export function AutoBenchmarkSingleDataTable({ config }: AutoComponentProps) {
             description: config?.description ?? "list single workflow run data",
           }}
         />
+      </Grid>
+    </Grid>
+  );
+}
+
+/**
+ * Render customized content for the benchmark context
+ *
+ */
+export function AutoBenchmarkMarkDownContent({ config }: AutoComponentProps) {
+  const ctx = useBenchmarkCommittedContext();
+  const uiRenderConfig = config as UIRenderConfig;
+  const content = uiRenderConfig.config?.content;
+
+  if (!content) {
+    return <></>;
+  }
+
+  return (
+    <Grid container sx={{ m: 1 }}>
+      <Grid sx={{ p: 0.2 }} size={{ xs: 11.5 }}>
+        <Typography
+          variant="subtitle1"
+          color="text.secondary"
+          sx={{
+            "& p": { margin: 0, lineHeight: 1.2 },
+            "& ul, & ol": { margin: 0, paddingLeft: "1.2rem" },
+            "& li": { margin: 0, lineHeight: 1.2 },
+          }}
+        >
+          <MarkdownText text={content} />
+        </Typography>
       </Grid>
     </Grid>
   );

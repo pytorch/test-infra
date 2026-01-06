@@ -82,11 +82,17 @@ class AutorevertConfig:
     subcommand: str = "autorevert-checker"
 
     # -------------------------------------------------------------------------
-    # Subcommand: workflow-restart-checker
+    # Subcommand: workflow-restart-checker and restart-workflow
     # -------------------------------------------------------------------------
     workflow: Optional[str] = None
     commit: Optional[str] = None
     days: int = DEFAULT_WORKFLOW_RESTART_DAYS
+
+    # -------------------------------------------------------------------------
+    # Subcommand: restart-workflow (filter inputs)
+    # -------------------------------------------------------------------------
+    jobs: Optional[str] = None  # Space-separated job display names
+    tests: Optional[str] = None  # Space-separated test module paths
 
     # -------------------------------------------------------------------------
     # Subcommand: hud
