@@ -51,6 +51,9 @@ runs:
         elif command -v hl-smi; then
           DEVICE_NAME=hpu
           hl-smi
+        elif command -v xpu-smi; then
+          DEVICE_NAME=xpu
+          xpu-smi discovery
         else
           arch=$(uname -m)
 
@@ -78,6 +81,8 @@ runs:
           DEVICE_TYPE="Intel Gaudi3 "$(hl-smi -q | grep "Product Name" | head -n 1 | awk -F ':' '{print $2}' | sed 's/^ *//')
         elif [[ "${DEVICE_NAME}" == "cpu" ]]; then
           DEVICE_TYPE="$(lscpu | grep "Model name" | sed -E 's/.*Model name:[[:space:]]*//; s/Intel\(R\)//g; s/\(R\)//g; s/\(TM\)//g; s/CPU//g; s/Processor//g; s/[[:space:]]+/ /g; s/^ //; s/ $//; s/ /_/g')_$(awk -F: '/Core\(s\) per socket/ {c=$2} /Socket\(s\)/ {s=$2} END {gsub(/ /,"",c); gsub(/ /,"",s); printf "%sc", c*s}' < <(lscpu))"
+        elif [[ "${DEVICE_NAME}" == "xpu" ]]; then
+          DEVICE_TYPE=$(xpu-smi discovery -d 0 -j | jq -r '.device_name')
         elif [[ "${DEVICE_NAME}" == "arm64-cpu" ]]; then
           # TODO (huydhn): This doesn't work on MacOS, only Linux aarch64. Setting
           # this to an empty string maintains the current behavior until this can
