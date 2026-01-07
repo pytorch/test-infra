@@ -278,7 +278,11 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                     "type": "github",
                     "repo": "pytorch/test-infra",
                     "issue": "7081",
-                }
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "cuda", "arch": "h100"}],
+                    },
+                },
             ]
         },
     ),
