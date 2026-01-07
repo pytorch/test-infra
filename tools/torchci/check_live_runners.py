@@ -23,7 +23,7 @@ LIVE_RUNNERS_RULES = [
     },
     {
         "runner_label": "linux.aws.h100.4",
-        "threshold": 2,
+        "threshold": 1,
     },
     {
         "runner_label": "linux.aws.h100.8",
