@@ -128,7 +128,7 @@ const DashboardRenderBook = {
     },
   },
   dynamo_peak_mem: {
-    displayName: "Dynamo memory usage (MB)",
+    displayName: "Dynamo memory usage (GB)",
   },
   compilation_latency: {
     displayName: "Compilation time (seconds)",
@@ -151,7 +151,7 @@ const DashboardRenderBook = {
     },
   },
   eager_peak_mem: {
-    displayName: "eager peak memory",
+    displayName: "eager peak memory (GB)",
   },
 };
 
@@ -190,7 +190,7 @@ const RENDER_MAPPING_BOOK = {
     },
   },
   dynamo_peak_mem: {
-    displayName: "Dynamo memory usage",
+    displayName: "Dynamo memory usage (GB)",
     unit: {
       unit: "mb",
     },
@@ -501,7 +501,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
                     text: "Execution time (seconds)",
                   },
                   dynamo_peak_mem: {
-                    text: "Dynamo memory usage (MB)",
+                    text: "Dynamo memory usage (GB)",
                   },
                 },
               },
