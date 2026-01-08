@@ -22,6 +22,7 @@ import {
 } from "../defaults/default_dashboard_config";
 dayjs.extend(utc);
 
+// regression page metric policy
 const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "passrate",
   type: "ratio",
@@ -31,6 +32,8 @@ const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
     direction: "up",
   },
 };
+
+// regression page metric policy
 const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "geomean_speedup",
   type: "ratio",
@@ -40,8 +43,10 @@ const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
     direction: "up",
   },
 };
-const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
-  target: "compilation_latency",
+
+// regression page metric policy
+const ASBSOLUTE_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "abs_latency",
   type: "ratio",
   ratioPolicy: {
     badRatio: 1.15,
@@ -49,6 +54,8 @@ const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
     direction: "down",
   },
 };
+
+// dashboard page metric policy
 const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "compression_ratio",
   type: "ratio",
@@ -59,11 +66,56 @@ const COMPRESSION_RATIO_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
+// dashboard page metric policy
 const ACCURACY_STATUS_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "accuracy",
   type: "status",
 };
 
+// dashboard page metric policy
+const DYNAMO_PEAK_MEMORY_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "dynamo_peak_mem",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.15,
+    goodRatio: 0.85,
+    direction: "down",
+  },
+};
+
+// dashboard page metric policy
+const EAGER_PEAK_MEMORY_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "eager_peak_mem",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.15,
+    goodRatio: 0.85,
+    direction: "down",
+  },
+};
+
+// regression& dashboard page metric policy
+const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "compilation_latency",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.15,
+    goodRatio: 0.85,
+    direction: "down",
+  },
+};
+
+const DashboardComparisonPolicyBook = {
+  accuracy: ACCURACY_STATUS_POLICY,
+  compression_ratio: COMPRESSION_RATIO_POLICY,
+  abs_latency: ASBSOLUTE_LATENCY_COMPARISON_POLICY,
+  dynamo_peak_mem: DYNAMO_PEAK_MEMORY_POLICY,
+  eager_peak_mem: EAGER_PEAK_MEMORY_POLICY,
+  compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
+};
+
+// render book for the compiler dashboard page
+// benchmark/v3/dashboard/compiler_inductor
 const DashboardRenderBook = {
   accuracy: {
     displayName: "Accuracy",
@@ -75,7 +127,7 @@ const DashboardRenderBook = {
     },
   },
   dynamo_peak_mem: {
-    displayName: "Dynamo memory usage",
+    displayName: "Dynamo memory usage (MB)",
   },
   compilation_latency: {
     displayName: "Compilation time (seconds)",
@@ -97,8 +149,12 @@ const DashboardRenderBook = {
       unit: "ms",
     },
   },
+  eager_peak_mem: {
+    displayName: "eager peak memory",
+  },
 };
 
+// render book for the compiler regression page
 const RENDER_MAPPING_BOOK = {
   passrate: {
     unit: {
@@ -140,6 +196,7 @@ const RENDER_MAPPING_BOOK = {
   },
 };
 
+// converter function
 export function toQueryArch(device: string, arch: string) {
   if (arch === undefined) return [];
   if (!device) return [];
@@ -192,6 +249,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
   return params;
 };
 
+// the benchmark id for the compiler regression page
 export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
 
 // The initial config for the compiler benchmark regression page
@@ -220,8 +278,10 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   maxSampling: 110, // max number of job run results to show in the table, this avoid out of memory issue
 };
 
+// the benchmark id for the compiler dashboard page
 export const COMPILTER_BENCHMARK_NAME = "compiler_inductor";
 
+// The initial config for the compiler dashboard page
 const COMPILER_DASHBOARD_BENCHMARK_DATABINDING = {
   initial: {
     ...DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
@@ -251,6 +311,7 @@ const DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS = [
 ] as const;
 
 // config for the compiler dashboard page
+// benchmark/v3/dashboard/compiler_inductor
 export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
   benchmarkId: COMPILTER_BENCHMARK_NAME,
   apiId: COMPILTER_BENCHMARK_NAME,
@@ -321,11 +382,7 @@ export const CompilerDashboardBenchmarkUIConfig: BenchmarkUIConfig = {
             },
           },
           targetField: "metric",
-          comparisonPolicy: {
-            accuracy: ACCURACY_STATUS_POLICY,
-            compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
-            compression_ratio: COMPRESSION_RATIO_POLICY,
-          },
+          comparisonPolicy: DashboardComparisonPolicyBook,
           extraMetadata: DASHBOARD_COMPARISON_TABLE_METADATA_COLUMNS,
           renderOptions: {
             tableRenderingBook: DashboardRenderBook,
