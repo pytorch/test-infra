@@ -109,14 +109,36 @@ runs:
               )
           }
 
-          install_nvidia_docker2_ubuntu20() {
+          install_nvidia_docker2_ubuntu() {
               (
                   set -x
-                  # Install nvidia-driver package if not installed
-                  status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
-                  if [ ! $? = 0 ] || [ ! "$status" = installed ]; then
-                    sudo apt-get install -y nvidia-container-toolkit-1.17.8
+                  # Check if nvidia-container-toolkit or nvidia-docker2 is installed
+                  set +e
+                  toolkit_status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-container-toolkit 2>&1)"
+                  toolkit_result=$?
+                  docker2_status="$(dpkg-query -W --showformat='${db:Status-Status}' nvidia-docker2 2>&1)"
+                  docker2_result=$?
+                  set -e
+                  
+                  # Install if neither package is installed
+                  if [ "$toolkit_result" -ne 0 ] && [ "$docker2_result" -ne 0 ]; then
+                    echo "Installing nvidia-container-toolkit..."
+                    
+                    # Add NVIDIA Docker repository
+                    distribution=$(. /etc/os-release;echo $ID$VERSION_ID)
+                    curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+                    curl -s -L https://nvidia.github.io/libnvidia-container/$distribution/libnvidia-container.list | \
+                      sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+                      sudo tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+                    
+                    # Update and install
+                    sudo apt-get update -qq
+                    sudo apt-get install -y nvidia-container-toolkit
                     sudo systemctl restart docker
+                  elif [ "$toolkit_result" -eq 0 ] && [ "$toolkit_status" = "installed" ]; then
+                    echo "nvidia-container-toolkit is already installed"
+                  elif [ "$docker2_result" -eq 0 ] && [ "$docker2_status" = "installed" ]; then
+                    echo "nvidia-docker2 (legacy) is already installed, skipping"
                   fi
               )
           }
@@ -132,8 +154,8 @@ runs:
               (
                   # Try to gather more information about the runner and its existing NVIDIA driver if any
                   echo "Before installing NVIDIA driver"
-                  lspci
-                  lsmod
+                  lspci || true
+                  lsmod || true
                   modinfo nvidia || true
 
                   HAS_NVIDIA_DRIVER=0
@@ -152,6 +174,13 @@ runs:
 
                           # Turn off persistent mode so that the installation script can unload the kernel module
                           sudo killall nvidia-persistenced || true
+                          
+                          # Unload NVIDIA kernel modules to allow new driver installation
+                          echo "Attempting to unload NVIDIA kernel modules..."
+                          sudo rmmod nvidia_uvm || true
+                          sudo rmmod nvidia_drm || true
+                          sudo rmmod nvidia_modeset || true
+                          sudo rmmod nvidia || true
                       else
                           HAS_NVIDIA_DRIVER=1
                           echo "NVIDIA driver ($INSTALLED_DRIVER_VERSION) has already been installed. Skipping NVIDIA driver installation"
@@ -161,13 +190,19 @@ runs:
 
                   if [ "$HAS_NVIDIA_DRIVER" -eq 0 ]; then
                       # CAUTION: this may need to be updated in future
-                      if [ "${DISTRIBUTION}" != ubuntu20.04 ]; then
-                            sudo yum groupinstall -y "Development Tools"
-                            # ensure our kernel install is the same as our underlying kernel,
-                            # groupinstall "Development Tools" has a habit of mismatching kernel headers
-                            sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
-                            sudo modprobe backlight
-                      fi
+                      case "${DISTRIBUTION}" in
+                          ubuntu*)
+                              # Ubuntu doesn't need yum packages
+                              ;;
+                          *)
+                              # Amazon Linux and others need Development Tools
+                              sudo yum groupinstall -y "Development Tools"
+                              # ensure our kernel install is the same as our underlying kernel,
+                              # groupinstall "Development Tools" has a habit of mismatching kernel headers
+                              sudo yum install -y "kernel-devel-uname-r == $(uname -r)"
+                              sudo modprobe backlight
+                              ;;
+                      esac
                       sudo curl -fsL -o /tmp/nvidia_driver "https://s3.amazonaws.com/ossci-linux/nvidia_driver/$DRIVER_FN"
 
                       set +e
@@ -190,7 +225,7 @@ runs:
                       fi
 
                       if [ "$RESET_GPU" -eq 1 ]; then
-                          NVIDIA_DEVICES=$(lspci -D | grep -i NVIDIA | cut -d' ' -f1)
+                          NVIDIA_DEVICES=$(lspci -D 2>/dev/null | grep -i NVIDIA | cut -d' ' -f1 || true)
                           # The GPU can get stuck in a failure state if somehow the test crashs the GPU microcode. When this
                           # happens, we'll try to reset all NVIDIA devices https://github.com/pytorch/pytorch/issues/88388
                           for PCI_ID in $NVIDIA_DEVICES; do
@@ -213,8 +248,8 @@ runs:
               (
                   sudo modprobe nvidia || true
                   echo "After installing NVIDIA driver"
-                  lspci
-                  lsmod
+                  lspci || true
+                  lsmod || true
                   modinfo nvidia || true
 
                   (
@@ -274,7 +309,7 @@ runs:
               )
           }
 
-          install_nvidia_driver_ubuntu20() {
+          install_nvidia_driver_ubuntu() {
               (
                   set -x
                   install_nvidia_driver_common
@@ -287,8 +322,8 @@ runs:
               amzn*)
                   install_nvidia_driver_amzn2
                   ;;
-              ubuntu20.04)
-                  install_nvidia_driver_ubuntu20
+              ubuntu*)
+                  install_nvidia_driver_ubuntu
                   ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
@@ -302,8 +337,8 @@ runs:
               amzn*)
                   install_nvidia_docker2_amzn2
                   ;;
-              ubuntu20.04)
-                  install_nvidia_docker2_ubuntu20
+              ubuntu*)
+                  install_nvidia_docker2_ubuntu
                   ;;
               *)
                   echo "ERROR: Unknown distribution ${DISTRIBUTION}"
