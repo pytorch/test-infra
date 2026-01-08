@@ -34,7 +34,7 @@ const PASSRATE_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
 };
 
 // regression page metric policy
-const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
+const GEOMEAN_SPEEDUP_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "geomean_speedup",
   type: "ratio",
   ratioPolicy: {
@@ -44,7 +44,7 @@ const GEOMEAN_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
-// regression page metric policy
+// dashboard page metric policy
 const ASBSOLUTE_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   target: "abs_latency",
   type: "ratio",
@@ -105,6 +105,7 @@ const COMPILATION_LATENCY_COMPARISON_POLICY: BenchmarkComparisonPolicyConfig = {
   },
 };
 
+// dashboard page metric policy books
 const DashboardComparisonPolicyBook = {
   accuracy: ACCURACY_STATUS_POLICY,
   compression_ratio: COMPRESSION_RATIO_POLICY,
@@ -251,7 +252,6 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
 
 // the benchmark id for the compiler regression page
 export const COMPILTER_PRECOMPUTE_BENCHMARK_ID = "compiler_precompute";
-
 // The initial config for the compiler benchmark regression page
 export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
   benchmarkId: COMPILTER_PRECOMPUTE_BENCHMARK_ID,
@@ -280,7 +280,6 @@ export const COMPILTER_PRECOMPUTE_BENCHMARK_INITIAL = {
 
 // the benchmark id for the compiler dashboard page
 export const COMPILTER_BENCHMARK_NAME = "compiler_inductor";
-
 // The initial config for the compiler dashboard page
 const COMPILER_DASHBOARD_BENCHMARK_DATABINDING = {
   initial: {
@@ -536,7 +535,7 @@ export const CompilerPrecomputeBenchmarkUIConfig: BenchmarkUIConfig = {
             targetField: "metric",
             comparisonPolicy: {
               passrate: PASSRATE_COMPARISON_POLICY,
-              geomean_speedup: GEOMEAN_COMPARISON_POLICY,
+              geomean_speedup: GEOMEAN_SPEEDUP_COMPARISON_POLICY,
               compilation_latency: COMPILATION_LATENCY_COMPARISON_POLICY,
               compression_ratio: COMPRESSION_RATIO_POLICY,
             },
