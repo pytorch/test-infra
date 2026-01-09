@@ -115,6 +115,7 @@ export enum BenchmarkMetadataType {
   Device = "device",
   ArchName = "arch",
   OperatornName = "operatorName",
+  ModelCategory = "modelCategory",
   Qps = "qps",
 }
 /**
