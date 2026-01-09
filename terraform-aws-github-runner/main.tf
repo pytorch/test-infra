@@ -188,6 +188,8 @@ module "runners_instances" {
   block_device_mappings = var.block_device_mappings
 
   runner_architecture       = local.runner_architecture
+  ami_id_pining_linux       = var.ami_id_pining_linux
+  ami_id_pining_linux_arm64 = var.ami_id_pining_linux_arm64
   ami_owners_linux          = var.ami_owners_linux
   ami_owners_linux_arm64    = var.ami_owners_linux_arm64
   ami_owners_windows        = var.ami_owners_windows
