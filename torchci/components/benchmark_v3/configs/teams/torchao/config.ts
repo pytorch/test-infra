@@ -14,8 +14,8 @@ const initialOptions = {
   benchmarkId: PYTORCH_OPERATOR_MICROBENCHMARK_ID,
   filters: {
     device: "cuda",
-    arch: "NVIDIA B200",
-    deviceName: "cuda||NVIDIA B200",
+    arch: "B200",
+    deviceName: "cuda||B200",
     operatorName: "addmm",
   },
 };
