@@ -650,6 +650,14 @@ export class VllmBenchmarkDataFetcher
     this._data_query.addExtraInfos(
       new Map([
         [
+          "model_category",
+          `IF(
+              tupleElement(o.benchmark, 'extra_info')['model_category'] = '',
+              arrayElement(splitByChar('/', tupleElement(o.model, 'name')), 1),
+              tupleElement(o.benchmark, 'extra_info')['model_category']
+            )`,
+        ],
+        [
           "use_compile",
           `IF(
                 tupleElement(o.benchmark, 'extra_info')['compile'] = '',
@@ -702,6 +710,14 @@ export class VllmBenchmarkDataFetcher
         ],
       ])
     );
+
+    this._data_query.addInnerWhereStatements([
+      `(
+          {modelCategory:String} = ''
+          OR startsWith(tupleElement(o.model, 'name'), {modelCategory:String})
+      )
+    `,
+    ]);
   }
   applyFormat(
     data: any[],

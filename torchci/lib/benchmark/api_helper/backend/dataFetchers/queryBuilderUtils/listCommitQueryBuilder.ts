@@ -157,3 +157,33 @@ export class PytorchOperatorMicroListCommitsDataFetcher
     return this._data_query.postProcess(data);
   }
 }
+
+export class VllmListCommitsDataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkListCommitFetcher
+{
+  private _data_query: BenchmarkListCommitQueryBuilder;
+  constructor() {
+    super();
+    this._data_query = new BenchmarkListCommitQueryBuilder();
+    this._data_query.addWhere([
+      "(startsWith(model_name, {modelCategory: String}) OR {modelCategory: String} = '')",
+    ]);
+  }
+
+  toQueryParams(inputs: any, id?: string): Record<string, any> {
+    const pq = {
+      ...inputs,
+      operatorName: inputs.operatorName ?? "",
+    };
+    const params = this._data_query.toQueryParams(pq);
+    return params;
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+  postProcess(data: any[]) {
+    return this._data_query.postProcess(data);
+  }
+}
