@@ -71,14 +71,6 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
-  "trunk / linux-jammy-py3-clang12-executorch / test (executorch)": [
-    "clee2000",
-    "166072",
-    "https://github.com/pytorch/pytorch/issues/166072",
-    "trunk",
-    "linux-jammy-py3-clang12-executorch",
-    "test (executorch)"
-  ],
   "trunk-rocm-mi300 / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "167616",
