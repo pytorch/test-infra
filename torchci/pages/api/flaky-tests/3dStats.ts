@@ -32,7 +32,7 @@ async function getTest(
   for (const row of res) {
     row.conclusions = _.countBy(row.conclusions);
   }
-  return res;
+  return res as TestInfoAPIResponse;
 }
 
 export type TestInfoAPIResponse = {
