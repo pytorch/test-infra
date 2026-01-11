@@ -2096,6 +2096,13 @@
       "xpu"
     ]
   ],
+  "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_False_mat2_transposed_True_use_tma_False (__main__.TestTemplateConfigPruning)": [
+    "172177",
+    "https://github.com/pytorch/pytorch/issues/172177",
+    [
+      "xpu"
+    ]
+  ],
   "test_shared_memory_pruning_mm_float32_mat1_transposed_True_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
     "172038",
     "https://github.com/pytorch/pytorch/issues/172038",
