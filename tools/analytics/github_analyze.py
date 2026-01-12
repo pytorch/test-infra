@@ -473,6 +473,10 @@ def commits_missing_in_branch(
     for issue in gh_get_milestone_issues(
         "pytorch", "pytorch", milestone_idx, IssueState.ALL
     ):
+        # Skip issues with the release-feature-request label
+        labels = [label["name"] for label in issue.get("labels", [])]
+        if "release-feature-request" in labels:
+            continue
         issue_url, state = issue["html_url"], issue["state"]
         # Skip closed states if they were landed before merge date
         if state == "closed":
