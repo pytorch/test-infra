@@ -1130,6 +1130,13 @@
       "rocm"
     ]
   ],
+  "test_fx_memory_profiler_augmentation (__main__.TestXpu)": [
+    "172202",
+    "https://github.com/pytorch/pytorch/issues/172202",
+    [
+      "xpu"
+    ]
+  ],
   "test_get_mode_stack (__main__.TestTorchFunctionMode)": [
     "133994",
     "https://github.com/pytorch/pytorch/issues/133994",
