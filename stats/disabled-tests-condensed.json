@@ -354,137 +354,11 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_fft_fft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171016",
-    "https://github.com/pytorch/pytorch/issues/171016",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_fft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171227",
-    "https://github.com/pytorch/pytorch/issues/171227",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_fftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171236",
-    "https://github.com/pytorch/pytorch/issues/171236",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_fft_fftshift_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "140484",
     "https://github.com/pytorch/pytorch/issues/140484",
     [
       "inductor"
-    ]
-  ],
-  "test_comprehensive_fft_hfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171290",
-    "https://github.com/pytorch/pytorch/issues/171290",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_hfft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171019",
-    "https://github.com/pytorch/pytorch/issues/171019",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_hfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171507",
-    "https://github.com/pytorch/pytorch/issues/171507",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_ifft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171017",
-    "https://github.com/pytorch/pytorch/issues/171017",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_ifft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171226",
-    "https://github.com/pytorch/pytorch/issues/171226",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_ifftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171164",
-    "https://github.com/pytorch/pytorch/issues/171164",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_ihfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171018",
-    "https://github.com/pytorch/pytorch/issues/171018",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_ihfft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171020",
-    "https://github.com/pytorch/pytorch/issues/171020",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_ihfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171511",
-    "https://github.com/pytorch/pytorch/issues/171511",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_irfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171161",
-    "https://github.com/pytorch/pytorch/issues/171161",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_irfft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171562",
-    "https://github.com/pytorch/pytorch/issues/171562",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_irfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171510",
-    "https://github.com/pytorch/pytorch/issues/171510",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_rfft2_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171233",
-    "https://github.com/pytorch/pytorch/issues/171233",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_rfft_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171765",
-    "https://github.com/pytorch/pytorch/issues/171765",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_fft_rfftn_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "171014",
-    "https://github.com/pytorch/pytorch/issues/171014",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
@@ -2087,34 +1961,6 @@
       "linux",
       "mac",
       "macos"
-    ]
-  ],
-  "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_False_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
-    "171986",
-    "https://github.com/pytorch/pytorch/issues/171986",
-    [
-      "xpu"
-    ]
-  ],
-  "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_False_mat2_transposed_False_use_tma_True (__main__.TestTemplateConfigPruning)": [
-    "171989",
-    "https://github.com/pytorch/pytorch/issues/171989",
-    [
-      "xpu"
-    ]
-  ],
-  "test_shared_memory_pruning_addmm_bfloat16_mat1_transposed_False_mat2_transposed_True_use_tma_False (__main__.TestTemplateConfigPruning)": [
-    "172177",
-    "https://github.com/pytorch/pytorch/issues/172177",
-    [
-      "xpu"
-    ]
-  ],
-  "test_shared_memory_pruning_mm_float32_mat1_transposed_True_mat2_transposed_False_use_tma_False (__main__.TestTemplateConfigPruning)": [
-    "172038",
-    "https://github.com/pytorch/pytorch/issues/172038",
-    [
-      "xpu"
     ]
   ],
   "test_skip_grad_in_check (__main__.TestTEFuserDynamic)": [
