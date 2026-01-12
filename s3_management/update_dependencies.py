@@ -734,7 +734,10 @@ def upload_index_html(
     # Upload to S3
     print(f"Uploading index.html to s3://pytorch/{index_key}")
     BUCKET.Object(key=index_key).put(
-        ACL="public-read", ContentType="text/html", Body=modified_html.encode("utf-8")
+        ACL="public-read",
+        ContentType="text/html",
+        CacheControl="no-cache,no-store,must-revalidate",
+        Body=modified_html.encode("utf-8"),
     )
 
     # Upload to R2 if configured
@@ -743,6 +746,7 @@ def upload_index_html(
         R2_BUCKET.Object(key=index_key).put(
             ACL="public-read",
             ContentType="text/html",
+            CacheControl="no-cache,no-store,must-revalidate",
             Body=modified_html.encode("utf-8"),
         )
 
