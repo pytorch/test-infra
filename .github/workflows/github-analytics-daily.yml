@@ -10,24 +10,24 @@ on:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
         default: "release/2.10"
-        required: true
+        required: false
         type: string
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
         default: 57
-        required: true
+        required: false
         type: string
   workflow_dispatch:
     inputs:
       branch:
         description: "PyTorch release branch. e.g. release/2.7"
         default: "release/2.10"
-        required: true
+        required: false
         type: string
       milestone-id:
         description: 'Release milestone ID. e.g. 54'
         default: 57
-        required: true
+        required: false
         type: string
 
 jobs:
