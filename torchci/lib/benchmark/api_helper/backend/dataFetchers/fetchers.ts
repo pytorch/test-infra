@@ -8,11 +8,13 @@ import {
 import {
   BenchmarkListCommitQueryBuilder,
   PytorchOperatorMicroListCommitsDataFetcher,
+  VllmListCommitsDataFetcher,
 } from "./queryBuilderUtils/listCommitQueryBuilder";
 import {
   BenchmarkMetadataQuery,
   PytorchOperatorMicrobenchmarkMetadataFetcher,
   TorchAoMicrobApienchmarkMetadataFetcher,
+  VllmBenchmarkMetadataFetcher,
 } from "./queryBuilderUtils/listMetadataQueryBuilder";
 import {
   BenchmarkDataFetcher,
@@ -34,12 +36,14 @@ const dataCtors: Record<string, new () => BenchmarkDataFetcher> = {
 const metaCtors: Record<string, new () => BenchmarkMetadataFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicrobenchmarkMetadataFetcher,
   torchao_micro_api_benchmark: TorchAoMicrobApienchmarkMetadataFetcher,
+  vllm_benchmark: VllmBenchmarkMetadataFetcher,
   default: BenchmarkMetadataQuery,
 };
 
 // Register benchmark list commit fetchers. this is mainly used in list_commits api
 const listCommitsCtors: Record<string, new () => BenchmarkListCommitFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicroListCommitsDataFetcher,
+  vllm_benchmark: VllmListCommitsDataFetcher,
   default: BenchmarkListCommitQueryBuilder,
 };
 
