@@ -130,13 +130,6 @@
       "windows"
     ]
   ],
-  "test_autocast_cuda_float32 (__main__.TestFlexAttentionCUDA)": [
-    "172091",
-    "https://github.com/pytorch/pytorch/issues/172091",
-    [
-      "rocm"
-    ]
-  ],
   "test_backward_ddp_inside (__main__.TensorPipeDdpUnderDistAutogradTest)": [
     "104328",
     "https://github.com/pytorch/pytorch/issues/104328",
