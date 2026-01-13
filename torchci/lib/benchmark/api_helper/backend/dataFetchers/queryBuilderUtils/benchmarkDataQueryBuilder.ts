@@ -753,6 +753,7 @@ export class VllmBenchmarkDataFetcher
     ];
     const params = {
       ...inputs,
+      modelCategory: inputs.modelCategory ?? "",
       excludedMetrics: excludedMetrics,
     };
 
