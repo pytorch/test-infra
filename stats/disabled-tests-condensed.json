@@ -265,17 +265,6 @@
       "rocm"
     ]
   ],
-  "test_compare_cpu_nn_functional_conv1d_cuda_float32 (__main__.TestCommonCUDA)": [
-    "155822",
-    "https://github.com/pytorch/pytorch/issues/155822",
-    [
-      "linux",
-      "mac",
-      "macos",
-      "rocm",
-      "win"
-    ]
-  ],
   "test_compile_cpu (__main__.ReplicateTest)": [
     "160597",
     "https://github.com/pytorch/pytorch/issues/160597",
