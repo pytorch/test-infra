@@ -37,6 +37,7 @@ const metaCtors: Record<string, new () => BenchmarkMetadataFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicrobenchmarkMetadataFetcher,
   torchao_micro_api_benchmark: TorchAoMicrobApienchmarkMetadataFetcher,
   vllm_benchmark: VllmBenchmarkMetadataFetcher,
+  pytorch_x_vllm_benchmark: VllmBenchmarkMetadataFetcher,
   default: BenchmarkMetadataQuery,
 };
 
@@ -44,6 +45,7 @@ const metaCtors: Record<string, new () => BenchmarkMetadataFetcher> = {
 const listCommitsCtors: Record<string, new () => BenchmarkListCommitFetcher> = {
   pytorch_operator_microbenchmark: PytorchOperatorMicroListCommitsDataFetcher,
   vllm_benchmark: VllmListCommitsDataFetcher,
+  pytorch_x_vllm_benchmark: VllmListCommitsDataFetcher,
   default: BenchmarkListCommitQueryBuilder,
 };
 

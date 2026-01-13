@@ -174,6 +174,7 @@ export class VllmListCommitsDataFetcher
   toQueryParams(inputs: any, id?: string): Record<string, any> {
     const pq = {
       ...inputs,
+      modelCategory: inputs.modelCategory ?? "",
       operatorName: inputs.operatorName ?? "",
     };
     const params = this._data_query.toQueryParams(pq);
