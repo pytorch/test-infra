@@ -5,9 +5,6 @@ on:
     paths:
       - .github/workflows/github-analytics-daily.yml
       - tools/analytics/github_analyze.py
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
   workflow_call:
     inputs:
       branch:
@@ -61,7 +58,7 @@ jobs:
 
     - name: Show missing reverts
       env:
-          BRANCH: ${{ inputs.branch }}
+          BRANCH: ${{ inputs.branch || 'release/2.10' }}
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \
@@ -71,8 +68,8 @@ jobs:
 
     - name: Show outstanding milestone issues
       env:
-          BRANCH: ${{ inputs.branch }}
-          MILESTONE: ${{ inputs.milestone-id }}
+          BRANCH: ${{ inputs.branch || 'release/2.10' }}
+          MILESTONE: ${{ inputs.milestone-id || '57' }}
       run: |
         python3 tools/analytics/github_analyze.py \
           --repo-path ./pytorch \

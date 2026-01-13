@@ -105,6 +105,10 @@ function NavBar() {
       name: "vLLM CI metrics",
       href: "/metrics/vllm",
     },
+    {
+      name: "Autorevert Metrics",
+      href: "/metrics/autorevert",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
