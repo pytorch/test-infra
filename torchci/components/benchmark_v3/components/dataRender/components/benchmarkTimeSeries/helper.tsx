@@ -61,7 +61,7 @@ export interface BenchmarkComparisonTitleMapping {
 }
 // Full renderOptions container
 export interface BenchmarkComparisonTableRenderingOptions {
-  title_group_mapping: BenchmarkComparisonTitleMapping;
+  title_group_mapping?: BenchmarkComparisonTitleMapping;
   tableRenderingBook: BenchmarkComparisonTableRenderingBook;
   flex?: {
     [key: string]: number;
@@ -128,7 +128,7 @@ export type ChartConfig = {
 
 export type BenchmarkTimeSeriesCharRenderOpiton = {
   height?: string | number;
-  title_group_mapping: BenchmarkComparisonTitleMapping;
+  title_group_mapping?: BenchmarkComparisonTitleMapping;
   chartRenderBook?: BenchmarkTimeSeriesChartRenderingBook;
   showLegendDetails?: boolean;
 };

@@ -11,7 +11,11 @@ import BenchmarkDropdownGroup from "../../benchmarkSideBar/components/filters/Be
 import { ToggleSection } from "../../common/ToggleSection";
 import { RegressionReportChartIndicatorsSection } from "../common";
 import RegressionReportTable from "./RegressionReportTable";
-import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
+import {
+  ReportTimeSereisChartSection,
+  ReportTimeSereisGroupChartSection,
+} from "./RegressionReportTimeSeriesChart";
+
 const styles = {
   toggleSection: {
     display: "flex",
@@ -24,17 +28,21 @@ const styles = {
 export function RegressionReportDetail({
   report,
   enableTableSidePanel = true,
-  chartSizeSx = { xs: 12, lg: 4 },
+  singleChartSizeSx = { xs: 12, lg: 4 },
+  groupChartSizeSx = { xs: 12, lg: 6 },
 }: {
   report: any | null | undefined;
   showRaw?: boolean;
   enableTableSidePanel?: boolean;
-  chartSizeSx?: any;
+  singleChartSizeSx?: any;
+  groupChartSizeSx?: any;
 }) {
   const [selectedFilters, setSelectedFilters] = useState<
     Record<string, string | null>
   >({});
-  const [view, setView] = useState<"chart" | "table">("table");
+  const [view, setView] = useState<
+    "group-chart-view" | "single-chart-view" | "table"
+  >("group-chart-view");
 
   const report_id = report.report_id;
   const details = report.details;
@@ -100,23 +108,26 @@ export function RegressionReportDetail({
           onChange={(_, v) => v && setView(v)}
           size="small"
         >
-          <ToggleButton value="chart">Chart View</ToggleButton>
+          <ToggleButton value="group-chart-view">Group Chart View</ToggleButton>
+          <ToggleButton value="single-chart-view">
+            Single Chart View
+          </ToggleButton>
           <ToggleButton value="table">Table View</ToggleButton>
         </ToggleButtonGroup>
       </Box>
       {/* Conditionally render based on view */}
-      {view === "chart" ? (
+      {view === "single-chart-view" && (
         <Box>
           <RegressionReportChartIndicatorsSection />
           <ToggleSection
             id={"regression_chart"}
             title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
           >
-            <ReportTimeSeriesChartBucketList
+            <ReportTimeSeriesSingleChartBucketList
               report_id={report_id}
               subtitle="regression"
               metricItemList={filtereddetails.regression}
-              sizeSx={chartSizeSx}
+              sizeSx={singleChartSizeSx}
             />
           </ToggleSection>
           <ToggleSection
@@ -124,15 +135,16 @@ export function RegressionReportDetail({
             title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
             defaultOpen={true}
           >
-            <ReportTimeSeriesChartBucketList
+            <ReportTimeSeriesSingleChartBucketList
               report_id={report_id}
               subtitle="suspicious"
               metricItemList={filtereddetails.suspicious}
-              sizeSx={chartSizeSx}
+              sizeSx={singleChartSizeSx}
             />
           </ToggleSection>
         </Box>
-      ) : (
+      )}
+      {view === "table" && (
         <Box>
           <ToggleSection
             id={"regression_table"}
@@ -158,11 +170,98 @@ export function RegressionReportDetail({
           </ToggleSection>
         </Box>
       )}
+      {view === "group-chart-view" && (
+        <Box>
+          <RegressionReportChartIndicatorsSection />
+          <ToggleSection
+            id={"regression_chart"}
+            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
+          >
+            <ReportTimeSeriesGroupChartBucketList
+              report_id={report_id}
+              subtitle="regression"
+              metricItemList={filtereddetails.regression}
+              sizeSx={groupChartSizeSx}
+            />
+          </ToggleSection>
+          <ToggleSection
+            id={"suspicious_chart"}
+            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
+            defaultOpen={true}
+          >
+            <ReportTimeSeriesGroupChartBucketList
+              report_id={report_id}
+              subtitle="suspicious"
+              metricItemList={filtereddetails.suspicious}
+              sizeSx={groupChartSizeSx}
+            />
+          </ToggleSection>
+        </Box>
+      )}
     </Box>
   );
 }
 
-function ReportTimeSeriesChartBucketList({
+/**
+ * regression report time series chart group by arch, device and metric
+ * @param param0
+ * @returns
+ */
+function ReportTimeSeriesGroupChartBucketList({
+  title,
+  metricItemList,
+  subtitle = "",
+  report_id,
+  sizeSx = { xs: 12, lg: 4 },
+}: {
+  title?: string;
+  subtitle?: string;
+  metricItemList: any[];
+  report_id: string;
+  sizeSx?: any;
+}) {
+  const groupedByArchDeviceMetric = metricItemList.reduce((acc, item) => {
+    const { arch, device, metric } = item.group_info || {};
+    // Create a composite key
+    const key = `Hardware:${arch}(${device}) Metric:${metric}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+  const groups = Object.entries(groupedByArchDeviceMetric);
+  return (
+    <Box>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1.5 }}>
+          {title}
+        </Typography>
+      )}
+      {groups.length > 0 && (
+        <Typography variant="body2" sx={{ mb: 1.5 }}>
+          We found {groups.length} groups of {subtitle} based on hardware and
+          metric, and filters. To see the details, Please select line in the
+          time series chart to see the details.
+        </Typography>
+      )}
+      <Grid container spacing={1}>
+        {groups.map(([key, items]) => {
+          return (
+            <Grid size={sizeSx} key={key}>
+              <ReportTimeSereisGroupChartSection
+                data={items as any[]}
+                subtitle={`${key}`}
+                report_id={report_id}
+                enableSelectLine={true}
+              />
+            </Grid>
+          );
+        })}
+      </Grid>
+    </Box>
+  );
+}
+
+function ReportTimeSeriesSingleChartBucketList({
   title,
   metricItemList,
   subtitle = "",
