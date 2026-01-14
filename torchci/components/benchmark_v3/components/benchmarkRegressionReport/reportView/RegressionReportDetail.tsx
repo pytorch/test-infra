@@ -239,7 +239,7 @@ function ReportTimeSeriesGroupChartBucketList({
       {groups.length > 0 && (
         <Typography variant="body2" sx={{ mb: 1.5 }}>
           We found {groups.length} groups of {subtitle} based on hardware,
-          metric, and user's filters. To see more details, please select line in
+          metric, and filters. To see more details, please select line in
           the time series chart.
         </Typography>
       )}
