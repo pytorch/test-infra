@@ -294,7 +294,7 @@ def get_wheel_install_command(
         and (
             (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
-            or (os == LINUX_AARCH64)
+            or (os == LINUX_AARCH64 and not getting_started)
         )
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
@@ -452,6 +452,10 @@ def generate_wheels_matrix(
 
     if limit_pr_builds:
         python_versions = [python_versions[0]]
+
+    # Filter out CUDA 12.9 entries when getting_started is True
+    if getting_started:
+        arches = [arch for arch in arches if "12.9" not in arch]
 
     global WHEEL_CONTAINER_IMAGES
 
