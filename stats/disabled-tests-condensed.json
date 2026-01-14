@@ -2163,13 +2163,6 @@
       "rocm"
     ]
   ],
-  "test_truediv_base_not_bitwise_equivalent (__main__.CudaReproTests)": [
-    "165671",
-    "https://github.com/pytorch/pytorch/issues/165671",
-    [
-      "rocm"
-    ]
-  ],
   "test_trust_repo_check_yes (__main__.TestHub)": [
     "155617",
     "https://github.com/pytorch/pytorch/issues/155617",
