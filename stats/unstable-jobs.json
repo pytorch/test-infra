@@ -55,6 +55,14 @@
     "linux-jammy-rocm-py3.10",
     "test"
   ],
+  "periodic-rocm-mi300 / linux-noble-rocm-py3.12-mi300 / test (distributed)": [
+    "jeffdaily",
+    "172416",
+    "https://github.com/pytorch/pytorch/issues/172416",
+    "periodic-rocm-mi300",
+    "linux-noble-rocm-py3.12-mi300",
+    "test (distributed)"
+  ],
   "pull / linux-docs / build-docs-python-false": [
     "huydhn",
     "111256",
@@ -70,6 +78,14 @@
     "pull",
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
+  ],
+  "rocm-mi300 / linux-noble-rocm-py3.12-mi300 / test (default)": [
+    "huydhn",
+    "158182",
+    "https://github.com/pytorch/pytorch/issues/158182",
+    "rocm-mi300",
+    "linux-noble-rocm-py3.12-mi300",
+    "test (default)"
   ],
   "trunk-rocm-mi300 / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
