@@ -31,14 +31,6 @@
     "cuda12.8-py3.10-gcc9-sm80",
     "test (inductor_torchbench_smoketest_perf)"
   ],
-  "inductor-rocm-mi200 / rocm-py3.10-inductor / test": [
-    "jithunnair-amd",
-    "169966",
-    "https://github.com/pytorch/pytorch/issues/169966",
-    "inductor-rocm-mi200",
-    "rocm-py3.10-inductor",
-    "test"
-  ],
   "periodic / linux-jammy-cuda12.4-py3.10-gcc11 / test (legacy_nvidia_driver)": [
     "atalman",
     "163657",
