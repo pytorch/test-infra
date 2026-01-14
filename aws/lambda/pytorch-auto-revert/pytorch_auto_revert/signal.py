@@ -4,6 +4,7 @@ from enum import Enum
 from typing import Callable, List, Optional, Set, Tuple, Union
 
 from .bisection_planner import GapBisectionPlanner
+from .signal_extraction_types import JobBaseName, JobBaseNameRule
 
 
 class SignalStatus(Enum):
@@ -290,6 +291,14 @@ class Signal:
     - job_base_name: optional job base name for job-level signals (recorded when signal is created)
     - test_module: optional test module path for test-level signals (e.g., "test_torch" or "distributed/test_c10d")
     """
+
+    @classmethod
+    def derive_base_name_with_rule(
+        cls, base_name: JobBaseName, rule: str | None
+    ) -> JobBaseNameRule:
+        if not rule:
+            return JobBaseNameRule(f"{base_name}::UNDEFINED")
+        return JobBaseNameRule(f"{base_name}::{rule}")
 
     def __init__(
         self,
