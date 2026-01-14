@@ -197,7 +197,7 @@ export function ReportTimeSereisGroupChartSection({
   enableNavigation?: boolean;
 }) {
   const tsData = data.map((item) =>
-    toTimeSeriesData(item, [], ["device", "arch", "metric"])
+    toTimeSeriesData(item, [], ["device", "arch", "metric", "branch"])
   );
   const dialogConfig = {
     report_id: report_id,
