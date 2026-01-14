@@ -1236,6 +1236,20 @@
       "xpu"
     ]
   ],
+  "test_max_unpool_empty_output_dynamic_shapes_xpu (__main__.DynamicShapesGPUTests)": [
+    "172435",
+    "https://github.com/pytorch/pytorch/issues/172435",
+    [
+      "xpu"
+    ]
+  ],
+  "test_max_unpool_empty_output_xpu (__main__.GPUTests)": [
+    "172433",
+    "https://github.com/pytorch/pytorch/issues/172433",
+    [
+      "xpu"
+    ]
+  ],
   "test_mem_get_info (__main__.TestCuda)": [
     "103495",
     "https://github.com/pytorch/pytorch/issues/103495",
