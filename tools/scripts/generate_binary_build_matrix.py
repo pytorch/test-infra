@@ -148,7 +148,9 @@ def validation_runner(arch_type: str, os: str) -> str:
         return LINUX_CPU_RUNNER
 
 
-def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
+def initialize_globals(
+    channel: str, os: str, build_python_only: bool, getting_started: bool = False
+) -> None:
     global CURRENT_VERSION, CUDA_ARCHES, CUDA_AARCH64_ARCHES, ROCM_ARCHES, PYTHON_ARCHES
     global WHEEL_CONTAINER_IMAGES, LIBTORCH_CONTAINER_IMAGES
     if channel == TEST:
@@ -157,7 +159,11 @@ def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
-    if channel != "release" and (os == LINUX or os == LINUX_AARCH64):
+    if (
+        channel != "release"
+        and (os == LINUX or os == LINUX_AARCH64)
+        and not getting_started
+    ):
         # TODO (huydhn): Only build CUDA 12.9 for Linux. This logic is to be cleaned up
         # in 2.10
         CUDA_ARCHES.append("12.9")
@@ -532,7 +538,12 @@ def generate_build_matrix(
 
     for channel in channels:
         for package in package_types:
-            initialize_globals(channel, operating_system, build_python_only == ENABLE)
+            initialize_globals(
+                channel,
+                operating_system,
+                build_python_only == ENABLE,
+                getting_started == "true",
+            )
             includes.extend(
                 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](
                     operating_system,
