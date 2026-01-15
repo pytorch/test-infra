@@ -294,13 +294,25 @@ def get_wheel_install_command(
         else PACKAGES_TO_INSTALL_WHL
     )
 
+    # Special case for getting started page with stable CUDA on Linux
+    if (
+        getting_started
+        and gpu_arch_version == STABLE_CUDA_VERSIONS[channel]
+        and os == LINUX
+    ):
+        return f"""For Linux x86 use:
+{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}
+
+For Linux Aarch64:
+{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"""
+
     if (
         channel == RELEASE
         and (not use_only_dl_pytorch_org)
         and (
             (gpu_arch_version == STABLE_CUDA_VERSIONS[channel] and os == LINUX)
             or (gpu_arch_type == CPU and os in [WINDOWS, MACOS_ARM64])
-            or (os == LINUX_AARCH64 and not getting_started)
+            or (os == LINUX_AARCH64)
         )
     ):
         return f"{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}"
