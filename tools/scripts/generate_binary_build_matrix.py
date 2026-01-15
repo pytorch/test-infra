@@ -304,7 +304,7 @@ def get_wheel_install_command(
 {WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}
 
 For Linux Aarch64:
-{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL} --index-url {get_base_download_url_for_repo('whl', channel, gpu_arch_type, desired_cuda)}"""
+{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL} --index-url {get_base_download_url_for_repo("whl", channel, gpu_arch_type, desired_cuda)}"""
 
     if (
         channel == RELEASE
