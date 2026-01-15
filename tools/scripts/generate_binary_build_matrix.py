@@ -459,10 +459,6 @@ def generate_wheels_matrix(
     if limit_pr_builds:
         python_versions = [python_versions[0]]
 
-    # Filter out CUDA 12.9 entries when getting_started is True
-    if getting_started:
-        arches = [arch for arch in arches if "12.9" not in arch]
-
     global WHEEL_CONTAINER_IMAGES
 
     ret: List[Dict[str, Any]] = []
