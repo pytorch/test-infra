@@ -85,7 +85,8 @@ export function BenchmarkReportFeatureSidePanel({
               <BenchmarkRegressionReportWrapper
                 id={id}
                 enableTableSidePanel={false}
-                chartSizeSx={{ sx: 12, lg: 12 }}
+                singleChartSizeSx={{ sx: 12, lg: 12 }}
+                groupChartSizeSx={{ sx: 12, lg: 12 }}
               />
             </>
           )}
