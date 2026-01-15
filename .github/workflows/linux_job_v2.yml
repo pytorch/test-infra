@@ -283,14 +283,12 @@ jobs:
           fail-on-empty: false
 
       - name: Chown repository directory
-        if: ${{ inputs.gpu-arch-type != 'rocm' }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ github.workspace }}/${{ env.repository }}
           ALPINE_IMAGE: ${{ startsWith(inputs.runner, 'linux.arm64') && 'arm64v8/alpine' || '308535385114.dkr.ecr.us-east-1.amazonaws.com/tool/alpine' }}
 
       - name: Chown runner temp
-        if: ${{ inputs.gpu-arch-type != 'rocm' }}
         uses: ./test-infra/.github/actions/chown-directory
         with:
           directory: ${{ runner.temp }}
