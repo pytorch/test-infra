@@ -90,29 +90,20 @@ on:
         type: boolean
 
 jobs:
-  generate-aarch64-linux-cpu-matrix:
-    uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
-    with:
-      package-type: wheel
-      os: linux-aarch64
-      channel: ${{ inputs.channel }}
-      with-cuda: disable
-      use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
-
-  generate-aarch64-linux-gpu-matrix:
+  generate-aarch64-linux-matrix:
     uses: pytorch/test-infra/.github/workflows/generate_binary_build_matrix.yml@main
     with:
       package-type: wheel
       os: linux-aarch64
       channel: ${{ inputs.channel }}
       with-cuda: enable
-      with-cpu: disable
+      with-cpu: enable
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
 
-  linux-aarch64-cpu:
-    needs: generate-aarch64-linux-cpu-matrix
+  linux-aarch64:
+    needs: generate-aarch64-linux-matrix
     strategy:
-      matrix: ${{ fromJson(needs.generate-aarch64-linux-cpu-matrix.outputs.matrix) }}
+      matrix: ${{ fromJson(needs.generate-aarch64-linux-matrix.outputs.matrix) }}
       fail-fast: false
     uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
     name: ${{ matrix.build_name }}
@@ -165,65 +156,4 @@ jobs:
         unset LD_LIBRARY_PATH
 
         # Standard case: Validate CPU-only binaries
-        source ../../test-infra/.github/scripts/validate_binaries.sh
-
-  linux-aarch64-gpu:
-    needs: generate-aarch64-linux-gpu-matrix
-    if: ${{ fromJson(needs.generate-aarch64-linux-gpu-matrix.outputs.matrix).include != null && fromJson(needs.generate-aarch64-linux-gpu-matrix.outputs.matrix).include[0] != null }}
-    strategy:
-      matrix: ${{ fromJson(needs.generate-aarch64-linux-gpu-matrix.outputs.matrix) }}
-      fail-fast: false
-    uses: pytorch/test-infra/.github/workflows/linux_job_v2.yml@main
-    name: ${{ matrix.build_name }}
-    with:
-      runner: ${{ matrix.validation_runner }}
-      repository: "pytorch/pytorch"
-      ref: main
-      job-name: ${{ matrix.build_name }}
-      docker-image: ${{ matrix.container_image }}
-      binary-matrix: ${{ toJSON(matrix) }}
-      docker-build-dir: "skip-docker-build"
-      no-sudo: true
-      script: |
-        set -ex
-        export DESIRED_PYTHON=${{ matrix.python_version }}
-        echo "/opt/conda/bin" >> $GITHUB_PATH
-        ###############################################################################
-        # Install conda
-        # disable SSL_verify due to getting "Could not find a suitable TLS CA certificate bundle, invalid path"
-        # when using Python version, less than the conda latest
-        ###############################################################################
-        echo 'Installing conda-forge'
-        curl -L -o /mambaforge.sh https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-aarch64.sh
-        chmod +x /mambaforge.sh
-        /mambaforge.sh -b -p /opt/conda
-        rm /mambaforge.sh
-        source /opt/conda/etc/profile.d/conda.sh
-        conda config --set ssl_verify False
-
-        export ENV_NAME="conda-env-${{ github.run_id }}"
-        export TARGET_OS="linux-aarch64"
-        export TORCH_ONLY=${{ inputs.torchonly }}
-        export RELEASE_VERSION=${{ inputs.version }}
-        export USE_FORCE_REINSTALL="true"
-        export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
-        export USE_CLOUDFLARE_CDN=${{ inputs.use-cloudflare-cdn }}
-        export USE_VERSION_SET=${{ inputs.use-version-set }}
-        if [[ ${USE_VERSION_SET} == 'true' ]]; then
-          export VISION_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchvision }}
-          export AUDIO_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchaudio }}
-        fi
-
-        printf '%s\n' ${{ toJson(inputs.release-matrix) }} > release_matrix.json
-        eval "$(conda shell.bash hook)"
-
-        # NB: The latest conda 23.11.0 pulls in some dependencies of conda-libmamba-solver that
-        # require GLIBC_2.25, which is not available in the current aarch64 image causing the
-        # subsequence git command to fail. Basically, they don't work with CentOS 7 which AML 2
-        # is based on https://github.com/ContinuumIO/anaconda-issues/issues/12822
-        unset LD_LIBRARY_PATH
-
-        # GPU case: Validate aarch64 CUDA-enabled binaries
-        # The validation script automatically handles CPU fallback mode for aarch64 CUDA builds
-        echo "Validating aarch64 CUDA build: ${{ matrix.gpu_arch_type }} ${{ matrix.gpu_arch_version }}"
         source ../../test-infra/.github/scripts/validate_binaries.sh
