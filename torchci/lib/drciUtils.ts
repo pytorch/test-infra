@@ -98,14 +98,25 @@ export function formDrciComment(
   owner: string = OWNER,
   repo: string = REPO,
   pr_results: string = "",
-  sevs: string = ""
+  sevs: string = "",
+  runnerDisconnectionJobs: RecentWorkflowsData[] = []
 ): string {
   const header = formDrciHeader(owner, repo, pr_num);
-  const comment = `${DRCI_COMMENT_START}
+  let comment = `${DRCI_COMMENT_START}
 ${header}
 ${sevs}
 ${pr_results}
 ${DRCI_COMMENT_END}`;
+
+  if (runnerDisconnectionJobs.length > 0) {
+    comment += `\n\n## :warning: Runner Disconnection Failures\n`;
+    comment += runnerDisconnectionJobs
+      .map(
+        (job) =>
+          `- [${job.name}](${job.html_url}): Runner disconnection detected.`
+      )
+      .join("\n");
+  }
   return comment;
 }
 
@@ -552,4 +563,17 @@ export async function isSameAuthor(
   // * Draft commit
   // * Cherry picking
   return isSameEmail || isSameCommitUsername || isSamePrUsername;
+}
+
+export function isRunnerDisconnectionFailure(job: RecentWorkflowsData): boolean {
+  const runnerDisconnectionPatterns = [
+    /The runner has received a shutdown signal/i,
+    /The operation was canceled/i,
+    /The runner could not connect to the server/i,
+    /The runner is offline/i,
+  ];
+
+  return runnerDisconnectionPatterns.some((pattern) =>
+    job.failure_lines.some((line) => pattern.test(line))
+  );
 }
