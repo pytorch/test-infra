@@ -19,11 +19,11 @@ if [[ ${TARGET_OS} == 'windows' ]]; then
             export "$VAR_NAME"="$VAR_VALUE"
         fi
     done
-fi
 
-# 4. Verify cl.exe is now in the PATH
-which cl.exe
-cl.exe
+    # 4. Verify cl.exe is now in the PATH
+    which cl.exe
+    cl.exe
+fi
 
 # Handle aarch64 CUDA builds: Override GPU arch type for CPU-mode validation
 # aarch64 CUDA builds have MATRIX_GPU_ARCH_TYPE="cuda-aarch64" or "cuda" but validation runners don't have GPUs
