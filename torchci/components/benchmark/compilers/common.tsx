@@ -66,7 +66,7 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cpu (x86_zen)": "cpu",
   "cpu (aarch64)": "arm64-cpu",
   "rocm (mi325x)": "rocm",
-  // TODO (huydhn): Fix this on the gather runner info to set it to mps correctly
+  // TODO (huydhn): Fix this on the gather runner info script to set it to mps correctly
   mps: "arm64-cpu",
   xpu: "xpu",
 };
@@ -78,7 +78,7 @@ export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
   "cpu (x86_zen)": "AMD_EPYC_9R14_96c",
   "cpu (aarch64)": "aarch64",
   "rocm (mi325x)": "AMD Instinct MI325X",
-  // TODO (huydhn): Fix this on the gather runner info to set it to mps correctly
+  // TODO (huydhn): Fix this on the gather runner info script to set it to mps correctly
   mps: "arm",
   xpu: "Intel(R) Data Center GPU Max 1100",
 };
