@@ -1,6 +1,30 @@
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 export DESIRED_DEVTOOLSET="cxx11-abi"
 
+if [[ ${TARGET_OS} == 'windows' ]]; then
+    # 1. Define the path to vcvarsall.bat and the desired architecture
+    VS_BAT="C:\\Program Files (x86)\\Microsoft Visual Studio\\2022\\BuildTools\\VC\\Auxiliary\\Build\\vcvarsall.bat"
+    ARCH="amd64" # or "x86", "arm", etc.
+    
+    # 2. Run the bat file in cmd and print the resulting environment
+    CMD_OUTPUT=$(cmd.exe /c "\"${VS_BAT}\" ${ARCH} && set")
+    
+    # 3. Parse the output and export variables to the sh environment
+    echo "${CMD_OUTPUT}" | while read line; do
+        if [[ "$line" =~ ^([^=]*)=(.*)$ ]]; then
+            VAR_NAME="${BASH_REMATCH[1]}"
+            VAR_VALUE="${BASH_REMATCH[2]}"
+            # Optional: convert backslashes to forward slashes for better sh compatibility
+            VAR_VALUE="${VAR_VALUE//\\//}"
+            export "$VAR_NAME"="$VAR_VALUE"
+        fi
+    done
+fi
+
+# 4. Verify cl.exe is now in the PATH
+which cl.exe
+cl.exe
+
 # Handle aarch64 CUDA builds: Override GPU arch type for CPU-mode validation
 # aarch64 CUDA builds have MATRIX_GPU_ARCH_TYPE="cuda-aarch64" or "cuda" but validation runners don't have GPUs
 # So we test these builds in CPU fallback mode by setting MATRIX_GPU_ARCH_TYPE=cpu
