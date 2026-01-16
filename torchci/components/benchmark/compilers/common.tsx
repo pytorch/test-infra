@@ -64,22 +64,23 @@ export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
   "cuda (b200)": "cuda",
   "cpu (x86_64)": "cpu",
   "cpu (x86_zen)": "cpu",
-  "cpu (aarch64)": "cpu",
-  "rocm (mi300x)": "rocm",
-  mps: "mps",
+  "cpu (aarch64)": "arm64-cpu",
+  "rocm (mi325x)": "rocm",
+  // TODO (huydhn): Fix this on the gather runner info to set it to mps correctly
+  mps: "arm64-cpu",
   xpu: "xpu",
 };
 export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
   "cuda (a100)": "a100",
   "cuda (h100)": "h100",
   "cuda (b200)": "b200",
-  "cpu (x86_64)": "x86_64",
-  "cpu (x86_zen)": "x86_zen",
+  "cpu (x86_64)": "Xeon_Platinum_8488C_48c",
+  "cpu (x86_zen)": "AMD_EPYC_9R14_96c",
   "cpu (aarch64)": "aarch64",
-  // TODO (huydhn): Figure out a way to get the GPU name for ROCm
-  "rocm (mi300x)": "",
-  mps: "",
-  xpu: "",
+  "rocm (mi325x)": "AMD Instinct MI325X",
+  // TODO (huydhn): Fix this on the gather runner info to set it to mps correctly
+  mps: "arm",
+  xpu: "Intel(R) Data Center GPU Max 1100",
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a100)": "inductor-A100-perf-nightly",
