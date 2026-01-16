@@ -2,7 +2,7 @@ SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 export DESIRED_DEVTOOLSET="cxx11-abi"
 
 if [[ ${TARGET_OS} == 'windows' ]]; then
-    export PATH="/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.42.34433/bin/HostX64/x64:${PATH}"
+    export PATH="/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.42.34433/bin/HostX64/x64:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/VC/VCPackages:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/TestWindow:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/bin/Roslyn:/c/Program Files (x86)/Microsoft SDKs/Windows/v10.0A/bin/NETFX 4.8 Tools/x64:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/Extensions/Microsoft/CodeCoverage.Console:/c/Program Files (x86)/Windows Kits/10/bin/10.0.19041.0/x64:/c/Program Files (x86)/Windows Kits/10/bin/x64:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/MSBuild/Current/Bin/amd64:/c/Windows/Microsoft.NET/Framework64/v4.0.30319:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE:/c/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/Tools:${PATH}"
 fi
 
 # Handle aarch64 CUDA builds: Override GPU arch type for CPU-mode validation
