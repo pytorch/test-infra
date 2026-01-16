@@ -108,7 +108,7 @@ jobs:
     with:
       runner: ${{ matrix.validation_runner }}
       repository: "pytorch/pytorch"
-      ref: main
+      ref: atalman-patch-1
       job-name: ${{ matrix.build_name }}
       binary-matrix: ${{ toJSON(matrix) }}
       script: |
