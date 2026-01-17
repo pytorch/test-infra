@@ -139,6 +139,7 @@ exclude_patterns=[
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
+    '.github/actions/checkout/dist/index.js',
     'tools/clang-tidy-checks/*-patches/**',
 ]
 command = [
@@ -160,6 +161,9 @@ exclude_patterns = [
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
+    '.github/actions/upload-artifact-s3/.licenses/**/*.yml',
+    '.github/actions/checkout/dist/index.js',
+    '.github/actions/checkout/.licenses/**/*.yml',
 ]
 command = [
     'python3',
@@ -188,6 +192,7 @@ exclude_patterns = [
     '**/snapshots/**',
     '.github/actions/setup-ssh/index.js',
     '.github/actions/upload-artifact-s3/dist/upload/index.js',
+    '.github/actions/checkout/dist/index.js',
     'terraform-aws-github-runner/**',
     'aws/ami/windows/**',
 ]

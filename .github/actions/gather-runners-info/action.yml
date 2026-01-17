@@ -51,7 +51,8 @@ runs:
         set -eux
 
         if [[ "${DEVICE_NAME}" == "cuda" ]]; then
-          DEVICE_TYPE=$(nvidia-smi -i 0 --query-gpu=name --format=csv,noheader | awk '{print $2}')
+          # Return the same device name as PyTorch
+          DEVICE_TYPE=$(nvidia-smi -i 0 --query-gpu=name --format=csv,noheader)
         elif [[ "${DEVICE_NAME}" == "rocm" ]]; then
           DEVICE_TYPE=$(rocminfo | grep "Marketing Name" | tail -n1 | awk -F':' '{print $2}' | xargs)
         elif [[ "${DEVICE_NAME}" == "hpu" ]]; then

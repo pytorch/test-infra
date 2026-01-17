@@ -251,25 +251,25 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                 name="passrate",
                 condition="greater_equal",
                 threshold=0.9,
-                baseline_aggregation="max",
+                baseline_aggregation="median",
             ),
             "geomean_speedup": RegressionPolicy(
                 name="geomean_speedup",
                 condition="greater_equal",
                 threshold=0.95,
-                baseline_aggregation="max",
+                baseline_aggregation="median",
             ),
             "compression_ratio": RegressionPolicy(
                 name="compression_ratio",
                 condition="greater_equal",
                 threshold=0.95,
-                baseline_aggregation="max",
+                baseline_aggregation="median",
             ),
             "compilation_latency": RegressionPolicy(
                 name="compilation_latency",
                 condition="less_equal",
                 threshold=1.15,
-                baseline_aggregation="min",
+                baseline_aggregation="median",
             ),
         },
         notification_config={
@@ -278,7 +278,11 @@ COMPILER_BENCHMARK_CONFIG = BenchmarkConfig(
                     "type": "github",
                     "repo": "pytorch/test-infra",
                     "issue": "7081",
-                }
+                    "condition": {
+                        "type": "device_arch",
+                        "device_arches": [{"device": "cuda", "arch": "h100"}],
+                    },
+                },
             ]
         },
     ),

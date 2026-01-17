@@ -68,7 +68,9 @@ class SignalExtractionDatasource:
 
         params: Dict[str, Any] = {
             "lookback_time": lookback_time,
-            "repo": f"{repo_full_name}%",
+            # Use double slash to match push table's dynamoKey format: {repo}//{uuid}
+            # This prevents matching repos with similar prefixes (e.g., pytorch/pytorch-integration-testing)
+            "repo": f"{repo_full_name}//%",
         }
         if as_of:
             params["as_of"] = as_of
