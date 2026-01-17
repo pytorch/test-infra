@@ -14,25 +14,41 @@ export function extractBackendSqlStyle(
   return m ? m[1] : null;
 }
 
-export function toApiArch(device: string, arch: string): string {
+export function toApiDeviceArch(
+  device: string,
+  arch: string
+): [string, string] {
   const norm = arch.toLowerCase();
+  // TODO (huydhn): Clean this up once the new name has been around for some time
   switch (device) {
     case "cpu":
-      return norm;
+      if (norm.includes("xeon") || norm.includes("x86_64"))
+        return [device, "x86_64"];
+      if (norm.includes("amd") || norm.includes("x86_zen"))
+        return [device, "x86_zen"];
+      return [device, norm];
+    case "arm64-cpu":
+      if (norm.includes("aarch64")) return ["cpu", norm];
+      if (norm.includes("arm")) return ["mps", norm];
+      return [device, norm];
     case "cuda":
-      if (norm.includes("h100")) return "h100";
-      if (norm.includes("a100")) return "a100";
-      if (norm.includes("a10g")) return "a10g";
-      if (norm.includes("b200")) return "b200";
-      return norm;
+      if (norm.includes("h100")) return [device, "h100"];
+      if (norm.includes("a100")) return [device, "a100"];
+      if (norm.includes("a10g")) return [device, "a10g"];
+      if (norm.includes("b200")) return [device, "b200"];
+      return [device, norm];
     case "rocm":
-      if (norm.includes("mi300x")) return "mi300x";
-      if (norm.includes("mi325x")) return "mi300x";
-      return norm;
+      if (norm.includes("mi300x")) return [device, "mi300x"];
+      if (norm.includes("mi325x")) return [device, "mi325x"];
+      return [device, norm];
     case "mps":
-      return norm;
+      return [device, norm];
+    case "xpu":
+      if (norm.includes("intel") || norm.includes("x86_64"))
+        return [device, "x86_64"];
+      return [device, norm];
     default:
-      return norm;
+      return [device, norm];
   }
 }
 

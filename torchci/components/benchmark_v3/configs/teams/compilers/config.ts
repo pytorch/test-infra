@@ -140,21 +140,6 @@ const RENDER_MAPPING_BOOK = {
   },
 };
 
-export function toQueryArch(device: string, arch: string) {
-  if (arch === undefined) return [];
-  if (!device) return [];
-  switch (device) {
-    case "rocm":
-      if (arch === "mi300x" || arch == "") return ["mi300x", "mi325x"];
-      return [arch];
-    default:
-      if (arch === "") {
-        return [];
-      }
-      return [arch];
-  }
-}
-
 export const compilerQueryParameterConverter: QueryParameterConverter = (
   inputs: QueryParameterConverterInputs
 ) => {
@@ -170,9 +155,8 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
 
   let models = getModels(f.model);
 
-  const device = DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName];
-  const arch = DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName];
-  const arches = toQueryArch(device, arch);
+  const devices = DISPLAY_NAMES_TO_DEVICE_NAMES[f.deviceName];
+  const arches = DISPLAY_NAMES_TO_ARCH_NAMES[f.deviceName];
 
   const params = {
     commits: i.commits ?? [],
@@ -180,7 +164,7 @@ export const compilerQueryParameterConverter: QueryParameterConverter = (
     workflows: workflows,
     compilers: compilerList,
     arches: arches,
-    devices: [device],
+    devices: devices,
     dtypes: f.dtype === "none" ? [] : [f.dtype],
     granularity: "hour",
     modes: [f.mode],

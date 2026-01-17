@@ -8,7 +8,7 @@ import {
   getCompilerCommitsWithSampling,
 } from "../common/utils";
 import { BenchmarkCompilerBenchmarkDataQueryBuilder } from "../dataFetchers/queryBuilderUtils/compilerQueryBuilder";
-import { extractBackendSqlStyle, toApiArch } from "./helpers/common";
+import { extractBackendSqlStyle, toApiDeviceArch } from "./helpers/common";
 import { toGeneralCompilerData } from "./helpers/general";
 import { toPrecomputeCompilerData } from "./helpers/precompute";
 
@@ -148,6 +148,7 @@ async function fetchCompilerDataFromDb(queryParams: any): Promise<any[]> {
   // extract backend from output in runtime instead of doing it in the query. since it's expensive for regex matching.
   // TODO(elainewy): we should add this as a column in the database for less runtime logics.
   rows.map((row) => {
+    [row["device"], row["arch"]] = toApiDeviceArch(row.device, row.arch);
     const backend =
       row.backend && row.backend !== ""
         ? row.backend
@@ -159,7 +160,6 @@ async function fetchCompilerDataFromDb(queryParams: any): Promise<any[]> {
             row.device
           );
     (row["backend"] = backend), (row["compiler"] = backend);
-    row["arch"] = toApiArch(row.device, row.arch);
   });
 
   if (queryParams.compilers && queryParams.compilers.length > 0) {

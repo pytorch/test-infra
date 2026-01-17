@@ -58,29 +58,28 @@ export const HELP_LINK =
 export const DTYPES = ["amp", "float16", "bfloat16", "quant", "notset"];
 
 export const DEFAULT_DEVICE_NAME = "cuda (h100)";
-export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string } = {
-  "cuda (a100)": "cuda",
-  "cuda (h100)": "cuda",
-  "cuda (b200)": "cuda",
-  "cpu (x86_64)": "cpu",
-  "cpu (x86_zen)": "cpu",
-  "cpu (aarch64)": "arm64-cpu",
-  "rocm (mi325x)": "rocm",
+export const DISPLAY_NAMES_TO_DEVICE_NAMES: { [k: string]: string[] } = {
+  "cuda (a100)": ["cuda"],
+  "cuda (h100)": ["cuda"],
+  "cuda (b200)": ["cuda"],
+  "cpu (x86_64)": ["cpu"],
+  "cpu (x86_zen)": ["cpu"],
+  "cpu (aarch64)": ["cpu", "arm64-cpu"],
+  "rocm (mi325x)": ["rocm"],
   // TODO (huydhn): Fix this on the gather runner info script to set it to mps correctly
-  mps: "arm64-cpu",
-  xpu: "xpu",
+  mps: ["mps", "arm64-cpu"],
+  xpu: ["xpu"],
 };
-export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string } = {
-  "cuda (a100)": "a100",
-  "cuda (h100)": "h100",
-  "cuda (b200)": "b200",
-  "cpu (x86_64)": "Xeon_Platinum_8488C_48c",
-  "cpu (x86_zen)": "AMD_EPYC_9R14_96c",
-  "cpu (aarch64)": "aarch64",
-  "rocm (mi325x)": "AMD Instinct MI325X",
-  // TODO (huydhn): Fix this on the gather runner info script to set it to mps correctly
-  mps: "arm",
-  xpu: "Intel(R) Data Center GPU Max 1100",
+export const DISPLAY_NAMES_TO_ARCH_NAMES: { [k: string]: string[] } = {
+  "cuda (a100)": ["a100"],
+  "cuda (h100)": ["h100"],
+  "cuda (b200)": ["b200"],
+  "cpu (x86_64)": ["Xeon_Platinum_8488C_48c"],
+  "cpu (x86_zen)": ["AMD_EPYC_9R14_96c"],
+  "cpu (aarch64)": ["aarch64"],
+  "rocm (mi325x)": ["AMD Instinct MI325X"],
+  mps: ["arm"],
+  xpu: ["x86_64", "Intel(R) Data Center GPU Max 1100"],
 };
 export const DISPLAY_NAMES_TO_WORKFLOW_NAMES: { [k: string]: string } = {
   "cuda (a100)": "inductor-A100-perf-nightly",
