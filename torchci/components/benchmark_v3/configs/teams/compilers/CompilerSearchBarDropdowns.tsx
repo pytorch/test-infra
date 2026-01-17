@@ -44,8 +44,8 @@ export function CompilerSearchBarDropdowns() {
         dtype={stagedFilters.deviceName ?? ""}
         setDType={(val: string) => {
           setStagedFilter("deviceName", val);
-          setStagedFilter("device", DISPLAY_NAMES_TO_DEVICE_NAMES[val]);
-          setStagedFilter("arch", DISPLAY_NAMES_TO_ARCH_NAMES[val]);
+          setStagedFilter("device", DISPLAY_NAMES_TO_DEVICE_NAMES[val][0]);
+          setStagedFilter("arch", DISPLAY_NAMES_TO_ARCH_NAMES[val][0]);
         }}
         dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
         label="Device"

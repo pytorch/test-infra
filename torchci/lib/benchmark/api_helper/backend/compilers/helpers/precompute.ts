@@ -15,7 +15,7 @@ import {
   toTimeSeriesResponse,
   toWorkflowIdMap,
 } from "../../common/utils";
-import { toApiArch } from "./common";
+import { toApiDeviceArch } from "./common";
 
 const COMPILER_PRECOMPUTE_TS_GROUP_KEY = [
   "dtype",
@@ -166,15 +166,15 @@ export function groupByBenchmark(rawData: any[]) {
   const groups: Record<string, any[]> = {};
   const metadataMapping: Record<string, any> = {};
   for (const item of rawData) {
-    const apiArch = toApiArch(item.device, item.arch);
+    const [apiDevice, apiArch] = toApiDeviceArch(item.device, item.arch);
     // composite grouping key
-    const key = `${apiArch}_${item.device}_${item.dtype}_${item.mode}`;
+    const key = `${apiArch}_${apiDevice}_${item.dtype}_${item.mode}`;
     if (!metadataMapping[key]) {
       metadataMapping[key] = {
         dtype: item.dtype,
         arch: apiArch,
         mode: item.mode,
-        device: item.device,
+        device: apiDevice,
       };
     }
     if (!groups[key]) {
