@@ -20,7 +20,7 @@ VERSION_SUFFIX=${VERSION_SUFFIX:-}
 PLATFORM=${PLATFORM:-}
 
 pkgs_to_promote=$(\
-    curl -fsSL https://download.pytorch.org/whl/torch_stable.html \
+    curl -fsSL https://download-s3.pytorch.org/whl/torch_stable.html \
         | grep "${PACKAGE_NAME}-${pytorch_version}${VERSION_SUFFIX}-" \
         | grep "${PLATFORM}" \
         | cut -d '"' -f2
@@ -49,7 +49,7 @@ for pkg in ${pkgs_to_promote}; do
     (
         set -x
         # Download package, sub out linux for manylinux1
-        curl -fsSL -o "${orig_pkg}" "https://download.pytorch.org/whl/${pkg}"
+        curl -fsSL -o "${orig_pkg}" "https://download-s3.pytorch.org/whl/${pkg}"
     )
 
     if [[ -n "${VERSION_SUFFIX}" ]]; then
