@@ -52,7 +52,7 @@ for pkg in ${pkgs_to_promote}; do
     orig_pkg="${tmp_dir}/${pkg_basename}"
     (
         set -x
-        curl -fSL -o "${orig_pkg}" "https://download.pytorch.org${pkg}"
+        curl -fSL -o "${orig_pkg}" "https://download-s3.pytorch.org${pkg}"
     )
 
 
