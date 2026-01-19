@@ -105,6 +105,7 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
 
 const notUserFacingPatterns: RegExp[] = [
   /\.azure_pipelines/g,
+  /benchmarks\//g,
   /\.circleci/g,
   /\.github/g,
   /\.jenkins/g,
