@@ -5,24 +5,31 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
+from typing import TypedDict
 
-import boto3
-import botocore
+import boto3  # type: ignore[import-untyped]
+import botocore  # type: ignore[import-untyped]
+
+
+class WheelMetadata(TypedDict):
+    version: str | None
+    requires_dist: list[str]
+    requires_python: str | None
+    programming_classifiers: list[str]
 
 
 PLATFORMS = [
-    "manylinux1_x86_64",
+    "manylinux_2_28_x86_64",
     "manylinux_2_28_aarch64",
     "win_amd64",
     "macosx_11_0_arm64",
 ]
-PYTHON_VERSIONS = ["cp39", "cp310", "cp311", "cp312", "cp313"]
+PYTHON_VERSIONS = ["cp310", "cp311", "cp312", "cp313", "cp314"]
 S3_PYPI_STAGING = "pytorch-backup"
 PACKAGE_RELEASES = {
-    "torch": "2.6.0",
-    "torchvision": "0.21.0",
-    "torchaudio": "2.6.0",
-    # "torchtext": "0.18.0",
+    "torch": "2.10.0",
+    "torchvision": "0.25.0",
+    "torchaudio": "2.10.0",
     # "executorch": "0.2.1",
 }
 
@@ -52,11 +59,6 @@ def generate_expected_builds(platform: str, package: str, release: str) -> list:
         py_spec = f"{py_version}-{py_version}"
         platform_spec = platform
 
-        if package == "torchtext" and (
-            platform == "manylinux2014_aarch64" or py_version == "cp312"
-        ):
-            continue
-
         # strange macos file nameing
         if "macos" in platform:
             if package == "torch":
@@ -71,14 +73,14 @@ def generate_expected_builds(platform: str, package: str, release: str) -> list:
     return builds
 
 
-def validate_file_metadata(build: str, package: str, version: str) -> dict:
+def validate_file_metadata(build: str, package: str, version: str) -> WheelMetadata:
     """Validate wheel metadata and return extracted metadata for comparison."""
     temp_dir = tempfile.mkdtemp()
     tmp_file = f"{temp_dir}/{os.path.basename(build)}"
     s3.download_file(Bucket=S3_PYPI_STAGING, Key=build, Filename=tmp_file)
     print(f"Downloaded: {tmp_file}  {get_size(tmp_file)}")
 
-    metadata = {
+    metadata: WheelMetadata = {
         "version": None,
         "requires_dist": [],
         "requires_python": None,
@@ -143,9 +145,9 @@ def compare_metadata(all_metadata: dict, package: str) -> bool:
     reference = all_metadata[reference_wheel]
     mismatches = []
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"Metadata Consistency Check for {package}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     print(f"Reference wheel: {reference_wheel}")
     print(f"  Version: {reference['version']}")
     print(f"  Requires-Python: {reference['requires_python']}")
@@ -186,6 +188,21 @@ def compare_metadata(all_metadata: dict, package: str) -> bool:
                 f"Requires-Python mismatch: {reference_wheel} has '{reference['requires_python']}' "
                 f"vs {wheel} has '{current['requires_python']}'"
             )
+
+        # Compare programming classifiers
+        ref_classifiers = sorted(reference["programming_classifiers"])
+        cur_classifiers = sorted(current["programming_classifiers"])
+        if ref_classifiers != cur_classifiers:
+            ref_set = set(reference["programming_classifiers"])
+            cur_set = set(current["programming_classifiers"])
+            only_in_ref = ref_set - cur_set
+            only_in_cur = cur_set - ref_set
+            diff_msg = f"Programming Classifiers mismatch between {reference_wheel} and {wheel}:"
+            if only_in_ref:
+                diff_msg += f"\n      Only in reference: {only_in_ref}"
+            if only_in_cur:
+                diff_msg += f"\n      Only in {wheel}: {only_in_cur}"
+            mismatches.append(diff_msg)
 
     if mismatches:
         print(f"\nMETADATA INCONSISTENCIES FOUND for {package}:")
@@ -241,9 +258,9 @@ def main():
         }
 
     # Print final summary
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print("FINAL VALIDATION SUMMARY")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
     all_consistent = True
     for package, result in all_results.items():
         status = "CONSISTENT" if result["consistent"] else "INCONSISTENT"
