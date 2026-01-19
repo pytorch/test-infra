@@ -5,16 +5,16 @@ import shutil
 import subprocess
 import tempfile
 import zipfile
-from typing import TypedDict
+from typing import Optional, TypedDict
 
 import boto3  # type: ignore[import-untyped]
 import botocore  # type: ignore[import-untyped]
 
 
 class WheelMetadata(TypedDict):
-    version: str | None
+    version: Optional[str]
     requires_dist: list[str]
-    requires_python: str | None
+    requires_python: Optional[str]
     programming_classifiers: list[str]
 
 
@@ -24,7 +24,7 @@ PLATFORMS = [
     "win_amd64",
     "macosx_11_0_arm64",
 ]
-PYTHON_VERSIONS = ["cp310", "cp311", "cp312", "cp313", "cp314"]
+PYTHON_VERSIONS = ["cp310", "cp311", "cp312", "cp313", "cp313t", "cp314", "cp314t"]
 S3_PYPI_STAGING = "pytorch-backup"
 PACKAGE_RELEASES = {
     "torch": "2.10.0",
@@ -56,7 +56,12 @@ def get_size(path):
 def generate_expected_builds(platform: str, package: str, release: str) -> list:
     builds = []
     for py_version in PYTHON_VERSIONS:
-        py_spec = f"{py_version}-{py_version}"
+        # For free-threaded Python (cp313t, cp314t), the filename pattern is cp3XX-cp3XXt
+        if py_version.endswith("t"):
+            py_base = py_version[:-1]  # Remove the 't' suffix
+            py_spec = f"{py_base}-{py_version}"
+        else:
+            py_spec = f"{py_version}-{py_version}"
         platform_spec = platform
 
         # strange macos file nameing
