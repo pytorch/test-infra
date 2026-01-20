@@ -12,7 +12,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     },
     {
       "python_version": "3.11",
@@ -26,7 +26,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     },
     {
       "python_version": "3.12",
@@ -40,7 +40,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     },
     {
       "python_version": "3.13",
@@ -54,7 +54,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     },
     {
       "python_version": "3.13t",
@@ -68,7 +68,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     },
     {
       "python_version": "3.14",
@@ -82,7 +82,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     },
     {
       "python_version": "3.14t",
@@ -96,7 +96,7 @@
       "installation": "pip3 install --pre torch torchvision torchaudio --index-url https://download.pytorch.org/whl/nightly/cpu",
       "channel": "nightly",
       "upload_to_base_bucket": "yes",
-      "stable_version": "2.9.1"
+      "stable_version": "2.10.0"
     }
   ]
 }
