@@ -42,7 +42,7 @@ on:
         type: number
       single-branch:
         description: 'Whether to fetch only a single branch, defaults to true'
-        default: true
+        default: false
         type: boolean
       checkout-mode:
         description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
