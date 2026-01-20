@@ -64,15 +64,15 @@ jobs:
           ARCHS=$(echo "${ARCHS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
           PLATFORMS=$(echo "${PLATFORMS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
 
-          # Create the matrix JSON
-          MATRIX=$(jq -n \
+          # Create the matrix JSON (compact single-line format required for GH Actions)
+          MATRIX=$(jq -n -c \
             --argjson archs "$ARCHS" \
             --argjson platforms "$PLATFORMS" \
             '{arch: $archs, platform: $platforms}')
 
           echo "matrix=${MATRIX}" >> $GITHUB_OUTPUT
           echo "Generated matrix:"
-          echo "${MATRIX}" | jq .
+          echo "${MATRIX}"
 
   promote-variants:
     needs: generate-matrix
