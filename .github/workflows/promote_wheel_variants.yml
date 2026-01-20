@@ -1,6 +1,11 @@
 name: Promote Wheel Variants to Test
 
 on:
+  pull_request:
+    paths:
+      - .github/workflows/promote_wheel_variants.yml
+      - release/pypi/upload_variant_to_staging.sh
+      - release/pypi/promote_whl_variant_to_test.sh
   workflow_dispatch:
     inputs:
       pytorch_version:
@@ -51,24 +56,29 @@ jobs:
       - name: Generate matrix
         id: generate
         run: |
-          # Convert comma-separated inputs to JSON arrays
-          ARCHS=$(echo '${{ inputs.architectures }}' | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
-          PLATFORMS=$(echo '${{ inputs.platforms }}' | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
+          # Use inputs if available (workflow_dispatch), otherwise use defaults for PR
+          ARCHS_INPUT="${{ inputs.architectures || 'cpu' }}"
+          PLATFORMS_INPUT="${{ inputs.platforms || 'manylinux_2_28_x86_64' }}"
 
-          # Create the matrix JSON
-          MATRIX=$(jq -n \
+          # Convert comma-separated inputs to JSON arrays
+          ARCHS=$(echo "${ARCHS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
+          PLATFORMS=$(echo "${PLATFORMS_INPUT}" | jq -R 'split(",") | map(gsub("^\\s+|\\s+$"; ""))' -c)
+
+          # Create the matrix JSON (compact single-line format required for GH Actions)
+          MATRIX=$(jq -n -c \
             --argjson archs "$ARCHS" \
             --argjson platforms "$PLATFORMS" \
             '{arch: $archs, platform: $platforms}')
 
-          echo "matrix=${MATRIX}" >> $GITHUB_OUTPUT
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
           echo "Generated matrix:"
-          echo "${MATRIX}" | jq .
+          echo "${MATRIX}"
 
   promote-variants:
     needs: generate-matrix
     runs-on: ubuntu-22.04
-    environment: ${{ inputs.dry_run == false && 'pytorchbot-env' || '' }}
+    # Only use pytorchbot-env for workflow_dispatch with dry_run=false
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && 'pytorchbot-env' || '' }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
@@ -78,13 +88,14 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: test-infra
-          ref: wheel_variant_210
+          # For PRs, use the merge commit SHA; for workflow_dispatch use the branch
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'wheel_variant_210' }}
 
       - name: Checkout variant-repack
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: wheelnext/variant-repack
-          ref: ${{ inputs.variant_repack_ref }}
+          ref: 'master'
           path: variant-repack
 
       - name: Set up Python
@@ -94,7 +105,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install awscli wheel
+          pip install awscli==1.44.20 wheel==0.45.1
           cd variant-repack
           pip install -e .
 
@@ -102,10 +113,11 @@ jobs:
         run: |
           variant_repack --version
           echo "Available configs:"
-          ls -la variant-repack/configs/torch-${{ inputs.pytorch_release }}/
+          ls -la variant-repack/configs/torch-${{ inputs.pytorch_release || '2.10' }}/
 
       - name: Configure AWS credentials
-        if: ${{ inputs.dry_run == false }}
+        # Only configure AWS for workflow_dispatch with dry_run=false
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
@@ -117,32 +129,33 @@ jobs:
           ARCH="${{ matrix.arch }}"
           case "${ARCH}" in
             cpu)
-              echo "suffix=%2Bcpu" >> $GITHUB_OUTPUT
+              echo "suffix=%2Bcpu" >> "$GITHUB_OUTPUT"
               ;;
             cu*)
-              echo "suffix=%2B${ARCH}" >> $GITHUB_OUTPUT
+              echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
               ;;
             rocm*)
-              echo "suffix=%2B${ARCH}" >> $GITHUB_OUTPUT
+              echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
               ;;
             xpu)
-              echo "suffix=%2Bxpu" >> $GITHUB_OUTPUT
+              echo "suffix=%2Bxpu" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "suffix=" >> $GITHUB_OUTPUT
+              echo "suffix=" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
       - name: Promote torch variants
-        if: ${{ inputs.package_name == 'torch' || inputs.package_name == 'all' }}
+        if: ${{ inputs.package_name == 'torch' || inputs.package_name == 'all' || github.event_name == 'pull_request' }}
         env:
-          DRY_RUN: ${{ inputs.dry_run && 'enabled' || 'disabled' }}
+          # Always dry run for PRs, otherwise use input
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
           PACKAGE_NAME: torch
-          PACKAGE_VERSION: ${{ inputs.pytorch_version }}
+          PACKAGE_VERSION: ${{ inputs.pytorch_version || '2.10.0' }}
           PLATFORM: ${{ matrix.platform }}
           VERSION_SUFFIX: ${{ steps.version-suffix.outputs.suffix }}
           ARCH: ${{ matrix.arch }}
-          PYTORCH_RELEASE: ${{ inputs.pytorch_release }}
+          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
           VARIANT_REPACK_DIR: ./variant-repack
         run: |
           bash test-infra/release/pypi/upload_variant_to_staging.sh
@@ -150,14 +163,14 @@ jobs:
       - name: Promote torchvision variants
         if: ${{ inputs.package_name == 'torchvision' || inputs.package_name == 'all' }}
         env:
-          DRY_RUN: ${{ inputs.dry_run && 'enabled' || 'disabled' }}
+          # Always dry run for PRs, otherwise use input
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
           PACKAGE_NAME: torchvision
-          # TODO: Make torchvision version configurable via input
           PACKAGE_VERSION: '0.23.0'
           PLATFORM: ${{ matrix.platform }}
           VERSION_SUFFIX: ${{ steps.version-suffix.outputs.suffix }}
           ARCH: ${{ matrix.arch }}
-          PYTORCH_RELEASE: ${{ inputs.pytorch_release }}
+          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
           VARIANT_REPACK_DIR: ./variant-repack
         run: |
           bash test-infra/release/pypi/upload_variant_to_staging.sh
@@ -167,7 +180,7 @@ jobs:
   promote-all-variants:
     if: false  # Disabled by default
     runs-on: ubuntu-22.04
-    environment: ${{ inputs.dry_run == false && 'pytorchbot-env' || '' }}
+    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && 'pytorchbot-env' || '' }}
 
     steps:
       - name: Checkout test-infra
@@ -179,7 +192,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: wheelnext/variant-repack
-          ref: ${{ inputs.variant_repack_ref }}
+          ref: ${{ inputs.variant_repack_ref || 'main' }}
           path: variant-repack
 
       - name: Set up Python
@@ -189,12 +202,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install awscli wheel
+          pip install awscli==1.44.20 wheel==0.45.1
           cd variant-repack
           pip install -e .
 
       - name: Configure AWS credentials
-        if: ${{ inputs.dry_run == false }}
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
@@ -202,9 +215,9 @@ jobs:
 
       - name: Run full promotion script
         env:
-          DRY_RUN: ${{ inputs.dry_run && 'enabled' || 'disabled' }}
-          PYTORCH_VERSION: ${{ inputs.pytorch_version }}
-          PYTORCH_RELEASE: ${{ inputs.pytorch_release }}
+          DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
+          PYTORCH_VERSION: ${{ inputs.pytorch_version || '2.10.0' }}
+          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
           VARIANT_REPACK_DIR: ./variant-repack
         run: |
           bash test-infra/release/pypi/promote_whl_variant_to_test.sh
