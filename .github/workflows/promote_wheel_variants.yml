@@ -70,7 +70,7 @@ jobs:
             --argjson platforms "$PLATFORMS" \
             '{arch: $archs, platform: $platforms}')
 
-          echo "matrix=${MATRIX}" >> $GITHUB_OUTPUT
+          echo "matrix=${MATRIX}" >> "$GITHUB_OUTPUT"
           echo "Generated matrix:"
           echo "${MATRIX}"
 
@@ -105,7 +105,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install awscli wheel
+          pip install awscli==1.42.67 wheel==1.42.67
           cd variant-repack
           pip install -e .
 
@@ -129,19 +129,19 @@ jobs:
           ARCH="${{ matrix.arch }}"
           case "${ARCH}" in
             cpu)
-              echo "suffix=%2Bcpu" >> $GITHUB_OUTPUT
+              echo "suffix=%2Bcpu" >> "$GITHUB_OUTPUT"
               ;;
             cu*)
-              echo "suffix=%2B${ARCH}" >> $GITHUB_OUTPUT
+              echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
               ;;
             rocm*)
-              echo "suffix=%2B${ARCH}" >> $GITHUB_OUTPUT
+              echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
               ;;
             xpu)
-              echo "suffix=%2Bxpu" >> $GITHUB_OUTPUT
+              echo "suffix=%2Bxpu" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "suffix=" >> $GITHUB_OUTPUT
+              echo "suffix=" >> "$GITHUB_OUTPUT"
               ;;
           esac
 
@@ -202,7 +202,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install awscli wheel
+          pip install awscli==1.42.67 wheel==1.42.67
           cd variant-repack
           pip install -e .
 
