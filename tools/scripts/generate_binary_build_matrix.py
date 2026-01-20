@@ -35,7 +35,7 @@ CUDA_ARCHES_DICT = {
 ROCM_ARCHES_DICT = {
     "nightly": ["7.0", "7.1"],
     "test": ["7.0", "7.1"],
-    "release": ["6.3", "6.4"],
+    "release": ["7.0", "7.1"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -78,7 +78,7 @@ XPU = "xpu"
 
 CURRENT_NIGHTLY_VERSION = "2.11.0"
 CURRENT_CANDIDATE_VERSION = "2.10.0"
-CURRENT_STABLE_VERSION = "2.9.1"
+CURRENT_STABLE_VERSION = "2.10.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
