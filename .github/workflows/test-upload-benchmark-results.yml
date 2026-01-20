@@ -1,0 +1,39 @@
+name: Test Upload Benchmark Results
+
+on:
+  pull_request:
+    paths:
+      - .github/actions/upload-benchmark-results/**
+      - .github/workflows/test-upload-benchmark-results.yml
+  workflow_dispatch:
+
+jobs:
+  test-upload-benchmark-results:
+    strategy:
+      matrix:
+        runner: [linux.2xlarge, macos-m1-stable]
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Create dummy benchmark results
+        run: |
+          mkdir -p test/test-reports
+          cat > test/test-reports/test-benchmark.json << 'EOF'
+          {
+            "benchmark_name": "test-benchmark",
+            "metrics": {
+              "latency_ms": 100,
+              "throughput": 1000
+            }
+          }
+          EOF
+
+      - name: Upload benchmark results (dry-run)
+        uses: ./.github/actions/upload-benchmark-results
+        with:
+          benchmark-results-dir: test/test-reports
+          dry-run: 'true'
+          schema-version: v3
+          github-token: ${{ secrets.GITHUB_TOKEN }}
