@@ -105,7 +105,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install awscli==1.42.67 wheel==1.42.67
+          pip install awscli==1.44.20 wheel==0.45.1
           cd variant-repack
           pip install -e .
 
@@ -202,7 +202,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install awscli==1.42.67 wheel==1.42.67
+          pip install awscli==1.44.20 wheel==0.45.1
           cd variant-repack
           pip install -e .
 
