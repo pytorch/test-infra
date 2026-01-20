@@ -1,0 +1,8 @@
+#!/bin/bash
+# Container shutdown handler for dotfiles backup
+echo "Container shutting down - backing up dotfiles..."
+if [ -f /home/dev/.backup-dotfiles ]; then
+    su - dev -c "/home/dev/.backup-dotfiles" 2>/dev/null || echo "Dotfiles backup failed"
+else
+    echo "Backup script not found"
+fi

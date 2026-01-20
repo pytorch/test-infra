@@ -1,0 +1,74 @@
+#!/bin/bash
+# Backup dotfiles to shared persistent storage
+# This script is called automatically on graceful container shutdown
+# You can also run it manually: backup-dotfiles
+
+# Get the user ID from environment or derive it
+if [ -n "$GPU_DEV_USER_ID" ]; then
+    USER_ID_CLEAN=$(echo "$GPU_DEV_USER_ID" | cut -d'@' -f1)
+elif [ -f /tmp/gpu-dev-user-id ]; then
+    USER_ID_CLEAN=$(cat /tmp/gpu-dev-user-id | cut -d'@' -f1)
+else
+    USER_ID_CLEAN="dev"
+fi
+
+DOTFILES_DIR="/shared-personal/$USER_ID_CLEAN/.dotfiles"
+
+if [ -d "/shared-personal" ]; then
+    echo "Backing up dotfiles to $DOTFILES_DIR..."
+    mkdir -p "$DOTFILES_DIR"
+    
+    # Create versioned backup directory structure
+    PREVIOUS_DIR="$DOTFILES_DIR/.previous"
+    mkdir -p "$PREVIOUS_DIR"
+    
+    # If current backup exists, move it to versioned backup before creating new one
+    if [ -f "$DOTFILES_DIR/.bashrc" ] || [ -f "$DOTFILES_DIR/.zshrc" ]; then
+        TIMESTAMP=$(date "+%Y%m%d_%H%M%S")
+        VERSION_DIR="$PREVIOUS_DIR/$TIMESTAMP"
+        echo "Creating versioned backup in $VERSION_DIR..."
+        mkdir -p "$VERSION_DIR"
+        
+        # Move existing dotfiles to versioned backup
+        [ -f "$DOTFILES_DIR/.bashrc" ] && mv "$DOTFILES_DIR/.bashrc" "$VERSION_DIR/.bashrc"
+        [ -f "$DOTFILES_DIR/.bash_history" ] && mv "$DOTFILES_DIR/.bash_history" "$VERSION_DIR/.bash_history"
+        [ -f "$DOTFILES_DIR/.zshrc" ] && mv "$DOTFILES_DIR/.zshrc" "$VERSION_DIR/.zshrc"
+        [ -f "$DOTFILES_DIR/.zsh_history" ] && mv "$DOTFILES_DIR/.zsh_history" "$VERSION_DIR/.zsh_history"
+        [ -d "$DOTFILES_DIR/.oh-my-zsh" ] && mv "$DOTFILES_DIR/.oh-my-zsh" "$VERSION_DIR/.oh-my-zsh"
+        [ -f "$DOTFILES_DIR/.gitconfig" ] && mv "$DOTFILES_DIR/.gitconfig" "$VERSION_DIR/.gitconfig"
+        [ -f "$DOTFILES_DIR/.profile" ] && mv "$DOTFILES_DIR/.profile" "$VERSION_DIR/.profile"
+        [ -f "$DOTFILES_DIR/.vimrc" ] && mv "$DOTFILES_DIR/.vimrc" "$VERSION_DIR/.vimrc"
+        [ -f "$DOTFILES_DIR/.condarc" ] && mv "$DOTFILES_DIR/.condarc" "$VERSION_DIR/.condarc"
+        [ -f "$DOTFILES_DIR/.last_backup" ] && mv "$DOTFILES_DIR/.last_backup" "$VERSION_DIR/.last_backup"
+    fi
+    
+    # Clean up old versions (keep only last 10)
+    cd "$PREVIOUS_DIR" && ls -1t | tail -n +11 | xargs -r rm -rf
+    
+    # Create new backup
+    echo "Creating new dotfiles backup..."
+    
+    # Backup shell config files
+    [ -f ~/.bashrc ] && cp ~/.bashrc "$DOTFILES_DIR/.bashrc"
+    [ -f ~/.bash_history ] && cp ~/.bash_history "$DOTFILES_DIR/.bash_history" 
+    [ -f ~/.zshrc ] && cp ~/.zshrc "$DOTFILES_DIR/.zshrc"
+    [ -f ~/.zsh_history ] && cp ~/.zsh_history "$DOTFILES_DIR/.zsh_history"
+    [ -d ~/.oh-my-zsh ] && cp -r ~/.oh-my-zsh "$DOTFILES_DIR/"
+    
+    # Backup other config files
+    [ -f ~/.gitconfig ] && cp ~/.gitconfig "$DOTFILES_DIR/.gitconfig"
+    [ -f ~/.profile ] && cp ~/.profile "$DOTFILES_DIR/.profile"
+    [ -f ~/.vimrc ] && cp ~/.vimrc "$DOTFILES_DIR/.vimrc"
+    [ -f ~/.condarc ] && cp ~/.condarc "$DOTFILES_DIR/.condarc"
+    
+    # Create a timestamp file
+    echo "Last backup: $(date)" > "$DOTFILES_DIR/.last_backup"
+    
+    # Show backup summary
+    BACKUP_COUNT=$(ls -1 "$PREVIOUS_DIR" 2>/dev/null | wc -l)
+    echo "✓ Dotfiles backed up to shared storage"
+    echo "Files will persist across all your reservations (both persistent and temporary disk)"
+    echo "Previous versions stored: $BACKUP_COUNT (keeping last 10)"
+else
+    echo "⚠️  Shared storage not available - cannot backup dotfiles"
+fi

@@ -1,0 +1,22 @@
+# Source shared environment
+[ -f ~/.shell_env ] && source ~/.shell_env
+
+# Source GPU dev server extensions (warnings, startup status, etc.)
+# This file is managed by the system and updated on every pod startup
+[ -f ~/.bashrc_ext ] && source ~/.bashrc_ext
+
+# Bash-specific settings
+if [ -f /etc/bash_completion ] && ! shopt -oq posix; then
+    . /etc/bash_completion
+fi
+
+# Shell selection helper
+alias use-zsh='echo "To switch to zsh permanently, run: chsh -s /usr/bin/zsh"'
+alias use-bash='echo "Already using bash! To get the full experience, try: zsh"'
+
+# Custom aliases for GPU development
+alias gpu-info='nvidia-smi'
+alias gpu-watch='watch -n 1 nvidia-smi'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'

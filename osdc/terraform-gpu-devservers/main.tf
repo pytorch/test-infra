@@ -1,0 +1,562 @@
+# GPU Developer Servers Infrastructure
+# Default: us-west-1 with 2x T4 instances (test environment)
+# Production: Use -var-file="prod.tfvars" for us-east-2 with A100 instances
+
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+    kubernetes = {
+      source  = "hashicorp/kubernetes"
+      version = "~> 2.23"
+    }
+    helm = {
+      source  = "hashicorp/helm"
+      version = "~> 2.12"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
+    }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.4"
+    }
+  }
+}
+
+provider "aws" {
+  region = local.current_config.aws_region
+}
+
+# Configure Kubernetes provider to use the EKS cluster (back to original approach for now)
+provider "kubernetes" {
+  host                   = aws_eks_cluster.gpu_dev_cluster.endpoint
+  cluster_ca_certificate = base64decode(aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data)
+  exec {
+    api_version = "client.authentication.k8s.io/v1beta1"
+    command     = "aws"
+    args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.gpu_dev_cluster.name, "--region", local.current_config.aws_region]
+  }
+}
+
+# Configure Helm provider to use the same EKS cluster
+provider "helm" {
+  kubernetes {
+    host                   = aws_eks_cluster.gpu_dev_cluster.endpoint
+    cluster_ca_certificate = base64decode(aws_eks_cluster.gpu_dev_cluster.certificate_authority[0].data)
+    exec {
+      api_version = "client.authentication.k8s.io/v1beta1"
+      command     = "aws"
+      args        = ["eks", "get-token", "--cluster-name", aws_eks_cluster.gpu_dev_cluster.name, "--region", local.current_config.aws_region]
+    }
+  }
+}
+
+# Data sources
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
+data "aws_caller_identity" "current" {}
+
+# Create workspace-specific prefix for global resources (IAM roles, etc.)
+locals {
+  workspace_prefix = "${var.prefix}-${terraform.workspace}"
+
+  # Workspace-specific configurations
+  workspace_configs = {
+    default = {
+      aws_region             = "us-west-1"
+      environment            = "test"
+      domain_name            = "test.devservers.io"
+      gpu_instance_count     = 2
+      use_self_managed_nodes = true
+      instance_type          = "g4dn.12xlarge"
+      supported_gpu_types = {
+        "h200" = {
+          instance_type       = "p5en.48xlarge" # H200 available in us-west-1
+          instance_types      = ["p5en.48xlarge"]
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "h100" = {
+          instance_type       = "p5.48xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 8
+          use_placement_group = true
+          architecture        = "x86_64"
+        }
+        "cpu-arm" = {
+          instance_type       = "c7g.4xlarge"
+          instance_types      = null
+          instance_count      = 1
+          gpus_per_instance   = 0
+          use_placement_group = false
+          architecture        = "arm64"
+        }
+        "cpu-x86" = {
+          instance_type       = "c7i.4xlarge"
+          instance_types      = null
+          instance_count      = 1
+          gpus_per_instance   = 0
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "t4" = {
+          instance_type       = "g4dn.12xlarge"
+          instance_types      = null
+          instance_count      = 2  # 2 instances in primary AZ
+          gpus_per_instance   = 4
+          use_placement_group = true
+          architecture        = "x86_64"
+        }
+        "t4-az2" = {
+          instance_type       = "g4dn.12xlarge"
+          instance_types      = null
+          instance_count      = 2  # 2 instances in secondary AZ
+          gpus_per_instance   = 4
+          use_placement_group = true
+          architecture        = "x86_64"
+        }
+        "t4-small" = {
+          instance_type       = "g4dn.2xlarge"
+          instance_types      = null
+          instance_count      = 1
+          gpus_per_instance   = 1
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        # Note: Nsight profiling nodes are not separate ASGs - just label existing nodes:
+        # kubectl label node <node-name> gpu.monitoring/profiling-dedicated=true nvidia.com/gpu.deploy.dcgm-exporter=false --overwrite
+        "a100" = {
+          instance_type       = "p4d.24xlarge"
+          instance_types      = null
+          instance_count      = 2  # 2 A100 instances for testing
+          gpus_per_instance   = 8
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "a10g" = {
+          instance_type       = "g5.12xlarge"
+          instance_types      = null
+          instance_count      = 1
+          gpus_per_instance   = 4 # 4x A10G GPUs
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+      }
+    }
+    prod = {
+      aws_region             = "us-east-2"
+      environment            = "prod"
+      domain_name            = "devservers.io"
+      gpu_instance_count     = 2
+      use_self_managed_nodes = true
+      instance_type          = "p4d.24xlarge"
+      supported_gpu_types = {
+        "b200" = {
+          instance_type       = "p6-b200.48xlarge"
+          instance_types      = null
+          instance_count      = 2  # Fallback default (not used when capacity_reservations defined)
+          gpus_per_instance   = 8
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "h200" = {
+          instance_type       = "p5e.48xlarge" # Match capacity reservation type
+          instance_types      = ["p5e.48xlarge", "p5en.48xlarge"]
+          instance_count      = 4  # Fallback default (not used when capacity_reservations defined)
+          gpus_per_instance   = 8
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "h100" = {
+          instance_type       = "p5.48xlarge"
+          instance_types      = null
+          instance_count      = 2  # Fallback default (not used when capacity_reservations defined)
+          gpus_per_instance   = 8
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        # Note: Nsight profiling nodes are not separate ASGs - just label existing nodes:
+        # kubectl label node <node-name> gpu.monitoring/profiling-dedicated=true nvidia.com/gpu.deploy.dcgm-exporter=false --overwrite
+        "a100" = {
+          instance_type       = "p4d.24xlarge"
+          instance_types      = null
+          instance_count      = 2  # Fallback default (not used when capacity_reservations defined)
+          gpus_per_instance   = 8
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "t4" = {
+          instance_type       = "g4dn.12xlarge"
+          instance_types      = null
+          instance_count      = 5  # Fallback default (not used when capacity_reservations defined)
+          gpus_per_instance   = 4
+          use_placement_group = true
+          architecture        = "x86_64"
+        }
+        "l4" = {
+          instance_type       = "g6.12xlarge"
+          instance_types      = null
+          instance_count      = 5  # Fallback default (not used when capacity_reservations defined)
+          gpus_per_instance   = 4 # 4x L4 GPUs
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "a10g" = {
+          instance_type       = "g5.12xlarge"
+          instance_types      = null
+          instance_count      = 2
+          gpus_per_instance   = 4 # 4x A10G GPUs
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+        "cpu-arm" = {
+          instance_type       = "c7g.8xlarge"
+          instance_types      = null
+          instance_count      = 4
+          gpus_per_instance   = 0
+          use_placement_group = false
+          architecture        = "arm64"
+        }
+        "cpu-x86" = {
+          instance_type       = "c7i.8xlarge"
+          instance_types      = null
+          instance_count      = 4
+          gpus_per_instance   = 0
+          use_placement_group = false
+          architecture        = "x86_64"
+        }
+      }
+    }
+  }
+
+  # Current workspace configuration
+  current_config = local.workspace_configs[terraform.workspace]
+
+  # Workspace-specific capacity reservations (with manual instance counts)
+  capacity_reservations = {
+    default = {
+      # Test environment capacity reservations
+      # h100 = [
+      #   { id = "cr-09f598e08ec509a0f", instance_count = 2 }  # Expired - commented out
+      # ]
+      # h200 = [
+      #   { id = "cr-0c0a6073304dd5d03", instance_count = 1 }  # Expired - commented out
+      # ]
+    }
+    prod = {
+      # Production environment capacity reservations
+      a100 = [
+        { id = "cr-01cc0f00f28b095af", instance_count = 1 }, # A100 reservation (1 instance)
+        { id = null, instance_count = 1 }                    # A100 on-demand (1 instance)
+      ]
+      h100 = [
+        { id = null, instance_count = 2 }                    # H100 on-demand (2 instances)
+      ]
+      h200 = [
+        { id = "cr-0f6d0766f5d3339e6", instance_count = 2 }, # H200 reservation us-east-2c (p5e.48xlarge)
+        { id = "cr-06c9c978dea756a26", instance_count = 3 }, # H200 reservation (3 instances)
+        { id = null, instance_count = 2 }                    # H200 on-demand (2 instances)
+      ]
+      b200 = [
+        { id = "cr-0c366fb8339a10f69", instance_count = 1 }, # B200 reservation (1 instance)
+        { id = "cr-0122dff5e01d566dc", instance_count = 2 }, # B200 reservation (2 instances)
+        { id = "cr-08e7fee0b8dc3de5e", instance_count = 3 }, # B200 reservation (3 instances)
+        { id = null, instance_count = 1 }                    # B200 on-demand (1 instance)
+      ]
+      # T4 and L4 don't have capacity reservations - managed via supported_gpu_types fallback
+      # This avoids destroying/recreating existing ASGs
+    }
+  }
+
+  # Workspace-specific GPU type to subnet mappings
+  gpu_subnet_assignments = {
+    default = {
+      # Test environment - H200 and H100 in us-west-1c (secondary subnet)
+      # T4 nodes in multiple AZs for testing AZ mismatch fix
+      h200         = "secondary"
+      h100         = "secondary"
+      a100         = "primary"    # A100 in us-west-1a (primary AZ)
+      t4           = "primary"    # T4 in us-west-1a (primary AZ)
+      "t4-az2"     = "secondary"  # T4 in us-west-1b (secondary AZ)
+      "cpu-arm"    = "primary"
+      "cpu-x86"    = "primary"
+      "t4-small"   = "secondary"
+      a10g         = "primary"
+    }
+    prod = {
+      # Production environment subnet assignments
+      b200           = "primary"
+      h200           = "tertiary" # us-east-2c for H200 capacity reservation
+      h100           = "primary"
+      a100           = "primary"
+      t4             = "primary"
+      l4             = "secondary"
+      a10g           = "secondary"
+      "cpu-arm"      = "primary"
+      "cpu-x86"      = "primary"
+    }
+  }
+
+  # Per-capacity-reservation AZ mappings (overrides gpu_subnet_assignments when CR is used)
+  capacity_reservation_azs = {
+    default = {}
+    prod = {
+      # B200 capacity reservations
+      "cr-0c366fb8339a10f69" = "primary"   # us-east-2a
+      "cr-0122dff5e01d566dc" = "secondary" # us-east-2b
+      "cr-08e7fee0b8dc3de5e" = "secondary" # us-east-2b
+      # H200 capacity reservations
+      "cr-0f6d0766f5d3339e6" = "tertiary"  # us-east-2c (p5e.48xlarge)
+      "cr-06c9c978dea756a26" = "tertiary"  # us-east-2c
+      # A100 capacity reservation
+      "cr-01cc0f00f28b095af" = "primary"   # us-east-2a
+    }
+  }
+}
+
+
+# VPC Configuration
+resource "aws_vpc" "gpu_dev_vpc" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
+  tags = {
+    Name        = "${var.prefix}-gpu-dev-vpc"
+    Environment = local.current_config.environment
+  }
+}
+
+# Internet Gateway
+resource "aws_internet_gateway" "gpu_dev_igw" {
+  vpc_id = aws_vpc.gpu_dev_vpc.id
+
+  tags = {
+    Name        = "${var.prefix}-gpu-dev-igw"
+    Environment = local.current_config.environment
+  }
+}
+
+# Primary subnet for EFA requirements (GPU nodes)
+resource "aws_subnet" "gpu_dev_subnet" {
+  vpc_id                  = aws_vpc.gpu_dev_vpc.id
+  cidr_block              = var.subnet_cidr
+  availability_zone       = data.aws_availability_zones.available.names[0]
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                          = "${var.prefix}-gpu-dev-subnet"
+    Environment                                   = local.current_config.environment
+    "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
+    "kubernetes.io/role/elb"                      = "1"
+  }
+}
+
+# Secondary subnet for EKS control plane (different AZ)
+resource "aws_subnet" "gpu_dev_subnet_secondary" {
+  vpc_id                  = aws_vpc.gpu_dev_vpc.id
+  cidr_block              = "10.0.16.0/20"
+  availability_zone       = data.aws_availability_zones.available.names[1] # us-east-2b for control plane diversity
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                          = "${var.prefix}-gpu-dev-subnet-secondary"
+    Environment                                   = local.current_config.environment
+    "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
+    "kubernetes.io/role/elb"                      = "1"
+  }
+}
+
+# Tertiary subnet for H200 capacity reservation (us-east-2c) - only if 3rd AZ exists
+resource "aws_subnet" "gpu_dev_subnet_tertiary" {
+  count                   = length(data.aws_availability_zones.available.names) >= 3 ? 1 : 0
+  vpc_id                  = aws_vpc.gpu_dev_vpc.id
+  cidr_block              = "10.0.32.0/20"
+  availability_zone       = data.aws_availability_zones.available.names[2] # us-east-2c for H200 capacity reservation
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name                                          = "${var.prefix}-gpu-dev-subnet-tertiary"
+    Environment                                   = local.current_config.environment
+    "kubernetes.io/cluster/${var.prefix}-cluster" = "shared"
+    "kubernetes.io/role/elb"                      = "1"
+  }
+}
+
+# Route table
+resource "aws_route_table" "gpu_dev_rt" {
+  vpc_id = aws_vpc.gpu_dev_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.gpu_dev_igw.id
+  }
+
+  tags = {
+    Name        = "${var.prefix}-gpu-dev-rt"
+    Environment = local.current_config.environment
+  }
+}
+
+resource "aws_route_table_association" "gpu_dev_rta" {
+  subnet_id      = aws_subnet.gpu_dev_subnet.id
+  route_table_id = aws_route_table.gpu_dev_rt.id
+}
+
+resource "aws_route_table_association" "gpu_dev_rta_secondary" {
+  subnet_id      = aws_subnet.gpu_dev_subnet_secondary.id
+  route_table_id = aws_route_table.gpu_dev_rt.id
+}
+
+resource "aws_route_table_association" "gpu_dev_rta_tertiary" {
+  count          = length(aws_subnet.gpu_dev_subnet_tertiary)
+  subnet_id      = aws_subnet.gpu_dev_subnet_tertiary[0].id
+  route_table_id = aws_route_table.gpu_dev_rt.id
+}
+
+# Security Groups
+
+# Control plane security group
+resource "aws_security_group" "eks_control_plane_sg" {
+  name        = "${var.prefix}-eks-control-plane-sg"
+  description = "Security group for EKS control plane"
+  vpc_id      = aws_vpc.gpu_dev_vpc.id
+
+  # Allow inbound HTTPS from worker nodes (VPC CIDR)
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "HTTPS from worker nodes"
+  }
+
+  # Allow all outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.prefix}-eks-control-plane-sg"
+    Environment = local.current_config.environment
+  }
+}
+
+resource "aws_security_group" "gpu_dev_sg" {
+  name        = "${var.prefix}-gpu-dev-sg"
+  description = "Security group for GPU development servers"
+  vpc_id      = aws_vpc.gpu_dev_vpc.id
+
+
+
+  # Kubelet API for logs/exec/port-forward
+  ingress {
+    from_port   = 10250
+    to_port     = 10250
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "Kubelet API access from EKS control plane"
+  }
+
+  # HTTPS outbound to EKS control plane for CoreDNS and other system pods
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "HTTPS access to EKS control plane"
+  }
+
+  # DNS resolution for pods
+  ingress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "DNS TCP access within VPC"
+  }
+
+  ingress {
+    from_port   = 53
+    to_port     = 53
+    protocol    = "udp"
+    cidr_blocks = [aws_vpc.gpu_dev_vpc.cidr_block]
+    description = "DNS UDP access within VPC"
+  }
+
+  # All traffic within VPC for EFA
+  ingress {
+    from_port = 0
+    to_port   = 65535
+    protocol  = "tcp"
+    self      = true
+  }
+
+  # NodePort range for WebSocket SSH proxy ECS tasks
+  dynamic "ingress" {
+    for_each = local.effective_domain_name != "" ? [1] : []
+    content {
+      from_port       = 30000
+      to_port         = 32767
+      protocol        = "tcp"
+      security_groups = [aws_security_group.ssh_proxy[0].id]
+      description     = "NodePort range for SSH via WebSocket proxy ECS tasks"
+    }
+  }
+
+  # NodePort range for Jupyter ALB access
+  dynamic "ingress" {
+    for_each = local.effective_domain_name != "" ? [1] : []
+    content {
+      from_port       = 30000
+      to_port         = 32767
+      protocol        = "tcp"
+      security_groups = [aws_security_group.alb_sg[0].id]
+      description     = "NodePort range for Jupyter Lab via ALB"
+    }
+  }
+
+  # All outbound traffic
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.prefix}-gpu-dev-sg"
+    Environment = local.current_config.environment
+  }
+}
+
+# Cluster Placement Groups - one per GPU type that needs placement groups
+resource "aws_placement_group" "gpu_dev_pg" {
+  for_each = {
+    for gpu_type, config in local.current_config.supported_gpu_types : gpu_type => config
+    if config.use_placement_group
+  }
+
+  name     = "${local.workspace_prefix}-gpu-${each.key}-cluster"
+  strategy = "cluster"
+
+  # Note: Placement group AZ will be determined by first instance launched
+
+  tags = {
+    Name        = "${local.workspace_prefix}-gpu-${each.key}-cluster"
+    Environment = local.current_config.environment
+    GpuType     = each.key
+  }
+}

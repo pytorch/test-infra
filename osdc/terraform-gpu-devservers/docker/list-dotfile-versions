@@ -1,0 +1,69 @@
+#!/bin/bash
+# List available dotfile backup versions
+
+# Get the user ID from environment or derive it
+if [ -n "$GPU_DEV_USER_ID" ]; then
+    USER_ID_CLEAN=$(echo "$GPU_DEV_USER_ID" | cut -d'@' -f1)
+elif [ -f /tmp/gpu-dev-user-id ]; then
+    USER_ID_CLEAN=$(cat /tmp/gpu-dev-user-id | cut -d'@' -f1)
+else
+    USER_ID_CLEAN="dev"
+fi
+
+DOTFILES_DIR="/shared-personal/$USER_ID_CLEAN/.dotfiles"
+PREVIOUS_DIR="$DOTFILES_DIR/.previous"
+
+if [ -d "$PREVIOUS_DIR" ]; then
+    echo "Available dotfile backup versions:"
+    echo "=================================="
+    
+    # List versions in chronological order (newest first)
+    VERSIONS=$(ls -1t "$PREVIOUS_DIR" 2>/dev/null)
+    if [ -z "$VERSIONS" ]; then
+        echo "No previous versions found."
+        exit 0
+    fi
+    
+    COUNT=1
+    for VERSION in $VERSIONS; do
+        VERSION_DIR="$PREVIOUS_DIR/$VERSION"
+        if [ -d "$VERSION_DIR" ]; then
+            # Parse timestamp
+            YEAR=${VERSION:0:4}
+            MONTH=${VERSION:4:2}
+            DAY=${VERSION:6:2}
+            HOUR=${VERSION:9:2}
+            MIN=${VERSION:11:2}
+            SEC=${VERSION:13:2}
+            
+            # Show human readable date
+            READABLE_DATE="$YEAR-$MONTH-$DAY $HOUR:$MIN:$SEC"
+            
+            # Count files in this version
+            FILE_COUNT=$(ls -1 "$VERSION_DIR" 2>/dev/null | wc -l)
+            
+            echo "$COUNT. $VERSION ($READABLE_DATE) - $FILE_COUNT files"
+            COUNT=$((COUNT + 1))
+        fi
+    done
+    
+    echo ""
+    echo "Current version:"
+    if [ -f "$DOTFILES_DIR/.last_backup" ]; then
+        cat "$DOTFILES_DIR/.last_backup"
+    else
+        echo "No current backup found"
+    fi
+    
+    echo ""
+    echo "To restore a version: restore-dotfiles-version <timestamp>"
+    echo "Example: restore-dotfiles-version $(echo $VERSIONS | head -1)"
+    
+elif [ -d "$DOTFILES_DIR" ]; then
+    echo "No previous versions found, but current backup exists."
+    if [ -f "$DOTFILES_DIR/.last_backup" ]; then
+        cat "$DOTFILES_DIR/.last_backup"
+    fi
+else
+    echo "⚠️  No dotfile backups found in shared storage"
+fi

@@ -1,0 +1,32 @@
+#!/bin/bash
+# nproc wrapper that reports container CPU allocation instead of node CPU count
+# This prevents build systems from over-parallelizing and consuming more CPUs than allocated
+
+# Check if we're in a Kubernetes container with CPU limits
+if [ -f /sys/fs/cgroup/cpu/cpu.cfs_quota_us ] && [ -f /sys/fs/cgroup/cpu/cpu.cfs_period_us ]; then
+    # cgroup v1
+    quota=$(cat /sys/fs/cgroup/cpu/cpu.cfs_quota_us 2>/dev/null || echo "-1")
+    period=$(cat /sys/fs/cgroup/cpu/cpu.cfs_period_us 2>/dev/null || echo "100000")
+elif [ -f /sys/fs/cgroup/cpu.max ]; then
+    # cgroup v2
+    cpu_max=$(cat /sys/fs/cgroup/cpu.max 2>/dev/null || echo "max 100000")
+    quota=$(echo "$cpu_max" | awk '{print $1}')
+    period=$(echo "$cpu_max" | awk '{print $2}')
+    [ "$quota" = "max" ] && quota="-1"
+else
+    # Fallback to real nproc if cgroup not available
+    exec /usr/bin/nproc.real "$@"
+fi
+
+# If no CPU limit set, use real nproc
+if [ "$quota" = "-1" ] || [ -z "$quota" ] || [ "$period" = "0" ]; then
+    exec /usr/bin/nproc.real "$@"
+fi
+
+# Calculate CPUs from quota/period (e.g., 800000/100000 = 8 CPUs)
+cpus=$((quota / period))
+
+# Handle fractional CPUs - round up to at least 1
+[ "$cpus" -lt 1 ] && cpus=1
+
+echo "$cpus"

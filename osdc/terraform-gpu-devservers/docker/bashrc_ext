@@ -1,0 +1,26 @@
+# GPU Dev Server Extensions (managed by system - do not edit)
+# This file is overwritten on every pod startup to ensure latest features.
+# Put your personal customizations in ~/.bashrc instead.
+
+# User identification (set by Lambda on startup)
+export GPU_DEV_USER_ID="dev"
+
+# Function to check for GPU reservation expiry warnings and startup script status
+check_warnings() {
+    # Check for startup script still running
+    if [ -f /home/dev/STARTUP_SCRIPT_RUNNING.txt ]; then
+        echo -e "\033[1;33m$(cat /home/dev/STARTUP_SCRIPT_RUNNING.txt)\033[0m"
+    fi
+    # Check for expiry warnings
+    for warning_file in /home/dev/WARN_EXPIRES_IN_*MIN.txt; do
+        if [ -f "$warning_file" ]; then
+            # Extract minutes from filename (e.g., WARN_EXPIRES_IN_15MIN.txt -> 15)
+            minutes=$(echo "$warning_file" | sed 's/.*WARN_EXPIRES_IN_\([0-9]*\)MIN.txt/\1/')
+            echo -e "\033[1;31m🚨 URGENT: Server expires in <${minutes} minutes! 🚨\033[0m"
+            return
+        fi
+    done 2>/dev/null
+}
+
+# Run warning check before every command prompt
+PROMPT_COMMAND="check_warnings; $PROMPT_COMMAND"

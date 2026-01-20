@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DevGPUs Features</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 60px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 50px;
+      }
+
+      .header h1 {
+        font-size: 4rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 20px;
+        letter-spacing: -2px;
+      }
+
+      .header p {
+        font-size: 1.5rem;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 400;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(7, 1fr);
+        grid-template-rows: repeat(4, 1fr);
+        gap: 20px;
+        width: 100%;
+        max-width: 1400px;
+        height: 600px;
+      }
+
+      .tile {
+        border-radius: 20px;
+        padding: 30px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        color: white;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+        z-index: 1;
+      }
+
+      .tile:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        z-index: 10;
+      }
+
+      .tile-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+      }
+
+      .tile-title {
+        font-size: 1.2rem;
+        line-height: 1.3;
+      }
+
+      /* Large tiles (2x2) */
+      .large {
+        grid-column: span 2;
+        grid-row: span 2;
+      }
+
+      .large .tile-icon {
+        font-size: 5rem;
+        margin-bottom: 25px;
+      }
+
+      .large .tile-title {
+        font-size: 2rem;
+        line-height: 1.2;
+      }
+
+      /* Smaller text for single ownership tile */
+      .reservations .tile-title {
+        font-size: 1.6rem !important;
+      }
+
+      /* Smaller text for EFA networking tile */
+      .shared-network .tile-title {
+        font-size: 1.2rem !important;
+      }
+
+      /* Smaller text for Docker tile */
+      .docker-tile .tile-title {
+        font-size: 1rem !important;
+      }
+
+      /* Medium tiles (2x1) */
+      .medium {
+        grid-column: span 2;
+        grid-row: span 1;
+      }
+
+      .medium .tile-icon {
+        font-size: 3.5rem;
+        margin-bottom: 20px;
+      }
+
+      .medium .tile-title {
+        font-size: 1.4rem;
+      }
+
+      /* Small tiles (1x1) */
+      .small {
+        grid-column: span 1;
+        grid-row: span 1;
+      }
+
+      /* Color schemes */
+      .gpu {
+        background: linear-gradient(135deg, #76b900 0%, #5a8a00 100%);
+      }
+      .storage {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+      }
+      .scale {
+        background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+      }
+      .ai {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+      }
+      .dev {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      }
+      .network {
+        background: linear-gradient(135deg, #e0a080 0%, #d4925f 100%);
+        color: white;
+      }
+      .jupyter {
+        background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+        color: #333;
+      }
+      .cuda {
+        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        color: #333;
+      }
+      .docker {
+        background: linear-gradient(135deg, #ffffff 0%, #f0f0f0 100%);
+        color: #333;
+      }
+      .h200 {
+        background: linear-gradient(135deg, #76b900 0%, #388e3c 100%);
+      }
+      .vscode {
+        background: linear-gradient(135deg, #007acc 0%, #0066b3 100%);
+      }
+      .cursor {
+        background: linear-gradient(135deg, #000000 0%, #333333 100%);
+      }
+      .k8s {
+        background: linear-gradient(135deg, #2d4a87 0%, #1e3a6f 100%);
+        color: white;
+      }
+      .ondemand {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+      }
+      .ownership {
+        background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
+      }
+      .claude {
+        background: linear-gradient(135deg, #333333 0%, #000000 100%);
+      }
+      .efa {
+        background: linear-gradient(135deg, #607d8b 0%, #455a64 100%);
+      }
+
+      /* Custom positioning - 7 column layout without overlaps */
+      .fractional-gpus {
+        grid-column: 1 / 3;
+        grid-row: 1 / 3;
+      }
+      .persistent-disks {
+        grid-column: 3 / 5;
+        grid-row: 1 / 2;
+      }
+      .multinode {
+        grid-column: 5 / 7;
+        grid-row: 1 / 3;
+      }
+      .on-demand {
+        grid-column: 1 / 3;
+        grid-row: 3 / 5;
+      }
+      .shared-network {
+        grid-column: 3 / 5;
+        grid-row: 2 / 3;
+      }
+      .reservations {
+        grid-column: 3 / 5;
+        grid-row: 3 / 4;
+      }
+      .network-storage {
+        grid-column: 5 / 7;
+        grid-row: 4 / 5;
+      }
+
+      .k8s-tile {
+        grid-column: 3;
+        grid-row: 4;
+      }
+      .docker-tile {
+        grid-column: 4;
+        grid-row: 4;
+      }
+      .jupyter-tile {
+        grid-column: 7;
+        grid-row: 2;
+      }
+      .cuda-tile {
+        grid-column: 5;
+        grid-row: 3;
+      }
+      .vscode-tile {
+        grid-column: 7;
+        grid-row: 3;
+      }
+      .cursor-tile {
+        grid-column: 7;
+        grid-row: 1;
+      }
+      .claude-tile {
+        grid-column: 7;
+        grid-row: 4;
+      }
+      .h200-tile {
+        grid-column: 6;
+        grid-row: 3;
+      }
+
+      /* Icon styles */
+      .tile-icon {
+        font-size: 3rem;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 60px;
+        min-width: 60px;
+      }
+
+      .tile-icon img {
+        max-width: 60px;
+        max-height: 60px;
+        filter: brightness(0) invert(1);
+      }
+
+      .large .tile-icon img {
+        max-width: 80px;
+        max-height: 80px;
+      }
+
+      /* Larger server icon for multinode tile */
+      .multinode .tile-icon img {
+        max-width: 100px !important;
+        max-height: 100px !important;
+      }
+
+      .medium .tile-icon img {
+        max-width: 70px;
+        max-height: 70px;
+      }
+
+      /* Special handling for logos that should not be inverted */
+      .nvidia-logo,
+      .kubernetes-logo,
+      .docker-logo,
+      .claude-logo,
+      .cursor-logo,
+      .jupyter-logo,
+      .server-logo {
+        filter: none !important;
+      }
+
+      /* Docker logo should keep its blue color */
+      .docker-logo {
+        filter: none !important;
+        opacity: 1 !important;
+      }
+
+      /* Fallback icons using Unicode and CSS */
+      .nvidia-icon::before {
+        content: "🚀";
+      }
+      .storage-icon::before {
+        content: "💾";
+      }
+      .network-icon::before {
+        content: "🌐";
+      }
+      .scale-icon::before {
+        content: "📊";
+      }
+      .k8s-icon::before {
+        content: "⚙️";
+      }
+      .docker-icon::before {
+        content: "🐳";
+      }
+      .jupyter-icon::before {
+        content: "📓";
+      }
+      .cuda-icon::before {
+        content: "⚡";
+      }
+      .vscode-icon::before {
+        content: "💻";
+      }
+      .cursor-icon::before {
+        content: "🎯";
+      }
+      .claude-icon::before {
+        content: "🤖";
+      }
+      .efa-icon::before {
+        content: "🔗";
+      }
+      .ownership-icon::before {
+        content: "🔒";
+      }
+      .ondemand-icon::before {
+        content: "⚡";
+      }
+
+      @media (max-width: 1200px) {
+        .grid {
+          grid-template-columns: repeat(4, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header">
+      <h1>OSDC: Open Source Developer Cloud</h1>
+      <p>High-Performance GPU Development Platform</p>
+    </div>
+
+    <div class="grid">
+      <!-- Large tiles (2x2) -->
+      <div class="tile large gpu fractional-gpus">
+        <div class="tile-icon">
+          <div style="font-size: 80px">✂️</div>
+        </div>
+        <div class="tile-title">Fractional GPUs<br />0.125-32 GPUs</div>
+      </div>
+
+      <div class="tile large scale multinode">
+        <div class="tile-icon">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/5/53/Server-multiple.svg"
+            alt="Multi-Node Servers"
+            class="server-logo"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          />
+          <div style="font-size: 80px; display: none">🖥️</div>
+        </div>
+        <div class="tile-title">Multi-Node<br />Reservations</div>
+      </div>
+
+      <div class="tile large ondemand on-demand">
+        <div class="tile-icon">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M11 15h2v2h-2v-2zm0-8h2v6h-2V7zm.99-5C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"
+            />
+            <path d="M12 7l-1.5 4h3L12 7z" />
+          </svg>
+        </div>
+        <div class="tile-title">On-Demand<br />Provisioning</div>
+      </div>
+
+      <div class="tile large ownership reservations">
+        <div class="tile-icon">
+          <svg width="80" height="80" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"
+            />
+          </svg>
+        </div>
+        <div class="tile-title">Single Ownership</div>
+      </div>
+
+      <!-- Medium tiles (2x1) -->
+      <div class="tile medium storage persistent-disks">
+        <div class="tile-icon">
+          <div style="font-size: 70px">💾</div>
+        </div>
+        <div class="tile-title">Persistent Disks</div>
+      </div>
+
+      <div class="tile medium network shared-network">
+        <div class="tile-icon">
+          <svg width="70" height="70" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M1 9l2 2c4.97-4.97 13.03-4.97 18 0l2-2C16.93 2.93 7.07 2.93 1 9zm8 8l3 3 3-3c-1.65-1.65-4.35-1.65-6 0zm-4-4l2 2c2.76-2.76 7.24-2.76 10 0l2-2C15.14 9.14 8.86 9.14 5 13z"
+            />
+          </svg>
+        </div>
+        <div class="tile-title">EFA + GPUDirect High-Speed Networking</div>
+      </div>
+
+      <div class="tile medium network network-storage">
+        <div class="tile-icon">
+          <div
+            style="
+              font-size: 50px;
+              display: flex;
+              align-items: center;
+              gap: 8px;
+            "
+          >
+            💾 ☁️
+          </div>
+        </div>
+        <div class="tile-title">Network Storage</div>
+      </div>
+
+      <!-- Small tiles (1x1) -->
+      <div class="tile small k8s k8s-tile">
+        <div class="tile-icon">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/3/39/Kubernetes_logo_without_workmark.svg"
+            alt="Kubernetes"
+            class="kubernetes-logo"
+          />
+        </div>
+        <div class="tile-title">K8s-native</div>
+      </div>
+
+      <div class="tile small docker docker-tile">
+        <div class="tile-icon">
+          <img
+            src="./docker-mark-blue.svg"
+            alt="Docker"
+            class="docker-logo"
+            onerror="this.style.display='none'; this.nextElementSibling.style.display='block';"
+          />
+          <div style="font-size: 60px; display: none">🐳</div>
+        </div>
+        <div class="tile-title">Custom Docker Images</div>
+      </div>
+
+      <div class="tile small jupyter jupyter-tile">
+        <div class="tile-icon">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/3/38/Jupyter_logo.svg"
+            alt="Jupyter"
+            class="jupyter-logo"
+          />
+        </div>
+        <div class="tile-title">Jupyter</div>
+      </div>
+
+      <div class="tile small cuda cuda-tile">
+        <div class="tile-icon">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/sco/2/21/Nvidia_logo.svg"
+            alt="NVIDIA CUDA"
+            class="nvidia-logo"
+          />
+        </div>
+        <div class="tile-title">CUDA 13</div>
+      </div>
+
+      <div class="tile small vscode vscode-tile">
+        <div class="tile-icon">
+          <svg width="60" height="60" viewBox="0 0 24 24" fill="white">
+            <path
+              d="M23.15 2.587L18.21.21a1.494 1.494 0 0 0-1.705.29l-9.46 8.63-4.12-3.128a.999.999 0 0 0-1.276.057L.327 7.261A1 1 0 0 0 .326 8.74L3.899 12 .326 15.26a1 1 0 0 0 .001 1.479L1.65 17.94a.999.999 0 0 0 1.276.057l4.12-3.128 9.46 8.63a1.492 1.492 0 0 0 1.704.29l4.942-2.377A1.5 1.5 0 0 0 24 20.06V3.939a1.5 1.5 0 0 0-.85-1.352zm-5.146 14.861L10.826 12l7.178-5.448v10.896z"
+            />
+          </svg>
+        </div>
+        <div class="tile-title">VSCode</div>
+      </div>
+
+      <div class="tile small cursor cursor-tile">
+        <div class="tile-icon">
+          <img src="./icons8-cursor-ai.svg" alt="Cursor" class="cursor-logo" />
+        </div>
+        <div class="tile-title">Cursor</div>
+      </div>
+
+      <div class="tile small claude claude-tile">
+        <div class="tile-icon">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/b/b0/Claude_AI_symbol.svg"
+            alt="Claude"
+            class="claude-logo"
+          />
+        </div>
+        <div class="tile-title">Claude Code</div>
+      </div>
+
+      <div class="tile small h200 h200-tile">
+        <div class="tile-icon">
+          <div style="font-size: 60px">💸</div>
+        </div>
+        <div class="tile-title">H200/B200</div>
+      </div>
+    </div>
+  </body>
+</html>

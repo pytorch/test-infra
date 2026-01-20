@@ -1,0 +1,116 @@
+#!/bin/bash
+# Custom MOTD for GPU dev servers
+
+# Read dynamic flags from Lambda setup (if available)
+TEMPORARY_DISK_WARNING="false"
+USE_PERSISTENT_DISK="false"
+GPU_DEV_CONTAINER_IMAGE="pytorch-gpu-devserver:latest"
+if [ -f "/etc/gpu-dev-flags" ]; then
+    source /etc/gpu-dev-flags
+fi
+
+# Get OS info
+OS_INFO=$(lsb_release -d 2>/dev/null | cut -f2 || echo "Ubuntu 22.04.5 LTS")
+
+# Get container info
+CONTAINER_IMAGE="$GPU_DEV_CONTAINER_IMAGE"
+
+# Get CUDA toolkit info - show all available versions
+CUDA_INFO="CUDA toolkit unavailable"
+if command -v nvcc >/dev/null 2>&1; then
+    DEFAULT_CUDA_VERSION=$(nvcc --version | grep "release" | sed 's/.*release \([0-9.]*\).*/\1/' 2>/dev/null)
+    
+    # Find all CUDA installations in /usr/local/
+    CUDA_VERSIONS=""
+    for cuda_dir in /usr/local/cuda-*; do
+        if [ -d "$cuda_dir" ] && [ ! -L "$cuda_dir" ]; then  # Real directory, not symlink
+            version=$(basename "$cuda_dir" | sed 's/cuda-//')
+            if [ -z "$CUDA_VERSIONS" ]; then
+                CUDA_VERSIONS="$version"
+            else
+                CUDA_VERSIONS="$CUDA_VERSIONS, $version"
+            fi
+        fi
+    done
+    
+    if [ -n "$DEFAULT_CUDA_VERSION" ] && [ -n "$CUDA_VERSIONS" ]; then
+        CUDA_INFO="CUDA $DEFAULT_CUDA_VERSION (default), also available: $CUDA_VERSIONS"
+    elif [ -n "$DEFAULT_CUDA_VERSION" ]; then
+        CUDA_INFO="CUDA $DEFAULT_CUDA_VERSION (nvcc available)"
+    else
+        CUDA_INFO="CUDA toolkit installed (nvcc available)"
+    fi
+elif [ -d "/usr/local/cuda" ]; then
+    CUDA_INFO="CUDA toolkit installed (nvcc not in PATH)"
+fi
+
+# Get GPU info with error handling
+GPU_INFO="GPU detection unavailable"
+if command -v nvidia-smi >/dev/null 2>&1; then
+    # Parse nvidia-smi output to get GPU count and model
+    GPU_DATA=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null)
+    if [ $? -eq 0 ] && [ -n "$GPU_DATA" ]; then
+        # Count GPUs and get first GPU model/memory
+        GPU_COUNT=$(echo "$GPU_DATA" | wc -l)
+        FIRST_GPU=$(echo "$GPU_DATA" | head -1)
+        GPU_NAME=$(echo "$FIRST_GPU" | cut -d',' -f1 | xargs)
+        GPU_MEMORY=$(echo "$FIRST_GPU" | cut -d',' -f2 | xargs)
+
+        if [ "$GPU_COUNT" -eq 1 ]; then
+            GPU_INFO="1x $GPU_NAME, ${GPU_MEMORY}MiB"
+        else
+            GPU_INFO="${GPU_COUNT}x $GPU_NAME, ${GPU_MEMORY}MiB each"
+        fi
+    fi
+fi
+
+# Display custom welcome message
+cat << WELCOME_EOF
+
+🚀 Welcome to your GPU development server!
+
+System: $OS_INFO
+Container: $CONTAINER_IMAGE
+CUDA: $CUDA_INFO
+GPUs: $GPU_INFO
+
+🔧 Quick start:
+  • Use 'gpu-info' or 'nvidia-smi' to check GPU status
+
+💾 Storage:
+WELCOME_EOF
+
+# Add dynamic storage section based on Lambda flags
+if [ "$USE_PERSISTENT_DISK" = "true" ]; then
+    cat << STORAGE_EOF
+  • /home/dev: Your home directory (persistent EBS disk)
+  • /shared-personal: Shared persistent EFS storage across all reservations  
+  • /workspace: Temporary workspace for current session
+  ✅ Your files from previous sessions are available and will persist
+
+STORAGE_EOF
+elif [ "$TEMPORARY_DISK_WARNING" = "true" ]; then
+    cat << STORAGE_EOF
+  • /home/dev: Your home directory (temporary - will be LOST)
+  • /shared-personal: Shared persistent EFS storage across all reservations
+  • /workspace: Temporary workspace for current session
+  ⚠️  Your persistent disk is mounted to another reservation
+  ⚠️  Use /shared-personal for files you want to keep
+
+STORAGE_EOF
+else
+    cat << STORAGE_EOF
+  • /home/dev: Your home directory (temporary - will be lost when reservation ends)
+  • /shared-personal: Shared persistent EFS storage across all reservations
+  • /workspace: Temporary workspace for current session
+  💾 Fresh environment with clean temporary storage
+
+STORAGE_EOF
+fi
+
+cat << FOOTER_EOF
+For support, reach out to: oncall:pytorch_release_engineering
+
+Happy coding! 🐍⚡
+
+FOOTER_EOF

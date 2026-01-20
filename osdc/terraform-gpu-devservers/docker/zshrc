@@ -1,0 +1,58 @@
+# Source shared environment first
+[ -f ~/.shell_env ] && source ~/.shell_env
+
+# Source GPU dev server extensions (warnings, startup status, etc.)
+# This file is managed by the system and updated on every pod startup
+[ -f ~/.zshrc_ext ] && source ~/.zshrc_ext
+
+# Add conda to PATH
+export PATH="/opt/conda/bin:$PATH"
+
+# Path to oh-my-zsh installation
+export ZSH="$HOME/.oh-my-zsh"
+
+# Use robbyrussell theme (clean, no font dependencies)
+ZSH_THEME="robbyrussell"
+
+# Plugins - enable autosuggestions and syntax highlighting
+plugins=(
+    git
+    zsh-autosuggestions
+    zsh-syntax-highlighting
+    docker
+    kubectl
+    npm
+    python
+    sudo
+    colored-man-pages
+    command-not-found
+)
+
+# Load oh-my-zsh
+source $ZSH/oh-my-zsh.sh
+
+# Configure autosuggestions - light grey, history-based
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=8"  # Light grey (works in all terminals)
+ZSH_AUTOSUGGEST_STRATEGY=(history completion)
+
+# Shell selection helpers
+alias use-bash='echo "To switch to bash permanently, run: chsh -s /bin/bash"'
+alias use-zsh='echo "Already using zsh with autocompletion! 🚀"'
+
+# Additional zsh settings for better UX
+setopt AUTO_CD              # Auto change to directory without cd
+setopt CORRECT              # Correct typos
+setopt HIST_VERIFY          # Show command with history expansion to user before running it
+setopt SHARE_HISTORY        # Share history between sessions
+setopt HIST_IGNORE_DUPS     # Don't record duplicate commands
+setopt HIST_IGNORE_SPACE    # Don't record commands starting with space
+
+# Custom aliases for GPU development
+alias gpu-info='nvidia-smi'
+alias gpu-watch='watch -n 1 nvidia-smi'
+alias ll='ls -alF'
+alias la='ls -A'
+alias l='ls -CF'
+
+# Custom prompt to show full path (no time) - override theme prompt
+PROMPT='%{$fg[green]%}%n@%m%{$reset_color%}:%{$fg[blue]%}%~%{$reset_color%}$ '

@@ -1,0 +1,1846 @@
+"""
+Reservation Expiry Management Lambda
+Handles warning users about expiring reservations and cleaning up expired ones
+Also cleans up stale queued/pending reservations
+"""
+
+import json
+import logging
+import os
+import time
+from datetime import datetime
+from typing import Any
+
+import boto3
+from kubernetes import client, stream
+
+from shared import setup_kubernetes_client
+from shared.snapshot_utils import (
+    create_pod_shutdown_snapshot,
+    cleanup_old_snapshots,
+    safe_create_snapshot,
+    cleanup_all_user_snapshots,
+    capture_disk_contents,
+    update_disk_snapshot_completed
+)
+from shared.dns_utils import (
+    delete_dns_record,
+    delete_domain_mapping,
+    get_dns_enabled
+)
+
+# Setup logging
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+# AWS clients
+dynamodb = boto3.resource("dynamodb")
+sns_client = boto3.client("sns")
+ec2_client = boto3.client("ec2")
+
+# Environment variables
+RESERVATIONS_TABLE = os.environ["RESERVATIONS_TABLE"]
+DISKS_TABLE = os.environ.get("DISKS_TABLE_NAME", "pytorch-gpu-dev-disks")
+EKS_CLUSTER_NAME = os.environ["EKS_CLUSTER_NAME"]
+REGION = os.environ["REGION"]
+
+# Global Kubernetes client (reused across Lambda execution)
+_k8s_client = None
+
+
+def get_k8s_client():
+    """Get or create the global Kubernetes client (singleton pattern)"""
+    global _k8s_client
+    if _k8s_client is None:
+        logger.info("Initializing global Kubernetes client...")
+        _k8s_client = setup_kubernetes_client()
+        logger.info("Global Kubernetes client initialized successfully")
+    return _k8s_client
+
+
+def trigger_availability_update():
+    """Trigger the availability updater Lambda function"""
+    try:
+        import boto3
+
+        # Get the availability updater function name from environment variable
+        availability_function_name = os.environ.get(
+            "AVAILABILITY_UPDATER_FUNCTION_NAME"
+        )
+        if not availability_function_name:
+            logger.warning(
+                "AVAILABILITY_UPDATER_FUNCTION_NAME not set, skipping availability update"
+            )
+            return
+
+        # Create Lambda client and invoke the availability updater
+        lambda_client = boto3.client("lambda")
+
+        # Invoke asynchronously to avoid blocking the expiry process
+        response = lambda_client.invoke(
+            FunctionName=availability_function_name,
+            InvocationType="Event",  # Async invocation
+            Payload="{}",  # Empty payload, the function will scan all GPU types
+        )
+
+        logger.info(
+            f"Successfully triggered availability updater function: {availability_function_name}"
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to trigger availability update: {str(e)}")
+        # Don't raise, just log the error as this is not critical
+
+
+WARNING_MINUTES = int(os.environ.get("WARNING_MINUTES", 30))
+GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", 120))
+
+# Warning levels in minutes (can be easily extended)
+WARNING_LEVELS = [30, 15, 5]
+
+
+def sync_disk_deleted_snapshots() -> int:
+    """
+    Sync DynamoDB disk deletion status to EC2 snapshots.
+    Tags snapshots with delete-date when disks are marked is_deleted=True in DynamoDB.
+    Returns count of snapshots tagged.
+    """
+    tagged_count = 0
+
+    try:
+        disks_table = dynamodb.Table(DISKS_TABLE)
+
+        # Scan for disks marked as deleted in DynamoDB
+        response = disks_table.scan(
+            FilterExpression="is_deleted = :true",
+            ExpressionAttributeValues={":true": True}
+        )
+
+        deleted_disks = response.get('Items', [])
+
+        # Handle pagination
+        while 'LastEvaluatedKey' in response:
+            response = disks_table.scan(
+                FilterExpression="is_deleted = :true",
+                ExpressionAttributeValues={":true": True},
+                ExclusiveStartKey=response['LastEvaluatedKey']
+            )
+            deleted_disks.extend(response.get('Items', []))
+
+        if not deleted_disks:
+            logger.debug("No deleted disks found in DynamoDB")
+            return 0
+
+        logger.info(f"Found {len(deleted_disks)} deleted disks in DynamoDB")
+
+        # For each deleted disk, tag its snapshots in EC2
+        for disk in deleted_disks:
+            user_id = disk.get('user_id')
+            disk_name = disk.get('disk_name')
+            delete_date = disk.get('delete_date')
+
+            if not user_id or not disk_name or not delete_date:
+                logger.warning(f"Disk missing required fields: {disk}")
+                continue
+
+            try:
+                # Find all snapshots for this disk
+                snapshot_response = ec2_client.describe_snapshots(
+                    OwnerIds=["self"],
+                    Filters=[
+                        {"Name": "tag:gpu-dev-user", "Values": [user_id]},
+                        {"Name": "tag:disk_name", "Values": [disk_name]},
+                    ]
+                )
+
+                snapshots = snapshot_response.get('Snapshots', [])
+                logger.info(f"Found {len(snapshots)} snapshots for deleted disk '{disk_name}' (user: {user_id})")
+
+                # Tag each snapshot that doesn't already have delete-date tag
+                for snapshot in snapshots:
+                    snapshot_id = snapshot['SnapshotId']
+                    tags = {tag['Key']: tag['Value'] for tag in snapshot.get('Tags', [])}
+
+                    # Skip if already tagged
+                    if 'delete-date' in tags:
+                        logger.debug(f"Snapshot {snapshot_id} already has delete-date tag, skipping")
+                        continue
+
+                    try:
+                        ec2_client.create_tags(
+                            Resources=[snapshot_id],
+                            Tags=[
+                                {"Key": "delete-date", "Value": delete_date},
+                                {"Key": "marked-deleted-at", "Value": disk.get('marked_deleted_at', str(int(time.time())))},
+                            ]
+                        )
+                        logger.info(f"Tagged snapshot {snapshot_id} with delete-date: {delete_date}")
+                        tagged_count += 1
+                    except Exception as tag_error:
+                        logger.error(f"Error tagging snapshot {snapshot_id}: {tag_error}")
+
+            except Exception as disk_error:
+                logger.error(f"Error processing deleted disk '{disk_name}': {disk_error}")
+
+        return tagged_count
+
+    except Exception as e:
+        logger.error(f"Error in sync_disk_deleted_snapshots: {e}")
+        return tagged_count
+
+
+def sync_completed_snapshots() -> int:
+    """
+    Sync completed EC2 snapshots to DynamoDB.
+    Updates disk records when snapshots complete.
+    Returns count of disks updated.
+    """
+    updated_count = 0
+
+    try:
+        # Find all completed snapshots with disk_name tag (created by our system)
+        # Use paginator to handle large numbers of snapshots
+        paginator = ec2_client.get_paginator('describe_snapshots')
+        page_iterator = paginator.paginate(
+            OwnerIds=["self"],
+            Filters=[
+                {"Name": "tag-key", "Values": ["disk_name"]},
+                {"Name": "tag-key", "Values": ["gpu-dev-user"]},
+                {"Name": "status", "Values": ["completed"]},
+            ],
+            PaginationConfig={'PageSize': 100}
+        )
+
+        # Collect all snapshots from all pages
+        snapshots = []
+        for page in page_iterator:
+            snapshots.extend(page.get('Snapshots', []))
+
+        logger.info(f"Checking {len(snapshots)} completed snapshots for DynamoDB sync")
+
+        # Check DynamoDB for each snapshot to see if it's already been processed
+        disks_table = dynamodb.Table(DISKS_TABLE)
+
+        for snapshot in snapshots:
+            snapshot_id = snapshot['SnapshotId']
+            tags = {tag['Key']: tag['Value'] for tag in snapshot.get('Tags', [])}
+            user_id = tags.get('gpu-dev-user')
+            disk_name = tags.get('disk_name')
+            size_gb = snapshot.get('VolumeSize')
+
+            if not user_id or not disk_name:
+                continue
+
+            try:
+                # Check if this snapshot has already been synced to DynamoDB
+                # We track this by checking if the snapshot_count matches the actual count
+                # For now, we'll use a simpler approach: check if disk exists and if pending_snapshot_count > 0
+
+                disk_response = disks_table.get_item(
+                    Key={'user_id': user_id, 'disk_name': disk_name}
+                )
+
+                if 'Item' not in disk_response:
+                    logger.debug(f"Disk '{disk_name}' not found in DynamoDB (user: {user_id}), skipping snapshot sync")
+                    continue
+
+                disk_item = disk_response['Item']
+                pending_count = int(disk_item.get('pending_snapshot_count', 0))
+                is_backing_up = disk_item.get('is_backing_up', False)
+
+                # Update if there are pending snapshots OR if stuck in backing_up state (handles race conditions)
+                if pending_count != 0 or is_backing_up:
+                    logger.info(f"Updating DynamoDB for completed snapshot {snapshot_id} (disk: {disk_name}, user: {user_id}, pending_count: {pending_count}, is_backing_up: {is_backing_up})")
+                    update_disk_snapshot_completed(user_id, disk_name, size_gb)
+                    updated_count += 1
+                else:
+                    logger.debug(f"No pending snapshots for disk '{disk_name}', skipping")
+
+            except Exception as disk_error:
+                logger.warning(f"Error syncing snapshot {snapshot_id} to DynamoDB: {disk_error}")
+
+        return updated_count
+
+    except Exception as e:
+        logger.error(f"Error in sync_completed_snapshots: {e}")
+        return updated_count
+
+
+def cleanup_soft_deleted_snapshots() -> int:
+    """
+    Clean up snapshots marked for deletion whose delete-date has passed.
+    Returns count of deleted snapshots.
+    """
+    from datetime import datetime
+
+    deleted_count = 0
+    today = datetime.now().strftime('%Y-%m-%d')
+
+    try:
+        # Find all snapshots with delete-date tag (with pagination)
+        paginator = ec2_client.get_paginator('describe_snapshots')
+        page_iterator = paginator.paginate(
+            OwnerIds=["self"],
+            Filters=[
+                {"Name": "tag-key", "Values": ["delete-date"]},
+            ],
+            PaginationConfig={'PageSize': 100}
+        )
+
+        snapshots = []
+        for page in page_iterator:
+            snapshots.extend(page.get('Snapshots', []))
+
+        logger.info(f"Found {len(snapshots)} snapshots with delete-date tag")
+
+        for snapshot in snapshots:
+            snapshot_id = snapshot['SnapshotId']
+            tags = {tag['Key']: tag['Value'] for tag in snapshot.get('Tags', [])}
+            delete_date = tags.get('delete-date', '')
+
+            # Compare dates (YYYY-MM-DD format)
+            if delete_date and delete_date <= today:
+                try:
+                    ec2_client.delete_snapshot(SnapshotId=snapshot_id)
+                    logger.info(f"Deleted soft-deleted snapshot {snapshot_id} (delete-date: {delete_date})")
+                    deleted_count += 1
+                except Exception as e:
+                    logger.error(f"Error deleting snapshot {snapshot_id}: {e}")
+
+        return deleted_count
+
+    except Exception as e:
+        logger.error(f"Error in cleanup_soft_deleted_snapshots: {e}")
+        return deleted_count
+
+
+def handler(event, context):
+    """Main Lambda handler"""
+    try:
+        current_time = int(time.time())
+        logger.info(
+            f"Running reservation expiry and cleanup check at timestamp {current_time} ({datetime.fromtimestamp(current_time)})"
+        )
+
+        # Check if this is a scheduled snapshot cleanup run
+        if event.get("source") == "cloudwatch.schedule" and event.get("cleanup_type") == "snapshots":
+            logger.info("Running scheduled snapshot cleanup for all users")
+            deleted_count = cleanup_all_user_snapshots()
+            return {
+                "statusCode": 200,
+                "body": json.dumps({
+                    "message": f"Snapshot cleanup completed - deleted {deleted_count} old snapshots"
+                }),
+            }
+
+        # Get all active, preparing, and failed reservations
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        try:
+            # Get active reservations
+            active_response = reservations_table.query(
+                IndexName="StatusIndex",
+                KeyConditionExpression="#status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": "active"},
+            )
+            active_reservations = active_response.get("Items", [])
+
+            # Get preparing reservations
+            preparing_response = reservations_table.query(
+                IndexName="StatusIndex",
+                KeyConditionExpression="#status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": "preparing"},
+            )
+            preparing_reservations = preparing_response.get("Items", [])
+
+            logger.info(
+                f"Found {len(active_reservations)} active reservations and {len(preparing_reservations)} preparing reservations"
+            )
+
+            # Log details of each active reservation
+            for res in active_reservations:
+                expires_at_str = res.get("expires_at", "")
+                try:
+                    expires_at = int(
+                        datetime.fromisoformat(
+                            expires_at_str.replace("Z", "+00:00")
+                        ).timestamp()
+                    )
+                except (ValueError, AttributeError):
+                    expires_at = 0
+                logger.info(
+                    f"Active reservation {res['reservation_id'][:8]}: expires_at={expires_at_str}, pod={res.get('pod_name', 'unknown')}"
+                )
+
+        except Exception as e:
+            logger.error(f"Error querying active reservations: {e}")
+            active_reservations = []
+            preparing_reservations = []
+
+        # Process preparing reservations for stuck cleanup (>1 hour)
+        PREPARING_TIMEOUT_SECONDS = 3600  # 1 hour
+        preparing_timeout_threshold = current_time - PREPARING_TIMEOUT_SECONDS
+
+        # Initialize counters
+        warned_count = 0
+        expired_count = 0
+        stale_cancelled_count = 0
+        oom_detected_count = 0
+
+        for reservation in preparing_reservations:
+            reservation_id = reservation["reservation_id"]
+            created_at = reservation.get("created_at", "")
+
+            try:
+                if isinstance(created_at, str):
+                    # ISO format string
+                    created_timestamp = int(
+                        datetime.fromisoformat(
+                            created_at.replace("Z", "+00:00")
+                        ).timestamp()
+                    )
+                else:
+                    created_timestamp = int(created_at)
+            except Exception as e:
+                logger.warning(
+                    f"Could not parse created_at for preparing reservation {reservation_id}: {e}"
+                )
+                continue
+
+            # Check if preparing reservation is stuck (>1 hour)
+            if created_timestamp < preparing_timeout_threshold:
+                logger.info(
+                    f"Expiring stuck preparing reservation {reservation_id} (created {created_timestamp}, timeout threshold {preparing_timeout_threshold})"
+                )
+                try:
+                    expire_stuck_preparing_reservation(reservation)
+                    expired_count += 1
+                    logger.info(
+                        f"Successfully expired stuck preparing reservation {reservation_id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to expire stuck preparing reservation {reservation_id}: {e}"
+                    )
+
+        # Clean up failed reservations that might have orphaned pods
+        try:
+            failed_response = reservations_table.query(
+                IndexName="StatusIndex",
+                KeyConditionExpression="#status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": "failed"},
+            )
+            failed_reservations = failed_response.get("Items", [])
+            logger.info(f"Found {len(failed_reservations)} failed reservations")
+
+            # Clean up failed reservations that have pods (created in the last 24 hours to avoid processing old ones)
+            FAILED_CLEANUP_WINDOW = 24 * 3600  # 24 hours
+            failed_cleanup_threshold = current_time - FAILED_CLEANUP_WINDOW
+
+            for reservation in failed_reservations:
+                reservation_id = reservation["reservation_id"]
+                pod_name = reservation.get("pod_name")
+
+                if not pod_name:
+                    continue  # No pod to clean up
+
+                # Check if failed recently (within cleanup window)
+                failed_at = reservation.get(
+                    "failed_at", reservation.get("created_at", "")
+                )
+                try:
+                    if isinstance(failed_at, str):
+                        failed_timestamp = int(
+                            datetime.fromisoformat(
+                                failed_at.replace("Z", "+00:00")
+                            ).timestamp()
+                        )
+                    else:
+                        failed_timestamp = int(failed_at)
+
+                    if failed_timestamp < failed_cleanup_threshold:
+                        continue  # Too old, skip cleanup
+
+                except (ValueError, AttributeError):
+                    continue  # Can't parse timestamp, skip
+
+                # Check if pod actually exists before trying to clean it up
+                if not check_pod_exists(pod_name):
+                    logger.debug(f"Pod {pod_name} for failed reservation {reservation_id[:8]} already deleted")
+                    # Pod gone but disk might still be marked in_use - clean it up
+                    user_id = reservation.get("user_id")
+                    disk_name = reservation.get("disk_name")
+
+                    # Fallback: if disk_name not in reservation, look it up from disks table
+                    if user_id and not disk_name:
+                        disk_name = find_disk_by_reservation(user_id, reservation_id)
+
+                    if user_id and disk_name:
+                        try:
+                            mark_disk_not_in_use(user_id, disk_name)
+                            logger.info(f"Cleared disk '{disk_name}' in_use flag for failed reservation {reservation_id[:8]} (pod already deleted)")
+                        except Exception as disk_error:
+                            logger.warning(f"Failed to clear disk in_use flag for {reservation_id[:8]}: {disk_error}")
+                    continue
+
+                logger.info(
+                    f"Cleaning up failed reservation {reservation_id[:8]} with pod {pod_name}"
+                )
+                try:
+                    cleanup_pod(pod_name, reservation_data=reservation)
+                    logger.info(
+                        f"Successfully cleaned up failed reservation {reservation_id[:8]}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to cleanup failed reservation {reservation_id[:8]}: {e}"
+                    )
+
+        except Exception as e:
+            logger.error(f"Error processing failed reservations: {e}")
+
+        # Pod-centric cleanup: Check all running pods and clean up those with failed/cancelled/expired reservations
+        try:
+            logger.info("Starting pod-centric cleanup - checking all running gpu-dev pods")
+
+            # Get Kubernetes client
+            k8s_client = get_k8s_client()
+            v1 = client.CoreV1Api(k8s_client)
+
+            # List all pods in gpu-dev namespace with gpu-dev- prefix
+            pod_list = v1.list_namespaced_pod(
+                namespace="gpu-dev",
+                label_selector=""  # Get all pods, we'll filter by name
+            )
+
+            gpu_dev_pods = [pod for pod in pod_list.items if pod.metadata.name.startswith("gpu-dev-")]
+            logger.info(f"Found {len(gpu_dev_pods)} gpu-dev pods to check")
+
+            pods_cleaned = 0
+            for pod in gpu_dev_pods:
+                pod_name = pod.metadata.name
+
+                # Extract reservation ID from pod name (format: gpu-dev-{reservation_id})
+                if not pod_name.startswith("gpu-dev-"):
+                    continue
+
+                reservation_id_prefix = pod_name[8:]  # Remove "gpu-dev-" prefix (this is truncated)
+
+                try:
+                    # Look up reservation by prefix using paginated scan (pod names are truncated)
+                    items = []
+                    last_evaluated_key = None
+
+                    # Scan all pages to find the reservation
+                    while True:
+                        if last_evaluated_key:
+                            scan_response = reservations_table.scan(
+                                FilterExpression="begins_with(reservation_id, :prefix)",
+                                ExpressionAttributeValues={":prefix": reservation_id_prefix},
+                                ExclusiveStartKey=last_evaluated_key
+                            )
+                        else:
+                            scan_response = reservations_table.scan(
+                                FilterExpression="begins_with(reservation_id, :prefix)",
+                                ExpressionAttributeValues={":prefix": reservation_id_prefix}
+                            )
+
+                        items.extend(scan_response.get("Items", []))
+
+                        # Check if there are more pages
+                        last_evaluated_key = scan_response.get("LastEvaluatedKey")
+                        if not last_evaluated_key or items:  # Stop if we found items or no more pages
+                            break
+
+                    if not items:
+                        logger.warning(f"Pod {pod_name} has no corresponding reservation in DynamoDB (searched prefix: {reservation_id_prefix}) - keeping pod")
+                        continue
+
+                    # Use the first matching reservation (there should only be one with this prefix)
+                    reservation = items[0]
+                    reservation_id = reservation.get("reservation_id", "")
+                    reservation_status = reservation.get("status", "")
+
+                    # Clean up pod if reservation is in a terminal state
+                    if reservation_status in ["failed", "cancelled", "expired"]:
+                        logger.info(f"Cleaning up pod {pod_name} - reservation status: {reservation_status}")
+                        try:
+                            cleanup_pod(pod_name, reservation_data=reservation)
+                            pods_cleaned += 1
+                            logger.info(f"Successfully cleaned up pod {pod_name} with {reservation_status} reservation")
+                        except Exception as cleanup_error:
+                            logger.error(f"Failed to cleanup pod {pod_name} with {reservation_status} reservation: {cleanup_error}")
+                    else:
+                        logger.debug(f"Pod {pod_name} has active reservation status: {reservation_status}")
+
+                except Exception as e:
+                    logger.error(f"Error checking reservation status for pod {pod_name}: {e}")
+                    continue
+
+            logger.info(f"Pod-centric cleanup completed - cleaned up {pods_cleaned} pods")
+
+        except Exception as e:
+            logger.error(f"Error in pod-centric cleanup: {e}")
+
+        # Also keep the original expired/cancelled reservation cleanup for redundancy
+        try:
+            expired_statuses = ["expired", "cancelled"]
+            expired_cancelled_reservations = []
+
+            for status in expired_statuses:
+                response = reservations_table.query(
+                    IndexName="StatusIndex",
+                    KeyConditionExpression="#status = :status",
+                    ExpressionAttributeNames={"#status": "status"},
+                    ExpressionAttributeValues={":status": status},
+                )
+                expired_cancelled_reservations.extend(response.get("Items", []))
+
+            logger.info(f"Found {len(expired_cancelled_reservations)} expired/cancelled reservations for redundant cleanup")
+
+            # Clean up pods from expired/cancelled reservations (within last 7 days to avoid processing very old ones)
+            EXPIRED_CLEANUP_WINDOW = 7 * 24 * 3600  # 7 days
+            expired_cleanup_threshold = current_time - EXPIRED_CLEANUP_WINDOW
+
+            for reservation in expired_cancelled_reservations:
+                reservation_id = reservation["reservation_id"]
+                pod_name = reservation.get("pod_name")
+
+                if not pod_name:
+                    continue  # No pod to clean up
+
+                # Check if expired/cancelled recently (within cleanup window)
+                expired_at = reservation.get("expired_at", reservation.get("cancelled_at", ""))
+                if not expired_at:
+                    continue  # No expiry/cancel timestamp
+
+                try:
+                    if isinstance(expired_at, str):
+                        expired_timestamp = int(
+                            datetime.fromisoformat(
+                                expired_at.replace("Z", "+00:00")
+                            ).timestamp()
+                        )
+                    else:
+                        expired_timestamp = int(expired_at)
+
+                    if expired_timestamp < expired_cleanup_threshold:
+                        continue  # Too old, skip cleanup
+
+                except (ValueError, AttributeError):
+                    continue  # Can't parse timestamp, skip
+
+                # Check if pod actually exists before trying to clean it up
+                if not check_pod_exists(pod_name):
+                    logger.debug(f"Pod {pod_name} for {reservation.get('status', 'unknown')} reservation {reservation_id[:8]} already deleted")
+                    # Pod gone but disk might still be marked in_use - clean it up
+                    user_id = reservation.get("user_id")
+                    disk_name = reservation.get("disk_name")
+
+                    # Fallback: if disk_name not in reservation, look it up from disks table
+                    if user_id and not disk_name:
+                        disk_name = find_disk_by_reservation(user_id, reservation_id)
+
+                    if user_id and disk_name:
+                        try:
+                            mark_disk_not_in_use(user_id, disk_name)
+                            logger.info(f"Cleared disk '{disk_name}' in_use flag for {reservation.get('status', 'unknown')} reservation {reservation_id[:8]} (pod already deleted)")
+                        except Exception as disk_error:
+                            logger.warning(f"Failed to clear disk in_use flag for {reservation_id[:8]}: {disk_error}")
+                    continue
+
+                logger.info(
+                    f"Redundant cleanup: {reservation.get('status', 'unknown')} reservation {reservation_id[:8]} with pod {pod_name}"
+                )
+                try:
+                    cleanup_pod(pod_name, reservation_data=reservation)
+                    logger.info(
+                        f"Successfully cleaned up {reservation.get('status', 'unknown')} reservation {reservation_id[:8]}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to cleanup {reservation.get('status', 'unknown')} reservation {reservation_id[:8]}: {e}"
+                    )
+
+        except Exception as e:
+            logger.error(f"Error processing expired/cancelled reservations: {e}")
+
+        # Also check for stale queued/pending reservations
+        stale_statuses = ["queued", "pending"]
+        stale_reservations = []
+        for status in stale_statuses:
+            response = reservations_table.query(
+                IndexName="StatusIndex",
+                KeyConditionExpression="#status = :status",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={":status": status},
+            )
+            stale_reservations.extend(response.get("Items", []))
+
+        logger.info(f"Found {len(stale_reservations)} queued/pending reservations")
+
+        warning_threshold = current_time + (WARNING_MINUTES * 60)
+        stale_threshold = current_time - (
+            48 * 60 * 60
+        )  # 48 hours ago (only cancel queued after 48+ hours)
+
+        logger.info(
+            f"Expiry thresholds: current={current_time}, warning={warning_threshold}, stale={stale_threshold}"
+        )
+
+        # Process active reservations for expiry
+        for reservation in active_reservations:
+            expires_at_str = reservation.get("expires_at", "")
+            try:
+                expires_at = int(
+                    datetime.fromisoformat(
+                        expires_at_str.replace("Z", "+00:00")
+                    ).timestamp()
+                )
+            except (ValueError, AttributeError):
+                expires_at = 0
+            reservation_id = reservation["reservation_id"]
+
+            # Check if reservation has already expired (with grace period)
+            expiry_with_grace = expires_at + GRACE_PERIOD_SECONDS
+            logger.info(
+                f"Checking expiry for {reservation_id[:8]}: expires_at={expires_at}, grace_until={expiry_with_grace}, current={current_time}, should_expire={expiry_with_grace < current_time}"
+            )
+            if expiry_with_grace < current_time:
+                logger.info(
+                    f"Expiring reservation {reservation_id} (expired at {expires_at}, grace until {expiry_with_grace}, current {current_time})"
+                )
+                try:
+                    expire_reservation(reservation)
+                    expired_count += 1
+                    logger.info(f"Successfully expired reservation {reservation_id}")
+                except Exception as e:
+                    logger.error(f"Failed to expire reservation {reservation_id}: {e}")
+
+            # Check for multiple warning levels
+            else:
+                # First check if the pod still exists - if not, mark as expired
+                # But add a grace period for newly launched reservations (10 minutes)
+                pod_name = reservation.get("pod_name")
+                if pod_name:
+                    # Check if reservation was launched recently (within 10 minutes)
+                    launched_at = reservation.get("launched_at", "")
+                    grace_period_minutes = 10
+                    skip_pod_check = False
+
+                    if launched_at:
+                        try:
+                            launched_timestamp = int(
+                                datetime.fromisoformat(
+                                    launched_at.replace("Z", "+00:00")
+                                ).timestamp()
+                            )
+                            grace_period_end = launched_timestamp + (
+                                grace_period_minutes * 60
+                            )
+                            if current_time < grace_period_end:
+                                skip_pod_check = True
+                                logger.info(
+                                    f"Skipping pod existence check for reservation {reservation_id[:8]} - within {grace_period_minutes}min grace period"
+                                )
+                        except (ValueError, AttributeError) as e:
+                            logger.warning(
+                                f"Could not parse launched_at for reservation {reservation_id}: {e}"
+                            )
+
+                    if not skip_pod_check and not check_pod_exists(pod_name):
+                        logger.warning(
+                            f"Pod {pod_name} for active reservation {reservation_id} no longer exists - marking as expired"
+                        )
+                        try:
+                            expire_reservation_due_to_missing_pod(reservation)
+                            expired_count += 1
+                            continue  # Skip warning processing for this reservation
+                        except Exception as e:
+                            logger.error(
+                                f"Failed to expire reservation {reservation_id} due to missing pod: {e}"
+                            )
+
+                minutes_until_expiry = (expires_at - current_time) // 60
+                warnings_sent = reservation.get("warnings_sent", {})
+
+                # Find the most appropriate warning to send (only send one at a time)
+                warning_to_send = None
+                for warning_minutes in sorted(
+                    WARNING_LEVELS, reverse=True
+                ):  # Start with highest (30, 15, 5)
+                    warning_key = f"{warning_minutes}min_warning_sent"
+
+                    if (
+                        minutes_until_expiry <= warning_minutes
+                        and not warnings_sent.get(warning_key, False)
+                    ):
+                        warning_to_send = warning_minutes
+                        break  # Only send the most urgent unsent warning
+
+                # Send the selected warning
+                if warning_to_send:
+                    logger.info(
+                        f"Sending {warning_to_send}-minute warning for reservation {reservation_id}"
+                    )
+                    try:
+                        warn_user_expiring(reservation, warning_to_send)
+                        warned_count += 1
+                        logger.info(
+                            f"Successfully sent {warning_to_send}-minute warning for reservation {reservation_id}"
+                        )
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to send {warning_to_send}-minute warning for reservation {reservation_id}: {e}"
+                        )
+
+                # Check for OOM events on active pods
+                if pod_name and not skip_pod_check:
+                    try:
+                        oom_info = check_pod_oom_status(pod_name)
+                        if oom_info["oom_detected"]:
+                            if handle_oom_event(reservation, oom_info):
+                                oom_detected_count += 1
+                                logger.info(f"Recorded OOM event for reservation {reservation_id[:8]}")
+                    except Exception as e:
+                        logger.warning(f"Error checking OOM status for reservation {reservation_id[:8]}: {e}")
+
+        # Process stale queued/pending reservations
+        for reservation in stale_reservations:
+            created_at = reservation.get("created_at", "")
+            reservation_id = reservation["reservation_id"]
+
+            # Parse created_at timestamp
+            try:
+                if isinstance(created_at, str):
+                    # ISO format string
+                    created_timestamp = int(
+                        datetime.fromisoformat(
+                            created_at.replace("Z", "+00:00")
+                        ).timestamp()
+                    )
+                else:
+                    created_timestamp = int(created_at)
+            except Exception as e:
+                logger.warning(
+                    f"Could not parse created_at for reservation {reservation_id}: {e}"
+                )
+                continue
+
+            # Cancel if stale (>5 minutes in queued/pending state)
+            if created_timestamp < stale_threshold:
+                logger.info(
+                    f"Cancelling stale {reservation['status']} reservation {reservation_id}"
+                )
+                cancel_stale_reservation(reservation)
+                stale_cancelled_count += 1
+
+        # Sync disk deletion status from DynamoDB to EC2 snapshots
+        try:
+            tagged_snapshot_count = sync_disk_deleted_snapshots()
+            logger.info(f"Tagged {tagged_snapshot_count} snapshots for deletion from DynamoDB sync")
+        except Exception as e:
+            logger.error(f"Error syncing disk deletion to snapshots: {e}")
+            tagged_snapshot_count = 0
+
+        # Sync completed snapshots to DynamoDB
+        try:
+            synced_disk_count = sync_completed_snapshots()
+            logger.info(f"Synced {synced_disk_count} completed snapshots to DynamoDB")
+        except Exception as e:
+            logger.error(f"Error syncing completed snapshots: {e}")
+            synced_disk_count = 0
+
+        # Clean up soft-deleted snapshots whose delete-date has passed
+        try:
+            deleted_snapshot_count = cleanup_soft_deleted_snapshots()
+            logger.info(f"Cleaned up {deleted_snapshot_count} soft-deleted snapshots")
+        except Exception as e:
+            logger.error(f"Error cleaning up soft-deleted snapshots: {e}")
+            deleted_snapshot_count = 0
+
+        return {
+            "statusCode": 200,
+            "body": json.dumps(
+                {
+                    "message": f"Processed {len(active_reservations)} active and {len(stale_reservations)} queued reservations",
+                    "warned": warned_count,
+                    "expired": expired_count,
+                    "stale_cancelled": stale_cancelled_count,
+                    "oom_detected": oom_detected_count,
+                    "deleted_snapshots": deleted_snapshot_count,
+                    "tagged_snapshots": tagged_snapshot_count,
+                    "synced_disks": synced_disk_count,
+                }
+            ),
+        }
+
+    except Exception as e:
+        logger.error(f"Error in expiry check: {str(e)}")
+        raise
+
+
+def check_pod_exists(pod_name: str, namespace: str = "gpu-dev") -> bool:
+    """Check if a pod exists in the cluster"""
+    try:
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+        return True
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            return False
+        else:
+            logger.warning(f"Error checking pod {pod_name}: {e}")
+            return False
+    except Exception as e:
+        logger.warning(f"Error checking pod {pod_name}: {e}")
+        return False
+
+
+def check_pod_oom_status(pod_name: str, namespace: str = "gpu-dev") -> dict:
+    """
+    Check if a pod has any OOMKilled containers.
+    Returns dict with:
+      - oom_detected: bool
+      - oom_container: str (name of container that OOMed, if any)
+      - oom_time: str (ISO timestamp of when OOM occurred)
+      - restart_count: int (total restarts due to OOM)
+    """
+    result = {
+        "oom_detected": False,
+        "oom_container": None,
+        "oom_time": None,
+        "restart_count": 0
+    }
+
+    try:
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+
+        if not pod.status or not pod.status.container_statuses:
+            return result
+
+        for container_status in pod.status.container_statuses:
+            # Check last terminated state for OOMKilled
+            if container_status.last_state and container_status.last_state.terminated:
+                terminated = container_status.last_state.terminated
+                if terminated.reason == "OOMKilled":
+                    result["oom_detected"] = True
+                    result["oom_container"] = container_status.name
+                    if terminated.finished_at:
+                        result["oom_time"] = terminated.finished_at.isoformat()
+                    result["restart_count"] = container_status.restart_count
+                    logger.info(f"OOM detected for pod {pod_name}, container {container_status.name}, restarts: {container_status.restart_count}")
+                    return result
+
+            # Also check current state if container is in terminated state
+            if container_status.state and container_status.state.terminated:
+                terminated = container_status.state.terminated
+                if terminated.reason == "OOMKilled":
+                    result["oom_detected"] = True
+                    result["oom_container"] = container_status.name
+                    if terminated.finished_at:
+                        result["oom_time"] = terminated.finished_at.isoformat()
+                    result["restart_count"] = container_status.restart_count
+                    logger.info(f"OOM detected (current state) for pod {pod_name}, container {container_status.name}")
+                    return result
+
+        return result
+
+    except client.exceptions.ApiException as e:
+        if e.status == 404:
+            logger.debug(f"Pod {pod_name} not found when checking OOM status")
+        else:
+            logger.warning(f"Error checking OOM status for pod {pod_name}: {e}")
+        return result
+    except Exception as e:
+        logger.warning(f"Error checking OOM status for pod {pod_name}: {e}")
+        return result
+
+
+def mark_disk_not_in_use(user_id: str, disk_name: str) -> None:
+    """
+    Mark a disk as not in use in the disks table.
+    Called after volume is deleted during cleanup.
+    """
+    try:
+        disks_table_name = os.environ.get('DISKS_TABLE_NAME', 'pytorch-gpu-dev-disks')
+        disks_table = dynamodb.Table(disks_table_name)
+
+        disks_table.update_item(
+            Key={'user_id': user_id, 'disk_name': disk_name},
+            UpdateExpression="SET in_use = :in_use, last_used = :last_used REMOVE attached_to_reservation",
+            ExpressionAttributeValues={
+                ":in_use": False,
+                ":last_used": datetime.utcnow().isoformat()
+            }
+        )
+        logger.info(f"Marked disk '{disk_name}' as not in use for user {user_id}")
+    except Exception as e:
+        logger.error(f"Error marking disk as not in use: {e}")
+        raise
+
+
+def find_disk_by_reservation(user_id: str, reservation_id: str) -> str | None:
+    """
+    Find a disk attached to a specific reservation.
+    Used as fallback when disk_name is not stored in the reservation record.
+    Returns disk_name if found, None otherwise.
+    """
+    try:
+        disks_table_name = os.environ.get('DISKS_TABLE_NAME', 'pytorch-gpu-dev-disks')
+        disks_table = dynamodb.Table(disks_table_name)
+
+        # Query disks for this user
+        response = disks_table.query(
+            KeyConditionExpression='user_id = :user_id',
+            ExpressionAttributeValues={':user_id': user_id}
+        )
+
+        for disk in response.get('Items', []):
+            attached_res = disk.get('attached_to_reservation')
+            if attached_res and (attached_res == reservation_id or reservation_id.startswith(attached_res[:8])):
+                disk_name = disk.get('disk_name')
+                logger.info(f"Found disk '{disk_name}' attached to reservation {reservation_id[:8]} via disks table lookup")
+                return disk_name
+
+        logger.info(f"No disk found attached to reservation {reservation_id[:8]} for user {user_id}")
+        return None
+    except Exception as e:
+        logger.warning(f"Error looking up disk by reservation: {e}")
+        return None
+
+
+def handle_oom_event(reservation: dict, oom_info: dict) -> bool:
+    """
+    Handle an OOM event for a reservation.
+    Updates DynamoDB with OOM tracking information.
+    Returns True if update was successful.
+    """
+    try:
+        reservation_id = reservation["reservation_id"]
+        current_time = datetime.utcnow().isoformat()
+
+        # Get current OOM count from reservation
+        current_oom_count = int(reservation.get("oom_count", 0))
+        new_oom_count = current_oom_count + 1
+
+        # Only update if this is a new OOM event (check if oom_time is different)
+        last_recorded_oom = reservation.get("last_oom_at")
+        new_oom_time = oom_info.get("oom_time") or current_time
+
+        # Skip if we already recorded this exact OOM event
+        if last_recorded_oom and last_recorded_oom == new_oom_time:
+            logger.debug(f"OOM event already recorded for reservation {reservation_id[:8]}")
+            return False
+
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+
+        # Update reservation with OOM info
+        update_expression = "SET last_oom_at = :oom_time, oom_count = :oom_count, oom_container = :container"
+        expression_values = {
+            ":oom_time": new_oom_time,
+            ":oom_count": new_oom_count,
+            ":container": oom_info.get("oom_container", "unknown")
+        }
+
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression=update_expression,
+            ExpressionAttributeValues=expression_values
+        )
+
+        logger.info(f"Updated OOM tracking for reservation {reservation_id[:8]}: count={new_oom_count}, time={new_oom_time}")
+
+        # Create OOM warning file in the pod
+        pod_name = reservation.get("pod_name")
+        if pod_name:
+            try:
+                create_oom_warning_file(pod_name, oom_info, new_oom_count)
+            except Exception as e:
+                logger.warning(f"Failed to create OOM warning file in pod {pod_name}: {e}")
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error handling OOM event for reservation {reservation.get('reservation_id')}: {e}")
+        return False
+
+
+def create_oom_warning_file(pod_name: str, oom_info: dict, oom_count: int, namespace: str = "gpu-dev"):
+    """Create a visible OOM warning file in the pod's workspace"""
+    try:
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        container_name = oom_info.get("oom_container", "unknown")
+        oom_time = oom_info.get("oom_time", "unknown")
+
+        warning_content = f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🔴 OUT OF MEMORY (OOM) DETECTED 🔴
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Your container ran out of memory and was killed by the system.
+
+Container: {container_name}
+OOM Time: {oom_time}
+Total OOM Count: {oom_count}
+
+WHAT HAPPENED:
+- Your process exceeded the allocated memory limit
+- The container was automatically restarted
+
+SUGGESTIONS:
+- Reduce batch size or model size
+- Use gradient checkpointing
+- Enable mixed precision (fp16/bf16)
+- Monitor memory with: nvidia-smi or htop
+- Consider requesting more GPUs for larger memory
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Generated at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
+"""
+
+        # Write file to /home/dev
+        file_cmd = f'echo "{warning_content}" > /home/dev/OOM_DETECTED.txt'
+        exec_command = ["bash", "-c", file_cmd]
+
+        stream.stream(
+            v1.connect_get_namespaced_pod_exec,
+            pod_name,
+            namespace,
+            command=exec_command,
+            container="gpu-dev",
+            stderr=True,
+            stdin=False,
+            stdout=True,
+            tty=False,
+            _request_timeout=30,
+        )
+        logger.info(f"OOM warning file created in pod {pod_name}")
+
+    except Exception as e:
+        logger.warning(f"Error creating OOM warning file in pod {pod_name}: {e}")
+
+
+def warn_user_expiring(reservation: dict[str, Any], warning_minutes: int) -> None:
+    """Warn user about expiring reservation at specific warning level"""
+    try:
+        reservation_id = reservation["reservation_id"]
+        expires_at_str = reservation.get("expires_at", "")
+        try:
+            expires_at = int(
+                datetime.fromisoformat(
+                    expires_at_str.replace("Z", "+00:00")
+                ).timestamp()
+            )
+        except (ValueError, AttributeError):
+            expires_at = 0
+        pod_name = reservation.get("pod_name")
+
+        # Calculate time until expiry
+        current_time = int(time.time())
+        minutes_left = (expires_at - current_time) // 60
+
+        # Send warning to the pod
+        warning_message = create_warning_message(reservation, minutes_left)
+
+        if pod_name:
+            # Check if pod still exists before trying to send warnings
+            if check_pod_exists(pod_name):
+                # Send wall message to pod
+                send_wall_message_to_pod(pod_name, warning_message)
+
+                # Also create a visible file in the workspace
+                create_warning_file_in_pod(pod_name, warning_message, minutes_left)
+            else:
+                logger.warning(
+                    f"Pod {pod_name} no longer exists - reservation {reservation_id} may have been manually deleted or expired"
+                )
+                # Mark the reservation as expired since the pod is gone
+                expire_reservation_due_to_missing_pod(reservation)
+
+        # Update reservation to mark this specific warning as sent
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        warning_key = f"{warning_minutes}min_warning_sent"
+        warnings_sent = reservation.get("warnings_sent", {})
+        warnings_sent[warning_key] = True
+
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET warnings_sent = :warnings_sent, last_warning_time = :warning_time",
+            ExpressionAttributeValues={
+                ":warnings_sent": warnings_sent,
+                ":warning_time": current_time,
+            },
+        )
+
+        logger.info(
+            f"{warning_minutes}-minute warning sent for reservation {reservation_id}"
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error warning user for reservation {reservation.get('reservation_id')}: {str(e)}"
+        )
+
+
+def expire_reservation_due_to_missing_pod(reservation: dict[str, Any]) -> None:
+    """Mark reservation as expired when pod is missing (likely manually deleted)"""
+    try:
+        reservation_id = reservation["reservation_id"]
+
+        logger.info(
+            f"Marking reservation {reservation_id} as expired due to missing pod"
+        )
+
+        # Update reservation status to expired
+        now = datetime.utcnow().isoformat()
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET #status = :status, expired_at = :expired_at, reservation_ended = :reservation_ended, failure_reason = :reason",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": "expired",
+                ":expired_at": now,
+                ":reservation_ended": now,
+                ":reason": "Pod was manually deleted or removed outside of reservation system",
+            },
+        )
+
+        logger.info(
+            f"Successfully marked reservation {reservation_id} as expired due to missing pod"
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error marking reservation {reservation.get('reservation_id')} as expired: {str(e)}"
+        )
+
+
+def expire_stuck_preparing_reservation(reservation: dict[str, Any]) -> None:
+    """Mark stuck preparing reservation as failed when it's been preparing too long"""
+    try:
+        reservation_id = reservation["reservation_id"]
+
+        logger.info(f"Marking stuck preparing reservation {reservation_id} as failed")
+
+        # Update reservation status to failed
+        now = datetime.utcnow().isoformat()
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET #status = :status, failed_at = :failed_at, reservation_ended = :reservation_ended, failure_reason = :reason",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": "failed",
+                ":failed_at": now,
+                ":reservation_ended": now,
+                ":reason": "Reservation stuck in preparing status for more than 1 hour - likely pod creation failed",
+            },
+        )
+
+        # Try to clean up any partial pod resources that might exist
+        pod_name = reservation.get("pod_name")
+        if pod_name:
+            try:
+                cleanup_stuck_pod_resources(pod_name)
+                logger.info(
+                    f"Cleaned up partial resources for stuck preparing reservation {reservation_id}"
+                )
+            except Exception as cleanup_error:
+                logger.warning(
+                    f"Error cleaning up partial resources for {pod_name}: {cleanup_error}"
+                )
+
+        # Clear disk in_use flag if disk was reserved
+        user_id = reservation.get("user_id")
+        disk_name = reservation.get("disk_name")
+
+        # Fallback: if disk_name not in reservation, look it up from disks table
+        if user_id and not disk_name:
+            disk_name = find_disk_by_reservation(user_id, reservation_id)
+
+        if user_id and disk_name:
+            try:
+                mark_disk_not_in_use(user_id, disk_name)
+                logger.info(f"Cleared disk '{disk_name}' in_use flag for stuck preparing reservation {reservation_id}")
+            except Exception as disk_error:
+                logger.warning(f"Failed to clear disk in_use flag: {disk_error}")
+
+        logger.info(
+            f"Successfully marked stuck preparing reservation {reservation_id} as failed"
+        )
+
+    except Exception as e:
+        logger.error(
+            f"Error marking stuck preparing reservation {reservation.get('reservation_id')} as failed: {str(e)}"
+        )
+
+
+def expire_reservation(reservation: dict[str, Any]) -> None:
+    """Expire a reservation and clean up resources"""
+    try:
+        reservation_id = reservation["reservation_id"]
+        user_id = reservation["user_id"]
+
+        logger.info(f"Expiring reservation {reservation_id} for user {user_id}")
+
+        # 1. Update reservation status to expired
+        logger.info(
+            f"Updating DynamoDB status to expired for reservation {reservation_id}"
+        )
+        now = datetime.utcnow().isoformat()
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+
+        try:
+            reservations_table.update_item(
+                Key={"reservation_id": reservation_id},
+                UpdateExpression="SET #status = :status, expired_at = :expired_at, reservation_ended = :reservation_ended",
+                ExpressionAttributeNames={"#status": "status"},
+                ExpressionAttributeValues={
+                    ":status": "expired",
+                    ":expired_at": now,
+                    ":reservation_ended": now,
+                },
+            )
+            logger.info(
+                f"Successfully updated DynamoDB status to expired for reservation {reservation_id}"
+            )
+        except Exception as db_error:
+            logger.error(
+                f"Failed to update DynamoDB status for reservation {reservation_id}: {db_error}"
+            )
+            raise
+
+        # 2. Clean up K8s pod (would use kubectl or K8s API)
+        pod_name = reservation.get("pod_name")
+        if pod_name:
+            logger.info(
+                f"Starting pod cleanup for reservation {reservation_id}, pod: {pod_name}"
+            )
+            try:
+                cleanup_pod(pod_name, reservation.get("namespace", "gpu-dev"), reservation_data=reservation)
+                logger.info(f"Pod cleanup completed for reservation {reservation_id}")
+            except Exception as cleanup_error:
+                logger.error(
+                    f"Pod cleanup failed for reservation {reservation_id}: {cleanup_error}"
+                )
+                # Don't re-raise - we want to continue processing other reservations
+                # The DynamoDB status is already updated correctly
+        else:
+            logger.warning(
+                f"No pod_name found for reservation {reservation_id}, skipping pod cleanup"
+            )
+
+        # GPU resources released automatically by K8s when pod is deleted
+
+        logger.info(f"Successfully expired reservation {reservation_id}")
+
+    except Exception as e:
+        logger.error(
+            f"Error expiring reservation {reservation.get('reservation_id')}: {str(e)}"
+        )
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        # Re-raise only for critical errors, not pod cleanup failures
+        raise
+
+
+def cancel_stale_reservation(reservation: dict[str, Any]) -> None:
+    """Cancel a stale queued/pending reservation"""
+    try:
+        reservation_id = reservation["reservation_id"]
+        user_id = reservation.get("user_id", "unknown")
+
+        logger.info(f"Cancelling stale reservation {reservation_id} for user {user_id}")
+
+        # Update reservation status to cancelled
+        now = datetime.utcnow().isoformat()
+        reservations_table = dynamodb.Table(RESERVATIONS_TABLE)
+        reservations_table.update_item(
+            Key={"reservation_id": reservation_id},
+            UpdateExpression="SET #status = :status, cancelled_at = :cancelled_at, reservation_ended = :reservation_ended, failure_reason = :reason",
+            ExpressionAttributeNames={"#status": "status"},
+            ExpressionAttributeValues={
+                ":status": "cancelled",
+                ":cancelled_at": now,
+                ":reservation_ended": now,
+                ":reason": "Stale reservation - exceeded 5 minute queue time",
+            },
+        )
+
+        logger.info(f"Successfully cancelled stale reservation {reservation_id}")
+
+    except Exception as e:
+        logger.error(
+            f"Error cancelling stale reservation {reservation.get('reservation_id')}: {str(e)}"
+        )
+
+
+def create_warning_message(reservation: dict[str, Any], minutes_left: int) -> str:
+    """Create warning message for user"""
+    reservation_id = reservation["reservation_id"]
+
+    if minutes_left <= 0:
+        return f"🚨 URGENT: Reservation {reservation_id[:8]} expires in less than 1 minute! Save your work now!"
+    elif minutes_left <= 5:
+        return f"⚠️  WARNING: Reservation {reservation_id[:8]} expires in {minutes_left} minutes! Save your work!"
+    elif minutes_left <= 15:
+        return f"📢 NOTICE: Reservation {reservation_id[:8]} expires in {minutes_left} minutes. Please save your work."
+    else:
+        return f"📝 INFO: Reservation {reservation_id[:8]} expires in {minutes_left} minutes."
+
+
+def cleanup_pod(pod_name: str, namespace: str = "gpu-dev", reservation_data: dict = None) -> None:
+    """Clean up Kubernetes pod and associated resources"""
+    try:
+        logger.info(f"Cleaning up pod {pod_name} in namespace {namespace}")
+
+        # Clean up DNS records if domain is configured
+        if get_dns_enabled() and reservation_data:
+            domain_name = reservation_data.get("domain_name")
+            node_ip = reservation_data.get("node_ip")
+            node_port = reservation_data.get("node_port")
+
+            if domain_name and node_ip and node_port:
+                logger.info(f"Cleaning up DNS record for domain: {domain_name}")
+
+                # Delete DNS A record
+                dns_success = delete_dns_record(domain_name, node_ip, node_port)
+                if dns_success:
+                    logger.info(f"Successfully deleted DNS record for {domain_name}")
+                else:
+                    logger.warning(f"Failed to delete DNS record for {domain_name}")
+
+                # Delete domain mapping from tracking table
+                mapping_success = delete_domain_mapping(domain_name)
+                if mapping_success:
+                    logger.info(f"Successfully deleted domain mapping for {domain_name}")
+                else:
+                    logger.warning(f"Failed to delete domain mapping for {domain_name}")
+
+        # Clean up ALB/NLB resources if configured
+        if reservation_data:
+            reservation_id = reservation_data.get("reservation_id")
+            if reservation_id:
+                try:
+                    from shared.alb_utils import delete_alb_mapping, is_alb_enabled
+
+                    if is_alb_enabled():
+                        logger.info(f"Cleaning up ALB/NLB resources for reservation {reservation_id}")
+                        alb_success = delete_alb_mapping(reservation_id)
+                        if alb_success:
+                            logger.info(f"Successfully deleted ALB/NLB resources for {reservation_id}")
+                        else:
+                            logger.warning(f"Failed to delete ALB/NLB resources for {reservation_id}")
+                except Exception as alb_error:
+                    logger.error(f"Error cleaning up ALB/NLB resources: {alb_error}")
+                    # Don't re-raise - continue with pod cleanup
+
+        # Configure Kubernetes client
+        logger.info(f"Setting up Kubernetes client for cleanup...")
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+        logger.info(f"Kubernetes client configured successfully")
+
+        # Create shutdown snapshot if pod has persistent storage
+        try:
+            user_id = None
+            volume_id = None
+            disk_name = None
+
+            # Get user_id, volume_id, and disk_name from reservation data if provided
+            if reservation_data:
+                user_id = reservation_data.get('user_id')
+                volume_id = reservation_data.get('ebs_volume_id')
+                disk_name = reservation_data.get('disk_name')
+
+            # Quick check - if we have reservation data with EBS info, use it directly
+            if user_id and volume_id:
+                logger.info(f"Found persistent storage in reservation data: volume {volume_id} for user {user_id}")
+
+            # If no reservation data or missing info, try to get from pod spec
+            elif not user_id or not volume_id:
+                try:
+                    pod = v1.read_namespaced_pod(name=pod_name, namespace=namespace)
+
+                    # Extract user_id from pod labels or annotations
+                    if pod.metadata.labels:
+                        user_id = pod.metadata.labels.get('user-id') or user_id
+
+                    # Look for EBS volume in pod spec
+                    if pod.spec.volumes:
+                        for volume in pod.spec.volumes:
+                            if volume.aws_elastic_block_store:
+                                # Extract volume ID from AWS EBS volume
+                                volume_id = volume.aws_elastic_block_store.volume_id
+                                break
+
+                except Exception as pod_read_error:
+                    logger.warning(f"Could not read pod {pod_name} for snapshot info: {pod_read_error}")
+
+            # If disk_name not in reservation data, try to get it from volume tags
+            if volume_id and not disk_name:
+                try:
+                    ec2_client = boto3.client('ec2')
+                    vol_response = ec2_client.describe_volumes(VolumeIds=[volume_id])
+                    if vol_response['Volumes']:
+                        tags = {tag['Key']: tag['Value'] for tag in vol_response['Volumes'][0].get('Tags', [])}
+                        disk_name = tags.get('disk_name')
+                        logger.info(f"Retrieved disk_name '{disk_name}' from volume tags")
+                except Exception as tag_error:
+                    logger.warning(f"Could not read volume tags for disk_name: {tag_error}")
+
+            # Create shutdown snapshot if we have the necessary info
+            if user_id and volume_id:
+                logger.info(f"Creating shutdown snapshot for user {user_id}, volume {volume_id}, disk {disk_name or 'unnamed'}")
+
+                # Step 1: Capture disk contents before creating snapshot
+                content_s3_path = None
+                disk_size = None
+                if disk_name:
+                    try:
+                        logger.info(f"Capturing disk contents for disk '{disk_name}'")
+                        # Create a temporary snapshot ID for the S3 path (we'll update after actual snapshot creation)
+                        temp_snapshot_id = f"pending-{int(time.time())}"
+                        content_s3_path, disk_size = capture_disk_contents(
+                            pod_name=pod_name,
+                            namespace=namespace,
+                            user_id=user_id,
+                            disk_name=disk_name,
+                            snapshot_id=temp_snapshot_id,
+                            k8s_client=get_k8s_client(),
+                            mount_path="/home/dev"
+                        )
+                        if content_s3_path:
+                            logger.info(f"Successfully captured disk contents to {content_s3_path}" + (f" (size: {disk_size})" if disk_size else ""))
+                        else:
+                            logger.warning(f"Failed to capture disk contents for disk '{disk_name}'")
+                    except Exception as capture_error:
+                        logger.warning(f"Error capturing disk contents: {capture_error}")
+                        # Continue with snapshot even if content capture fails
+
+                # Step 2: Create snapshot with disk_name, content_s3_path, and disk_size
+                snapshot_id, was_created = safe_create_snapshot(
+                    volume_id=volume_id,
+                    user_id=user_id,
+                    snapshot_type="shutdown",
+                    disk_name=disk_name,
+                    content_s3_path=content_s3_path,
+                    disk_size=disk_size
+                )
+
+                if snapshot_id:
+                    logger.info(f"Shutdown snapshot {snapshot_id} initiated for {pod_name}")
+
+                    # Step 3: Wait for snapshot to complete (with timeout)
+                    try:
+                        logger.info(f"Waiting for snapshot {snapshot_id} to complete...")
+                        ec2_client = boto3.client('ec2')
+                        waiter = ec2_client.get_waiter('snapshot_completed')
+                        waiter.wait(
+                            SnapshotIds=[snapshot_id],
+                            WaiterConfig={
+                                'Delay': 15,  # Check every 15 seconds
+                                'MaxAttempts': 120  # Wait up to 30 minutes (15s * 120 = 1800s)
+                            }
+                        )
+                        logger.info(f"Snapshot {snapshot_id} completed successfully")
+
+                        # Step 3.5: Update DynamoDB to reflect snapshot completion
+                        if disk_name:
+                            try:
+                                # Get snapshot details to get volume size and content S3 path
+                                snapshot_response = ec2_client.describe_snapshots(SnapshotIds=[snapshot_id])
+                                if snapshot_response.get('Snapshots'):
+                                    snapshot = snapshot_response['Snapshots'][0]
+                                    size_gb = snapshot.get('VolumeSize')
+                                    tags = {tag['Key']: tag['Value'] for tag in snapshot.get('Tags', [])}
+                                    snapshot_content_s3 = tags.get('snapshot_content_s3')
+                                    snapshot_disk_size = tags.get('disk_size')
+                                    logger.info(f"Updating DynamoDB for completed snapshot {snapshot_id} (disk: {disk_name}, size: {size_gb}GB, disk_size: {snapshot_disk_size})")
+                                    update_disk_snapshot_completed(user_id, disk_name, size_gb, snapshot_content_s3, snapshot_disk_size)
+                                    logger.info(f"Successfully updated DynamoDB for disk '{disk_name}'")
+                            except Exception as update_error:
+                                logger.warning(f"Error updating DynamoDB for snapshot completion: {update_error}")
+                                # Don't fail cleanup if DynamoDB update fails
+
+                        # Step 4: Delete the EBS volume after snapshot completes
+                        try:
+                            logger.info(f"Deleting EBS volume {volume_id} after successful snapshot")
+                            ec2_client.delete_volume(VolumeId=volume_id)
+                            logger.info(f"Successfully deleted volume {volume_id}")
+
+                            # Step 5: Mark disk as no longer in use (allows CLI to show as available)
+                            if disk_name:
+                                try:
+                                    mark_disk_not_in_use(user_id, disk_name)
+                                    logger.info(f"Marked disk '{disk_name}' as not in use")
+                                except Exception as mark_error:
+                                    logger.warning(f"Failed to mark disk as not in use: {mark_error}")
+                        except Exception as delete_error:
+                            logger.error(f"Failed to delete volume {volume_id}: {delete_error}")
+                            # Don't fail the whole cleanup if volume deletion fails
+
+                    except Exception as waiter_error:
+                        logger.warning(f"Error waiting for snapshot completion or deleting volume: {waiter_error}")
+                        # Continue with pod deletion even if snapshot wait/delete fails
+
+                else:
+                    logger.warning(f"Failed to create shutdown snapshot for {pod_name}")
+            else:
+                logger.info(f"No persistent storage found for pod {pod_name} - skipping shutdown snapshot")
+
+        except Exception as snapshot_error:
+            logger.warning(f"Error creating shutdown snapshot for {pod_name}: {snapshot_error}")
+            # Continue with pod deletion even if snapshot fails
+
+        # Send final warning message before deletion
+        try:
+            logger.info(f"Sending final warning message to pod {pod_name}")
+            send_wall_message_to_pod(
+                pod_name,
+                "🚨 FINAL WARNING: Reservation expired! Pod will be deleted now. All unsaved work will be lost!",
+                namespace,
+            )
+            logger.info(f"Final warning message sent to pod {pod_name}")
+        except Exception as warn_error:
+            logger.warning(
+                f"Could not send final warning to pod {pod_name}: {warn_error}"
+            )
+
+        # Delete the NodePort service first
+        service_name = f"{pod_name}-ssh"
+        try:
+            logger.info(f"Attempting to delete service {service_name}")
+            v1.delete_namespaced_service(
+                name=service_name, namespace=namespace, grace_period_seconds=0
+            )
+            logger.info(f"Successfully deleted service {service_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.info(f"Service {service_name} not found (already deleted)")
+            else:
+                logger.warning(f"Failed to delete service {service_name}: {e}")
+        except Exception as e:
+            logger.error(f"Unexpected error deleting service {service_name}: {e}")
+
+        # Delete the pod with grace period
+        try:
+            logger.info(f"Attempting to delete pod {pod_name} with 30s grace period")
+            v1.delete_namespaced_pod(
+                name=pod_name, namespace=namespace, grace_period_seconds=30
+            )
+            logger.info(f"Successfully initiated deletion of pod {pod_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.info(f"Pod {pod_name} not found (already deleted)")
+            else:
+                logger.error(f"Failed to delete pod {pod_name}: {e}")
+
+                # Force delete if graceful deletion failed
+                try:
+                    logger.info(f"Attempting force delete of pod {pod_name}")
+                    v1.delete_namespaced_pod(
+                        name=pod_name, namespace=namespace, grace_period_seconds=0
+                    )
+                    logger.info(f"Successfully force deleted pod {pod_name}")
+                except client.exceptions.ApiException as force_error:
+                    logger.error(
+                        f"Failed to force delete pod {pod_name}: {force_error}"
+                    )
+                    raise
+        except Exception as e:
+            logger.error(f"Unexpected error deleting pod {pod_name}: {e}")
+            raise
+
+        logger.info(f"Pod cleanup completed successfully for {pod_name}")
+
+        # NOTE: EBS volumes (persistent disks) are deleted after snapshot creation
+        # Snapshots are used to recreate volumes for the user's next reservation
+        # This ensures clean state and prevents disk attachment conflicts
+
+        # Trigger availability table update after pod cleanup
+        try:
+            trigger_availability_update()
+            logger.info("Triggered availability table update after pod cleanup")
+        except Exception as update_error:
+            logger.warning(
+                f"Failed to trigger availability update after pod cleanup: {update_error}"
+            )
+            # Don't fail the expiry for this
+
+        # Final safety: ensure disk is marked as not in use
+        # This handles edge cases where volume deletion failed but pod is gone
+        if reservation_data:
+            final_user_id = reservation_data.get('user_id')
+            final_disk_name = reservation_data.get('disk_name')
+            final_reservation_id = reservation_data.get('reservation_id')
+
+            # Fallback: if disk_name not in reservation, look it up from disks table
+            if final_user_id and not final_disk_name and final_reservation_id:
+                final_disk_name = find_disk_by_reservation(final_user_id, final_reservation_id)
+
+            if final_user_id and final_disk_name:
+                try:
+                    mark_disk_not_in_use(final_user_id, final_disk_name)
+                    logger.info(f"Final cleanup: ensured disk '{final_disk_name}' is marked as not in use")
+                except Exception as final_disk_error:
+                    logger.warning(f"Final disk cleanup failed (non-fatal): {final_disk_error}")
+
+    except Exception as e:
+        logger.error(f"Error cleaning up pod {pod_name}: {str(e)}")
+        logger.error(f"Exception type: {type(e).__name__}")
+        import traceback
+
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+
+        # Even on error, try to mark disk as not in use to prevent stuck disks
+        if reservation_data:
+            error_user_id = reservation_data.get('user_id')
+            error_disk_name = reservation_data.get('disk_name')
+            error_reservation_id = reservation_data.get('reservation_id')
+
+            # Fallback: if disk_name not in reservation, look it up from disks table
+            if error_user_id and not error_disk_name and error_reservation_id:
+                error_disk_name = find_disk_by_reservation(error_user_id, error_reservation_id)
+
+            if error_user_id and error_disk_name:
+                try:
+                    mark_disk_not_in_use(error_user_id, error_disk_name)
+                    logger.info(f"Error recovery: marked disk '{error_disk_name}' as not in use despite cleanup error")
+                except Exception as recovery_error:
+                    logger.error(f"Failed to mark disk as not in use during error recovery: {recovery_error}")
+
+        raise
+
+
+def cleanup_stuck_pod_resources(pod_name: str, namespace: str = "gpu-dev") -> None:
+    """Clean up any partial resources for stuck preparing reservations"""
+    try:
+        logger.info(
+            f"Cleaning up stuck pod resources for {pod_name} in namespace {namespace}"
+        )
+
+        # Configure Kubernetes client
+        from kubernetes import client
+
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Try to delete the pod if it exists (it might be in a failed state)
+        try:
+            v1.delete_namespaced_pod(
+                name=pod_name, namespace=namespace, grace_period_seconds=0
+            )
+            logger.info(f"Deleted stuck pod {pod_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.info(
+                    f"Pod {pod_name} not found (already deleted or never created)"
+                )
+            else:
+                logger.warning(f"Failed to delete stuck pod {pod_name}: {e}")
+
+        # Try to delete the service if it exists
+        service_name = f"{pod_name}-ssh"
+        try:
+            v1.delete_namespaced_service(
+                name=service_name, namespace=namespace, grace_period_seconds=0
+            )
+            logger.info(f"Deleted stuck service {service_name}")
+        except client.exceptions.ApiException as e:
+            if e.status == 404:
+                logger.info(
+                    f"Service {service_name} not found (already deleted or never created)"
+                )
+            else:
+                logger.warning(f"Failed to delete stuck service {service_name}: {e}")
+
+    except Exception as e:
+        logger.error(f"Error cleaning up stuck pod {pod_name}: {str(e)}")
+        # Don't raise - cleanup failures shouldn't prevent marking reservation as failed
+
+
+def send_wall_message_to_pod(pod_name: str, message: str, namespace: str = "gpu-dev"):
+    """Send wall message to all logged-in users in the pod"""
+    try:
+        # Configure Kubernetes client
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Warning message will be displayed via shell rc files (bashrc/zshrc)
+        # No need for wall/terminal messaging since the file-based approach is more reliable
+        logger.info(
+            f"Warning file created for pod {pod_name} - will be shown via shell prompt"
+        )
+
+    except Exception as e:
+        logger.warning(f"Error preparing warning for pod {pod_name}: {str(e)}")
+
+
+def create_warning_file_in_pod(
+    pod_name: str, warning_message: str, minutes_left: int, namespace: str = "gpu-dev"
+):
+    """Create a visible warning file in the pod's workspace"""
+    try:
+        # Configure Kubernetes client
+        k8s_client = get_k8s_client()
+        v1 = client.CoreV1Api(k8s_client)
+
+        # Create warning file content
+        warning_content = f"""
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️  GPU RESERVATION EXPIRY WARNING ⚠️
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+{warning_message}
+
+Time remaining: {minutes_left} minutes
+
+IMPORTANT:
+- Save your work immediately
+- Your reservation will expire and this pod will be deleted
+- All unsaved data will be lost
+
+To extend your reservation, use the CLI:
+  gpu-dev extend <reservation-id>
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Generated at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S UTC")}
+"""
+
+        # Write file to /home/dev using Kubernetes exec, removing old warning files first
+        file_cmd = f'rm -f /home/dev/WARN_EXPIRES_IN_*MIN.txt 2>/dev/null; echo "{warning_content}" > /home/dev/WARN_EXPIRES_IN_{minutes_left}MIN.txt'
+        exec_command = ["bash", "-c", file_cmd]
+
+        try:
+            stream.stream(
+                v1.connect_get_namespaced_pod_exec,
+                pod_name,
+                namespace,
+                command=exec_command,
+                container="gpu-dev",
+                stderr=True,
+                stdin=False,
+                stdout=True,
+                tty=False,
+                _request_timeout=30,
+            )
+            logger.info(f"Warning file created in pod {pod_name}")
+        except Exception as e:
+            logger.warning(f"Failed to create warning file in pod {pod_name}: {e}")
+
+    except Exception as e:
+        logger.warning(f"Error creating warning file in pod {pod_name}: {str(e)}")

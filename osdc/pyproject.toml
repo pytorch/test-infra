@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gpu-dev-cli"
+version = "0.3.5"
+description = "CLI tool for PyTorch GPU developer server reservations"
+authors = [{name = "PyTorch Team"}]
+readme = "cli-tools/gpu-dev-cli/README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "click>=8.1.0",
+    "boto3>=1.34.0",
+    "requests>=2.31.0",
+    "pydantic>=2.5.0",
+    "rich>=13.7.0",
+    "pyyaml>=6.0.1",
+    "questionary>=2.1.1",
+    "websockets>=12.0",
+    "certifi>=2023.7.22",
+    "mcp>=1.0.0",
+]
+
+[project.scripts]
+gpu-dev = "gpu_dev_cli.cli:main"
+gpu-dev-ssh-proxy = "gpu_dev_cli.ssh_proxy:main"
+gpu-dev-mcp = "gpu_dev_cli.mcp_server:main"
+
+[tool.setuptools]
+packages = ["gpu_dev_cli"]
+package-dir = {"" = "cli-tools/gpu-dev-cli"}
+
+[tool.setuptools.package-data]
+gpu_dev_cli = ["py.typed"]

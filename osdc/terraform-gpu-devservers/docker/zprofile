@@ -1,0 +1,10 @@
+# Source .zshrc for login shells (like SSH)
+if [ -f ~/.zshrc ]; then
+    source ~/.zshrc
+fi
+
+# Show MOTD only for interactive login shells (skip for Claude Code, scripts, etc.)
+# Check: stdin is a terminal AND stdout is a terminal
+if [ -t 0 ] && [ -t 1 ] && [ -f /etc/motd ]; then
+    cat /etc/motd
+fi
