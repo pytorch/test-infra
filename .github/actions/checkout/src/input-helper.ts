@@ -84,12 +84,8 @@ export async function getInputs(): Promise<IGitSourceSettings> {
   core.debug(`single branch = ${result.singleBranch}`)
 
   // Additional fetch refs
-  const additionalFetchRefsInput = core.getMultilineInput(
-    'additional-fetch-refs'
-  )
-  if (additionalFetchRefsInput.length > 0) {
-    result.additionalFetchRefs = additionalFetchRefsInput
-  }
+  result.additionalFetchRefs =
+    core.getMultilineInput('additional-fetch-refs') || []
   core.debug(
     `additional fetch refs = ${JSON.stringify(result.additionalFetchRefs)}`
   )
