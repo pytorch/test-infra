@@ -106,6 +106,14 @@ jobs:
       - name: Verify fetch filter
         run: __test__/verify-fetch-filter.sh
 
+      # Additional fetch refs
+      - name: Additional fetch refs
+        uses: ./.github/actions/checkout/
+        with:
+          additional-fetch-refs: |
+            refs/tags/test-data/v2/tag1:refs/tags/test-data/v2/tag1
+            refs/tags/test-data/v2/tag2:refs/tags/test-data/v2/tag2
+
       # Sparse checkout
       - name: Sparse checkout
         uses: ./.github/actions/checkout/
