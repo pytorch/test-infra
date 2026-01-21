@@ -132,44 +132,44 @@ describe('ref-helper tests', () => {
 
   it('getRefSpec requires ref or commit', async () => {
     assert.throws(
-      () => refHelper.getRefSpec('', ''),
+      () => refHelper.getRefSpec('', '', []),
       /Args ref and commit cannot both be empty/
     )
   })
 
   it('getRefSpec sha + refs/heads/', async () => {
-    const refSpec = refHelper.getRefSpec('refs/heads/my/branch', commit)
+    const refSpec = refHelper.getRefSpec('refs/heads/my/branch', commit, [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe(`+${commit}:refs/remotes/origin/my/branch`)
   })
 
   it('getRefSpec sha + refs/pull/', async () => {
-    const refSpec = refHelper.getRefSpec('refs/pull/123/merge', commit)
+    const refSpec = refHelper.getRefSpec('refs/pull/123/merge', commit, [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe(`+${commit}:refs/remotes/pull/123/merge`)
   })
 
   it('getRefSpec sha + refs/tags/', async () => {
-    const refSpec = refHelper.getRefSpec('refs/tags/my-tag', commit)
+    const refSpec = refHelper.getRefSpec('refs/tags/my-tag', commit, [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe(`+${commit}:refs/tags/my-tag`)
   })
 
   it('getRefSpec sha only', async () => {
-    const refSpec = refHelper.getRefSpec('', commit)
+    const refSpec = refHelper.getRefSpec('', commit, [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe(commit)
   })
 
   it('getRefSpec unqualified ref only', async () => {
-    const refSpec = refHelper.getRefSpec('my-ref', '')
+    const refSpec = refHelper.getRefSpec('my-ref', '', [])
     expect(refSpec.length).toBe(2)
     expect(refSpec[0]).toBe('+refs/heads/my-ref*:refs/remotes/origin/my-ref*')
     expect(refSpec[1]).toBe('+refs/tags/my-ref*:refs/tags/my-ref*')
   })
 
   it('getRefSpec refs/heads/ only', async () => {
-    const refSpec = refHelper.getRefSpec('refs/heads/my/branch', '')
+    const refSpec = refHelper.getRefSpec('refs/heads/my/branch', '', [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe(
       '+refs/heads/my/branch:refs/remotes/origin/my/branch'
@@ -177,14 +177,48 @@ describe('ref-helper tests', () => {
   })
 
   it('getRefSpec refs/pull/ only', async () => {
-    const refSpec = refHelper.getRefSpec('refs/pull/123/merge', '')
+    const refSpec = refHelper.getRefSpec('refs/pull/123/merge', '', [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe('+refs/pull/123/merge:refs/remotes/pull/123/merge')
   })
 
   it('getRefSpec refs/tags/ only', async () => {
-    const refSpec = refHelper.getRefSpec('refs/tags/my-tag', '')
+    const refSpec = refHelper.getRefSpec('refs/tags/my-tag', '', [])
     expect(refSpec.length).toBe(1)
     expect(refSpec[0]).toBe('+refs/tags/my-tag:refs/tags/my-tag')
+  })
+
+  it('getRefSpec additional fetch refs unqualified', async () => {
+    const refSpec = refHelper.getRefSpec('refs/heads/main', '', [
+      'viable/strict'
+    ])
+    expect(refSpec.length).toBe(3)
+    expect(refSpec[0]).toBe('+refs/heads/main:refs/remotes/origin/main')
+    expect(refSpec[1]).toBe(
+      '+refs/heads/viable/strict*:refs/remotes/origin/viable/strict*'
+    )
+    expect(refSpec[2]).toBe(
+      '+refs/tags/viable/strict*:refs/tags/viable/strict*'
+    )
+  })
+
+  it('getRefSpec additional fetch refs heads only', async () => {
+    const refSpec = refHelper.getRefSpec('refs/heads/main', '', [
+      'refs/heads/viable/strict'
+    ])
+    expect(refSpec.length).toBe(2)
+    expect(refSpec[0]).toBe('+refs/heads/main:refs/remotes/origin/main')
+    expect(refSpec[1]).toBe(
+      '+refs/heads/viable/strict:refs/remotes/origin/viable/strict'
+    )
+  })
+
+  it('getRefSpec additional fetch refs tags only', async () => {
+    const refSpec = refHelper.getRefSpec('refs/heads/main', '', [
+      'refs/tags/my-tag'
+    ])
+    expect(refSpec.length).toBe(2)
+    expect(refSpec[0]).toBe('+refs/heads/main:refs/remotes/origin/main')
+    expect(refSpec[1]).toBe('+refs/tags/my-tag:refs/tags/my-tag')
   })
 })
