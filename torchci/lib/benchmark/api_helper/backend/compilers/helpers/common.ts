@@ -5,6 +5,12 @@ export function extractBackendSqlStyle(
   mode: string,
   device: string
 ): string | null {
+  // This is only used in MPS, when the dtype is not set, it's actuall float32
+  // but the output filename uses the notset string
+  if (dtype === "float32" && device === "mps") {
+    dtype = "notset";
+  }
+
   const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const tail = `_${esc(suite)}_${esc(dtype)}_${esc(mode)}_${esc(device)}_`;
 
