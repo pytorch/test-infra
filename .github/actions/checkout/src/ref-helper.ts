@@ -76,7 +76,7 @@ export function getRefSpecForAllHistory(ref: string, commit: string): string[] {
   return result
 }
 
-export function getRefSpec(ref: string, commit: string): string[] {
+export function getSingleRefSpec(ref: string, commit: string): string[] {
   if (!ref && !commit) {
     throw new Error('Args ref and commit cannot both be empty')
   }
@@ -125,6 +125,21 @@ export function getRefSpec(ref: string, commit: string): string[] {
   else {
     return [`+${ref}:${ref}`]
   }
+}
+
+export function getRefSpec(
+  ref: string,
+  commit: string,
+  additionalFetchRefs: string[]
+): string[] {
+  const result: string[] = []
+  const singleRefSpec: string[] = getSingleRefSpec(ref, commit)
+  result.push(...singleRefSpec)
+  for (const additionalRef of additionalFetchRefs) {
+    const additionalRefSpec = getSingleRefSpec(additionalRef, '')
+    result.push(...additionalRefSpec)
+  }
+  return result
 }
 
 /**

@@ -30,6 +30,11 @@ export interface IGitSourceSettings {
   singleBranch: boolean
 
   /**
+   * Additional fetch refs
+   */
+  additionalFetchRefs: string[]
+
+  /**
    * Indicates whether to clean the repository
    */
   clean: boolean
