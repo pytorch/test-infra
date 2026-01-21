@@ -110,6 +110,7 @@ jobs:
       - name: Additional fetch refs
         uses: ./.github/actions/checkout/
         with:
+          path: .github/actions/checkout/additional-fetch-refs
           additional-fetch-refs: |
             refs/heads/main
 
