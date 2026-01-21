@@ -584,14 +584,6 @@
     "https://github.com/pytorch/pytorch/issues/137765",
     []
   ],
-  "test_debug_mode_backward (__main__.TestDTensorDebugMode)": [
-    "163084",
-    "https://github.com/pytorch/pytorch/issues/163084",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_decoder_padding_and_src_mask_bool_cpu (__main__.TestTransformersCPU)": [
     "101787",
     "https://github.com/pytorch/pytorch/issues/101787",
