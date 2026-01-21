@@ -63,11 +63,11 @@
     "linux-jammy-py3_9-clang9-xla",
     "test (xla)"
   ],
-  "trunk-rocm-mi300 / linux-jammy-rocm-py3.10 / test": [
+  "trunk-rocm-experimental / linux-jammy-rocm-py3.10 / test": [
     "jithunnair-amd",
     "167616",
     "https://github.com/pytorch/pytorch/issues/167616",
-    "trunk-rocm-mi300",
+    "trunk-rocm-experimental",
     "linux-jammy-rocm-py3.10",
     "test"
   ]
