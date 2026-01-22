@@ -669,6 +669,22 @@ def cloudwatch_metrics_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def claude_code_usage_adapter(table, bucket, key):
+    schema = """
+    `repo` String,
+    `run_id` Int64,
+    `run_attempt` Int32,
+    `actor` String,
+    `event_name` String,
+    `pr_number` Int64,
+    `timestamp` DateTime64(3),
+    `duration_ms` Int64,
+    `num_turns` Int32,
+    `total_cost_usd` Float64
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -689,6 +705,7 @@ SUPPORTED_PATHS = {
     "util_metadata": "misc.oss_ci_utilization_metadata",
     "util_timeseries": "misc.oss_ci_time_series",
     "disabled_tests_historical": "misc.disabled_tests_historical",
+    "claude_code_usage": "misc.claude_code_usage",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
     "test_jsons_while_running": "tests.all_test_runs",
@@ -715,6 +732,7 @@ OBJECT_CONVERTER = {
     "misc.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
     "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
     "misc.disabled_tests_historical": disabled_tests_historical_adapter,
+    "misc.claude_code_usage": claude_code_usage_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
 }
 
