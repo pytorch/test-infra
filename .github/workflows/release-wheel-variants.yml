@@ -5,7 +5,6 @@ on:
     paths:
       - .github/workflows/release-wheel-variants.yml
       - release/pypi/upload_variant_to_staging.sh
-      - release/pypi/promote_whl_variant_to_test.sh
   workflow_dispatch:
     inputs:
       pytorch_version:
@@ -174,50 +173,3 @@ jobs:
           VARIANT_REPACK_DIR: ./variant-repack
         run: |
           bash test-infra/release/pypi/upload_variant_to_staging.sh
-
-  # Alternative job to run the full promotion script with all architectures
-  # Enable this instead of the matrix job if you want sequential processing
-  promote-all-variants:
-    if: false  # Disabled by default
-    runs-on: ubuntu-22.04
-    environment: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && 'pytorchbot-env' || '' }}
-
-    steps:
-      - name: Checkout test-infra
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          path: test-infra
-
-      - name: Checkout variant-repack
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          repository: wheelnext/variant-repack
-          ref: ${{ inputs.variant_repack_ref || 'master' }}
-          path: variant-repack
-
-      - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies
-        run: |
-          pip install awscli==1.44.20 wheel==0.45.1
-          cd variant-repack
-          pip install -e .
-
-      - name: Configure AWS credentials
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false }}
-        uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
-        with:
-          role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
-          aws-region: us-east-1
-
-      - name: Run full promotion script
-        env:
-          DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
-          PYTORCH_VERSION: ${{ inputs.pytorch_version || '2.10.0' }}
-          PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
-          VARIANT_REPACK_DIR: ./variant-repack
-        run: |
-          bash test-infra/release/pypi/promote_whl_variant_to_test.sh
