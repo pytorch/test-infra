@@ -213,6 +213,7 @@ PACKAGE_ALLOW_LIST = {
         "setuptools",
         "setuptools_scm",
         "wheel",
+        "flash_attn",
         # vllm
         "ninja",
         "cuda_python",
@@ -387,6 +388,8 @@ PACKAGE_LINKS_ALLOW_LIST = {
         "nvidia-cuda-runtime",
         "nvidia-cuda-cupti-cu12",
         "nvidia-cuda-cupti",
+        "nvidia-cuda-cccl-cu12",
+        "nvidia-cuda-cccl",
         "nvidia-cudnn-cu12",
         "nvidia-cudnn-cu13",
         "nvidia-cublas-cu12",
