@@ -97,6 +97,11 @@ Please refer to the [release page](https://github.com/actions/checkout/releases/
     # Default: false
     single-branch: ''
 
+    # Additional refs to fetch. Each ref should be separated with new lines. For
+    # example, to fetch all tags: `refs/tags/*:refs/tags/*`
+    # Default: refs/heads/main
+    additional-fetch-refs: ''
+
     # Personal access token (PAT) used to fetch the repository. The PAT is configured
     # with the local git config, which enables your scripts to run authenticated git
     # commands. The post-job step removes the PAT.
