@@ -16,6 +16,13 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Upload raw metrics file for debugging
+      uses: actions/upload-artifact@v4
+      with:
+        name: claude-execution-output
+        path: ${{ inputs.metrics-file }}
+        if-no-files-found: ignore
+
     - name: Upload usage metrics
       shell: bash
       run: |
@@ -24,6 +31,11 @@ runs:
           echo "Metrics file not found: $METRICS_FILE"
           exit 0
         fi
+
+        echo "=== Raw metrics file structure ==="
+        head -100 "$METRICS_FILE"
+        echo "..."
+        echo "=== End of preview ==="
 
         # Extract fields and add context
         jq -n \
