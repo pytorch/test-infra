@@ -213,6 +213,7 @@ PACKAGE_ALLOW_LIST = {
         "setuptools",
         "setuptools_scm",
         "wheel",
+        "flash_attn",
         # vllm
         "ninja",
         "cuda_python",
