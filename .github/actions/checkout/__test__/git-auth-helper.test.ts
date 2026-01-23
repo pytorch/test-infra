@@ -1166,6 +1166,7 @@ async function setup(testName: string): Promise<void> {
     submodulesFilter: undefined,
     persistCredentials: true,
     ref: 'refs/heads/main',
+    additionalFetchRefs: [],
     repositoryName: 'my-repo',
     repositoryOwner: 'my-org',
     repositoryPath: '',

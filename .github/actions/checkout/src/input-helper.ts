@@ -83,6 +83,13 @@ export async function getInputs(): Promise<IGitSourceSettings> {
     (core.getInput('single-branch') || 'false').toUpperCase() === 'TRUE'
   core.debug(`single branch = ${result.singleBranch}`)
 
+  // Additional fetch refs
+  result.additionalFetchRefs =
+    core.getMultilineInput('additional-fetch-refs') || []
+  core.debug(
+    `additional fetch refs = ${JSON.stringify(result.additionalFetchRefs)}`
+  )
+
   // Clean
   result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE'
   core.debug(`clean = ${result.clean}`)

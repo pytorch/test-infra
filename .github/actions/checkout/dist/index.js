@@ -1525,20 +1525,20 @@ function getSource(settings) {
             }
             if (settings.fetchDepth <= 0) {
                 let refSpec = settings.singleBranch
-                    ? refHelper.getRefSpec(settings.ref, settings.commit)
+                    ? refHelper.getRefSpec(settings.ref, settings.commit, settings.additionalFetchRefs)
                     : refHelper.getRefSpecForAllHistory(settings.ref, settings.commit);
                 yield git.fetch(refSpec, fetchOptions);
                 // When all history is fetched, the ref we're interested in may have moved to a different
                 // commit (push or force push). If so, fetch again with a targeted refspec.
                 if (!(yield refHelper.testRef(git, settings.ref, settings.commit))) {
-                    refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
+                    refSpec = refHelper.getRefSpec(settings.ref, settings.commit, settings.additionalFetchRefs);
                     yield git.fetch(refSpec, fetchOptions);
                 }
             }
             else {
                 fetchOptions.fetchDepth = settings.fetchDepth;
                 fetchOptions.fetchTags = settings.fetchTags;
-                const refSpec = refHelper.getRefSpec(settings.ref, settings.commit);
+                const refSpec = refHelper.getRefSpec(settings.ref, settings.commit, settings.additionalFetchRefs);
                 yield git.fetch(refSpec, fetchOptions);
             }
             core.endGroup();
@@ -2013,6 +2013,10 @@ function getInputs() {
         result.singleBranch =
             (core.getInput('single-branch') || 'false').toUpperCase() === 'TRUE';
         core.debug(`single branch = ${result.singleBranch}`);
+        // Additional fetch refs
+        result.additionalFetchRefs =
+            core.getMultilineInput('additional-fetch-refs') || [];
+        core.debug(`additional fetch refs = ${JSON.stringify(result.additionalFetchRefs)}`);
         // Clean
         result.clean = (core.getInput('clean') || 'true').toUpperCase() === 'TRUE';
         core.debug(`clean = ${result.clean}`);
@@ -2223,6 +2227,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.tagsRefSpec = void 0;
 exports.getCheckoutInfo = getCheckoutInfo;
 exports.getRefSpecForAllHistory = getRefSpecForAllHistory;
+exports.getSingleRefSpec = getSingleRefSpec;
 exports.getRefSpec = getRefSpec;
 exports.testRef = testRef;
 exports.checkCommitInfo = checkCommitInfo;
@@ -2287,7 +2292,7 @@ function getRefSpecForAllHistory(ref, commit) {
     }
     return result;
 }
-function getRefSpec(ref, commit) {
+function getSingleRefSpec(ref, commit) {
     if (!ref && !commit) {
         throw new Error('Args ref and commit cannot both be empty');
     }
@@ -2334,6 +2339,16 @@ function getRefSpec(ref, commit) {
     else {
         return [`+${ref}:${ref}`];
     }
+}
+function getRefSpec(ref, commit, additionalFetchRefs) {
+    const result = [];
+    const singleRefSpec = getSingleRefSpec(ref, commit);
+    result.push(...singleRefSpec);
+    for (const additionalRef of additionalFetchRefs) {
+        const additionalRefSpec = getSingleRefSpec(additionalRef, '');
+        result.push(...additionalRefSpec);
+    }
+    return result;
 }
 /**
  * Tests whether the initial fetch created the ref at the expected commit

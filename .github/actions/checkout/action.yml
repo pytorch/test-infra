@@ -15,6 +15,11 @@ inputs:
       history leading to the specified ref is fetched. When false, the full history
       is fetched.
     default: "false"
+  additional-fetch-refs:
+    description: >
+      Additional refs to fetch. Each ref should be separated with new lines.
+      For example, to fetch all tags: `refs/tags/*:refs/tags/*`
+    default: refs/heads/main
   token:
     description: >
       Personal access token (PAT) used to fetch the repository. The PAT is configured
