@@ -32,10 +32,16 @@ runs:
           exit 0
         fi
 
-        echo "=== Raw metrics file structure ==="
-        head -100 "$METRICS_FILE"
-        echo "..."
-        echo "=== End of preview ==="
+        # File is a JSON array, extract the "result" entry (last element)
+        RESULT=$(jq '.[] | select(.type == "result")' "$METRICS_FILE")
+        if [ -z "$RESULT" ]; then
+          echo "No result entry found in metrics file"
+          exit 0
+        fi
+
+        echo "=== Result entry ==="
+        echo "$RESULT" | jq .
+        echo "=== End of result ==="
 
         # Extract fields and add context
         jq -n \
@@ -46,9 +52,9 @@ runs:
           --arg event_name "${{ github.event_name }}" \
           --argjson pr_number "${{ github.event.issue.number || github.event.pull_request.number || 0 }}" \
           --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000)" \
-          --argjson duration_ms "$(jq -r '.duration_ms // 0' "$METRICS_FILE")" \
-          --argjson num_turns "$(jq -r '.num_turns // 0' "$METRICS_FILE")" \
-          --argjson total_cost_usd "$(jq -r '.total_cost_usd // 0' "$METRICS_FILE")" \
+          --argjson duration_ms "$(echo "$RESULT" | jq -r '.duration_ms // 0')" \
+          --argjson num_turns "$(echo "$RESULT" | jq -r '.num_turns // 0')" \
+          --argjson total_cost_usd "$(echo "$RESULT" | jq -r '.total_cost_usd // 0')" \
           '{
             repo: $repo,
             run_id: $run_id,
