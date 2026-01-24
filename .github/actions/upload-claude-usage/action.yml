@@ -16,13 +16,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Upload raw metrics file for debugging
-      uses: actions/upload-artifact@v4
-      with:
-        name: claude-execution-output
-        path: ${{ inputs.metrics-file }}
-        if-no-files-found: ignore
-
     - name: Upload usage metrics
       shell: bash
       run: |
@@ -32,16 +25,12 @@ runs:
           exit 0
         fi
 
-        # File is a JSON array, extract the "result" entry (last element)
+        # File is a JSON array, extract the "result" entry
         RESULT=$(jq '.[] | select(.type == "result")' "$METRICS_FILE")
         if [ -z "$RESULT" ]; then
           echo "No result entry found in metrics file"
           exit 0
         fi
-
-        echo "=== Result entry ==="
-        echo "$RESULT" | jq .
-        echo "=== End of result ==="
 
         # Extract fields and add context
         jq -n \
@@ -67,9 +56,6 @@ runs:
             num_turns: $num_turns,
             total_cost_usd: $total_cost_usd
           }' > /tmp/claude_usage.json
-
-        echo "Uploading metrics:"
-        cat /tmp/claude_usage.json
 
         aws s3 cp /tmp/claude_usage.json \
           "s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}/${{ github.repository }}/${{ github.run_id }}_${{ github.run_attempt }}.json"

@@ -10,6 +10,9 @@ CREATE TABLE misc.claude_code_usage
     `duration_ms` Int64,
     `num_turns` Int32,
     `total_cost_usd` Float64,
+    `_meta` Tuple(
+        bucket String,
+        key String),
     `_inserted_at` DateTime MATERIALIZED now()
 )
 ENGINE = SharedMergeTree('/clickhouse/tables/{uuid}/{shard}', '{replica}')
