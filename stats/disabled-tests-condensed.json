@@ -450,6 +450,13 @@
       "rocm"
     ]
   ],
+  "test_comprehensive_nn_functional_rms_norm_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
+    "173345",
+    "https://github.com/pytorch/pytorch/issues/173345",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_pca_lowrank_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "139828",
     "https://github.com/pytorch/pytorch/issues/139828",
@@ -1378,6 +1385,13 @@
     [
       "linux",
       "rocm"
+    ]
+  ],
+  "test_mm_plus_mm3 (__main__.TestSelectAlgorithm)": [
+    "173344",
+    "https://github.com/pytorch/pytorch/issues/173344",
+    [
+      "xpu"
     ]
   ],
   "test_mm_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
