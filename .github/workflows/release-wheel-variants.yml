@@ -158,7 +158,10 @@ jobs:
           ARCH: ${{ matrix.arch }}
           PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
           VARIANT_REPACK_DIR: ./variant-repack
+          # Use workspace for temp files to avoid /tmp space issues with large ROCm wheels
+          TMPDIR: ${{ github.workspace }}/tmp
         run: |
+          mkdir -p "${TMPDIR}"
           bash test-infra/release/pypi/upload_variant_to_staging.sh
 
       - name: Promote torchvision variants
@@ -173,5 +176,8 @@ jobs:
           ARCH: ${{ matrix.arch }}
           PYTORCH_RELEASE: ${{ inputs.pytorch_release || '2.10' }}
           VARIANT_REPACK_DIR: ./variant-repack
+          # Use workspace for temp files to avoid /tmp space issues with large ROCm wheels
+          TMPDIR: ${{ github.workspace }}/tmp
         run: |
+          mkdir -p "${TMPDIR}"
           bash test-infra/release/pypi/upload_variant_to_staging.sh
