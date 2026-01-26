@@ -1363,6 +1363,78 @@ class S3Index:
                 obj_ver.delete()
 
 
+def _compute_and_set_checksums(matching_objects: List[str]) -> None:
+    """Compute and set SHA256 checksums for a list of S3 object keys.
+
+    Skips objects that already have checksums.
+
+    Args:
+        matching_objects: List of S3 object keys to process
+    """
+    processed = 0
+    skipped = 0
+    for key in matching_objects:
+        try:
+            s3_obj = BUCKET.Object(key=key)
+
+            # Check if checksum already exists
+            head = CLIENT.head_object(
+                Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
+            )
+            existing_checksum = head.get("Metadata", {}).get("checksum-sha256")
+            if not existing_checksum:
+                existing_checksum = head.get("Metadata", {}).get(
+                    "x-amz-meta-checksum-sha256"
+                )
+            if not existing_checksum:
+                # Check for S3 native checksum
+                raw = head.get("ChecksumSHA256")
+                if raw and not match(r"^[A-Za-z0-9+/=]+=-[0-9]+$", raw):
+                    existing_checksum = base64.b64decode(raw).hex()
+
+            if existing_checksum:
+                print(f"SKIP: {key} already has checksum: {existing_checksum}")
+                skipped += 1
+                continue
+
+            print(f"\nINFO: Processing {key}")
+
+            # Download and compute SHA256
+            print(f"INFO: Downloading {key} to compute SHA256...")
+            response = s3_obj.get()
+            body = response["Body"]
+
+            sha256_hash = hashlib.sha256()
+            # Read in chunks to handle large files
+            for chunk in iter(lambda: body.read(8192), b""):
+                sha256_hash.update(chunk)
+
+            sha256 = sha256_hash.hexdigest()
+            print(f"INFO: Computed SHA256: {sha256}")
+
+            # Fetch existing metadata
+            existing_metadata = s3_obj.metadata.copy()
+
+            # Add/update the checksum metadata
+            existing_metadata["checksum-sha256"] = sha256
+
+            # Copy the object to itself with updated metadata
+            s3_obj.copy_from(
+                CopySource={"Bucket": BUCKET.name, "Key": key},
+                Metadata=existing_metadata,
+                MetadataDirective="REPLACE",
+                ACL="public-read",
+            )
+            print(f"SUCCESS: Set x-amz-meta-checksum-sha256={sha256} for {key}")
+            processed += 1
+
+        except Exception as e:
+            print(f"ERROR: Failed to process {key}: {e}")
+            raise
+
+    print(f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}")
+
+
 def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
     """Compute and set x-amz-meta-checksum-sha256 metadata for all objects matching package-version.
 
@@ -1407,70 +1479,7 @@ def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
         return
 
     print(f"INFO: Found {len(matching_objects)} matching objects")
-
-    # Process each matching object
-    processed = 0
-    skipped = 0
-    for key in matching_objects:
-        try:
-            s3_obj = BUCKET.Object(key=key)
-
-            # Check if checksum already exists
-            head = CLIENT.head_object(
-                Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
-            )
-            existing_checksum = head.get("Metadata", {}).get("checksum-sha256")
-            if not existing_checksum:
-                existing_checksum = head.get("Metadata", {}).get(
-                    "x-amz-meta-checksum-sha256"
-                )
-            if not existing_checksum:
-                # Check for S3 native checksum
-                raw = head.get("ChecksumSHA256")
-                if raw and not match(r"^[A-Za-z0-9+/=]+=-[0-9]+$", raw):
-                    existing_checksum = base64.b64decode(raw).hex()
-
-            if existing_checksum:
-                print(f"SKIP: {key} already has checksum: {existing_checksum}")
-                skipped += 1
-                continue
-
-            print(f"\nINFO: Processing {key}")
-
-            # Download and compute SHA256
-            print(f"INFO: Downloading {key} to compute SHA256...")
-            response = s3_obj.get()
-            body = response["Body"]
-
-            sha256_hash = hashlib.sha256()
-            # Read in chunks to handle large files
-            for chunk in iter(lambda: body.read(8192), b""):
-                sha256_hash.update(chunk)
-
-            sha256 = sha256_hash.hexdigest()
-            print(f"INFO: Computed SHA256: {sha256}")
-
-            # Fetch existing metadata
-            existing_metadata = s3_obj.metadata.copy()
-
-            # Add/update the checksum metadata
-            existing_metadata["checksum-sha256"] = sha256
-
-            # Copy the object to itself with updated metadata
-            s3_obj.copy_from(
-                CopySource={"Bucket": BUCKET.name, "Key": key},
-                Metadata=existing_metadata,
-                MetadataDirective="REPLACE",
-                ACL="public-read",
-            )
-            print(f"SUCCESS: Set x-amz-meta-checksum-sha256={sha256} for {key}")
-            processed += 1
-
-        except Exception as e:
-            print(f"ERROR: Failed to process {key}: {e}")
-            raise
-
-    print(f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}")
+    _compute_and_set_checksums(matching_objects)
 
 
 def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = None) -> None:
@@ -1481,6 +1490,7 @@ def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = Non
         package_name: Optional package name to filter (e.g., "torch", "torchvision")
     """
     print(f"INFO: Searching for objects matching pattern '{pattern}'")
+    normalized_package = None
     if package_name:
         print(f"INFO: Filtering by package name: '{package_name}'")
         # Normalize package name (replace - with _ for matching wheel filenames)
@@ -1495,7 +1505,7 @@ def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = Non
             # Only process wheel files
             if key.endswith(".whl"):
                 # If package_name is specified, filter by it
-                if package_name:
+                if normalized_package:
                     basename = path.basename(key).lower()
                     # Wheel filename format: {package}-{version}-...
                     if not basename.startswith(f"{normalized_package}-"):
@@ -1508,70 +1518,7 @@ def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = Non
         return
 
     print(f"INFO: Found {len(matching_objects)} matching wheel files")
-
-    # Process each matching object
-    processed = 0
-    skipped = 0
-    for key in matching_objects:
-        try:
-            s3_obj = BUCKET.Object(key=key)
-            head = CLIENT.head_object(
-                Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
-            )
-
-            # Check if checksum already exists
-            existing_checksum = head.get("Metadata", {}).get("checksum-sha256")
-            if not existing_checksum:
-                existing_checksum = head.get("Metadata", {}).get(
-                    "x-amz-meta-checksum-sha256"
-                )
-            if not existing_checksum:
-                # Check for S3 native checksum
-                raw = head.get("ChecksumSHA256")
-                if raw and not match(r"^[A-Za-z0-9+/=]+=-[0-9]+$", raw):
-                    existing_checksum = base64.b64decode(raw).hex()
-
-            if existing_checksum:
-                print(f"SKIP: {key} already has checksum: {existing_checksum}")
-                skipped += 1
-                continue
-
-            print(f"\nINFO: Processing {key}")
-
-            # Download and compute SHA256
-            print(f"INFO: Downloading {key} to compute SHA256...")
-            response = s3_obj.get()
-            body = response["Body"]
-
-            sha256_hash = hashlib.sha256()
-            # Read in chunks to handle large files
-            for chunk in iter(lambda: body.read(8192), b""):
-                sha256_hash.update(chunk)
-
-            sha256 = sha256_hash.hexdigest()
-            print(f"INFO: Computed SHA256: {sha256}")
-
-            # Fetch existing metadata
-            existing_metadata = s3_obj.metadata.copy()
-
-            # Add/update the checksum metadata
-            existing_metadata["checksum-sha256"] = sha256
-
-            # Copy the object to itself with updated metadata
-            s3_obj.copy_from(
-                CopySource={"Bucket": BUCKET.name, "Key": key},
-                Metadata=existing_metadata,
-                MetadataDirective="REPLACE",
-                ACL="public-read",
-            )
-            print(f"SUCCESS: Set x-amz-meta-checksum-sha256={sha256} for {key}")
-            processed += 1
-
-        except Exception as e:
-            print(f"ERROR: Failed to process {key}: {e}")
-            raise
-
-    print(f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}")
+    _compute_and_set_checksums(matching_objects)
 
 
 def create_parser() -> argparse.ArgumentParser:
