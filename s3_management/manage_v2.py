@@ -1487,16 +1487,20 @@ def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
 
 
 def recompute_sha256_for_pattern(
-    pattern: str, package_name: Optional[str] = None, version: Optional[str] = None
+    prefix: str,
+    pattern: str,
+    package_name: Optional[str] = None,
+    version: Optional[str] = None,
 ) -> None:
     """Compute SHA256 checksums for objects matching a pattern that don't have checksums.
 
     Args:
-        pattern: The pattern to match against object keys (e.g., "whl/test/rocm7.1")
+        prefix: The S3 prefix to search in (e.g., "whl/test")
+        pattern: The pattern to match against object keys (e.g., "rocm6.4")
         package_name: Optional package name to filter (e.g., "torch", "torchvision")
         version: Optional version to filter (e.g., "2.5.0", "2.5.0+rocm7.1")
     """
-    print(f"INFO: Searching for objects matching pattern '{pattern}'")
+    print(f"INFO: Searching in '{prefix}' for objects matching pattern '{pattern}'")
     normalized_package = None
     if package_name:
         print(f"INFO: Filtering by package name: '{package_name}'")
@@ -1508,32 +1512,42 @@ def recompute_sha256_for_pattern(
 
     # Find all matching objects
     matching_objects = []
-    for obj in BUCKET.objects.filter(Prefix=pattern.split("/")[0]):
+
+    # Construct the scan prefix by combining prefix and pattern
+    scan_prefix = f"{prefix}/{pattern}/"
+    print(f"INFO: Scanning prefix '{scan_prefix}'...")
+
+    for obj in BUCKET.objects.filter(Prefix=scan_prefix):
         key = obj.key
-        # Check if the key contains the pattern
-        if pattern in key:
-            # Only process wheel files
-            if key.endswith(".whl"):
-                basename = path.basename(key).lower()
-                # If package_name is specified, filter by it
-                if normalized_package:
-                    # Wheel filename format: {package}-{version}-...
-                    if not basename.startswith(f"{normalized_package}-"):
-                        continue
+        # Only process wheel files
+        if key.endswith(".whl"):
+            basename = path.basename(key).lower()
+            # If package_name is specified, filter by it
+            if normalized_package:
+                # Wheel filename format: {package}-{version}-...
+                if not basename.startswith(f"{normalized_package}-"):
+                    continue
 
-                # If version is specified, filter by it
-                if version:
-                    # Check for version pattern in the filename
-                    # Handle both URL-encoded (+) and regular versions
-                    version_encoded = version.replace("+", "%2B").lower()
-                    version_lower = version.lower()
-                    if (
-                        f"-{version_encoded}-" not in basename
-                        and f"-{version_lower}-" not in basename
-                    ):
-                        continue
+            # If version is specified, filter by it
+            if version:
+                # Check for version pattern in the filename
+                # Handle both URL-encoded (+) and regular versions
+                # Also handle local version specifiers (e.g., 2.9.1+rocm6.4)
+                version_encoded = version.replace("+", "%2B").lower()
+                version_lower = version.lower()
+                # Version can be followed by - (exact match) or + or %2B (local version)
+                version_match = (
+                    f"-{version_encoded}-" in basename
+                    or f"-{version_lower}-" in basename
+                    or f"-{version_encoded}+" in basename
+                    or f"-{version_lower}+" in basename
+                    or f"-{version_encoded}%2b" in basename
+                    or f"-{version_lower}%2b" in basename
+                )
+                if not version_match:
+                    continue
 
-                matching_objects.append(key)
+            matching_objects.append(key)
 
     if not matching_objects:
         filters = []
@@ -1604,7 +1618,10 @@ def main() -> None:
     # Handle --recompute-sha256-pattern command
     if args.recompute_sha256_pattern:
         recompute_sha256_for_pattern(
-            args.recompute_sha256_pattern, args.package_name, args.package_version
+            args.prefix,
+            args.recompute_sha256_pattern,
+            args.package_name,
+            args.package_version,
         )
         return
 
