@@ -23,6 +23,7 @@ from .config import (
     DEFAULT_LOG_LEVEL,
     DEFAULT_NOTIFY_ISSUE_NUMBER,
     DEFAULT_REPO_FULL_NAME,
+    DEFAULT_REVERT_DECISIONS_SQS_QUEUE_URL,
     DEFAULT_WORKFLOW_RESTART_DAYS,
     DEFAULT_WORKFLOWS,
 )
@@ -62,6 +63,7 @@ class DefaultConfig:
         restart_action: Action to take for restarts (from RESTART_ACTION).
         revert_action: Action to take for reverts (from REVERT_ACTION).
         secret_store_name: AWS Secrets Manager secret name (from SECRET_STORE_NAME).
+        revert_decisions_sqs_queue_url: SQS queue URL for revert decisions (from REVERT_DECISIONS_SQS_QUEUE_URL).
         workflows: List of workflow names to analyze (from WORKFLOWS).
     """
 
@@ -98,6 +100,10 @@ class DefaultConfig:
             else None
         )
         self.secret_store_name = os.environ.get("SECRET_STORE_NAME", "")
+        self.revert_decisions_sqs_queue_url = os.environ.get(
+            "REVERT_DECISIONS_SQS_QUEUE_URL",
+            "",
+        )
         self.workflows = os.environ.get(
             "WORKFLOWS",
             ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]),
@@ -256,6 +262,12 @@ def get_opts(default_config: DefaultConfig) -> argparse.Namespace:
         action="store",
         default=default_config.secret_store_name,
         help="Name of the secret in AWS Secrets Manager to fetch GitHub App secret from",
+    )
+    parser.add_argument(
+        "--revert-decisions-sqs-queue-url",
+        action="store",
+        default=default_config.revert_decisions_sqs_queue_url,
+        help="SQS queue URL for sending revert decision messages to other systems",
     )
 
     # no subcommand runs the lambda flow
@@ -453,6 +465,10 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         github_installation_id=int(_get("github_installation_id", "")),
         # AWS Secrets Manager Settings
         secret_store_name=_get("secret_store_name", ""),
+        # AWS SQS Settings
+        revert_decisions_sqs_queue_url=_get(
+            "revert_decisions_sqs_queue_url", DEFAULT_REVERT_DECISIONS_SQS_QUEUE_URL
+        ),
         # Autorevert Core Parameters
         repo_full_name=_get("repo_full_name", DEFAULT_REPO_FULL_NAME),
         workflows=_get("workflows", list(DEFAULT_WORKFLOWS)),
@@ -512,6 +528,8 @@ def build_config_from_event(
         "github_installation_id": default_config.github_installation_id,
         # AWS Secrets Manager Settings
         "secret_store_name": default_config.secret_store_name,
+        # AWS SQS Settings
+        "revert_decisions_sqs_queue_url": default_config.revert_decisions_sqs_queue_url,
         # Autorevert Core Parameters
         "repo_full_name": default_config.repo_full_name,
         "workflows": default_config.workflows,
@@ -719,6 +737,7 @@ def main_run(
             ),
             bisection_limit=config.bisection_limit,
             as_of=config.as_of,
+            revert_decisions_sqs_queue_url=config.revert_decisions_sqs_queue_url,
         )
         write_hud_html_from_cli(config.hud_html, HUD_HTML_NO_VALUE_FLAG, state_json)
     elif config.subcommand == "workflow-restart-checker":
