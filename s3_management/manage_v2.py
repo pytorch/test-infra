@@ -5,6 +5,7 @@ import base64
 import concurrent.futures
 import dataclasses
 import functools
+import hashlib
 import os
 import time
 from collections import defaultdict
@@ -1362,17 +1363,268 @@ class S3Index:
                 obj_ver.delete()
 
 
+def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
+    """Compute and set x-amz-meta-checksum-sha256 metadata for all objects matching package-version.
+
+    Args:
+        prefix: The S3 prefix to search in (e.g., "whl/test" or "whl")
+        package_name: The package name to match (e.g., "torch", "torchvision")
+        version: The version to match (e.g., "2.0.0", "2.0.0+cu118")
+    """
+    # Validate prefix is in whl/ or whl/test path
+    if not prefix.startswith("whl"):
+        raise ValueError(f"Prefix must be whl or whl/test, got: {prefix}")
+
+    # Normalize package name (replace - with _ for matching wheel filenames)
+    normalized_package = package_name.lower().replace("-", "_")
+    # URL-encode the + in version for matching S3 keys
+    version_pattern = version.replace("+", "%2B")
+
+    print(f"INFO: Searching for {normalized_package}-{version} in {prefix}/")
+    print(f"INFO: Version pattern (URL-encoded): {version_pattern}")
+
+    # Find all matching objects
+    matching_objects = []
+    for obj in BUCKET.objects.filter(Prefix=prefix):
+        key = obj.key
+        # Skip non-wheel files
+        if not key.endswith(".whl"):
+            continue
+
+        basename = path.basename(key)
+        # Wheel filename format: {package}-{version}-{python}-{abi}-{platform}.whl
+        # Check if basename starts with package-version pattern
+        # Handle both URL-encoded (+) and regular versions
+        basename_lower = basename.lower()
+        pattern1 = f"{normalized_package}-{version_pattern.lower()}-"
+        pattern2 = f"{normalized_package}-{version.lower()}-"
+
+        if basename_lower.startswith(pattern1) or basename_lower.startswith(pattern2):
+            matching_objects.append(key)
+
+    if not matching_objects:
+        print(f"WARNING: No matching objects found for {package_name}-{version} in {prefix}/")
+        return
+
+    print(f"INFO: Found {len(matching_objects)} matching objects")
+
+    # Process each matching object
+    processed = 0
+    skipped = 0
+    for key in matching_objects:
+        try:
+            s3_obj = BUCKET.Object(key=key)
+
+            # Check if checksum already exists
+            head = CLIENT.head_object(
+                Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
+            )
+            existing_checksum = head.get("Metadata", {}).get("checksum-sha256")
+            if not existing_checksum:
+                existing_checksum = head.get("Metadata", {}).get(
+                    "x-amz-meta-checksum-sha256"
+                )
+            if not existing_checksum:
+                # Check for S3 native checksum
+                raw = head.get("ChecksumSHA256")
+                if raw and not match(r"^[A-Za-z0-9+/=]+=-[0-9]+$", raw):
+                    existing_checksum = base64.b64decode(raw).hex()
+
+            if existing_checksum:
+                print(f"SKIP: {key} already has checksum: {existing_checksum}")
+                skipped += 1
+                continue
+
+            print(f"\nINFO: Processing {key}")
+
+            # Download and compute SHA256
+            print(f"INFO: Downloading {key} to compute SHA256...")
+            response = s3_obj.get()
+            body = response["Body"]
+
+            sha256_hash = hashlib.sha256()
+            # Read in chunks to handle large files
+            for chunk in iter(lambda: body.read(8192), b""):
+                sha256_hash.update(chunk)
+
+            sha256 = sha256_hash.hexdigest()
+            print(f"INFO: Computed SHA256: {sha256}")
+
+            # Fetch existing metadata
+            existing_metadata = s3_obj.metadata.copy()
+
+            # Add/update the checksum metadata
+            existing_metadata["checksum-sha256"] = sha256
+
+            # Copy the object to itself with updated metadata
+            s3_obj.copy_from(
+                CopySource={"Bucket": BUCKET.name, "Key": key},
+                Metadata=existing_metadata,
+                MetadataDirective="REPLACE",
+                ACL="public-read",
+            )
+            print(f"SUCCESS: Set x-amz-meta-checksum-sha256={sha256} for {key}")
+            processed += 1
+
+        except Exception as e:
+            print(f"ERROR: Failed to process {key}: {e}")
+            raise
+
+    print(f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}")
+
+
+def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = None) -> None:
+    """Compute SHA256 checksums for objects matching a pattern that don't have checksums.
+
+    Args:
+        pattern: The pattern to match against object keys (e.g., "whl/test/rocm7.1")
+        package_name: Optional package name to filter (e.g., "torch", "torchvision")
+    """
+    print(f"INFO: Searching for objects matching pattern '{pattern}'")
+    if package_name:
+        print(f"INFO: Filtering by package name: '{package_name}'")
+        # Normalize package name (replace - with _ for matching wheel filenames)
+        normalized_package = package_name.lower().replace("-", "_")
+
+    # Find all matching objects
+    matching_objects = []
+    for obj in BUCKET.objects.filter(Prefix=pattern.split("/")[0]):
+        key = obj.key
+        # Check if the key contains the pattern
+        if pattern in key:
+            # Only process wheel files
+            if key.endswith(".whl"):
+                # If package_name is specified, filter by it
+                if package_name:
+                    basename = path.basename(key).lower()
+                    # Wheel filename format: {package}-{version}-...
+                    if not basename.startswith(f"{normalized_package}-"):
+                        continue
+                matching_objects.append(key)
+
+    if not matching_objects:
+        pkg_msg = f" for package '{package_name}'" if package_name else ""
+        print(f"WARNING: No matching objects found for pattern '{pattern}'{pkg_msg}")
+        return
+
+    print(f"INFO: Found {len(matching_objects)} matching wheel files")
+
+    # Process each matching object
+    processed = 0
+    skipped = 0
+    for key in matching_objects:
+        try:
+            s3_obj = BUCKET.Object(key=key)
+            head = CLIENT.head_object(
+                Bucket=BUCKET.name, Key=key, ChecksumMode="Enabled"
+            )
+
+            # Check if checksum already exists
+            existing_checksum = head.get("Metadata", {}).get("checksum-sha256")
+            if not existing_checksum:
+                existing_checksum = head.get("Metadata", {}).get(
+                    "x-amz-meta-checksum-sha256"
+                )
+            if not existing_checksum:
+                # Check for S3 native checksum
+                raw = head.get("ChecksumSHA256")
+                if raw and not match(r"^[A-Za-z0-9+/=]+=-[0-9]+$", raw):
+                    existing_checksum = base64.b64decode(raw).hex()
+
+            if existing_checksum:
+                print(f"SKIP: {key} already has checksum: {existing_checksum}")
+                skipped += 1
+                continue
+
+            print(f"\nINFO: Processing {key}")
+
+            # Download and compute SHA256
+            print(f"INFO: Downloading {key} to compute SHA256...")
+            response = s3_obj.get()
+            body = response["Body"]
+
+            sha256_hash = hashlib.sha256()
+            # Read in chunks to handle large files
+            for chunk in iter(lambda: body.read(8192), b""):
+                sha256_hash.update(chunk)
+
+            sha256 = sha256_hash.hexdigest()
+            print(f"INFO: Computed SHA256: {sha256}")
+
+            # Fetch existing metadata
+            existing_metadata = s3_obj.metadata.copy()
+
+            # Add/update the checksum metadata
+            existing_metadata["checksum-sha256"] = sha256
+
+            # Copy the object to itself with updated metadata
+            s3_obj.copy_from(
+                CopySource={"Bucket": BUCKET.name, "Key": key},
+                Metadata=existing_metadata,
+                MetadataDirective="REPLACE",
+                ACL="public-read",
+            )
+            print(f"SUCCESS: Set x-amz-meta-checksum-sha256={sha256} for {key}")
+            processed += 1
+
+        except Exception as e:
+            print(f"ERROR: Failed to process {key}: {e}")
+            raise
+
+    print(f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}")
+
+
 def create_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser("Manage S3 HTML indices for PyTorch")
     parser.add_argument("prefix", type=str, choices=PREFIXES + ["all"])
     parser.add_argument("--do-not-upload", action="store_true")
     parser.add_argument("--compute-sha256", action="store_true")
+    parser.add_argument(
+        "--set-checksum",
+        action="store_true",
+        help="Compute and set x-amz-meta-checksum-sha256 metadata for packages matching "
+        "--package-name and --package-version in the specified prefix (whl or whl/test).",
+    )
+    parser.add_argument(
+        "--package-name",
+        type=str,
+        metavar="NAME",
+        help="Package name to filter (e.g., torch, torchvision). "
+        "Used with --set-checksum or --recompute-sha256-pattern.",
+    )
+    parser.add_argument(
+        "--package-version",
+        type=str,
+        metavar="VERSION",
+        help="Package version to match (e.g., 2.0.0, 2.0.0+cu118). Used with --set-checksum.",
+    )
+    parser.add_argument(
+        "--recompute-sha256-pattern",
+        type=str,
+        metavar="PATTERN",
+        help="Compute SHA256 checksums for objects matching this pattern that don't already have "
+        "checksums (e.g., 'whl/test/rocm7.1'). Objects with existing checksums are skipped.",
+    )
     return parser
 
 
 def main() -> None:
     parser = create_parser()
     args = parser.parse_args()
+
+    # Handle --set-checksum command
+    if args.set_checksum:
+        if not args.package_name:
+            parser.error("--set-checksum requires --package-name to specify the package")
+        if not args.package_version:
+            parser.error("--set-checksum requires --package-version to specify the version")
+        set_checksum_metadata(args.prefix, args.package_name, args.package_version)
+        return
+
+    # Handle --recompute-sha256-pattern command
+    if args.recompute_sha256_pattern:
+        recompute_sha256_for_pattern(args.recompute_sha256_pattern, args.package_name)
+        return
 
     # Display PACKAGE_LINKS_ALLOW_LIST summary
     print(f"\n{'=' * 80}")
