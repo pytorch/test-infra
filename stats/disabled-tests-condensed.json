@@ -380,6 +380,27 @@
       "slow"
     ]
   ],
+  "test_comprehensive_nn_functional_conv2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "173339",
+    "https://github.com/pytorch/pytorch/issues/173339",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_nn_functional_conv2d_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
+    "173340",
+    "https://github.com/pytorch/pytorch/issues/173340",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_nn_functional_conv_transpose2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "173341",
+    "https://github.com/pytorch/pytorch/issues/173341",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
