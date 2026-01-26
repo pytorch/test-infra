@@ -1371,6 +1371,9 @@ def _compute_and_set_checksums(matching_objects: List[str]) -> None:
     Args:
         matching_objects: List of S3 object keys to process
     """
+    # 5GB limit for single CopyObject operation
+    MULTIPART_THRESHOLD = 5 * 1024 * 1024 * 1024
+
     processed = 0
     skipped = 0
     for key in matching_objects:
@@ -1397,7 +1400,10 @@ def _compute_and_set_checksums(matching_objects: List[str]) -> None:
                 skipped += 1
                 continue
 
-            print(f"\nINFO: Processing {key}")
+            content_length = head.get("ContentLength", 0)
+            print(
+                f"\nINFO: Processing {key} (size: {content_length / (1024 * 1024):.1f} MB)"
+            )
 
             # Download and compute SHA256
             print(f"INFO: Downloading {key} to compute SHA256...")
@@ -1419,12 +1425,28 @@ def _compute_and_set_checksums(matching_objects: List[str]) -> None:
             existing_metadata["checksum-sha256"] = sha256
 
             # Copy the object to itself with updated metadata
-            s3_obj.copy_from(
-                CopySource={"Bucket": BUCKET.name, "Key": key},
-                Metadata=existing_metadata,
-                MetadataDirective="REPLACE",
-                ACL="public-read",
-            )
+            if content_length >= MULTIPART_THRESHOLD:
+                # Use multipart copy for files >= 5GB
+                print(
+                    f"INFO: Using multipart copy for large file ({content_length / (1024 * 1024 * 1024):.1f} GB)..."
+                )
+                copy_source = {"Bucket": BUCKET.name, "Key": key}
+                s3_obj.copy(
+                    CopySource=copy_source,
+                    ExtraArgs={
+                        "Metadata": existing_metadata,
+                        "MetadataDirective": "REPLACE",
+                        "ACL": "public-read",
+                    },
+                )
+            else:
+                # Use simple copy for smaller files
+                s3_obj.copy_from(
+                    CopySource={"Bucket": BUCKET.name, "Key": key},
+                    Metadata=existing_metadata,
+                    MetadataDirective="REPLACE",
+                    ACL="public-read",
+                )
             print(f"SUCCESS: Set x-amz-meta-checksum-sha256={sha256} for {key}")
             processed += 1
 
