@@ -401,6 +401,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_nn_functional_conv_transpose2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "173364",
+    "https://github.com/pytorch/pytorch/issues/173364",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_conv_transpose2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
     "173341",
     "https://github.com/pytorch/pytorch/issues/173341",
@@ -474,6 +481,13 @@
   "test_comprehensive_nn_functional_rms_norm_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
     "173345",
     "https://github.com/pytorch/pytorch/issues/173345",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_nn_functional_rms_norm_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "173363",
+    "https://github.com/pytorch/pytorch/issues/173363",
     [
       "xpu"
     ]
