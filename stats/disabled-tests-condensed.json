@@ -436,6 +436,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_nn_functional_max_unpool2d_grad_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
+    "173354",
+    "https://github.com/pytorch/pytorch/issues/173354",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
     "117732",
     "https://github.com/pytorch/pytorch/issues/117732",
@@ -821,13 +828,6 @@
   "test_errors_nn_NLLLoss_xpu_float32 (__main__.TestModuleXPU)": [
     "173350",
     "https://github.com/pytorch/pytorch/issues/173350",
-    [
-      "xpu"
-    ]
-  ],
-  "test_errors_nn_NLLLoss_xpu_float64 (__main__.TestModuleXPU)": [
-    "173335",
-    "https://github.com/pytorch/pytorch/issues/173335",
     [
       "xpu"
     ]
