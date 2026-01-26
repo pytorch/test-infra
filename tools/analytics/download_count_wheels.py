@@ -107,12 +107,12 @@ def output_results(bytes_cache: dict) -> None:
     print("=-=-= OS =-=-=")
     total_os_num = sum(os_results.values())
     for os_type, num in os_results.items():
-        print(f"\t* {os_type}: {num} ({(num/total_os_num)*100:.2f}%)")
+        print(f"\t* {os_type}: {num} ({(num / total_os_num) * 100:.2f}%)")
 
     print("=-=-= ARCH =-=-=")
     total_arch_num = sum(arch_results.values())
     for arch_type, num in arch_results.items():
-        print(f"\t* {arch_type}: {num} ({(num/total_arch_num) * 100:.2f}%)")
+        print(f"\t* {arch_type}: {num} ({(num / total_arch_num) * 100:.2f}%)")
 
     print("=-=-= By Package =-=-=")
     for package_name, upper_val in package_results.items():
@@ -120,7 +120,7 @@ def output_results(bytes_cache: dict) -> None:
         total_package_num = sum(upper_val.values())
         for package_version, num in upper_val.items():
             print(
-                f"\t* {package_version}: {num} ({(num/total_package_num) * 100:.2f}%)"
+                f"\t* {package_version}: {num} ({(num / total_package_num) * 100:.2f}%)"
             )
 
 

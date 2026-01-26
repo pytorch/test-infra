@@ -1,5 +1,8 @@
 import datetime as dt
+import json
 import logging
+import math
+import statistics
 from typing import Any, Counter, Dict, List, Literal, Optional, TypedDict
 
 from common.benchmark_time_series_api_model import (
@@ -72,17 +75,23 @@ class BenchmarkRegressionReport(TypedDict):
     results: List[PerGroupResult]
     baseline_meta_data: TimeSeriesMetaInfo
     new_meta_data: TimeSeriesMetaInfo
+    device_info: List[str]
+    metadata: Optional[Any]
 
 
 def get_regression_status(regression_summary: BenchmarkRegressionSummary) -> str:
-    status = (
-        "regression"
-        if regression_summary.get("regression_count", 0) > 0
-        else "suspicious"
-        if regression_summary.get("suspicious_count", 0) > 0
-        else "no_regression"
-    )
-    return status
+    if regression_summary.get("regression_count", 0) > 0:
+        return "regression"
+    if regression_summary.get("suspicious_count", 0) > 0:
+        return "suspicious"
+    if regression_summary.get("insufficient_data_count", 0) > 0:
+        insufficient_data = regression_summary.get("insufficient_data_count", 0)
+        # default to 1 to avoid dividen issue
+        total = regression_summary.get("total_count", 1)
+        percentage = insufficient_data / total
+        if percentage >= 0.9:
+            return "insufficient_data"
+    return "no_regression"
 
 
 class BenchmarkRegressionReportGenerator:
@@ -97,6 +106,8 @@ class BenchmarkRegressionReportGenerator:
         self.lastest_ts_info = self._get_meta_info(target_ts.time_series)
         self.target_ts = self._to_data_map(target_ts)
         self.baseline_ts = self._to_data_map(baseline_ts)
+        # collect device info from target_ts
+        self.device_info = self._to_device_info(target_ts)
 
     def generate(self) -> BenchmarkRegressionReport:
         if not self.baseline_ts or not self.target_ts:
@@ -142,7 +153,6 @@ class BenchmarkRegressionReportGenerator:
 
             base_item = baseline_map.get(key)
             if not base_item:
-                logger.warning("Skip. No baseline item found for %s", key)
                 results.append(
                     PerGroupResult(
                         group_info=gi,
@@ -200,6 +210,7 @@ class BenchmarkRegressionReportGenerator:
             )
         logger.info("Done. Generated %s regression results", len(results))
         summary = self.summarize_label_counts(results)
+        metadata = self.generate_metadata(results)
 
         logger.info(
             "Found metrics existed in data, but no regression policy detected: %s",
@@ -211,7 +222,44 @@ class BenchmarkRegressionReportGenerator:
             results=results,
             baseline_meta_data=self.baseline_ts_info,
             new_meta_data=self.lastest_ts_info,
+            device_info=self.device_info,
+            metadata=metadata,
         )
+
+    def generate_metadata(
+        self, results: list[PerGroupResult]
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        """
+        Fetch distinct (arch, device) pairs that have label 'regression' or 'suspicious',
+        along with the count of regressions for each device.
+
+        Returns:
+            Dict with 'regression_devices' and 'suspicious_devices' keys,
+            each containing a list of {"arch": ..., "device": ..., "count": ...} dicts.
+        """
+        regression_device_counts: Counter[tuple[str, str]] = Counter()
+        suspicious_device_counts: Counter[tuple[str, str]] = Counter()
+
+        for result in results:
+            label = result.get("label")
+            group_info = result.get("group_info", {})
+            arch = group_info.get("arch", "")
+            device = group_info.get("device", "")
+
+            if label == "regression":
+                regression_device_counts[(arch, device)] += 1
+            elif label == "suspicious":
+                suspicious_device_counts[(arch, device)] += 1
+        return {
+            "regression_devices": [
+                {"arch": arch, "device": device, "count": count}
+                for (arch, device), count in regression_device_counts.items()
+            ],
+            "suspicious_devices": [
+                {"arch": arch, "device": device, "count": count}
+                for (arch, device), count in suspicious_device_counts.items()
+            ],
+        }
 
     def summarize_label_counts(
         self, results: list[PerGroupResult]
@@ -237,6 +285,22 @@ class BenchmarkRegressionReportGenerator:
             return (v if isinstance(v, str) else str(v)).lower()
         return str(x).lower()
 
+    def _to_device_info(self, data: "BenchmarkTimeSeriesApiData") -> List[str]:
+        result = set()
+        for ts_group in data.time_series:
+            device = ts_group.group_info.get("device", "")
+            arch = ts_group.group_info.get("arch", "")
+            key = ""
+            if device and arch:
+                key = f"{device}_{arch}"
+            elif device:
+                key = device
+
+            if not key:
+                continue
+            result.add(key)
+        return list(result)
+
     def _to_data_map(
         self, data: "BenchmarkTimeSeriesApiData", field: str = "value"
     ) -> Dict[tuple, BenchmarkRegressionPointGroup]:
@@ -247,7 +311,19 @@ class BenchmarkRegressionReportGenerator:
             for d in sorted(
                 ts_group.data, key=lambda d: isoparse(d["granularity_bucket"])
             ):
+                # skip if field is not in data, or field is None
                 if field not in d:
+                    logger.warning(
+                        "[_to_data_map] field %s not found or value is undefined", field
+                    )
+                    continue
+                if d[field] is None or math.isnan(float(d[field])):
+                    logger.warning(
+                        "[_to_data_map] Skip %s with value %s with group key [%s]",
+                        field,
+                        d[field],
+                        group_keys,
+                    )
                     continue
 
                 p: BenchmarkRegressionPoint = {
@@ -274,10 +350,13 @@ class BenchmarkRegressionReportGenerator:
         calculate the baseline value based on the mode
         mode: mean, p90, max, min, target, p50, p95
         """
-        items = [d for d in data["values"] if field in d]
+        items = [
+            d
+            for d in data["values"]
+            if field in d and d[field] is not None and not math.isnan(float(d[field]))
+        ]
         if not items:
             return None
-
         if mode == "max":
             baseline_obj = max(items, key=lambda d: float(d[field]))
         elif mode == "min":
@@ -286,10 +365,12 @@ class BenchmarkRegressionReportGenerator:
             baseline_obj = items[-1]
         elif mode == "earliest":
             baseline_obj = items[0]
+        elif mode == "median":
+            median_val = statistics.median([float(d[field]) for d in items])
+            baseline_obj = min(items, key=lambda d: abs(float(d[field]) - median_val))
         else:
             logger.warning("Unknown mode: %s", mode)
             return None
-
         result: BaselineResult = {
             "group_info": data["group_info"],
             "value": float(baseline_obj[field]),
@@ -385,3 +466,15 @@ class BenchmarkRegressionReportGenerator:
             "workflow_id": start_data.get("workflow_id", ""),
         }
         return {"start": start, "end": end}
+
+
+def dict_to_string_map(d: dict) -> dict[str, str]:
+    return {
+        str(k): (
+            v
+            if isinstance(v, str)
+            else json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+        )
+        for k, v in d.items()
+        if v is not None
+    }

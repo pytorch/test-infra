@@ -37,8 +37,8 @@ on:
         default: "false"
         required: false
         type: string
-      use-meta-cdn:
-        description: 'Use meta cdn for installing pip binaries'
+      use-cloudflare-cdn:
+        description: 'Use cloudflare cdn for installing pip binaries'
         default: false
         required: false
         type: boolean
@@ -90,8 +90,8 @@ on:
         default: "false"
         required: false
         type: string
-      use-meta-cdn:
-        description: 'Use meta cdn for installing pip binaries'
+      use-cloudflare-cdn:
+        description: 'Use cloudflare cdn for installing pip binaries'
         default: false
         required: false
         type: boolean
@@ -118,7 +118,7 @@ jobs:
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-meta-cdn: ${{ inputs.use-meta-cdn }}
+      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
 
   linux:
     if:  inputs.os == 'linux' || inputs.os == 'all'
@@ -132,7 +132,7 @@ jobs:
       include-test-ops: ${{ inputs.include-test-ops }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-meta-cdn: ${{ inputs.use-meta-cdn }}
+      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
 
   linux-aarch64:
     if:  inputs.os == 'linux-aarch64' || inputs.os == 'all'
@@ -145,7 +145,7 @@ jobs:
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-meta-cdn: ${{ inputs.use-meta-cdn }}
+      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}
 
   mac-arm64:
     if:  inputs.os == 'macos' || inputs.os == 'all'
@@ -158,4 +158,4 @@ jobs:
       release-matrix: ${{ needs.generate-release-matrix.outputs.matrix }}
       use-only-dl-pytorch-org: ${{ inputs.use-only-dl-pytorch-org }}
       use-extra-index-url: ${{ inputs.use-extra-index-url }}
-      use-meta-cdn: ${{ inputs.use-meta-cdn }}
+      use-cloudflare-cdn: ${{ inputs.use-cloudflare-cdn }}

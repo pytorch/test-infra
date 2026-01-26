@@ -1,10 +1,18 @@
 import { Button, Stack, styled, Tooltip, Typography } from "@mui/material";
-import { isPending, TestInfo } from "components/additionalTestInfo/TestInfo";
+import {
+  isPending,
+  isPendingJob,
+  TestInfo,
+} from "components/additionalTestInfo/TestInfo";
 import styles from "components/commit/commit.module.css";
 import LogViewer, { SearchLogViewer } from "components/common/log/LogViewer";
 import { durationDisplay } from "components/common/TimeUtils";
 import JobArtifact from "components/job/JobArtifact";
 import JobSummary from "components/job/JobSummary";
+import {
+  canShowODCCommand,
+  ODCommandInstructions,
+} from "components/job/ODCCommand";
 import { fetcher } from "lib/GeneralUtils";
 import { getConclusionSeverityForSorting } from "lib/JobClassifierUtil";
 import { getDurationDisplay, isFailedJob } from "lib/jobUtils";
@@ -44,14 +52,12 @@ const JobButton = styled(Button)({
 });
 function WorkflowJobSummary({
   job,
-  utilMetadata,
   artifacts,
   artifactsToShow,
   setArtifactsToShow,
   unstableIssues,
 }: {
   job: JobData;
-  utilMetadata?: UtilizationMetadataInfo[];
   artifacts?: Artifact[];
   artifactsToShow: Set<string>;
   setArtifactsToShow: any;
@@ -97,18 +103,13 @@ function WorkflowJobSummary({
       </JobButton>
     );
   }
-  if (utilMetadata && utilMetadata.length > 0) {
-    if (utilMetadata.length > 1) {
-      console.log(
-        `Multiple util metadata found for job ${job.id}, currently only showing the first one`
-      );
-    }
-    const m = utilMetadata[0];
+  if (job.id && !isPendingJob(job)) {
+    const m = job;
     subInfo.push(
       <>
         <JobButton
           variant="outlined"
-          href={`/utilization/${m.workflow_id}/${m.job_id}/${m.run_attempt}`}
+          href={`/utilization/${m.workflowId}/${m.id}/${m.runAttempt}`}
           data-ga-action="utilization_report_click"
           data-ga-label="nav_button"
           data-ga-category="user_interaction"
@@ -118,6 +119,19 @@ function WorkflowJobSummary({
         </JobButton>
       </>
     );
+  }
+
+  if (canShowODCCommand(job)) {
+    const ODCCommand = ODCommandInstructions({
+      jobId: parseInt(job.id),
+      workflowId: parseInt(job.workflowId),
+      failureLineNum: job.failureLineNumbers[0],
+      headSha: job.sha,
+      jobName: job.name,
+    });
+    if (ODCCommand != null) {
+      subInfo.push(ODCCommand);
+    }
   }
 
   return (
@@ -184,10 +198,6 @@ export default function WorkflowBox({
     : styles.workflowBoxSuccess;
 
   const anchorName = encodeURIComponent(workflowName.toLowerCase());
-
-  const { utilMetadataList } = useUtilMetadata(workflowId?.toString());
-  const groupUtilMetadataList = groupMetadataByJobId(utilMetadataList);
-
   const { artifacts, error } = useArtifacts(jobs.map((job) => job.workflowId));
   const [artifactsToShow, setArtifactsToShow] = useState(new Set<string>());
   const groupedArtifacts = groupArtifacts(jobs, artifacts);
@@ -305,11 +315,6 @@ export default function WorkflowBox({
           <div key={job.id} id={`${job.id}-box`}>
             <WorkflowJobSummary
               job={job}
-              utilMetadata={
-                job.id
-                  ? groupUtilMetadataList.get(job.id.toString())
-                  : undefined
-              }
               artifacts={groupedArtifacts?.get(job.id?.toString())}
               artifactsToShow={artifactsToShow}
               setArtifactsToShow={setArtifactsToShow}

@@ -33,4 +33,4 @@ jobs:
     with:
       channel: nightly
       os: all
-      use-meta-cdn: false
+      use-cloudflare-cdn: true

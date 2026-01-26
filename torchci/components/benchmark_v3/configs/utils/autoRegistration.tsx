@@ -1,7 +1,12 @@
 import {
+  AutoBenchmarkComparisonGithubExternalLink,
   AutoBenchmarkLogs,
+  AutoBenchmarkMarkDownContent,
   AutoBenchmarkPairwiseTable,
   AutoBenchmarkRawDataTable,
+  AutoBenchmarkShortcutCardList,
+  AutoBenchmarkSingleDataTable,
+  AutoBenchmarkSingleViewNavigation,
   AutoBenchmarkTimeSeriesChartGroup,
   AutoBenchmarkTimeSeriesTable,
 } from "components/benchmark_v3/components/dataRender/auto/autoComponents";
@@ -49,14 +54,29 @@ export class AutoComponentRegistry {
       AutoBenchmarkPairwiseTable: {
         Component: AutoBenchmarkPairwiseTable,
       },
+      AutoBenchmarkSingleViewNavigation: {
+        Component: AutoBenchmarkSingleViewNavigation,
+      },
+      AutoBenchmarkComparisonGithubExternalLink: {
+        Component: AutoBenchmarkComparisonGithubExternalLink,
+      },
       AutoBenchmarkTimeSeriesChartGroup: {
         Component: AutoBenchmarkTimeSeriesChartGroup,
       },
       AutoBenchmarkRawDataTable: {
         Component: AutoBenchmarkRawDataTable,
       },
+      AutoBenchmarkSingleDataTable: {
+        Component: AutoBenchmarkSingleDataTable,
+      },
       AutoBenchmarkLogs: {
         Component: AutoBenchmarkLogs,
+      },
+      AutoBenchmarkShortcutCardList: {
+        Component: AutoBenchmarkShortcutCardList,
+      },
+      AutoBenchmarkMarkDownContent: {
+        Component: AutoBenchmarkMarkDownContent,
       },
       // Add your auto components here
     };

@@ -12,6 +12,7 @@ import { useSession } from "next-auth/react";
 import { IssueLabelApiResponse } from "pages/api/issue/[label]";
 import useSWR from "swr";
 import styles from "./JobLinks.module.css";
+import { canShowODCCommand, ODCommandInstructions } from "./ODCCommand";
 import ReproductionCommand from "./ReproductionCommand";
 
 const DEFAULT_REPO = "pytorch/pytorch";
@@ -126,6 +127,19 @@ export default function JobLinks({
     });
     if (reproComamnd != null) {
       subInfo.push(reproComamnd);
+    }
+  }
+
+  if (canShowODCCommand(job)) {
+    const ODCCommand = ODCommandInstructions({
+      jobId: parseInt(job.id),
+      workflowId: parseInt(job.workflowId),
+      failureLineNum: job.failureLineNumbers[0],
+      headSha: job.sha,
+      jobName: job.name,
+    });
+    if (ODCCommand != null) {
+      subInfo.push(ODCCommand);
     }
   }
 

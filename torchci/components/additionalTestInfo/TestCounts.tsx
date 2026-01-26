@@ -19,39 +19,29 @@ function convertInfoToMap(info: any) {
   }
 
   const infoMap = new Map();
-  for (const build of Object.keys(info)) {
-    for (const config of Object.keys(info[build])) {
-      for (const file of Object.keys(info[build][config])) {
-        const key = `${build}-${config}-${file}`;
-        if (!infoMap.has(key)) {
-          infoMap.set(key, {
-            id: key,
-            job: build,
-            config: config,
-            file: file,
-            tests: 0,
-            time: 0,
-          });
-        }
-        infoMap.get(key).tests += info[build][config][file].count || 0;
-        infoMap.get(key).time += info[build][config][file].time || 0;
-      }
-    }
+  for (const row of info) {
+    const key = `${row.job_name}-${row.file}`;
+    infoMap.set(key, {
+      workflow: row.workflow_name,
+      job: row.job_name,
+      file: row.file,
+      successes: row.success,
+      failures: row.failure,
+      skipped: row.skipped,
+      flaky: row.flaky,
+      time: row.time || 0,
+      id: key,
+    });
   }
   return infoMap;
 }
 
-export function TestFileCountsInfo({
+function TestFileCountsInfo({
   headMap,
   baseMap,
-  // This gets reused for the PR file report, but the PR file report has less
-  // info, this parameter is used to control whether we have the large info or
-  // the small info
-  small,
 }: {
   headMap: Map<string, any> | undefined;
   baseMap: Map<string, any> | undefined;
-  small: boolean;
 }) {
   const [visibleRows, setVisibleRows] = useState({});
 
@@ -60,37 +50,27 @@ export function TestFileCountsInfo({
       id: "totals",
       workflow: "Total",
       job: "Total",
-      errors: 0,
       failures: 0,
       skipped: 0,
       successes: 0,
-      tests: 0,
       time: 0,
-      cost: 0,
-      costChange: 0,
       timeChange: 0,
-      errorsChange: 0,
       failuresChange: 0,
       skippedChange: 0,
       successesChange: 0,
-      testsChange: 0,
+      flaky: 0,
+      flakyChange: 0,
     };
     for (const value of headMap?.values() || []) {
-      if (!small) {
-        totals.successesChange += value.successesChange || 0;
-        totals.skippedChange += value.skippedChange || 0;
-        totals.errorsChange += value.errorsChange || 0;
-        totals.failuresChange += value.failuresChange || 0;
-        totals.errors += value.errors || 0;
-        totals.failures += value.failures || 0;
-        totals.skipped += value.skipped || 0;
-        totals.successes += value.successes || 0;
-        totals.costChange += value.costChange || 0;
-        totals.cost += value.cost || 0;
-      }
+      totals.successesChange += value.successesChange || 0;
+      totals.skippedChange += value.skippedChange || 0;
+      totals.failuresChange += value.failuresChange || 0;
+      totals.flakyChange += value.flakyChange || 0;
+      totals.flaky += value.flaky || 0;
+      totals.failures += value.failures || 0;
+      totals.skipped += value.skipped || 0;
+      totals.successes += value.successes || 0;
       totals.timeChange += value.timeChange || 0;
-      totals.testsChange += value.testsChange || 0;
-      totals.tests += value.tests || 0;
       totals.time += value.time || 0;
     }
     return totals;
@@ -105,69 +85,16 @@ export function TestFileCountsInfo({
         headMap.set(key, {
           workflow: value.workflow,
           job: value.job,
-          config: value.config,
           runner: value.runner,
-          runnerCost: value.runnerCost,
           id: key,
         });
       }
       const headValue = headMap.get(key)!;
       headValue.timeChange = (headValue.time || 0) - value.time;
-      headValue.costChange = (headValue.cost || 0) - value.cost;
-      headValue.errorsChange = (headValue.errors || 0) - value.errors;
       headValue.failuresChange = (headValue.failures || 0) - value.failures;
       headValue.skippedChange = (headValue.skipped || 0) - value.skipped;
       headValue.successesChange = (headValue.successes || 0) - value.successes;
-      headValue.testsChange = (headValue.tests || 0) - value.tests;
     }
-    for (const [key, value] of headMap.entries()) {
-      if (!baseMap.has(key)) {
-        value.timeChange = value.time || 0;
-        value.costChange = value.cost || 0;
-        value.errorsChange = value.errors || 0;
-        value.failuresChange = value.failures || 0;
-        value.skippedChange = value.skipped || 0;
-        value.successesChange = value.successes || 0;
-        value.testsChange = value.tests || 0;
-      }
-    }
-  }
-
-  const columns: any[] = [];
-  if (!small) {
-    columns.push({
-      field: "workflow",
-      headerName: "Workflow",
-      flex: 2,
-    });
-  }
-  columns.push(
-    ...[
-      {
-        field: "job",
-        headerName: "Job",
-        flex: 4,
-      },
-      {
-        field: "config",
-        headerName: "Config",
-        flex: 2,
-      },
-    ]
-  );
-  if (small) {
-    columns.push({
-      field: "file",
-      headerName: "file",
-      flex: 2,
-    });
-  }
-  if (!small) {
-    columns.push({
-      field: "runner",
-      headerName: "Runner",
-      flex: 2,
-    });
   }
 
   function renderTimeCell(
@@ -179,109 +106,86 @@ export function TestFileCountsInfo({
     return durationDisplay(parseFloat(params.value));
   }
 
-  columns.push(
-    ...[
-      {
-        field: "tests",
-        headerName: "Tests",
-        type: "number",
-        flex: 2,
-      },
-      {
-        field: "testsChange",
-        headerName: "+/-",
-        type: "number",
-        flex: 1,
-        cellClassName: "change",
-      },
-      {
-        field: "time",
-        headerName: "Time",
-        type: "number",
-        flex: 2,
-        renderCell: renderTimeCell,
-      },
-      {
-        field: "timeChange",
-        headerName: "+/-",
-        type: "number",
-        flex: 1,
-        renderCell: renderTimeCell,
-        cellClassName: "change",
-      },
-    ]
-  );
-  if (!small) {
-    columns.push(
-      ...[
-        {
-          field: "cost",
-          headerName: "Cost ($)",
-          type: "number",
-          flex: 2,
-        },
-        {
-          field: "costChange",
-          headerName: "+/-",
-          type: "number",
-          flex: 1,
-          cellClassName: "change",
-        },
-        {
-          field: "successes",
-          headerName: "Successes",
-          type: "number",
-          flex: 2,
-        },
-        {
-          field: "successesChange",
-          headerName: "+/-",
-          type: "number",
-          flex: 1,
-          cellClassName: "change",
-        },
-        {
-          field: "skipped",
-          headerName: "Skipped",
-          type: "number",
-          flex: 2,
-        },
-        {
-          field: "skippedChange",
-          headerName: "+/-",
-          type: "number",
-          flex: 1,
-          cellClassName: "change",
-        },
-        {
-          field: "errors",
-          headerName: "Errors",
-          type: "number",
-          flex: 2,
-        },
-        {
-          field: "errorsChange",
-          headerName: "+/-",
-          type: "number",
-          flex: 1,
-          cellClassName: "change",
-        },
-        {
-          field: "failures",
-          headerName: "Failures",
-          type: "number",
-          flex: 2,
-        },
-        {
-          field: "failuresChange",
-          headerName: "+/-",
-          type: "number",
-          flex: 1,
-          cellClassName: "change",
-        },
-      ]
-    );
-  }
+  const columns: any[] = [
+    {
+      field: "job",
+      headerName: "Job",
+      flex: 4,
+    },
+    {
+      field: "file",
+      headerName: "file",
+      flex: 2,
+    },
+
+    {
+      field: "time",
+      headerName: "Time",
+      type: "number",
+      flex: 2,
+      renderCell: renderTimeCell,
+    },
+    {
+      field: "timeChange",
+      headerName: "+/-",
+      type: "number",
+      flex: 1,
+      renderCell: renderTimeCell,
+      cellClassName: "change",
+    },
+    {
+      field: "successes",
+      headerName: "Successes",
+      type: "number",
+      flex: 2,
+    },
+    {
+      field: "successesChange",
+      headerName: "+/-",
+      type: "number",
+      flex: 1,
+      cellClassName: "change",
+    },
+    {
+      field: "skipped",
+      headerName: "Skipped",
+      type: "number",
+      flex: 2,
+    },
+    {
+      field: "skippedChange",
+      headerName: "+/-",
+      type: "number",
+      flex: 1,
+      cellClassName: "change",
+    },
+    {
+      field: "flaky",
+      headerName: "Flaky",
+      type: "number",
+      flex: 2,
+    },
+    {
+      field: "flakyChange",
+      headerName: "+/-",
+      type: "number",
+      flex: 1,
+      cellClassName: "change",
+    },
+    {
+      field: "failures",
+      headerName: "Failures",
+      type: "number",
+      flex: 2,
+    },
+    {
+      field: "failuresChange",
+      headerName: "+/-",
+      type: "number",
+      flex: 1,
+      cellClassName: "change",
+    },
+  ];
 
   const styling = {
     // Visual difference for rows that show diffs/changes
@@ -371,11 +275,12 @@ export function TestCountsInfo({
   runAttempt: string;
 }) {
   const shouldShow = jobs.some((job) => job.name!.includes("/ test "));
-  const { data: info, error } = useSWR(
-    shouldShow
-      ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/invoking_file_summary/${workflowId}/${runAttempt}`
-      : null,
-    fetcher
+  const { data: info, error } = useClickHouseAPIImmutable<{ count: number }>(
+    "tests/test_status_counts_on_commits_by_file",
+    {
+      shas: jobs.length > 0 ? [jobs[0].sha] : [],
+      workflowIds: JSON.stringify([parseInt(workflowId)]),
+    }
   );
 
   const [comparisonSha, setComparisonSha] = useState<string>();
@@ -400,12 +305,18 @@ export function TestCountsInfo({
       : null,
     fetcher
   );
-  const { data: comparisonInfo, error: comparisonInfoError } = useSWR(
-    comparisonSha && comparisonId && comparisonId[0]
-      ? `https://ossci-raw-job-status.s3.amazonaws.com/additional_info/invoking_file_summary/${comparisonId[0].id}/${runAttempt}`
-      : null,
-    fetcher
-  );
+
+  const { data: comparisonInfo, error: comparisonInfoError } =
+    useClickHouseAPIImmutable<{ count: number }>(
+      "tests/test_status_counts_on_commits_by_file",
+      {
+        shas: jobs.length > 0 ? [jobs[0].sha] : [],
+        workflowIds: JSON.stringify([
+          comparisonId && parseInt(comparisonId[0].id),
+        ]),
+      },
+      comparisonSha && comparisonId && comparisonId[0]
+    );
 
   if (!shouldShow) {
     return <div>Workflow is still pending or there are no test jobs</div>;
@@ -489,7 +400,6 @@ export function TestCountsInfo({
         <TestFileCountsInfo
           headMap={convertInfoToMap(info)}
           baseMap={convertInfoToMap(comparisonInfo)}
-          small={true}
         />
       </Box>
     </div>

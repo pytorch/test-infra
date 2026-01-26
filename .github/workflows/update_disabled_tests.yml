@@ -31,6 +31,7 @@ jobs:
           # environment, we do not have access to this token so fall back to the
           # GITHUB_TOKEN.
           FLAKY_TEST_BOT_KEY: ${{ secrets.FLAKY_TEST_BOT_KEY }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
         run: |
           python3 -m pip install GitPython==3.1.44
           python3 .github/scripts/update_disabled_issues.py

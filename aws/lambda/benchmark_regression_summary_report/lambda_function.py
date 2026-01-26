@@ -17,8 +17,7 @@ from common.report_manager import ReportManager
 from dateutil.parser import isoparse
 
 
-# TODO(elainewy): change this to benchmark.benchmark_regression_report once the table is created
-BENCHMARK_REGRESSION_REPORT_TABLE = "fortesting.benchmark_regression_report"
+BENCHMARK_REGRESSION_REPORT_TABLE = "benchmark.benchmark_regression_report"
 BENCHMARK_REGRESSION_TRACKING_CONFIG_IDS = ["compiler_regression"]
 
 logging.basicConfig(
@@ -32,6 +31,7 @@ ENVS = {
     "CLICKHOUSE_ENDPOINT": os.getenv("CLICKHOUSE_ENDPOINT", ""),
     "CLICKHOUSE_PASSWORD": os.getenv("CLICKHOUSE_PASSWORD", ""),
     "CLICKHOUSE_USERNAME": os.getenv("CLICKHOUSE_USERNAME", ""),
+    "HUD_INTERNAL_BOT_TOKEN": os.getenv("HUD_INTERNAL_BOT_TOKEN", ""),
 }
 
 
@@ -71,6 +71,7 @@ class BenchmarkSummaryProcessor:
         self,
         config_id: str,
         end_time: int,
+        hud_access_token: str = "",
         is_dry_run: bool = False,
         is_pass_check: bool = False,
     ) -> None:
@@ -78,6 +79,7 @@ class BenchmarkSummaryProcessor:
         self.is_pass_check = is_pass_check
         self.config_id = config_id
         self.end_time = end_time
+        self.hud_access_token = hud_access_token
 
     def log_info(self, msg: str):
         logger.info("[%s][%s] %s", self.end_time, self.config_id, msg)
@@ -136,14 +138,17 @@ class BenchmarkSummaryProcessor:
                 f"with frequency {report_freq.get_text()}..."
             )
 
-        target, ls, le = self.get_target(config, self.end_time)
-        if not target:
+        target, ls, le = self.get_target(config, self.end_time, self.hud_access_token)
+        if not target or not target.time_series:
             self.log_info(
                 f"no target data found for time range [{ls},{le}] with frequency {report_freq.get_text()}..."
             )
             return
-        baseline, bs, be = self.get_baseline(config, self.end_time)
-        if not baseline:
+        baseline, bs, be = self.get_baseline(
+            config, self.end_time, self.hud_access_token
+        )
+
+        if not baseline or not baseline.time_series:
             self.log_info(
                 f"no baseline data found for time range [{bs},{be}] with frequency {report_freq.get_text()}..."
             )
@@ -164,7 +169,7 @@ class BenchmarkSummaryProcessor:
         reportManager.run(cc, ENVS["GITHUB_TOKEN"])
         return
 
-    def get_target(self, config: BenchmarkConfig, end_time: int):
+    def get_target(self, config: BenchmarkConfig, end_time: int, hud_access_token: str):
         data_range = config.policy.range
         target_s = end_time - data_range.comparison_timedelta_s()
         target_e = end_time
@@ -177,10 +182,16 @@ class BenchmarkSummaryProcessor:
             start_time=target_s,
             end_time=target_e,
             source=config.source,
+            access_token=hud_access_token,
         )
         self.log_info(
             f"done. found {len(target_data.time_series)} # of data groups, with time range {target_data.time_range}",
         )
+
+        if len(target_data.time_series) > 0:
+            self.log_info(
+                f"peeking the first data: {target_data.time_series[0]}",
+            )
         if not target_data.time_range or not target_data.time_range.end:
             return None, target_s, target_e
 
@@ -189,7 +200,9 @@ class BenchmarkSummaryProcessor:
             return None, target_s, target_e
         return target_data, target_s, target_e
 
-    def get_baseline(self, config: BenchmarkConfig, end_time: int):
+    def get_baseline(
+        self, config: BenchmarkConfig, end_time: int, hud_access_token: str
+    ):
         data_range = config.policy.range
         baseline_s = end_time - data_range.total_timedelta_s()
         baseline_e = end_time - data_range.comparison_timedelta_s()
@@ -203,11 +216,17 @@ class BenchmarkSummaryProcessor:
             start_time=baseline_s,
             end_time=baseline_e,
             source=config.source,
+            access_token=hud_access_token,
         )
 
         self.log_info(
             f"Done. found {len(raw_data.time_series)} # of data, with time range {raw_data.time_range}",
         )
+
+        if len(raw_data.time_series) > 0:
+            self.log_info(
+                f"peeking the first data: {raw_data.time_series[0]}",
+            )
 
         baseline_latest_ts = int(isoparse(raw_data.time_range.end).timestamp())
 
@@ -244,6 +263,7 @@ class BenchmarkSummaryProcessor:
         config_id: str,
         end_time: int,
         start_time: int,
+        access_token: str,
         source: BenchmarkApiSource,
     ):
         str_end_time = format_ts_with_t(end_time)
@@ -255,12 +275,12 @@ class BenchmarkSummaryProcessor:
             }
         )
         url = source.api_query_url
-
+        self.log_info(f"query peek: {query}")
         self.log_info(f"trying to call {url}")
         t0 = time.perf_counter()
         try:
             resp: BenchmarkTimeSeriesApiResponse = (
-                BenchmarkTimeSeriesApiResponse.from_request(url, query)
+                BenchmarkTimeSeriesApiResponse.from_request(url, query, access_token)
             )
 
             elapsed_ms = (time.perf_counter() - t0) * 1000.0
@@ -352,6 +372,7 @@ class BenchmarkSummaryProcessor:
 def main(
     config_id: str,
     github_access_token: str = "",
+    hud_access_token: str = "",
     args: Optional[argparse.Namespace] = None,
     *,
     is_dry_run: bool = False,
@@ -371,6 +392,12 @@ def main(
         minute=0, second=0, microsecond=0
     )
     end_time_ts = int(end_time.timestamp())
+
+    # override end_time if args is provided
+    if args and args.end_time:
+        end_time = isoparse(args.end_time)
+        end_time = truncate_to_hour(end_time)
+        end_time_ts = int(end_time.timestamp())
     logger.info(
         "[Main] current time with hour granularity(utc) %s with unix timestamp %s",
         end_time,
@@ -385,6 +412,7 @@ def main(
             end_time=end_time_ts,
             is_dry_run=is_dry_run,
             is_pass_check=is_forced,
+            hud_access_token=hud_access_token,
         )
         processor.process(args=args)
     except Exception as e:
@@ -404,6 +432,7 @@ def lambda_handler(event: Any, context: Any) -> None:
     main(
         config_id=config_id,
         github_access_token=ENVS["GITHUB_TOKEN"],
+        hud_access_token=ENVS["HUD_INTERNAL_BOT_TOKEN"],
     )
     return
 
@@ -461,6 +490,17 @@ def parse_args() -> argparse.Namespace:
         default=ENVS["GITHUB_TOKEN"],
         help="the github access token to access github api",
     )
+    parser.add_argument(
+        "--end-time",
+        type=str,
+        help="the end time to run, in format of YYYY-MM-DD HH:MM:SS",
+    )
+    parser.add_argument(
+        "--hud-internal-bot-token",
+        type=str,
+        default=ENVS["HUD_INTERNAL_BOT_TOKEN"],
+        help="the hud internal bot token to access hud api",
+    )
     parser.set_defaults(dry_run=True)  # default is True
     args, _ = parser.parse_known_args()
     return args
@@ -475,6 +515,7 @@ def local_run() -> None:
     # update environment variables for input parameters
     main(
         config_id=args.config_id,
+        hud_access_token=args.hud_internal_bot_token,
         github_access_token=args.github_access_token,
         args=args,
         is_dry_run=args.dry_run,

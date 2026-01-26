@@ -32,8 +32,8 @@ on:
         default: "false"
         required: false
         type: string
-      use-meta-cdn:
-        description: 'Use meta cdn for installing pip binaries'
+      use-cloudflare-cdn:
+        description: 'Use cloudflare cdn for installing pip binaries'
         default: false
         required: false
         type: boolean
@@ -73,8 +73,8 @@ on:
         default: "false"
         required: false
         type: string
-      use-meta-cdn:
-        description: 'Use meta cdn for installing pip binaries'
+      use-cloudflare-cdn:
+        description: 'Use cloudflare cdn for installing pip binaries'
         default: false
         required: false
         type: boolean
@@ -119,7 +119,7 @@ jobs:
         export RELEASE_VERSION=${{ inputs.version }}
         export USE_FORCE_REINSTALL="true"
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
-        export USE_META_CDN=${{ inputs.use-meta-cdn }}
+        export USE_CLOUDFLARE_CDN=${{ inputs.use-cloudflare-cdn }}
         export USE_VERSION_SET=${{ inputs.use-version-set }}
 
         if [[ ${{ matrix.package_type }} == "conda" ]]; then

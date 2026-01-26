@@ -100,6 +100,7 @@ export function getComparisionTableConlumnRendering(
       const L = valOf(ldata);
       const R = valOf(rdata);
 
+      // get target field name, for instance, metric
       const targetField = getBenchmarkTimeSeriesComparisonTableTarget();
       const findFieldValueFromColData =
         ldata?.[targetField] ?? rdata?.[targetField];
@@ -121,7 +122,6 @@ export function getComparisionTableConlumnRendering(
       };
     },
     valueFormatter: (value: any, row: any) => {
-      // this export as value in the export csv file
       return value?.text ?? "";
     },
     renderCell: (params: GridRenderCellParams<any, GridRowModel>) => (
@@ -157,6 +157,7 @@ export function getComparisionTableConlumnRendering(
 const VIOLATE_RULE_COLOR = "#ffebee"; // red[50]
 const IMPROVEMENT_COLOR = "#e8f5e9"; // green[50]
 const WARNING_COLOR = "#fff9c4"; // yellow[50]
+const MISSING_DATA_COLOR = "#F5F5F5"; // ~ MUI grey[300]
 
 export function ComparisonTablePrimaryFieldValueCell({
   params,
@@ -212,7 +213,7 @@ export function ComparisonTableColumnFieldValueCell({
 }) {
   // pick background color based on result signals
   let bgColor = "";
-  switch (result.verdict) {
+  switch (result?.verdict) {
     case "good":
       bgColor = IMPROVEMENT_COLOR;
       break;
@@ -221,6 +222,9 @@ export function ComparisonTableColumnFieldValueCell({
       break;
     case "warning":
       bgColor = WARNING_COLOR;
+      break;
+    case "missing":
+      bgColor = MISSING_DATA_COLOR;
       break;
     case "neutral":
     default:
@@ -243,7 +247,8 @@ export function ComparisonTableColumnFieldValueCell({
   );
 }
 
-function renderComparisonResult(result: ComparisonResult) {
+function renderComparisonResult(result?: ComparisonResult) {
+  if (!result) return "";
   return (
     <Box sx={{ p: 1 }}>
       {Object.entries(result).map(([key, value]) => (
@@ -262,7 +267,10 @@ export function getFieldRender(
   config?: ComparisonTableConfig,
   ldisplay?: string,
   rdisplay?: string,
-  missingText: string = "missing data"
+  lfailed?: boolean,
+  rfailed?: boolean,
+  missingText: string = "missing data",
+  bothMissingText: string = ""
 ) {
   if (ldisplay || rdisplay) {
     return `${ldisplay ?? missingText}→${rdisplay ?? missingText}`;
@@ -271,13 +279,26 @@ export function getFieldRender(
     targetField,
     config
   );
-  return formatTransitionWithUnit(L, R, rc?.unit, missingText);
+
+  return formatTransitionWithUnit(
+    L,
+    R,
+    lfailed,
+    rfailed,
+    rc?.unit,
+    missingText,
+    bothMissingText
+  );
 }
 export function formatTransitionWithUnit(
   L: any,
   R: any,
+  lfailed?: boolean,
+  rfailed?: boolean,
   table_unit?: BenchmarkUnitConfig,
-  missingText: string = "missing data"
+  missingText: string = "missing data",
+  bothMissingText?: string,
+  failureText: string = "Failure"
 ): string {
   const formatValue = (v: any) => {
     if (v == null || v == undefined) return missingText;
@@ -290,8 +311,19 @@ export function formatTransitionWithUnit(
     return String(v);
   };
 
+  if (lfailed && rfailed) {
+    return failureText;
+  }
+
+  if (lfailed) {
+    return `${failureText}→${formatValue(R)}`;
+  }
+  if (rfailed) {
+    return `${formatValue(L)}→${failureText}`;
+  }
+
   if (L == null && R == null) {
-    return missingText;
+    return bothMissingText ?? missingText;
   }
 
   if (L == null) {
@@ -327,7 +359,49 @@ export function getComparisonResult(
 
   const ldisplay = displayNameOf(ldata);
   const rdisplay = displayNameOf(rdata);
-  const text = getFieldRender(targetVal, L, R, config, ldisplay, rdisplay);
+
+  const missingText =
+    config?.renderOptions?.missingText == undefined
+      ? "missing data"
+      : config?.renderOptions?.missingText;
+  const bothMissingText =
+    config?.renderOptions?.bothMissingText == undefined
+      ? missingText
+      : config?.renderOptions?.bothMissingText;
+
+  // if either side missing, mark as missing
+  if (config?.renderOptions?.renderMissing) {
+    if (ldata == null && rdata == null) {
+      result.verdict = "missing";
+      result.reason = "both missing";
+    } else if (ldata == null) {
+      result.verdict = "missing";
+      result.reason = "left missing";
+    } else if (rdata == null) {
+      result.verdict = "missing";
+      result.reason = "right missing";
+    }
+  }
+
+  // if either side failed, mark as failure, failure is higher priority than missing
+  if (ldata?.is_failure || rdata?.is_failure) {
+    result.verdict = "warning";
+    result.reason = "detect failure";
+  }
+
+  const text = getFieldRender(
+    targetVal,
+    L,
+    R,
+    config,
+    ldisplay,
+    rdisplay,
+    ldata?.is_failure,
+    rdata?.is_failure,
+    missingText,
+    bothMissingText
+  );
+
   return {
     result,
     text,

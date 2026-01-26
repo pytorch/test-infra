@@ -41,10 +41,12 @@ class SignalExtractor:
         workflows: Iterable[str],
         lookback_hours: int = 24,
         repo_full_name: str = "pytorch/pytorch",
+        as_of: Optional[datetime] = None,
     ) -> None:
         self.workflows = list(workflows)
         self.lookback_hours = lookback_hours
         self.repo_full_name = repo_full_name
+        self.as_of = as_of
         # Datasource for DB access
         self._datasource = SignalExtractionDatasource()
 
@@ -69,6 +71,7 @@ class SignalExtractor:
         commits = self._datasource.fetch_commits_in_time_range(
             repo_full_name=self.repo_full_name,
             lookback_hours=self.lookback_hours,
+            as_of=self.as_of,
         )
 
         # Fetch jobs for these commits
@@ -77,12 +80,15 @@ class SignalExtractor:
             workflows=self.workflows,
             lookback_hours=self.lookback_hours,
             head_shas=[sha for sha, _ in commits],
+            as_of=self.as_of,
         )
 
         # Select jobs to participate in test-track details fetch
         test_track_job_ids, failed_job_ids = self._select_test_track_job_ids(jobs)
         test_rows = self._datasource.fetch_tests_for_job_ids(
-            test_track_job_ids, failed_job_ids=failed_job_ids
+            test_track_job_ids,
+            failed_job_ids=failed_job_ids,
+            lookback_hours=self.lookback_hours,
         )
 
         test_signals = self._build_test_signals(jobs, test_rows, commits)
@@ -127,6 +133,7 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    test_module=s.test_module,
                     source=s.source,
                 )
             )
@@ -212,13 +219,14 @@ class SignalExtractor:
                     workflow_name=s.workflow_name,
                     commits=new_commits,
                     job_base_name=s.job_base_name,
+                    test_module=s.test_module,
                     source=s.source,
                 )
             )
         return out
 
     # -----------------------------
-    # Phase B — Tests (test_run_s3 only)
+    # Phase B — Tests (tests.all_test_runs only)
     # -----------------------------
     def _select_test_track_job_ids(
         self, jobs: List[JobRow]
@@ -259,11 +267,11 @@ class SignalExtractor:
     ) -> List[Signal]:
         """Build per-test Signals across commits, scoped to job base.
 
-        We index `default.test_run_s3` rows per (wf_run_id, run_attempt, job_base) and collect
+        We index `tests.all_test_runs` rows per (wf_run_id, run_attempt, job_base) and collect
         which base(s) (by normalized job name) a test appears in. For each commit and (workflow, base),
         we compute attempt metadata (pending/completed, start time). Then, for tests that failed at least once in
         that base, we emit events per commit/attempt:
-          - If test_run_s3 rows exist → emit at most one FAILURE event if any failed runs exist,
+          - If tests.all_test_runs rows exist → emit at most one FAILURE event if any failed runs exist,
             and at most one SUCCESS event if any successful runs exist (both may be present).
           - Else if group pending → PENDING
           - Else → no event (missing)
@@ -295,7 +303,7 @@ class SignalExtractor:
             value_fn=lambda j: (j.wf_run_id, j.run_attempt),
         )
 
-        # Index test_run_s3 rows per (commit, job_base, wf_run, attempt, test_id)
+        # Index tests.all_test_runs rows per (commit, job_base, wf_run, attempt, test_id)
         # Store aggregated failure/success counts
         tests_by_group_attempt: Dict[
             Tuple[Sha, WorkflowName, JobBaseName, WfRunId, RunAttempt, TestId],
@@ -321,7 +329,17 @@ class SignalExtractor:
                 started_at=job.started_at,
                 job_id=int(tr.job_id),
             )
+            # Combine outcomes across shards/partitions for the same group key.
+            # Outcome with failures takes precedence.
+            # This is to support a rare case where a test appears in multiple shards
+            # usually it indicates that our base_name normalization is not perfect.
+            existing = tests_by_group_attempt.get(key)
+            if existing is not None and existing.failure_runs > 0:
+                outcome = existing
+
             tests_by_group_attempt[key] = outcome
+
+            # Track keys that have at least one failure across any shard
             if outcome.failure_runs > 0:
                 failing_tests_by_job_base_name.add(
                     (job.workflow_name, job_base_name, tr.test_id)
@@ -418,12 +436,17 @@ class SignalExtractor:
                 )
 
             if has_any_events:
+                # Extract test module from test_id (format: "file.py::test_name")
+                # Result: "file" or "path/to/file" without .py extension
+                test_module = test_id.split("::")[0].replace(".py", "")
+
                 signals.append(
                     Signal(
                         key=test_id,
                         workflow_name=wf_name,
                         commits=commit_objs,
                         job_base_name=str(job_base_name),
+                        test_module=test_module,
                         source=SignalSource.TEST,
                     )
                 )

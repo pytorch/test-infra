@@ -8,7 +8,8 @@ merge_started AS (
         MIN(created_at) AS first_merge_attempt
     FROM default.issue_comment
     WHERE
-        dynamoKey LIKE 'pytorch/pytorch%'
+        -- Use trailing slash to avoid matching pytorch/pytorch-integration-testing
+        dynamoKey LIKE 'pytorch/pytorch/%'
         AND user.login = 'pytorchmergebot'
         AND body LIKE '%Merge started%'
         AND created_at >= {startTime: DateTime64(3)}
@@ -23,7 +24,8 @@ merged_prs AS (
         parseDateTimeBestEffort(closed_at) AS merge_time
     FROM default.pull_request
     WHERE
-        dynamoKey LIKE 'pytorch/pytorch%'
+        -- Use trailing slash to avoid matching pytorch/pytorch-integration-testing
+        dynamoKey LIKE 'pytorch/pytorch/%'
         AND state = 'closed'
         AND arrayExists(x -> x.'name' = 'Merged', labels)
         AND closed_at != ''

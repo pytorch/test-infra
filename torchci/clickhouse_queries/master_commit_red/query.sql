@@ -1,5 +1,7 @@
 --- This query is used to show the histogram of trunk red commits on HUD metrics page
---- during a period of time
+--- during a period of time, separating real failures from flaky ones.
+--- Jobs are grouped by base_name (stripping shard numbers) to handle flaky tests
+--- that move between shards.
 -- Split up the query into multiple CTEs to make it faster.
 WITH commits AS (
     SELECT
@@ -31,8 +33,6 @@ all_runs AS (
             'Lint',
             'pull',
             'trunk',
-            'linux-binary-libtorch-release',
-            'linux-binary-manywheel',
             'linux-aarch64'
         )
         AND workflow_run.event != 'workflow_run' -- Filter out workflow_run-triggered jobs, which have nothing to do with the SHA
@@ -45,14 +45,20 @@ all_runs AS (
 all_jobs AS (
     SELECT
         all_runs.time AS time,
-        CASE
-            WHEN job.conclusion = 'failure' THEN 'red'
-            WHEN job.conclusion = 'timed_out' THEN 'red'
-            WHEN job.conclusion = 'cancelled' THEN 'red'
-            WHEN job.conclusion = '' THEN 'pending'
-            ELSE 'green'
-        END AS conclusion,
-        all_runs.sha AS sha
+        all_runs.sha AS sha,
+        job.run_attempt AS run_attempt,
+        job.conclusion AS raw_conclusion,
+        job.run_id AS run_id,
+        -- Normalize job name to group shards together (same as auto-revert logic)
+        trim(
+            replaceRegexpAll(
+                replaceRegexpAll(
+                    replaceRegexpAll(job.name, '\\s*\\(.*\\)$', ''),
+                    ', \\d+, \\d+, ', ', '
+                ),
+                '\\s+', ' '
+            )
+        ) AS base_name
     FROM
         default.workflow_job job FINAL
     JOIN all_runs all_runs ON all_runs.id = workflow_job.run_id
@@ -67,17 +73,57 @@ all_jobs AS (
         )
 ),
 
+-- Step 1: For each (sha, base_name, run_attempt), determine if this attempt
+-- has any failures or is all green across all shards
+attempt_status AS (
+    SELECT
+        time,
+        sha,
+        base_name,
+        run_attempt,
+        run_id,
+        -- Does this attempt have ANY shard with failure?
+        MAX(raw_conclusion IN ('failure', 'timed_out', 'cancelled'))
+            AS attempt_has_failure,
+        -- Does this attempt have any pending jobs?
+        MAX(raw_conclusion = '') AS attempt_has_pending
+    FROM all_jobs
+    GROUP BY time, sha, base_name, run_attempt, run_id
+),
+
+-- Step 2: For each (sha, base_name), aggregate across all run_attempts
+-- to determine: red (all attempts failed), flaky (some failed, some green), green (all green)
+job_group_status AS (
+    SELECT
+        time,
+        sha,
+        base_name,
+        -- Any attempt still pending?
+        MAX(attempt_has_pending) AS has_pending,
+        -- Did ALL attempts have at least one failure? (MIN=1 means all had failure)
+        MIN(attempt_has_failure) AS all_attempts_failed,
+        -- Did ANY attempt have a failure?
+        MAX(attempt_has_failure) AS any_attempt_failed
+    FROM attempt_status
+    GROUP BY time, sha, base_name
+),
+
 commit_overall_conclusion AS (
     SELECT
         time,
         sha,
         CASE
-            WHEN countIf(conclusion = 'red') > 0 THEN 'red'
-            WHEN countIf(conclusion = 'pending') > 0 THEN 'pending'
+            -- Any job group pending = pending
+            WHEN SUM(has_pending) > 0 THEN 'pending'
+            -- Any job group where ALL attempts failed = red (never recovered)
+            WHEN SUM(all_attempts_failed) > 0 THEN 'red'
+            -- Any job group where SOME attempts failed but not all = flaky (recovered)
+            WHEN SUM(any_attempt_failed) > 0 THEN 'flaky'
+            -- Everything passed on all attempts
             ELSE 'green'
         END AS overall_conclusion
     FROM
-        all_jobs
+        job_group_status
     GROUP BY
         time,
         sha
@@ -89,12 +135,29 @@ commit_overall_conclusion AS (
 
 SELECT
     toDate(
-        date_trunc('hour', time),
+        date_trunc({granularity: String}, time),
         {timezone: String}
     ) AS granularity_bucket,
-    countIf(overall_conclusion = 'red') AS red,
-    countIf(overall_conclusion = 'pending') AS pending,
-    countIf(overall_conclusion = 'green') AS green,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'red') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'red'))
+    ) AS red,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'flaky') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'flaky'))
+    ) AS flaky,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'pending') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'pending'))
+    ) AS pending,
+    if(
+        {usePercentage: Bool},
+        countIf(overall_conclusion = 'green') * 100.0 / COUNT(*),
+        toFloat64(countIf(overall_conclusion = 'green'))
+    ) AS green,
     COUNT(*) AS total
 FROM
     commit_overall_conclusion

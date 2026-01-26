@@ -17,7 +17,7 @@ export function ToggleSection({
   defaultOpen = true,
 }: {
   id: string;
-  title: string;
+  title?: string;
   children: React.ReactNode;
   defaultOpen?: boolean;
 }) {
@@ -54,9 +54,8 @@ export function ToggleSection({
           />
         }
       >
-        <Typography variant="h6">{title}</Typography>
+        {title && <Typography variant="h6">{title}</Typography>}
       </Button>
-
       <Collapse in={open} timeout="auto">
         <Box sx={{ mt: 1 }}>{children}</Box>
       </Collapse>
@@ -64,7 +63,6 @@ export function ToggleSection({
     </Box>
   );
 }
-
 // A method to able to open the toggle section from the dom managment
 export function openToggleSectionById(sectionId: string) {
   window.dispatchEvent(

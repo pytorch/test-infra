@@ -25,7 +25,11 @@ class SignalExtractionDatasource:
     """
 
     def fetch_commits_in_time_range(
-        self, *, repo_full_name: str, lookback_hours: int
+        self,
+        *,
+        repo_full_name: str,
+        lookback_hours: int,
+        as_of: Optional[datetime] = None,
     ) -> List[tuple[Sha, datetime]]:
         """
         Fetch all commits pushed to main within the lookback window.
@@ -35,34 +39,51 @@ class SignalExtractionDatasource:
         which can contain multiple commits in a single push event.
         For commits with identical timestamps (from the same ghstack push),
         orders by array index descending to match HUD/torchci ordering.
-        """
-        lookback_time = datetime.now() - timedelta(hours=lookback_hours)
 
-        query = """
+        Args:
+            as_of: If set, use this as the reference time instead of now.
+        """
+        reference_time = as_of if as_of else datetime.now()
+        lookback_time = reference_time - timedelta(hours=lookback_hours)
+
+        # Add upper bound filter only when as_of is specified
+        upper_bound_clause = ""
+        if as_of:
+            upper_bound_clause = "AND head_commit.timestamp <= {as_of:DateTime}"
+
+        query = f"""
         SELECT
             commit.id AS sha,
             max(commit.timestamp) AS ts,
             arrayMax(groupArray(arrayFirstIndex(c -> c.'id' = commit.id, commits))) as array_index
         FROM default.push
         ARRAY JOIN commits as commit, commits as c
-        WHERE head_commit.timestamp >= {lookback_time:DateTime}
+        WHERE head_commit.timestamp >= {{lookback_time:DateTime}}
+          {upper_bound_clause}
           AND ref = 'refs/heads/main'
-          AND dynamoKey like {repo:String}
+          AND dynamoKey like {{repo:String}}
         GROUP BY sha
         ORDER BY ts DESC, array_index DESC
         """
 
-        params = {
+        params: Dict[str, Any] = {
             "lookback_time": lookback_time,
-            "repo": f"{repo_full_name}%",
+            # Use double slash to match push table's dynamoKey format: {repo}//{uuid}
+            # This prevents matching repos with similar prefixes (e.g., pytorch/pytorch-integration-testing)
+            "repo": f"{repo_full_name}//%",
         }
+        if as_of:
+            params["as_of"] = as_of
 
         log = logging.getLogger(__name__)
         log.info(
-            "[extract] Fetching commits in time range: repo=%s lookback=%sh",
+            "[extract] Fetching commits in time range: repo=%s lookback=%sh as_of=%s",
             repo_full_name,
             lookback_hours,
+            as_of.isoformat() if as_of else "none",
         )
+        log.debug("[extract] Query params: %s", params)
+        log.debug("[extract] Query: %s", query)
         t0 = time.perf_counter()
         for attempt in RetryWithBackoff():
             with attempt:
@@ -79,13 +100,23 @@ class SignalExtractionDatasource:
         workflows: Iterable[str],
         lookback_hours: int,
         head_shas: List[Sha],
+        as_of: Optional[datetime] = None,
     ) -> List[JobRow]:
         """
         Fetch workflow job rows for the given head_shas and workflows.
 
         Returns rows ordered by head_sha (following the order of head_shas), then by started_at ASC.
+
+        Args:
+            as_of: If set, use this as the reference time instead of now.
         """
-        lookback_time = datetime.now() - timedelta(hours=lookback_hours)
+        reference_time = as_of if as_of else datetime.now()
+        lookback_time = reference_time - timedelta(hours=lookback_hours)
+
+        # Add upper bound filter only when as_of is specified
+        upper_bound_clause = ""
+        if as_of:
+            upper_bound_clause = "AND wf.created_at <= {as_of:DateTime}"
 
         workflow_filter = ""
         params: Dict[str, Any] = {
@@ -93,6 +124,8 @@ class SignalExtractionDatasource:
             "repo": repo_full_name,
             "head_shas": [str(s) for s in head_shas],
         }
+        if as_of:
+            params["as_of"] = as_of
         workflow_list = list(workflows)
         if workflow_list:
             workflow_filter = "AND wf.workflow_name IN {workflows:Array(String)}"
@@ -126,6 +159,7 @@ class SignalExtractionDatasource:
         WHERE wf.repository_full_name = {{repo:String}}
           AND wf.head_sha IN {{head_shas:Array(String)}}
           AND wf.created_at >= {{lookback_time:DateTime}}
+          {upper_bound_clause}
           AND (
                 wf.name NOT LIKE '%mem_leak_check%'
                 AND wf.name NOT LIKE '%rerun_disabled_tests%'
@@ -189,12 +223,15 @@ class SignalExtractionDatasource:
         job_ids: List[JobId],
         *,
         failed_job_ids: List[JobId],
+        lookback_hours: int,
     ) -> List[TestRow]:
-        """Batch fetch test verdict rows from default.test_run_s3 for given job ids.
+        """Batch fetch test verdict rows from tests.all_test_runs for given job ids.
 
         If failed_job_ids is provided, first compute the set of failed test identifiers
         (file+classname+name) from those jobs, and only fetch tests for job_ids that
         match that set. This reduces the result size significantly.
+        Additionally, constrain by the table's partition (toDate(time_inserted))
+        using NOW() and the lookback window with a 1-day margin to avoid timezone issues.
         """
         log = logging.getLogger(__name__)
         if not job_ids:
@@ -224,25 +261,31 @@ class SignalExtractionDatasource:
             )
             # One query with a CTE that enumerates failed test ids from failed_job_ids,
             # then filters the main selection by those ids for the current chunk.
-            # Note: success_runs explicitly excludes skipped rows via skipped_count = 0.
+            # Partition pruning: restrict toDate(time_inserted) to the lookback window
+            # with a 1 day margin using NOW() to avoid timezone handling.
             query = """
                 WITH failed_test_names AS (
                     SELECT DISTINCT concat(file, '|', classname, '|', name) AS test_id
-                    FROM default.test_run_s3
+                    FROM tests.all_test_runs
                     WHERE job_id IN {failed_job_ids:Array(Int64)}
                       AND (failure_count > 0 OR error_count > 0)
+                      AND toDate(time_inserted) >=
+                          toDate(NOW() - toIntervalHour({lookback_hours:Int32}) - toIntervalDay(1))
                 )
                 SELECT job_id, workflow_id, workflow_run_attempt, file, classname, name,
                        countIf(failure_count > 0 OR error_count > 0) AS failure_runs,
                        countIf(failure_count = 0 AND error_count = 0 AND skipped_count = 0) AS success_runs
-                FROM default.test_run_s3
+                FROM tests.all_test_runs
                 WHERE job_id IN {job_ids:Array(Int64)}
                   AND concat(file, '|', classname, '|', name) IN failed_test_names
+                  AND toDate(time_inserted) >=
+                      toDate(NOW() - toIntervalHour({lookback_hours:Int32}) - toIntervalDay(1))
                 GROUP BY job_id, workflow_id, workflow_run_attempt, file, classname, name
             """
             params = {
                 "job_ids": [int(j) for j in chunk],
                 "failed_job_ids": [int(j) for j in failed_job_ids],
+                "lookback_hours": int(lookback_hours),
             }
 
             for attempt in RetryWithBackoff():
@@ -271,7 +314,11 @@ class SignalExtractionDatasource:
         return rows
 
     def fetch_autorevert_state_rows(
-        self, *, ts: str, repo_full_name: Optional[str] = None
+        self,
+        *,
+        ts: str,
+        repo_full_name: Optional[str] = None,
+        workflow: Optional[str] = None,
     ) -> List[Dict[str, Any]]:
         """Fetch run state rows from misc.autorevert_state for a given timestamp."""
 
@@ -283,6 +330,9 @@ class SignalExtractionDatasource:
         if repo_full_name:
             query += " AND repo = {repo:String}"
             params["repo"] = repo_full_name
+        if workflow:
+            query += " AND has(workflows, {workflow:String})"
+            params["workflow"] = workflow
 
         for attempt in RetryWithBackoff():
             with attempt:
@@ -299,7 +349,7 @@ class SignalExtractionDatasource:
                 return rows
 
     def fetch_latest_non_dry_run_timestamp(
-        self, *, repo_full_name: Optional[str] = None
+        self, *, repo_full_name: Optional[str] = None, workflow: Optional[str] = None
     ) -> Optional[str]:
         """Return the most recent non-dry-run autorevert_state timestamp."""
 
@@ -308,6 +358,9 @@ class SignalExtractionDatasource:
         if repo_full_name:
             query += " AND repo = {repo:String}"
             params["repo"] = repo_full_name
+        if workflow:
+            query += " AND has(workflows, {workflow:String})"
+            params["workflow"] = workflow
         query += " ORDER BY ts DESC LIMIT 1"
 
         for attempt in RetryWithBackoff():

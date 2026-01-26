@@ -235,3 +235,93 @@ export class PytorchOperatorMicrobenchmarkMetadataFetcher
     return this._data_query.toQueryParams(params);
   }
 }
+
+export class TorchAoMicrobApienchmarkMetadataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkMetadataFetcher
+{
+  private _data_query: BenchmarkMetadataQuery;
+
+  constructor() {
+    super();
+    this._data_query = new BenchmarkMetadataQuery();
+  }
+
+  postProcess(data: any[]) {
+    let li = getDefaultBenchmarkMetadataGroup(data);
+    li = li.filter((item) => item.type !== BenchmarkMetadataType.DtypeName);
+    const customizedDtype = makeMetadataItem(
+      data,
+      "dtype",
+      BenchmarkMetadataType.DtypeName,
+      { displayName: "All Quant type", value: "" },
+      "Quant Type"
+    );
+    if (customizedDtype) {
+      const modelNameIndex = li.findIndex(
+        (item) => item.type === BenchmarkMetadataType.ModelName
+      );
+      if (modelNameIndex !== -1) {
+        li.splice(modelNameIndex, 0, customizedDtype);
+      } else {
+        li.push(customizedDtype); // fallback if modelName not found
+      }
+    }
+    return li;
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+
+  toQueryParams(inputs: any) {
+    return this._data_query.toQueryParams(inputs);
+  }
+}
+
+export class VllmBenchmarkMetadataFetcher
+  extends ExecutableQueryBase
+  implements BenchmarkMetadataFetcher
+{
+  private _data_query: BenchmarkMetadataQuery;
+
+  constructor() {
+    super();
+    this._data_query = new BenchmarkMetadataQuery();
+  }
+
+  postProcess(data: any[]) {
+    let li = getDefaultBenchmarkMetadataGroup(data);
+    const item = makeMetadataItem(
+      data,
+      "model_category",
+      BenchmarkMetadataType.ModelCategory,
+      { displayName: "All families", value: "" },
+      "Model Category",
+      "",
+      (r) => {
+        const splitted = r.model.split("/");
+        let value = undefined;
+        if (splitted.length > 1) {
+          value = splitted[0];
+        }
+        return {
+          value: value,
+          displayName: value,
+        };
+      }
+    );
+    if (item) {
+      li.push(item);
+    }
+    return li;
+  }
+
+  build() {
+    return this._data_query.build();
+  }
+
+  toQueryParams(inputs: any) {
+    return this._data_query.toQueryParams(inputs);
+  }
+}

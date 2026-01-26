@@ -58,4 +58,27 @@ aws_promote() {
     )
     # ^ We grep for package_name-.*pytorch_version to avoid any situations where domain libraries have
     #   the same version on our S3 buckets
+
+    # After copying, explicitly set SHA256 checksums for wheels that don't have them
+    # This ensures checksums are preserved even if --metadata-directive COPY fails to copy them
+    if [[ $DRY_RUN = "disabled" ]]; then
+        echo "+ Setting SHA256 checksums for copied wheels..."
+        dest_prefix="${PYTORCH_S3_TO#s3://pytorch/}"
+        dest_prefix="${dest_prefix%/}"
+
+        script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        manage_v2_script="${script_dir}/../../s3_management/manage_v2.py"
+
+        if [[ -f "${manage_v2_script}" ]]; then
+            echo "+ Running: python ${manage_v2_script} ${dest_prefix} --set-checksum --package-name ${package_name} --package-version ${pytorch_version}"
+            python "${manage_v2_script}" "${dest_prefix}" \
+                --set-checksum \
+                --package-name "${package_name}" \
+                --package-version "${pytorch_version}" || {
+                echo "- WARNING: Failed to set SHA256 checksums, but copy succeeded"
+            }
+        else
+            echo "- WARNING: manage_v2.py not found at ${manage_v2_script}, skipping checksum computation"
+        fi
+    fi
 }

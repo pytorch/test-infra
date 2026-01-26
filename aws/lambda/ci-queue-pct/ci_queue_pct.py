@@ -335,7 +335,8 @@ def get_jobs_interval(
             default.workflow_job AS job
             INNER JOIN default.workflow_run AS workflow ON workflow.id = job.run_id
         WHERE
-            job.dynamoKey LIKE 'pytorch/pytorch%'
+            -- Use trailing slash to avoid matching pytorch/pytorch-integration-testing
+            job.dynamoKey LIKE 'pytorch/pytorch/%'
             AND job.created_at >= {start_time:DateTime}
             AND job.created_at < {end_time:DateTime}
             AND length(job.labels) > 0

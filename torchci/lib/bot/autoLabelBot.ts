@@ -23,7 +23,7 @@ const IssueAndPRRegexToLabel: [RegExp, string][] = [
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
   [/revert/gi, "ci-no-td"],
-  [/rocm/gi, "ciflow/rocm"],
+  [/rocm/gi, "ciflow/rocm-mi300"],
   ...IssueAndPRRegexToLabel,
 ];
 
@@ -105,6 +105,7 @@ const filenameRegexToReleaseCategory: [RegExp, string][] = [
 
 const notUserFacingPatterns: RegExp[] = [
   /\.azure_pipelines/g,
+  /benchmarks\//g,
   /\.circleci/g,
   /\.github/g,
   /\.jenkins/g,
@@ -139,27 +140,6 @@ const notUserFacingPatterns: RegExp[] = [
 ];
 
 const notUserFacingPatternExceptions: RegExp[] = [/tools\/autograd/g];
-
-// For in the specified repo, if any file path matches the given regex we will apply the label
-// corresponding to that file to the PR
-//
-// Format: "owner/repo": [
-//  [/regex-for-path1/, "label-to-apply"],
-//  [/regex-for-path2/, "label-to-apply"],
-// ]
-const repoSpecificAutoLabels: { [repo: string]: [RegExp, string][] } = {
-  "pytorch/pytorch": [
-    [/aten\/src\/ATen\/mps/gi, "ciflow/mps"],
-    [/aten\/src\/ATen\/native\/mps/gi, "ciflow/mps"],
-    [/torch\/_inductor\/codegen\/mps.py/gi, "ciflow/mps"],
-    [/torch\/csrc\/distributed\/c10d\/symm_mem/gi, "ciflow/h100-symm-mem"],
-    [/torch\/distributed\/_symmetric_memory/gi, "ciflow/h100-symm-mem"],
-    [/test\/distributed\/.*mem.*/gi, "ciflow/h100-symm-mem"],
-    [/test\/test_mps.py/gi, "ciflow/mps"],
-    [/test\/inductor\/test_mps_basic.py/gi, "ciflow/mps"],
-  ],
-  "pytorch/fake-test-repo": [[/somefolder/gi, "cool-label"]],
-};
 
 export async function getLabelsFromLabelerConfig(
   context: Context,
@@ -206,30 +186,6 @@ export async function getLabelsFromLabelToLabelConfig(
     }
   }
   return newLabels;
-}
-
-function getRepoSpecificLabels(
-  owner: string,
-  repo: string,
-  changedFiles: string[]
-): string[] {
-  var repoKey = owner + "/" + repo;
-  if (!repoSpecificAutoLabels.hasOwnProperty(repoKey)) {
-    return [];
-  }
-
-  const config = repoSpecificAutoLabels[repoKey];
-
-  const labelsToAdd: string[] = [];
-  for (const file of changedFiles) {
-    // check for typical matches
-    for (const [regex, label] of config) {
-      if (file.match(regex)) {
-        labelsToAdd.push(label);
-      }
-    }
-  }
-  return labelsToAdd;
 }
 
 function TDRolloutIssueParser(rawSubsText: string): object {
@@ -474,6 +430,28 @@ function myBot(app: Probot): void {
 
     const filtered = await filterCIFlowLabels(true, newLabels);
     await addNewLabels(existingLabels, filtered, context);
+
+    // Remove PR-only labels from issues
+    if (
+      addedLabel.startsWith("release notes:") ||
+      addedLabel.startsWith("ciflow/")
+    ) {
+      context.log(
+        `Removing PR-only label "${addedLabel}" from issue ${context.payload.issue.html_url}`
+      );
+      await context.octokit.issues.removeLabel(
+        context.repo({
+          issue_number: context.payload.issue.number,
+          name: addedLabel,
+        })
+      );
+      await context.octokit.issues.createComment(
+        context.repo({
+          issue_number: context.payload.issue.number,
+          body: `The label \`${addedLabel}\` is only applicable to pull requests and has been removed. Please only use this label on PRs.`,
+        })
+      );
+    }
   });
 
   app.on(["issues.opened", "issues.edited"], async (context) => {
@@ -532,10 +510,6 @@ function myBot(app: Probot): void {
         }
       }
 
-      // Add a repo specific labels (if any)
-      var repoSpecificLabels = getRepoSpecificLabels(owner, repo, filesChanged);
-      labelsToAdd.push(...repoSpecificLabels);
-
       var labelsFromLabelerConfig = await getLabelsFromLabelerConfig(
         context,
         labelerConfigTracker,
@@ -590,6 +564,36 @@ function myBot(app: Probot): void {
       }
     }
     await addNewLabels(existingLabels, labelsToAdd, context);
+  });
+
+  app.on("pull_request.labeled", async (context) => {
+    const owner = context.payload.repository.owner.login;
+    if (!isPyTorchbotSupportedOrg(owner)) {
+      context.log(`${__filename} isn't enabled on ${owner}'s repos`);
+      return;
+    }
+
+    const addedLabel = context.payload.label!.name;
+    context.log({ addedLabel });
+
+    // Remove issue-only labels from PRs
+    if (addedLabel.startsWith("oncall:")) {
+      context.log(
+        `Removing issue-only label "${addedLabel}" from PR ${context.payload.pull_request.html_url}`
+      );
+      await context.octokit.issues.removeLabel(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          name: addedLabel,
+        })
+      );
+      await context.octokit.issues.createComment(
+        context.repo({
+          issue_number: context.payload.pull_request.number,
+          body: `The label \`${addedLabel}\` is only applicable to issues and has been removed. Please only use this label on issues.`,
+        })
+      );
+    }
   });
 }
 

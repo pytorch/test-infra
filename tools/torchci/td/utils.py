@@ -114,7 +114,7 @@ def evaluate(
 
     print(f"average: {avg(scores)}")
     print(f"median: {med(scores)}")
-    print(f"within 10%: {(len([x for x in scores if x < .1]))/len(scores)}")
+    print(f"within 10%: {(len([x for x in scores if x < 0.1])) / len(scores)}")
     print(f"# of invoking files: {len(all_invoking_files)}")
 
     res = []

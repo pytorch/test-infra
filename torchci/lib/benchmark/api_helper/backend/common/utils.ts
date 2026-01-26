@@ -1,7 +1,8 @@
 // Utility to extract params from either GET or POST
 import dayjs from "dayjs";
-import { queryClickhouseSaved } from "lib/clickhouse";
 import { NextApiRequest } from "next";
+import { getListBenchmarkCommitsFetcher } from "../dataFetchers/fetchers";
+import { BenchmarkCompilerListCommitQueryBuilder } from "../dataFetchers/queryBuilderUtils/compilerQueryBuilder";
 import { CommitResult } from "./type";
 
 /**
@@ -217,11 +218,13 @@ export function toTimeSeriesResponse(
 export function emptyTimeSeriesResponse() {
   return {
     total_rows: 0,
-    time_series: [],
-    table: [],
     time_range: {
       start: new Date().toISOString(),
       end: new Date().toISOString(),
+    },
+    data: {
+      time_series: [],
+      table: [],
     },
   };
 }
@@ -265,6 +268,7 @@ export function to_time_series_data(
           diffs.push({
             key: `${key}___${sub_key}`,
             data: item.data,
+            length: item.data.length,
           });
         }
         return item.data[0];
@@ -286,11 +290,11 @@ export function to_time_series_data(
     console.log(
       `we detected multiple datapoints for the same group keys ${
         diffs.length
-      }, peak first on \n ${JSON.stringify(
-        diffs[0].key
-      )}, \n Data1: ${JSON.stringify(
+      }, peak first on \n ${JSON.stringify(diffs[0].key)},\n duplicates ${
+        diffs[0].length
+      } \n Data1: ${JSON.stringify(
         diffs[0].data[0]
-      )}, Data:2 ${JSON.stringify(diffs[0].data[1])}`
+      )},\n Data:2 ${JSON.stringify(diffs[0].data[1])}`
     );
   }
   return result;
@@ -377,11 +381,37 @@ function subsampleCommitsByDate(data: any[], maxCount: number | undefined) {
   };
 }
 
-export async function getCommitsWithSampling(
+async function listCompilerCommitsFromDb(queryParams: any) {
+  // fetch metadata from db
+  const fetcher = new BenchmarkCompilerListCommitQueryBuilder();
+  const data = await fetcher.applyQuery(queryParams);
+  const result = fetcher.postProcess(data);
+  return result;
+}
+
+export async function listGeneralCommits(id: string, queryParams: any) {
+  // fetch list commits from db
+  const fetcher = getListBenchmarkCommitsFetcher(id);
+  const data = await fetcher.applyQuery(queryParams);
+  const commit_results = fetcher.postProcess(data);
+  let maxCount = undefined;
+  // if subsampling is specified, use it
+  if (queryParams.sampling) {
+    maxCount = queryParams.sampling.max;
+    const res = subsampleCommitsByDate(commit_results, maxCount);
+    return res;
+  }
+  return {
+    data: commit_results,
+    is_sampled: false,
+  };
+}
+
+export async function getCompilerCommitsWithSampling(
   tableName: string,
   queryParams: any
 ): Promise<CommitResult> {
-  const commit_results = await queryClickhouseSaved(tableName, queryParams);
+  const commit_results = await listCompilerCommitsFromDb(queryParams);
   let maxCount = undefined;
   // if subsampling is specified, use it
   if (queryParams.sampling) {

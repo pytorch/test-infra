@@ -24,7 +24,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 PYTHON_ARCHES_DICT = {
     "nightly": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
     "test": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
-    "release": ["3.10", "3.11", "3.12", "3.13", "3.14", "3.14t"],
+    "release": ["3.10", "3.11", "3.12", "3.13", "3.13t", "3.14", "3.14t"],
 }
 CUDA_ARCHES_DICT = {
     "nightly": ["12.6", "12.8", "13.0"],
@@ -33,9 +33,9 @@ CUDA_ARCHES_DICT = {
 }
 
 ROCM_ARCHES_DICT = {
-    "nightly": ["6.4", "7.0"],
-    "test": ["6.3", "6.4"],
-    "release": ["6.3", "6.4"],
+    "nightly": ["7.0", "7.1"],
+    "test": ["7.0", "7.1"],
+    "release": ["7.0", "7.1"],
 }
 
 CUDA_CUDNN_VERSIONS = {
@@ -76,9 +76,9 @@ ROCM = "rocm"
 XPU = "xpu"
 
 
-CURRENT_NIGHTLY_VERSION = "2.10.0"
-CURRENT_CANDIDATE_VERSION = "2.9.0"
-CURRENT_STABLE_VERSION = "2.9.0"
+CURRENT_NIGHTLY_VERSION = "2.11.0"
+CURRENT_CANDIDATE_VERSION = "2.10.0"
+CURRENT_STABLE_VERSION = "2.10.0"
 CURRENT_VERSION = CURRENT_STABLE_VERSION
 
 # By default use Nightly for CUDA arches
@@ -148,7 +148,9 @@ def validation_runner(arch_type: str, os: str) -> str:
         return LINUX_CPU_RUNNER
 
 
-def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
+def initialize_globals(
+    channel: str, os: str, build_python_only: bool, getting_started: bool = False
+) -> None:
     global CURRENT_VERSION, CUDA_ARCHES, CUDA_AARCH64_ARCHES, ROCM_ARCHES, PYTHON_ARCHES
     global WHEEL_CONTAINER_IMAGES, LIBTORCH_CONTAINER_IMAGES
     if channel == TEST:
@@ -157,7 +159,11 @@ def initialize_globals(channel: str, os: str, build_python_only: bool) -> None:
         CURRENT_VERSION = CURRENT_STABLE_VERSION
 
     CUDA_ARCHES = CUDA_ARCHES_DICT[channel]
-    if channel != "release" and (os == LINUX or os == LINUX_AARCH64):
+    if (
+        channel != "release"
+        and (os == LINUX or os == LINUX_AARCH64)
+        and not getting_started
+    ):
         # TODO (huydhn): Only build CUDA 12.9 for Linux. This logic is to be cleaned up
         # in 2.10
         CUDA_ARCHES.append("12.9")
@@ -287,6 +293,15 @@ def get_wheel_install_command(
         if getting_started
         else PACKAGES_TO_INSTALL_WHL
     )
+
+    # Special case for getting started page with stable CUDA on Linux
+    if (
+        getting_started
+        and gpu_arch_version == STABLE_CUDA_VERSIONS[channel]
+        and os == LINUX
+        and channel == RELEASE
+    ):
+        return f"""For Linux x86 use:<br />{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL}<br /><br />For Linux Aarch64:<br />{WHL_INSTALL_BASE} {PACKAGES_TO_INSTALL} --index-url {get_base_download_url_for_repo("whl", channel, gpu_arch_type, desired_cuda)}"""
 
     if (
         channel == RELEASE
@@ -528,7 +543,12 @@ def generate_build_matrix(
 
     for channel in channels:
         for package in package_types:
-            initialize_globals(channel, operating_system, build_python_only == ENABLE)
+            initialize_globals(
+                channel,
+                operating_system,
+                build_python_only == ENABLE,
+                getting_started == "true",
+            )
             includes.extend(
                 GENERATING_FUNCTIONS_BY_PACKAGE_TYPE[package](
                     operating_system,

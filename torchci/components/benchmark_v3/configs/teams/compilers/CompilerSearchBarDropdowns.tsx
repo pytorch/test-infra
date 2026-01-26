@@ -9,8 +9,8 @@ import {
   UMDenseDropdown,
   UMDenseModePicker,
 } from "components/uiModules/UMDenseComponents";
-import { BenchmarkPageType } from "lib/benchmark/store/benchmark_config_book";
 import { useDashboardSelector } from "lib/benchmark/store/benchmark_dashboard_provider";
+import { BenchmarkPageType } from "../../config_book_types";
 export function CompilerSearchBarDropdowns() {
   const backendFilterInfo =
     "The displayed data is post-sampling and may not include all entries. For non-continuous data, commit options are based on the sampled set, so use the chart or table interactions to explore complete results";
@@ -44,8 +44,8 @@ export function CompilerSearchBarDropdowns() {
         dtype={stagedFilters.deviceName ?? ""}
         setDType={(val: string) => {
           setStagedFilter("deviceName", val);
-          setStagedFilter("device", DISPLAY_NAMES_TO_DEVICE_NAMES[val]);
-          setStagedFilter("arch", DISPLAY_NAMES_TO_ARCH_NAMES[val]);
+          setStagedFilter("device", DISPLAY_NAMES_TO_DEVICE_NAMES[val][0]);
+          setStagedFilter("arch", DISPLAY_NAMES_TO_ARCH_NAMES[val][0]);
         }}
         dtypes={Object.keys(DISPLAY_NAMES_TO_DEVICE_NAMES)}
         label="Device"

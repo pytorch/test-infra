@@ -20,6 +20,7 @@ async function getTest(
   jobFilter: string
 ): Promise<TestInfoAPIResponse> {
   jobFilter = `%${jobFilter}%`;
+  return [];
 
   const res = await queryClickhouseSaved("testStats3d", {
     name,

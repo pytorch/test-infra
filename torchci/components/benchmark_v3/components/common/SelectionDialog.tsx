@@ -76,9 +76,6 @@ export function resolveDialogContentRenderer(config?: any) {
 export function DefaultSelectionDialogContent({
   left,
   right,
-  other,
-  closeDialog,
-  triggerUpdate,
 }: TimeSeriesChartDialogContentProps): React.ReactNode {
   return (
     <>

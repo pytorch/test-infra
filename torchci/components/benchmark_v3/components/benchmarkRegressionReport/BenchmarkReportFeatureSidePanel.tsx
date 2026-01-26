@@ -53,9 +53,9 @@ export function BenchmarkReportFeatureSidePanel({
         anchor="right"
         open={open}
         onClose={() => setOpen(false)}
-        sx={{ width: "40vw", height: "100vh", maxWidth: "1000px" }}
+        sx={{ width: "80vw", height: "100vh", maxWidth: "2000px" }}
       >
-        <Box sx={{ width: "40vw" }}>
+        <Box sx={{ width: "80vw" }}>
           {type === "list" && (
             <BenchmarkRegressionReportListWrapper report_id={id} limit={5} />
           )}
@@ -85,7 +85,8 @@ export function BenchmarkReportFeatureSidePanel({
               <BenchmarkRegressionReportWrapper
                 id={id}
                 enableTableSidePanel={false}
-                chartSizeSx={{ sx: 12, lg: 12 }}
+                singleChartSizeSx={{ sx: 12, lg: 12 }}
+                groupChartSizeSx={{ sx: 12, lg: 12 }}
               />
             </>
           )}

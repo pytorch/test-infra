@@ -1,4 +1,4 @@
-import { Button, Tooltip, Typography } from "@mui/material";
+import { Tooltip, Typography } from "@mui/material";
 import { Box } from "@mui/system";
 import {
   DataGrid,
@@ -7,6 +7,7 @@ import {
   useGridApiRef,
 } from "@mui/x-data-grid";
 import { RenderRawContent } from "components/benchmark_v3/components/common/RawContentDialog";
+import { UMDenseSingleButton } from "components/uiModules/UMDenseComponents";
 import Link from "next/link";
 import { useMemo } from "react";
 import {
@@ -62,21 +63,30 @@ export default function BenchmarkRawDataTable({
     [allColumns, config]
   );
 
+  const tableRenderingBook = config?.renderOptions?.tableRenderingBook as
+    | Record<string, { hide?: boolean }>
+    | undefined;
+
+  const columnVisibilityModel = Object.fromEntries(
+    Object.entries(tableRenderingBook ?? {})
+      .filter(([_, v]) => v?.hide)
+      .map(([k]) => [k, false])
+  );
+
   return (
     <Box>
       <Typography variant="h6">{title?.text}</Typography>
       {title?.description && (
         <Typography variant="body2">{title.description}</Typography>
       )}
-      {isDebug && (
-        <RenderRawContent
-          data={rows}
-          title="Report Raw Json"
-          buttonName="View Full Raw Data"
-          type="json"
-        />
-      )}
-      <Button
+      <RenderRawContent
+        data={data}
+        buttonName={"view json"}
+        buttonSx={{ lineHeight: 2 }}
+        title={"Raw Json"}
+      />
+      <UMDenseSingleButton
+        variant="outlined"
         onClick={() =>
           apiRef?.current?.exportDataAsCsv({
             allColumns: true,
@@ -86,7 +96,7 @@ export default function BenchmarkRawDataTable({
         }
       >
         Download CSV
-      </Button>
+      </UMDenseSingleButton>
       <DataGrid
         density="compact"
         apiRef={apiRef}
@@ -99,6 +109,9 @@ export default function BenchmarkRawDataTable({
           },
           pagination: {
             paginationModel: { pageSize: 25 },
+          },
+          columns: {
+            columnVisibilityModel: columnVisibilityModel,
           },
         }}
         sx={{

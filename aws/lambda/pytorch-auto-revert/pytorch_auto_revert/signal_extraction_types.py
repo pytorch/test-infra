@@ -121,7 +121,7 @@ class JobRow:
         return self.is_failure and (self.rule in DEFAULT_TEST_RULES)
 
 
-# Represents a test verdict row from the test_run_s3 table in ClickHouse
+# Represents a test verdict row from the tests.all_test_runs table in ClickHouse
 @dataclass(frozen=True)
 class TestRow:
     job_id: JobId

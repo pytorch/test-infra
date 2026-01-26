@@ -6,10 +6,16 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import BenchmarkDropdownGroup from "../../benchmarkSideBar/components/filters/BenchmarkFilterDropdownGroup";
+import { ToggleSection } from "../../common/ToggleSection";
 import { RegressionReportChartIndicatorsSection } from "../common";
 import RegressionReportTable from "./RegressionReportTable";
-import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
+import {
+  ReportTimeSereisChartSection,
+  ReportTimeSereisGroupChartSection,
+} from "./RegressionReportTimeSeriesChart";
+
 const styles = {
   toggleSection: {
     display: "flex",
@@ -22,14 +28,43 @@ const styles = {
 export function RegressionReportDetail({
   report,
   enableTableSidePanel = true,
-  chartSizeSx = { xs: 12, lg: 4 },
+  singleChartSizeSx = { xs: 12, lg: 4 },
+  groupChartSizeSx = { xs: 12, lg: 6 },
 }: {
   report: any | null | undefined;
   showRaw?: boolean;
   enableTableSidePanel?: boolean;
-  chartSizeSx?: any;
+  singleChartSizeSx?: any;
+  groupChartSizeSx?: any;
 }) {
-  const [view, setView] = useState<"chart" | "table">("table");
+  const [selectedFilters, setSelectedFilters] = useState<
+    Record<string, string | null>
+  >({});
+  const [view, setView] = useState<
+    "group-chart-view" | "single-chart-view" | "table"
+  >("group-chart-view");
+
+  const report_id = report.report_id;
+  const details = report.details;
+  const filterOptions = report.filters;
+  const filtereddetails = useMemo(() => {
+    const shouldFilter = Object.entries(selectedFilters).filter(
+      ([_, v]) => v !== null && v !== ""
+    );
+    if (shouldFilter.length === 0) return details;
+
+    const applyFilter = (row: any) => {
+      return shouldFilter.every(([key, value]) => {
+        if (!row.group_info) return false;
+        return row.group_info[key] === value;
+      });
+    };
+    return {
+      regression: details.regression.filter(applyFilter),
+      suspicious: details.suspicious.filter(applyFilter),
+    };
+  }, [details, selectedFilters]);
+
   if (!report) {
     return <Box>Report not found</Box>;
   }
@@ -38,71 +73,202 @@ export function RegressionReportDetail({
     return <Box>Report details not found</Box>;
   }
 
-  const report_id = report.report_id;
-  const details = report.details;
   return (
     <Box>
       {/* Toggle Control */}
-      <Box sx={styles.toggleSection}>
+      <Box>
         <Typography variant="h6">Regression Report</Typography>
+      </Box>
+      <Box sx={{ mt: 3 }}>
+        <Typography variant="h6">filter regression </Typography>
+        <BenchmarkDropdownGroup
+          horizontal={true}
+          optionListMap={filterOptions}
+          onChange={(_key: string, _value: any) => {
+            setSelectedFilters((prev) => ({
+              ...prev,
+              [_key]: _value,
+            }));
+          }}
+          props={selectedFilters}
+          sx={{
+            minWidth: 100,
+          }}
+          stackSx={{
+            flexWrap: "wrap",
+            alignItems: "center",
+          }}
+        />
+      </Box>
+      <Divider sx={{ mb: 2, mt: 1 }} />
+      <Box sx={{ mt: 3 }}>
         <ToggleButtonGroup
           value={view}
           exclusive
           onChange={(_, v) => v && setView(v)}
           size="small"
         >
-          <ToggleButton value="chart">Chart View</ToggleButton>
+          <ToggleButton value="group-chart-view">Group Chart View</ToggleButton>
+          <ToggleButton value="single-chart-view">
+            Single Chart View
+          </ToggleButton>
           <ToggleButton value="table">Table View</ToggleButton>
         </ToggleButtonGroup>
       </Box>
-      <Divider sx={{ mb: 2 }} />
       {/* Conditionally render based on view */}
-      {view === "chart" ? (
+      {view === "single-chart-view" && (
         <Box>
           <RegressionReportChartIndicatorsSection />
-          <ReportTimeSeriesChartBucketList
-            report_id={report_id}
-            title={`Regressions (${details.regression.length})`}
-            subtitle="regression"
-            metricItemList={details.regression}
-            sizeSx={chartSizeSx}
-          />
-          <ReportTimeSeriesChartBucketList
-            report_id={report_id}
-            title={`Suspicious (${details.suspicious.length})`}
-            subtitle="suspicious"
-            metricItemList={details.suspicious}
-            sizeSx={chartSizeSx}
-          />
+          <ToggleSection
+            id={"regression_chart"}
+            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
+          >
+            <ReportTimeSeriesSingleChartBucketList
+              report_id={report_id}
+              subtitle="regression"
+              metricItemList={filtereddetails.regression}
+              sizeSx={singleChartSizeSx}
+            />
+          </ToggleSection>
+          <ToggleSection
+            id={"suspicious_chart"}
+            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
+            defaultOpen={true}
+          >
+            <ReportTimeSeriesSingleChartBucketList
+              report_id={report_id}
+              subtitle="suspicious"
+              metricItemList={filtereddetails.suspicious}
+              sizeSx={singleChartSizeSx}
+            />
+          </ToggleSection>
         </Box>
-      ) : (
+      )}
+      {view === "table" && (
         <Box>
-          <RegressionReportTable
-            report_id={report_id}
-            data={details.regression}
-            title={`Regressions (${details.regression.length})`}
-            enableSidePanel={enableTableSidePanel}
-          />
-          <RegressionReportTable
-            report_id={report_id}
-            data={details.suspicious}
-            title={`Suspicious (${details.suspicious.length})`}
-            enableSidePanel={enableTableSidePanel}
-          />
+          <ToggleSection
+            id={"regression_table"}
+            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
+            defaultOpen={true}
+          >
+            <RegressionReportTable
+              report_id={report_id}
+              data={filtereddetails.regression}
+              enableSidePanel={enableTableSidePanel}
+            />
+          </ToggleSection>
+          <ToggleSection
+            id={"suspicious_table"}
+            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
+            defaultOpen={true}
+          >
+            <RegressionReportTable
+              report_id={report_id}
+              data={filtereddetails.suspicious}
+              enableSidePanel={enableTableSidePanel}
+            />
+          </ToggleSection>
+        </Box>
+      )}
+      {view === "group-chart-view" && (
+        <Box>
+          <RegressionReportChartIndicatorsSection />
+          <ToggleSection
+            id={"regression_chart"}
+            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
+          >
+            <ReportTimeSeriesGroupChartBucketList
+              report_id={report_id}
+              subtitle="regression"
+              metricItemList={filtereddetails.regression}
+              sizeSx={groupChartSizeSx}
+            />
+          </ToggleSection>
+          <ToggleSection
+            id={"suspicious_chart"}
+            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
+            defaultOpen={true}
+          >
+            <ReportTimeSeriesGroupChartBucketList
+              report_id={report_id}
+              subtitle="suspicious"
+              metricItemList={filtereddetails.suspicious}
+              sizeSx={groupChartSizeSx}
+            />
+          </ToggleSection>
         </Box>
       )}
     </Box>
   );
 }
 
-function ReportTimeSeriesChartBucketList({
+/**
+ * regression report time series chart group by arch, device and metric
+ * @param param0
+ * @returns
+ */
+function ReportTimeSeriesGroupChartBucketList({
   title,
   metricItemList,
   subtitle = "",
   report_id,
   sizeSx = { xs: 12, lg: 4 },
 }: {
-  title: string;
+  title?: string;
+  subtitle?: string;
+  metricItemList: any[];
+  report_id: string;
+  sizeSx?: any;
+}) {
+  const groupedByArchDeviceMetric = metricItemList.reduce((acc, item) => {
+    const { arch, device, metric } = item.group_info || {};
+    // Create a composite key
+    const key = `Hardware:${arch}(${device}) Metric:${metric}`;
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(item);
+    return acc;
+  }, {});
+  const groups = Object.entries(groupedByArchDeviceMetric);
+  return (
+    <Box>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1.5 }}>
+          {title}
+        </Typography>
+      )}
+      {groups.length > 0 && (
+        <Typography variant="body2" sx={{ mb: 1.5 }}>
+          We found {groups.length} groups of {subtitle} based on hardware,
+          metric, and filters. To see more details, please select line in the
+          time series chart.
+        </Typography>
+      )}
+      <Grid container spacing={1}>
+        {groups.map(([key, items]) => {
+          return (
+            <Grid size={sizeSx} key={key}>
+              <ReportTimeSereisGroupChartSection
+                data={items as any[]}
+                subtitle={`${key}`}
+                report_id={report_id}
+                enableSelectLine={true}
+              />
+            </Grid>
+          );
+        })}
+      </Grid>
+    </Box>
+  );
+}
+
+function ReportTimeSeriesSingleChartBucketList({
+  title,
+  metricItemList,
+  subtitle = "",
+  report_id,
+  sizeSx = { xs: 12, lg: 4 },
+}: {
+  title?: string;
   subtitle?: string;
   metricItemList: any[];
   report_id: string;
@@ -110,9 +276,11 @@ function ReportTimeSeriesChartBucketList({
 }) {
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 1.5 }}>
-        {title}
-      </Typography>
+      {title && (
+        <Typography variant="h6" sx={{ mb: 1.5 }}>
+          {title}
+        </Typography>
+      )}
       <Grid container spacing={1}>
         {metricItemList.map((item, i) => {
           return (

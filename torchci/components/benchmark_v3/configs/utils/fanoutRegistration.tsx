@@ -1,5 +1,6 @@
 import { BenchmarkCommitMeta } from "lib/benchmark/store/benchmark_regression_store";
 import {
+  FanoutBenchmarkComparisonGithubExternalLink,
   FanoutBenchmarkTimeSeriesChartSection,
   FanoutBenchmarkTimeSeriesComparisonTableSection,
 } from "../../components/dataRender/fanout/FanoutComponents";
@@ -55,6 +56,9 @@ export class FanoutRegistry {
       FanoutBenchmarkTimeSeriesComparisonTableSection: {
         Component: FanoutBenchmarkTimeSeriesComparisonTableSection,
         data_path: "table",
+      },
+      FanoutBenchmarkComparisonGithubExternalLink: {
+        Component: FanoutBenchmarkComparisonGithubExternalLink,
       },
     };
     this.map = Object.freeze({ ...registry });

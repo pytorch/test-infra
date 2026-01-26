@@ -208,6 +208,16 @@ class GitRepo:
     def _run_git_cmd(self, *args) -> str:
         return _check_output(["git", "-C", self.repo_dir] + list(args))
 
+    def get_tags_for_commit(self, commit_hash: str) -> List[str]:
+        """Get all tags that contain the given commit hash."""
+        try:
+            tags = self._run_git_cmd("tag", "--contains", commit_hash).strip()
+            if tags:
+                return [tag.strip() for tag in tags.split("\n")]
+            return []
+        except Exception:
+            return []
+
     def _run_git_log(self, revision_range, additional_args=[]) -> List[GitCommit]:
         log = self._run_git_cmd(
             "log",
@@ -463,6 +473,10 @@ def commits_missing_in_branch(
     for issue in gh_get_milestone_issues(
         "pytorch", "pytorch", milestone_idx, IssueState.ALL
     ):
+        # Skip issues with the release-feature-request label
+        labels = [label["name"] for label in issue.get("labels", [])]
+        if "release-feature-request" in labels:
+            continue
         issue_url, state = issue["html_url"], issue["state"]
         # Skip closed states if they were landed before merge date
         if state == "closed":
@@ -479,7 +493,7 @@ def commits_missing_in_branch(
             # if Issue is mentioned is release branch, than it was picked already
             if mentioned_in_release:
                 continue
-        print(f'{issue_url} ;{issue["title"]};{state}')
+        print(f"{issue_url} ;{issue['title']};{state}")
 
 
 def commits_missing_in_release(
@@ -539,7 +553,7 @@ def analyze_stacks(repo: GitRepo) -> None:
             print(f"{author} has 1 stack of depth {slen[0]}")
             continue
         print(
-            f"{author} has {len(slen)} stacks max depth is {max(slen)} avg depth is {sum(slen)/len(slen):.2f} mean is {slen[len(slen)//2]}"
+            f"{author} has {len(slen)} stacks max depth is {max(slen)} avg depth is {sum(slen) / len(slen):.2f} mean is {slen[len(slen) // 2]}"
         )
 
 
@@ -616,6 +630,21 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
             print(f"Reverted GitHub Commit: {ghf_revert_revision}")
             reverted_commit_hash = ghf_revert_revision
 
+        # Print tags for all reverted commits matching the pattern v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+
+        has_matching_tags = False
+        if ghf_revert_revision:
+            tags = repo.get_tags_for_commit(ghf_revert_revision)
+            # Filter tags matching pattern: v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+
+            pattern = re.compile(r"^v[0-9]+\.[0-9]+\.[0-9]+-rc[0-9]+$")
+            matching_tags = [tag for tag in tags if pattern.match(tag)]
+            if matching_tags:
+                has_matching_tags = True
+                print(
+                    f"🏷️  Tags matching v[0-9]+.[0-9]+.[0-9]+-rc[0-9]+ for commit {ghf_revert_revision}:"
+                )
+                for tag in matching_tags:
+                    print(f"   - {tag}")
+
         # Check if the reverted commit was cherry-picked to the branch
         cherry_picked_to_branch = False
         if reverted_commit_hash:
@@ -632,9 +661,15 @@ def analyze_reverts_missing_from_branch(repo: GitRepo, branch: str) -> None:
         if commit.pr_url:
             print(f"PR URL: {commit.pr_url}")
 
-        if not cherry_picked_to_branch:
+        if cherry_picked_to_branch:
+            pass  # Already printed the detected message
+        elif has_matching_tags:
             print(
-                f"⚠️ STATUS: The reverted commit does not appear to be in {branch}, so this revert may not be needed."
+                f"🔴  WARNING: This is possibly a revert of a commit that was included in a release candidate. The reverted commit may be present in {branch}."
+            )
+        else:
+            print(
+                f"🟢  STATUS: The reverted commit does not appear to be in {branch}, so this revert may not be needed."
             )
 
         print(
@@ -735,7 +770,7 @@ def main():
     print(f"Parsing git history with remote {remote}...", end="", flush=True)
     start_time = time.time()
     x = repo._run_git_log(f"{remote}/main")
-    print(f"done in {time.time()-start_time:.1f} sec")
+    print(f"done in {time.time() - start_time:.1f} sec")
     if args.analyze_reverts:
         analyze_reverts(x)
     elif args.contributor_stats:

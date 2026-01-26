@@ -25,7 +25,7 @@ ARCH=${ARCH:-cpu}
 # We strip all extra characters including final sha256 char
 echo "Retrieving packages for promotion for ${PACKAGE_NAME} ${PACKAGE_VERSION}"
 pkgs_to_promote=$(\
-    curl -fsSL "https://download.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
+    curl -fsSL "https://download-s3.pytorch.org/whl/test/${ARCH}/${PACKAGE_NAME}/index.html" \
         | grep "${PACKAGE_NAME}-${PACKAGE_VERSION}${VERSION_SUFFIX}-" \
         | grep "${PLATFORM}" \
         | cut -d '"' -f2 \
@@ -52,7 +52,7 @@ for pkg in ${pkgs_to_promote}; do
     orig_pkg="${tmp_dir}/${pkg_basename}"
     (
         set -x
-        curl -fSL -o "${orig_pkg}" "https://download.pytorch.org${pkg}"
+        curl -fSL -o "${orig_pkg}" "https://download-s3.pytorch.org${pkg}"
     )
 
 

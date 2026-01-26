@@ -1,17 +1,17 @@
 import { Box } from "@mui/system";
+import {
+  BenchmarkUIConfigHandler,
+  useBenchmarkBook,
+} from "components/benchmark_v3/configs/benchmark_config_book";
 import LoadingPage from "components/common/LoadingPage";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import {
-  BenchmarkPageType,
-  BenchmarkUIConfigHandler,
-  useBenchmarkBook,
-} from "lib/benchmark/store/benchmark_config_book";
 import { BenchmarkDashboardStoreProvider } from "lib/benchmark/store/benchmark_dashboard_provider";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import BenchmarkSideBar from "../components/benchmarkSideBar/BenchmarkSideBar";
 import { BenchmarkTopBar } from "../components/benchmarkSideBar/BenchmarkTopBar";
+import { BenchmarkPageType } from "../configs/config_book_types";
 dayjs.extend(utc);
 
 export default function BenchmarkRegressionPage({

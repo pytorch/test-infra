@@ -185,14 +185,71 @@ def get_td_exclusions(run_ids: tuple[int]) -> dict:
 @lru_cache
 def get_failures_additional_test_info(
     run_id: int,
-) -> dict[str, Any]:
+) -> list[dict[str, Any]]:
     """Fetches additional test info for failures in the given run_id."""
-    for i in range(3):
-        url = f"https://ossci-raw-job-status.s3.amazonaws.com/additional_info/reruns/{run_id}/{i + 1}"
-        response = requests.get(url)
-        if response.status_code == 200:
-            return response.json()
-    return {}
+
+    query = """
+with job as (
+    select
+        distinct id,
+        regexp_replace(
+            name,
+            '(\\([^,]+, )(?:[0-9]+, )*(?:lf\\.)?([^)]+\\))',
+            '\\1\\2'
+        ) AS name,
+        workflow_name,
+        labels
+    from
+        default .workflow_job
+    where
+        run_id in {workflowIds: Array(Int64) }
+)
+SELECT
+    replaceAll(invoking_file, '.', '/') as invoking_file,
+    all_test_runs.name as name,
+    classname,
+    multiIf(
+        countIf(
+            failure_count = 0
+            AND error_count = 0
+            AND skipped_count = 0
+            AND rerun_count = 0
+        ) = count(*),
+        'success',
+        sum(skipped_count) > 0,
+        'skipped',
+        countIf(
+            failure_count = 0
+            AND error_count = 0
+        ) > 0,
+        'flaky',
+        'failure'
+    ) AS status,
+    job.name AS job_name,
+    job.workflow_name as workflow_name
+FROM
+    tests.all_test_runs
+    JOIN job ON job.id = all_test_runs.job_id
+WHERE
+    job_id IN (
+        SELECT
+            id
+        FROM
+            job
+    )
+GROUP BY
+    invoking_file,
+    name,
+    classname,
+    job.name,
+    job.workflow_name
+having
+    status = 'failure'
+    """
+    return query_clickhouse(
+        query,
+        {"workflowIds": [run_id]},
+    )
 
 
 def get_test_file(torchci_classification_line: str) -> Optional[str]:
@@ -378,26 +435,23 @@ def get_job_failures(shas: list[str]) -> dict[str, list[JobFailure]]:
 def get_failures_for_run_id(run_id: int) -> list[JobFailure]:
     """Fetches the failures for the given run_id."""
     failures = get_failures_additional_test_info(run_id)
-    job_failures = []
-    for build, d in failures.items():
-        for test_config, dd in d.items():
-            for test_file, ddd in dd.items():
-                for test_class, dddd in ddd.items():
-                    for test_name, info in dddd.items():
-                        failed = True
-                        for i in info:
-                            if "failure" not in i:
-                                failed = False
-                        if failed:
-                            job_failures.append(
-                                JobFailure(
-                                    torchci_classification_line=f"{test_file}::{test_class}::{test_name}",
-                                    job_name=f"{build} / test ({test_config}, 1, 1, runner)",
-                                    run_id=run_id,
-                                    failed_test=f"{test_file}",
-                                )
-                            )
 
+    job_failures = []
+
+    for test in failures:
+        workflow_name = test["workflow_name"]
+        job_name = test["job_name"]
+        test_file = test["invoking_file"]
+        test_name = test["name"]
+        test_class = test["classname"]
+        job_failures.append(
+            JobFailure(
+                torchci_classification_line=f"{test_file}::{test_class}::{test_name}",
+                job_name=f"{workflow_name} / {job_name}",
+                run_id=run_id,
+                failed_test=f"{test_file}",
+            )
+        )
     return job_failures
 
 

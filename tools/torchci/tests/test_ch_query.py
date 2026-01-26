@@ -143,7 +143,7 @@ class TestClickhouseQueries(unittest.TestCase):
             f"Saved query - First call: {first_call_time:.6f}s, Second call: {second_call_time:.6f}s"
         )
         print(
-            f"Speedup ratio: {first_call_time/second_call_time if second_call_time > 0 else 'inf':.2f}x"
+            f"Speedup ratio: {first_call_time / second_call_time if second_call_time > 0 else 'inf':.2f}x"
         )
 
         # Both should return same data structure

@@ -19,6 +19,7 @@ def autorevert_v2(
     restart_action: RestartAction = RestartAction.RUN,
     revert_action: RevertAction = RevertAction.LOG,
     bisection_limit: Optional[int] = None,
+    as_of: Optional[datetime] = None,
 ) -> Tuple[List[Signal], List[Tuple[Signal, SignalProcOutcome]], str]:
     """Run the Signals-based autorevert flow end-to-end.
 
@@ -35,7 +36,7 @@ def autorevert_v2(
 
     logging.info(
         "[v2] Start: workflows=%s hours=%s repo=%s restart_action=%s"
-        " revert_action=%s notify_issue_number=%s bisection=%s",
+        " revert_action=%s notify_issue_number=%s bisection=%s as_of=%s",
         ",".join(workflows),
         hours,
         repo_full_name,
@@ -43,11 +44,15 @@ def autorevert_v2(
         revert_action,
         notify_issue_number,
         ("unlimited" if bisection_limit is None else f"limit={bisection_limit}"),
+        (as_of.isoformat() if as_of else "now"),
     )
     logging.info("[v2] Run timestamp (CH log ts) = %s", ts.isoformat())
 
     extractor = SignalExtractor(
-        workflows=workflows, lookback_hours=hours, repo_full_name=repo_full_name
+        workflows=workflows,
+        lookback_hours=hours,
+        repo_full_name=repo_full_name,
+        as_of=as_of,
     )
     signals = extractor.extract()
     logging.info("[v2] Extracted %d signals", len(signals))

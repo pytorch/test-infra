@@ -6,6 +6,7 @@ on:
     - cron: "0 * * * *"
   workflow_dispatch:
 
+
 permissions:
   id-token: write
   contents: read
@@ -16,7 +17,7 @@ jobs:
     environment: pytorchbot-env
     strategy:
       matrix:
-        prefix: ["whl", "whl/test", "whl/nightly", "libtorch", "libtorch/nightly", "whl/preview/forge"]
+        prefix: ["whl", "whl/test", "whl/nightly", "libtorch", "libtorch/nightly", "whl/preview/forge", "source_code/test"]
       fail-fast: False
     container:
       image: continuumio/miniconda3:23.10.0-1
@@ -34,6 +35,10 @@ jobs:
           ref: ${{ github.ref }}
       - name: Update s3 html index
         shell: bash
+        env:
+          R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
         run: |
             set -ex
 
@@ -42,4 +47,6 @@ jobs:
 
             # Install requirements
             pip install -r s3_management/requirements.txt
-            python s3_management/manage.py ${{ matrix.prefix }}
+
+            # Run index update workflow
+            python s3_management/manage_v2.py ${{ matrix.prefix }}

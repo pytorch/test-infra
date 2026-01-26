@@ -44,7 +44,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
   }
   const onGoToTable = async () => {
     closeDialog();
-    const toggleSectonId = toToggleSectionId(2);
+    const toggleSectonId = toToggleSectionId(3);
     const elToggle = getElementById(toggleSectonId);
     if (!elToggle) {
       console.warn(`can't find the toggle section with id: {${toggleSectonId}`);
@@ -62,10 +62,9 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
       triggerUpdate();
       return;
     }
-
     const cell = await navigateToDataGrid(
       tableId,
-      [`${left?.compiler}`],
+      [`${left?.compiler}|`],
       `${left?.suite}`,
       toggleSectonId
     );
@@ -82,7 +81,7 @@ export const CompilerPrecomputeConfirmDialogContent: React.FC<
     const cell = await navigateToEchartInGroup(
       toBenchmarkTimeseriesChartSectionId(`suite=${left.suite}`),
       toBenchmarkTimeseriesChartGroupId(`metric=${left.metric}`),
-      toToggleSectionId(1)
+      toToggleSectionId(2)
     );
 
     if (cell) {

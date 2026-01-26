@@ -1,0 +1,25 @@
+name: Licensed
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/actions/checkout/**'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - '.github/actions/checkout/**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: Check licenses
+    defaults:
+      run:
+        working-directory: ./.github/actions/checkout
+    steps:
+      - uses: actions/checkout@v6
+      - run: npm ci
+      - run: npm run licensed-check

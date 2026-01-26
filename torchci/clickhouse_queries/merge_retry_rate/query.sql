@@ -12,7 +12,8 @@ merged_prs AS (
         user.login AS author
     FROM default.pull_request
     WHERE
-        dynamoKey LIKE 'pytorch/pytorch%'
+        -- Use trailing slash to avoid matching pytorch/pytorch-integration-testing
+        dynamoKey LIKE 'pytorch/pytorch/%'
         AND state = 'closed'
         AND arrayExists(x -> x.'name' = 'Merged', labels)
         AND closed_at != ''
@@ -29,7 +30,8 @@ all_merge_attempts AS (
         created_at
     FROM default.issue_comment
     WHERE
-        dynamoKey LIKE 'pytorch/pytorch%'
+        -- Use trailing slash to avoid matching pytorch/pytorch-integration-testing
+        dynamoKey LIKE 'pytorch/pytorch/%'
         AND user.login = 'pytorchmergebot'
         AND body LIKE '%Merge started%'
 ),

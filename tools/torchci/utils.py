@@ -4,7 +4,7 @@ import os
 import pathlib
 import subprocess
 from hashlib import sha256
-from typing import List, Union
+from typing import Any, List, Union
 
 
 FILE_CACHE_LIFESPAN_SECONDS = 60 * 60 * 24  # 1 day
@@ -66,3 +66,18 @@ def cache_json(func):
         return res
 
     return wrapper
+
+
+def get_hud_headers() -> dict[str, Any]:
+    """
+    Get headers for requests to the HUD API.  This includes the
+    x-hud-internal-bot header which is required for authentication. If the
+    HUD_API_TOKEN environment variable is not set, this function returns an
+    empty dictionary.
+    """
+    if "HUD_API_TOKEN" not in os.environ:
+        return {}
+    return {
+        # Looks like a real browser instead of python-requests
+        "x-hud-internal-bot": os.environ["HUD_API_TOKEN"],
+    }

@@ -1,14 +1,4 @@
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Collapse,
-  Divider,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Card, Chip, Stack, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { useRouter } from "next/router";
 import { useState } from "react";
@@ -17,7 +7,6 @@ import {
   BenchmarkRegressionReport,
   STATUS_COLOR_MAP,
 } from "../common";
-import { RegressionReportDetail } from "../reportView/RegressionReportDetail";
 
 interface RegressionReportListProps {
   reports: BenchmarkRegressionReport[];
@@ -30,7 +19,6 @@ export default function RegressionReportList({
   hasNext = false,
   fetchNext,
 }: RegressionReportListProps) {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [loadingNext, setLoadingNext] = useState(false);
 
   const router = useRouter();
@@ -54,10 +42,8 @@ export default function RegressionReportList({
       <Typography variant="h5" gutterBottom>
         Regression Reports
       </Typography>
-
       <Stack spacing={1.5}>
         {reports.map((r) => {
-          const open = !!expanded[r.id];
           return (
             <Card
               key={r.id}
@@ -97,12 +83,6 @@ export default function RegressionReportList({
                   Repo: {r.repo}
                 </Typography>
               </Stack>
-              <Collapse in={open} timeout="auto" unmountOnExit>
-                <Divider sx={{ my: 1 }} />
-                <CardContent>
-                  <RegressionReportDetail report={r.details} />
-                </CardContent>
-              </Collapse>
             </Card>
           );
         })}

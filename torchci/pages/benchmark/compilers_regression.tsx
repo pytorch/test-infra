@@ -1,5 +1,5 @@
+import { BenchmarkPageType } from "components/benchmark_v3/configs/config_book_types";
 import BenchmarkRegressionPage from "components/benchmark_v3/pages/BenchmarkRegressionPage";
-import { BenchmarkPageType } from "lib/benchmark/store/benchmark_config_book";
 
 export default function Page() {
   const benchmarkId = "compiler_precompute";

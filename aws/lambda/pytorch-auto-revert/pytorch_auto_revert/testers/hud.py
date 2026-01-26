@@ -77,6 +77,7 @@ def render_hud_html_from_clickhouse(
     timestamp: Optional[str],
     *,
     repo_full_name: Optional[str] = None,
+    workflow: Optional[str] = None,
     out_path: Optional[str] = None,
 ) -> str:
     """Fetch a logged autorevert state from ClickHouse and render HUD HTML.
@@ -89,7 +90,7 @@ def render_hud_html_from_clickhouse(
     resolved_ts = timestamp
     if resolved_ts is None:
         resolved_ts = datasource.fetch_latest_non_dry_run_timestamp(
-            repo_full_name=repo_full_name
+            repo_full_name=repo_full_name, workflow=workflow
         )
         if resolved_ts is None:
             raise RuntimeError(
@@ -97,24 +98,26 @@ def render_hud_html_from_clickhouse(
             )
 
     logging.info(
-        "[hud] Fetching run state ts=%s repo=%s",
+        "[hud] Fetching run state ts=%s repo=%s workflow=%s",
         resolved_ts,
         repo_full_name or "<any>",
+        workflow or "<any>",
     )
     rows = datasource.fetch_autorevert_state_rows(
-        ts=resolved_ts, repo_full_name=repo_full_name
+        ts=resolved_ts, repo_full_name=repo_full_name, workflow=workflow
     )
     if not rows:
         raise RuntimeError(
             "No autorevert_state row found for ts="
-            + timestamp
+            + resolved_ts
             + (" repo=" + repo_full_name if repo_full_name else "")
+            + (" workflow=" + workflow if workflow else "")
         )
     if len(rows) > 1:
         raise RuntimeError(
             "Multiple autorevert_state rows found for ts="
-            + timestamp
-            + "; pass --repo-full-name to disambiguate"
+            + resolved_ts
+            + "; pass --repo-full-name/--workflow to disambiguate"
         )
 
     row = rows[0]

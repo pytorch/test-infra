@@ -1,6 +1,11 @@
 import { asNumber } from "components/benchmark_v3/components/dataRender/components/benchmarkTimeSeries/components/BenchmarkTimeSeriesComparisonSection/BenchmarkTimeSeriesComparisonTable/ComparisonTableHelpers";
 
-export type ComparisonVerdict = "good" | "neutral" | "regression" | "warning";
+export type ComparisonVerdict =
+  | "good"
+  | "neutral"
+  | "regression"
+  | "warning"
+  | "missing";
 export type ComparisonPolicyType = "ratio" | "status" | "threshold";
 export const DEFAULT_TYPE = "ratio";
 export const DEFAULT_BAD_RATIO = 0.9;

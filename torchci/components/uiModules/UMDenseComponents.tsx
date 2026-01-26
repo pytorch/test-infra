@@ -1,5 +1,6 @@
 import {
   Button,
+  ButtonProps,
   FormControl,
   InputLabel,
   MenuItem,
@@ -27,6 +28,16 @@ export const UMDenseButtonLight = styled(Button)(({ theme }) => ({
   fontSize: "0.75rem",
   borderRadius: 4,
   textTransform: "none", // optional: avoids uppercase
+}));
+
+export const UMDenseSingleButton = styled(Button)<ButtonProps>(({ theme }) => ({
+  px: 0.5,
+  py: 0,
+  mx: 1,
+  minWidth: "auto",
+  lineHeight: 2,
+  fontSize: "0.75rem",
+  textTransform: "none",
 }));
 
 // Reusable dense menu style (affects the dropdown list items)
@@ -70,6 +81,7 @@ type Props = {
   dtypes: (string | UMDenseDropdownOption)[];
   label: string;
   disable?: boolean;
+  sx?: any;
 };
 
 export const DEFAULT_MODE = "inference";
@@ -90,6 +102,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
   dtypes,
   label,
   disable = false,
+  sx,
 }) => {
   const labelId = "dtype-picker-label";
   const selectId = "dtype-picker-select";
@@ -99,7 +112,7 @@ export const UMDenseDropdown: React.FC<Props> = ({
 
   const safeValue = dtype ?? "";
   return (
-    <FormControl size="small">
+    <FormControl size="small" sx={sx}>
       <InputLabel id={labelId} shrink>
         {label}
       </InputLabel>

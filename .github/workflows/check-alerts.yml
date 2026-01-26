@@ -5,12 +5,18 @@ on:
       - .github/workflows/check-alerts.yml
       - tools/torchci/check_alerts.py
       - tools/torchci/queue_alert.py
+      - tools/torchci/check_live_runners.py
   schedule:
     # Every 5 minutes
     - cron: "*/5 * * * *"
   # Have the ability to trigger this job manually through the API
   workflow_dispatch:
 
+# Only allow one run at a time for scheduled/manual triggers.
+# If a new run is triggered while one is running, the new one will be canceled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'singleton' }}
+  cancel-in-progress: false
 
 jobs:
   update-alerts:
@@ -47,6 +53,7 @@ jobs:
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
 
   update-queue-alert:
     env:
@@ -66,3 +73,25 @@ jobs:
         env:
           # NOTE: Should be a blank string for pull requests
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}
+          AWS_INFRA_ALERTS_LAMBDA_URL: ${{ secrets.AWS_INFRA_ALERTS_LAMBDA_URL }}
+          QUEUE_ALERT_AWS_LAMBDA_TOKEN: ${{ secrets.QUEUE_ALERT_AWS_LAMBDA_TOKEN }}
+
+  check-live-runners:
+    env:
+      DRY_RUN: ${{ github.event_name == 'pull_request' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Install Dependencies
+        run: pip3 install requests setuptools==80.9.0
+      - name: Check for live runner alerts
+        run: |
+          cd tools
+          python3 -m torchci.check_live_runners
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HUD_API_TOKEN: ${{ secrets.HUD_API_TOKEN }}

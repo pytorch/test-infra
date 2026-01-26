@@ -45,7 +45,7 @@ class BenchmarkTimeSeriesApiResponse:
 
     @classmethod
     def from_request(
-        cls, url: str, query: dict, timeout: int = 180
+        cls, url: str, query: dict, access_token: str, timeout: int = 180
     ) -> "BenchmarkTimeSeriesApiResponse":
         """
         Send a POST request and parse into BenchmarkTimeSeriesApiResponse.
@@ -60,7 +60,11 @@ class BenchmarkTimeSeriesApiResponse:
             requests.exceptions.RequestException if network/timeout/HTTP error
             RuntimeError if the API returns an "error" field or malformed data
         """
-        resp = requests.post(url, json=query, timeout=timeout)
+
+        headers = {
+            "x-hud-internal-bot": access_token,
+        }
+        resp = requests.post(url, json=query, timeout=timeout, headers=headers)
         resp.raise_for_status()
         payload = resp.json()
 

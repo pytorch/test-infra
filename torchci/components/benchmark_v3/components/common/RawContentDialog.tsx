@@ -11,6 +11,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import { UMDenseSingleButton } from "components/uiModules/UMDenseComponents";
 import React, { useState } from "react";
 import { StaticRenderViewOnlyContent } from "./StaticRenderViewOnlyContent";
 
@@ -66,9 +67,9 @@ export function RawContentDialog({
 
   return (
     <>
-      <Button
-        size="small"
+      <UMDenseSingleButton
         variant="outlined"
+        size="small"
         onClick={() => setOpen(true)}
         sx={{
           px: 0.5,
@@ -81,7 +82,7 @@ export function RawContentDialog({
         }}
       >
         {buttonName}
-      </Button>
+      </UMDenseSingleButton>
 
       <Dialog
         open={open}
@@ -152,11 +153,13 @@ export function RenderRawContent({
   title = "Raw Content",
   buttonName = "Raw Content",
   type = "json",
+  buttonSx,
   component,
 }: {
   data: any;
   title?: string;
   buttonName?: string;
+  buttonSx?: any;
   type?: "json" | "component";
   component?: (data: any, title: string) => JSX.Element;
 }) {
@@ -167,6 +170,7 @@ export function RenderRawContent({
       type={type}
       component={component}
       buttonName={buttonName}
+      sx={buttonSx}
     />
   );
 }

@@ -10,7 +10,6 @@ import { ReportMetricsTable } from "./ReportMetricsTable";
 import UtilizationReportProvider, {
   useUtilizationReportContext,
 } from "./UtilizationReportContext";
-import { UtilReportPageSyncParamsToUrl } from "./UtilReportPageSyncParamsToUrl";
 
 dayjs.extend(utc);
 
@@ -29,7 +28,6 @@ const UtilizationReportPage = () => {
 
   return (
     <UtilizationReportProvider>
-      <UtilReportPageSyncParamsToUrl />
       <InnerUtilizationContent timeRange={timeRange} dispatch={dispatch} />
     </UtilizationReportProvider>
   );

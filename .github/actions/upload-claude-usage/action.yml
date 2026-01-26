@@ -1,0 +1,61 @@
+name: Upload Claude Code usage metrics
+
+description: Upload Claude Code execution metrics to S3 for ClickHouse ingestion
+
+inputs:
+  metrics-file:
+    description: Path to the Claude execution output JSON file
+    default: /home/runner/work/_temp/claude-execution-output.json
+  s3-bucket:
+    description: S3 bucket for upload
+    default: ossci-raw-job-status
+  s3-prefix:
+    description: S3 prefix for the upload
+    default: claude_code_usage
+
+runs:
+  using: composite
+  steps:
+    - name: Upload usage metrics
+      shell: bash
+      run: |
+        METRICS_FILE="${{ inputs.metrics-file }}"
+        if [ ! -f "$METRICS_FILE" ]; then
+          echo "Metrics file not found: $METRICS_FILE"
+          exit 0
+        fi
+
+        # File is a JSON array, extract the "result" entry
+        RESULT=$(jq '.[] | select(.type == "result")' "$METRICS_FILE")
+        if [ -z "$RESULT" ]; then
+          echo "No result entry found in metrics file"
+          exit 0
+        fi
+
+        # Extract fields and add context
+        jq -n \
+          --arg repo "${{ github.repository }}" \
+          --argjson run_id "${{ github.run_id }}" \
+          --argjson run_attempt "${{ github.run_attempt }}" \
+          --arg actor "${{ github.actor }}" \
+          --arg event_name "${{ github.event_name }}" \
+          --argjson pr_number "${{ github.event.issue.number || github.event.pull_request.number || 0 }}" \
+          --arg timestamp "$(date -u +%Y-%m-%dT%H:%M:%S.000)" \
+          --argjson duration_ms "$(echo "$RESULT" | jq -r '.duration_ms // 0')" \
+          --argjson num_turns "$(echo "$RESULT" | jq -r '.num_turns // 0')" \
+          --argjson total_cost_usd "$(echo "$RESULT" | jq -r '.total_cost_usd // 0')" \
+          '{
+            repo: $repo,
+            run_id: $run_id,
+            run_attempt: $run_attempt,
+            actor: $actor,
+            event_name: $event_name,
+            pr_number: $pr_number,
+            timestamp: $timestamp,
+            duration_ms: $duration_ms,
+            num_turns: $num_turns,
+            total_cost_usd: $total_cost_usd
+          }' > /tmp/claude_usage.json
+
+        aws s3 cp /tmp/claude_usage.json \
+          "s3://${{ inputs.s3-bucket }}/${{ inputs.s3-prefix }}/${{ github.repository }}/${{ github.run_id }}_${{ github.run_attempt }}.json"

@@ -100,7 +100,9 @@ describe("auto-label-bot", () => {
       .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
       .reply(200)
       .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["ciflow/rocm", "module: rocm"] });
+        expect(body).toMatchObject({
+          labels: ["ciflow/rocm-mi300", "module: rocm"],
+        });
         return true;
       })
       .reply(200);
@@ -444,43 +446,6 @@ describe("auto-label-bot", () => {
         Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
         "X-GitHub-Media-Type": "github.v3; format=json",
       });
-
-    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
-
-    scope.done();
-  });
-
-  test("custom repo labels get add when on a matching repo and file", async () => {
-    nock("https://api.github.com")
-      .post("/app/installations/2/access_tokens")
-      .reply(200, { token: "test" });
-    emptyMockConfig("pytorch/fake-test-repo");
-    utils.mockHasApprovedWorkflowRun("pytorch/fake-test-repo");
-
-    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
-      "payload"
-    ];
-    payload["pull_request"]["title"] = "modify a pytorch/fake-test-repo file";
-    payload["pull_request"]["labels"] = [];
-    payload["repository"]["owner"]["login"] = "pytorch";
-    payload["repository"]["name"] = "fake-test-repo";
-    const prFiles = requireDeepCopy("./fixtures/pull_files");
-    prFiles["items"] = [
-      { filename: "somefolder/a.py" },
-      { filename: "otherfolder/b.py" },
-    ];
-
-    const scope = nock("https://api.github.com")
-      .get("/repos/pytorch/fake-test-repo/pulls/31/files?per_page=100")
-      .reply(200, prFiles, {
-        Link: "<https://api.github.com/repos/pytorch/fake-test-repo/pulls/31/files?per_page=100&page=1>; rel='last'",
-        "X-GitHub-Media-Type": "github.v3; format=json",
-      })
-      .post("/repos/pytorch/fake-test-repo/issues/31/labels", (body) => {
-        expect(body).toMatchObject({ labels: ["cool-label"] });
-        return true;
-      })
-      .reply(200);
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
@@ -1313,5 +1278,117 @@ adfadsfasd
     utils.mockHasApprovedWorkflowRun(repoFullName);
     mockNoChangedFiles(prNumber, repoFullName);
     await probot.receive(event);
+  });
+});
+
+describe("auto-label-bot: label restrictions", () => {
+  let probot: Probot;
+
+  function emptyMockConfig(repoFullName: string) {
+    utils.mockConfig("pytorch-probot.yml", "", repoFullName);
+  }
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(myProbotApp);
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    nock.cleanAll();
+  });
+
+  test("remove release notes label from issue", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/issues.labeled");
+    payload["label"] = { name: "release notes: nn" };
+    payload["issue"]["labels"] = [{ name: "release notes: nn" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const scope = nock("https://api.github.com")
+      .delete(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels/release%20notes%3A%20nn"
+      )
+      .reply(200)
+      .post(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/comments",
+        (body) => {
+          expect(body.body).toContain("release notes: nn");
+          expect(body.body).toContain("only applicable to pull requests");
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("remove ciflow label from issue", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/issues.labeled");
+    payload["label"] = { name: "ciflow/rocm" };
+    payload["issue"]["labels"] = [{ name: "ciflow/rocm" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const scope = nock("https://api.github.com")
+      .delete(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/labels/ciflow%2Frocm"
+      )
+      .reply(200)
+      .post(
+        "/repos/ezyang/testing-ideal-computing-machine/issues/5/comments",
+        (body) => {
+          expect(body.body).toContain("ciflow/rocm");
+          expect(body.body).toContain("only applicable to pull requests");
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "issues", payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("remove oncall label from pull request", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload["label"] = { name: "oncall: distributed" };
+    payload["pull_request"]["labels"] = [{ name: "oncall: distributed" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const scope = nock("https://api.github.com")
+      .delete(
+        "/repos/seemethere/test-repo/issues/20/labels/oncall%3A%20distributed"
+      )
+      .reply(200)
+      .post("/repos/seemethere/test-repo/issues/20/comments", (body) => {
+        expect(body.body).toContain("oncall: distributed");
+        expect(body.body).toContain("only applicable to issues");
+        return true;
+      })
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(scope);
   });
 });

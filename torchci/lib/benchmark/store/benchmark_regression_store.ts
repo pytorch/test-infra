@@ -1,8 +1,9 @@
 // benchmark_regression_store.ts
+import { BenchmarkPageType } from "components/benchmark_v3/configs/config_book_types";
 import type { Dayjs } from "dayjs";
 import dayjs from "dayjs";
 import { createWithEqualityFn } from "zustand/traditional";
-import { BenchmarkPageType } from "./benchmark_config_book";
+import { BENCHMARK_ID_MAPPING } from "../../../components/benchmark_v3/configs/configurations";
 
 export type TimeRange = { start: Dayjs; end: Dayjs };
 type KV = Record<string, string | null>;
@@ -14,54 +15,6 @@ export type BenchmarkCommitMeta = {
   workflow_id: string;
   index?: number;
 };
-
-/**
- * BenchmarkIdMappingItem is a mapping from benchmarkId to repoName and benchmarkName
- * benchmarkName is used to fetch the benchmark data from dv
- */
-interface BenchmarkIdMappingItem {
-  id: string;
-  repoName: string;
-  benchmarkName: string; // highiest level benchmarkName that used to fetch the data from api
-  benchmarkNameMapping?: Record<string, string>; // mapping from benchmarkName to benchmarkName based on page type, if this is defined, it overrides the main benchmarkName
-}
-
-/**
- * A helper function to get benchmark id from report id
- * @param reportId
- * @returns
- */
-export function getBenchmarkIdFromReportId(reportId: string): string {
-  return REPORT_ID_TO_BENCHMARK_ID_MAPPING[reportId] ?? "";
-}
-
-const REPORT_ID_TO_BENCHMARK_ID_MAPPING: Record<string, string> = {
-  compiler_regression: "compiler_inductor",
-};
-
-const BENCHMARK_ID_MAPPING: Record<string, BenchmarkIdMappingItem> = {
-  compiler_inductor: {
-    id: "compiler_inductor",
-    repoName: "pytorch/pytorch",
-    benchmarkName: "compiler_inductor",
-  },
-  compiler_precompute: {
-    id: "compiler_precompute",
-    repoName: "pytorch/pytorch",
-    benchmarkName: "compiler_precompute",
-  },
-  pytorch_operator_microbenchmark: {
-    id: "pytorch_operator_microbenchmark",
-    repoName: "pytorch/pytorch",
-    benchmarkName: "PyTorch operator microbenchmark",
-  },
-};
-
-export function getBenchmarkIdMappingItem(
-  benchmarkId: string
-): BenchmarkIdMappingItem | undefined {
-  return BENCHMARK_ID_MAPPING[benchmarkId];
-}
 
 /**
  * Data model for BenchmarkDashboardState
@@ -83,6 +36,7 @@ export interface BenchmarkDashboardState {
   committedLbranch: string;
   committedRbranch: string;
 
+  enableSamplingFeature?: boolean;
   enableSamplingSetting?: boolean;
   // max sampling threshold, if null, no limit.
   // otherwise, we subsampling data in backend to fit the limit during the data
@@ -90,6 +44,9 @@ export interface BenchmarkDashboardState {
 
   // TODO(elainewy): may allow user to set a different max sampling threshold based on their needs.
   stagedMaxSampling?: number;
+
+  enableMultiBranchOption?: boolean;
+  branchOptionType: string;
 
   // may key to track of the benchamrk
   benchmarkId: string;
@@ -114,6 +71,7 @@ export interface BenchmarkDashboardState {
 
   setEnableSamplingSetting: (enable: boolean) => void;
 
+  setBranchOptionType: (type: string) => void;
   setLcommit: (commit: BenchmarkCommitMeta | null) => void;
   setRcommit: (commit: BenchmarkCommitMeta | null) => void;
 
@@ -155,6 +113,8 @@ export function createDashboardStore(initial: {
   rcommit?: BenchmarkCommitMeta | null;
   renderGroupId?: string;
   maxSampling?: number;
+  enableSamplingFeature?: boolean;
+  enableMultiBranchOption?: boolean;
 }) {
   const idItem = BENCHMARK_ID_MAPPING[initial.benchmarkId];
   return createWithEqualityFn<BenchmarkDashboardState>()((set, get) => ({
@@ -169,12 +129,24 @@ export function createDashboardStore(initial: {
     // default main means render the page with renders option
     renderGroupId: initial.renderGroupId ?? "main",
 
+    // multi branch setting
+    enableMultiBranchOption: initial.enableMultiBranchOption ?? false,
+    branchOptionType: "single",
+
     // set only with initial config
-    enableSamplingSetting: (initial.maxSampling ?? 0) > 0,
+    enableSamplingFeature: initial.enableSamplingFeature,
+    enableSamplingSetting:
+      initial?.enableSamplingFeature &&
+      initial?.maxSampling &&
+      initial?.maxSampling > 0
+        ? true
+        : false,
     // max sampling threshold, if null, no limit.
     // otherwise, we subsampling data in backend to fit the limit during the data
     // the min sampling threshold is 10
-    committedMaxSampling: initial.maxSampling,
+    committedMaxSampling: initial.enableSamplingFeature
+      ? initial.maxSampling
+      : undefined,
 
     // todo(elainewy): may allow user to set a different max sampling threshold based on their needs
     stagedMaxSampling: initial.maxSampling,
@@ -220,6 +192,26 @@ export function createDashboardStore(initial: {
       set((s) => ({ stagedFilters: { ...s.stagedFilters, [k]: v } })),
     setStagedFilters: (filters) =>
       set((s) => ({ stagedFilters: { ...s.stagedFilters, ...filters } })),
+
+    setBranchOptionType: (type) => {
+      set((s) => {
+        if (!s.enableMultiBranchOption) return s;
+        if (type === s.branchOptionType) {
+          return s;
+        }
+        if (type == "single") {
+          return {
+            branchOptionType: type,
+            committedRbranch: s.committedLbranch,
+            stagedRbranch: s.stagedLbranch,
+          };
+        } else {
+          return {
+            branchOptionType: type,
+          };
+        }
+      });
+    },
 
     commitMainOptions: () => {
       set((s) => {

@@ -108,16 +108,16 @@ def handle_test_run_s3_small(table, bucket, key) -> List[Dict[str, Any]]:
     select
         classname,
         duration,
-        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'message')},
-        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("error", "Tuple(type String, message String, text String)", "message")},
+        {get_skipped_failure_parser_helper("failure", "Tuple(type String, message String, text String)", "message")},
         file,
         invoking_file,
         job_id,
         line::Int64,
         name,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("rerun", "Tuple(message String, text String)", "message")},
         result,
-        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("skipped", "Tuple(type String, message String, text String)", "message")},
         status,
         time,
         now()::DateTime64(9) as time_inserted,
@@ -214,20 +214,20 @@ def handle_test_run_s3(table, bucket, key) -> List[Dict[str, Any]]:
     select
         classname,
         duration,
-        {get_skipped_failure_parser_helper('error', 'Tuple(type String, message String, text String)', 'message')},
-        {get_skipped_failure_parser_helper('failure', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("error", "Tuple(type String, message String, text String)", "message")},
+        {get_skipped_failure_parser_helper("failure", "Tuple(type String, message String, text String)", "message")},
         file,
         invoking_file,
         job_id,
         line::Int64,
         name,
         properties,
-        {get_skipped_failure_parser_helper('rerun', 'Tuple(message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("rerun", "Tuple(message String, text String)", "message")},
         result,
-        {get_skipped_failure_parser_helper('skipped', 'Tuple(type String, message String, text String)', 'message')},
+        {get_skipped_failure_parser_helper("skipped", "Tuple(type String, message String, text String)", "message")},
         status,
-        {get_sys_err_out_parser('system-err')},
-        {get_sys_err_out_parser('system-out')},
+        {get_sys_err_out_parser("system-err")},
+        {get_sys_err_out_parser("system-out")},
         time,
         now()::DateTime64(9) as time_inserted,
         type_param,
@@ -669,6 +669,22 @@ def cloudwatch_metrics_adapter(table, bucket, key):
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
 
+def claude_code_usage_adapter(table, bucket, key):
+    schema = """
+    `repo` String,
+    `run_id` Int64,
+    `run_attempt` Int32,
+    `actor` String,
+    `event_name` String,
+    `pr_number` Int64,
+    `timestamp` DateTime64(3),
+    `duration_ms` Int64,
+    `num_turns` Int32,
+    `total_cost_usd` Float64
+    """
+    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+
 SUPPORTED_PATHS = {
     "merges": "default.merges",
     "queue_times_historical": "default.queue_times_historical",
@@ -689,16 +705,17 @@ SUPPORTED_PATHS = {
     "util_metadata": "misc.oss_ci_utilization_metadata",
     "util_timeseries": "misc.oss_ci_time_series",
     "disabled_tests_historical": "misc.disabled_tests_historical",
+    "claude_code_usage": "misc.claude_code_usage",
     # fbossci-cloudwatch-metrics bucket
     "ghci-related": "infra_metrics.cloudwatch_metrics",
-    "all_test_runs": "fortesting.all_test_runs",
+    "test_jsons_while_running": "tests.all_test_runs",
 }
 
 OBJECT_CONVERTER = {
     "default.merges": merges_adapter,
     "default.test_run_s3": handle_test_run_s3,
     "default.failed_test_runs": handle_test_run_s3,
-    "fortesting.all_test_runs": handle_test_run_s3_small,
+    "tests.all_test_runs": handle_test_run_s3_small,
     "default.test_run_summary": handle_test_run_summary,
     "default.merge_bases": merge_bases_adapter,
     "default.rerun_disabled_tests": rerun_disabled_tests_adapter,
@@ -715,6 +732,7 @@ OBJECT_CONVERTER = {
     "misc.oss_ci_utilization_metadata": oss_ci_util_metadata_adapter,
     "misc.oss_ci_time_series": oss_ci_util_time_series_adapter,
     "misc.disabled_tests_historical": disabled_tests_historical_adapter,
+    "misc.claude_code_usage": claude_code_usage_adapter,
     "infra_metrics.cloudwatch_metrics": cloudwatch_metrics_adapter,
 }
 
@@ -735,11 +753,11 @@ def extract_clickhouse_table_name(bucket, key) -> Optional[str]:
 
 
 def extract_bucket(record: Any) -> Optional[str]:
-    return record.get("s3", {}).get("bucket", {}).get("name", None)
+    return record.get("s3", {}).get("bucket", {}).get("name")
 
 
 def extract_key(record: Any) -> Optional[str]:
-    return record.get("s3", {}).get("object", {}).get("key", None)
+    return record.get("s3", {}).get("object", {}).get("key")
 
 
 def upsert_document(record: Any) -> None:

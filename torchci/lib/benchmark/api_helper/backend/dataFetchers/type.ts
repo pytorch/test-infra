@@ -11,3 +11,8 @@ export interface BenchmarkMetadataFetcher {
   postProcess(data: any[]): any;
   applyQuery(inputs: string): Promise<any>;
 }
+
+export interface BenchmarkListCommitFetcher {
+  postProcess(data: any[]): any;
+  applyQuery(inputs: string): Promise<any>;
+}

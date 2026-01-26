@@ -104,3 +104,26 @@ jobs:
           user_email: "test-infra@pytorch.org"
           user_name: "Pytorch Test Infra"
           commit_message: "Updating TD heuristic: historical edited files"
+
+  update-ec2-pricing:
+    runs-on: linux.large
+    steps:
+      - name: Checkout test-infra repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Install Dependencies
+        run: python3 -m pip install boto3==1.19.12 PyYAML==6.0
+
+      - name: Generate EC2 pricing data
+        run: |
+          python3 tools/torchci/test_insights/ec2_pricing.py
+
+      - name: Compress pricing file
+        run: |
+          gzip ec2_pricing.json
+
+      - name: Upload pricing file to S3
+        run: |
+          aws s3 cp ec2_pricing.json.gz s3://ossci-metrics/ec2_pricing.json.gz \
+            --content-encoding gzip \
+            --content-type application/json

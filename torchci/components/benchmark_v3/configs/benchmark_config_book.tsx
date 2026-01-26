@@ -1,0 +1,199 @@
+import { DefaultAutoRenderContent } from "components/benchmark_v3/components/dataRender/auto/defaultAutoRenderContent";
+import { DefaultFanoutRenderContent } from "components/benchmark_v3/components/dataRender/fanout/defaultFanoutRenderContent";
+import {
+  BenchmarkConfigMap,
+  BenchmarkPageType,
+  BenchmarkUIConfig,
+} from "components/benchmark_v3/configs/config_book_types";
+import {
+  NotFoundComponent,
+  resolveComponent,
+} from "components/benchmark_v3/configs/helpers/configRegistration";
+import { defaultDashboardBenchmarkUIConfig } from "components/benchmark_v3/configs/teams/defaults/default_dashboard_config";
+import { DataBinding } from "components/benchmark_v3/configs/utils/dataBindingRegistration";
+
+import { create } from "zustand";
+import { PREDEFINED_BENCHMARK_CONFIG } from "./configurations";
+import { defaultSingleBenchmarkUIConfig } from "./teams/defaults/default_single_view_config";
+
+/**
+ * A class to host a single benchmark UI config
+ */
+export class BenchmarkUIConfigHandler {
+  private _benchmarkId: string;
+  private _type: BenchmarkPageType;
+  private _config: BenchmarkUIConfig;
+  private _dataBinding: DataBinding;
+
+  constructor(config: BenchmarkUIConfig) {
+    this._benchmarkId = config.benchmarkId;
+    this._type = config.type;
+    this._config = config;
+    this._dataBinding = new DataBinding(
+      config.dataBinding,
+      this._benchmarkId,
+      this._type
+    );
+  }
+
+  get benchmarkId(): string {
+    return this._benchmarkId;
+  }
+
+  get type(): BenchmarkPageType {
+    return this._type;
+  }
+
+  get raw(): BenchmarkUIConfig {
+    return this._config;
+  }
+
+  get dataBinding(): DataBinding {
+    return this._dataBinding;
+  }
+
+  /**
+   * Get DataRenderComponent, this fetches the skeleton to render the content of the benchmark
+   * - fanout: the component calls the api once and passes the data to the component
+   * - self-fetching: the component calls the api multiple times and maintain the state by themselves
+   * - customized: user defined component
+   * @returns the component to render the data
+   */
+  getDataRenderComponent = (): React.ComponentType<any> => {
+    const dr = this._config.dataRender;
+    if (!dr) {
+      throw new Error(
+        `No data render config found for ${this._benchmarkId}, this is internal error, please report `
+      );
+    }
+    switch (dr.type) {
+      case "fanout":
+        return DefaultFanoutRenderContent;
+      case "auto":
+        return DefaultAutoRenderContent;
+      case "customized":
+        const Comp = resolveComponent(dr.id);
+        if (Comp) return Comp;
+      default:
+        // inline fallback component to satisfy the return type
+        const Missing: React.FC = () => (
+          <NotFoundComponent name={`ID: ${dr.id} and Type:${dr.type}`} />
+        );
+        return Missing;
+    }
+  };
+}
+
+interface State {
+  predefined: BenchmarkConfigMap;
+  temps: BenchmarkConfigMap;
+
+  initTempConfig: (
+    id: string,
+    type: BenchmarkPageType,
+    params?: Partial<BenchmarkUIConfig>
+  ) => BenchmarkUIConfig;
+
+  ensureConfig: (
+    id: string,
+    type: BenchmarkPageType,
+    params?: Partial<BenchmarkUIConfig>
+  ) => BenchmarkUIConfigHandler;
+
+  getConfig: (id: string, type: BenchmarkPageType) => BenchmarkUIConfigHandler;
+  listIds: () => string[];
+}
+
+export const useBenchmarkBook = create<State>()((set, get) => ({
+  predefined: PREDEFINED_BENCHMARK_CONFIG,
+  temps: {},
+  initTempConfig: (
+    id,
+    type: BenchmarkPageType = BenchmarkPageType.DashboardPage,
+    params = {}
+  ) => {
+    const { temps } = get();
+    let defaultConfig = defaultDashboardBenchmarkUIConfig;
+    switch (type) {
+      case BenchmarkPageType.DashboardPage:
+        defaultConfig = defaultDashboardBenchmarkUIConfig;
+        break;
+      case BenchmarkPageType.SinglePage:
+        defaultConfig = defaultSingleBenchmarkUIConfig;
+        break;
+      default:
+        throw new Error(
+          `Cannot create default page, We currently only support default Dashboard Page and Single Page, but you request page type: ${type}`
+        );
+    }
+    const cfg: BenchmarkUIConfig = {
+      ...defaultConfig,
+      type,
+      benchmarkId: id,
+      apiId: params.apiId ?? id,
+      title: params.title ?? id,
+      dataBinding: {
+        ...defaultConfig.dataBinding,
+        initial: {
+          ...defaultConfig.dataBinding.initial,
+          benchmarkId: id,
+          type: type,
+        },
+      },
+    };
+
+    // if group exist override the config in there
+    const existingGroup = temps[id];
+    const updatedGroup = {
+      ...(existingGroup ?? {}), // keep all previous types under this id
+      [type]: cfg, // override (or add) this type
+    };
+
+    set({
+      temps: {
+        ...temps,
+        [id]: updatedGroup,
+      },
+    });
+    console.log("initialed", cfg);
+    return cfg;
+  },
+
+  ensureConfig: (id: string, type: BenchmarkPageType, params = {}) => {
+    if (!id) throw new Error("ensureConfig: id is required");
+    if (!type) throw new Error("ensureConfig: type is required");
+
+    const { predefined, temps, initTempConfig } = get();
+    const group = predefined[id] ?? temps[id];
+    if (!group) {
+      console.log("ensureConfig creating new config");
+    } else {
+      console.log(`ensureConfig found existing config for ${id} and ${type}`);
+    }
+    const cfg = group?.[type] ?? initTempConfig(id, type, params);
+    return new BenchmarkUIConfigHandler(cfg);
+  },
+
+  getConfig: (id: string, type: BenchmarkPageType) => {
+    if (!id) throw new Error("getConfig: id is required");
+    if (!type) throw new Error("getConfig: type is required");
+
+    const { predefined, temps } = get();
+    const pg = predefined[id];
+    const tmpg = temps[id];
+
+    const cfg = pg?.[type] ?? tmpg?.[type];
+    if (!cfg)
+      throw new Error(
+        `No config found for id: ${id} and ${type}, Group: ${
+          pg || tmpg ? "found the group" : "missing the group"
+        }`
+      );
+    return new BenchmarkUIConfigHandler(cfg);
+  },
+
+  listIds: () => {
+    const { predefined, temps } = get();
+    return [...Object.keys(predefined), ...Object.keys(temps)];
+  },
+}));

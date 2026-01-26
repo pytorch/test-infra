@@ -17,11 +17,17 @@ export default async function fetchListUtilizationMetadataInfo(
 ): Promise<ListUtilizationMetadataInfoAPIResponse> {
   let meta_resp = null;
   if (params.include_stats) {
+    console.log(
+      `[api][list_utilization_metadata_info][${params.workflow_id}]list util metadata with runtime aggregated stats`
+    );
     meta_resp = await listUtilizationMetadataWithStats(
       params.workflow_id,
       params.repo
     );
   } else {
+    console.log(
+      `[api][list_utilization_metadata_info][${params.workflow_id}]list util metadata without runtime aggregated stats`
+    );
     meta_resp = await listUtilizationMetadataInfo(
       params.workflow_id,
       params.repo

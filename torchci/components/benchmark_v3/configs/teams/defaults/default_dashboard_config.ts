@@ -1,6 +1,6 @@
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
-import { BenchmarkUIConfig } from "lib/benchmark/store/benchmark_config_book";
+import { BenchmarkUIConfig } from "../../config_book_types";
 import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 dayjs.extend(utc);
 
@@ -31,6 +31,11 @@ export const DEFAULT_DASHBOARD_BENCHMARK_INITIAL = {
   },
   lbranch: "main",
   rbranch: "main",
+  enableMultiBranchOption: true,
+};
+export const BRANCH_METADATA_COLUMN = {
+  field: "branch",
+  displayName: "Branch",
 };
 
 export const DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS = [
@@ -62,7 +67,64 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
   },
   dataRender: {
     type: "auto",
+    subSectionRenders: {
+      detail_view: {
+        filterConstraint: {
+          model: {
+            disabled: true,
+          },
+          deviceName: {
+            disableOptions: [""],
+          },
+          mode: {
+            disableOptions: [""],
+          },
+        },
+        renders: [
+          {
+            type: "AutoBenchmarkTimeSeriesChartGroup",
+            title: "Metrics Time Series Chart Detail View",
+            config: {
+              type: "line",
+              groupByFields: ["metric"],
+              lineKey: ["dtype", "metric", "branch"],
+              chart: {
+                renderOptions: {
+                  showLegendDetails: true,
+                },
+              },
+            },
+          },
+          {
+            type: "AutoBenchmarkTimeSeriesTable",
+            title: "Comparison Table Detail View",
+            config: {
+              primary: {
+                fields: ["model"],
+                displayName: "Model",
+              },
+              extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+            },
+          },
+          {
+            type: "AutoBenchmarkRawDataTable",
+            title: "Raw Data Table",
+            config: {
+              extraMetadata: [
+                BRANCH_METADATA_COLUMN,
+                ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
+              ],
+            },
+          },
+        ],
+      },
+    },
     renders: [
+      {
+        type: "AutoBenchmarkComparisonGithubExternalLink",
+        description: "See original github runs for left and right runs",
+        config: {},
+      },
       {
         type: "AutoBenchmarkTimeSeriesTable",
         title: "Comparison Table",
@@ -70,6 +132,11 @@ export const defaultDashboardBenchmarkUIConfig: BenchmarkUIConfig | any = {
           primary: {
             fields: ["model"],
             displayName: "Model",
+            navigation: {
+              type: "subSectionRender",
+              value: "detail_view",
+              applyFilterFields: ["model", "mode", "device", "arch", "dtype"],
+            },
           },
           extraMetadata: DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
           comparisonPolicy: DEFAULT_COMPARISON_POLICY,

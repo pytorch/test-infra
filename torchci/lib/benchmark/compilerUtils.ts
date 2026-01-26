@@ -64,6 +64,11 @@ export function computePassrate(
     const model = record.name;
     const accuracy = record.accuracy;
 
+    const mode = record.mode;
+    const device = record.device;
+    const arch = record.arch;
+    const dtype = record.dtype;
+
     // Use clear compiler name to avoid confusion about what they do
     const compiler =
       COMPILER_NAMES_TO_DISPLAY_NAMES[record.compiler] ?? record.compiler;
@@ -71,7 +76,7 @@ export function computePassrate(
       return;
     }
 
-    const key = `${bucket}+${workflowId}+${suite}+${compiler}`;
+    const key = `${bucket}+${workflowId}+${suite}+${compiler}+${mode}+${device}+${arch}+${dtype}`;
     if (!(key in totalCount)) {
       totalCount[key] = 0;
       passCount[key] = 0;
@@ -166,7 +171,7 @@ export function computeGeomean(
 
     const [bucket, workflowId, suite, compiler] = key.split("+");
     returnedGeomean.push({
-      metric: "geomean",
+      metric: "geomean_speedup",
       value: Number(gm),
       granularity_bucket: bucket,
       workflow_id: workflowId,
@@ -446,6 +451,10 @@ export function convertToCompilerPerformanceData(data: BenchmarkData[]) {
         job_id: r.job_id,
         branch: r.branch,
         commit: r.commit,
+        arch: r.arch,
+        device: r.device,
+        dtype: r.dtype,
+        mode: r.mode,
       };
     }
 

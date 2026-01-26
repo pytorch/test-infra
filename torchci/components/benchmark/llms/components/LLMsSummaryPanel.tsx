@@ -1,5 +1,6 @@
 import { Grid, styled, Tooltip } from "@mui/material";
 import { GridCellParams, GridRenderCellParams } from "@mui/x-data-grid";
+import { RenderRawContent } from "components/benchmark_v3/components/common/RawContentDialog";
 import styles from "components/metrics.module.css";
 import { TablePanelWithData } from "components/metrics/panels/TablePanel";
 import { Granularity } from "components/metrics/panels/TimeSeriesPanel";
@@ -478,21 +479,25 @@ export default function LLMsSummaryPanel({
 
   // TODO (huydhn): Table bigger than 100 rows requires x-data-grid-pro
   return (
-    <Grid container spacing={10}>
-      <Grid size={{ xs: 12, lg: 11.8 }}>
-        <TablePanelWithData
-          title={"Models"}
-          data={data}
-          columns={columns}
-          dataGridProps={{ getRowId: (el: any) => el.name }}
-          showFooter={true}
-          disableAutoPageSize={true}
-          customStyle={{
-            maxHeight: 1200,
-          }}
-        />
+    <>
+      <RenderRawContent data={lData} buttonName="lData" />
+      <RenderRawContent data={rData} buttonName="rData" />
+      <Grid container spacing={10}>
+        <Grid size={{ xs: 12, lg: 11.8 }}>
+          <TablePanelWithData
+            title={"Models"}
+            data={data}
+            columns={columns}
+            dataGridProps={{ getRowId: (el: any) => el.name }}
+            showFooter={true}
+            disableAutoPageSize={true}
+            customStyle={{
+              maxHeight: 1200,
+            }}
+          />
+        </Grid>
       </Grid>
-    </Grid>
+    </>
   );
 }
 
