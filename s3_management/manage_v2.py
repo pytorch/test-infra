@@ -1432,7 +1432,9 @@ def _compute_and_set_checksums(matching_objects: List[str]) -> None:
             print(f"ERROR: Failed to process {key}: {e}")
             raise
 
-    print(f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}")
+    print(
+        f"\nINFO: Summary - Processed: {processed}, Skipped (already had checksum): {skipped}"
+    )
 
 
 def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
@@ -1475,19 +1477,24 @@ def set_checksum_metadata(prefix: str, package_name: str, version: str) -> None:
             matching_objects.append(key)
 
     if not matching_objects:
-        print(f"WARNING: No matching objects found for {package_name}-{version} in {prefix}/")
+        print(
+            f"WARNING: No matching objects found for {package_name}-{version} in {prefix}/"
+        )
         return
 
     print(f"INFO: Found {len(matching_objects)} matching objects")
     _compute_and_set_checksums(matching_objects)
 
 
-def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = None) -> None:
+def recompute_sha256_for_pattern(
+    pattern: str, package_name: Optional[str] = None, version: Optional[str] = None
+) -> None:
     """Compute SHA256 checksums for objects matching a pattern that don't have checksums.
 
     Args:
         pattern: The pattern to match against object keys (e.g., "whl/test/rocm7.1")
         package_name: Optional package name to filter (e.g., "torch", "torchvision")
+        version: Optional version to filter (e.g., "2.5.0", "2.5.0+rocm7.1")
     """
     print(f"INFO: Searching for objects matching pattern '{pattern}'")
     normalized_package = None
@@ -1495,6 +1502,9 @@ def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = Non
         print(f"INFO: Filtering by package name: '{package_name}'")
         # Normalize package name (replace - with _ for matching wheel filenames)
         normalized_package = package_name.lower().replace("-", "_")
+
+    if version:
+        print(f"INFO: Filtering by version: '{version}'")
 
     # Find all matching objects
     matching_objects = []
@@ -1504,17 +1514,35 @@ def recompute_sha256_for_pattern(pattern: str, package_name: Optional[str] = Non
         if pattern in key:
             # Only process wheel files
             if key.endswith(".whl"):
+                basename = path.basename(key).lower()
                 # If package_name is specified, filter by it
                 if normalized_package:
-                    basename = path.basename(key).lower()
                     # Wheel filename format: {package}-{version}-...
                     if not basename.startswith(f"{normalized_package}-"):
                         continue
+
+                # If version is specified, filter by it
+                if version:
+                    # Check for version pattern in the filename
+                    # Handle both URL-encoded (+) and regular versions
+                    version_encoded = version.replace("+", "%2B").lower()
+                    version_lower = version.lower()
+                    if (
+                        f"-{version_encoded}-" not in basename
+                        and f"-{version_lower}-" not in basename
+                    ):
+                        continue
+
                 matching_objects.append(key)
 
     if not matching_objects:
-        pkg_msg = f" for package '{package_name}'" if package_name else ""
-        print(f"WARNING: No matching objects found for pattern '{pattern}'{pkg_msg}")
+        filters = []
+        if package_name:
+            filters.append(f"package '{package_name}'")
+        if version:
+            filters.append(f"version '{version}'")
+        filter_msg = f" for {', '.join(filters)}" if filters else ""
+        print(f"WARNING: No matching objects found for pattern '{pattern}'{filter_msg}")
         return
 
     print(f"INFO: Found {len(matching_objects)} matching wheel files")
@@ -1543,7 +1571,8 @@ def create_parser() -> argparse.ArgumentParser:
         "--package-version",
         type=str,
         metavar="VERSION",
-        help="Package version to match (e.g., 2.0.0, 2.0.0+cu118). Used with --set-checksum.",
+        help="Package version to filter (e.g., 2.0.0, 2.0.0+cu118). "
+        "Used with --set-checksum or --recompute-sha256-pattern.",
     )
     parser.add_argument(
         "--recompute-sha256-pattern",
@@ -1562,15 +1591,21 @@ def main() -> None:
     # Handle --set-checksum command
     if args.set_checksum:
         if not args.package_name:
-            parser.error("--set-checksum requires --package-name to specify the package")
+            parser.error(
+                "--set-checksum requires --package-name to specify the package"
+            )
         if not args.package_version:
-            parser.error("--set-checksum requires --package-version to specify the version")
+            parser.error(
+                "--set-checksum requires --package-version to specify the version"
+            )
         set_checksum_metadata(args.prefix, args.package_name, args.package_version)
         return
 
     # Handle --recompute-sha256-pattern command
     if args.recompute_sha256_pattern:
-        recompute_sha256_for_pattern(args.recompute_sha256_pattern, args.package_name)
+        recompute_sha256_for_pattern(
+            args.recompute_sha256_pattern, args.package_name, args.package_version
+        )
         return
 
     # Display PACKAGE_LINKS_ALLOW_LIST summary
