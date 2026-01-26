@@ -85,6 +85,23 @@ jobs:
       matrix: ${{ fromJSON(needs.generate-matrix.outputs.matrix) }}
 
     steps:
+      - name: Free disk space for large wheels
+        if: ${{ startsWith(matrix.arch, 'rocm') }}
+        run: |
+          echo "Disk space before cleanup:"
+          df -h
+          # Remove unnecessary software to free disk space for large ROCm wheels (~5GB each)
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf /opt/ghc || true
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/share/boost || true
+          sudo rm -rf /usr/share/swift || true
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          sudo docker image prune --all --force || true
+          echo "Disk space after cleanup:"
+          df -h
+
       - name: Checkout test-infra
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
