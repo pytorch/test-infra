@@ -776,6 +776,13 @@
       "slow"
     ]
   ],
+  "test_errors_nn_NLLLoss_xpu_float64 (__main__.TestModuleXPU)": [
+    "173335",
+    "https://github.com/pytorch/pytorch/issues/173335",
+    [
+      "xpu"
+    ]
+  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
@@ -1942,6 +1949,13 @@
     "https://github.com/pytorch/pytorch/issues/156436",
     [
       "linux"
+    ]
+  ],
+  "test_skip_non_tf32 (__main__.SDPAPatternRewriterGpuTests)": [
+    "173336",
+    "https://github.com/pytorch/pytorch/issues/173336",
+    [
+      "xpu"
     ]
   ],
   "test_sparse_add_cuda_float32 (__main__.TestSparseCSRCUDA)": [
