@@ -46,6 +46,7 @@ export function toApiDeviceArch(
     case "rocm":
       if (norm.includes("mi300x")) return [device, "mi300x"];
       if (norm.includes("mi325x")) return [device, "mi325x"];
+      if (norm.includes("radeon")) return [device, "mi355x"];
       return [device, norm];
     case "mps":
       return [device, norm];
