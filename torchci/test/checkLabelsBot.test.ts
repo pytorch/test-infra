@@ -1,10 +1,10 @@
-import * as botUtils from "lib/bot/utils";
 import {
   formLabelErrComment,
   hasRequiredLabels,
   isLabelErrComment,
   LABEL_COMMENT_START,
 } from "lib/bot/checkLabelsUtils";
+import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
 import checkLabelsBot from "../lib/bot/checkLabelsBot";
