@@ -48,7 +48,7 @@ PYTORCH_HELION_CONFIG = BenchmarkConfig(
             "helion_speedup": RegressionPolicy(
                 name="helion_speedup",
                 condition="greater_equal",
-                threshold=0.85,
+                threshold=0.95,
                 baseline_aggregation="median",
             ),
         },
