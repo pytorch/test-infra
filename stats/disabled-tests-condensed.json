@@ -1263,13 +1263,6 @@
       "linux"
     ]
   ],
-  "test_mark_unbacked_with_hint_override_cuda (__main__.GPUTests)": [
-    "165388",
-    "https://github.com/pytorch/pytorch/issues/165388",
-    [
-      "inductor"
-    ]
-  ],
   "test_max_autotune_addmm_search_space_EXHAUSTIVE_dynamic_True (__main__.TestMaxAutotuneSubproc)": [
     "161463",
     "https://github.com/pytorch/pytorch/issues/161463",
