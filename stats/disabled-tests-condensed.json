@@ -443,6 +443,20 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_nn_functional_max_unpool2d_grad_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "173464",
+    "https://github.com/pytorch/pytorch/issues/173464",
+    [
+      "xpu"
+    ]
+  ],
+  "test_comprehensive_nn_functional_max_unpool2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
+    "173465",
+    "https://github.com/pytorch/pytorch/issues/173465",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
     "117732",
     "https://github.com/pytorch/pytorch/issues/117732",
@@ -514,6 +528,13 @@
     "https://github.com/pytorch/pytorch/issues/147047",
     [
       "inductor"
+    ]
+  ],
+  "test_comprehensive_unravel_index_xpu_int32 (__main__.TestInductorOpInfoXPU)": [
+    "173466",
+    "https://github.com/pytorch/pytorch/issues/173466",
+    [
+      "xpu"
     ]
   ],
   "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
