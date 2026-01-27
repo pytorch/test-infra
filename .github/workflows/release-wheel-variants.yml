@@ -78,6 +78,7 @@ jobs:
   promote-variants:
     needs: generate-matrix
     runs-on: ubuntu-22.04
+    timeout-minutes: 180
     # Only use pytorchbot-env for workflow_dispatch with dry_run=false
     environment: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run == false && 'pytorchbot-env' || '' }}
     strategy:
@@ -140,6 +141,7 @@ jobs:
         with:
           role-to-assume: arn:aws:iam::749337293305:role/gha_workflow_test_build_wheels
           aws-region: us-east-1
+          role-duration-seconds: 10800 # 3 hours
 
       - name: Determine version suffix
         id: version-suffix
