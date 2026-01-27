@@ -2170,13 +2170,6 @@
       "rocm"
     ]
   ],
-  "test_toy_model_dynamic_batch (__main__.FxGraphRunnableTest)": [
-    "161580",
-    "https://github.com/pytorch/pytorch/issues/161580",
-    [
-      "xpu"
-    ]
-  ],
   "test_trace_buffer_slice (__main__.TestFX)": [
     "74208",
     "https://github.com/pytorch/pytorch/issues/74208",
