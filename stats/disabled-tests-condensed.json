@@ -881,13 +881,6 @@
       "dynamo"
     ]
   ],
-  "test_export_gru_gpu_serdes_strict (__main__.SerDesExportTestExport)": [
-    "171984",
-    "https://github.com/pytorch/pytorch/issues/171984",
-    [
-      "xpu"
-    ]
-  ],
   "test_export_rnn_flatten_parameters_gpu_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
     "169573",
     "https://github.com/pytorch/pytorch/issues/169573",
@@ -1303,13 +1296,6 @@
     "https://github.com/pytorch/pytorch/issues/161463",
     [
       "rocm"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "171988",
-    "https://github.com/pytorch/pytorch/issues/171988",
-    [
-      "xpu"
     ]
   ],
   "test_mem_get_info (__main__.TestCuda)": [
