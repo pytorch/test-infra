@@ -189,7 +189,7 @@ jobs:
           # Always dry run for PRs, otherwise use input
           DRY_RUN: ${{ github.event_name == 'pull_request' && 'enabled' || (inputs.dry_run && 'enabled' || 'disabled') }}
           PACKAGE_NAME: torchvision
-          PACKAGE_VERSION: '0.23.0'
+          PACKAGE_VERSION: ${{ inputs.pytorch_version || '0.25.0' }}
           PLATFORM: ${{ matrix.platform }}
           VERSION_SUFFIX: ${{ steps.version-suffix.outputs.suffix }}
           ARCH: ${{ matrix.arch }}
