@@ -1306,15 +1306,8 @@
     ]
   ],
   "test_max_pool2d_with_indices_backward5_dynamic_shapes_xpu (__main__.DynamicShapesCodegenGPUTests)": [
-    "171987",
-    "https://github.com/pytorch/pytorch/issues/171987",
-    [
-      "xpu"
-    ]
-  ],
-  "test_max_pool2d_with_indices_backward5_xpu (__main__.GPUTests)": [
-    "171985",
-    "https://github.com/pytorch/pytorch/issues/171985",
+    "171988",
+    "https://github.com/pytorch/pytorch/issues/171988",
     [
       "xpu"
     ]
