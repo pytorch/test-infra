@@ -350,13 +350,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_linalg_lu_factor_ex_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "168207",
-    "https://github.com/pytorch/pytorch/issues/168207",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_linalg_vecdot_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "140525",
     "https://github.com/pytorch/pytorch/issues/140525",
@@ -2311,34 +2304,6 @@
     "https://github.com/pytorch/pytorch/issues/149016",
     [
       "rocm"
-    ]
-  ],
-  "test_view_as_complex_xpu (__main__.TestViewOpsXPU)": [
-    "170853",
-    "https://github.com/pytorch/pytorch/issues/170853",
-    [
-      "xpu"
-    ]
-  ],
-  "test_view_as_real_xpu_complex128 (__main__.TestViewOpsXPU)": [
-    "171013",
-    "https://github.com/pytorch/pytorch/issues/171013",
-    [
-      "xpu"
-    ]
-  ],
-  "test_view_as_real_xpu_complex32 (__main__.TestViewOpsXPU)": [
-    "171012",
-    "https://github.com/pytorch/pytorch/issues/171012",
-    [
-      "xpu"
-    ]
-  ],
-  "test_view_as_real_xpu_complex64 (__main__.TestViewOpsXPU)": [
-    "170974",
-    "https://github.com/pytorch/pytorch/issues/170974",
-    [
-      "xpu"
     ]
   ],
   "test_vit_aten_export (__main__.TestQuantizePT2EModels)": [
