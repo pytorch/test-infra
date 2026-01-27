@@ -450,6 +450,13 @@
       "xpu"
     ]
   ],
+  "test_comprehensive_nn_functional_max_unpool2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
+    "173471",
+    "https://github.com/pytorch/pytorch/issues/173471",
+    [
+      "xpu"
+    ]
+  ],
   "test_comprehensive_nn_functional_max_unpool2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
     "173465",
     "https://github.com/pytorch/pytorch/issues/173465",
@@ -1446,6 +1453,13 @@
   "test_mm_plus_mm3 (__main__.TestSelectAlgorithm)": [
     "173344",
     "https://github.com/pytorch/pytorch/issues/173344",
+    [
+      "xpu"
+    ]
+  ],
+  "test_mm_plus_mm3_gpu_wrapper (__main__.TestGpuWrapper)": [
+    "173473",
+    "https://github.com/pytorch/pytorch/issues/173473",
     [
       "xpu"
     ]
