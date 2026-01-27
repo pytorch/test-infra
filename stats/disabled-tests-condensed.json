@@ -860,20 +860,6 @@
       "slow"
     ]
   ],
-  "test_errors_nn_NLLLoss_xpu_float32 (__main__.TestModuleXPU)": [
-    "173350",
-    "https://github.com/pytorch/pytorch/issues/173350",
-    [
-      "xpu"
-    ]
-  ],
-  "test_errors_nn_NLLLoss_xpu_float64 (__main__.TestModuleXPU)": [
-    "173335",
-    "https://github.com/pytorch/pytorch/issues/173335",
-    [
-      "xpu"
-    ]
-  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
