@@ -243,6 +243,13 @@
       "linux"
     ]
   ],
+  "test_compile_preserves_metadata_cache_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
+    "173717",
+    "https://github.com/pytorch/pytorch/issues/173717",
+    [
+      "rocm"
+    ]
+  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -436,13 +443,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_comprehensive_stft_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "146978",
-    "https://github.com/pytorch/pytorch/issues/146978",
-    [
-      "inductor"
     ]
   ],
   "test_comprehensive_sub_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -1060,13 +1060,6 @@
     "https://github.com/pytorch/pytorch/issues/164271",
     [
       "rocm"
-    ]
-  ],
-  "test_honor_sm_carveout_with_triton_tma_carveout0_op_scaled_mm (__main__.TestMaxAutotune)": [
-    "161525",
-    "https://github.com/pytorch/pytorch/issues/161525",
-    [
-      "linux"
     ]
   ],
   "test_host_memory_stats (__main__.TestCuda)": [
