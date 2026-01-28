@@ -1,19 +1,4 @@
 {
-  "test_2d_reductions_mixed_indexing_reduction_op0_cpu (__main__.TritonBlockPointerTestCPU)": [
-    "157895",
-    "https://github.com/pytorch/pytorch/issues/157895",
-    [
-      "inductor"
-    ]
-  ],
-  "test_2d_reductions_mixed_indexing_reduction_op0_cuda (__main__.TritonBlockPointerTestGPU)": [
-    "147755",
-    "https://github.com/pytorch/pytorch/issues/147755",
-    [
-      "linux",
-      "slow"
-    ]
-  ],
   "test_2d_reductions_mixed_indexing_reduction_op0_cuda (__main__.TritonTensorDescriptorTestCUDA)": [
     "158328",
     "https://github.com/pytorch/pytorch/issues/158328",
