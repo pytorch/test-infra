@@ -147,9 +147,15 @@ jobs:
         id: version-suffix
         run: |
           ARCH="${{ matrix.arch }}"
+          PLATFORM="${{ matrix.platform }}"
           case "${ARCH}" in
             cpu)
-              echo "suffix=%2Bcpu" >> "$GITHUB_OUTPUT"
+              # macOS wheels don't have +cpu suffix
+              if [[ "${PLATFORM}" == macosx* ]]; then
+                echo "suffix=" >> "$GITHUB_OUTPUT"
+              else
+                echo "suffix=%2Bcpu" >> "$GITHUB_OUTPUT"
+              fi
               ;;
             cu*)
               echo "suffix=%2B${ARCH}" >> "$GITHUB_OUTPUT"
