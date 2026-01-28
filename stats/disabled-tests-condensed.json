@@ -831,13 +831,6 @@
       "dynamo"
     ]
   ],
-  "test_export_rnn_flatten_parameters_gpu_serdes_nonstrict (__main__.SerDesExportNonStrictTestExport)": [
-    "169573",
-    "https://github.com/pytorch/pytorch/issues/169573",
-    [
-      "xpu"
-    ]
-  ],
   "test_extract_gradients_from_optimizer_set_to_none (__main__.TestIdentifyGradients)": [
     "88721",
     "https://github.com/pytorch/pytorch/issues/88721",
@@ -2173,6 +2166,13 @@
     "https://github.com/pytorch/pytorch/issues/158908",
     [
       "linux"
+    ]
+  ],
+  "test_triton_mutated_autotuning_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
+    "173620",
+    "https://github.com/pytorch/pytorch/issues/173620",
+    [
+      "rocm"
     ]
   ],
   "test_triu_tril_large_matrix_64bit_cuda (__main__.TestLinalgCUDA)": [
