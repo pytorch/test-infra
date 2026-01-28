@@ -272,13 +272,6 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_diagonal_copy_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "140483",
-    "https://github.com/pytorch/pytorch/issues/140483",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_linalg_ldl_factor_ex_cuda (__main__.TestDecompCUDA)": [
     "76962",
     "https://github.com/pytorch/pytorch/issues/76962",
@@ -289,20 +282,6 @@
   "test_comprehensive_linalg_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
     "137684",
     "https://github.com/pytorch/pytorch/issues/137684",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_linalg_vecdot_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "140525",
-    "https://github.com/pytorch/pytorch/issues/140525",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_matmul_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "140584",
-    "https://github.com/pytorch/pytorch/issues/140584",
     [
       "inductor"
     ]
@@ -457,13 +436,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_comprehensive_rsub_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "140503",
-    "https://github.com/pytorch/pytorch/issues/140503",
-    [
-      "inductor"
     ]
   ],
   "test_comprehensive_stft_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
@@ -1887,6 +1859,34 @@
       "linux",
       "rocm",
       "slow"
+    ]
+  ],
+  "test_sdpa_autocast_cuda (__main__.TestNestedTensorSubclassCUDA)": [
+    "173715",
+    "https://github.com/pytorch/pytorch/issues/173715",
+    [
+      "rocm"
+    ]
+  ],
+  "test_sdpa_backwards_cuda_bfloat16 (__main__.TestNestedTensorSubclassCUDA)": [
+    "173714",
+    "https://github.com/pytorch/pytorch/issues/173714",
+    [
+      "rocm"
+    ]
+  ],
+  "test_sdpa_backwards_cuda_float16 (__main__.TestNestedTensorSubclassCUDA)": [
+    "173713",
+    "https://github.com/pytorch/pytorch/issues/173713",
+    [
+      "rocm"
+    ]
+  ],
+  "test_sdpa_backwards_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
+    "173712",
+    "https://github.com/pytorch/pytorch/issues/173712",
+    [
+      "rocm"
     ]
   ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
