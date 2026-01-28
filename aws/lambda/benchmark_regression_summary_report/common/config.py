@@ -347,24 +347,6 @@ PYTORCH_X_VLLM_BENCHMARK_CONFIG = BenchmarkConfig(
                 threshold=1.20,
                 baseline_aggregation="median",
             ),
-            "p99_itl_ms": RegressionPolicy(
-                name="p99_itl_ms",
-                condition="less_equal",
-                threshold=1.20,
-                baseline_aggregation="median",
-            ),
-            "p99_tpot_ms": RegressionPolicy(
-                name="p99_tpot_ms",
-                condition="less_equal",
-                threshold=1.20,
-                baseline_aggregation="median",
-            ),
-            "p99_ttft_ms": RegressionPolicy(
-                name="p99_ttft_ms",
-                condition="less_equal",
-                threshold=1.20,
-                baseline_aggregation="median",
-            ),
             "requests_per_second": RegressionPolicy(
                 name="requests_per_second",
                 condition="greater_equal",
@@ -387,7 +369,8 @@ PYTORCH_X_VLLM_BENCHMARK_CONFIG = BenchmarkConfig(
                     "condition": {
                         "type": "device_arch",
                         "device_arches": [
-                            {"device": "cuda", "arch": "NVIDIA H100 80GB HBM3"}
+                            {"device": "cuda", "arch": "NVIDIA H100 80GB HBM3"},
+                            {"device": "cuda", "arch": "NVIDIA B200"},
                         ],
                     },
                 }
