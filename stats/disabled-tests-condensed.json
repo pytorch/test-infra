@@ -272,30 +272,9 @@
       "rocm"
     ]
   ],
-  "test_comprehensive_complex_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "140367",
-    "https://github.com/pytorch/pytorch/issues/140367",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_cross_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "140355",
-    "https://github.com/pytorch/pytorch/issues/140355",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_diagonal_copy_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
     "140483",
     "https://github.com/pytorch/pytorch/issues/140483",
-    [
-      "inductor"
-    ]
-  ],
-  "test_comprehensive_fft_fftshift_cuda_float64 (__main__.TestInductorOpInfoCUDA)": [
-    "140484",
-    "https://github.com/pytorch/pytorch/issues/140484",
     [
       "inductor"
     ]
@@ -1211,13 +1190,6 @@
     "https://github.com/pytorch/pytorch/issues/153707",
     [
       "dynamo"
-    ]
-  ],
-  "test_like_channels_last_cpu (__main__.CpuTritonTests)": [
-    "139149",
-    "https://github.com/pytorch/pytorch/issues/139149",
-    [
-      "inductor"
     ]
   ],
   "test_linear_and_cel_max_autotune (__main__.InplacePaddingTest)": [
