@@ -1493,13 +1493,6 @@
       "rocm"
     ]
   ],
-  "test_nondeterministic_alert_histc_cuda (__main__.TestTorchDeviceTypeCUDA)": [
-    "109310",
-    "https://github.com/pytorch/pytorch/issues/109310",
-    [
-      "inductor"
-    ]
-  ],
   "test_opaque_obj_retraceability_nonstrict (__main__.RetraceExportNonStrictTestExport)": [
     "170449",
     "https://github.com/pytorch/pytorch/issues/170449",
