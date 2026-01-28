@@ -124,8 +124,8 @@ on:
 
 jobs:
   job:
-    permissions:                                                     
-      id-token: write                                                             
+    permissions:
+      id-token: write
       contents: read
     strategy:
       fail-fast: false
