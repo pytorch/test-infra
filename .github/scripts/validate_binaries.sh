@@ -115,7 +115,7 @@ else
         source $HOME/.local/bin/env
         uv venv --python ${MATRIX_PYTHON_VERSION}
         source .venv/bin/activate
-        uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch --force-reinstall --verbose
+        uv pip install --index https://wheelnext.github.io/variants-index/v0.0.3/ torch --force-reinstall --verbose
     fi
 
     # test with numpy 1.x installation needs to happen after torch install
