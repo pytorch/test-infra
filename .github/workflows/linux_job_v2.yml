@@ -42,8 +42,13 @@ on:
         type: number
       single-branch:
         description: 'Whether to fetch only a single branch, defaults to true'
-        default: false
+        default: true
         type: boolean
+      additional-fetch-refs:
+        description: 'Additional refs to fetch, space separated'
+        default: |
+          refs/heads/main
+        type: string
       checkout-mode:
         description: 'Mode of checkout; one of "normal", "blobless", "treeless".'
         default: "normal"
@@ -192,6 +197,7 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ inputs.ref || github.ref }}
           single-branch: ${{ inputs.single-branch }}
+          additional-fetch-refs: ${{ inputs.additional-fetch-refs }}
           path: ${{ inputs.repository || github.repository }}
           fetch-depth: ${{ inputs.fetch-depth }}
           submodules: ${{ inputs.submodules }}
