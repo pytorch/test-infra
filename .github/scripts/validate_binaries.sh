@@ -113,6 +113,7 @@ else
             powershell -ExecutionPolicy Bypass -c "\$env:INSTALLER_DOWNLOAD_URL='https://wheelnext.astral.sh/v0.0.3'; irm https://astral.sh/uv/install.ps1 | iex"
             export PATH="${HOME}/.local/bin/:${PATH}"
             uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch torchvision --force-reinstall --verbose
+            uv pip install torchaudio --no-deps
         else
             curl -LsSf https://astral.sh/uv/install.sh | \
             INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.3 sh
@@ -120,6 +121,7 @@ else
             uv venv --python ${MATRIX_PYTHON_VERSION}
             source .venv/bin/activate
             uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch torchvision --force-reinstall --verbose
+            uv pip install torchaudio --no-deps
         fi
     else
         eval $INSTALLATION
