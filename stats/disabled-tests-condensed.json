@@ -279,13 +279,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_linalg_lu_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "137684",
-    "https://github.com/pytorch/pytorch/issues/137684",
-    [
-      "inductor"
-    ]
-  ],
   "test_comprehensive_nn_functional_adaptive_avg_pool2d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "131080",
     "https://github.com/pytorch/pytorch/issues/131080",
@@ -1276,14 +1269,6 @@
     "https://github.com/pytorch/pytorch/issues/173473",
     [
       "xpu"
-    ]
-  ],
-  "test_mm_triton_kernel_benchmark (__main__.TestKernelBenchmark)": [
-    "118346",
-    "https://github.com/pytorch/pytorch/issues/118346",
-    [
-      "linux",
-      "slow"
     ]
   ],
   "test_modes_handle_first (__main__.TestTorchFunctionMode)": [
