@@ -341,7 +341,7 @@
     "147057",
     "https://github.com/pytorch/pytorch/issues/147057",
     [
-      "inductor"
+      "rocm"
     ]
   ],
   "test_comprehensive_nn_functional_interpolate_linear_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -1260,7 +1260,6 @@
     "126489",
     "https://github.com/pytorch/pytorch/issues/126489",
     [
-      "linux",
       "rocm"
     ]
   ],
