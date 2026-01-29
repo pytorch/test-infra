@@ -145,13 +145,6 @@
       "rocm"
     ]
   ],
-  "test_benchmark_choice_in_subproc (__main__.TestMaxAutotuneSubproc)": [
-    "158335",
-    "https://github.com/pytorch/pytorch/issues/158335",
-    [
-      "inductor"
-    ]
-  ],
   "test_binary_redirect_and_tee (__main__.StartProcessesListAsBinaryTest)": [
     "163230",
     "https://github.com/pytorch/pytorch/issues/163230",
