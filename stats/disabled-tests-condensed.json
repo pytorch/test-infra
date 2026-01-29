@@ -1755,16 +1755,6 @@
       "rocm"
     ]
   ],
-  "test_repeated_calling_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "146185",
-    "https://github.com/pytorch/pytorch/issues/146185",
-    [
-      "inductor",
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_repeated_masked_load (__main__.CudaReproTests)": [
     "163701",
     "https://github.com/pytorch/pytorch/issues/163701",
