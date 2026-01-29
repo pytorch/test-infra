@@ -105,18 +105,21 @@ else
             export NV_VARIANT_PROVIDER_FORCE_CUDA_DRIVER_VERSION='12.8'
             export NV_VARIANT_PROVIDER_FORCE_SM_ARCH='9.0'
         fi
+        if [[ ${MATRIX_GPU_ARCH_TYPE} == 'xpu' ]]; then
+            export INTEL_VARIANT_PROVIDER_FORCE_DEVICE_IP='30.0.4'
+        fi
 
         if [[ ${TARGET_OS} == 'windows' ]]; then
             powershell -ExecutionPolicy Bypass -c "\$env:INSTALLER_DOWNLOAD_URL='https://wheelnext.astral.sh/v0.0.3'; irm https://astral.sh/uv/install.ps1 | iex"
             export PATH="${HOME}/.local/bin/:${PATH}"
-            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch --force-reinstall --verbose
+            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch torchvision --force-reinstall --verbose
         else
             curl -LsSf https://astral.sh/uv/install.sh | \
             INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.3 sh
             source $HOME/.local/bin/env
             uv venv --python ${MATRIX_PYTHON_VERSION}
             source .venv/bin/activate
-            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch --force-reinstall --verbose
+            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch torchvision --force-reinstall --verbose
         fi
     else
         eval $INSTALLATION
