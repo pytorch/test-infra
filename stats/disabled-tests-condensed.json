@@ -597,15 +597,6 @@
       "dynamo"
     ]
   ],
-  "test_device_moved_constant_cpu_with_stack_allocation (__main__.AOTInductorTestABICompatibleCpuWithStackAllocation)": [
-    "168250",
-    "https://github.com/pytorch/pytorch/issues/168250",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_distributed_checkpoint_state_dict_type0 (__main__.TestDistributedCheckpoint)": [
     "113937",
     "https://github.com/pytorch/pytorch/issues/113937",
