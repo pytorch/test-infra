@@ -2160,14 +2160,6 @@
       "rocm"
     ]
   ],
-  "test_upper_bound_i64_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "159860",
-    "https://github.com/pytorch/pytorch/issues/159860",
-    [
-      "inductor",
-      "linux"
-    ]
-  ],
   "test_uuid_visible_devices (__main__.TestCudaMallocAsync)": [
     "169878",
     "https://github.com/pytorch/pytorch/issues/169878",
