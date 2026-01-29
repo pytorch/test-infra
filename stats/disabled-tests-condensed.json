@@ -2137,6 +2137,13 @@
       "dynamo"
     ]
   ],
+  "test_two_layer_fully_shard_cudagraph (__main__.TestFullyShardCudaGraph)": [
+    "173761",
+    "https://github.com/pytorch/pytorch/issues/173761",
+    [
+      "rocm"
+    ]
+  ],
   "test_unbacked_symint (__main__.TestMemoryPlanning)": [
     "168171",
     "https://github.com/pytorch/pytorch/issues/168171",
