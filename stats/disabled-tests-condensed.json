@@ -1877,13 +1877,6 @@
       "rocm"
     ]
   ],
-  "test_special_polygamma_cpu_halide (__main__.HalideCpuTests)": [
-    "150624",
-    "https://github.com/pytorch/pytorch/issues/150624",
-    [
-      "linux"
-    ]
-  ],
   "test_subclass (__main__.CustomOpTests)": [
     "160447",
     "https://github.com/pytorch/pytorch/issues/160447",
@@ -2100,15 +2093,6 @@
     "https://github.com/pytorch/pytorch/issues/173761",
     [
       "rocm"
-    ]
-  ],
-  "test_unbacked_symint (__main__.TestMemoryPlanning)": [
-    "168171",
-    "https://github.com/pytorch/pytorch/issues/168171",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_unshard_async (__main__.TestFullyShardUnshardMultiProcess)": [
