@@ -124,9 +124,6 @@ on:
 
 jobs:
   job:
-    permissions:
-      id-token: write
-      contents: read
     strategy:
       fail-fast: false
     name: ${{ inputs.job-name }}
