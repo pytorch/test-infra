@@ -278,15 +278,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_adaptive_avg_pool2d_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
-    "131080",
-    "https://github.com/pytorch/pytorch/issues/131080",
-    [
-      "inductor",
-      "linux",
-      "slow"
-    ]
-  ],
   "test_comprehensive_nn_functional_conv2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
     "173339",
     "https://github.com/pytorch/pytorch/issues/173339",
@@ -418,16 +409,6 @@
     "https://github.com/pytorch/pytorch/issues/173363",
     [
       "xpu"
-    ]
-  ],
-  "test_comprehensive_pca_lowrank_cuda_float32 (__main__.TestInductorOpInfoCUDA)": [
-    "139828",
-    "https://github.com/pytorch/pytorch/issues/139828",
-    [
-      "inductor",
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_comprehensive_sub_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
