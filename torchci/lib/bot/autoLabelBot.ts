@@ -378,6 +378,62 @@ export async function addNewLabels(
   }
 }
 
+// Marker for the ci: disable-autorevert label warning comment
+const DISABLE_AUTOREVERT_WARNING_MARKER = "<!-- disable-autorevert-label-warning -->";
+
+// Helper function to check if warning comment already exists and add one if needed
+async function handleDisableAutorevertLabel(
+  context: Context<"pull_request.labeled"> | Context<"pull_request.opened">,
+  prNumber: number,
+  labelName: string
+): Promise<void> {
+  // Check if we already posted a warning
+  const comments = await context.octokit.issues.listComments(
+    context.repo({
+      issue_number: prNumber,
+    })
+  );
+
+  const hasExistingWarning = comments.data.some((comment) =>
+    comment.body?.includes(DISABLE_AUTOREVERT_WARNING_MARKER)
+  );
+
+  // Remove the incorrect label
+  context.log(
+    `Removing incorrect label "${labelName}" from PR ${prNumber}`
+  );
+  await context.octokit.issues.removeLabel(
+    context.repo({
+      issue_number: prNumber,
+      name: labelName,
+    })
+  );
+
+  // Only post a comment if we haven't already warned about this
+  if (!hasExistingWarning) {
+    context.log(
+      `Posting warning comment about incorrect label "${labelName}" on PR ${prNumber}`
+    );
+    await context.octokit.issues.createComment(
+      context.repo({
+        issue_number: prNumber,
+        body: `${DISABLE_AUTOREVERT_WARNING_MARKER}
+The label \`${labelName}\` is incorrect for pull requests.
+
+This label is used to disable the **entire autorevert system** and should only be added to **issues**, not PRs.
+
+If you want to prevent autorevert from reverting **this specific PR**, please use the label \`autorevert: disable\` instead.
+
+The incorrect label has been removed.`,
+      })
+    );
+  } else {
+    context.log(
+      `Skipping duplicate warning comment for "${labelName}" on PR ${prNumber} - warning already exists`
+    );
+  }
+}
+
 function myBot(app: Probot): void {
   const TDRolloutTracker = new CachedIssueTracker(
     app,
@@ -564,6 +620,15 @@ function myBot(app: Probot): void {
       }
     }
     await addNewLabels(existingLabels, labelsToAdd, context);
+
+    // Check if PR was opened with the incorrect ci: disable-autorevert label
+    if (existingLabels.includes("ci: disable-autorevert")) {
+      await handleDisableAutorevertLabel(
+        context,
+        context.payload.pull_request.number,
+        "ci: disable-autorevert"
+      );
+    }
   });
 
   app.on("pull_request.labeled", async (context) => {
@@ -575,6 +640,16 @@ function myBot(app: Probot): void {
 
     const addedLabel = context.payload.label!.name;
     context.log({ addedLabel });
+
+    // Check for incorrect ci: disable-autorevert label on PRs
+    if (addedLabel === "ci: disable-autorevert") {
+      await handleDisableAutorevertLabel(
+        context,
+        context.payload.pull_request.number,
+        addedLabel
+      );
+      return;
+    }
 
     // Remove issue-only labels from PRs
     if (addedLabel.startsWith("oncall:")) {

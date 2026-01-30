@@ -1,3 +1,9 @@
+// Add Buffer polyfill for Node.js v25+ compatibility
+import { Buffer } from "buffer";
+if (typeof global.Buffer === "undefined") {
+  global.Buffer = Buffer;
+}
+
 // Taken from https://stackoverflow.com/a/77157708 to get around errors like
 // `TypeError: Cannot redefine property: searchSimilarFailures` when using
 // jest.spyOn when upgrading to node 14.2.16.

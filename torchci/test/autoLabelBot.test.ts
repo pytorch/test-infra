@@ -1391,4 +1391,89 @@ describe("auto-label-bot: label restrictions", () => {
 
     handleScope(scope);
   });
+
+  test("remove ci: disable-autorevert label when added to PR and post warning", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label = { name: "ci: disable-autorevert" };
+    event.pull_request.labels = [{ name: "ci: disable-autorevert" }];
+    emptyMockConfig(event.repository.full_name);
+
+    const owner = event.repository.owner.login;
+    const repo = event.repository.name;
+    const pr_number = event.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
+      .reply(200, []) // No existing comments
+      .delete(
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci:%20disable-autorevert`
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(body.body).toContain("<!-- disable-autorevert-label-warning -->");
+        expect(body.body).toContain("ci: disable-autorevert");
+        expect(body.body).toContain("autorevert: disable");
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event as any);
+    handleScope(scope);
+  });
+
+  test("remove ci: disable-autorevert label when PR is opened with it", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.opened");
+    event.pull_request.labels = [{ name: "ci: disable-autorevert" }];
+    emptyMockConfig(event.repository.full_name);
+
+    const owner = event.repository.owner.login;
+    const repo = event.repository.name;
+    const pr_number = event.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
+      .reply(200, []) // No existing comments
+      .delete(
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci:%20disable-autorevert`
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(body.body).toContain("<!-- disable-autorevert-label-warning -->");
+        expect(body.body).toContain("ci: disable-autorevert");
+        expect(body.body).toContain("autorevert: disable");
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive(event as any);
+    handleScope(scope);
+  });
+
+  test("do not post duplicate warning when ci: disable-autorevert is re-added", async () => {
+    const event = requireDeepCopy("./fixtures/pull_request.labeled");
+    event.label = { name: "ci: disable-autorevert" };
+    event.pull_request.labels = [{ name: "ci: disable-autorevert" }];
+    emptyMockConfig(event.repository.full_name);
+
+    const owner = event.repository.owner.login;
+    const repo = event.repository.name;
+    const pr_number = event.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
+      .reply(200, [
+        {
+          id: 1,
+          body: "<!-- disable-autorevert-label-warning -->\nPrevious warning",
+        },
+      ]) // Existing warning comment
+      .delete(
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci:%20disable-autorevert`
+      )
+      .reply(200, {});
+    // Should NOT post a new comment
+
+    await probot.receive(event as any);
+    handleScope(scope);
+  });
 });
