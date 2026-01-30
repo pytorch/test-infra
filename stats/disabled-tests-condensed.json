@@ -285,37 +285,9 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_conv2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "173339",
-    "https://github.com/pytorch/pytorch/issues/173339",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_conv2d_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "173340",
-    "https://github.com/pytorch/pytorch/issues/173340",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_nn_functional_conv2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
     "173353",
     "https://github.com/pytorch/pytorch/issues/173353",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_conv_transpose2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "173364",
-    "https://github.com/pytorch/pytorch/issues/173364",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_conv_transpose2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "173341",
-    "https://github.com/pytorch/pytorch/issues/173341",
     [
       "xpu"
     ]
@@ -339,41 +311,6 @@
     "https://github.com/pytorch/pytorch/issues/147058",
     [
       "inductor"
-    ]
-  ],
-  "test_comprehensive_nn_functional_max_unpool2d_grad_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "173351",
-    "https://github.com/pytorch/pytorch/issues/173351",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_max_unpool2d_grad_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "173354",
-    "https://github.com/pytorch/pytorch/issues/173354",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_max_unpool2d_grad_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "173464",
-    "https://github.com/pytorch/pytorch/issues/173464",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_max_unpool2d_xpu_float16 (__main__.TestInductorOpInfoXPU)": [
-    "173471",
-    "https://github.com/pytorch/pytorch/issues/173471",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_max_unpool2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "173465",
-    "https://github.com/pytorch/pytorch/issues/173465",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_nn_functional_nll_loss_cuda_float32 (__main__.TestDecompCUDA)": [
@@ -402,20 +339,6 @@
     [
       "linux",
       "rocm"
-    ]
-  ],
-  "test_comprehensive_nn_functional_rms_norm_xpu_float32 (__main__.TestInductorOpInfoXPU)": [
-    "173345",
-    "https://github.com/pytorch/pytorch/issues/173345",
-    [
-      "xpu"
-    ]
-  ],
-  "test_comprehensive_nn_functional_rms_norm_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "173363",
-    "https://github.com/pytorch/pytorch/issues/173363",
-    [
-      "xpu"
     ]
   ],
   "test_comprehensive_sub_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
@@ -2090,13 +2013,6 @@
     "https://github.com/pytorch/pytorch/issues/173761",
     [
       "rocm"
-    ]
-  ],
-  "test_unshard_async (__main__.TestFullyShardUnshardMultiProcess)": [
-    "149349",
-    "https://github.com/pytorch/pytorch/issues/149349",
-    [
-      "inductor"
     ]
   ],
   "test_unshard_params_respects_reshard (__main__.TestUnshardParams)": [
