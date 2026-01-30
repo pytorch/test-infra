@@ -162,7 +162,7 @@ install_wheel_variants() {
         source .venv/bin/activate
     fi
 
-    uv pip install --index "${variant_index_url}" ${variant_packages} --force-reinstall --verbose
+    uv pip install --index "${variant_index_url}" ${variant_packages} --force-reinstall --verbose >&2
 
     echo "${test_suffix}"
 }
