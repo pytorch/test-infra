@@ -135,18 +135,18 @@ get_variant_index_url() {
 }
 
 # Install packages using wheel variants with uv
+# Sets TEST_SUFFIX global variable
 install_wheel_variants() {
     local variant_packages="torch torchvision"
-    local test_suffix=""
     local variant_index_url
 
     variant_index_url=$(get_variant_index_url)
 
     if [[ ${TORCH_ONLY:-} == 'true' ]]; then
         variant_packages="torch"
-        test_suffix="--package torchonly"
+        TEST_SUFFIX="--package torchonly"
     else
-        test_suffix="--package torch_torchvision"
+        TEST_SUFFIX="--package torch_torchvision"
     fi
 
     configure_wheel_variant_env
@@ -163,8 +163,6 @@ install_wheel_variants() {
     fi
 
     uv pip install --index "${variant_index_url}" ${variant_packages} --force-reinstall --verbose
-
-    echo "${test_suffix}"
 }
 
 # Install numpy 1.x for Python < 3.13
@@ -209,7 +207,8 @@ run_smoke_tests() {
 # Test CUDA device visibility
 test_cuda_device() {
     if [[ ${MATRIX_GPU_ARCH_TYPE:-} == 'cuda' ]]; then
-        python -c "import torch;import os;print(torch.cuda.device_count(), torch.__version__);os.environ['CUDA_VISIBLE_DEVICES']='0';print(torch.empty(2, device='cuda'))"
+        # Run from /tmp to avoid importing torch source directory instead of installed package
+        (cd /tmp && python -c "import torch;import os;print(torch.cuda.device_count(), torch.__version__);os.environ['CUDA_VISIBLE_DEVICES']='0';print(torch.empty(2, device='cuda'))")
     fi
 }
 
@@ -258,7 +257,7 @@ fi
 
 # Install packages
 if [[ ${USE_WHEEL_VARIANTS:-} == 'true' ]]; then
-    TEST_SUFFIX=$(install_wheel_variants)
+    install_wheel_variants
 else
     INSTALLATION=$(build_installation_command)
     TEST_SUFFIX=$(get_test_suffix)
