@@ -1432,7 +1432,9 @@ describe("auto-label-bot: label restrictions", () => {
       .post("/app/installations/2/access_tokens")
       .reply(200, { token: "test" });
 
-    const payload = requireDeepCopy("./fixtures/pull_request.opened")["payload"];
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
     payload["pull_request"]["labels"] = [{ name: "ci: disable-autorevert" }];
     emptyMockConfig(payload.repository.full_name);
 
