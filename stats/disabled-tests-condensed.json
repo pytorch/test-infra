@@ -285,13 +285,6 @@
       "linux"
     ]
   ],
-  "test_comprehensive_nn_functional_conv2d_xpu_float64 (__main__.TestInductorOpInfoXPU)": [
-    "173353",
-    "https://github.com/pytorch/pytorch/issues/173353",
-    [
-      "xpu"
-    ]
-  ],
   "test_comprehensive_nn_functional_glu_cuda_float16 (__main__.TestInductorOpInfoCUDA)": [
     "140383",
     "https://github.com/pytorch/pytorch/issues/140383",
@@ -2013,6 +2006,13 @@
     "https://github.com/pytorch/pytorch/issues/173761",
     [
       "rocm"
+    ]
+  ],
+  "test_unshard_async (__main__.TestFullyShardUnshardMultiProcess)": [
+    "149349",
+    "https://github.com/pytorch/pytorch/issues/149349",
+    [
+      "inductor"
     ]
   ],
   "test_unshard_params_respects_reshard (__main__.TestUnshardParams)": [
