@@ -16,6 +16,7 @@ from .autorevert_circuit_breaker import check_autorevert_disabled
 from .clickhouse_client_helper import CHCliFactory
 from .config import (
     AutorevertConfig,
+    DEFAULT_CIRCUIT_BREAKER_APPROVED_USERS,
     DEFAULT_CLICKHOUSE_DATABASE,
     DEFAULT_CLICKHOUSE_HOST,
     DEFAULT_CLICKHOUSE_PORT,
@@ -102,6 +103,11 @@ class DefaultConfig:
             "WORKFLOWS",
             ",".join(["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]),
         ).split(",")
+        # Circuit breaker approved users (comma-separated GitHub usernames)
+        approved_users_str = os.environ.get("CIRCUIT_BREAKER_APPROVED_USERS", "")
+        self.circuit_breaker_approved_users = (
+            set(approved_users_str.split(",")) if approved_users_str else set()
+        )
 
     def to_autorevert_v2_params(
         self,
@@ -466,6 +472,11 @@ def build_config_from_opts(opts: argparse.Namespace) -> AutorevertConfig:
         log_level=_get("log_level", DEFAULT_LOG_LEVEL),
         dry_run=_get("dry_run", False),
         subcommand=_get("subcommand", "autorevert-checker"),
+        # Circuit Breaker Settings
+        circuit_breaker_approved_users=_get(
+            "circuit_breaker_approved_users",
+            set(DEFAULT_CIRCUIT_BREAKER_APPROVED_USERS),
+        ),
         # Subcommand: workflow-restart-checker and restart-workflow
         workflow=_get("workflow", None),
         commit=_get("commit", None),
@@ -526,6 +537,8 @@ def build_config_from_event(
         # Force subcommand to autorevert-checker for Lambda
         "subcommand": "autorevert-checker",
         "dry_run": False,
+        # Circuit Breaker Settings
+        "circuit_breaker_approved_users": default_config.circuit_breaker_approved_users,
     }
 
     # Keys that are explicitly not allowed to be overridden from event
@@ -693,7 +706,9 @@ def main_run(
         )
 
     if config.subcommand == "autorevert-checker":
-        if check_circuit_breaker and check_autorevert_disabled(config.repo_full_name):
+        if check_circuit_breaker and check_autorevert_disabled(
+            config.repo_full_name, config.circuit_breaker_approved_users
+        ):
             logging.error(
                 "Autorevert is disabled via circuit breaker (ci: disable-autorevert issue found). "
                 "Exiting successfully."

@@ -1391,4 +1391,109 @@ describe("auto-label-bot: label restrictions", () => {
 
     handleScope(scope);
   });
+
+  test("remove ci: disable-autorevert label when added to PR and post warning", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload.label = { name: "ci: disable-autorevert" };
+    payload.pull_request.labels = [{ name: "ci: disable-autorevert" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const pr_number = payload.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
+      .reply(200, []) // No existing comments
+      .delete(
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci%3A%20disable-autorevert`
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(body.body).toContain(
+          "<!-- disable-autorevert-label-warning -->"
+        );
+        expect(body.body).toContain("ci: disable-autorevert");
+        expect(body.body).toContain("autorevert: disable");
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+    handleScope(scope);
+  });
+
+  test("remove ci: disable-autorevert label when PR is opened with it", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["labels"] = [{ name: "ci: disable-autorevert" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const pr_number = payload.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/files?per_page=100`)
+      .reply(200, []) // Mock the files API call that happens first
+      .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
+      .reply(200, []) // No existing comments
+      .delete(
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci%3A%20disable-autorevert`
+      )
+      .reply(200, {})
+      .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
+        expect(body.body).toContain(
+          "<!-- disable-autorevert-label-warning -->"
+        );
+        expect(body.body).toContain("ci: disable-autorevert");
+        expect(body.body).toContain("autorevert: disable");
+        return true;
+      })
+      .reply(200, {});
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+    handleScope(scope);
+  });
+
+  test("do not post duplicate warning when ci: disable-autorevert is re-added", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+    payload.label = { name: "ci: disable-autorevert" };
+    payload.pull_request.labels = [{ name: "ci: disable-autorevert" }];
+    emptyMockConfig(payload.repository.full_name);
+
+    const owner = payload.repository.owner.login;
+    const repo = payload.repository.name;
+    const pr_number = payload.pull_request.number;
+
+    const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
+      .reply(200, [
+        {
+          id: 1,
+          body: "<!-- disable-autorevert-label-warning -->\nPrevious warning",
+        },
+      ]) // Existing warning comment
+      .delete(
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci%3A%20disable-autorevert`
+      )
+      .reply(200, {});
+    // Should NOT post a new comment
+
+    await probot.receive({ name: "pull_request", payload, id: "2" });
+    handleScope(scope);
+  });
 });

@@ -22,6 +22,22 @@ DEFAULT_NOTIFY_ISSUE_NUMBER = 163650  # https://github.com/pytorch/pytorch/issue
 DEFAULT_REPO_FULL_NAME = "pytorch/pytorch"
 DEFAULT_WORKFLOWS = ["Lint", "trunk", "pull", "inductor", "linux-aarch64", "slow"]
 DEFAULT_WORKFLOW_RESTART_DAYS = 7
+# Users authorized to disable autorevert via circuit breaker issue
+DEFAULT_CIRCUIT_BREAKER_APPROVED_USERS: set[str] = set(
+    "albanD",
+    "atalman",
+    "drisspg",
+    "ezyang",
+    "huydhn",
+    "izaitsevfb",
+    "janeyx99",
+    "jeanschmidt",
+    "malfet",
+    "seemethere",
+    "wdvr",
+    "yangw-dev",
+    "ZainRizvi",
+)
 
 
 @dataclass
@@ -80,6 +96,13 @@ class AutorevertConfig:
     log_level: str = DEFAULT_LOG_LEVEL
     dry_run: bool = False
     subcommand: str = "autorevert-checker"
+
+    # -------------------------------------------------------------------------
+    # Circuit Breaker Settings
+    # -------------------------------------------------------------------------
+    circuit_breaker_approved_users: set[str] = field(
+        default_factory=lambda: set(DEFAULT_CIRCUIT_BREAKER_APPROVED_USERS)
+    )
 
     # -------------------------------------------------------------------------
     # Subcommand: workflow-restart-checker and restart-workflow
