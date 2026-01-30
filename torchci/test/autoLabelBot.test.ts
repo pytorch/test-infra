@@ -1410,7 +1410,9 @@ describe("auto-label-bot: label restrictions", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
-        expect(body.body).toContain("<!-- disable-autorevert-label-warning -->");
+        expect(body.body).toContain(
+          "<!-- disable-autorevert-label-warning -->"
+        );
         expect(body.body).toContain("ci: disable-autorevert");
         expect(body.body).toContain("autorevert: disable");
         return true;
@@ -1438,7 +1440,9 @@ describe("auto-label-bot: label restrictions", () => {
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
-        expect(body.body).toContain("<!-- disable-autorevert-label-warning -->");
+        expect(body.body).toContain(
+          "<!-- disable-autorevert-label-warning -->"
+        );
         expect(body.body).toContain("ci: disable-autorevert");
         expect(body.body).toContain("autorevert: disable");
         return true;

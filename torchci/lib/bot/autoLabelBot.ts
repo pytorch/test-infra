@@ -379,7 +379,8 @@ export async function addNewLabels(
 }
 
 // Marker for the ci: disable-autorevert label warning comment
-const DISABLE_AUTOREVERT_WARNING_MARKER = "<!-- disable-autorevert-label-warning -->";
+const DISABLE_AUTOREVERT_WARNING_MARKER =
+  "<!-- disable-autorevert-label-warning -->";
 
 // Helper function to check if warning comment already exists and add one if needed
 async function handleDisableAutorevertLabel(
@@ -390,7 +391,7 @@ async function handleDisableAutorevertLabel(
   // Check if we already posted a warning
   const owner = context.payload.repository.owner.login;
   const repo = context.payload.repository.name;
-  
+
   const comments = await context.octokit.issues.listComments({
     owner,
     repo,
@@ -402,9 +403,7 @@ async function handleDisableAutorevertLabel(
   );
 
   // Remove the incorrect label
-  context.log(
-    `Removing incorrect label "${labelName}" from PR ${prNumber}`
-  );
+  context.log(`Removing incorrect label "${labelName}" from PR ${prNumber}`);
   await context.octokit.issues.removeLabel({
     owner,
     repo,
