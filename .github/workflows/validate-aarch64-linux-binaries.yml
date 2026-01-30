@@ -42,6 +42,11 @@ on:
         default: false
         required: false
         type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
+        default: false
+        required: false
+        type: boolean
   workflow_dispatch:
     inputs:
       channel:
@@ -80,6 +85,11 @@ on:
         type: boolean
       use-extra-index-url:
         description: 'Use extra-index url for pip tests'
+        default: false
+        required: false
+        type: boolean
+      use-wheel-variants:
+        description: 'Use wheel-variants for installing pip binaries'
         default: false
         required: false
         type: boolean
@@ -140,6 +150,7 @@ jobs:
         export USE_FORCE_REINSTALL="true"
         export USE_EXTRA_INDEX_URL=${{ inputs.use-extra-index-url }}
         export USE_CLOUDFLARE_CDN=${{ inputs.use-cloudflare-cdn }}
+        export USE_WHEEL_VARIANTS=${{ inputs.use-wheel-variants }}
         export USE_VERSION_SET=${{ inputs.use-version-set }}
         if [[ ${USE_VERSION_SET} == 'true' ]]; then
           export VISION_RELEASE_VERSION=${{ fromJson(inputs.release-matrix).torchvision }}
