@@ -47,14 +47,6 @@
     "linux-jammy-rocm-py3.10",
     "test"
   ],
-  "pull / linux-docs / build-docs-python-false": [
-    "huydhn",
-    "111256",
-    "https://github.com/pytorch/pytorch/issues/111256",
-    "pull",
-    "linux-docs",
-    "build-docs-python-false"
-  ],
   "pull / linux-jammy-py3_9-clang9-xla / test (xla)": [
     "ZainRizvi",
     "158876",
