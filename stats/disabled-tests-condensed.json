@@ -341,13 +341,6 @@
       "inductor"
     ]
   ],
-  "test_comprehensive_unravel_index_xpu_int32 (__main__.TestInductorOpInfoXPU)": [
-    "173466",
-    "https://github.com/pytorch/pytorch/issues/173466",
-    [
-      "xpu"
-    ]
-  ],
   "test_compute_bucket_assignment_by_size_sparse_error_with_logger (__main__.TestDistBackendWithSpawn)": [
     "85012",
     "https://github.com/pytorch/pytorch/issues/85012",
@@ -702,20 +695,6 @@
     "https://github.com/pytorch/pytorch/issues/161503",
     [
       "linux"
-    ]
-  ],
-  "test_float8_basics_xpu (__main__.TestFP8MatmulXPU)": [
-    "169772",
-    "https://github.com/pytorch/pytorch/issues/169772",
-    [
-      "xpu"
-    ]
-  ],
-  "test_float8_scale_fast_accum_xpu (__main__.TestFP8MatmulXPU)": [
-    "169556",
-    "https://github.com/pytorch/pytorch/issues/169556",
-    [
-      "xpu"
     ]
   ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
