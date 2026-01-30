@@ -111,7 +111,7 @@ else
         fi
         if [[ ${MATRIX_GPU_ARCH_TYPE} == 'rocm' ]]; then
             export AMD_VARIANT_PROVIDER_FORCE_GFX_ARCH="gfx1100"
-            export AMD_VARIANT_PROVIDER_FORCE_ROCM_VERSION=${MATRIX_GPU_ARCH_VERSION}
+            export AMD_VARIANT_PROVIDER_FORCE_ROCM_VERSION="${MATRIX_GPU_ARCH_VERSION}.0"
         fi
 
         VARIANT_PACKAGES="torch torchvision"
