@@ -35,7 +35,9 @@ class TestAutorevertCircuitBreaker(unittest.TestCase):
     @patch("pytorch_auto_revert.autorevert_circuit_breaker.GHClientFactory")
     def test_circuit_breaker_enabled_when_issue_exists(self, mock_factory):
         """Circuit breaker should be active when an open issue with label exists."""
-        mock_issue = create_mock_issue(number=12345, user_login="test-user", is_pr=False)
+        mock_issue = create_mock_issue(
+            number=12345, user_login="test-user", is_pr=False
+        )
         mock_repo = MagicMock()
         mock_repo.get_issues.return_value = [mock_issue]
         mock_factory.return_value.client.get_repo.return_value = mock_repo
@@ -64,7 +66,9 @@ class TestAutorevertCircuitBreaker(unittest.TestCase):
     def test_circuit_breaker_with_mixed_issues_and_prs(self, mock_factory):
         """Circuit breaker should activate on issue but skip PR when both exist."""
         mock_pr = create_mock_issue(number=100, user_login="pr-author", is_pr=True)
-        mock_issue = create_mock_issue(number=200, user_login="issue-author", is_pr=False)
+        mock_issue = create_mock_issue(
+            number=200, user_login="issue-author", is_pr=False
+        )
         mock_repo = MagicMock()
         mock_repo.get_issues.return_value = [mock_pr, mock_issue]
         mock_factory.return_value.client.get_repo.return_value = mock_repo
@@ -105,7 +109,9 @@ class TestAutorevertCircuitBreaker(unittest.TestCase):
     @patch("pytorch_auto_revert.autorevert_circuit_breaker.GHClientFactory")
     def test_circuit_breaker_allows_approved_user(self, mock_factory):
         """Circuit breaker should activate when issue is created by approved user."""
-        mock_issue = create_mock_issue(number=12345, user_login="approved-user", is_pr=False)
+        mock_issue = create_mock_issue(
+            number=12345, user_login="approved-user", is_pr=False
+        )
         mock_repo = MagicMock()
         mock_repo.get_issues.return_value = [mock_issue]
         mock_factory.return_value.client.get_repo.return_value = mock_repo
@@ -118,7 +124,9 @@ class TestAutorevertCircuitBreaker(unittest.TestCase):
     @patch("pytorch_auto_revert.autorevert_circuit_breaker.GHClientFactory")
     def test_circuit_breaker_blocks_unapproved_user(self, mock_factory):
         """Circuit breaker should not activate when issue is created by unapproved user."""
-        mock_issue = create_mock_issue(number=12345, user_login="unauthorized-user", is_pr=False)
+        mock_issue = create_mock_issue(
+            number=12345, user_login="unauthorized-user", is_pr=False
+        )
         mock_repo = MagicMock()
         mock_repo.get_issues.return_value = [mock_issue]
         mock_factory.return_value.client.get_repo.return_value = mock_repo
@@ -131,7 +139,9 @@ class TestAutorevertCircuitBreaker(unittest.TestCase):
         self.assertFalse(result)
         log_output = "\n".join(log_ctx.output)
         self.assertIn("Ignoring issue #12345", log_output)
-        self.assertIn("User 'unauthorized-user' is not in the approved users list", log_output)
+        self.assertIn(
+            "User 'unauthorized-user' is not in the approved users list", log_output
+        )
 
     @patch("pytorch_auto_revert.autorevert_circuit_breaker.GHClientFactory")
     def test_circuit_breaker_no_approval_check_when_empty_set(self, mock_factory):
@@ -162,8 +172,12 @@ class TestAutorevertCircuitBreaker(unittest.TestCase):
     @patch("pytorch_auto_revert.autorevert_circuit_breaker.GHClientFactory")
     def test_circuit_breaker_with_mixed_approved_and_unapproved(self, mock_factory):
         """Circuit breaker should activate if any issue is from approved user."""
-        mock_unapproved = create_mock_issue(number=100, user_login="unauthorized", is_pr=False)
-        mock_approved = create_mock_issue(number=200, user_login="approved-user", is_pr=False)
+        mock_unapproved = create_mock_issue(
+            number=100, user_login="unauthorized", is_pr=False
+        )
+        mock_approved = create_mock_issue(
+            number=200, user_login="approved-user", is_pr=False
+        )
         mock_repo = MagicMock()
         mock_repo.get_issues.return_value = [mock_unapproved, mock_approved]
         mock_factory.return_value.client.get_repo.return_value = mock_repo
