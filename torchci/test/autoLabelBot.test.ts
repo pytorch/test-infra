@@ -1410,7 +1410,7 @@ describe("auto-label-bot: label restrictions", () => {
       .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
       .reply(200, []) // No existing comments
       .delete(
-        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci:%20disable-autorevert`
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci%3A%20disable-autorevert`
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
@@ -1443,10 +1443,12 @@ describe("auto-label-bot: label restrictions", () => {
     const pr_number = payload.pull_request.number;
 
     const scope = nock("https://api.github.com")
+      .get(`/repos/${owner}/${repo}/pulls/${pr_number}/files?per_page=100`)
+      .reply(200, []) // Mock the files API call that happens first
       .get(`/repos/${owner}/${repo}/issues/${pr_number}/comments`)
       .reply(200, []) // No existing comments
       .delete(
-        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci:%20disable-autorevert`
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci%3A%20disable-autorevert`
       )
       .reply(200, {})
       .post(`/repos/${owner}/${repo}/issues/${pr_number}/comments`, (body) => {
@@ -1486,7 +1488,7 @@ describe("auto-label-bot: label restrictions", () => {
         },
       ]) // Existing warning comment
       .delete(
-        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci:%20disable-autorevert`
+        `/repos/${owner}/${repo}/issues/${pr_number}/labels/ci%3A%20disable-autorevert`
       )
       .reply(200, {});
     // Should NOT post a new comment
