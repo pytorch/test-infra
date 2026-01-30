@@ -8,10 +8,16 @@ from datetime import datetime, timedelta
 from enum import Enum
 from typing import Dict, FrozenSet, Iterable, List, Optional, Tuple, Union
 
+import boto3
 import github
 
 from .clickhouse_client_helper import CHCliFactory
 from .github_client_helper import GHClientFactory
+from .revert_decision_message import (
+    BreakingWorkflow,
+    RevertDecisionMessage,
+    SignalDetail,
+)
 from .signal import AutorevertPattern, Ineligible, RestartCommits, Signal
 from .signal_extraction_types import RunContext
 from .utils import (
@@ -685,13 +691,20 @@ class SignalActionProcessor:
 
         # Build a nice message to show which workflows are broken
         # used both to revert and notify
+        # Also build structured breaking_workflows data for SQS message
         breaking_notification_msg = (
             "This PR is attributed to have caused regression in:\n"
         )
+        breaking_workflows_data: List[BreakingWorkflow] = []
+
         for workflow_name, wf_sources in workflow_groups.items():
             all_signals_urls = []
+            signal_details: List[SignalDetail] = []
+
             for wf_source in wf_sources:
                 curr_url = ""
+                job_url = None
+                hud_url = None
 
                 if wf_source.job_id and wf_source.wf_run_id:
                     job_url = build_job_pytorch_url(
@@ -714,8 +727,26 @@ class SignalActionProcessor:
 
                 all_signals_urls.append(curr_url)
 
+                # Build structured signal detail for SQS message
+                signal_details.append(
+                    SignalDetail(
+                        key=wf_source.key,
+                        job_base_name=wf_source.job_base_name,
+                        test_module=wf_source.test_module,
+                        wf_run_id=wf_source.wf_run_id,
+                        job_id=wf_source.job_id,
+                        job_url=job_url,
+                        hud_url=hud_url,
+                    )
+                )
+
             all_signals = ", ".join(all_signals_urls)
             breaking_notification_msg += f"- {workflow_name}: {all_signals}\n"
+
+            # Add structured workflow data
+            breaking_workflows_data.append(
+                BreakingWorkflow(workflow_name=workflow_name, signals=signal_details)
+            )
 
         try:
             if should_do_revert_on_pr:
@@ -738,7 +769,46 @@ class SignalActionProcessor:
                             commit_sha[:8],
                             pr.number,
                         )
-                        return True
+
+                # Send revert decision message to SQS queue (if configured)
+                if ctx.revert_decisions_sqs_queue_url:
+                    try:
+                        sqs_client = boto3.client("sqs")
+
+                        # Prepare message with all relevant information using dataclass
+                        message = RevertDecisionMessage(
+                            action="revert_requested",
+                            commit_sha=commit_sha,
+                            pr_number=pr.number,
+                            pr_url=pr.html_url,
+                            pr_title=pr.title,
+                            pr_author=pr.user.login if pr.user else None,
+                            action_type=action_type.value,
+                            repo_full_name=ctx.repo_full_name,
+                            timestamp=ctx.ts.isoformat(),
+                            revert_action=ctx.revert_action.value,
+                            breaking_workflows=breaking_workflows_data,
+                            breaking_notification_msg=breaking_notification_msg,
+                        )
+
+                        for attempt in RetryWithBackoff():
+                            with attempt:
+                                sqs_client.send_message(
+                                    QueueUrl=ctx.revert_decisions_sqs_queue_url,
+                                    MessageBody=message.to_json(),
+                                )
+                                logging.info(
+                                    "[v2][action] revert for sha %s: sent revert decision message to SQS queue",
+                                    commit_sha[:8],
+                                )
+                    except Exception:
+                        # Log error but don't fail the operation
+                        logging.exception(
+                            "[v2][action] revert for sha %s: failed to send SQS message, continuing",
+                            commit_sha[:8],
+                        )
+
+                return True
 
             for attempt in RetryWithBackoff():
                 with attempt:
