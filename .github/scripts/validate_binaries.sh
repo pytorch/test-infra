@@ -207,7 +207,8 @@ run_smoke_tests() {
 # Test CUDA device visibility
 test_cuda_device() {
     if [[ ${MATRIX_GPU_ARCH_TYPE:-} == 'cuda' ]]; then
-        python -c "import torch;import os;print(torch.cuda.device_count(), torch.__version__);os.environ['CUDA_VISIBLE_DEVICES']='0';print(torch.empty(2, device='cuda'))"
+        # Run from /tmp to avoid importing torch source directory instead of installed package
+        (cd /tmp && python -c "import torch;import os;print(torch.cuda.device_count(), torch.__version__);os.environ['CUDA_VISIBLE_DEVICES']='0';print(torch.empty(2, device='cuda'))")
     fi
 }
 
