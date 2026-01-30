@@ -1,6 +1,7 @@
 import assert from "assert";
 import { minimatch } from "minimatch";
 import { Context, Probot } from "probot";
+import { addLabelErrComment, hasRequiredLabels } from "./checkLabelsUtils";
 import {
   addLabels,
   CachedIssueTracker,
@@ -541,6 +542,27 @@ function myBot(app: Probot): void {
       );
 
       await addNewLabels(labels, labelsToAdd, context);
+
+      // After auto-labeling is complete, check if the PR still needs required labels.
+      // We do this here instead of in checkLabelsBot to avoid a race condition where
+      // checkLabelsBot posts an error comment before auto-labeling has a chance to
+      // add the required labels.
+      if (
+        isPyTorchPyTorch(owner, repo) &&
+        context.payload.action === "opened"
+      ) {
+        // Combine existing labels with newly added labels to check
+        const allLabels = [...labels, ...labelsToAdd];
+        if (!hasRequiredLabels(allLabels)) {
+          await addLabelErrComment(
+            context.octokit as any,
+            owner,
+            repo,
+            context.payload.pull_request.number,
+            context
+          );
+        }
+      }
     }
   );
 

@@ -1,3 +1,7 @@
+import {
+  formLabelErrComment,
+  LABEL_COMMENT_START,
+} from "lib/bot/checkLabelsUtils";
 import * as botUtils from "lib/bot/utils";
 import nock from "nock";
 import { Probot } from "probot";
@@ -12,6 +16,19 @@ describe("auto-label-bot", () => {
   let probot: Probot;
   function emptyMockConfig(repoFullName: string) {
     utils.mockConfig("pytorch-probot.yml", "", repoFullName);
+  }
+
+  // Helper to mock the check-labels comment creation for tests where
+  // auto-labeling doesn't add required labels (release notes: or topic: not user facing)
+  function mockCheckLabelsComment(
+    repoFullName: string,
+    prNumber: number
+  ): nock.Scope {
+    return nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+      .reply(200, [])
+      .post(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+      .reply(200);
   }
 
   beforeEach(() => {
@@ -106,10 +123,16 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    // Check-labels will post a comment since rocm labels are not required labels
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("add ci-no-td label when PR title contains Reland", async () => {
@@ -131,9 +154,14 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("add ci-no-td label when PR title contains Revert", async () => {
@@ -155,9 +183,14 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     handleScope(scope);
+    handleScope(checkLabelsScope);
   });
 
   test("add ci-no-td label when PR title contains mixed cases reLanD", async () => {
@@ -179,9 +212,14 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("no reland label added when issue title contains reland", async () => {
@@ -255,11 +293,16 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     // the api never been called.
     expect(scope.isDone()).toBe(false);
+    handleScope(checkLabelsScope);
   });
 
   test("non pytorch/pytorch repo do NOT add any release notes category labels", async () => {
@@ -308,10 +351,15 @@ describe("auto-label-bot", () => {
         Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
         "X-GitHub-Media-Type": "github.v3; format=json",
       });
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("CI files changed triggers release notes: releng", async () => {
@@ -479,10 +527,15 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("caffe2 files trigger caffe2 label independently from topics", async () => {
@@ -514,10 +567,15 @@ describe("auto-label-bot", () => {
         return true;
       })
       .reply(200);
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
 
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("first category found is picked", async () => {
@@ -852,9 +910,14 @@ describe("auto-label-bot", () => {
         Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
         "X-GitHub-Media-Type": "github.v3; format=json",
       });
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("PR author to label, author NOT in list", async () => {
@@ -873,9 +936,14 @@ describe("auto-label-bot", () => {
         Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
         "X-GitHub-Media-Type": "github.v3; format=json",
       });
+    const checkLabelsScope = mockCheckLabelsComment(
+      "zhouzhuojie/gha-ci-playground",
+      31
+    );
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     handleScope(scope);
+    handleScope(checkLabelsScope);
   });
 
   test("PR author to label, author in list", async () => {
@@ -896,6 +964,7 @@ describe("auto-label-bot", () => {
           "X-GitHub-Media-Type": "github.v3; format=json",
         }),
       mockAddLabels(["ci-no-td"], "zhouzhuojie/gha-ci-playground", 31),
+      mockCheckLabelsComment("zhouzhuojie/gha-ci-playground", 31),
     ];
     await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
@@ -918,6 +987,17 @@ describe("auto-label-bot: labeler.yml config", () => {
         "X-GitHub-Media-Type": "github.v3; format=json",
       });
     return scope;
+  }
+
+  function mockCheckLabelsComment(
+    repoFullName: string,
+    prNumber: number
+  ): nock.Scope {
+    return nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+      .reply(200, [])
+      .post(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+      .reply(200);
   }
 
   function defaultMockConfig(repoFullName: string) {
@@ -967,8 +1047,10 @@ describe("auto-label-bot: labeler.yml config", () => {
     const scope = mockChangedFiles(prFiles, prNumber, repoFullName);
     defaultMockConfig(repoFullName);
     utils.mockHasApprovedWorkflowRun(repoFullName);
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
     scope.done();
+    handleScope(checkLabelsScope);
   });
 
   test("getLabelsFromLabelerConfig one match", async () => {
@@ -985,9 +1067,11 @@ describe("auto-label-bot: labeler.yml config", () => {
       repoFullName,
       prNumber
     );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
     scope.done();
     scope2.done();
+    handleScope(checkLabelsScope);
   });
 
   test("getLabelsFromLabelerConfig multiple match for single file", async () => {
@@ -1004,9 +1088,11 @@ describe("auto-label-bot: labeler.yml config", () => {
       repoFullName,
       prNumber
     );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
     scope.done();
     scope2.done();
+    handleScope(checkLabelsScope);
   });
 
   test("getLabelsFromLabelerConfig multiple match with multiple file", async () => {
@@ -1026,9 +1112,11 @@ describe("auto-label-bot: labeler.yml config", () => {
       repoFullName,
       prNumber
     );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
     scope.done();
     scope2.done();
+    handleScope(checkLabelsScope);
   });
 
   test("getLabelsFromLabelerConfig multiple match but no workflow permissions", async () => {
@@ -1059,9 +1147,11 @@ describe("auto-label-bot: labeler.yml config", () => {
       repoFullName,
       prNumber
     );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
     scope.done();
     scope2.done();
+    handleScope(checkLabelsScope);
   });
 });
 
@@ -1202,6 +1292,17 @@ describe("test TD rollout labeling", () => {
     return scope;
   }
 
+  function mockCheckLabelsComment(
+    repoFullName: string,
+    prNumber: number
+  ): nock.Scope {
+    return nock("https://api.github.com")
+      .get(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+      .reply(200, [])
+      .post(`/repos/${repoFullName}/issues/${prNumber}/comments`)
+      .reply(200);
+  }
+
   function defaultMockConfig(repoFullName: string) {
     const issue = `
 adfadsfasd
@@ -1253,9 +1354,11 @@ adfadsfasd
       repoFullName,
       prNumber
     );
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
 
     await probot.receive(event);
     handleScope(scope);
+    handleScope(checkLabelsScope);
   });
 
   test("Do not add label if author on list", async () => {
@@ -1266,7 +1369,9 @@ adfadsfasd
     defaultMockConfig(repoFullName);
     utils.mockHasApprovedWorkflowRun(repoFullName);
     mockNoChangedFiles(prNumber, repoFullName);
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
+    handleScope(checkLabelsScope);
   });
 
   test("Don't do anything if no config", async () => {
@@ -1277,7 +1382,9 @@ adfadsfasd
     utils.mockConfig("pytorch-probot.yml", "", repoFullName);
     utils.mockHasApprovedWorkflowRun(repoFullName);
     mockNoChangedFiles(prNumber, repoFullName);
+    const checkLabelsScope = mockCheckLabelsComment(repoFullName, prNumber);
     await probot.receive(event);
+    handleScope(checkLabelsScope);
   });
 });
 
@@ -1388,6 +1495,258 @@ describe("auto-label-bot: label restrictions", () => {
       .reply(200);
 
     await probot.receive({ name: "pull_request", payload, id: "2" });
+
+    handleScope(scope);
+  });
+});
+
+describe("auto-label-bot: check-labels integration", () => {
+  let probot: Probot;
+
+  function emptyMockConfig(repoFullName: string) {
+    utils.mockConfig("pytorch-probot.yml", "", repoFullName);
+  }
+
+  beforeEach(() => {
+    probot = utils.testProbot();
+    probot.load(myProbotApp);
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(true);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
+    utils.mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
+    emptyMockConfig("zhouzhuojie/gha-ci-playground");
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    nock.cleanAll();
+  });
+
+  test("adds error comment when PR opened without required labels after auto-labeling", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Some random PR";
+    payload["pull_request"]["labels"] = [];
+
+    // Mock: no changed files (so no auto-labels will be added)
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, [], {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      // Mock: no existing error comment
+      .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments")
+      .reply(200, [])
+      // Expect: error comment is posted
+      .post(
+        "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
+        (body: { body: string }) => {
+          expect(body.body).toContain(LABEL_COMMENT_START);
+          expect(body.body).toContain("release notes:");
+          return true;
+        }
+      )
+      .reply(200);
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not add error comment when auto-labeling adds required label", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Change to CI files";
+    payload["pull_request"]["labels"] = [];
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+
+    // Auto-labeling will add "release notes: releng" based on .github files
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["release notes: releng"] });
+        return true;
+      })
+      .reply(200);
+    // No error comment expected since auto-labeling adds the required label
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not add error comment when PR already has required label", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Some random PR";
+    payload["pull_request"]["labels"] = [{ name: "topic: not user facing" }];
+
+    // Mock: no changed files
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, [], {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
+    // No error comment expected since PR already has the required label
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not add error comment when auto-labeling adds topic: not user facing", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Not user facing!";
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    prFiles["items"] = [
+      { filename: ".github/scripts/update_commit_hashes.py" },
+      { filename: "test/test_jit.py" },
+    ];
+
+    // Auto-labeling will add "topic: not user facing" based on file patterns
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      .post("/repos/zhouzhuojie/gha-ci-playground/issues/31/labels", (body) => {
+        expect(body).toMatchObject({ labels: ["topic: not user facing"] });
+        return true;
+      })
+      .reply(200);
+    // No error comment expected since auto-labeling adds the required label
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not add duplicate error comment when one already exists", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Some random PR";
+    payload["pull_request"]["labels"] = [];
+
+    // Mock: no changed files (so no auto-labels will be added)
+    // Mock: existing error comment from bot
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, [], {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      })
+      .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments")
+      .reply(200, [
+        {
+          id: 123,
+          body: formLabelErrComment(),
+          user: { login: "github-actions" },
+        },
+      ]);
+    // No createComment call expected since one already exists
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not run check-labels for non-pytorch/pytorch repos", async () => {
+    // Reset mock to return false for isPyTorchPyTorch
+    jest.restoreAllMocks();
+    const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
+    mock.mockReturnValue(false);
+    const mockbotSupportedOrg = jest.spyOn(
+      botUtils,
+      "isPyTorchbotSupportedOrg"
+    );
+    mockbotSupportedOrg.mockReturnValue(true);
+
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["pull_request"]["title"] = "Some random PR";
+    payload["pull_request"]["labels"] = [];
+
+    const prFiles = requireDeepCopy("./fixtures/pull_files");
+    utils.mockHasApprovedWorkflowRun("zhouzhuojie/gha-ci-playground");
+    emptyMockConfig("zhouzhuojie/gha-ci-playground");
+
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, prFiles, {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
+    // No error comment or labels expected for non-pytorch/pytorch repos
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
+
+    handleScope(scope);
+  });
+
+  test("does not run check-labels for edited PRs (only opened)", async () => {
+    nock("https://api.github.com")
+      .post("/app/installations/2/access_tokens")
+      .reply(200, { token: "test" });
+
+    const payload = requireDeepCopy("./fixtures/pull_request.opened")[
+      "payload"
+    ];
+    payload["action"] = "edited"; // Changed from "opened" to "edited"
+    payload["pull_request"]["title"] = "Some random PR";
+    payload["pull_request"]["labels"] = [];
+
+    // Mock: no changed files
+    const scope = nock("https://api.github.com")
+      .get("/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100")
+      .reply(200, [], {
+        Link: "<https://api.github.com/repos/zhouzhuojie/gha-ci-playground/pulls/31/files?per_page=100&page=1>; rel='last'",
+        "X-GitHub-Media-Type": "github.v3; format=json",
+      });
+    // No error comment expected for edited PRs
+
+    await probot.receive({ name: "pull_request", payload: payload, id: "2" });
 
     handleScope(scope);
   });

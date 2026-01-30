@@ -7,33 +7,11 @@ import {
 import { isPyTorchPyTorch } from "./utils";
 
 export default function checkLabelsBot(app: Probot): void {
-  // Check labels when a PR is opened
-  app.on("pull_request.opened", async (context) => {
-    const owner = context.payload.repository.owner.login;
-    const repo = context.payload.repository.name;
-
-    // Only run on pytorch/pytorch
-    if (!isPyTorchPyTorch(owner, repo)) {
-      return;
-    }
-
-    const prNum = context.payload.pull_request.number;
-    const labels = context.payload.pull_request.labels.map(
-      (l: { name: string }) => l.name
-    );
-
-    context.log(`Checking labels for opened PR ${prNum}`);
-
-    if (!hasRequiredLabels(labels)) {
-      await addLabelErrComment(
-        context.octokit as any,
-        owner,
-        repo,
-        prNum,
-        context
-      );
-    }
-  });
+  // NOTE: We intentionally do NOT handle pull_request.opened here.
+  // The autoLabelBot handles that event and will check labels after
+  // auto-labeling is complete, to avoid a race condition where we
+  // post an error comment before auto-labeling has a chance to add
+  // the required labels.
 
   // Check labels when a label is added - delete error comment if now valid
   app.on("pull_request.labeled", async (context) => {
