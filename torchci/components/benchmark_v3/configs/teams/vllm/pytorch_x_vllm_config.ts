@@ -51,6 +51,15 @@ export const PytorchXVllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
   },
   dataRender: {
     type: "auto",
+    sideRender: {
+      RegressionReportFeature: {
+        type: "RegressionReportFeature",
+        title: "Regression Report Section",
+        config: {
+          report_id: PYTORCH_X_VLLM_BENCHMARK_ID,
+        },
+      },
+    },
     subSectionRenders: {
       detail_view: {
         filterConstraint: {
