@@ -222,6 +222,13 @@
       "xpu"
     ]
   ],
+  "test_codegen_with_custom_heuristics_module (__main__.TritonExtensionBackendTests)": [
+    "173916",
+    "https://github.com/pytorch/pytorch/issues/173916",
+    [
+      "xpu"
+    ]
+  ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
