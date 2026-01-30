@@ -65,8 +65,9 @@ else
     # torch-only option: remove vision and audio
     if [[ ${TORCH_ONLY} == 'true' ]]; then
         INSTALLATION=${INSTALLATION/"torchvision torchaudio"/""}
-        TEST_SUFFIX=" --package torchonly"
+        TEST_SUFFIX="--package torchonly"
     fi
+    
     # if RELESE version is passed as parameter - install speific version
     if [[ ! -z ${RELEASE_VERSION} ]]; then
           INSTALLATION=${INSTALLATION/"torch "/"torch==${RELEASE_VERSION} "}
@@ -108,20 +109,30 @@ else
         if [[ ${MATRIX_GPU_ARCH_TYPE} == 'xpu' ]]; then
             export INTEL_VARIANT_PROVIDER_FORCE_DEVICE_IP='30.0.4'
         fi
+        if [[ ${MATRIX_GPU_ARCH_TYPE} == 'rocm' ]]; then
+            export AMD_VARIANT_PROVIDER_FORCE_GFX_ARCH="gfx1100"
+            export AMD_VARIANT_PROVIDER_FORCE_ROCM_VERSION=${MATRIX_GPU_ARCH_VERSION}
+        fi
+
+        VARIANT_PACKAGES="torch torchvision"
+        if [[ ${TORCH_ONLY} == 'true' ]]; then
+            VARIANT_PACKAGES="torch"
+            TEST_SUFFIX="--package torchonly"
+        else
+            TEST_SUFFIX="--package torch_torchvision"
+        fi
 
         if [[ ${TARGET_OS} == 'windows' ]]; then
             powershell -ExecutionPolicy Bypass -c "\$env:INSTALLER_DOWNLOAD_URL='https://wheelnext.astral.sh/v0.0.3'; irm https://astral.sh/uv/install.ps1 | iex"
             export PATH="${HOME}/.local/bin/:${PATH}"
-            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch torchvision --force-reinstall --verbose
-            uv pip install torchaudio --no-deps
+            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ ${VARIANT_PACKAGES} --force-reinstall --verbose
         else
             curl -LsSf https://astral.sh/uv/install.sh | \
             INSTALLER_DOWNLOAD_URL=https://wheelnext.astral.sh/v0.0.3 sh
             source $HOME/.local/bin/env
             uv venv --python ${MATRIX_PYTHON_VERSION}
             source .venv/bin/activate
-            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ torch torchvision --force-reinstall --verbose
-            uv pip install torchaudio --no-deps
+            uv pip install --index https://wheelnext.github.io/variants-index-test/v0.0.3/ ${VARIANT_PACKAGES} --force-reinstall --verbose
         fi
     else
         eval $INSTALLATION
@@ -134,11 +145,6 @@ else
     fi
 
     pushd ${PWD}/.ci/pytorch/
-
-    # TODO: enable torch-compile on ROCM and on 3.13t
-    if [[ ${MATRIX_GPU_ARCH_TYPE} == "rocm" || ${MATRIX_PYTHON_VERSION} == "3.13t" ]]; then
-        TEST_SUFFIX=${TEST_SUFFIX}" --torch-compile-check disabled"
-    fi
 
     if [[ ${TARGET_OS} == 'linux' ]]; then
         export CONDA_LIBRARY_PATH="$(dirname $(which python))/../lib"
