@@ -1113,14 +1113,6 @@
       "rocm"
     ]
   ],
-  "test_mixed_mm_exhaustive_dtypes (__main__.TestPatternMatcher)": [
-    "147853",
-    "https://github.com/pytorch/pytorch/issues/147853",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_mm_plus_mm3 (__main__.TestSelectAlgorithm)": [
     "173344",
     "https://github.com/pytorch/pytorch/issues/173344",
