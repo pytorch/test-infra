@@ -557,14 +557,6 @@
       "slow"
     ]
   ],
-  "test_dropout_deterministic_dynamic_shapes_cuda (__main__.DynamicShapesGPUTests)": [
-    "132957",
-    "https://github.com/pytorch/pytorch/issues/132957",
-    [
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_dtensor_input_mutations (__main__.TestDTensorCompileWithCompiledAutograd)": [
     "171934",
     "https://github.com/pytorch/pytorch/issues/171934",
