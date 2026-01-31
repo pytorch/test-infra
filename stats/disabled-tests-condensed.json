@@ -623,15 +623,6 @@
       "rocm"
     ]
   ],
-  "test_equivalent_template_code (__main__.BenchmarkMultiTemplateFusionGpuTest)": [
-    "166601",
-    "https://github.com/pytorch/pytorch/issues/166601",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_execution_trace_with_kineto (__main__.TestExecutionTrace)": [
     "123536",
     "https://github.com/pytorch/pytorch/issues/123536",
