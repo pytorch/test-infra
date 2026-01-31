@@ -689,6 +689,13 @@
       "linux"
     ]
   ],
+  "test_float8_basics_xpu (__main__.TestFP8MatmulXPU)": [
+    "169772",
+    "https://github.com/pytorch/pytorch/issues/169772",
+    [
+      "xpu"
+    ]
+  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -2038,6 +2045,13 @@
       "inductor",
       "linux",
       "rocm"
+    ]
+  ],
+  "test_weight_norm_conv2d_xpu (__main__.GPUTests)": [
+    "173994",
+    "https://github.com/pytorch/pytorch/issues/173994",
+    [
+      "xpu"
     ]
   ]
 }
