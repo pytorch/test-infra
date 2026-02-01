@@ -48,7 +48,7 @@ function clone_llvm() {
   if [[ -d llvm-project ]]; then
     rm -rf llvm-project
   fi
-  git clone -b llvmorg-19.1.4 https://github.com/llvm/llvm-project.git --depth=1
+  git clone -b llvmorg-21.1.5 https://github.com/llvm/llvm-project.git --depth=1
   success
 }
 
