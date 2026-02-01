@@ -22,7 +22,7 @@ inputs:
     description: Python version to setup the environment for
     required: false
     type: string
-    default: "3.8"
+    default: "3.9"
 
 runs:
   using: composite
