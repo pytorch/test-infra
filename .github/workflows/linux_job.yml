@@ -81,6 +81,11 @@ on:
         description: "Name for the job, which is displayed in the GitHub UI"
         default: "linux-job"
         type: string
+      run-name:
+        description: "Name for the run, which is displayed in the GitHub UI"
+        type: string
+        default: ""
+        required: false
       continue-on-error:
         description: "Prevents a job from failing when a step fails. Set to true to allow a job to pass when exec script step fails."
         default: false
@@ -109,6 +114,7 @@ jobs:
     strategy:
       fail-fast: false
     name: ${{ inputs.job-name }}
+    run-name: ${{ inputs.run-name }}
     env:
       DOCKER_IMAGE: >-
         ${{ inputs.docker-image == 'pytorch/conda-builder' && format('pytorch/conda-builder:{0}{1}',
