@@ -1743,15 +1743,6 @@
       "rocm"
     ]
   ],
-  "test_subclass (__main__.CustomOpTests)": [
-    "160447",
-    "https://github.com/pytorch/pytorch/issues/160447",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
