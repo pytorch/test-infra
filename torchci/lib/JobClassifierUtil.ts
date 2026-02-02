@@ -71,7 +71,7 @@ const GROUP_OTHER = "other";
 // Jobs will be grouped with the first regex they match in this list
 export const groups = [
   {
-    regex: /vllm/,
+    regex: /vllm/i,
     name: GROUP_VLLM,
   },
   {
