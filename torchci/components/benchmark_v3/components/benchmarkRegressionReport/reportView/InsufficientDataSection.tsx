@@ -158,8 +158,8 @@ export function InsufficientDataChartSection({
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Metrics with insufficient data to determine regression status. At least
-        2 data points are required for analysis for baseline points and latest points.
-        The &quot;Latest&quot; column shows the most recent timestamp.
+        2 data points are required for analysis for baseline points and latest
+        points. The &quot;Latest&quot; column shows the most recent timestamp.
       </Typography>
       <RenderRawContent data={sortedItems} />
       <TableContainer sx={{ maxHeight: 500 }}>
