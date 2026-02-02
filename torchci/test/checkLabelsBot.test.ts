@@ -87,73 +87,9 @@ describe("check-labels-bot", () => {
     });
   });
 
-  describe("pull_request.opened", () => {
-    test("adds error comment when PR opened without required labels", async () => {
-      const event = requireDeepCopy("./fixtures/pull_request.opened");
-      const payload = event.payload;
-      payload.pull_request.labels = [];
-
-      // Mock: no existing comments
-      const scope = nock("https://api.github.com")
-        .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments")
-        .reply(200, [])
-        .post(
-          "/repos/zhouzhuojie/gha-ci-playground/issues/31/comments",
-          (body: { body: string }) => {
-            expect(body.body).toContain(LABEL_COMMENT_START);
-            expect(body.body).toContain("release notes:");
-            return true;
-          }
-        )
-        .reply(200);
-
-      await probot.receive({ name: "pull_request", payload, id: "2" });
-
-      handleScope(scope);
-    });
-
-    test("does not add comment when PR has topic: not user facing label", async () => {
-      const event = requireDeepCopy("./fixtures/pull_request.opened");
-      const payload = event.payload;
-      payload.pull_request.labels = [{ name: "topic: not user facing" }];
-
-      // No API calls expected for listing or creating comments
-
-      await probot.receive({ name: "pull_request", payload, id: "2" });
-
-      // If no scope.done() is called, the test passes if no unexpected calls were made
-    });
-
-    test("does not add comment when PR has release notes: label", async () => {
-      const event = requireDeepCopy("./fixtures/pull_request.opened");
-      const payload = event.payload;
-      payload.pull_request.labels = [{ name: "release notes: nn" }];
-
-      await probot.receive({ name: "pull_request", payload, id: "2" });
-    });
-
-    test("does not add duplicate comment when already exists", async () => {
-      const event = requireDeepCopy("./fixtures/pull_request.opened");
-      const payload = event.payload;
-      payload.pull_request.labels = [];
-
-      // Mock: existing comment from bot
-      const scope = nock("https://api.github.com")
-        .get("/repos/zhouzhuojie/gha-ci-playground/issues/31/comments")
-        .reply(200, [
-          {
-            id: 123,
-            body: formLabelErrComment(),
-            user: { login: "github-actions" },
-          },
-        ]);
-      // No createComment call expected
-
-      await probot.receive({ name: "pull_request", payload, id: "2" });
-
-      handleScope(scope);
-    });
-  });
+  // NOTE: pull_request.opened is now handled by autoLabelBot to avoid race conditions.
+  // The check-labels logic runs after auto-labeling is complete.
+  // See autoLabelBot.test.ts for those tests.
 
   describe("pull_request.labeled", () => {
     test("deletes error comment when topic: not user facing is added", async () => {
@@ -287,15 +223,15 @@ describe("check-labels-bot", () => {
   });
 
   describe("non-pytorch/pytorch repos", () => {
-    test("does not run on other repos", async () => {
+    test("does not run on other repos for labeled event", async () => {
       // Reset mock to return false
       jest.restoreAllMocks();
       const mock = jest.spyOn(botUtils, "isPyTorchPyTorch");
       mock.mockReturnValue(false);
 
-      const event = requireDeepCopy("./fixtures/pull_request.opened");
-      const payload = event.payload;
-      payload.pull_request.labels = [];
+      const payload = requireDeepCopy("./fixtures/pull_request.labeled");
+      payload.label = { name: "topic: not user facing" };
+      payload.pull_request.labels = [{ name: "topic: not user facing" }];
 
       // No API calls expected
 
