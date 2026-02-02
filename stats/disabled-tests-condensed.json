@@ -672,13 +672,6 @@
       "linux"
     ]
   ],
-  "test_float8_basics_xpu (__main__.TestFP8MatmulXPU)": [
-    "169772",
-    "https://github.com/pytorch/pytorch/issues/169772",
-    [
-      "xpu"
-    ]
-  ],
   "test_fn_grad_cholesky_solve_cuda_complex128 (__main__.TestBwdGradientsCUDA)": [
     "164192",
     "https://github.com/pytorch/pytorch/issues/164192",
@@ -1720,20 +1713,6 @@
     "https://github.com/pytorch/pytorch/issues/156436",
     [
       "linux"
-    ]
-  ],
-  "test_skip_non_tf32 (__main__.SDPAPatternRewriterGpuDynamicTests)": [
-    "173352",
-    "https://github.com/pytorch/pytorch/issues/173352",
-    [
-      "xpu"
-    ]
-  ],
-  "test_skip_non_tf32 (__main__.SDPAPatternRewriterGpuTests)": [
-    "173336",
-    "https://github.com/pytorch/pytorch/issues/173336",
-    [
-      "xpu"
     ]
   ],
   "test_sparse_add_cuda_float32 (__main__.TestSparseCSRCUDA)": [
