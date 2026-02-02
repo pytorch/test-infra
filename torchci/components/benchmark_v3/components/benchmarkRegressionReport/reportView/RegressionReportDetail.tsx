@@ -10,11 +10,11 @@ import { useMemo, useState } from "react";
 import BenchmarkDropdownGroup from "../../benchmarkSideBar/components/filters/BenchmarkFilterDropdownGroup";
 import { ToggleSection } from "../../common/ToggleSection";
 import { RegressionReportChartIndicatorsSection } from "../common";
-import { InsufficientDataChartSection } from "./InsufficientDataSection";
 import {
   ReportTimeSereisChartSection,
   ReportTimeSereisGroupChartSection,
 } from "./RegressionReportTimeSeriesChart";
+import { ReportDataSection } from "./ReportDataSection";
 
 const styles = {
   toggleSection: {
@@ -28,6 +28,7 @@ const styles = {
 export function RegressionReportDetail({
   report,
   enableTableSidePanel = true,
+  include_non_regression = true,
   singleChartSizeSx = { xs: 12, lg: 4 },
   groupChartSizeSx = { xs: 12, lg: 6 },
 }: {
@@ -35,6 +36,7 @@ export function RegressionReportDetail({
   showRaw?: boolean;
   enableTableSidePanel?: boolean;
   singleChartSizeSx?: any;
+  include_non_regression?: boolean;
   groupChartSizeSx?: any;
 }) {
   const [selectedFilters, setSelectedFilters] = useState<
@@ -45,7 +47,15 @@ export function RegressionReportDetail({
   >("group-chart-view");
 
   const report_id = report.report_id;
-  const details = report.details;
+  const details = useMemo(() => {
+    const d = report.details;
+    if (!include_non_regression) {
+      const { insufficient_data, no_regression, ...rest } = d;
+      return rest;
+    }
+    return d;
+  }, [report.details, include_non_regression]);
+
   const filterOptions = report.filters;
   const includeKeys = useMemo(() => {
     return (filterOptions || []).map((item: { type: string }) => item?.type);
@@ -106,18 +116,6 @@ export function RegressionReportDetail({
         />
       </Box>
       <Divider sx={{ mb: 2, mt: 1 }} />
-      <ToggleSection
-        id={"insufficient_data_chart"}
-        title={`Insufficient data (${filtered_details.insufficient_data.length}/${details.insufficient_data.length})`}
-        defaultOpen={false}
-      >
-        <InsufficientDataChartSection
-          report_id={report_id}
-          metricItemList={filtered_details?.insufficient_data}
-          includeKeys={includeKeys}
-          orderedKeys={includeKeys}
-        />
-      </ToggleSection>
       <Box>
         <Typography variant="h6">Chart Reports</Typography>
       </Box>
@@ -190,6 +188,23 @@ export function RegressionReportDetail({
               sizeSx={groupChartSizeSx}
             />
           </ToggleSection>
+          {include_non_regression ? (
+            <ToggleSection
+              id={"insufficient_data_table"}
+              title={`Insufficient data (${filtered_details.insufficient_data.length}/${details.insufficient_data.length})`}
+              defaultOpen={false}
+            >
+              <ReportDataSection
+                report_id={report_id}
+                metricItemList={filtered_details?.insufficient_data}
+                includeKeys={includeKeys}
+                orderedKeys={includeKeys}
+                description='Metrics with insufficient data to determine regression status. At least
+        2 data points are required for analysis for baseline points and latest
+        points. The "Latest" column shows the most recent timestamp.'
+              />
+            </ToggleSection>
+          ) : null}
         </Box>
       )}
     </Box>

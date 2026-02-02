@@ -29,7 +29,7 @@ export default async function handler(
   }
 
   // list regression summary report for a unique id
-  const { id, include_no_regression } = params;
+  const { id } = params;
   try {
     const { query, params } = buildQuery({
       table: REPORT_TABLE,
@@ -38,7 +38,7 @@ export default async function handler(
     console.log("[API][DB]get regression summary report with params", params);
 
     const result = await queryClickhouse(query, params);
-    const resp = toMiniReport(result, include_no_regression);
+    const resp = toMiniReport(result);
     if (resp.length > 1) {
       console.warn("found more than one report for id", id);
     }
@@ -60,7 +60,7 @@ function buildQuery({ table, id }: { table: string; id: string }) {
   return { query, params };
 }
 
-function toMiniReport(dbResult: any[], include_no_regression: boolean): any[] {
+function toMiniReport(dbResult: any[]): any[] {
   if (!dbResult || !dbResult.length) return [];
   const items = mapReportField(dbResult, "report");
   const miniReports: any[] = [];
@@ -79,10 +79,7 @@ function toMiniReport(dbResult: any[], include_no_regression: boolean): any[] {
     const r = report?.report;
     const startInfo = r?.baseline_meta_data?.start;
     const endInfo = r?.baseline_meta_data?.end;
-    const { buckets, filterOptions } = transformReportRows(
-      r?.results ?? [],
-      include_no_regression
-    );
+    const { buckets, filterOptions } = transformReportRows(r?.results ?? []);
     miniReports.push({
       ...otherFields,
       filters: filterOptions,
@@ -95,10 +92,7 @@ function toMiniReport(dbResult: any[], include_no_regression: boolean): any[] {
   return miniReports;
 }
 
-export function transformReportRows(
-  results: Array<Record<string, any>>,
-  include_no_regression: boolean
-): {
+export function transformReportRows(results: Array<Record<string, any>>): {
   buckets: Record<"regression" | "suspicious" | "insufficient_data", any[]>;
   filterOptions: { type: string; options: string | any[]; labelName: string }[];
 } {
@@ -139,8 +133,6 @@ export function transformReportRows(
       buckets.suspicious.push(item);
     } else if (item.label === "insufficient_data") {
       buckets.insufficient_data.push(item);
-    } else if (item.label === "no_regression" && include_no_regression) {
-      buckets.no_regression.push(item);
     }
   }
   // Convert Set → string[]

@@ -11,12 +11,16 @@ import {
   Typography,
 } from "@mui/material";
 import { useMemo, useState } from "react";
-import { RenderRawContent } from "../../common/RawContentDialog";
+import {
+  RenderRawContent,
+  RenderStaticContent,
+} from "../../common/RawContentDialog";
 
 type Order = "asc" | "desc";
 
 const POINTS_LENGTH_KEY = "__points_length__";
 const LATEST_TIMESTAMP_KEY = "__latest_timestamp__";
+const DETAILS = "__details__";
 
 const cellSx = {
   padding: "2px 4px",
@@ -47,20 +51,22 @@ const getLatestTimestamp = (item: any): string => {
   return latestTimestamp || "-";
 };
 
-export function InsufficientDataChartSection({
+export function ReportDataSection({
   metricItemList,
   title = "",
+  description = "",
   includeKeys,
   orderedKeys = [],
 }: {
   metricItemList: any[];
   title?: string;
   report_id: string;
+  description?: string;
   includeKeys?: string[];
   orderedKeys?: string[];
 }) {
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [orderBy, setOrderBy] = useState<string>("");
   const [order, setOrder] = useState<Order>("asc");
 
@@ -83,7 +89,13 @@ export function InsufficientDataChartSection({
     const rest = keys.filter((key) => !orderedSet.has(key)).sort();
 
     // Add special columns at the end
-    return [...inOrder, ...rest, POINTS_LENGTH_KEY, LATEST_TIMESTAMP_KEY];
+    return [
+      ...inOrder,
+      ...rest,
+      POINTS_LENGTH_KEY,
+      LATEST_TIMESTAMP_KEY,
+      DETAILS,
+    ];
   }, [metricItemList, includeKeys, orderedKeys]);
 
   const handleChangePage = (_event: unknown, newPage: number) => {
@@ -138,6 +150,10 @@ export function InsufficientDataChartSection({
     if (key === LATEST_TIMESTAMP_KEY) {
       return getLatestTimestamp(item);
     }
+    if (key === DETAILS) {
+      return <RenderStaticContent data={item} title="" buttonName="View" />;
+    }
+
     return item.group_info?.[key] ?? "-";
   };
 
@@ -156,11 +172,11 @@ export function InsufficientDataChartSection({
       <Typography variant="h6" sx={{ mb: 1.5 }}>
         {title}
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Metrics with insufficient data to determine regression status. At least
-        2 data points are required for analysis for baseline points and latest
-        points. The &quot;Latest&quot; column shows the most recent timestamp.
-      </Typography>
+      {description ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+          {description}
+        </Typography>
+      ) : null}
       <RenderRawContent data={sortedItems} />
       <TableContainer sx={{ maxHeight: 500 }}>
         <Table size="small" stickyHeader>

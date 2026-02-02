@@ -83,8 +83,11 @@ export function useListBenchmarkRegressionReportsData(
   });
 }
 
-export function useGetBenchmarkRegressionReportData(id: string): any {
-  return useApi(getBenchmarkRegressionReport, [id], {
+export function useGetBenchmarkRegressionReportData(
+  id: string,
+  include_non_regression: boolean = false
+): any {
+  return useApi(getBenchmarkRegressionReport, [id, include_non_regression], {
     refreshInterval: 12 * 60 * 60 * 1000, // refresh every 12 hour
     revalidateOnFocus: false,
     ...limitErrorRetrySWR,
