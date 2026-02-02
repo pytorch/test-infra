@@ -66,15 +66,6 @@
       "mac"
     ]
   ],
-  "test_all_reduce_collective (__main__.FxGraphRunnableTest)": [
-    "164425",
-    "https://github.com/pytorch/pytorch/issues/164425",
-    [
-      "asan",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_allreduce_float8 (__main__.ProcessGroupNCCLOpTest)": [
     "157879",
     "https://github.com/pytorch/pytorch/issues/157879",
@@ -136,28 +127,10 @@
       "mac"
     ]
   ],
-  "test_basic_tensor_add (__main__.FxGraphRunnableTest)": [
-    "162554",
-    "https://github.com/pytorch/pytorch/issues/162554",
-    [
-      "asan",
-      "linux",
-      "rocm"
-    ]
-  ],
   "test_binary_redirect_and_tee (__main__.StartProcessesListAsBinaryTest)": [
     "163230",
     "https://github.com/pytorch/pytorch/issues/163230",
     [
-      "linux",
-      "rocm"
-    ]
-  ],
-  "test_broadcast_add_dynamic (__main__.FxGraphRunnableTest)": [
-    "159112",
-    "https://github.com/pytorch/pytorch/issues/159112",
-    [
-      "asan",
       "linux",
       "rocm"
     ]
@@ -605,15 +578,6 @@
     "https://github.com/pytorch/pytorch/issues/153736",
     [
       "linux"
-    ]
-  ],
-  "test_dynamic_shapes_run (__main__.FxGraphRunnableTest)": [
-    "161909",
-    "https://github.com/pytorch/pytorch/issues/161909",
-    [
-      "asan",
-      "linux",
-      "rocm"
     ]
   ],
   "test_emulate_precision_casts_mean_ratio_chain (__main__.CudaReproTests)": [
@@ -1823,15 +1787,6 @@
       "linux",
       "rocm",
       "slow"
-    ]
-  ],
-  "test_toy_model_batch_processing (__main__.FxGraphRunnableTest)": [
-    "162231",
-    "https://github.com/pytorch/pytorch/issues/162231",
-    [
-      "asan",
-      "linux",
-      "rocm"
     ]
   ],
   "test_trace_buffer_slice (__main__.TestFX)": [
