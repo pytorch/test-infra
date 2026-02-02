@@ -42,7 +42,7 @@ def get_latest_commits(viable_strict_branch: str, main_branch: str) -> List[str]
         [
             "git",
             "rev-list",
-            f"{latest_viable_commit}^..HEAD",
+            f"{latest_viable_commit}..HEAD",
             f"--remotes=*origin/{main_branch}",
         ],
         encoding="ascii",
