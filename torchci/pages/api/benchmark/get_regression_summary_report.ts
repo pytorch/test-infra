@@ -29,15 +29,16 @@ export default async function handler(
   }
 
   // list regression summary report for a unique id
-  const { id } = params;
+  const { id, include_no_regression } = params;
   try {
     const { query, params } = buildQuery({
       table: REPORT_TABLE,
       id,
     });
     console.log("[API][DB]get regression summary report with params", params);
+
     const result = await queryClickhouse(query, params);
-    const resp = toMiniReport(result);
+    const resp = toMiniReport(result, include_no_regression);
     if (resp.length > 1) {
       console.warn("found more than one report for id", id);
     }
@@ -59,7 +60,7 @@ function buildQuery({ table, id }: { table: string; id: string }) {
   return { query, params };
 }
 
-function toMiniReport(dbResult: any[]): any[] {
+function toMiniReport(dbResult: any[], include_no_regression: boolean): any[] {
   if (!dbResult || !dbResult.length) return [];
   const items = mapReportField(dbResult, "report");
   const miniReports: any[] = [];
@@ -78,7 +79,10 @@ function toMiniReport(dbResult: any[]): any[] {
     const r = report?.report;
     const startInfo = r?.baseline_meta_data?.start;
     const endInfo = r?.baseline_meta_data?.end;
-    const { buckets, filterOptions } = transformReportRows(r?.results ?? []);
+    const { buckets, filterOptions } = transformReportRows(
+      r?.results ?? [],
+      include_no_regression
+    );
     miniReports.push({
       ...otherFields,
       filters: filterOptions,
@@ -91,20 +95,32 @@ function toMiniReport(dbResult: any[]): any[] {
   return miniReports;
 }
 
-export function transformReportRows(results: Array<Record<string, any>>): {
-  buckets: Record<"regression" | "suspicious", any[]>;
+export function transformReportRows(
+  results: Array<Record<string, any>>,
+  include_no_regression: boolean
+): {
+  buckets: Record<"regression" | "suspicious" | "insufficient_data", any[]>;
   filterOptions: { type: string; options: string | any[]; labelName: string }[];
 } {
   const filterOptions: Record<string, Set<string>> = {};
-  const buckets: Record<"regression" | "suspicious", any[]> = {
+  const buckets: Record<
+    "regression" | "suspicious" | "insufficient_data" | "no_regression",
+    any[]
+  > = {
     regression: [],
     suspicious: [],
+    insufficient_data: [],
+    no_regression: [],
   };
 
   for (const item of results) {
     const groupInfo = item.group_info ?? {};
     // --- collect unique values for each groupInfo key ---
-    if (item.label === "regression" || item.label === "suspicious") {
+    if (
+      item.label === "regression" ||
+      item.label === "suspicious" ||
+      item.label === "insufficient_data"
+    ) {
       for (const key of Object.keys(groupInfo)) {
         if (EXCLUDED_FILTER_OPTIONS.includes(key)) continue;
         const value = String(groupInfo[key]);
@@ -121,6 +137,10 @@ export function transformReportRows(results: Array<Record<string, any>>): {
       buckets.regression.push(item);
     } else if (item.label === "suspicious") {
       buckets.suspicious.push(item);
+    } else if (item.label === "insufficient_data") {
+      buckets.insufficient_data.push(item);
+    } else if (item.label === "no_regression" && include_no_regression) {
+      buckets.no_regression.push(item);
     }
   }
   // Convert Set → string[]

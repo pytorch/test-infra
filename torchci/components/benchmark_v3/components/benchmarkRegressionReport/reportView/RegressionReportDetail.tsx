@@ -10,7 +10,7 @@ import { useMemo, useState } from "react";
 import BenchmarkDropdownGroup from "../../benchmarkSideBar/components/filters/BenchmarkFilterDropdownGroup";
 import { ToggleSection } from "../../common/ToggleSection";
 import { RegressionReportChartIndicatorsSection } from "../common";
-import RegressionReportTable from "./RegressionReportTable";
+import { InsufficientDataChartSection } from "./InsufficientDataSection";
 import {
   ReportTimeSereisChartSection,
   ReportTimeSereisGroupChartSection,
@@ -47,7 +47,11 @@ export function RegressionReportDetail({
   const report_id = report.report_id;
   const details = report.details;
   const filterOptions = report.filters;
-  const filtereddetails = useMemo(() => {
+  const includeKeys = useMemo(() => {
+    return (filterOptions || []).map((item: { type: string }) => item?.type);
+  }, [filterOptions]);
+
+  const filtered_details = useMemo(() => {
     const shouldFilter = Object.entries(selectedFilters).filter(
       ([_, v]) => v !== null && v !== ""
     );
@@ -62,6 +66,7 @@ export function RegressionReportDetail({
     return {
       regression: details.regression.filter(applyFilter),
       suspicious: details.suspicious.filter(applyFilter),
+      insufficient_data: details.insufficient_data.filter(applyFilter),
     };
   }, [details, selectedFilters]);
 
@@ -101,6 +106,21 @@ export function RegressionReportDetail({
         />
       </Box>
       <Divider sx={{ mb: 2, mt: 1 }} />
+      <ToggleSection
+        id={"insufficient_data_chart"}
+        title={`Insufficient data (${filtered_details.insufficient_data.length}/${details.insufficient_data.length})`}
+        defaultOpen={false}
+      >
+        <InsufficientDataChartSection
+          report_id={report_id}
+          metricItemList={filtered_details?.insufficient_data}
+          includeKeys={includeKeys}
+          orderedKeys={includeKeys}
+        />
+      </ToggleSection>
+      <Box>
+        <Typography variant="h6">Chart Reports</Typography>
+      </Box>
       <Box sx={{ mt: 3 }}>
         <ToggleButtonGroup
           value={view}
@@ -112,60 +132,34 @@ export function RegressionReportDetail({
           <ToggleButton value="single-chart-view">
             Single Chart View
           </ToggleButton>
-          <ToggleButton value="table">Table View</ToggleButton>
         </ToggleButtonGroup>
       </Box>
       {/* Conditionally render based on view */}
+
       {view === "single-chart-view" && (
         <Box>
           <RegressionReportChartIndicatorsSection />
           <ToggleSection
             id={"regression_chart"}
-            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
+            title={`Regressions (${filtered_details.regression.length}/${details.regression.length})`}
           >
             <ReportTimeSeriesSingleChartBucketList
               report_id={report_id}
               subtitle="regression"
-              metricItemList={filtereddetails.regression}
+              metricItemList={filtered_details.regression}
               sizeSx={singleChartSizeSx}
             />
           </ToggleSection>
           <ToggleSection
             id={"suspicious_chart"}
-            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
+            title={`Suspicious (${filtered_details.suspicious.length}/${details.suspicious.length})`}
             defaultOpen={true}
           >
             <ReportTimeSeriesSingleChartBucketList
               report_id={report_id}
               subtitle="suspicious"
-              metricItemList={filtereddetails.suspicious}
+              metricItemList={filtered_details.suspicious}
               sizeSx={singleChartSizeSx}
-            />
-          </ToggleSection>
-        </Box>
-      )}
-      {view === "table" && (
-        <Box>
-          <ToggleSection
-            id={"regression_table"}
-            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
-            defaultOpen={true}
-          >
-            <RegressionReportTable
-              report_id={report_id}
-              data={filtereddetails.regression}
-              enableSidePanel={enableTableSidePanel}
-            />
-          </ToggleSection>
-          <ToggleSection
-            id={"suspicious_table"}
-            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
-            defaultOpen={true}
-          >
-            <RegressionReportTable
-              report_id={report_id}
-              data={filtereddetails.suspicious}
-              enableSidePanel={enableTableSidePanel}
             />
           </ToggleSection>
         </Box>
@@ -175,24 +169,24 @@ export function RegressionReportDetail({
           <RegressionReportChartIndicatorsSection />
           <ToggleSection
             id={"regression_chart"}
-            title={`Regressions (${filtereddetails.regression.length}/${details.regression.length})`}
+            title={`Regressions (${filtered_details.regression.length}/${details.regression.length})`}
           >
             <ReportTimeSeriesGroupChartBucketList
               report_id={report_id}
               subtitle="regression"
-              metricItemList={filtereddetails.regression}
+              metricItemList={filtered_details.regression}
               sizeSx={groupChartSizeSx}
             />
           </ToggleSection>
           <ToggleSection
             id={"suspicious_chart"}
-            title={`Suspicious (${filtereddetails.suspicious.length}/${details.suspicious.length})`}
+            title={`Suspicious (${filtered_details.suspicious.length}/${details.suspicious.length})`}
             defaultOpen={true}
           >
             <ReportTimeSeriesGroupChartBucketList
               report_id={report_id}
               subtitle="suspicious"
-              metricItemList={filtereddetails.suspicious}
+              metricItemList={filtered_details.suspicious}
               sizeSx={groupChartSizeSx}
             />
           </ToggleSection>
