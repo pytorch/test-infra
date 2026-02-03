@@ -717,6 +717,12 @@ export class VllmBenchmarkDataFetcher
           OR startsWith(tupleElement(o.model, 'name'), {modelCategory:String})
       )
     `,
+      `(
+          {useCompile:String} = ''
+          OR tupleElement(o.benchmark, 'extra_info')['use_compile'] = ''
+          OR tupleElement(o.benchmark, 'extra_info')['use_compile'] = {useCompile:String}
+      )
+    `,
     ]);
   }
   applyFormat(
@@ -754,6 +760,7 @@ export class VllmBenchmarkDataFetcher
     const params = {
       ...inputs,
       modelCategory: inputs.modelCategory ?? "",
+      useCompile: inputs.useCompile ?? "true",
       excludedMetrics: excludedMetrics,
     };
 
