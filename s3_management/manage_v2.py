@@ -715,9 +715,8 @@ class S3Index:
         resolved_subdir = self._resolve_subdir(subdir)
 
         # Check if this package should use R2 for nightly builds
-        if (
-            package_name.lower() in PT_R2_PACKAGES
-            and resolved_subdir.startswith("whl/nightly")
+        if package_name.lower() in PT_R2_PACKAGES and resolved_subdir.startswith(
+            "whl/nightly"
         ):
             # Use R2 absolute URL for PT_R2_PACKAGES in nightly builds
             base_url = "https://download-r2.pytorch.org"
