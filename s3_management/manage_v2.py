@@ -368,6 +368,13 @@ PT_FOUNDATION_PACKAGES = {
     "pytorch_triton_xpu",
 }
 
+# Packages that should use R2 (download-r2.pytorch.org) for nightly builds
+# These packages will have their URLs point to R2 instead of S3/CloudFront
+# when the path is whl/nightly
+PT_R2_PACKAGES = {
+    "torchaudio",
+}
+
 # Packages that should have their root index.html copied to subdirectories
 # instead of processing wheels in subdirectories
 # For example: whl/nightly/filelock/index.html -> whl/nightly/cu128/filelock/index.html
@@ -705,7 +712,15 @@ class S3Index:
         )
 
         # Determine URL strategy once before the loop
-        if (
+        resolved_subdir = self._resolve_subdir(subdir)
+
+        # Check if this package should use R2 for nightly builds
+        if package_name.lower() in PT_R2_PACKAGES and resolved_subdir.startswith(
+            "whl/nightly"
+        ):
+            # Use R2 absolute URL for PT_R2_PACKAGES in nightly builds
+            base_url = "https://download-r2.pytorch.org"
+        elif (
             use_cloudfront_for_non_foundation
             and package_name.lower() not in PT_FOUNDATION_PACKAGES
         ):
