@@ -16,60 +16,6 @@ VALID_TARGET_PATTERNS = [
     r"^rocm[0-9]+\.[0-9]+$", # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
 ]
 
-# Core torch dependencies that should be initialized for any new target
-# These are packages that have no target-specific versions (platform-agnostic)
-TORCH_CORE_DEPENDENCIES = [
-    "filelock",
-    "fsspec",
-    "jinja2",
-    "networkx",
-    "sympy",
-    "mpmath",
-    "typing-extensions",
-    "numpy",
-    "pillow",
-]
-
-# CUDA-specific dependencies (for cu* targets)
-CUDA_DEPENDENCIES = [
-    "nvidia-cuda-nvrtc-cu12",
-    "nvidia-cuda-runtime-cu12",
-    "nvidia-cuda-cupti-cu12",
-    "nvidia-cudnn-cu12",
-    "nvidia-cublas-cu12",
-    "nvidia-cufft-cu12",
-    "nvidia-curand-cu12",
-    "nvidia-cusolver-cu12",
-    "nvidia-cusparse-cu12",
-    "nvidia-cusparselt-cu12",
-    "nvidia-nccl-cu12",
-    "nvidia-nvtx-cu12",
-    "nvidia-nvjitlink-cu12",
-    "nvidia-cuda-cccl-cu12",
-    "nvidia-cufile-cu12",
-    "nvidia-nvshmem-cu12",
-]
-
-# CUDA 13 dependencies (for cu130+ targets)
-CUDA13_DEPENDENCIES = [
-    "nvidia-cuda-nvrtc",
-    "nvidia-cuda-runtime",
-    "nvidia-cuda-cupti",
-    "nvidia-cudnn-cu13",
-    "nvidia-cublas",
-    "nvidia-cufft",
-    "nvidia-curand",
-    "nvidia-cusolver",
-    "nvidia-cusparse",
-    "nvidia-cusparselt-cu13",
-    "nvidia-nccl-cu13",
-    "nvidia-nvtx",
-    "nvidia-nvjitlink",
-    "nvidia-cuda-cccl",
-    "nvidia-cufile",
-    "nvidia-nvshmem-cu13",
-]
-
 # Cloudflare R2 configuration for writing indexes
 # Set these environment variables:
 # - R2_ACCOUNT_ID
@@ -722,7 +668,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
 
 def is_nvidia_package(pkg_name: str) -> bool:
     """Check if a package is from NVIDIA and should use pypi.nvidia.com"""
-    return pkg_name.startswith("nvidia-")
+    return pkg_name.startswith("nvidia-") or pkg_name.startswith("cuda-")
 
 
 def get_package_source_url(pkg_name: str) -> str:
@@ -877,36 +823,27 @@ def is_valid_target(target: str) -> bool:
     return False
 
 
-def get_target_type(target: str) -> str:
-    """Determine the type of target (cuda, cuda13, rocm)."""
-    if target.startswith("cu"):
-        # Extract CUDA version number
-        version_str = target[2:]
-        try:
-            version = int(version_str)
-            # CUDA 13.0+ uses different package naming
-            if version >= 130:
-                return "cuda13"
-        except ValueError:
-            pass
-        return "cuda"
-    elif target.startswith("rocm"):
-        return "rocm"
-    return "unknown"
+def get_packages_for_target(target: str) -> List[str]:
+    """
+    Get packages from PACKAGES_PER_PROJECT that should be initialized for a target.
 
-
-def get_dependencies_for_target(target: str) -> List[str]:
-    """Get the list of dependencies to initialize for a given target."""
-    target_type = get_target_type(target)
-    dependencies = list(TORCH_CORE_DEPENDENCIES)
-
-    if target_type == "cuda":
-        dependencies.extend(CUDA_DEPENDENCIES)
-    elif target_type == "cuda13":
-        dependencies.extend(CUDA13_DEPENDENCIES)
-    # ROCm, CPU, XPU only need core dependencies
-
-    return dependencies
+    Returns packages where:
+    - project is "torch" AND
+    - either no target is specified (universal packages like filelock, numpy)
+    - or the target matches the specified target
+    """
+    packages = []
+    for pkg_name, pkg_configs in PACKAGES_PER_PROJECT.items():
+        for config in pkg_configs:
+            if config.get("project") != "torch":
+                continue
+            pkg_target = config.get("target", "")
+            # Include if no target specified (universal) or target matches
+            if pkg_target == "" or pkg_target == target:
+                if pkg_name not in packages:
+                    packages.append(pkg_name)
+                break
+    return packages
 
 
 def target_exists(prefix: str, target: str) -> bool:
@@ -921,18 +858,6 @@ def target_exists(prefix: str, target: str) -> bool:
     )
 
     return response.get("KeyCount", 0) > 0
-
-
-def generate_empty_package_index_html(package_name: str) -> str:
-    """Generate an empty PEP 503 index.html for a package (awaiting wheels)."""
-    return f"""<!DOCTYPE html>
-<html>
-  <body>
-    <h1>Links for {package_name}</h1>
-    <!-- Awaiting package uploads -->
-  </body>
-</html>
-<!--TIMESTAMP {int(time.time())}-->"""
 
 
 def generate_packages_index_html(packages: List[str]) -> str:
@@ -959,9 +884,9 @@ def upload_html_to_s3_and_r2(
 ) -> None:
     """Upload HTML content to both S3 and R2."""
     if dry_run:
-        print(f"Dry Run - would upload to s3://pytorch/{key}")
+        print(f"[DRY RUN] Would upload to s3://pytorch/{key}")
         if R2_BUCKET:
-            print(f"Dry Run - would upload to R2 bucket {R2_BUCKET.name}/{key}")
+            print(f"[DRY RUN] Would upload to R2 bucket {R2_BUCKET.name}/{key}")
         return
 
     # Upload to S3
@@ -991,7 +916,7 @@ def create_target(
     dry_run: bool = False,
 ) -> bool:
     """
-    Create a new target directory with initial torch dependencies.
+    Create a new target directory with torch dependencies from PACKAGES_PER_PROJECT.
 
     Args:
         prefix: The base prefix (e.g., "whl/nightly")
@@ -1008,81 +933,36 @@ def create_target(
 
     target_path = f"{prefix}/{target}"
 
-    # Check if target already exists
-    if target_exists(prefix, target):
+    # Check if target already exists (skip check in dry-run mode)
+    if not dry_run and target_exists(prefix, target):
         print(f"Target '{target_path}' already exists.")
         return False
 
     print(f"{'[DRY RUN] ' if dry_run else ''}Creating new target: {target_path}")
 
-    # Get dependencies for this target type
-    dependencies = get_dependencies_for_target(target)
-    print(f"Initializing with {len(dependencies)} dependencies for target type: {get_target_type(target)}")
+    # Get packages from PACKAGES_PER_PROJECT for this target
+    packages = get_packages_for_target(target)
+    print(f"{'[DRY RUN] ' if dry_run else ''}Initializing with {len(packages)} packages from PACKAGES_PER_PROJECT")
 
     # Create package directories with index.html
     created_packages = []
-    for pkg_name in dependencies:
-        pkg_index_key = f"{target_path}/{pkg_name}/index.html"
-
+    for pkg_name in packages:
+        if dry_run:
+            print(f"  [DRY RUN] Would create: {target_path}/{pkg_name}/index.html")
         # Fetch from PyPI/NVIDIA and upload
         upload_package_using_simple_index(pkg_name, target_path, dry_run=dry_run)
         created_packages.append(pkg_name)
 
     # Create the main index.html for the target directory
-    # This lists all package directories
     target_index_html = generate_packages_index_html(created_packages)
     target_index_key = f"{target_path}/index.html"
     upload_html_to_s3_and_r2(target_index_key, target_index_html, dry_run=dry_run)
 
     print(f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}")
-    print(f"  - Created {len(created_packages)} package index files")
-    print(f"  - Created main index.html at {target_index_key}")
+    print(f"  - {'Would create' if dry_run else 'Created'} {len(created_packages)} package index files")
+    print(f"  - {'Would create' if dry_run else 'Created'} main index.html at {target_index_key}")
 
     return True
-
-
-def update_target_dependencies(
-    prefix: str,
-    target: str,
-    *,
-    dry_run: bool = False,
-) -> None:
-    """
-    Update dependencies for an existing target.
-
-    Args:
-        prefix: The base prefix (e.g., "whl/nightly")
-        target: The target name (e.g., "rocm7.2", "cu130")
-        dry_run: If True, don't actually upload anything
-    """
-    if not is_valid_target(target):
-        print(f"ERROR: Invalid target name '{target}'")
-        return
-
-    target_path = f"{prefix}/{target}"
-
-    if not dry_run and not target_exists(prefix, target):
-        print(f"Target '{target_path}' does not exist. Use --create-target to create it first.")
-        return
-
-    if dry_run:
-        print(f"[DRY RUN] Would update dependencies for target: {target_path}")
-    else:
-        print(f"Updating dependencies for target: {target_path}")
-
-    # Get dependencies for this target type
-    dependencies = get_dependencies_for_target(target)
-    print(f"{'[DRY RUN] ' if dry_run else ''}Processing {len(dependencies)} dependencies:")
-
-    for pkg_name in dependencies:
-        if dry_run:
-            print(f"  [DRY RUN] Would update: {target_path}/{pkg_name}/index.html")
-        upload_package_using_simple_index(pkg_name, target_path, dry_run=dry_run)
-
-    if dry_run:
-        print(f"[DRY RUN] Would have updated dependencies for: {target_path}")
-    else:
-        print(f"Successfully updated dependencies for: {target_path}")
 
 
 def main() -> None:
@@ -1105,21 +985,16 @@ def main() -> None:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
 
-    # New arguments for target management
+    # Arguments for target creation
     parser.add_argument(
         "--target",
         type=str,
-        help="Specific target to operate on (e.g., rocm7.2, cu130, cpu, xpu)",
+        help="Specific target to operate on (e.g., rocm7.2, cu130)",
     )
     parser.add_argument(
         "--create-target",
         action="store_true",
         help="Create a new target directory with torch dependencies",
-    )
-    parser.add_argument(
-        "--update-target",
-        action="store_true",
-        help="Update dependencies for an existing target",
     )
     parser.add_argument(
         "--prefix",
@@ -1130,24 +1005,17 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Handle target creation/update mode
-    if args.create_target or args.update_target:
+    # Handle target creation mode
+    if args.create_target:
         if not args.target:
-            print("ERROR: --target is required when using --create-target or --update-target")
+            print("ERROR: --target is required when using --create-target")
             return
 
-        if args.create_target:
-            create_target(
-                args.prefix,
-                args.target,
-                dry_run=args.dry_run,
-            )
-        elif args.update_target:
-            update_target_dependencies(
-                args.prefix,
-                args.target,
-                dry_run=args.dry_run,
-            )
+        create_target(
+            args.prefix,
+            args.target,
+            dry_run=args.dry_run,
+        )
         return
 
     # Original behavior: update all dependencies for specified package

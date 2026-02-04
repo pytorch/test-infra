@@ -11,7 +11,6 @@ on:
         options:
           - update-packages
           - create-target
-          - update-target
       dryrun:
         description: 'Enable dry run mode'
         required: true
@@ -33,7 +32,7 @@ on:
           - torch_xpu
           - vllm
       target:
-        description: 'Target to create/update (e.g., rocm7.2, cu130) - only for create-target/update-target modes'
+        description: 'Target to create (e.g., rocm7.2, cu130) - only for create-target mode'
         required: false
         type: string
 
@@ -48,15 +47,15 @@ jobs:
     container:
       image: continuumio/miniconda3:23.10.0-1
     steps:
-      - name: Validate inputs for target modes
-        if: ${{ github.event.inputs.mode == 'create-target' || github.event.inputs.mode == 'update-target' }}
+      - name: Validate inputs for create-target mode
+        if: ${{ github.event.inputs.mode == 'create-target' }}
         shell: bash
         env:
           TARGET: ${{ github.event.inputs.target }}
         run: |
           set -e
           if [[ -z "${TARGET}" ]]; then
-            echo "ERROR: target is required for create-target and update-target modes"
+            echo "ERROR: target is required for create-target mode"
             exit 1
           fi
           # Validate target matches expected patterns
@@ -86,7 +85,7 @@ jobs:
         run: |
           pip install -r s3_management/requirements.txt
 
-      - name: Update packages (original mode)
+      - name: Update packages
         if: ${{ github.event.inputs.mode == 'update-packages' }}
         shell: bash
         env:
@@ -121,6 +120,7 @@ jobs:
         run: |
           set -ex
 
+          # Create the target directory with torch dependencies
           ARGS="--create-target --target ${TARGET}"
 
           if [[ "${DRYRUN}" == "enabled" ]]; then
@@ -130,30 +130,8 @@ jobs:
           # shellcheck disable=SC2086
           python3 s3_management/update_dependencies.py ${ARGS}
 
-          # Also run update-target to ensure all dependencies are current
-          ARGS="--update-target --target ${TARGET}"
-
-          if [[ "${DRYRUN}" == "enabled" ]]; then
-            ARGS="${ARGS} --dry-run"
-          fi
-
-          # shellcheck disable=SC2086
-          python3 s3_management/update_dependencies.py ${ARGS}
-
-      - name: Update target dependencies
-        if: ${{ github.event.inputs.mode == 'update-target' }}
-        shell: bash
-        env:
-          TARGET: ${{ github.event.inputs.target }}
-          DRYRUN: ${{ github.event.inputs.dryrun }}
-          R2_ACCOUNT_ID: ${{ secrets.R2_PYTORCH_ACCOUNT_ID }}
-          R2_ACCESS_KEY_ID: ${{ secrets.R2_PYTORCH_PUBLIC_ACCESS_KEY_ID }}
-          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_PYTORCH_PUBLIC_SECRET_ACCESS_KEY }}
-          R2_BUCKET_NAME: "pytorch-downloads"
-        run: |
-          set -ex
-
-          ARGS="--update-target --target ${TARGET}"
+          # Run update-packages for torch to ensure all dependencies are current
+          ARGS="--package torch"
 
           if [[ "${DRYRUN}" == "enabled" ]]; then
             ARGS="${ARGS} --dry-run"
