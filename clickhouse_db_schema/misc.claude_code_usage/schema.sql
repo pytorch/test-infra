@@ -10,6 +10,11 @@ CREATE TABLE misc.claude_code_usage
     `duration_ms` Int64,
     `num_turns` Int32,
     `total_cost_usd` Float64,
+    `input_tokens` Int64 DEFAULT 0,
+    `output_tokens` Int64 DEFAULT 0,
+    `cache_read_input_tokens` Int64 DEFAULT 0,
+    `cache_creation_input_tokens` Int64 DEFAULT 0,
+    `model` String DEFAULT '',
     `_meta` Tuple(
         bucket String,
         key String),
