@@ -192,6 +192,13 @@
       "xpu"
     ]
   ],
+  "test_combo_kernel_per_config_subkernel_block_size (__main__.ComboKernelTests)": [
+    "174268",
+    "https://github.com/pytorch/pytorch/issues/174268",
+    [
+      "xpu"
+    ]
+  ],
   "test_compare_cpu__refs_empty_strided_cuda_float32 (__main__.TestCommonCUDA)": [
     "101625",
     "https://github.com/pytorch/pytorch/issues/101625",
