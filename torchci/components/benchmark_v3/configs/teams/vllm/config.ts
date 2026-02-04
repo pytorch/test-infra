@@ -1,10 +1,32 @@
 import { BenchmarkUIConfig } from "../../config_book_types";
+import { BenchmarkComparisonPolicyConfig } from "../../helpers/RegressionPolicy";
 import {
   BRANCH_METADATA_COLUMN,
   DEFAULT_DASHBOARD_BENCHMARK_INITIAL,
 } from "../defaults/default_dashboard_config";
 
 export const VLLM_BENCHMARK_ID = "vllm_benchmark";
+
+// Comparison policies for time-based metrics (lower is better)
+const TIME_METRIC_POLICY: BenchmarkComparisonPolicyConfig = {
+  target: "time_metric",
+  type: "ratio",
+  ratioPolicy: {
+    badRatio: 1.2,
+    goodRatio: 0.8,
+    direction: "down",
+  },
+};
+
+const COMPARISON_POLICY_BOOK = {
+  latency: TIME_METRIC_POLICY,
+  median_itl_ms: TIME_METRIC_POLICY,
+  median_tpot_ms: TIME_METRIC_POLICY,
+  median_ttft_ms: TIME_METRIC_POLICY,
+  p99_itl_ms: TIME_METRIC_POLICY,
+  p99_tpot_ms: TIME_METRIC_POLICY,
+  p99_ttft_ms: TIME_METRIC_POLICY,
+};
 
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   {
@@ -148,6 +170,7 @@ export const VllmBenchmarkDashboardConfig: BenchmarkUIConfig = {
             },
           },
           extraMetadata: COMPARISON_TABLE_METADATA_COLUMNS,
+          comparisonPolicy: COMPARISON_POLICY_BOOK,
           renderOptions: {
             missingText: "none",
             bothMissingText: "",
