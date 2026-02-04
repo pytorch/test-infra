@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from typing import Dict, List
 
 import boto3  # type: ignore[import-untyped]
@@ -8,6 +9,12 @@ import boto3  # type: ignore[import-untyped]
 S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
+
+# Valid target patterns for validation
+VALID_TARGET_PATTERNS = [
+    r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130
+    r"^rocm[0-9]+\.[0-9]+$",  # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
+]
 
 # Cloudflare R2 configuration for writing indexes
 # Set these environment variables:
@@ -661,7 +668,7 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
 
 def is_nvidia_package(pkg_name: str) -> bool:
     """Check if a package is from NVIDIA and should use pypi.nvidia.com"""
-    return pkg_name.startswith("nvidia-")
+    return pkg_name.startswith("nvidia-") or pkg_name.startswith("cuda-")
 
 
 def get_package_source_url(pkg_name: str) -> str:
@@ -808,10 +815,147 @@ def upload_package_using_simple_index(
     print(f"Successfully processed index.html for {pkg_name}")
 
 
+def is_valid_target(target: str) -> bool:
+    """Check if a target name is valid (matches expected patterns)."""
+    for pattern in VALID_TARGET_PATTERNS:
+        if re.match(pattern, target):
+            return True
+    return False
+
+
+def get_packages_for_target(target: str) -> List[str]:
+    """
+    Get packages from PACKAGES_PER_PROJECT that should be initialized for a target.
+
+    Returns packages where:
+    - project is "torch" AND
+    - either no target is specified (universal packages like filelock, numpy)
+    - or the target matches the specified target
+    - nvidia/cuda packages are only included for CUDA targets (cu*)
+    """
+    is_cuda_target = target.startswith("cu")
+    packages = []
+    for pkg_name, pkg_configs in PACKAGES_PER_PROJECT.items():
+        # Skip nvidia/cuda packages for non-CUDA targets
+        if not is_cuda_target and is_nvidia_package(pkg_name):
+            continue
+
+        for config in pkg_configs:
+            if config.get("project") != "torch":
+                continue
+            pkg_target = config.get("target", "")
+            # Include if no target specified (universal) or target matches
+            if pkg_target == "" or pkg_target == target:
+                if pkg_name not in packages:
+                    packages.append(pkg_name)
+                break
+    return packages
+
+
+def target_exists(prefix: str, target: str) -> bool:
+    """Check if a target directory already exists in S3."""
+    target_path = f"{prefix}/{target}/"
+
+    # Check if any objects exist with this prefix
+    response = CLIENT.list_objects_v2(
+        Bucket="pytorch",
+        Prefix=target_path,
+        MaxKeys=1,
+    )
+
+    return response.get("KeyCount", 0) > 0
+
+
+def generate_packages_index_html(packages: List[str]) -> str:
+    """Generate a PEP 503 simple index listing packages."""
+    lines = [
+        "<!DOCTYPE html>",
+        "<html>",
+        "  <body>",
+    ]
+    for pkg in sorted(packages):
+        pkg_normalized = pkg.lower().replace("_", "-")
+        lines.append(f'    <a href="{pkg_normalized}/">{pkg_normalized}</a><br/>')
+    lines.append("  </body>")
+    lines.append("</html>")
+    lines.append(f"<!--TIMESTAMP {int(time.time())}-->")
+    return "\n".join(lines)
+
+
+def create_target(
+    prefix: str,
+    target: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Create a new target directory with torch dependencies from PACKAGES_PER_PROJECT.
+
+    Args:
+        prefix: The base prefix (e.g., "whl/nightly")
+        target: The target name (e.g., "rocm7.2", "cu130")
+        dry_run: If True, don't actually upload anything
+
+    Returns:
+        True if target was created, False otherwise
+    """
+    if not is_valid_target(target):
+        print(f"ERROR: Invalid target name '{target}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    target_path = f"{prefix}/{target}"
+
+    # Check if target already exists (skip check in dry-run mode)
+    if not dry_run and target_exists(prefix, target):
+        print(f"Target '{target_path}' already exists.")
+        return False
+
+    print(f"{'[DRY RUN] ' if dry_run else ''}Creating new target: {target_path}")
+
+    # Get packages from PACKAGES_PER_PROJECT for this target
+    packages = get_packages_for_target(target)
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}"
+        f"Initializing with {len(packages)} packages from PACKAGES_PER_PROJECT"
+    )
+
+    # Create package directories with index.html
+    created_packages = []
+    for pkg_name in packages:
+        if dry_run:
+            print(f"  [DRY RUN] Would create: {target_path}/{pkg_name}/index.html")
+        # Fetch from PyPI/NVIDIA and upload
+        upload_package_using_simple_index(pkg_name, target_path, dry_run=dry_run)
+        created_packages.append(pkg_name)
+
+    # Create the main index.html for the target directory
+    target_index_html = generate_packages_index_html(created_packages)
+    target_index_key = f"{target_path}/index.html"
+
+    # Use upload_index_html with target as pkg_name to upload to {prefix}/{target}/index.html
+    upload_index_html(target, prefix, target_index_html, "", dry_run=dry_run)
+
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}"
+    )
+    print(
+        f"  - {'Would create' if dry_run else 'Created'} "
+        f"{len(created_packages)} package index files"
+    )
+    print(
+        f"  - {'Would create' if dry_run else 'Created'} "
+        f"main index.html at {target_index_key}"
+    )
+
+    return True
+
+
 def main() -> None:
     from argparse import ArgumentParser
 
     parser = ArgumentParser("Upload dependent package indexes to s3://pytorch")
+
     # Get unique paths from the packages list
     project_paths = list(
         {
@@ -821,11 +965,46 @@ def main() -> None:
         }
     )
     project_paths += ["all"]
+
+    # Existing arguments
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
+
+    # Arguments for target creation
+    parser.add_argument(
+        "--target",
+        type=str,
+        help="Specific target to operate on (e.g., rocm7.2, cu130)",
+    )
+    parser.add_argument(
+        "--create-target",
+        action="store_true",
+        help="Create a new target directory with torch dependencies",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        default="whl/nightly",
+        help="Base prefix for target operations (default: whl/nightly)",
+    )
+
     args = parser.parse_args()
 
+    # Handle target creation mode
+    if args.create_target:
+        if not args.target:
+            print("ERROR: --target is required when using --create-target")
+            return
+
+        create_target(
+            args.prefix,
+            args.target,
+            dry_run=args.dry_run,
+        )
+        return
+
+    # Original behavior: update all dependencies for specified package
     SUBFOLDERS = ["whl/nightly", "whl/test"]
     if args.include_stable:
         SUBFOLDERS.append("whl")
