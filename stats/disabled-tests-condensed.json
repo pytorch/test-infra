@@ -49,16 +49,6 @@
       "rocm"
     ]
   ],
-  "test_all_gather_collective (__main__.FxGraphRunnableTest)": [
-    "166484",
-    "https://github.com/pytorch/pytorch/issues/166484",
-    [
-      "asan",
-      "linux",
-      "rocm",
-      "xpu"
-    ]
-  ],
   "test_all_reduce_coalesced_group_min (__main__.TestDistBackendWithSpawn)": [
     "70754",
     "https://github.com/pytorch/pytorch/issues/70754",
