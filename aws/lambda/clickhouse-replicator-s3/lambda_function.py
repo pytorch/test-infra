@@ -670,6 +670,17 @@ def cloudwatch_metrics_adapter(table, bucket, key):
 
 
 def claude_code_usage_adapter(table, bucket, key):
+    """
+    Adapter for Claude Code usage metrics.
+    Uses Nullable types for optional token fields to handle older files
+    that don't have these fields.
+
+    IMPORTANT: Must explicitly list columns in INSERT to match table column order,
+    since ALTER TABLE adds columns at the end (_meta comes before token columns).
+    """
+    url = f"https://{bucket}.s3.amazonaws.com/{encode_url_component(key)}"
+
+    # Use Nullable for optional fields that may be missing in older files
     schema = """
     `repo` String,
     `run_id` Int64,
@@ -681,13 +692,51 @@ def claude_code_usage_adapter(table, bucket, key):
     `duration_ms` Int64,
     `num_turns` Int32,
     `total_cost_usd` Float64,
-    `input_tokens` Int64,
-    `output_tokens` Int64,
-    `cache_read_input_tokens` Int64,
-    `cache_creation_input_tokens` Int64,
-    `model` String
+    `input_tokens` Nullable(Int64),
+    `output_tokens` Nullable(Int64),
+    `cache_read_input_tokens` Nullable(Int64),
+    `cache_creation_input_tokens` Nullable(Int64),
+    `model` Nullable(String)
     """
-    general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
+
+    # Column order must match table schema (ALTER TABLE adds columns at end)
+    # Table order: repo..total_cost_usd, _meta, input_tokens..model
+    query = f"""
+    INSERT INTO {table} (
+        repo, run_id, run_attempt, actor, event_name, pr_number,
+        timestamp, duration_ms, num_turns, total_cost_usd,
+        _meta, input_tokens, output_tokens, cache_read_input_tokens,
+        cache_creation_input_tokens, model
+    )
+    SELECT
+        repo,
+        run_id,
+        run_attempt,
+        actor,
+        event_name,
+        pr_number,
+        timestamp,
+        duration_ms,
+        num_turns,
+        total_cost_usd,
+        ('{bucket}', '{key}') as _meta,
+        coalesce(input_tokens, 0) as input_tokens,
+        coalesce(output_tokens, 0) as output_tokens,
+        coalesce(cache_read_input_tokens, 0) as cache_read_input_tokens,
+        coalesce(cache_creation_input_tokens, 0) as cache_creation_input_tokens,
+        coalesce(model, '') as model
+    FROM s3('{url}', 'JSONEachRow', '{schema}', 'none',
+        extra_credentials(
+            role_arn = 'arn:aws:iam::308535385114:role/clickhouse_role'
+        )
+    )
+    SETTINGS input_format_skip_unknown_fields=1
+    """
+
+    try:
+        get_clickhouse_client().query(query)
+    except Exception as e:
+        log_failure_to_clickhouse(table, bucket, key, e)
 
 
 SUPPORTED_PATHS = {
