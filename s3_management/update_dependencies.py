@@ -1,7 +1,7 @@
 import os
 import re
 import time
-from typing import Dict, List, Optional, Set
+from typing import Dict, List
 
 import boto3  # type: ignore[import-untyped]
 
@@ -12,8 +12,8 @@ BUCKET = S3.Bucket("pytorch")
 
 # Valid target patterns for validation
 VALID_TARGET_PATTERNS = [
-    r"^cu[0-9]+$",           # CUDA: cu118, cu121, cu126, cu128, cu129, cu130
-    r"^rocm[0-9]+\.[0-9]+$", # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
+    r"^cu[0-9]+$",  # CUDA: cu118, cu121, cu126, cu128, cu129, cu130
+    r"^rocm[0-9]+\.[0-9]+$",  # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
 ]
 
 # Cloudflare R2 configuration for writing indexes
@@ -909,7 +909,10 @@ def create_target(
 
     # Get packages from PACKAGES_PER_PROJECT for this target
     packages = get_packages_for_target(target)
-    print(f"{'[DRY RUN] ' if dry_run else ''}Initializing with {len(packages)} packages from PACKAGES_PER_PROJECT")
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}"
+        f"Initializing with {len(packages)} packages from PACKAGES_PER_PROJECT"
+    )
 
     # Create package directories with index.html
     created_packages = []
@@ -927,9 +930,17 @@ def create_target(
     # Use upload_index_html with target as pkg_name to upload to {prefix}/{target}/index.html
     upload_index_html(target, prefix, target_index_html, "", dry_run=dry_run)
 
-    print(f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}")
-    print(f"  - {'Would create' if dry_run else 'Created'} {len(created_packages)} package index files")
-    print(f"  - {'Would create' if dry_run else 'Created'} main index.html at {target_index_key}")
+    print(
+        f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}"
+    )
+    print(
+        f"  - {'Would create' if dry_run else 'Created'} "
+        f"{len(created_packages)} package index files"
+    )
+    print(
+        f"  - {'Would create' if dry_run else 'Created'} "
+        f"main index.html at {target_index_key}"
+    )
 
     return True
 
