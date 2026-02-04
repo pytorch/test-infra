@@ -129,7 +129,7 @@ export function SingleReportSection({
   );
 }
 
-export function ReportTimeSereisChartSection({
+export function ReportTimeSeriesChartSection({
   data,
   subtitle = "",
   id,
@@ -182,7 +182,7 @@ export function SingleReportSectionDialog({
   return <SingleReportSection data={d} config={config} />;
 }
 
-export function ReportTimeSereisGroupChartSection({
+export function ReportTimeSeriesGroupChartSection({
   data,
   subtitle = "",
   id,

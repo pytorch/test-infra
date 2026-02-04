@@ -4,7 +4,7 @@ import { Box, Stack } from "@mui/system";
 import { DataGrid, GridColDef } from "@mui/x-data-grid";
 import { useCallback, useMemo, useState } from "react";
 import { ReportPageToV3MainPageNavigationButton } from "../common";
-import { ReportTimeSereisChartSection } from "./RegressionReportTimeSeriesChart";
+import { ReportTimeSeriesChartSection } from "./RegressionReportTimeSeriesChart";
 
 export default function RegressionReportTable({
   data,
@@ -186,7 +186,7 @@ export default function RegressionReportTable({
           <Typography variant="h6">Details</Typography>
         </Stack>
         {current && (
-          <ReportTimeSereisChartSection
+          <ReportTimeSeriesChartSection
             data={current}
             subtitle={"Chart"}
             enableIndicator={true}

@@ -11,8 +11,8 @@ import BenchmarkDropdownGroup from "../../benchmarkSideBar/components/filters/Be
 import { ToggleSection } from "../../common/ToggleSection";
 import { RegressionReportChartIndicatorsSection } from "../common";
 import {
-  ReportTimeSereisChartSection,
-  ReportTimeSereisGroupChartSection,
+  ReportTimeSeriesChartSection,
+  ReportTimeSeriesGroupChartSection,
 } from "./RegressionReportTimeSeriesChart";
 import { ReportDataSection } from "./ReportDataSection";
 
@@ -256,7 +256,7 @@ function ReportTimeSeriesGroupChartBucketList({
         {groups.map(([key, items]) => {
           return (
             <Grid size={sizeSx} key={key}>
-              <ReportTimeSereisGroupChartSection
+              <ReportTimeSeriesGroupChartSection
                 data={items as any[]}
                 subtitle={`${key}`}
                 report_id={report_id}
@@ -294,7 +294,7 @@ function ReportTimeSeriesSingleChartBucketList({
         {metricItemList.map((item, i) => {
           return (
             <Grid size={sizeSx} key={i}>
-              <ReportTimeSereisChartSection
+              <ReportTimeSeriesChartSection
                 data={item}
                 subtitle={`${subtitle}[${i}]`}
                 hideBaseline={true}
