@@ -876,39 +876,6 @@ def generate_packages_index_html(packages: List[str]) -> str:
     return "\n".join(lines)
 
 
-def upload_html_to_s3_and_r2(
-    key: str,
-    html: str,
-    *,
-    dry_run: bool = False,
-) -> None:
-    """Upload HTML content to both S3 and R2."""
-    if dry_run:
-        print(f"[DRY RUN] Would upload to s3://pytorch/{key}")
-        if R2_BUCKET:
-            print(f"[DRY RUN] Would upload to R2 bucket {R2_BUCKET.name}/{key}")
-        return
-
-    # Upload to S3
-    print(f"Uploading to s3://pytorch/{key}")
-    BUCKET.Object(key=key).put(
-        ACL="public-read",
-        ContentType="text/html",
-        CacheControl="no-cache,no-store,must-revalidate",
-        Body=html.encode("utf-8"),
-    )
-
-    # Upload to R2 if configured
-    if R2_BUCKET:
-        print(f"Uploading to R2 bucket {R2_BUCKET.name}/{key}")
-        R2_BUCKET.Object(key=key).put(
-            ACL="public-read",
-            ContentType="text/html",
-            CacheControl="no-cache,no-store,must-revalidate",
-            Body=html.encode("utf-8"),
-        )
-
-
 def create_target(
     prefix: str,
     target: str,
@@ -956,7 +923,29 @@ def create_target(
     # Create the main index.html for the target directory
     target_index_html = generate_packages_index_html(created_packages)
     target_index_key = f"{target_path}/index.html"
-    upload_html_to_s3_and_r2(target_index_key, target_index_html, dry_run=dry_run)
+
+    if dry_run:
+        print(f"[DRY RUN] Would upload to s3://pytorch/{target_index_key}")
+        if R2_BUCKET:
+            print(f"[DRY RUN] Would upload to R2 bucket {R2_BUCKET.name}/{target_index_key}")
+    else:
+        # Upload to S3
+        print(f"Uploading to s3://pytorch/{target_index_key}")
+        BUCKET.Object(key=target_index_key).put(
+            ACL="public-read",
+            ContentType="text/html",
+            CacheControl="no-cache,no-store,must-revalidate",
+            Body=target_index_html.encode("utf-8"),
+        )
+        # Upload to R2 if configured
+        if R2_BUCKET:
+            print(f"Uploading to R2 bucket {R2_BUCKET.name}/{target_index_key}")
+            R2_BUCKET.Object(key=target_index_key).put(
+                ACL="public-read",
+                ContentType="text/html",
+                CacheControl="no-cache,no-store,must-revalidate",
+                Body=target_index_html.encode("utf-8"),
+            )
 
     print(f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}")
     print(f"  - {'Would create' if dry_run else 'Created'} {len(created_packages)} package index files")
