@@ -213,13 +213,6 @@
       "linux"
     ]
   ],
-  "test_compile_preserves_metadata_cache_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
-    "173717",
-    "https://github.com/pytorch/pytorch/issues/173717",
-    [
-      "rocm"
-    ]
-  ],
   "test_compiler_collectives_automatic_dynamic_tensor (__main__.TestMultiProc)": [
     "152944",
     "https://github.com/pytorch/pytorch/issues/152944",
@@ -1618,34 +1611,6 @@
       "slow"
     ]
   ],
-  "test_sdpa_autocast_cuda (__main__.TestNestedTensorSubclassCUDA)": [
-    "173715",
-    "https://github.com/pytorch/pytorch/issues/173715",
-    [
-      "rocm"
-    ]
-  ],
-  "test_sdpa_backwards_cuda_bfloat16 (__main__.TestNestedTensorSubclassCUDA)": [
-    "173714",
-    "https://github.com/pytorch/pytorch/issues/173714",
-    [
-      "rocm"
-    ]
-  ],
-  "test_sdpa_backwards_cuda_float16 (__main__.TestNestedTensorSubclassCUDA)": [
-    "173713",
-    "https://github.com/pytorch/pytorch/issues/173713",
-    [
-      "rocm"
-    ]
-  ],
-  "test_sdpa_backwards_cuda_float32 (__main__.TestNestedTensorSubclassCUDA)": [
-    "173712",
-    "https://github.com/pytorch/pytorch/issues/173712",
-    [
-      "rocm"
-    ]
-  ],
   "test_send_recv_all_to_all (__main__.ProcessGroupGlooTest)": [
     "71195",
     "https://github.com/pytorch/pytorch/issues/71195",
@@ -1830,13 +1795,6 @@
       "linux"
     ]
   ],
-  "test_triton_autotuning_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "173619",
-    "https://github.com/pytorch/pytorch/issues/173619",
-    [
-      "rocm"
-    ]
-  ],
   "test_triton_barrier (__main__.NVSHMEMTritonTest)": [
     "158761",
     "https://github.com/pytorch/pytorch/issues/158761",
@@ -1849,13 +1807,6 @@
     "https://github.com/pytorch/pytorch/issues/158908",
     [
       "linux"
-    ]
-  ],
-  "test_triton_mutated_autotuning_cuda (__main__.AOTInductorTestABICompatibleGpu)": [
-    "173620",
-    "https://github.com/pytorch/pytorch/issues/173620",
-    [
-      "rocm"
     ]
   ],
   "test_triu_tril_large_matrix_64bit_cuda (__main__.TestLinalgCUDA)": [
