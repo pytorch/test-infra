@@ -373,6 +373,15 @@ PT_FOUNDATION_PACKAGES = {
 # when the path is whl/nightly
 PT_R2_PACKAGES = {
     "torchaudio",
+    "torchvision",
+    "fbgemm_gpu",
+    "fbgemm_gpu_genai",
+    "triton",
+    "triton_xpu",
+    "triton_rocm",
+    "pytorch_triton",
+    "pytorch_triton_rocm",
+    "pytorch_triton_xpu",
 }
 
 # Packages that should have their root index.html copied to subdirectories
