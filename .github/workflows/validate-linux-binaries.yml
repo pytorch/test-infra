@@ -162,7 +162,7 @@ jobs:
               ${MATRIX_GPU_ARCH_VERSION} == "${CUDA_VERSION_STABLE}" && \
               ${MATRIX_CHANNEL} == "release" && \
               ${USE_ONLY_DL_PYTORCH_ORG} == "false" && \
-              {USE_WHEEL_VARIANTS} == "false" ]]; then
+              ${USE_WHEEL_VARIANTS} == "false" ]]; then
           source ../../test-infra/.github/scripts/validate_poetry.sh
         fi
 
