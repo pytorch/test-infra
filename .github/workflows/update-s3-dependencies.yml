@@ -3,6 +3,15 @@ name: Update S3 HTML dependencies for download.pytorch.org nightly and test
 on:
   workflow_dispatch:
     inputs:
+      mode:
+        description: 'Operation mode'
+        required: true
+        type: choice
+        default: update-packages
+        options:
+          - update-packages
+          - create-target
+          - update-target
       dryrun:
         description: 'Enable dry run mode'
         required: true
@@ -12,8 +21,8 @@ on:
           - enabled
           - disabled
       package:
-        description: 'Package to update'
-        required: true
+        description: 'Package to update (only for update-packages mode)'
+        required: false
         type: choice
         default: torch
         options:
@@ -22,6 +31,11 @@ on:
           - triton
           - torchtune
           - torch_xpu
+          - vllm
+      target:
+        description: 'Target to create/update (e.g., rocm7.2, cu130) - only for create-target/update-target modes'
+        required: false
+        type: string
 
 permissions:
   id-token: write
@@ -34,7 +48,28 @@ jobs:
     container:
       image: continuumio/miniconda3:23.10.0-1
     steps:
-      - name: configure aws credentials
+      - name: Validate inputs for target modes
+        if: ${{ github.event.inputs.mode == 'create-target' || github.event.inputs.mode == 'update-target' }}
+        shell: bash
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+        run: |
+          set -e
+          if [[ -z "${TARGET}" ]]; then
+            echo "ERROR: target is required for create-target and update-target modes"
+            exit 1
+          fi
+          # Validate target matches expected patterns
+          if [[ ! "${TARGET}" =~ ^(cu[0-9]+|rocm[0-9]+\.[0-9]+)$ ]]; then
+            echo "ERROR: Invalid target format '${TARGET}'"
+            echo "Valid formats:"
+            echo "  - CUDA: cu118, cu121, cu126, cu128, cu129, cu130, etc."
+            echo "  - ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2, etc."
+            exit 1
+          fi
+          echo "Target '${TARGET}' is valid"
+
+      - name: Configure AWS credentials
         id: aws_creds
         uses: aws-actions/configure-aws-credentials@50ac8dd1e1b10d09dac7b8727528b91bed831ac0 # v3.0.2
         with:
@@ -47,22 +82,80 @@ jobs:
           repository: pytorch/test-infra
           ref: ${{ github.ref }}
 
-      - name: Update s3 html index
+      - name: Install dependencies
+        run: |
+          pip install -r s3_management/requirements.txt
+
+      - name: Update packages (original mode)
+        if: ${{ github.event.inputs.mode == 'update-packages' }}
         shell: bash
         env:
-          DRYRUN: ${{ github.event.inputs.dryrun || 'disabled' }}
+          DRYRUN: ${{ github.event.inputs.dryrun }}
           PACKAGE: ${{ github.event.inputs.package || 'torch' }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_PYTORCH_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_PYTORCH_PUBLIC_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_PYTORCH_PUBLIC_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: "pytorch-downloads"
         run: |
           set -ex
 
-          # Install requirements
-          pip install -r s3_management/requirements.txt
-
-          # shellcheck disable=SC2086
           ARGS="--package ${PACKAGE}"
 
-          # Add dry-run flag if enabled
-          if [[ ${DRYRUN} == 'enabled' ]]; then
+          if [[ "${DRYRUN}" == "enabled" ]]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+
+          # shellcheck disable=SC2086
+          python3 s3_management/update_dependencies.py ${ARGS}
+
+      - name: Create new target
+        if: ${{ github.event.inputs.mode == 'create-target' }}
+        shell: bash
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DRYRUN: ${{ github.event.inputs.dryrun }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_PYTORCH_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_PYTORCH_PUBLIC_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_PYTORCH_PUBLIC_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: "pytorch-downloads"
+        run: |
+          set -ex
+
+          ARGS="--create-target --target ${TARGET}"
+
+          if [[ "${DRYRUN}" == "enabled" ]]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+
+          # shellcheck disable=SC2086
+          python3 s3_management/update_dependencies.py ${ARGS}
+
+          # Also run update-target to ensure all dependencies are current
+          ARGS="--update-target --target ${TARGET}"
+
+          if [[ "${DRYRUN}" == "enabled" ]]; then
+            ARGS="${ARGS} --dry-run"
+          fi
+
+          # shellcheck disable=SC2086
+          python3 s3_management/update_dependencies.py ${ARGS}
+
+      - name: Update target dependencies
+        if: ${{ github.event.inputs.mode == 'update-target' }}
+        shell: bash
+        env:
+          TARGET: ${{ github.event.inputs.target }}
+          DRYRUN: ${{ github.event.inputs.dryrun }}
+          R2_ACCOUNT_ID: ${{ secrets.R2_PYTORCH_ACCOUNT_ID }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_PYTORCH_PUBLIC_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_PYTORCH_PUBLIC_SECRET_ACCESS_KEY }}
+          R2_BUCKET_NAME: "pytorch-downloads"
+        run: |
+          set -ex
+
+          ARGS="--update-target --target ${TARGET}"
+
+          if [[ "${DRYRUN}" == "enabled" ]]; then
             ARGS="${ARGS} --dry-run"
           fi
 

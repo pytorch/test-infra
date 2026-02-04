@@ -1,6 +1,7 @@
 import os
 import re
-from typing import Dict, List
+import time
+from typing import Dict, List, Optional, Set
 
 import boto3  # type: ignore[import-untyped]
 
@@ -8,6 +9,66 @@ import boto3  # type: ignore[import-untyped]
 S3 = boto3.resource("s3")
 CLIENT = boto3.client("s3")
 BUCKET = S3.Bucket("pytorch")
+
+# Valid target patterns for validation
+VALID_TARGET_PATTERNS = [
+    r"^cu[0-9]+$",           # CUDA: cu118, cu121, cu126, cu128, cu129, cu130
+    r"^rocm[0-9]+\.[0-9]+$", # ROCm: rocm5.7, rocm6.0, rocm6.4, rocm7.1, rocm7.2
+]
+
+# Core torch dependencies that should be initialized for any new target
+# These are packages that have no target-specific versions (platform-agnostic)
+TORCH_CORE_DEPENDENCIES = [
+    "filelock",
+    "fsspec",
+    "jinja2",
+    "networkx",
+    "sympy",
+    "mpmath",
+    "typing-extensions",
+    "numpy",
+    "pillow",
+]
+
+# CUDA-specific dependencies (for cu* targets)
+CUDA_DEPENDENCIES = [
+    "nvidia-cuda-nvrtc-cu12",
+    "nvidia-cuda-runtime-cu12",
+    "nvidia-cuda-cupti-cu12",
+    "nvidia-cudnn-cu12",
+    "nvidia-cublas-cu12",
+    "nvidia-cufft-cu12",
+    "nvidia-curand-cu12",
+    "nvidia-cusolver-cu12",
+    "nvidia-cusparse-cu12",
+    "nvidia-cusparselt-cu12",
+    "nvidia-nccl-cu12",
+    "nvidia-nvtx-cu12",
+    "nvidia-nvjitlink-cu12",
+    "nvidia-cuda-cccl-cu12",
+    "nvidia-cufile-cu12",
+    "nvidia-nvshmem-cu12",
+]
+
+# CUDA 13 dependencies (for cu130+ targets)
+CUDA13_DEPENDENCIES = [
+    "nvidia-cuda-nvrtc",
+    "nvidia-cuda-runtime",
+    "nvidia-cuda-cupti",
+    "nvidia-cudnn-cu13",
+    "nvidia-cublas",
+    "nvidia-cufft",
+    "nvidia-curand",
+    "nvidia-cusolver",
+    "nvidia-cusparse",
+    "nvidia-cusparselt-cu13",
+    "nvidia-nccl-cu13",
+    "nvidia-nvtx",
+    "nvidia-nvjitlink",
+    "nvidia-cuda-cccl",
+    "nvidia-cufile",
+    "nvidia-nvshmem-cu13",
+]
 
 # Cloudflare R2 configuration for writing indexes
 # Set these environment variables:
@@ -542,28 +603,28 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
     "urllib3": [{"project": "torchtune"}],
     "xxhash": [{"project": "torchtune"}],
     "yarl": [{"project": "torchtune"}],
-    "dpcpp-cpp-rt": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-cmplr-lib-rt": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-cmplr-lib-ur": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-cmplr-lic-rt": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-opencl-rt": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-sycl-rt": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-openmp": [{"project": "torch_xpu", "target": "xpu"}],
-    "tcmlib": [{"project": "torch_xpu", "target": "xpu"}],
-    "umf": [{"project": "torch_xpu", "target": "xpu"}],
-    "intel-pti": [{"project": "torch_xpu", "target": "xpu"}],
-    "tbb": [{"project": "torch_xpu", "target": "xpu"}],
-    "oneccl-devel": [{"project": "torch_xpu", "target": "xpu"}],
-    "oneccl": [{"project": "torch_xpu", "target": "xpu"}],
-    "impi-rt": [{"project": "torch_xpu", "target": "xpu"}],
-    "onemkl-sycl-blas": [{"project": "torch_xpu", "target": "xpu"}],
-    "onemkl-sycl-dft": [{"project": "torch_xpu", "target": "xpu"}],
-    "onemkl-sycl-lapack": [{"project": "torch_xpu", "target": "xpu"}],
-    "onemkl-sycl-sparse": [{"project": "torch_xpu", "target": "xpu"}],
-    "onemkl-sycl-rng": [{"project": "torch_xpu", "target": "xpu"}],
-    "onemkl-license": [{"project": "torch_xpu", "target": "xpu"}],
-    "mkl": [{"project": "torch_xpu", "target": "xpu"}],
-    "pyelftools": [{"project": "torch_xpu", "target": "xpu"}],
+    "dpcpp-cpp-rt": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-cmplr-lib-rt": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-cmplr-lib-ur": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-cmplr-lic-rt": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-opencl-rt": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-sycl-rt": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-openmp": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "tcmlib": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "umf": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "intel-pti": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "tbb": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "oneccl-devel": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "oneccl": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "impi-rt": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "onemkl-sycl-blas": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "onemkl-sycl-dft": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "onemkl-sycl-lapack": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "onemkl-sycl-sparse": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "onemkl-sycl-rng": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "onemkl-license": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "mkl": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
+    "pyelftools": [{"project": "torch_xpu", "target": "xpu"}, {"project": "torch_xpu"}],
     # vLLM
     "ninja": [{"project": "vllm"}],
     "cuda-python": [{"project": "vllm"}],
@@ -808,10 +869,227 @@ def upload_package_using_simple_index(
     print(f"Successfully processed index.html for {pkg_name}")
 
 
+def is_valid_target(target: str) -> bool:
+    """Check if a target name is valid (matches expected patterns)."""
+    for pattern in VALID_TARGET_PATTERNS:
+        if re.match(pattern, target):
+            return True
+    return False
+
+
+def get_target_type(target: str) -> str:
+    """Determine the type of target (cuda, cuda13, rocm)."""
+    if target.startswith("cu"):
+        # Extract CUDA version number
+        version_str = target[2:]
+        try:
+            version = int(version_str)
+            # CUDA 13.0+ uses different package naming
+            if version >= 130:
+                return "cuda13"
+        except ValueError:
+            pass
+        return "cuda"
+    elif target.startswith("rocm"):
+        return "rocm"
+    return "unknown"
+
+
+def get_dependencies_for_target(target: str) -> List[str]:
+    """Get the list of dependencies to initialize for a given target."""
+    target_type = get_target_type(target)
+    dependencies = list(TORCH_CORE_DEPENDENCIES)
+
+    if target_type == "cuda":
+        dependencies.extend(CUDA_DEPENDENCIES)
+    elif target_type == "cuda13":
+        dependencies.extend(CUDA13_DEPENDENCIES)
+    # ROCm, CPU, XPU only need core dependencies
+
+    return dependencies
+
+
+def target_exists(prefix: str, target: str) -> bool:
+    """Check if a target directory already exists in S3."""
+    target_path = f"{prefix}/{target}/"
+
+    # Check if any objects exist with this prefix
+    response = CLIENT.list_objects_v2(
+        Bucket="pytorch",
+        Prefix=target_path,
+        MaxKeys=1,
+    )
+
+    return response.get("KeyCount", 0) > 0
+
+
+def generate_empty_package_index_html(package_name: str) -> str:
+    """Generate an empty PEP 503 index.html for a package (awaiting wheels)."""
+    return f"""<!DOCTYPE html>
+<html>
+  <body>
+    <h1>Links for {package_name}</h1>
+    <!-- Awaiting package uploads -->
+  </body>
+</html>
+<!--TIMESTAMP {int(time.time())}-->"""
+
+
+def generate_packages_index_html(packages: List[str]) -> str:
+    """Generate a PEP 503 simple index listing packages."""
+    lines = [
+        "<!DOCTYPE html>",
+        "<html>",
+        "  <body>",
+    ]
+    for pkg in sorted(packages):
+        pkg_normalized = pkg.lower().replace("_", "-")
+        lines.append(f'    <a href="{pkg_normalized}/">{pkg_normalized}</a><br/>')
+    lines.append("  </body>")
+    lines.append("</html>")
+    lines.append(f"<!--TIMESTAMP {int(time.time())}-->")
+    return "\n".join(lines)
+
+
+def upload_html_to_s3_and_r2(
+    key: str,
+    html: str,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """Upload HTML content to both S3 and R2."""
+    if dry_run:
+        print(f"Dry Run - would upload to s3://pytorch/{key}")
+        if R2_BUCKET:
+            print(f"Dry Run - would upload to R2 bucket {R2_BUCKET.name}/{key}")
+        return
+
+    # Upload to S3
+    print(f"Uploading to s3://pytorch/{key}")
+    BUCKET.Object(key=key).put(
+        ACL="public-read",
+        ContentType="text/html",
+        CacheControl="no-cache,no-store,must-revalidate",
+        Body=html.encode("utf-8"),
+    )
+
+    # Upload to R2 if configured
+    if R2_BUCKET:
+        print(f"Uploading to R2 bucket {R2_BUCKET.name}/{key}")
+        R2_BUCKET.Object(key=key).put(
+            ACL="public-read",
+            ContentType="text/html",
+            CacheControl="no-cache,no-store,must-revalidate",
+            Body=html.encode("utf-8"),
+        )
+
+
+def create_target(
+    prefix: str,
+    target: str,
+    *,
+    dry_run: bool = False,
+) -> bool:
+    """
+    Create a new target directory with initial torch dependencies.
+
+    Args:
+        prefix: The base prefix (e.g., "whl/nightly")
+        target: The target name (e.g., "rocm7.2", "cu130")
+        dry_run: If True, don't actually upload anything
+
+    Returns:
+        True if target was created, False otherwise
+    """
+    if not is_valid_target(target):
+        print(f"ERROR: Invalid target name '{target}'")
+        print(f"Valid patterns: {VALID_TARGET_PATTERNS}")
+        return False
+
+    target_path = f"{prefix}/{target}"
+
+    # Check if target already exists
+    if target_exists(prefix, target):
+        print(f"Target '{target_path}' already exists.")
+        return False
+
+    print(f"{'[DRY RUN] ' if dry_run else ''}Creating new target: {target_path}")
+
+    # Get dependencies for this target type
+    dependencies = get_dependencies_for_target(target)
+    print(f"Initializing with {len(dependencies)} dependencies for target type: {get_target_type(target)}")
+
+    # Create package directories with index.html
+    created_packages = []
+    for pkg_name in dependencies:
+        pkg_index_key = f"{target_path}/{pkg_name}/index.html"
+
+        # Fetch from PyPI/NVIDIA and upload
+        upload_package_using_simple_index(pkg_name, target_path, dry_run=dry_run)
+        created_packages.append(pkg_name)
+
+    # Create the main index.html for the target directory
+    # This lists all package directories
+    target_index_html = generate_packages_index_html(created_packages)
+    target_index_key = f"{target_path}/index.html"
+    upload_html_to_s3_and_r2(target_index_key, target_index_html, dry_run=dry_run)
+
+    print(f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}")
+    print(f"  - Created {len(created_packages)} package index files")
+    print(f"  - Created main index.html at {target_index_key}")
+
+    return True
+
+
+def update_target_dependencies(
+    prefix: str,
+    target: str,
+    *,
+    dry_run: bool = False,
+) -> None:
+    """
+    Update dependencies for an existing target.
+
+    Args:
+        prefix: The base prefix (e.g., "whl/nightly")
+        target: The target name (e.g., "rocm7.2", "cu130")
+        dry_run: If True, don't actually upload anything
+    """
+    if not is_valid_target(target):
+        print(f"ERROR: Invalid target name '{target}'")
+        return
+
+    target_path = f"{prefix}/{target}"
+
+    if not dry_run and not target_exists(prefix, target):
+        print(f"Target '{target_path}' does not exist. Use --create-target to create it first.")
+        return
+
+    if dry_run:
+        print(f"[DRY RUN] Would update dependencies for target: {target_path}")
+    else:
+        print(f"Updating dependencies for target: {target_path}")
+
+    # Get dependencies for this target type
+    dependencies = get_dependencies_for_target(target)
+    print(f"{'[DRY RUN] ' if dry_run else ''}Processing {len(dependencies)} dependencies:")
+
+    for pkg_name in dependencies:
+        if dry_run:
+            print(f"  [DRY RUN] Would update: {target_path}/{pkg_name}/index.html")
+        upload_package_using_simple_index(pkg_name, target_path, dry_run=dry_run)
+
+    if dry_run:
+        print(f"[DRY RUN] Would have updated dependencies for: {target_path}")
+    else:
+        print(f"Successfully updated dependencies for: {target_path}")
+
+
 def main() -> None:
     from argparse import ArgumentParser
 
     parser = ArgumentParser("Upload dependent package indexes to s3://pytorch")
+
     # Get unique paths from the packages list
     project_paths = list(
         {
@@ -821,11 +1099,58 @@ def main() -> None:
         }
     )
     project_paths += ["all"]
+
+    # Existing arguments
     parser.add_argument("--package", choices=project_paths, default="torch")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--include-stable", action="store_true")
+
+    # New arguments for target management
+    parser.add_argument(
+        "--target",
+        type=str,
+        help="Specific target to operate on (e.g., rocm7.2, cu130, cpu, xpu)",
+    )
+    parser.add_argument(
+        "--create-target",
+        action="store_true",
+        help="Create a new target directory with torch dependencies",
+    )
+    parser.add_argument(
+        "--update-target",
+        action="store_true",
+        help="Update dependencies for an existing target",
+    )
+    parser.add_argument(
+        "--prefix",
+        type=str,
+        default="whl/nightly",
+        help="Base prefix for target operations (default: whl/nightly)",
+    )
+
     args = parser.parse_args()
 
+    # Handle target creation/update mode
+    if args.create_target or args.update_target:
+        if not args.target:
+            print("ERROR: --target is required when using --create-target or --update-target")
+            return
+
+        if args.create_target:
+            create_target(
+                args.prefix,
+                args.target,
+                dry_run=args.dry_run,
+            )
+        elif args.update_target:
+            update_target_dependencies(
+                args.prefix,
+                args.target,
+                dry_run=args.dry_run,
+            )
+        return
+
+    # Original behavior: update all dependencies for specified package
     SUBFOLDERS = ["whl/nightly", "whl/test"]
     if args.include_stable:
         SUBFOLDERS.append("whl")
