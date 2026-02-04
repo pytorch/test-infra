@@ -197,6 +197,11 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
           "Use `legacy page` to see comparison view for different branches. It will be deprecated soon",
         actions: [
           {
+            label: "Regression Reports",
+            type: "regression_report",
+            href: '/benchmark/regression/reports/pytorch_operator_microbenchmark',
+          },
+          {
             label: "Legacy Page/Playground",
             href: "/benchmark/llms?repoName=pytorch%2Fpytorch&benchmarkName=PyTorch+operator+microbenchmark",
           },
