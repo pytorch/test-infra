@@ -924,28 +924,8 @@ def create_target(
     target_index_html = generate_packages_index_html(created_packages)
     target_index_key = f"{target_path}/index.html"
 
-    if dry_run:
-        print(f"[DRY RUN] Would upload to s3://pytorch/{target_index_key}")
-        if R2_BUCKET:
-            print(f"[DRY RUN] Would upload to R2 bucket {R2_BUCKET.name}/{target_index_key}")
-    else:
-        # Upload to S3
-        print(f"Uploading to s3://pytorch/{target_index_key}")
-        BUCKET.Object(key=target_index_key).put(
-            ACL="public-read",
-            ContentType="text/html",
-            CacheControl="no-cache,no-store,must-revalidate",
-            Body=target_index_html.encode("utf-8"),
-        )
-        # Upload to R2 if configured
-        if R2_BUCKET:
-            print(f"Uploading to R2 bucket {R2_BUCKET.name}/{target_index_key}")
-            R2_BUCKET.Object(key=target_index_key).put(
-                ACL="public-read",
-                ContentType="text/html",
-                CacheControl="no-cache,no-store,must-revalidate",
-                Body=target_index_html.encode("utf-8"),
-            )
+    # Use upload_index_html with target as pkg_name to upload to {prefix}/{target}/index.html
+    upload_index_html(target, prefix, target_index_html, "", dry_run=dry_run)
 
     print(f"{'[DRY RUN] ' if dry_run else ''}Successfully created target: {target_path}")
     print(f"  - {'Would create' if dry_run else 'Created'} {len(created_packages)} package index files")
