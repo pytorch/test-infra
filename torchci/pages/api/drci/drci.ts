@@ -212,6 +212,7 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        awaitingApprovalJobs,
         relatedJobs,
         relatedIssues,
         relatedInfo,
@@ -230,6 +231,7 @@ export async function updateDrciComments(
         FLAKY: flakyJobs,
         BROKEN_TRUNK: brokenTrunkJobs,
         UNSTABLE: unstableJobs,
+        AWAITING_APPROVAL: awaitingApprovalJobs,
       };
 
       const failureInfo = constructResultsComment(
@@ -238,6 +240,7 @@ export async function updateDrciComments(
         flakyJobs,
         brokenTrunkJobs,
         unstableJobs,
+        awaitingApprovalJobs,
         relatedJobs,
         relatedIssues,
         relatedInfo,
@@ -638,6 +641,7 @@ export function constructResultsComment(
   flakyJobs: RecentWorkflowsData[],
   brokenTrunkJobs: RecentWorkflowsData[],
   unstableJobs: RecentWorkflowsData[],
+  awaitingApprovalJobs: RecentWorkflowsData[],
   relatedJobs: Map<number, RecentWorkflowsData>,
   relatedIssues: Map<number, IssueData[]>,
   relatedInfo: Map<number, string>,
@@ -671,6 +675,7 @@ export function constructResultsComment(
   const pendingIcon = `:hourglass_flowing_sand:`;
   const successIcon = `:white_check_mark:`;
   const failuresIcon = `:x:`;
+  const warningIcon = `:warning:`;
   const noneFailing = `No Failures`;
   const significantFailures = `${newFailedJobs.length} New ${pluralize(
     "Failure",
@@ -685,16 +690,20 @@ export function constructResultsComment(
     unrelatedFailureCount
   )}`;
   const pendingJobs = `${pending} Pending`;
+  const awaitingApprovalMsg = `${awaitingApprovalJobs.length} Awaiting Approval`;
 
   const hasAnyFailing = failing > 0;
   const hasSignificantFailures = newFailedJobs.length > 0;
   const hasCancelledFailures = cancelledJobs.length > 0;
   const hasPending = pending > 0;
   const hasUnrelatedFailures = unrelatedFailureCount > 0;
+  const hasAwaitingApproval = awaitingApprovalJobs.length > 0;
 
   let icon = "";
   if (hasSignificantFailures || hasCancelledFailures) {
     icon = failuresIcon;
+  } else if (hasAwaitingApproval) {
+    icon = warningIcon;
   } else if (hasPending) {
     icon = pendingIcon;
   } else {
@@ -702,13 +711,16 @@ export function constructResultsComment(
   }
 
   let title_messages = [];
+  if (hasAwaitingApproval) {
+    title_messages.push(awaitingApprovalMsg);
+  }
   if (hasSignificantFailures) {
     title_messages.push(significantFailures);
   }
   if (hasCancelledFailures) {
     title_messages.push(cancelledFailures);
   }
-  if (!hasAnyFailing) {
+  if (!hasAnyFailing && !hasAwaitingApproval) {
     title_messages.push(noneFailing);
   }
   if (hasPending) {
@@ -735,8 +747,27 @@ export function constructResultsComment(
   }
   output += ":";
 
-  if (!hasAnyFailing) {
+  if (!hasAnyFailing && !hasAwaitingApproval) {
     output += `\n:green_heart: Looks good so far! There are no failures yet. :green_heart:`;
+  }
+
+  if (awaitingApprovalJobs.length) {
+    output += constructResultsJobsSections(
+      hudBaseUrl,
+      owner,
+      repo,
+      prNumber,
+      `AWAITING APPROVAL`,
+      `The following ${
+        awaitingApprovalJobs.length > 1 ? "workflows need" : "workflow needs"
+      } approval before CI can run`,
+      awaitingApprovalJobs,
+      "",
+      false,
+      relatedJobs,
+      relatedIssues,
+      relatedInfo
+    );
   }
 
   if (newFailedJobs.length) {
@@ -897,6 +928,7 @@ export async function getWorkflowJobsStatuses(
   flakyJobs: RecentWorkflowsData[];
   brokenTrunkJobs: RecentWorkflowsData[];
   unstableJobs: RecentWorkflowsData[];
+  awaitingApprovalJobs: RecentWorkflowsData[];
   relatedJobs: Map<number, RecentWorkflowsData>;
   relatedIssues: Map<number, IssueData[]>;
   relatedInfo: Map<number, string>;
@@ -907,6 +939,7 @@ export async function getWorkflowJobsStatuses(
   const brokenTrunkJobs: RecentWorkflowsData[] = [];
   const unstableJobs: RecentWorkflowsData[] = [];
   const failedJobs: RecentWorkflowsData[] = [];
+  const awaitingApprovalJobs: RecentWorkflowsData[] = [];
 
   // This map holds the list of the base failures for broken trunk jobs or the similar
   // failures for flaky jobs
@@ -917,6 +950,15 @@ export async function getWorkflowJobsStatuses(
   const relatedInfo: Map<number, string> = new Map();
 
   for (const job of prInfo.jobs) {
+    // Check for workflows awaiting approval (first-time contributors need maintainer approval)
+    if (
+      job.conclusion === "action_required" ||
+      job.conclusion === "startup_failure"
+    ) {
+      awaitingApprovalJobs.push(job);
+      continue;
+    }
+
     if (isPending(job)) {
       pending++;
       if (isUnstableJob(job as any, unstableIssues)) {
@@ -1114,6 +1156,7 @@ export async function getWorkflowJobsStatuses(
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
+    awaitingApprovalJobs,
     relatedJobs,
     relatedIssues,
     relatedInfo,

@@ -226,6 +226,20 @@ const unstableB = getDummyJob({
   runnerName: "dummy",
 });
 
+// Workflow awaiting approval from maintainer
+const awaitingApprovalA = getDummyJob({
+  name: "pull / linux-build",
+  conclusion: "action_required",
+  completed_at: "2022-07-13 19:34:03",
+  html_url: "a",
+  head_sha: "abcdefg",
+  id: 1,
+  pr_number: 1001,
+  failure_lines: [],
+  failure_captures: [],
+  runnerName: "",
+});
+
 const sev = genIssueData({
   number: 1,
   state: "open",
@@ -251,6 +265,7 @@ function constructResultsCommentHelper({
   flakyJobs = [],
   brokenTrunkJobs = [],
   unstableJobs = [],
+  awaitingApprovalJobs = [],
   sha = "random sha",
   merge_base = "random_merge_base_sha",
   merge_base_date = "2023-08-08 06:03:21",
@@ -264,6 +279,7 @@ function constructResultsCommentHelper({
   flakyJobs?: RecentWorkflowsData[];
   brokenTrunkJobs?: RecentWorkflowsData[];
   unstableJobs?: RecentWorkflowsData[];
+  awaitingApprovalJobs?: RecentWorkflowsData[];
   sha?: string;
   merge_base?: string;
   merge_base_date?: string;
@@ -278,6 +294,7 @@ function constructResultsCommentHelper({
     flakyJobs,
     brokenTrunkJobs,
     unstableJobs,
+    awaitingApprovalJobs,
     new Map(),
     new Map(),
     new Map(),
@@ -687,6 +704,50 @@ describe("Update Dr. CI Bot Unit Tests", () => {
       failedC.name,
       unstableA.name,
     ];
+    expect(
+      expectToContain.every((s) => failureInfoComment.includes(s!))
+    ).toBeTruthy();
+  });
+
+  test("test awaiting approval workflows show in comment", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 0,
+      awaitingApprovalJobs: [awaitingApprovalA],
+    });
+
+    const expectToContain = [
+      ":warning:",
+      "1 Awaiting Approval",
+      "AWAITING APPROVAL",
+      "workflow needs approval before CI can run",
+      awaitingApprovalA.name,
+    ];
+    const expectNotToContain = ["No Failures", ":green_heart:"];
+
+    expect(
+      expectToContain.every((s) => failureInfoComment.includes(s!))
+    ).toBeTruthy();
+    expect(
+      expectNotToContain.every((s) => !failureInfoComment.includes(s!))
+    ).toBeTruthy();
+  });
+
+  test("test awaiting approval with failures shows both", async () => {
+    const failureInfoComment = constructResultsCommentHelper({
+      pending: 1,
+      failedJobs: [failedA],
+      awaitingApprovalJobs: [awaitingApprovalA],
+    });
+
+    const expectToContain = [
+      "1 Awaiting Approval",
+      "1 New Failure",
+      "1 Pending",
+      "AWAITING APPROVAL",
+      awaitingApprovalA.name,
+      failedA.name,
+    ];
+
     expect(
       expectToContain.every((s) => failureInfoComment.includes(s!))
     ).toBeTruthy();
