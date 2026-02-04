@@ -831,9 +831,15 @@ def get_packages_for_target(target: str) -> List[str]:
     - project is "torch" AND
     - either no target is specified (universal packages like filelock, numpy)
     - or the target matches the specified target
+    - nvidia/cuda packages are only included for CUDA targets (cu*)
     """
+    is_cuda_target = target.startswith("cu")
     packages = []
     for pkg_name, pkg_configs in PACKAGES_PER_PROJECT.items():
+        # Skip nvidia/cuda packages for non-CUDA targets
+        if not is_cuda_target and is_nvidia_package(pkg_name):
+            continue
+
         for config in pkg_configs:
             if config.get("project") != "torch":
                 continue
