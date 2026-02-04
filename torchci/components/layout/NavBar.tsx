@@ -109,6 +109,10 @@ function NavBar() {
       name: "Autorevert Metrics",
       href: "/metrics/autorevert",
     },
+    {
+      name: "Claude Billing",
+      href: "/claude_billing",
+    },
   ].map((item) => ({
     label: item.name,
     route: item.href,
