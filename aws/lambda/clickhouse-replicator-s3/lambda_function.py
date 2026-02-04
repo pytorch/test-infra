@@ -680,7 +680,12 @@ def claude_code_usage_adapter(table, bucket, key):
     `timestamp` DateTime64(3),
     `duration_ms` Int64,
     `num_turns` Int32,
-    `total_cost_usd` Float64
+    `total_cost_usd` Float64,
+    `input_tokens` Int64,
+    `output_tokens` Int64,
+    `cache_read_input_tokens` Int64,
+    `cache_creation_input_tokens` Int64,
+    `model` String
     """
     general_adapter(table, bucket, key, schema, ["none"], "JSONEachRow")
 
