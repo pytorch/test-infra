@@ -380,6 +380,13 @@
       "slow"
     ]
   ],
+  "test_cross_entropy_loss_2d_out_of_bounds_class_index_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
+    "174353",
+    "https://github.com/pytorch/pytorch/issues/174353",
+    [
+      "rocm"
+    ]
+  ],
   "test_cross_entropy_loss_2d_out_of_bounds_class_index_cuda_float32 (__main__.TestNNDeviceTypeCUDA)": [
     "174296",
     "https://github.com/pytorch/pytorch/issues/174296",
