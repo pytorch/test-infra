@@ -220,7 +220,7 @@ PACKAGE_ALLOW_LIST = {
         "cuda_python",
         "cuda_bindings",
         "cuda_pathfinder",
-        "cuda-toolkit",
+        "cuda_toolkit",
         "pynvml",
         "nvidia_ml_py",
         "einops",
