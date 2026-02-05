@@ -199,7 +199,7 @@ export const BENCHMARK_CATEGORIES: BenchmarkCategoryGroup[] = [
           {
             label: "Regression Reports",
             type: "regression_report",
-            href: '/benchmark/regression/reports/pytorch_operator_microbenchmark',
+            href: "/benchmark/regression/reports/pytorch_operator_microbenchmark",
           },
           {
             label: "Legacy Page/Playground",
