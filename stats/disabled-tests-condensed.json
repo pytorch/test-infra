@@ -364,15 +364,6 @@
       "macos"
     ]
   ],
-  "test_create_rand_mask_from_inputs (__main__.ReproTests)": [
-    "166617",
-    "https://github.com/pytorch/pytorch/issues/166617",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
   "test_cross_entropy_loss_2d_out_of_bounds_class_index_cuda_float16 (__main__.TestNNDeviceTypeCUDA)": [
     "174353",
     "https://github.com/pytorch/pytorch/issues/174353",
@@ -811,15 +802,6 @@
     "https://github.com/pytorch/pytorch/issues/158443",
     [
       "linux"
-    ]
-  ],
-  "test_graph_break_unsupported_fake (__main__.ReproTests)": [
-    "156629",
-    "https://github.com/pytorch/pytorch/issues/156629",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_graph_concurrent_replay (__main__.TestCuda)": [
@@ -1468,24 +1450,6 @@
     "https://github.com/pytorch/pytorch/issues/162677",
     [
       "dynamo"
-    ]
-  ],
-  "test_relative_import (__main__.ReproTests)": [
-    "156679",
-    "https://github.com/pytorch/pytorch/issues/156679",
-    [
-      "linux",
-      "rocm",
-      "slow"
-    ]
-  ],
-  "test_relative_import_no_modulename (__main__.ReproTests)": [
-    "156691",
-    "https://github.com/pytorch/pytorch/issues/156691",
-    [
-      "linux",
-      "rocm",
-      "slow"
     ]
   ],
   "test_remote_group_merge (__main__.ProcessGroupGlooTest)": [
