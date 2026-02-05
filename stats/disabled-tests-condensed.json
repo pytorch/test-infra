@@ -461,6 +461,13 @@
       "rocm"
     ]
   ],
+  "test_default_device_factory_functions (__main__.TorchFunctionModeTests)": [
+    "170006",
+    "https://github.com/pytorch/pytorch/issues/170006",
+    [
+      "xpu"
+    ]
+  ],
   "test_defined_in_python (__main__.TestCustomOp)": [
     "167815",
     "https://github.com/pytorch/pytorch/issues/167815",
