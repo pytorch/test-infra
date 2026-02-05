@@ -1688,6 +1688,17 @@
       "rocm"
     ]
   ],
+  "test_sparse_mul_sparse_cuda_float64 (__main__.TestSparseCUDA)": [
+    "174389",
+    "https://github.com/pytorch/pytorch/issues/174389",
+    [
+      "linux",
+      "mac",
+      "macos",
+      "rocm",
+      "win"
+    ]
+  ],
   "test_successful (jit.test_freezing.TestMKLDNNReinplacing)": [
     "91489",
     "https://github.com/pytorch/pytorch/issues/91489",
