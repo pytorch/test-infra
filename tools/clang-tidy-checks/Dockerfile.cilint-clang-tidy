@@ -36,5 +36,5 @@ RUN cp /clang-tidy-checks/build/bin/clang-tidy /usr/bin/clang-tidy
 # RUN cd ./clang-tidy-checks && ./verify.sh
 
 # Install python deps
-RUN wget https://raw.githubusercontent.com/pytorch/pytorch/main/requirements.txt https://raw.githubusercontent.com/pytorch/pytorch/main/requirements-build.txt && \
-    pip3 install -r requirements.txt && pip3 install unidiff==0.6.0
+RUN wget https://raw.githubusercontent.com/pytorch/pytorch/main/requirements-build.txt && \
+    pip3 install -r requirements-build.txt && pip3 install unidiff==0.6.0
