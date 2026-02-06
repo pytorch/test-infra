@@ -3,6 +3,7 @@ self-hosted-runner:
     - ubuntu-24.04  # GitHub hosted runner that actionlint doesn't recognize because actionlint version (1.6.21) is too old
     - macos-13
     - macos-m1-stable
+    - linux.arm64.m8g.4xlarge
     - linux.12xlarge
     - linux.2xlarge
     - linux.large

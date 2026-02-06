@@ -19,7 +19,17 @@ permissions:
 
 jobs:
   build:
-    runs-on: linux.12xlarge
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: linux.12xlarge
+            platform: linux-x86_64
+          - arch: aarch64
+            runner: linux.arm64.m8g.4xlarge
+            platform: linux-aarch64
+    runs-on: ${{ matrix.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -28,11 +38,11 @@ jobs:
         run: |
           set -ex
           echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
-          docker build ./tools/clang-tidy-checks --tag ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA" -f tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy
+          docker build ./tools/clang-tidy-checks --tag ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA"-${{ matrix.arch }} -f tools/clang-tidy-checks/Dockerfile.cilint-clang-tidy
 
           # Copying files directly from a docker image is not supported
           # As a workaround, we create a temporary container, copy the binary, and remove it
-          image_id=$(docker create ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA")
+          image_id=$(docker create ghcr.io/pytorch/cilint-clang-tidy:"$GITHUB_SHA"-${{ matrix.arch }})
           docker cp "$image_id":/clang-tidy-checks/build/bin/clang-tidy ./clang-tidy
           docker cp "$image_id":/clang-tidy-checks/build/bin/clang-format ./clang-format
           docker rm -v "$image_id"
@@ -40,7 +50,7 @@ jobs:
       - name: Sanity check and upload
         uses: ./.github/actions/clang-tidy-upload
         with:
-          platform: linux64
+          platform: ${{ matrix.platform }}
           version: 19.1.4
           upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
 
