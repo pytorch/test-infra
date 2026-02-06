@@ -373,6 +373,7 @@ PT_FOUNDATION_PACKAGES = {
 # These packages will have their URLs point to R2 instead of S3/CloudFront
 # when the path is whl/nightly
 PT_R2_PACKAGES = {
+    "torch",
     "torchaudio",
     "torchvision",
     "fbgemm_gpu",
