@@ -84,6 +84,24 @@ PACKAGES_PER_PROJECT: Dict[str, List[Dict[str, str]]] = {
             "project": "vllm",
         },
     ],
+    "cuda-toolkit": [
+        {
+            "project": "torch",
+            "target": "cu126",
+        },
+        {
+            "project": "torch",
+            "target": "cu128",
+        },
+        {
+            "project": "torch",
+            "target": "cu129",
+        },
+        {
+            "project": "torch",
+            "target": "cu130",
+        },
+    ],
     "nvidia-cuda-nvrtc-cu12": [
         {
             "project": "torch",
