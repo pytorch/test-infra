@@ -27,7 +27,7 @@ jobs:
             runner: linux.12xlarge
             platform: linux-x86_64
           - arch: aarch64
-            runner: linux.arm64.2xlarge
+            runner: linux.arm64.m8g.4xlarge
             platform: linux-aarch64
     runs-on: ${{ matrix.runner }}
     steps:
