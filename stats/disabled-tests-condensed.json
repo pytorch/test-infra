@@ -466,6 +466,13 @@
       "xpu"
     ]
   ],
+  "test_default_device_factory_functions_priority (__main__.TorchFunctionModeTests)": [
+    "170005",
+    "https://github.com/pytorch/pytorch/issues/170005",
+    [
+      "xpu"
+    ]
+  ],
   "test_defined_in_python (__main__.TestCustomOp)": [
     "167815",
     "https://github.com/pytorch/pytorch/issues/167815",
