@@ -24,7 +24,7 @@ const IssueAndPRRegexToLabel: [RegExp, string][] = [
 const PrTitleRegexToLabel: [RegExp, string][] = [
   [/reland/gi, "ci-no-td"],
   [/revert/gi, "ci-no-td"],
-  [/rocm/gi, "ciflow/rocm-mi300"],
+  [/rocm/gi, "ciflow/rocm-mi355"],
   ...IssueAndPRRegexToLabel,
 ];
 
