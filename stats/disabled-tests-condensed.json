@@ -371,22 +371,10 @@
       "rocm"
     ]
   ],
-  "test_cross_entropy_loss_2d_out_of_bounds_class_index_cuda_float32 (__main__.TestNNDeviceTypeCUDA)": [
-    "174296",
-    "https://github.com/pytorch/pytorch/issues/174296",
-    []
-  ],
   "test_cuda_assert_should_not_stop_common_distributed_test_suite_cuda (__main__.TestTestingCUDA)": [
     "106308",
     "https://github.com/pytorch/pytorch/issues/106308",
     []
-  ],
-  "test_cuda_assert_should_stop_common_utils_test_suite_cuda (__main__.TestTestingCUDA)": [
-    "174404",
-    "https://github.com/pytorch/pytorch/issues/174404",
-    [
-      "rocm"
-    ]
   ],
   "test_cuda_load (__main__.TestCUDACodeCache)": [
     "138343",
