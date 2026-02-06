@@ -26,6 +26,7 @@ on:
           - fbgemm_gpu
           - fbgemm_gpu_genai
           - mslk
+          - flash_attn_3
 
 permissions:
   id-token: write
