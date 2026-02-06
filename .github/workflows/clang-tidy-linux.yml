@@ -13,6 +13,7 @@ on:
       - 'tools/clang-tidy-checks/**'
       - '!tools/clang-tidy-checks/README.md'
       - '.github/workflows/clang-tidy-linux.yml'
+  workflow_dispatch:
 
 permissions:
   id-token: write
@@ -52,7 +53,7 @@ jobs:
         with:
           platform: ${{ matrix.platform }}
           version: 19.1.4
-          upload-to-s3: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          upload-to-s3: ${{ (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
