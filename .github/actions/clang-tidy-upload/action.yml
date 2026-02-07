@@ -41,7 +41,7 @@ runs:
         aws-region: us-east-1
         output-credentials: true
 
-    - uses: ./.github/actions/upload-artifact-s3
+    - uses: seemethere/upload-artifact-s3@v5
       name: Publish clang-tidy binary
       if: ${{ fromJSON(inputs.upload-to-s3) }}
       with:
@@ -50,7 +50,7 @@ runs:
         s3-bucket: oss-clang-format
         path: clang-tidy
 
-    - uses: ./.github/actions/upload-artifact-s3
+    - uses: seemethere/upload-artifact-s3@v5
       name: Publish clang-format binary
       if: ${{ fromJSON(inputs.upload-to-s3) }}
       with:
@@ -60,7 +60,7 @@ runs:
         path: clang-format
 
     - name: Upload clang-tidy to GHA
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ inputs.platform }}-${{ inputs.version }}-clang-tidy
         retention-days: 14
@@ -68,7 +68,7 @@ runs:
         path: clang-tidy
 
     - name: Upload clang-format to GHA
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ inputs.platform }}-${{ inputs.version }}-clang-format
         retention-days: 14
