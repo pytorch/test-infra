@@ -4,12 +4,12 @@ import SwiftUI
 // MARK: - API Response Models
 
 struct FailedJobsAnnotationResponse: Decodable {
-    let failedJobs: [JobData]
-    let annotationsMap: [String: JobAnnotationData]
+    let failedJobs: [JobData]?
+    let annotationsMap: [String: JobAnnotationData]?
 }
 
 struct JobAnnotationData: Decodable {
-    let annotation: String
+    let annotation: String?
     let jobID: Int
 
     enum CodingKeys: String, CodingKey {
@@ -265,15 +265,15 @@ final class FailedJobsViewModel: ObservableObject {
             let response: FailedJobsAnnotationResponse = try await apiClient.fetch(endpoint)
 
             // Update jobs
-            jobs = response.failedJobs
+            jobs = response.failedJobs ?? []
 
             // Update annotations from the server
             var newAnnotations: [Int: AnnotationValue] = [:]
-            for (jobIdString, annotationData) in response.annotationsMap {
-                if let jobId = Int(jobIdString) {
-                    if let annotationValue = AnnotationValue(rawValue: annotationData.annotation) {
-                        newAnnotations[jobId] = annotationValue
-                    }
+            for (jobIdString, annotationData) in response.annotationsMap ?? [:] {
+                if let jobId = Int(jobIdString),
+                   let rawAnnotation = annotationData.annotation,
+                   let annotationValue = AnnotationValue(rawValue: rawAnnotation) {
+                    newAnnotations[jobId] = annotationValue
                 }
             }
             annotations = newAnnotations

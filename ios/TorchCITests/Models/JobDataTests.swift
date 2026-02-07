@@ -47,7 +47,7 @@ final class JobDataTests: XCTestCase {
 
         let job: JobData = MockData.decode(json)
 
-        XCTAssertEqual(job.id, 200001)
+        XCTAssertEqual(job.jobId, 200001)
         XCTAssertEqual(job.name, "pull / linux-jammy-py3.10-gcc9 / build")
         XCTAssertEqual(job.workflowName, "pull")
         XCTAssertEqual(job.workflowId, 5001)

@@ -46,6 +46,7 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
         case total
         case percentage
         case avg
+        case custom
         case p50
         case p75
         case p90
@@ -54,8 +55,11 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
         case metric
         case ttrs_mins
         case avg_tts
+        case avg_queue_s
+        case duration_sec
         case diff_hr
         case pr_count
+        case new_disabled = "new"
     }
 
     init(from decoder: Decoder) throws {
@@ -84,8 +88,16 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
             granularity_bucket = ""
         }
 
-        // Decode value - try multiple possible keys, handling both Double and String representations
+        // Decode value - try multiple possible keys, handling both Double and String representations.
+        // Order matters: more specific keys (custom, duration_sec, avg_queue_s) come before
+        // generic ones (count, avg) to avoid picking the wrong field when multiple are present.
         if let v = Self.decodeDouble(container: container, key: .value) {
+            value = v
+        } else if let v = Self.decodeDouble(container: container, key: .custom) {
+            value = v
+        } else if let v = Self.decodeDouble(container: container, key: .duration_sec) {
+            value = v
+        } else if let v = Self.decodeDouble(container: container, key: .avg_queue_s) {
             value = v
         } else if let v = Self.decodeDouble(container: container, key: .count) {
             value = v
@@ -110,6 +122,8 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
         } else if let v = Self.decodeDouble(container: container, key: .ttrs_mins) {
             value = v
         } else if let v = Self.decodeDouble(container: container, key: .avg_tts) {
+            value = v
+        } else if let v = Self.decodeDouble(container: container, key: .new_disabled) {
             value = v
         } else if let v = Self.decodeDouble(container: container, key: .diff_hr) {
             value = v

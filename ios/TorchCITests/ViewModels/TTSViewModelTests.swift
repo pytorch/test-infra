@@ -541,7 +541,7 @@ final class TTSViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.durationSeries.count, 3)
         // Bucket 3: linux-build: 1200, linux-test: 2700, avg = 1950
-        XCTAssertEqual(viewModel.durationSeries.last?.value, 1950, accuracy: 0.1)
+        XCTAssertEqual(viewModel.durationSeries.last!.value ?? 0, 1950, accuracy: 0.1)
     }
 
     // MARK: - Null TTS Values

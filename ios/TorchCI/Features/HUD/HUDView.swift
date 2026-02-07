@@ -697,20 +697,24 @@ private struct CommitJobsListView: View {
         }
     }
 
-    private var failedJobs: [(name: String, job: HUDJob)] {
-        jobPairs.filter { $0.job.isFailure }
+    // Failure breakdown
+    private var blockingFailures: [(name: String, job: HUDJob)] {
+        jobPairs.filter { $0.job.isFailure && $0.job.isViableStrictBlocking && !$0.job.isUnstable }
     }
-
+    private var newFailures: [(name: String, job: HUDJob)] {
+        jobPairs.filter { $0.job.isNewFailure && !$0.job.isViableStrictBlocking && !$0.job.isUnstable }
+    }
+    private var repeatFailures: [(name: String, job: HUDJob)] {
+        jobPairs.filter { $0.job.isRepeatFailure && !$0.job.isViableStrictBlocking && !$0.job.isUnstable }
+    }
+    private var unstableFailures: [(name: String, job: HUDJob)] {
+        jobPairs.filter { $0.job.isFailure && $0.job.isUnstable }
+    }
     private var pendingJobs: [(name: String, job: HUDJob)] {
         jobPairs.filter { $0.job.isPending }
     }
-
     private var successJobs: [(name: String, job: HUDJob)] {
         jobPairs.filter { $0.job.isSuccess }
-    }
-
-    private var otherJobs: [(name: String, job: HUDJob)] {
-        jobPairs.filter { !$0.job.isFailure && !$0.job.isPending && !$0.job.isSuccess }
     }
 
     var body: some View {
@@ -752,38 +756,69 @@ private struct CommitJobsListView: View {
                         }
                     }
 
-                    // Job summary stats
-                    HStack(spacing: 16) {
-                        jobStatPill(
-                            count: failedJobs.count,
-                            label: "Failed",
-                            color: AppColors.failure
-                        )
-                        jobStatPill(
-                            count: pendingJobs.count,
-                            label: "Pending",
-                            color: AppColors.pending
-                        )
-                        jobStatPill(
-                            count: successJobs.count,
-                            label: "Passed",
-                            color: AppColors.success
-                        )
+                    HStack(spacing: 8) {
+                        let totalFailed = blockingFailures.count + newFailures.count + repeatFailures.count + unstableFailures.count
+                        jobStatPill(count: totalFailed, label: "Failed", color: AppColors.failure)
+                        jobStatPill(count: pendingJobs.count, label: "Pending", color: AppColors.pending)
+                        jobStatPill(count: successJobs.count, label: "Passed", color: AppColors.success)
                     }
                 }
                 .padding(.vertical, 4)
             }
 
-            if !failedJobs.isEmpty {
-                Section("Failed (\(failedJobs.count))") {
-                    ForEach(Array(failedJobs.enumerated()), id: \.offset) { _, pair in
+            if !blockingFailures.isEmpty {
+                Section {
+                    ForEach(Array(blockingFailures.enumerated()), id: \.offset) { _, pair in
                         jobRow(name: pair.name, job: pair.job)
                     }
+                } header: {
+                    Label("Blocking Viable/Strict (\(blockingFailures.count))", systemImage: "exclamationmark.octagon.fill")
+                        .foregroundStyle(AppColors.failure)
+                        .font(.caption.weight(.semibold))
+                }
+            }
+
+            if !newFailures.isEmpty {
+                Section {
+                    ForEach(Array(newFailures.enumerated()), id: \.offset) { _, pair in
+                        jobRow(name: pair.name, job: pair.job)
+                    }
+                } header: {
+                    Label("New Failures (\(newFailures.count))", systemImage: "flame.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption.weight(.semibold))
+                }
+            }
+
+            if !repeatFailures.isEmpty {
+                Section {
+                    ForEach(Array(repeatFailures.enumerated()), id: \.offset) { _, pair in
+                        jobRow(name: pair.name, job: pair.job)
+                    }
+                } header: {
+                    Label("Known Failures (\(repeatFailures.count))", systemImage: "arrow.counterclockwise")
+                        .foregroundStyle(.secondary)
+                        .font(.caption.weight(.semibold))
+                } footer: {
+                    Text("Also failed on previous commit")
+                        .font(.caption2)
+                }
+            }
+
+            if !unstableFailures.isEmpty {
+                Section {
+                    ForEach(Array(unstableFailures.enumerated()), id: \.offset) { _, pair in
+                        jobRow(name: pair.name, job: pair.job)
+                    }
+                } header: {
+                    Label("Flaky / Unstable (\(unstableFailures.count))", systemImage: "exclamationmark.triangle.fill")
+                        .foregroundStyle(AppColors.unstable)
+                        .font(.caption.weight(.semibold))
                 }
             }
 
             if !pendingJobs.isEmpty {
-                Section("Pending (\(pendingJobs.count))") {
+                Section("Running (\(pendingJobs.count))") {
                     ForEach(Array(pendingJobs.enumerated()), id: \.offset) { _, pair in
                         jobRow(name: pair.name, job: pair.job)
                     }
@@ -793,14 +828,6 @@ private struct CommitJobsListView: View {
             if !successJobs.isEmpty {
                 Section("Succeeded (\(successJobs.count))") {
                     ForEach(Array(successJobs.enumerated()), id: \.offset) { _, pair in
-                        jobRow(name: pair.name, job: pair.job)
-                    }
-                }
-            }
-
-            if !otherJobs.isEmpty {
-                Section("Other (\(otherJobs.count))") {
-                    ForEach(Array(otherJobs.enumerated()), id: \.offset) { _, pair in
                         jobRow(name: pair.name, job: pair.job)
                     }
                 }

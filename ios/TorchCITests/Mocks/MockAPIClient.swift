@@ -1,7 +1,7 @@
 import Foundation
 @testable import TorchCI
 
-final class MockAPIClient: APIClientProtocol {
+final class MockAPIClient: APIClientProtocol, @unchecked Sendable {
 
     // MARK: - Configurable responses
 

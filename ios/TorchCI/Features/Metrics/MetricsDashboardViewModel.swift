@@ -12,6 +12,263 @@ final class MetricsDashboardViewModel: ObservableObject {
         let color: Color
     }
 
+    // MARK: - Scalar response structs matching actual ClickHouse query output
+
+    /// strict_lag_sec query returns: { "strict_lag_sec": 12345 }
+    private struct StrictLagResponse: Decodable {
+        let strict_lag_sec: Double
+
+        enum CodingKeys: String, CodingKey {
+            case strict_lag_sec
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            // Handle both numeric and string-encoded values
+            if let v = try? container.decode(Double.self, forKey: .strict_lag_sec) {
+                strict_lag_sec = v
+            } else if let s = try? container.decode(String.self, forKey: .strict_lag_sec),
+                      let v = Double(s) {
+                strict_lag_sec = v
+            } else {
+                strict_lag_sec = 0
+            }
+        }
+    }
+
+    /// last_branch_push query returns: { "push_seconds_ago": 12345 }
+    private struct PushSecondsAgoResponse: Decodable {
+        let push_seconds_ago: Double
+
+        enum CodingKeys: String, CodingKey {
+            case push_seconds_ago
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? container.decode(Double.self, forKey: .push_seconds_ago) {
+                push_seconds_ago = v
+            } else if let s = try? container.decode(String.self, forKey: .push_seconds_ago),
+                      let v = Double(s) {
+                push_seconds_ago = v
+            } else {
+                push_seconds_ago = 0
+            }
+        }
+    }
+
+    /// last_successful_workflow / last_successful_jobs returns: { "last_success_seconds_ago": 12345 }
+    private struct LastSuccessResponse: Decodable {
+        let last_success_seconds_ago: Double
+
+        enum CodingKeys: String, CodingKey {
+            case last_success_seconds_ago
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? container.decode(Double.self, forKey: .last_success_seconds_ago) {
+                last_success_seconds_ago = v
+            } else if let s = try? container.decode(String.self, forKey: .last_success_seconds_ago),
+                      let v = Double(s) {
+                last_success_seconds_ago = v
+            } else {
+                last_success_seconds_ago = 0
+            }
+        }
+    }
+
+    /// merge_retry_rate returns: { "avg_retry_rate": 1.23 }
+    private struct RetryRateResponse: Decodable {
+        let avg_retry_rate: Double
+
+        enum CodingKeys: String, CodingKey {
+            case avg_retry_rate
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? container.decode(Double.self, forKey: .avg_retry_rate) {
+                avg_retry_rate = v
+            } else if let s = try? container.decode(String.self, forKey: .avg_retry_rate),
+                      let v = Double(s) {
+                avg_retry_rate = v
+            } else {
+                avg_retry_rate = 0
+            }
+        }
+    }
+
+    /// pr_landing_time_avg returns: { "avg_hours": 1.23 }
+    private struct LandingTimeResponse: Decodable {
+        let avg_hours: Double
+
+        enum CodingKeys: String, CodingKey {
+            case avg_hours
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? container.decode(Double.self, forKey: .avg_hours) {
+                avg_hours = v
+            } else if let s = try? container.decode(String.self, forKey: .avg_hours),
+                      let v = Double(s) {
+                avg_hours = v
+            } else {
+                avg_hours = 0
+            }
+        }
+    }
+
+    /// workflow_duration_avg/percentile returns: { "duration_sec": 12345, "name": "pull" }
+    private struct WorkflowDurationResponse: Decodable {
+        let duration_sec: Double
+        let name: String?
+
+        enum CodingKeys: String, CodingKey {
+            case duration_sec
+            case name
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? container.decode(Double.self, forKey: .duration_sec) {
+                duration_sec = v
+            } else if let s = try? container.decode(String.self, forKey: .duration_sec),
+                      let v = Double(s) {
+                duration_sec = v
+            } else {
+                duration_sec = 0
+            }
+            name = try? container.decodeIfPresent(String.self, forKey: .name)
+        }
+    }
+
+    /// queued_jobs_by_label returns: { "count": 5, "avg_queue_s": 300, "machine_type": "linux.2xlarge", "time": "..." }
+    private struct QueuedJobsResponse: Decodable {
+        let count: Int
+        let avg_queue_s: Double
+        let machine_type: String
+
+        enum CodingKeys: String, CodingKey {
+            case count, avg_queue_s, machine_type
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            if let v = try? container.decode(Int.self, forKey: .count) {
+                count = v
+            } else if let s = try? container.decode(String.self, forKey: .count),
+                      let v = Int(s) {
+                count = v
+            } else {
+                count = 0
+            }
+            if let v = try? container.decode(Double.self, forKey: .avg_queue_s) {
+                avg_queue_s = v
+            } else if let s = try? container.decode(String.self, forKey: .avg_queue_s),
+                      let v = Double(s) {
+                avg_queue_s = v
+            } else {
+                avg_queue_s = 0
+            }
+            machine_type = (try? container.decode(String.self, forKey: .machine_type)) ?? ""
+        }
+    }
+
+    /// master_commit_red_avg returns: { "broken_trunk_red": 0.05, "flaky_red": 0.10 }
+    private struct CommitRedData: Decodable {
+        let broken_trunk_red: Double?
+        let flaky_red: Double?
+    }
+
+    /// disabled_test_historical returns: { "day": "2024-01-01", "count": 100, "new": 5, "deleted": 3 }
+    private struct DisabledTestHistoricalRow: Decodable {
+        let day: String
+        let count: Int?
+        let new_tests: Int?
+        let deleted: Int?
+
+        enum CodingKeys: String, CodingKey {
+            case day, count, deleted
+            case new_tests = "new"
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            day = (try? container.decode(String.self, forKey: .day)) ?? ""
+            if let v = try? container.decode(Int.self, forKey: .count) {
+                count = v
+            } else if let s = try? container.decode(String.self, forKey: .count), let v = Int(s) {
+                count = v
+            } else {
+                count = nil
+            }
+            if let v = try? container.decode(Int.self, forKey: .new_tests) {
+                new_tests = v
+            } else if let s = try? container.decode(String.self, forKey: .new_tests), let v = Int(s) {
+                new_tests = v
+            } else {
+                new_tests = nil
+            }
+            if let v = try? container.decode(Int.self, forKey: .deleted) {
+                deleted = v
+            } else if let s = try? container.decode(String.self, forKey: .deleted), let v = Int(s) {
+                deleted = v
+            } else {
+                deleted = nil
+            }
+        }
+    }
+
+    /// queue_times_historical returns: { "granularity_bucket": "2024-01-01", "avg_queue_s": 300, "machine_type": "linux.2xlarge" }
+    private struct QueueTimeHistoricalRow: Decodable {
+        let granularity_bucket: String
+        let avg_queue_s: Double
+        let machine_type: String
+
+        enum CodingKeys: String, CodingKey {
+            case granularity_bucket, avg_queue_s, machine_type
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            granularity_bucket = (try? container.decode(String.self, forKey: .granularity_bucket)) ?? ""
+            if let v = try? container.decode(Double.self, forKey: .avg_queue_s) {
+                avg_queue_s = v
+            } else if let s = try? container.decode(String.self, forKey: .avg_queue_s),
+                      let v = Double(s) {
+                avg_queue_s = v
+            } else {
+                avg_queue_s = 0
+            }
+            machine_type = (try? container.decode(String.self, forKey: .machine_type)) ?? ""
+        }
+    }
+
+    /// lf_rollover_percentage returns: { "bucket": "2024-01-01", "fleet": "...", "percentage": 45.6 }
+    private struct LFRolloverRow: Decodable {
+        let bucket: String
+        let percentage: Double
+
+        enum CodingKeys: String, CodingKey {
+            case bucket, percentage
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            bucket = (try? container.decode(String.self, forKey: .bucket)) ?? ""
+            if let v = try? container.decode(Double.self, forKey: .percentage) {
+                percentage = v
+            } else if let s = try? container.decode(String.self, forKey: .percentage),
+                      let v = Double(s) {
+                percentage = v
+            } else {
+                percentage = 0
+            }
+        }
+    }
+
     // MARK: - State
 
     enum ViewState: Equatable {
@@ -165,7 +422,10 @@ final class MetricsDashboardViewModel: ObservableObject {
         let gran = granularity.rawValue
         let client = apiClient
 
-        // Fetch all time-series data in parallel using async let, each with its own try?
+        // Fetch ALL metrics in parallel using async let for maximum speed.
+        // Each call is wrapped in try? so individual failures don't block others.
+
+        // --- Time series ---
         async let redRateResult: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "master_commit_red",
@@ -178,7 +438,10 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        async let queueTimeResult: [TimeSeriesDataPoint]? = try? client.fetch(
+
+        // queue_times_historical: returns multiple rows per bucket (one per machine_type).
+        // We aggregate to max across machine types per bucket.
+        async let queueTimeRawResult: [QueueTimeHistoricalRow]? = try? client.fetch(
             .clickhouseQuery(
                 name: "queue_times_historical",
                 parameters: [
@@ -188,84 +451,35 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        async let disabledTestsResult: [TimeSeriesDataPoint]? = try? client.fetch(
+
+        // disabled_test_historical: params.json expects label, platform, triaged, startTime, stopTime.
+        // Missing params default to empty strings on the server (disables those filters).
+        async let disabledTestsRawResult: [DisabledTestHistoricalRow]? = try? client.fetch(
             .clickhouseQuery(
                 name: "disabled_test_historical",
                 parameters: [
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
-                    "repo": "pytorch/pytorch",
+                    "label": "",
+                    "platform": "",
+                    "triaged": "",
                 ] as [String: Any]
             )
         )
 
-        redRateSeries = await redRateResult ?? []
-        queueTimeSeries = await queueTimeResult ?? []
-        disabledTestsSeries = await disabledTestsResult ?? []
-
-        // Fetch remaining metrics individually, each tolerating failure
-        _ = try? await fetchCommitHealth(startTime: range.startTime, stopTime: range.stopTime)
-        _ = try? await fetchMergeMetrics(startTime: range.startTime, stopTime: range.stopTime, granularity: gran)
-        _ = try? await fetchSignalMetrics(startTime: range.startTime, stopTime: range.stopTime)
-        _ = try? await fetchBuildHealth()
-        _ = try? await fetchActivityMetrics(startTime: range.startTime, stopTime: range.stopTime)
-
-        disabledTestsCount = disabledTestsSeries.last?.value.map { Int($0) }
-        lastUpdated = Date()
-        state = .loaded
-    }
-
-    // MARK: - Individual Fetchers
-
-    private func fetchRedRate(startTime: String, stopTime: String, granularity: String) async throws -> [TimeSeriesDataPoint] {
-        try await apiClient.fetch(
+        // --- Commit Health ---
+        async let commitRedResult: [CommitRedData]? = try? client.fetch(
             .clickhouseQuery(
-                name: "master_commit_red",
+                name: "master_commit_red_avg",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
-                    "timezone": "UTC",
-                    "granularity": granularity,
-                    "usePercentage": true,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "workflowNames": ["lint", "pull", "trunk", "linux-aarch64"],
                 ] as [String: Any]
             )
         )
-    }
 
-    private func fetchCommitHealth(startTime: String, stopTime: String) async throws -> Bool {
-        // Fetch broken trunk and flaky red percentages
-        // The API returns data with broken_trunk_red and flaky_red fields
-        struct CommitRedData: Decodable {
-            let broken_trunk_red: Double?
-            let flaky_red: Double?
-        }
-
-        do {
-            let data: [CommitRedData] = try await apiClient.fetch(
-                .clickhouseQuery(
-                    name: "master_commit_red_avg",
-                    parameters: [
-                        "startTime": startTime,
-                        "stopTime": stopTime,
-                        "workflowNames": ["lint", "pull", "trunk", "linux-aarch64"],
-                    ] as [String: Any]
-                )
-            )
-
-            if let first = data.first {
-                brokenTrunkPercent = first.broken_trunk_red.map { $0 * 100 }
-                flakyRedPercent = first.flaky_red.map { $0 * 100 }
-            }
-        } catch {
-            // Fallback: try to get from red rate series
-            if let lastRed = redRateSeries.last?.value {
-                brokenTrunkPercent = lastRed
-                flakyRedPercent = nil
-            }
-        }
-
-        // Fetch viable/strict lag
-        let lagData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let strictLagResult: [StrictLagResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "strict_lag_sec",
                 parameters: [
@@ -275,138 +489,140 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        viableStrictLagSeconds = lagData.first?.value
 
-        // Compute trends from red rate series
-        brokenTrunkTrend = computeTrend(from: redRateSeries)
-
-        return true
-    }
-
-    private func fetchMergeMetrics(startTime: String, stopTime: String, granularity: String) async throws -> Bool {
-        // Force merge - failure (time series for trend)
-        let failureSeries: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        // --- Merge Metrics ---
+        // Force merge failure (use one_bucket: true for a single scalar, matching web frontend)
+        async let forceMergeFailureResult: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "weekly_force_merge_stats",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "merge_type": "Failure",
+                    "one_bucket": true,
+                    "granularity": "week",
+                ] as [String: Any]
+            )
+        )
+
+        // Force merge impatience
+        async let forceMergeImpatienceResult: [TimeSeriesDataPoint]? = try? client.fetch(
+            .clickhouseQuery(
+                name: "weekly_force_merge_stats",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "merge_type": "Impatience",
+                    "one_bucket": true,
+                    "granularity": "week",
+                ] as [String: Any]
+            )
+        )
+
+        // Force merge time series (for trend computation, all types)
+        async let forceMergeTrendResult: [TimeSeriesDataPoint]? = try? client.fetch(
+            .clickhouseQuery(
+                name: "weekly_force_merge_stats",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                     "merge_type": "Failure",
                     "one_bucket": false,
-                    "granularity": granularity,
+                    "granularity": gran,
                 ] as [String: Any]
             )
         )
-        forceMergeFailurePercent = failureSeries.last?.value
-        forceMergeFailureTrend = computeTrend(from: failureSeries)
 
-        // Force merge - impatience (time series for trend)
-        let impatienceSeries: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let forceMergeImpTrendResult: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "weekly_force_merge_stats",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                     "merge_type": "Impatience",
                     "one_bucket": false,
-                    "granularity": granularity,
+                    "granularity": gran,
                 ] as [String: Any]
             )
         )
-        forceMergeImpatiencePercent = impatienceSeries.last?.value
-        forceMergeImpatienceTrend = computeTrend(from: impatienceSeries)
 
         // Merge retry rate
-        let retryData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let retryRateResult: [RetryRateResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "merge_retry_rate",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                 ] as [String: Any]
             )
         )
-        mergeRetryRate = retryData.first?.value
 
         // PR landing time
-        let landingData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let landingTimeResult: [LandingTimeResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "pr_landing_time_avg",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                 ] as [String: Any]
             )
         )
-        prLandingTimeHours = landingData.first?.value
 
-        return true
-    }
-
-    private func fetchSignalMetrics(startTime: String, stopTime: String) async throws -> Bool {
-        // TTRS p90
-        let p90Data: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        // --- Signal Metrics ---
+        // TTRS p90 (one_bucket: true for single scalar)
+        async let ttrsP90Result: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "ttrs_percentiles",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                     "one_bucket": true,
                     "percentile_to_get": 0.9,
                     "workflow": "pull",
                 ] as [String: Any]
             )
         )
-        ttrsP90Minutes = p90Data.first?.value
 
         // TTRS p75
-        let p75Data: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let ttrsP75Result: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "ttrs_percentiles",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                     "one_bucket": true,
                     "percentile_to_get": 0.75,
                     "workflow": "pull",
                 ] as [String: Any]
             )
         )
-        ttrsP75Minutes = p75Data.first?.value
 
-        // Workflow TTS (pull/trunk)
-        let queryName = selectedPercentile == -1.0 ? "workflow_duration_avg" : "workflow_duration_percentile"
-        let ttsData: [TimeSeriesDataPoint] = try await apiClient.fetch(
-            .clickhouseQuery(
-                name: queryName,
-                parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
-                    "workflowNames": ["pull", "trunk"],
-                    "percentile": selectedPercentile,
-                ] as [String: Any]
-            )
+        // Workflow TTS - use correct query based on percentile selection.
+        // workflow_duration_avg returns multiple rows (one per workflow name);
+        // workflow_duration_percentile returns a single max(duration_sec).
+        let ttsQueryName = selectedPercentile == -1.0 ? "workflow_duration_avg" : "workflow_duration_percentile"
+        var ttsParams: [String: Any] = [
+            "startTime": range.startTime,
+            "stopTime": range.stopTime,
+            "workflowNames": ["pull", "trunk"],
+        ]
+        if selectedPercentile != -1.0 {
+            ttsParams["percentile"] = selectedPercentile
+        }
+        async let ttsResult: [WorkflowDurationResponse]? = try? client.fetch(
+            .clickhouseQuery(name: ttsQueryName, parameters: ttsParams)
         )
-        workflowTTSSeconds = ttsData.first?.value
 
-        // Average queue time
-        let queueData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        // Queued jobs (current snapshot, no time params)
+        async let queuedJobsResult: [QueuedJobsResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "queued_jobs_by_label",
                 parameters: [:] as [String: Any]
             )
         )
-        // Average across all machine types
-        if !queueData.isEmpty {
-            avgQueueTimeSeconds = queueData.compactMap { $0.value }.reduce(0, +) / Double(queueData.count)
-        }
 
-        return true
-    }
-
-    private func fetchBuildHealth() async throws -> Bool {
-        // Last main push
-        let mainData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        // --- Build Health ---
+        async let mainPushResult: [PushSecondsAgoResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "last_branch_push",
                 parameters: [
@@ -414,10 +630,8 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        lastMainPushSeconds = mainData.first?.value
 
-        // Last nightly push
-        let nightlyData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let nightlyPushResult: [PushSecondsAgoResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "last_branch_push",
                 parameters: [
@@ -425,10 +639,8 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        lastNightlyPushSeconds = nightlyData.first?.value
 
-        // Last docker build
-        let dockerData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let dockerBuildResult: [LastSuccessResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "last_successful_workflow",
                 parameters: [
@@ -436,10 +648,8 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        lastDockerBuildSeconds = dockerData.first?.value
 
-        // Last docs push
-        let docsData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let docsPushResult: [LastSuccessResponse]? = try? client.fetch(
             .clickhouseQuery(
                 name: "last_successful_jobs",
                 parameters: [
@@ -447,63 +657,143 @@ final class MetricsDashboardViewModel: ObservableObject {
                 ] as [String: Any]
             )
         )
-        lastDocsPushSeconds = docsData.first?.value
 
-        return true
-    }
-
-    private func fetchActivityMetrics(startTime: String, stopTime: String) async throws -> Bool {
-        // Reverts
-        let revertsData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        // --- Activity Metrics ---
+        async let revertsResult: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "reverts",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                 ] as [String: Any]
             )
         )
-        revertsCount = revertsData.first?.value.map { Int($0) }
 
-        // Commits
-        let commitsData: [TimeSeriesDataPoint] = try await apiClient.fetch(
+        async let commitsResult: [TimeSeriesDataPoint]? = try? client.fetch(
             .clickhouseQuery(
                 name: "num_commits_master",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
                 ] as [String: Any]
             )
         )
-        commitsCount = commitsData.first?.value.map { Int($0) }
 
-        return true
-    }
-
-    private func fetchQueueTime(startTime: String, stopTime: String, granularity: String) async throws -> [TimeSeriesDataPoint] {
-        try await apiClient.fetch(
+        // LF Rollover percentage
+        async let lfRolloverResult: [LFRolloverRow]? = try? client.fetch(
             .clickhouseQuery(
-                name: "queue_times_historical",
+                name: "lf_rollover_percentage",
                 parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
-                    "granularity": granularity,
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "granularity": gran,
                 ] as [String: Any]
             )
         )
-    }
 
-    private func fetchDisabledTests(startTime: String, stopTime: String, granularity: String) async throws -> [TimeSeriesDataPoint] {
-        try await apiClient.fetch(
-            .clickhouseQuery(
-                name: "disabled_test_historical",
-                parameters: [
-                    "startTime": startTime,
-                    "stopTime": stopTime,
-                    "repo": "pytorch/pytorch",
-                ] as [String: Any]
-            )
-        )
+        // === Await all results and assign to published properties ===
+
+        // Time series
+        redRateSeries = await redRateResult ?? []
+
+        // Queue time: aggregate max queue_s across machine types per bucket
+        if let rawQueue = await queueTimeRawResult {
+            var bucketMax: [String: Double] = [:]
+            for row in rawQueue {
+                let current = bucketMax[row.granularity_bucket] ?? 0
+                bucketMax[row.granularity_bucket] = max(current, row.avg_queue_s)
+            }
+            queueTimeSeries = bucketMax
+                .map { TimeSeriesDataPoint(granularity_bucket: $0.key, value: $0.value) }
+                .sorted { $0.granularity_bucket < $1.granularity_bucket }
+        } else {
+            queueTimeSeries = []
+        }
+
+        // Disabled tests: convert to time series (using "new" count for chart)
+        if let rawDisabled = await disabledTestsRawResult {
+            disabledTestsSeries = rawDisabled.map {
+                TimeSeriesDataPoint(
+                    granularity_bucket: $0.day,
+                    value: $0.new_tests.map { Double($0) }
+                )
+            }
+            // Use last row's "count" for the total disabled tests count
+            disabledTestsCount = rawDisabled.last?.count
+        } else {
+            disabledTestsSeries = []
+            disabledTestsCount = nil
+        }
+
+        // Commit Health
+        if let commitRed = await commitRedResult, let first = commitRed.first {
+            brokenTrunkPercent = first.broken_trunk_red.map { $0 * 100 }
+            flakyRedPercent = first.flaky_red.map { $0 * 100 }
+        } else {
+            // Fallback: use last value from red rate series
+            if let lastRed = redRateSeries.last?.value {
+                brokenTrunkPercent = lastRed
+            }
+            flakyRedPercent = nil
+        }
+
+        viableStrictLagSeconds = await strictLagResult?.first?.strict_lag_sec
+
+        // Compute trends from red rate series
+        brokenTrunkTrend = computeTrend(from: redRateSeries)
+
+        // Merge Metrics
+        forceMergeFailurePercent = await forceMergeFailureResult?.first?.value
+        forceMergeImpatiencePercent = await forceMergeImpatienceResult?.first?.value
+
+        let failureTrendSeries = await forceMergeTrendResult ?? []
+        forceMergeFailureTrend = computeTrend(from: failureTrendSeries)
+
+        let impatienceTrendSeries = await forceMergeImpTrendResult ?? []
+        forceMergeImpatienceTrend = computeTrend(from: impatienceTrendSeries)
+
+        mergeRetryRate = await retryRateResult?.first?.avg_retry_rate
+        prLandingTimeHours = await landingTimeResult?.first?.avg_hours
+
+        // Signal Metrics - ttrs_percentiles returns "custom" field for the requested percentile
+        ttrsP90Minutes = await ttrsP90Result?.first?.value
+        ttrsP75Minutes = await ttrsP75Result?.first?.value
+
+        // Workflow TTS: for avg query, take max across workflow names; for percentile, single row
+        if let ttsRows = await ttsResult, !ttsRows.isEmpty {
+            if selectedPercentile == -1.0 {
+                // avg query returns one row per workflow, take the max
+                workflowTTSSeconds = ttsRows.map(\.duration_sec).max()
+            } else {
+                workflowTTSSeconds = ttsRows.first?.duration_sec
+            }
+        } else {
+            workflowTTSSeconds = nil
+        }
+
+        // Queue time current: average avg_queue_s across all machine types
+        if let queuedJobs = await queuedJobsResult, !queuedJobs.isEmpty {
+            let totalQueueS = queuedJobs.reduce(0.0) { $0 + $1.avg_queue_s }
+            avgQueueTimeSeconds = totalQueueS / Double(queuedJobs.count)
+        } else {
+            avgQueueTimeSeconds = nil
+        }
+
+        // Build Health
+        lastMainPushSeconds = await mainPushResult?.first?.push_seconds_ago
+        lastNightlyPushSeconds = await nightlyPushResult?.first?.push_seconds_ago
+        lastDockerBuildSeconds = await dockerBuildResult?.first?.last_success_seconds_ago
+        lastDocsPushSeconds = await docsPushResult?.first?.last_success_seconds_ago
+
+        // Activity Metrics
+        revertsCount = await revertsResult?.first?.value.map { Int($0) }
+        commitsCount = await commitsResult?.first?.value.map { Int($0) }
+
+        // LF Rollover: use most recent bucket's percentage
+        lfRolloverPercent = await lfRolloverResult?.first?.percentage
+
+        lastUpdated = Date()
+        state = .loaded
     }
 
     // MARK: - Helpers

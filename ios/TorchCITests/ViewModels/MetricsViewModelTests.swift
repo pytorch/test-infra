@@ -148,8 +148,8 @@ final class MetricsViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.state, .loaded)
         // broken_trunk_red is multiplied by 100
-        XCTAssertEqual(viewModel.brokenTrunkPercent, 8.0, accuracy: 0.01)
-        XCTAssertEqual(viewModel.flakyRedPercent, 12.0, accuracy: 0.01)
+        XCTAssertEqual(viewModel.brokenTrunkPercent ?? 0, 8.0, accuracy: 0.01)
+        XCTAssertEqual(viewModel.flakyRedPercent ?? 0, 12.0, accuracy: 0.01)
         XCTAssertEqual(viewModel.viableStrictLagSeconds, 18000)
     }
 

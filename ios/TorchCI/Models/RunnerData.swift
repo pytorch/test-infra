@@ -3,11 +3,6 @@ import Foundation
 struct RunnersResponse: Decodable {
     let groups: [RunnerGroup]
     let totalRunners: Int?
-
-    enum CodingKeys: String, CodingKey {
-        case groups
-        case totalRunners = "total_runners"
-    }
 }
 
 struct RunnerGroup: Decodable, Identifiable {

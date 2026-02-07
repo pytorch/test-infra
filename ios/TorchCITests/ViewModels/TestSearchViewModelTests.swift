@@ -105,11 +105,21 @@ final class TestSearchViewModelTests: XCTestCase {
     }
 
     func testLoadInitialDataSetsLoadedState() async {
+        // loadInitialData now performs an initial search (with empty filters)
+        registerSearchResponse(tests: [
+            (name: "test_a", classname: "Suite", file: "test.py"),
+        ], count: 1)
+
         await viewModel.loadInitialData()
         XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.tests.count, 1)
     }
 
     func testLoadInitialDataOnlyLoadsOnce() async {
+        registerSearchResponse(tests: [
+            (name: "test_a", classname: "Suite", file: "test.py"),
+        ], count: 1)
+
         await viewModel.loadInitialData()
         XCTAssertEqual(viewModel.state, .loaded)
 

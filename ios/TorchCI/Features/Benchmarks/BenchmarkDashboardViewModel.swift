@@ -43,6 +43,38 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     private let apiClient: APIClientProtocol
     let benchmark: BenchmarkMetadata
 
+    /// Maps benchmark IDs that route to the generic dashboard to their ClickHouse query config.
+    /// Derived from the web app's BENCHMARK_ID_MAPPING.
+    static let benchmarkConfig: [String: (repo: String, benchmarks: [String])] = [
+        "pytorch_operator_microbenchmark": (
+            repo: "pytorch/pytorch",
+            benchmarks: ["PyTorch operator microbenchmark"]
+        ),
+        "pytorch_helion": (
+            repo: "pytorch/helion",
+            benchmarks: ["Helion Benchmark"]
+        ),
+        "executorch_benchmark": (
+            repo: "pytorch/executorch",
+            benchmarks: ["ExecuTorch"]
+        ),
+    ]
+
+    /// Excluded metrics matching the web app's EXCLUDED_METRICS.
+    static let excludedMetrics: [String] = [
+        "load_status",
+        "mean_itl_ms",
+        "mean_tpot_ms",
+        "mean_ttft_ms",
+        "std_itl_ms",
+        "std_tpot_ms",
+        "std_ttft_ms",
+        "cold_compile_time(s)",
+        "warm_compile_time(s)",
+        "speedup_pct",
+        "generate_time(ms)",
+    ]
+
     // MARK: - Computed
 
     var isLoading: Bool { state == .loading }
@@ -210,41 +242,52 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     func loadData() async {
         state = .loading
 
+        let config = Self.benchmarkConfig[benchmark.id]
+        let repo = config?.repo ?? "pytorch/pytorch"
+        let benchmarks = config?.benchmarks ?? [benchmark.name]
+
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
         dateFormatter.timeZone = TimeZone(identifier: "UTC")
+        let startTime = dateFormatter.string(from: startDate)
+        let stopTime = dateFormatter.string(from: endDate)
 
-        let queryParams: [String: Any] = [
+        // Build parameters for the oss_ci_benchmark_llms ClickHouse query.
+        // Must match clickhouse_queries/oss_ci_benchmark_llms/params.json exactly.
+        let dataParameters: [String: Any] = [
+            "arch": "",
             "branches": [selectedBranch],
-            "startTime": dateFormatter.string(from: startDate),
-            "stopTime": dateFormatter.string(from: endDate),
+            "commits": [] as [String],
+            "device": "",
+            "mode": "",
+            "dtypes": [] as [String],
+            "excludedMetrics": Self.excludedMetrics,
+            "benchmarks": benchmarks,
+            "granularity": "day",
+            "models": [] as [String],
+            "backends": [] as [String],
+            "repo": repo,
+            "startTime": startTime,
+            "stopTime": stopTime,
+            "requestRate": "",
         ]
 
-        let groupDataParams: [String: String] = [
-            "benchmark_name": benchmark.id,
-            "repo": "pytorch/pytorch",
-            "start_time": dateFormatter.string(from: startDate),
-            "end_time": dateFormatter.string(from: endDate),
-        ]
-
-        // Pre-build endpoints to avoid capturing non-Sendable [String: Any] in async let
-        let tsEndpoint = APIEndpoint.benchmarkTimeSeries(
-            name: benchmark.id,
-            queryParams: queryParams,
-            responseFormats: ["time_series"]
+        let dataEndpoint = APIEndpoint.clickhouseQuery(
+            name: "oss_ci_benchmark_llms",
+            parameters: dataParameters
         )
-        let groupEndpoint = APIEndpoint.benchmarkGroupData(params: groupDataParams)
+
+        // Also fetch regression reports (this API does not require auth)
         let regressionEndpoint = APIEndpoint.regressionReports(reportId: benchmark.id)
 
         do {
             let client = apiClient
-            async let timeSeriesFetch: BenchmarkTimeSeriesResponse = client.fetch(tsEndpoint)
-            async let groupFetch: BenchmarkGroupData = client.fetch(groupEndpoint)
+            async let dataFetch: [LLMBenchmarkRawRow] = client.fetch(dataEndpoint)
             async let regressionFetch: RegressionReportListResponse = client.fetch(regressionEndpoint)
 
-            let (timeSeriesResponse, group, regressionResponse) = try await (timeSeriesFetch, groupFetch, regressionFetch)
-
-            timeSeriesData = timeSeriesResponse.flattenedTimeSeries
+            let (rawRows, regressionResponse) = try await (dataFetch, regressionFetch)
+            let (timeSeries, group) = Self.convertRawRows(rawRows)
+            timeSeriesData = timeSeries
             groupData = group
             regressionReports = regressionResponse.reports ?? []
 
@@ -256,8 +299,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
             state = .loaded
         } catch {
             // Try loading each piece individually so partial data still shows
-            await loadTimeSeries(queryParams: queryParams)
-            await loadGroupData(params: groupDataParams)
+            await loadTimeSeriesFromClickHouse(parameters: dataParameters)
             await loadRegressions()
 
             if timeSeriesData.isEmpty && groupData == nil {
@@ -282,29 +324,72 @@ final class BenchmarkDashboardViewModel: ObservableObject {
         Task { await loadData() }
     }
 
-    // MARK: - Private
+    // MARK: - Data Conversion
 
-    private func loadTimeSeries(queryParams: [String: Any]) async {
-        do {
-            let result: BenchmarkTimeSeriesResponse = try await apiClient.fetch(
-                APIEndpoint.benchmarkTimeSeries(
-                    name: benchmark.id,
-                    queryParams: queryParams,
-                    responseFormats: ["time_series"]
-                )
-            )
-            timeSeriesData = result.flattenedTimeSeries
-        } catch {
-            // Silently fail for partial load
+    /// Converts raw ClickHouse rows into time series points and group data.
+    /// Reuses the same logic as LLMBenchmarkViewModel.convertRawRows.
+    static func convertRawRows(_ rawRows: [LLMBenchmarkRawRow]) -> ([BenchmarkTimeSeriesPoint], BenchmarkGroupData?) {
+        guard !rawRows.isEmpty else { return ([], nil) }
+
+        // 1. Build time series points from all rows
+        var timeSeriesPoints: [BenchmarkTimeSeriesPoint] = []
+        for row in rawRows {
+            timeSeriesPoints.append(BenchmarkTimeSeriesPoint(
+                commit: "\(row.workflowId)",
+                commitDate: row.granularityBucket,
+                value: row.actual,
+                metric: row.metric,
+                model: row.model
+            ))
         }
+
+        // 2. Build group data by taking the latest workflow per (model, metric, backend, dtype)
+        struct GroupKey: Hashable {
+            let model: String
+            let metric: String
+            let backend: String
+            let dtype: String
+        }
+        var latestByGroup: [GroupKey: LLMBenchmarkRawRow] = [:]
+        for row in rawRows {
+            let key = GroupKey(model: row.model, metric: row.metric, backend: row.backend, dtype: row.dtype)
+            if let existing = latestByGroup[key] {
+                if row.workflowId > existing.workflowId {
+                    latestByGroup[key] = row
+                }
+            } else {
+                latestByGroup[key] = row
+            }
+        }
+
+        let dataPoints: [BenchmarkDataPoint] = latestByGroup.values.map { row in
+            BenchmarkDataPoint(
+                name: row.model,
+                metric: row.metric,
+                value: row.actual,
+                baseline: row.target > 0 ? row.target : nil,
+                speedup: row.target > 0 ? row.actual / row.target : nil,
+                status: nil
+            )
+        }
+
+        let groupData = BenchmarkGroupData(data: dataPoints, metadata: nil)
+        return (timeSeriesPoints, groupData)
     }
 
-    private func loadGroupData(params: [String: String]) async {
+    // MARK: - Private
+
+    private func loadTimeSeriesFromClickHouse(parameters: [String: Any]) async {
         do {
-            let result: BenchmarkGroupData = try await apiClient.fetch(
-                APIEndpoint.benchmarkGroupData(params: params)
+            let rawRows: [LLMBenchmarkRawRow] = try await apiClient.fetch(
+                APIEndpoint.clickhouseQuery(
+                    name: "oss_ci_benchmark_llms",
+                    parameters: parameters
+                )
             )
-            groupData = result
+            let (timeSeries, group) = Self.convertRawRows(rawRows)
+            timeSeriesData = timeSeries
+            groupData = group
         } catch {
             // Silently fail for partial load
         }

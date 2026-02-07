@@ -136,8 +136,8 @@ final class BenchmarkDataTests: XCTestCase {
         XCTAssertEqual(point.name, "torchbench_resnet50")
         XCTAssertEqual(point.metric, "speedup")
         XCTAssertEqual(point.value, 1.45, accuracy: 0.001)
-        XCTAssertEqual(point.baseline, 1.40, accuracy: 0.001)
-        XCTAssertEqual(point.speedup, 1.036, accuracy: 0.001)
+        XCTAssertEqual(point.baseline!, 1.40, accuracy: 0.001)
+        XCTAssertEqual(point.speedup!, 1.036, accuracy: 0.001)
         XCTAssertEqual(point.status, "pass")
         XCTAssertFalse(point.isRegression)
     }
@@ -299,7 +299,7 @@ final class BenchmarkDataTests: XCTestCase {
         XCTAssertEqual(item.metric, "compilation_latency")
         XCTAssertEqual(item.oldValue, 12.5, accuracy: 0.001)
         XCTAssertEqual(item.newValue, 15.8, accuracy: 0.001)
-        XCTAssertEqual(item.delta, 3.3, accuracy: 0.001)
+        XCTAssertEqual(item.delta!, 3.3, accuracy: 0.001)
         XCTAssertEqual(item.changePercent, 26.4, accuracy: 0.1)
     }
 

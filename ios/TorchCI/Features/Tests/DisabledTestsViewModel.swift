@@ -186,6 +186,9 @@ final class DisabledTestsViewModel: ObservableObject {
 
         do {
             // Load detailed test data from clickhouse
+            // Note: The ClickHouse API returns a flat array, not wrapped in {data: [...]}.
+            // The disabled_tests params.json only allows: state, platform, label, triaged
+            // (no repo param needed -- the query already filters by pytorch/pytorch in the SQL).
             let timeRange = APIEndpoint.timeRange(days: 180)
             let response: DisabledTestDetailsResponse = try await apiClient.fetch(
                 .clickhouseQuery(
@@ -194,19 +197,18 @@ final class DisabledTestsViewModel: ObservableObject {
                         "state": "open",
                         "platform": "",
                         "label": "skipped",
-                        "triaged": "",
-                        "repo": "pytorch/pytorch"
+                        "triaged": ""
                     ]
                 )
             )
 
-            self.allTests = response.data.map { detail in
+            self.allTests = response.map { detail in
                 DisabledTest(
                     testName: detail.name,
                     issueNumber: detail.number,
                     issueUrl: detail.htmlUrl,
                     platforms: extractPlatforms(from: detail.body),
-                    assignee: detail.assignee,
+                    assignee: detail.assignee?.isEmpty == true ? nil : detail.assignee,
                     updatedAt: detail.updatedAt,
                     labels: detail.labels,
                     body: detail.body
@@ -226,7 +228,7 @@ final class DisabledTestsViewModel: ObservableObject {
                     ]
                 )
             )
-            self.historicalData = historicalResponse.data
+            self.historicalData = historicalResponse
 
             self.state = .loaded
         } catch {
@@ -245,19 +247,18 @@ final class DisabledTestsViewModel: ObservableObject {
                         "state": "open",
                         "platform": "",
                         "label": "skipped",
-                        "triaged": "",
-                        "repo": "pytorch/pytorch"
+                        "triaged": ""
                     ]
                 )
             )
 
-            self.allTests = response.data.map { detail in
+            self.allTests = response.map { detail in
                 DisabledTest(
                     testName: detail.name,
                     issueNumber: detail.number,
                     issueUrl: detail.htmlUrl,
                     platforms: extractPlatforms(from: detail.body),
-                    assignee: detail.assignee,
+                    assignee: detail.assignee?.isEmpty == true ? nil : detail.assignee,
                     updatedAt: detail.updatedAt,
                     labels: detail.labels,
                     body: detail.body
@@ -277,7 +278,7 @@ final class DisabledTestsViewModel: ObservableObject {
                     ]
                 )
             )
-            self.historicalData = historicalResponse.data
+            self.historicalData = historicalResponse
 
             self.state = .loaded
         } catch {

@@ -36,6 +36,12 @@ struct AuthorInfo: Decodable {
     let login: String?
     let avatarUrl: String?
     let url: String?
+
+    enum CodingKeys: String, CodingKey {
+        case login
+        case avatarUrl = "avatar_url"
+        case url
+    }
 }
 
 struct JobData: Decodable, Identifiable {
@@ -125,7 +131,14 @@ struct JobData: Decodable, Identifiable {
         self.runAttempt = runAttempt
     }
 
-    var isFailure: Bool { conclusion == "failure" }
+    var isFailure: Bool {
+        switch conclusion {
+        case "failure", "cancelled", "time_out", "timed_out":
+            return true
+        default:
+            return false
+        }
+    }
     var isSuccess: Bool { conclusion == "success" }
 
     var durationFormatted: String? {

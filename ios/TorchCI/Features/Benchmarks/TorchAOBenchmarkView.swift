@@ -708,71 +708,131 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
         let startDate = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
 
         do {
-            let queryParams: [String: Any] = [
+            // Use the torchao_query ClickHouse query directly.
+            // Parameters must match clickhouse_queries/torchao_query/params.json exactly:
+            //   branches: Array(String), commits: Array(String), device: String,
+            //   dtypes: Array(String), granularity: String, mode: String,
+            //   repo: String, startTime: DateTime64(3), stopTime: DateTime64(3),
+            //   suites: Array(String), workflowId: Int64
+            let parameters: [String: Any] = [
                 "branches": ["main"],
-                "commits": [],
-                "compilers": [],
+                "commits": [] as [String],
                 "device": selectedDevice,
-                "dtypes": [selectedQuantization == "all" ? "autoquant" : selectedQuantization],
+                "dtypes": selectedQuantization == "all"
+                    ? ["autoquant", "int8dynamic", "int8weightonly", "noquant"]
+                    : [selectedQuantization],
                 "granularity": "hour",
                 "mode": selectedMode,
                 "repo": "pytorch/ao",
                 "startTime": dateFormatter.string(from: startDate),
                 "stopTime": dateFormatter.string(from: now),
-                "suites": selectedSuite == "all" ? ["torchbench", "huggingface", "timm_models"] : [selectedSuite],
+                "suites": selectedSuite == "all"
+                    ? ["torchbench", "huggingface", "timm_models"]
+                    : [selectedSuite],
                 "workflowId": 0,
             ]
 
-            let response: BenchmarkTimeSeriesResponse = try await apiClient.fetch(
-                APIEndpoint.benchmarkTimeSeries(
-                    name: "torchao_query",
-                    queryParams: queryParams,
-                    responseFormats: ["time_series"]
-                )
+            // The ClickHouse API returns a plain JSON array of raw rows.
+            // Each row has: suite, model, dtype, metric, value, extra_info,
+            //               workflow_id, job_id, granularity_bucket
+            let rawRows: [TorchAORawRow] = try await apiClient.fetch(
+                APIEndpoint.clickhouseQuery(name: "torchao_query", parameters: parameters)
             )
-
-            let points = response.flattenedTimeSeries
-
-            var dataPoints: [BenchmarkDataPoint] = []
-            var modelMetrics: [String: (totalValue: Double, totalSpeedup: Double, count: Int)] = [:]
-
-            for point in points {
-                let modelName = point.model ?? "unknown"
-                let key = "\(modelName)-\(point.metric ?? "")"
-
-                if var existing = modelMetrics[key] {
-                    existing.totalValue += point.value
-                    existing.totalSpeedup += point.value > 0 ? (1.0 / point.value) : 1.0
-                    existing.count += 1
-                    modelMetrics[key] = existing
-                } else {
-                    modelMetrics[key] = (point.value, point.value > 0 ? (1.0 / point.value) : 1.0, 1)
-                }
-            }
-
-            for (key, stats) in modelMetrics {
-                let avgValue = stats.totalValue / Double(stats.count)
-                let avgSpeedup = stats.totalSpeedup / Double(stats.count)
-
-                let parts = key.split(separator: "-", maxSplits: 1)
-                let name = String(parts.first ?? "")
-                let metric = parts.count > 1 ? String(parts[1]) : nil
-
-                dataPoints.append(BenchmarkDataPoint(
-                    name: name,
-                    metric: metric,
-                    value: avgValue,
-                    baseline: 1.0,
-                    speedup: avgSpeedup,
-                    status: avgSpeedup >= 0.95 ? "pass" : "fail"
-                ))
-            }
-
-            groupData = BenchmarkGroupData(data: dataPoints, metadata: nil)
+            groupData = Self.pivotRawRows(rawRows)
             state = .loaded
         } catch {
             state = .error(error.localizedDescription)
         }
+    }
+
+    /// Pivots raw ClickHouse rows into aggregated BenchmarkGroupData.
+    /// Groups by (workflow_id, model, dtype) and extracts speedup/accuracy/etc.
+    /// Keeps only the latest workflow per (model, dtype) group.
+    static func pivotRawRows(_ rawRows: [TorchAORawRow]) -> BenchmarkGroupData {
+        // Group by (workflow_id, model, dtype) and pivot metrics
+        struct MutableRecord {
+            let name: String
+            let suite: String
+            let dtype: String
+            let workflowId: Int
+            var speedup: Double?
+            var accuracy: String?
+            var compressionRatio: Double?
+            var absLatency: Double?
+        }
+
+        var grouped: [String: MutableRecord] = [:]
+        for row in rawRows {
+            let key = "\(row.workflowId) \(row.model) \(row.dtype)"
+            if grouped[key] == nil {
+                grouped[key] = MutableRecord(
+                    name: row.model,
+                    suite: row.suite,
+                    dtype: row.dtype,
+                    workflowId: row.workflowId
+                )
+            }
+            switch row.metric {
+            case "speedup":
+                grouped[key]?.speedup = row.value
+            case "accuracy":
+                grouped[key]?.accuracy = "pass" // if it has accuracy data, it passed
+            case "compression_ratio":
+                grouped[key]?.compressionRatio = row.value
+            case "abs_latency":
+                grouped[key]?.absLatency = row.value
+            default:
+                break
+            }
+        }
+
+        // Keep latest workflow per (model, dtype)
+        var latestByModel: [String: MutableRecord] = [:]
+        for entry in grouped.values {
+            let modelKey = "\(entry.name)-\(entry.dtype)"
+            if let existing = latestByModel[modelKey] {
+                if entry.workflowId > existing.workflowId {
+                    latestByModel[modelKey] = entry
+                }
+            } else {
+                latestByModel[modelKey] = entry
+            }
+        }
+
+        let dataPoints: [BenchmarkDataPoint] = latestByModel.values.map { record in
+            BenchmarkDataPoint(
+                name: record.name,
+                metric: record.dtype,
+                value: record.absLatency ?? 0,
+                baseline: 1.0,
+                speedup: record.speedup,
+                status: (record.speedup ?? 0) >= 0.95 ? "pass" : "fail"
+            )
+        }
+
+        return BenchmarkGroupData(data: dataPoints, metadata: nil)
+    }
+}
+
+// MARK: - Raw Row Model
+
+/// Raw row returned by the `torchao_query` ClickHouse query.
+/// Columns: suite, model, dtype, metric, value, extra_info, workflow_id, job_id, granularity_bucket
+struct TorchAORawRow: Decodable {
+    let suite: String
+    let model: String
+    let dtype: String
+    let metric: String
+    let value: Double
+    let workflowId: Int
+    let jobId: Int?
+    let granularityBucket: String
+
+    enum CodingKeys: String, CodingKey {
+        case suite, model, dtype, metric, value
+        case workflowId = "workflow_id"
+        case jobId = "job_id"
+        case granularityBucket = "granularity_bucket"
     }
 }
 

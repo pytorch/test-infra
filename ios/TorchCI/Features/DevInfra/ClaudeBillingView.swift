@@ -520,7 +520,7 @@ final class ClaudeBillingViewModel: ObservableObject {
             let granularity = days <= 7 ? "day" : "week"
             let client = apiClient
 
-            // Fetch daily usage data (main source)
+            // Fetch daily usage data and repo data first (no repo filter needed)
             async let dailyData: [ClaudeUsageRow] = client.fetch(
                 .clickhouseQuery(
                     name: "claude_code_usage_daily",
@@ -531,20 +531,6 @@ final class ClaudeBillingViewModel: ObservableObject {
                 )
             )
 
-            // Fetch per-actor data for top users
-            async let actorData: [ClaudeActorRow] = client.fetch(
-                .clickhouseQuery(
-                    name: "claude_code_usage_by_actor",
-                    parameters: [
-                        "startTime": range.startTime,
-                        "stopTime": range.stopTime,
-                        "granularity": granularity,
-                        "selectedRepos": [] as [String],
-                    ] as [String: Any]
-                )
-            )
-
-            // Fetch per-repo data
             async let repoData: [ClaudeRepoRow] = client.fetch(
                 .clickhouseQuery(
                     name: "claude_code_usage_by_repo",
@@ -557,8 +543,27 @@ final class ClaudeBillingViewModel: ObservableObject {
             )
 
             let daily = try await dailyData
-            let actors = (try? await actorData) ?? []
             let repos = (try? await repoData) ?? []
+
+            // Extract unique repo names from the data to use as selectedRepos
+            // for the actor query (which requires a non-empty selectedRepos)
+            let repoNames = Array(Set(daily.map(\.repo) + repos.map(\.repo)))
+
+            // Fetch per-actor data only if we have repos to filter by
+            var actors: [ClaudeActorRow] = []
+            if !repoNames.isEmpty {
+                actors = (try? await client.fetch(
+                    .clickhouseQuery(
+                        name: "claude_code_usage_by_actor",
+                        parameters: [
+                            "startTime": range.startTime,
+                            "stopTime": range.stopTime,
+                            "granularity": granularity,
+                            "selectedRepos": repoNames,
+                        ] as [String: Any]
+                    )
+                )) ?? []
+            }
 
             applyData(daily: daily, actors: actors, repos: repos, days: days)
             state = .loaded
@@ -746,7 +751,6 @@ private struct ClaudeUsageRow: Decodable {
 /// Row from claude_code_usage_by_actor query
 private struct ClaudeActorRow: Decodable {
     let actor: String
-    let repo: String
     let invocations: Int
     let total_cost: Double
     let total_turns: Int

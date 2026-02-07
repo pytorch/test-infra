@@ -380,7 +380,7 @@ final class APIClientTests: XCTestCase {
         XCTAssertEqual(result.tests.count, 1)
         XCTAssertEqual(result.tests.first?.name, "test_add")
         XCTAssertEqual(result.tests.first?.suite, "torch")
-        XCTAssertEqual(result.totalCount, 1)
+        XCTAssertEqual(result.count, 1)
     }
 
     // MARK: - Auth Token in Headers

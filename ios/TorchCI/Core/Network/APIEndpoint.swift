@@ -85,10 +85,16 @@ extension APIEndpoint {
 // MARK: - Test Endpoints
 extension APIEndpoint {
     static func searchTests(name: String? = nil, suite: String? = nil, file: String? = nil, page: Int = 1) -> APIEndpoint {
-        var items: [URLQueryItem] = [URLQueryItem(name: "page", value: "\(page)")]
-        if let name { items.append(URLQueryItem(name: "name", value: name)) }
-        if let suite { items.append(URLQueryItem(name: "suite", value: suite)) }
-        if let file { items.append(URLQueryItem(name: "file", value: file)) }
+        // The server wraps each parameter with %...% wildcards for LIKE matching.
+        // If a parameter is missing from the query string, the server reads it as
+        // the literal string "undefined" and searches for "%undefined%" which matches
+        // nothing.  Always send empty string so the server gets "%%" (match all).
+        let items: [URLQueryItem] = [
+            URLQueryItem(name: "name", value: name ?? ""),
+            URLQueryItem(name: "suite", value: suite ?? ""),
+            URLQueryItem(name: "file", value: file ?? ""),
+            URLQueryItem(name: "page", value: "\(page)"),
+        ]
         return APIEndpoint(path: "/api/flaky-tests/search", queryItems: items)
     }
 

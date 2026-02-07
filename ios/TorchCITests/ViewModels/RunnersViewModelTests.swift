@@ -52,7 +52,7 @@ final class RunnersViewModelTests: XCTestCase {
 
         let totalRunners = groups.reduce(0) { $0 + $1.runners.count }
         return """
-        {"groups":[\(groupsJSON)],"total_runners":\(totalRunners)}
+        {"groups":[\(groupsJSON)],"totalRunners":\(totalRunners)}
         """
     }
 
@@ -583,7 +583,7 @@ final class RunnersViewModelTests: XCTestCase {
 
     func testEmptyGroupsResponse() async {
         let json = """
-        {"groups":[],"total_runners":0}
+        {"groups":[],"totalRunners":0}
         """
         let endpoint = APIEndpoint.runners(org: "pytorch")
         mockClient.setResponse(json, for: endpoint.path)

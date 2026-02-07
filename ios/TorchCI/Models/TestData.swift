@@ -187,11 +187,11 @@ struct TestTrendPoint: Identifiable {
 
 // MARK: - Disabled Tests Detailed Response (from clickhouse query)
 // GET /api/clickhouse/disabled_tests
-// Returns full issue metadata including assignee, labels, updated_at, body
+// The ClickHouse API returns a flat array of rows directly (not wrapped in {data: [...]})
 
-struct DisabledTestDetailsResponse: Decodable {
-    let data: [DisabledTestDetail]
-}
+// We decode the response as a plain array of DisabledTestDetail.
+// The type alias keeps the intent clear for call sites.
+typealias DisabledTestDetailsResponse = [DisabledTestDetail]
 
 struct DisabledTestDetail: Decodable {
     let number: Int
@@ -211,11 +211,9 @@ struct DisabledTestDetail: Decodable {
 
 // MARK: - Disabled Tests Historical Response
 // GET /api/clickhouse/disabled_test_historical
-// Returns time series data for disabled test counts
+// The ClickHouse API returns a flat array of rows directly (not wrapped in {data: [...]})
 
-struct DisabledTestHistoricalResponse: Decodable {
-    let data: [DisabledTestHistoricalData]
-}
+typealias DisabledTestHistoricalResponse = [DisabledTestHistoricalData]
 
 struct DisabledTestHistoricalData: Decodable, Identifiable {
     let day: String
@@ -225,11 +223,39 @@ struct DisabledTestHistoricalData: Decodable, Identifiable {
 
     var id: String { day }
 
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        day = try container.decode(String.self, forKey: .day)
+        // These fields come from LEFT JOINs and may be null
+        count = try container.decodeIfPresent(Int.self, forKey: .count) ?? 0
+        new = try container.decodeIfPresent(Int.self, forKey: .new) ?? 0
+        deleted = try container.decodeIfPresent(Int.self, forKey: .deleted) ?? 0
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case day, count, new = "new", deleted
+    }
+
     var date: Date? {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(identifier: "UTC")
-        return formatter.date(from: day)
+        // ClickHouse date_time_output_format=iso can return various formats:
+        // "2024-01-15", "2024-01-15 00:00:00.000", "2024-01-15T00:00:00.000Z"
+        for fmt in [
+            "yyyy-MM-dd",
+            "yyyy-MM-dd HH:mm:ss.SSS",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ssZ",
+        ] {
+            formatter.dateFormat = fmt
+            if let d = formatter.date(from: day) { return d }
+        }
+        // Fallback: try just extracting the date portion
+        let prefix = String(day.prefix(10))
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.date(from: prefix)
     }
 }
 

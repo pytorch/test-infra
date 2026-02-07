@@ -25,6 +25,7 @@ final class DisabledTestsViewModelTests: XCTestCase {
     private func makeDisabledTestsJSON(
         tests: [(name: String, number: Int, htmlUrl: String, assignee: String?, updatedAt: String, labels: [String], body: String)]
     ) -> String {
+        // The ClickHouse API returns a flat array, not wrapped in {data: [...]}.
         let testsJSON = tests.map { test in
             let assigneeStr = test.assignee.map { "\"\($0)\"" } ?? "null"
             let labelsStr = test.labels.map { "\"\($0)\"" }.joined(separator: ",")
@@ -41,16 +42,13 @@ final class DisabledTestsViewModelTests: XCTestCase {
             """
         }.joined(separator: ",")
 
-        return """
-        {
-            "data": [\(testsJSON)]
-        }
-        """
+        return "[\(testsJSON)]"
     }
 
     private func makeHistoricalJSON(
         entries: [(day: String, count: Int, new: Int, deleted: Int)]
     ) -> String {
+        // The ClickHouse API returns a flat array, not wrapped in {data: [...]}.
         let entriesJSON = entries.map { entry in
             """
             {
@@ -62,11 +60,7 @@ final class DisabledTestsViewModelTests: XCTestCase {
             """
         }.joined(separator: ",")
 
-        return """
-        {
-            "data": [\(entriesJSON)]
-        }
-        """
+        return "[\(entriesJSON)]"
     }
 
     /// Register both disabled tests and historical data responses.

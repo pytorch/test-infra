@@ -190,21 +190,21 @@ struct HUDGridView: View {
     // MARK: - Status Bar
 
     private func statusBar(stats: RowJobStats) -> some View {
+        let nonBlockingFails = max(0, stats.newFailureCount + stats.repeatFailureCount - stats.blockingFailureCount)
         let segments: [(Color, Int)] = [
             (AppColors.success, stats.successCount),
             (AppColors.failure, stats.blockingFailureCount),
-            (AppColors.failure.opacity(0.5), stats.newFailureCount + stats.repeatFailureCount - stats.blockingFailureCount),
+            (AppColors.failure.opacity(0.5), nonBlockingFails),
             (AppColors.unstable, stats.unstableFailureCount),
             (AppColors.pending, stats.pendingCount),
         ].filter { $0.1 > 0 }
 
+        // Use large maxWidth proportional to count so SwiftUI compresses proportionally
         return HStack(spacing: 0.5) {
             ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                 Rectangle()
                     .fill(segment.0)
-                    .frame(height: 5)
-                    .frame(maxWidth: .infinity)
-                    .layoutPriority(Double(segment.1))
+                    .frame(maxWidth: CGFloat(segment.1) * 10000, maxHeight: 5)
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 2))

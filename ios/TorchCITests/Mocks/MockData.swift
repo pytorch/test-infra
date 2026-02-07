@@ -194,33 +194,30 @@ enum MockData {
     {
         "commit": {
             "sha": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3",
-            "title": "Add torch.compile support for custom ops (#99001)",
-            "body": "This PR adds torch.compile support for user-defined custom operators.",
-            "author": {
-                "login": "compiler-dev",
-                "avatar_url": "https://avatars.githubusercontent.com/u/12345678",
-                "url": "https://github.com/compiler-dev"
-            },
-            "commitDate": "2025-01-20T14:30:00Z",
-            "prNumber": 99001,
+            "commitTitle": "Add torch.compile support for custom ops (#99001)",
+            "commitMessageBody": "This PR adds torch.compile support for user-defined custom operators.",
+            "author": "compiler-dev",
+            "authorUrl": "https://github.com/compiler-dev",
+            "time": "2025-01-20T14:30:00Z",
+            "prNum": 99001,
             "diffNum": "D12345678"
         },
         "jobs": [
             {
                 "id": 200001,
                 "name": "pull / linux-jammy-py3.10-gcc9 / build",
-                "workflow_name": "pull",
-                "workflow_id": 5001,
-                "job_name": "linux-jammy-py3.10-gcc9 / build",
+                "workflowName": "pull",
+                "workflowId": 5001,
+                "jobName": "linux-jammy-py3.10-gcc9 / build",
                 "conclusion": "success",
-                "html_url": "https://github.com/pytorch/pytorch/actions/runs/200001",
-                "log_url": "https://ossci-raw-job-status.s3.amazonaws.com/log/200001",
-                "duration_s": 1920,
-                "failure_lines": [],
-                "failure_captures": [],
-                "failure_context": null,
-                "runner_name": "i-0abc111def222",
-                "runner_group": "linux.2xlarge",
+                "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/200001",
+                "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/200001",
+                "durationS": 1920,
+                "failureLines": [],
+                "failureCaptures": [],
+                "failureContext": null,
+                "runnerName": "i-0abc111def222",
+                "runnerGroup": "linux.2xlarge",
                 "status": "completed",
                 "steps": [
                     {
@@ -240,27 +237,27 @@ enum MockData {
                 ],
                 "time": "2025-01-20T14:31:00Z",
                 "unstable": false,
-                "previous_run": null
+                "previousRun": null
             },
             {
                 "id": 200002,
                 "name": "pull / linux-jammy-py3.10-gcc9 / test (default, 1, 3)",
-                "workflow_name": "pull",
-                "workflow_id": 5001,
-                "job_name": "linux-jammy-py3.10-gcc9 / test (default, 1, 3)",
+                "workflowName": "pull",
+                "workflowId": 5001,
+                "jobName": "linux-jammy-py3.10-gcc9 / test (default, 1, 3)",
                 "conclusion": "failure",
-                "html_url": "https://github.com/pytorch/pytorch/actions/runs/200002",
-                "log_url": "https://ossci-raw-job-status.s3.amazonaws.com/log/200002",
-                "duration_s": 3780,
-                "failure_lines": [
+                "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/200002",
+                "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/200002",
+                "durationS": 3780,
+                "failureLines": [
                     "FAIL: test_compile_custom_op (test_custom_ops.TestCustomOps)"
                 ],
-                "failure_captures": [
+                "failureCaptures": [
                     "RuntimeError: unsupported operator: my_custom_op"
                 ],
-                "failure_context": "test_custom_ops.py:142",
-                "runner_name": "i-0ghi333jkl444",
-                "runner_group": "linux.2xlarge",
+                "failureContext": "test_custom_ops.py:142",
+                "runnerName": "i-0ghi333jkl444",
+                "runnerGroup": "linux.2xlarge",
                 "status": "completed",
                 "steps": [
                     {
@@ -280,52 +277,52 @@ enum MockData {
                 ],
                 "time": "2025-01-20T15:05:00Z",
                 "unstable": false,
-                "previous_run": {
+                "previousRun": {
                     "conclusion": "success",
-                    "html_url": "https://github.com/pytorch/pytorch/actions/runs/199999"
+                    "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/199999"
                 }
             },
             {
                 "id": 200003,
                 "name": "trunk / win-vs2022-cpu-py3 / build",
-                "workflow_name": "trunk",
-                "workflow_id": 5002,
-                "job_name": "win-vs2022-cpu-py3 / build",
+                "workflowName": "trunk",
+                "workflowId": 5002,
+                "jobName": "win-vs2022-cpu-py3 / build",
                 "conclusion": "success",
-                "html_url": "https://github.com/pytorch/pytorch/actions/runs/200003",
-                "log_url": null,
-                "duration_s": 2700,
-                "failure_lines": [],
-                "failure_captures": [],
-                "failure_context": null,
-                "runner_name": "i-0mno555pqr666",
-                "runner_group": "windows.4xlarge",
+                "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/200003",
+                "logUrl": null,
+                "durationS": 2700,
+                "failureLines": [],
+                "failureCaptures": [],
+                "failureContext": null,
+                "runnerName": "i-0mno555pqr666",
+                "runnerGroup": "windows.4xlarge",
                 "status": "completed",
                 "steps": [],
                 "time": "2025-01-20T14:31:00Z",
                 "unstable": false,
-                "previous_run": null
+                "previousRun": null
             },
             {
                 "id": 200004,
                 "name": "trunk / win-vs2022-cpu-py3 / test",
-                "workflow_name": "trunk",
-                "workflow_id": 5002,
-                "job_name": "win-vs2022-cpu-py3 / test",
+                "workflowName": "trunk",
+                "workflowId": 5002,
+                "jobName": "win-vs2022-cpu-py3 / test",
                 "conclusion": null,
-                "html_url": null,
-                "log_url": null,
-                "duration_s": null,
-                "failure_lines": null,
-                "failure_captures": null,
-                "failure_context": null,
-                "runner_name": null,
-                "runner_group": null,
+                "htmlUrl": null,
+                "logUrl": null,
+                "durationS": null,
+                "failureLines": null,
+                "failureCaptures": null,
+                "failureContext": null,
+                "runnerName": null,
+                "runnerGroup": null,
                 "status": "queued",
                 "steps": null,
                 "time": null,
                 "unstable": null,
-                "previous_run": null
+                "previousRun": null
             }
         ]
     }
@@ -377,7 +374,11 @@ enum MockData {
     {
         "groups": [
             {
-                "name": "linux.2xlarge",
+                "label": "linux.2xlarge",
+                "totalCount": 3,
+                "idleCount": 1,
+                "busyCount": 1,
+                "offlineCount": 1,
                 "runners": [
                     {
                         "id": 50001,
@@ -414,7 +415,11 @@ enum MockData {
                 ]
             },
             {
-                "name": "windows.4xlarge",
+                "label": "windows.4xlarge",
+                "totalCount": 2,
+                "idleCount": 0,
+                "busyCount": 2,
+                "offlineCount": 0,
                 "runners": [
                     {
                         "id": 50004,
@@ -439,7 +444,7 @@ enum MockData {
                 ]
             }
         ],
-        "total_runners": 5
+        "totalRunners": 5
     }
     """
 

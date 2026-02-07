@@ -200,8 +200,14 @@ final class TestSearchViewModel: ObservableObject {
 
     func loadInitialData() async {
         guard state == .idle else { return }
-        // Don't auto-search on load, wait for user input
-        state = .loaded
+        // Load an initial page of test results (all tests, no filter) so
+        // the view isn't empty on first appearance.  The web version also
+        // fetches results immediately with empty search params.
+        if selectedTab == .disabled {
+            await performSearch()
+        } else {
+            await performSearch()
+        }
     }
 
     func applyFilters() {

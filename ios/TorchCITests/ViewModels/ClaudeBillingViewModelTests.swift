@@ -20,117 +20,67 @@ final class ClaudeBillingViewModelTests: XCTestCase {
         super.tearDown()
     }
 
+    // MARK: - Endpoint Paths
+
+    private let dailyPath = "/api/clickhouse/claude_code_usage_daily"
+    private let repoPath = "/api/clickhouse/claude_code_usage_by_repo"
+    private let actorPath = "/api/clickhouse/claude_code_usage_by_actor"
+
     // MARK: - Helpers
 
-    private let endpointPath = "/api/clickhouse/claude_billing_metrics"
-
-    private func makeBillingJSON(
-        totalCost: Double = 1234.56,
-        inputTokensCost: Double = 800.00,
-        outputTokensCost: Double = 434.56,
-        totalRequests: Int = 5000,
-        totalTokens: Int = 2_500_000,
-        inputTokensCount: Int = 1_800_000,
-        outputTokensCount: Int = 700_000,
-        includeModels: Bool = true,
-        includeWorkflows: Bool = true,
-        includeUsers: Bool = true,
-        includeRepos: Bool = true,
-        includeTimeSeries: Bool = true
-    ) -> String {
-        var parts: [String] = []
-
-        parts.append("\"total_cost\": \(totalCost)")
-        parts.append("\"input_tokens_cost\": \(inputTokensCost)")
-        parts.append("\"output_tokens_cost\": \(outputTokensCost)")
-        parts.append("\"total_requests\": \(totalRequests)")
-        parts.append("\"total_tokens\": \(totalTokens)")
-        parts.append("\"input_tokens_count\": \(inputTokensCount)")
-        parts.append("\"output_tokens_count\": \(outputTokensCount)")
-
-        if includeModels {
-            parts.append("""
-            "model_breakdown": [
-                {"model": "claude-sonnet-4-20250514", "cost": 900.0},
-                {"model": "claude-haiku-4-20250514", "cost": 250.0},
-                {"model": "claude-opus-4-20250514", "cost": 84.56}
-            ]
-            """)
-        }
-
-        if includeWorkflows {
-            parts.append("""
-            "workflow_breakdown": [
-                {"workflow_name": "code-review", "cost": 600.0, "request_count": 2000},
-                {"workflow_name": "ci-fix", "cost": 400.0, "request_count": 1500},
-                {"workflow_name": "docs-gen", "cost": 234.56, "request_count": 1500}
-            ]
-            """)
-        }
-
-        if includeUsers {
-            parts.append("""
-            "top_users": [
-                {"username": "pytorch-dev", "cost": 500.0, "request_count": 1200},
-                {"username": "cuda-maintainer", "cost": 350.0, "request_count": 800},
-                {"username": "compiler-dev", "cost": 200.0, "request_count": 600}
-            ]
-            """)
-        }
-
-        if includeRepos {
-            parts.append("""
-            "top_repos": [
-                {"repo_name": "pytorch/pytorch", "cost": 900.0, "request_count": 3500},
-                {"repo_name": "pytorch/vision", "cost": 200.0, "request_count": 800},
-                {"repo_name": "pytorch/audio", "cost": 134.56, "request_count": 700}
-            ]
-            """)
-        }
-
-        if includeTimeSeries {
-            parts.append("""
-            "cost_time_series": [
-                {"granularity_bucket": "2025-01-15T00:00:00.000Z", "value": 150.0},
-                {"granularity_bucket": "2025-01-16T00:00:00.000Z", "value": 200.0},
-                {"granularity_bucket": "2025-01-17T00:00:00.000Z", "value": 175.0}
-            ]
-            """)
-        }
-
-        return "{\(parts.joined(separator: ","))}"
+    /// Register daily usage rows. Each row has: day, workflow_name, repo,
+    /// invocations, total_cost, total_turns, total_minutes,
+    /// avg_cost_per_invocation, avg_turns_per_invocation.
+    private func registerDailyResponse(_ json: String) {
+        mockClient.setResponse(json, for: dailyPath)
     }
 
-    private func setSuccessfulBillingResponse(
-        totalCost: Double = 1234.56,
-        inputTokensCost: Double = 800.00,
-        outputTokensCost: Double = 434.56,
-        totalRequests: Int = 5000,
-        totalTokens: Int = 2_500_000,
-        inputTokensCount: Int = 1_800_000,
-        outputTokensCount: Int = 700_000,
-        includeModels: Bool = true,
-        includeWorkflows: Bool = true,
-        includeUsers: Bool = true,
-        includeRepos: Bool = true,
-        includeTimeSeries: Bool = true
+    private func registerRepoResponse(_ json: String) {
+        mockClient.setResponse(json, for: repoPath)
+    }
+
+    private func registerActorResponse(_ json: String) {
+        mockClient.setResponse(json, for: actorPath)
+    }
+
+    /// Register standard responses for all three endpoints.
+    private func registerAllResponses(
+        daily: String = ClaudeBillingViewModelTests.defaultDailyJSON,
+        repo: String = ClaudeBillingViewModelTests.defaultRepoJSON,
+        actor: String = ClaudeBillingViewModelTests.defaultActorJSON
     ) {
-        let json = makeBillingJSON(
-            totalCost: totalCost,
-            inputTokensCost: inputTokensCost,
-            outputTokensCost: outputTokensCost,
-            totalRequests: totalRequests,
-            totalTokens: totalTokens,
-            inputTokensCount: inputTokensCount,
-            outputTokensCount: outputTokensCount,
-            includeModels: includeModels,
-            includeWorkflows: includeWorkflows,
-            includeUsers: includeUsers,
-            includeRepos: includeRepos,
-            includeTimeSeries: includeTimeSeries
-        )
-        mockClient.setResponse(json, for: endpointPath)
+        registerDailyResponse(daily)
+        registerRepoResponse(repo)
+        registerActorResponse(actor)
     }
+
+    // MARK: - JSON Fixtures
+
+    private static let defaultDailyJSON = """
+    [
+        {"day":"2025-01-15","workflow_name":"code-review","repo":"pytorch/pytorch","invocations":500,"total_cost":300.0,"total_turns":1000,"total_minutes":100.0,"avg_cost_per_invocation":0.6,"avg_turns_per_invocation":2.0},
+        {"day":"2025-01-15","workflow_name":"ci-fix","repo":"pytorch/pytorch","invocations":200,"total_cost":150.0,"total_turns":400,"total_minutes":50.0,"avg_cost_per_invocation":0.75,"avg_turns_per_invocation":2.0},
+        {"day":"2025-01-16","workflow_name":"code-review","repo":"pytorch/vision","invocations":300,"total_cost":200.0,"total_turns":600,"total_minutes":80.0,"avg_cost_per_invocation":0.67,"avg_turns_per_invocation":2.0},
+        {"day":"2025-01-17","workflow_name":"ci-fix","repo":"pytorch/pytorch","invocations":100,"total_cost":100.0,"total_turns":200,"total_minutes":30.0,"avg_cost_per_invocation":1.0,"avg_turns_per_invocation":2.0}
+    ]
+    """
+
+    private static let defaultRepoJSON = """
+    [
+        {"repo":"pytorch/pytorch","invocations":700,"total_cost":450.0,"total_turns":1400,"total_minutes":150.0},
+        {"repo":"pytorch/vision","invocations":300,"total_cost":200.0,"total_turns":600,"total_minutes":80.0}
+    ]
+    """
+
+    private static let defaultActorJSON = """
+    [
+        {"actor":"pytorch-dev","invocations":500,"total_cost":350.0,"total_turns":1000,"total_minutes":100.0},
+        {"actor":"cuda-maintainer","invocations":300,"total_cost":200.0,"total_turns":600,"total_minutes":80.0},
+        {"actor":"compiler-dev","invocations":100,"total_cost":100.0,"total_turns":200,"total_minutes":30.0}
+    ]
+    """
+
+    private static let emptyJSON = "[]"
 
     // MARK: - Initial State
 
@@ -139,12 +89,6 @@ final class ClaudeBillingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedTimeRange, "7d")
         XCTAssertEqual(viewModel.totalCost, "$0.00")
         XCTAssertEqual(viewModel.avgDailyCost, "$0.00")
-        XCTAssertEqual(viewModel.inputTokensCost, "$0.00")
-        XCTAssertEqual(viewModel.outputTokensCost, "$0.00")
-        XCTAssertEqual(viewModel.totalRequests, "0")
-        XCTAssertEqual(viewModel.totalTokens, "0")
-        XCTAssertEqual(viewModel.inputTokens, "0")
-        XCTAssertEqual(viewModel.outputTokens, "0")
         XCTAssertTrue(viewModel.costByModel.isEmpty)
         XCTAssertTrue(viewModel.costByWorkflow.isEmpty)
         XCTAssertTrue(viewModel.topUsers.isEmpty)
@@ -155,138 +99,117 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     // MARK: - Load Data Success
 
     func testLoadDataPopulatesCostMetrics() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertEqual(viewModel.totalCost, "$1.2K")
-        XCTAssertEqual(viewModel.inputTokensCost, "$800.00")
-        XCTAssertEqual(viewModel.outputTokensCost, "$434.56")
+        // Total cost = 300 + 150 + 200 + 100 = 750
+        XCTAssertEqual(viewModel.totalCost, "$750.00")
     }
 
     func testLoadDataPopulatesUsageMetrics() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.loadData()
 
-        XCTAssertEqual(viewModel.totalRequests, "5.0K")
-        XCTAssertEqual(viewModel.totalTokens, "2.5M")
-        XCTAssertEqual(viewModel.inputTokens, "1.8M")
-        XCTAssertEqual(viewModel.outputTokens, "700.0K")
+        // Total invocations = 500 + 200 + 300 + 100 = 1100
+        XCTAssertEqual(viewModel.totalRequests, "1.1K")
+        // Total turns = 1000 + 400 + 600 + 200 = 2200
+        XCTAssertEqual(viewModel.totalTokens, "2.2K")
     }
 
     func testLoadDataCalculatesDailyAverage() async {
-        setSuccessfulBillingResponse(totalCost: 700.00)
+        registerAllResponses()
 
         await viewModel.loadData()
 
-        // Default range is 7d, so $700 / 7 = $100
-        XCTAssertEqual(viewModel.avgDailyCost, "$100.00")
-    }
-
-    func testLoadDataPopulatesModelBreakdown() async {
-        setSuccessfulBillingResponse()
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.costByModel.count, 3)
-        // Should be sorted by cost descending
-        XCTAssertEqual(viewModel.costByModel[0].model, "claude-sonnet-4-20250514")
-        XCTAssertEqual(viewModel.costByModel[0].cost, 900.0)
-        XCTAssertEqual(viewModel.costByModel[1].model, "claude-haiku-4-20250514")
-        XCTAssertEqual(viewModel.costByModel[1].cost, 250.0)
-        XCTAssertEqual(viewModel.costByModel[2].model, "claude-opus-4-20250514")
-        XCTAssertEqual(viewModel.costByModel[2].cost, 84.56)
+        // Default is 7d: $750 / 7 = $107.14
+        XCTAssertEqual(viewModel.avgDailyCost, "$107.14")
     }
 
     func testLoadDataPopulatesWorkflowBreakdown() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.loadData()
 
-        XCTAssertEqual(viewModel.costByWorkflow.count, 3)
-        // Should be sorted by cost descending
+        XCTAssertEqual(viewModel.costByWorkflow.count, 2)
+        // code-review: 300 + 200 = 500, ci-fix: 150 + 100 = 250
+        // Sorted by cost descending
         XCTAssertEqual(viewModel.costByWorkflow[0].name, "code-review")
-        XCTAssertEqual(viewModel.costByWorkflow[0].cost, 600.0)
-        XCTAssertEqual(viewModel.costByWorkflow[0].requestCount, 2000)
+        XCTAssertEqual(viewModel.costByWorkflow[0].cost, 500.0)
         XCTAssertEqual(viewModel.costByWorkflow[1].name, "ci-fix")
-        XCTAssertEqual(viewModel.costByWorkflow[2].name, "docs-gen")
+        XCTAssertEqual(viewModel.costByWorkflow[1].cost, 250.0)
     }
 
     func testLoadDataPopulatesTopUsers() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.topUsers.count, 3)
         XCTAssertEqual(viewModel.topUsers[0].name, "pytorch-dev")
-        XCTAssertEqual(viewModel.topUsers[0].cost, 500.0)
-        XCTAssertEqual(viewModel.topUsers[0].requestCount, 1200)
+        XCTAssertEqual(viewModel.topUsers[0].cost, 350.0)
         XCTAssertEqual(viewModel.topUsers[1].name, "cuda-maintainer")
         XCTAssertEqual(viewModel.topUsers[2].name, "compiler-dev")
     }
 
     func testLoadDataPopulatesTopRepos() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.loadData()
 
-        XCTAssertEqual(viewModel.topRepos.count, 3)
+        XCTAssertEqual(viewModel.topRepos.count, 2)
         XCTAssertEqual(viewModel.topRepos[0].name, "pytorch/pytorch")
-        XCTAssertEqual(viewModel.topRepos[0].cost, 900.0)
-        XCTAssertEqual(viewModel.topRepos[0].requestCount, 3500)
+        XCTAssertEqual(viewModel.topRepos[0].cost, 450.0)
         XCTAssertEqual(viewModel.topRepos[1].name, "pytorch/vision")
-        XCTAssertEqual(viewModel.topRepos[2].name, "pytorch/audio")
     }
 
     func testLoadDataPopulatesTimeSeries() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.loadData()
 
+        // 3 unique days: 2025-01-15, 2025-01-16, 2025-01-17
         XCTAssertEqual(viewModel.costTrendData.count, 3)
-        XCTAssertEqual(viewModel.costTrendData[0].value, 150.0)
+        // Sorted by date ascending
+        XCTAssertEqual(viewModel.costTrendData[0].granularity_bucket, "2025-01-15")
+        XCTAssertEqual(viewModel.costTrendData[0].value, 450.0) // 300 + 150
+        XCTAssertEqual(viewModel.costTrendData[1].granularity_bucket, "2025-01-16")
         XCTAssertEqual(viewModel.costTrendData[1].value, 200.0)
-        XCTAssertEqual(viewModel.costTrendData[2].value, 175.0)
+        XCTAssertEqual(viewModel.costTrendData[2].granularity_bucket, "2025-01-17")
+        XCTAssertEqual(viewModel.costTrendData[2].value, 100.0)
     }
 
-    // MARK: - Load Data with Missing Optional Fields
-
-    func testLoadDataWithNoBreakdowns() async {
-        setSuccessfulBillingResponse(
-            includeModels: false,
-            includeWorkflows: false,
-            includeUsers: false,
-            includeRepos: false,
-            includeTimeSeries: false
-        )
+    func testModelBreakdownIsAlwaysEmpty() async {
+        // The real queries don't return per-model data
+        registerAllResponses()
 
         await viewModel.loadData()
 
-        XCTAssertEqual(viewModel.state, .loaded)
         XCTAssertTrue(viewModel.costByModel.isEmpty)
-        XCTAssertTrue(viewModel.costByWorkflow.isEmpty)
-        XCTAssertTrue(viewModel.topUsers.isEmpty)
-        XCTAssertTrue(viewModel.topRepos.isEmpty)
-        XCTAssertTrue(viewModel.costTrendData.isEmpty)
-        // Cost metrics should still be populated
-        XCTAssertEqual(viewModel.totalCost, "$1.2K")
     }
 
-    func testLoadDataWithNullFieldsFallsBackToDefaults() async {
-        let json = """
-        {
-            "total_cost": null,
-            "input_tokens_cost": null,
-            "output_tokens_cost": null,
-            "total_requests": null,
-            "total_tokens": null,
-            "input_tokens_count": null,
-            "output_tokens_count": null
-        }
-        """
-        mockClient.setResponse(json, for: endpointPath)
+    func testTokenCostFieldsShowDash() async {
+        // The daily query doesn't provide token cost breakdowns
+        registerAllResponses()
+
+        await viewModel.loadData()
+
+        XCTAssertEqual(viewModel.inputTokensCost, "--")
+        XCTAssertEqual(viewModel.outputTokensCost, "--")
+        XCTAssertEqual(viewModel.inputTokens, "--")
+        XCTAssertEqual(viewModel.outputTokens, "--")
+    }
+
+    // MARK: - Empty Data
+
+    func testLoadDataWithEmptyResponses() async {
+        registerAllResponses(
+            daily: Self.emptyJSON,
+            repo: Self.emptyJSON,
+            actor: Self.emptyJSON
+        )
 
         await viewModel.loadData()
 
@@ -294,12 +217,16 @@ final class ClaudeBillingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.totalCost, "$0.00")
         XCTAssertEqual(viewModel.totalRequests, "0")
         XCTAssertEqual(viewModel.totalTokens, "0")
+        XCTAssertTrue(viewModel.costByWorkflow.isEmpty)
+        XCTAssertTrue(viewModel.topUsers.isEmpty)
+        XCTAssertTrue(viewModel.topRepos.isEmpty)
+        XCTAssertTrue(viewModel.costTrendData.isEmpty)
     }
 
     // MARK: - Load Data Error
 
     func testLoadDataErrorSetsErrorState() async {
-        mockClient.setError(APIError.serverError(500), for: endpointPath)
+        mockClient.setError(APIError.serverError(500), for: dailyPath)
 
         await viewModel.loadData()
 
@@ -322,7 +249,7 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     }
 
     func testLoadDataSetsLoadingStateDuringFetch() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         XCTAssertEqual(viewModel.state, .idle)
 
@@ -334,17 +261,16 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     // MARK: - Refresh
 
     func testRefreshCallsLoadData() async {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
 
         await viewModel.refresh()
 
         XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertEqual(mockClient.callCount, 1)
     }
 
     func testRefreshAfterErrorRecoverToLoaded() async {
         // First load fails
-        mockClient.setError(APIError.serverError(500), for: endpointPath)
+        mockClient.setError(APIError.serverError(500), for: dailyPath)
         await viewModel.loadData()
 
         if case .error = viewModel.state {
@@ -355,11 +281,11 @@ final class ClaudeBillingViewModelTests: XCTestCase {
 
         // Fix the response and refresh
         mockClient.errors.removeAll()
-        setSuccessfulBillingResponse()
+        registerAllResponses()
         await viewModel.refresh()
 
         XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertEqual(viewModel.totalCost, "$1.2K")
+        XCTAssertEqual(viewModel.totalCost, "$750.00")
     }
 
     // MARK: - Time Range Selection
@@ -367,14 +293,14 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     func testSelectTimeRangeUpdatesRange() {
         XCTAssertEqual(viewModel.selectedTimeRange, "7d")
 
-        setSuccessfulBillingResponse()
+        registerAllResponses()
         viewModel.selectTimeRange("30d")
 
         XCTAssertEqual(viewModel.selectedTimeRange, "30d")
     }
 
     func testSelectSameTimeRangeDoesNotReload() {
-        setSuccessfulBillingResponse()
+        registerAllResponses()
         viewModel.selectTimeRange("7d")
 
         // Should not make any API calls since the range didn't change
@@ -398,18 +324,13 @@ final class ClaudeBillingViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.timeRangeLabel, "selected period")
     }
 
-    func testDailyAverageForDifferentRanges() async {
-        setSuccessfulBillingResponse(totalCost: 100.0)
-
-        // Default is 7d: $100 / 7 = $14.29
-        await viewModel.loadData()
-        XCTAssertEqual(viewModel.avgDailyCost, "$14.29")
-    }
-
     // MARK: - Currency Formatting
 
     func testCurrencyFormattingBelowThousand() async {
-        setSuccessfulBillingResponse(totalCost: 42.50)
+        let json = """
+        [{"day":"2025-01-15","workflow_name":"ci","repo":"pytorch/pytorch","invocations":1,"total_cost":42.50,"total_turns":10,"total_minutes":5.0,"avg_cost_per_invocation":42.5,"avg_turns_per_invocation":10.0}]
+        """
+        registerAllResponses(daily: json, repo: Self.emptyJSON, actor: Self.emptyJSON)
 
         await viewModel.loadData()
 
@@ -417,7 +338,10 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     }
 
     func testCurrencyFormattingAboveThousand() async {
-        setSuccessfulBillingResponse(totalCost: 5678.90)
+        let json = """
+        [{"day":"2025-01-15","workflow_name":"ci","repo":"pytorch/pytorch","invocations":1,"total_cost":5678.90,"total_turns":10,"total_minutes":5.0,"avg_cost_per_invocation":5678.9,"avg_turns_per_invocation":10.0}]
+        """
+        registerAllResponses(daily: json, repo: Self.emptyJSON, actor: Self.emptyJSON)
 
         await viewModel.loadData()
 
@@ -425,7 +349,7 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     }
 
     func testCurrencyFormattingZero() async {
-        setSuccessfulBillingResponse(totalCost: 0.0)
+        registerAllResponses(daily: Self.emptyJSON, repo: Self.emptyJSON, actor: Self.emptyJSON)
 
         await viewModel.loadData()
 
@@ -435,7 +359,10 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     // MARK: - Count Formatting
 
     func testCountFormattingSmallNumbers() async {
-        setSuccessfulBillingResponse(totalRequests: 42)
+        let json = """
+        [{"day":"2025-01-15","workflow_name":"ci","repo":"pytorch/pytorch","invocations":42,"total_cost":10.0,"total_turns":100,"total_minutes":5.0,"avg_cost_per_invocation":0.24,"avg_turns_per_invocation":2.4}]
+        """
+        registerAllResponses(daily: json, repo: Self.emptyJSON, actor: Self.emptyJSON)
 
         await viewModel.loadData()
 
@@ -443,19 +370,14 @@ final class ClaudeBillingViewModelTests: XCTestCase {
     }
 
     func testCountFormattingThousands() async {
-        setSuccessfulBillingResponse(totalRequests: 5000)
+        let json = """
+        [{"day":"2025-01-15","workflow_name":"ci","repo":"pytorch/pytorch","invocations":5000,"total_cost":100.0,"total_turns":10000,"total_minutes":500.0,"avg_cost_per_invocation":0.02,"avg_turns_per_invocation":2.0}]
+        """
+        registerAllResponses(daily: json, repo: Self.emptyJSON, actor: Self.emptyJSON)
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.totalRequests, "5.0K")
-    }
-
-    func testCountFormattingMillions() async {
-        setSuccessfulBillingResponse(totalTokens: 2_500_000)
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.totalTokens, "2.5M")
     }
 
     // MARK: - Display Model Formatting
@@ -501,121 +423,6 @@ final class ClaudeBillingViewModelTests: XCTestCase {
         XCTAssertEqual(entry.costFormatted, "$10.0K")
     }
 
-    // MARK: - Sorting Behavior
-
-    func testModelBreakdownSortedByCostDescending() async {
-        let json = """
-        {
-            "total_cost": 100.0,
-            "model_breakdown": [
-                {"model": "cheapest", "cost": 10.0},
-                {"model": "middle", "cost": 50.0},
-                {"model": "expensive", "cost": 100.0}
-            ]
-        }
-        """
-        mockClient.setResponse(json, for: endpointPath)
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.costByModel[0].model, "expensive")
-        XCTAssertEqual(viewModel.costByModel[1].model, "middle")
-        XCTAssertEqual(viewModel.costByModel[2].model, "cheapest")
-    }
-
-    func testWorkflowBreakdownSortedByCostDescending() async {
-        let json = """
-        {
-            "total_cost": 100.0,
-            "workflow_breakdown": [
-                {"workflow_name": "cheap", "cost": 5.0, "request_count": 10},
-                {"workflow_name": "expensive", "cost": 50.0, "request_count": 100},
-                {"workflow_name": "medium", "cost": 25.0, "request_count": 50}
-            ]
-        }
-        """
-        mockClient.setResponse(json, for: endpointPath)
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.costByWorkflow[0].name, "expensive")
-        XCTAssertEqual(viewModel.costByWorkflow[1].name, "medium")
-        XCTAssertEqual(viewModel.costByWorkflow[2].name, "cheap")
-    }
-
-    func testUsersSortedByCostDescending() async {
-        let json = """
-        {
-            "total_cost": 100.0,
-            "top_users": [
-                {"username": "low", "cost": 10.0, "request_count": 5},
-                {"username": "high", "cost": 90.0, "request_count": 50},
-                {"username": "mid", "cost": 40.0, "request_count": 20}
-            ]
-        }
-        """
-        mockClient.setResponse(json, for: endpointPath)
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.topUsers[0].name, "high")
-        XCTAssertEqual(viewModel.topUsers[1].name, "mid")
-        XCTAssertEqual(viewModel.topUsers[2].name, "low")
-    }
-
-    func testReposSortedByCostDescending() async {
-        let json = """
-        {
-            "total_cost": 100.0,
-            "top_repos": [
-                {"repo_name": "small-repo", "cost": 5.0, "request_count": 10},
-                {"repo_name": "big-repo", "cost": 80.0, "request_count": 400},
-                {"repo_name": "mid-repo", "cost": 30.0, "request_count": 100}
-            ]
-        }
-        """
-        mockClient.setResponse(json, for: endpointPath)
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.topRepos[0].name, "big-repo")
-        XCTAssertEqual(viewModel.topRepos[1].name, "mid-repo")
-        XCTAssertEqual(viewModel.topRepos[2].name, "small-repo")
-    }
-
-    // MARK: - Unknown Model/Workflow Name Handling
-
-    func testNullFieldsDefaultToUnknown() async {
-        let json = """
-        {
-            "total_cost": 100.0,
-            "model_breakdown": [
-                {"model": null, "cost": 50.0}
-            ],
-            "workflow_breakdown": [
-                {"workflow_name": null, "cost": 30.0, "request_count": null}
-            ],
-            "top_users": [
-                {"username": null, "cost": 20.0, "request_count": null}
-            ],
-            "top_repos": [
-                {"repo_name": null, "cost": 10.0, "request_count": null}
-            ]
-        }
-        """
-        mockClient.setResponse(json, for: endpointPath)
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.costByModel.first?.model, "Unknown")
-        XCTAssertEqual(viewModel.costByWorkflow.first?.name, "Unknown")
-        XCTAssertEqual(viewModel.costByWorkflow.first?.requestCount, 0)
-        XCTAssertEqual(viewModel.topUsers.first?.name, "Unknown")
-        XCTAssertEqual(viewModel.topUsers.first?.requestCount, 0)
-        XCTAssertEqual(viewModel.topRepos.first?.name, "Unknown")
-        XCTAssertEqual(viewModel.topRepos.first?.requestCount, 0)
-    }
-
     // MARK: - ViewState Equatable
 
     func testViewStateEquatable() {
@@ -632,55 +439,71 @@ final class ClaudeBillingViewModelTests: XCTestCase {
 
     // MARK: - API Endpoint
 
-    func testLoadDataCallsCorrectEndpoint() async {
-        setSuccessfulBillingResponse()
+    func testLoadDataCallsCorrectEndpoints() async {
+        registerAllResponses()
 
         await viewModel.loadData()
 
-        XCTAssertEqual(mockClient.callCount, 1)
-        XCTAssertEqual(mockClient.callPaths().first, endpointPath)
+        let paths = mockClient.callPaths()
+        XCTAssertTrue(paths.contains(dailyPath))
+        XCTAssertTrue(paths.contains(repoPath))
+        // Actor endpoint is called only when repos are found
+        XCTAssertTrue(paths.contains(actorPath))
     }
 
-    func testSelectTimeRangeTriggersNewAPICall() async {
-        setSuccessfulBillingResponse()
+    func testLoadDataSkipsActorWhenNoRepos() async {
+        registerAllResponses(
+            daily: Self.emptyJSON,
+            repo: Self.emptyJSON,
+            actor: Self.emptyJSON
+        )
 
         await viewModel.loadData()
-        XCTAssertEqual(mockClient.callCount, 1)
 
-        viewModel.selectTimeRange("30d")
-        // Give the Task time to execute
-        try? await Task.sleep(nanoseconds: 200_000_000)
-
-        XCTAssertEqual(mockClient.callCount, 2)
+        let paths = mockClient.callPaths()
+        // When daily returns empty, no repos are found, so actor endpoint is skipped
+        XCTAssertFalse(paths.contains(actorPath))
     }
 
     // MARK: - Data Replacement on Reload
 
     func testReloadReplacesOldData() async {
-        // First load with full data
-        setSuccessfulBillingResponse(totalCost: 500.0)
+        registerAllResponses()
         await viewModel.loadData()
 
-        XCTAssertEqual(viewModel.totalCost, "$500.00")
-        XCTAssertEqual(viewModel.costByModel.count, 3)
+        XCTAssertEqual(viewModel.totalCost, "$750.00")
+        XCTAssertFalse(viewModel.costByWorkflow.isEmpty)
 
-        // Second load with different data and no breakdowns
+        // Second load with empty data
         mockClient.reset()
-        setSuccessfulBillingResponse(
-            totalCost: 100.0,
-            includeModels: false,
-            includeWorkflows: false,
-            includeUsers: false,
-            includeRepos: false,
-            includeTimeSeries: false
+        registerAllResponses(
+            daily: Self.emptyJSON,
+            repo: Self.emptyJSON,
+            actor: Self.emptyJSON
         )
         await viewModel.loadData()
 
-        XCTAssertEqual(viewModel.totalCost, "$100.00")
-        XCTAssertTrue(viewModel.costByModel.isEmpty)
+        XCTAssertEqual(viewModel.totalCost, "$0.00")
         XCTAssertTrue(viewModel.costByWorkflow.isEmpty)
         XCTAssertTrue(viewModel.topUsers.isEmpty)
         XCTAssertTrue(viewModel.topRepos.isEmpty)
         XCTAssertTrue(viewModel.costTrendData.isEmpty)
+    }
+
+    // MARK: - Partial Failure Handling
+
+    func testRepoFailureStillLoadsDaily() async {
+        registerDailyResponse(Self.defaultDailyJSON)
+        mockClient.setError(APIError.serverError(500), for: repoPath)
+        registerActorResponse(Self.defaultActorJSON)
+
+        await viewModel.loadData()
+
+        // Repo failure is silently handled (try? await), daily data still works
+        // But since repo fetch is also done with try? we need the daily fetch to succeed
+        // Note: The daily fetch is NOT wrapped in try?, so if it fails, the whole thing fails.
+        // Since daily succeeds, state should be loaded
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.totalCost, "$750.00")
     }
 }

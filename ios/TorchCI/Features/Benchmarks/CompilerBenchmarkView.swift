@@ -765,12 +765,14 @@ struct CompilerBenchmarkView: View {
         let devices = deviceNameMap[selectedDevice] ?? ["cuda"]
         let archs = archNameMap[selectedDevice] ?? ["h100"]
 
+        // The ClickHouse params.json declares device and arch as String, not Array(String).
+        // Pass the first element as a plain string to match the query's {device: String} placeholder.
         let parameters: [String: Any] = [
             "branches": ["main"],
-            "commits": [],
-            "compilers": [],
-            "arch": archs,
-            "device": devices,
+            "commits": [] as [String],
+            "compilers": [] as [String],
+            "arch": archs.first ?? "h100",
+            "device": devices.first ?? "cuda",
             "dtype": selectedDtype,
             "granularity": "hour",
             "mode": selectedMode,
@@ -781,20 +783,149 @@ struct CompilerBenchmarkView: View {
         ]
 
         do {
-            let response: CompilerPerformanceResponse = try await apiClient.fetch(
+            // The API returns a plain JSON array of raw benchmark rows, not wrapped in {data: [...]}.
+            // Each row has: workflow_id, job_id, backend, suite, model, metric, value, extra_info, output, granularity_bucket.
+            // We must pivot/aggregate these rows (grouped by workflow_id+model+backend) into
+            // CompilerPerformanceRecord objects, mirroring the web app's convertToCompilerPerformanceData().
+            let rawRows: [CompilerBenchmarkRawRow] = try await apiClient.fetch(
                 APIEndpoint.clickhouseQuery(name: "compilers_benchmark_performance", parameters: parameters)
             )
-            performanceData = response.data ?? []
+            performanceData = Self.convertToPerformanceRecords(rawRows)
             state = .loaded
         } catch {
             state = .error(error.localizedDescription)
+        }
+    }
+
+    /// Converts raw ClickHouse benchmark rows into aggregated per-model performance records.
+    /// This mirrors the web app's `convertToCompilerPerformanceData()` in compilerUtils.ts.
+    ///
+    /// Raw rows have one row per (workflow_id, model, backend, metric). The `metric` column
+    /// contains metric names like "speedup", "accuracy", "compilation_latency", "compression_ratio",
+    /// "dynamo_peak_mem", "abs_latency". The `value` column has the numeric value, except for
+    /// "accuracy" where the value is stored as a JSON string in `extra_info.benchmark_values`.
+    ///
+    /// We group by (workflow_id, model, backend) and pivot metrics into fields on the record,
+    /// then keep only the latest workflow_id per (model, backend) group.
+    static func convertToPerformanceRecords(_ rawRows: [CompilerBenchmarkRawRow]) -> [CompilerPerformanceRecord] {
+        // Track the earliest granularity_bucket per workflow_id (same logic as web app)
+        var workflowBucket: [Int: String] = [:]
+        for row in rawRows {
+            if workflowBucket[row.workflowId] == nil {
+                workflowBucket[row.workflowId] = row.granularityBucket
+            }
+        }
+
+        // Group by (workflow_id, model, backend) and pivot metrics
+        var grouped: [String: CompilerPerformanceMutable] = [:]
+        for row in rawRows {
+            let key = "\(row.workflowId) \(row.model) \(row.backend)"
+            if grouped[key] == nil {
+                grouped[key] = CompilerPerformanceMutable(
+                    name: row.model,
+                    compiler: row.backend,
+                    suite: row.suite,
+                    workflowId: row.workflowId,
+                    granularityBucket: workflowBucket[row.workflowId] ?? row.granularityBucket
+                )
+            }
+
+            switch row.metric {
+            case "accuracy":
+                // Accuracy value is a string stored in extra_info's benchmark_values JSON array
+                if let extraInfo = row.extraInfo,
+                   let benchmarkValues = extraInfo["benchmark_values"],
+                   let jsonData = benchmarkValues.data(using: .utf8),
+                   let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [Any],
+                   let first = parsed.first as? String {
+                    grouped[key]?.accuracy = first
+                }
+            case "speedup":
+                grouped[key]?.speedup = row.value
+            case "compilation_latency":
+                grouped[key]?.compilationLatency = row.value
+            case "compression_ratio":
+                grouped[key]?.compressionRatio = row.value
+            case "dynamo_peak_mem":
+                grouped[key]?.peakMemory = row.value
+            case "abs_latency":
+                grouped[key]?.absLatency = row.value
+            default:
+                break
+            }
+        }
+
+        // Keep only the latest workflow per (model, backend) to get most recent data
+        var latestByModelBackend: [String: CompilerPerformanceMutable] = [:]
+        for entry in grouped.values {
+            let modelKey = "\(entry.name) \(entry.compiler)"
+            if let existing = latestByModelBackend[modelKey] {
+                if entry.workflowId > existing.workflowId {
+                    latestByModelBackend[modelKey] = entry
+                }
+            } else {
+                latestByModelBackend[modelKey] = entry
+            }
+        }
+
+        return latestByModelBackend.values.map { mutable in
+            CompilerPerformanceRecord(
+                name: mutable.name,
+                compiler: mutable.compiler,
+                suite: mutable.suite,
+                speedup: mutable.speedup,
+                accuracy: mutable.accuracy ?? "",
+                compilationLatency: mutable.compilationLatency,
+                compressionRatio: mutable.compressionRatio,
+                peakMemory: mutable.peakMemory
+            )
         }
     }
 }
 
 // MARK: - Supporting Types
 
-struct CompilerPerformanceRecord: Identifiable, Decodable {
+/// Raw row returned by the `compilers_benchmark_performance` ClickHouse query.
+/// Each row represents a single metric for a (workflow, model, backend) combination.
+/// The API returns a plain JSON array of these rows (not wrapped in `{data: [...]}`).
+struct CompilerBenchmarkRawRow: Decodable {
+    let workflowId: Int
+    let jobId: Int?
+    let backend: String
+    let suite: String
+    let model: String
+    let metric: String
+    let value: Double
+    let extraInfo: [String: String]?
+    let output: String?
+    let granularityBucket: String
+
+    enum CodingKeys: String, CodingKey {
+        case backend, suite, model, metric, value, output
+        case workflowId = "workflow_id"
+        case jobId = "job_id"
+        case extraInfo = "extra_info"
+        case granularityBucket = "granularity_bucket"
+    }
+}
+
+/// Mutable intermediate struct used during the pivot/aggregation of raw benchmark rows.
+struct CompilerPerformanceMutable {
+    let name: String
+    let compiler: String
+    let suite: String
+    let workflowId: Int
+    let granularityBucket: String
+    var accuracy: String?
+    var speedup: Double?
+    var compilationLatency: Double?
+    var compressionRatio: Double?
+    var peakMemory: Double?
+    var absLatency: Double?
+}
+
+/// Aggregated per-model performance record, produced by pivoting raw benchmark rows.
+struct CompilerPerformanceRecord: Identifiable {
     let id: UUID = UUID()
     let name: String
     let compiler: String
@@ -804,20 +935,6 @@ struct CompilerPerformanceRecord: Identifiable, Decodable {
     let compilationLatency: Double?
     let compressionRatio: Double?
     let peakMemory: Double?
-    let mode: String?
-    let dtype: String?
-    let device: String?
-
-    enum CodingKeys: String, CodingKey {
-        case name, compiler, suite, speedup, accuracy, mode, dtype, device
-        case compilationLatency = "compilation_latency"
-        case compressionRatio = "compression_ratio"
-        case peakMemory = "dynamo_peak_mem"
-    }
-}
-
-struct CompilerPerformanceResponse: Decodable {
-    let data: [CompilerPerformanceRecord]?
 }
 
 struct CompilerSummaryStats: Identifiable {

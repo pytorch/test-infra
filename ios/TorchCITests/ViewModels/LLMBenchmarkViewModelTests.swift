@@ -10,7 +10,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     override func setUp() {
         super.setUp()
         mockClient = MockAPIClient()
-        viewModel = LLMBenchmarkViewModel(benchmarkId: "llm-benchmark", apiClient: mockClient)
+        viewModel = LLMBenchmarkViewModel(benchmarkId: "pytorch_gptfast", apiClient: mockClient)
     }
 
     override func tearDown() {
@@ -22,206 +22,154 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Registers successful responses for all three benchmark endpoints.
+    /// Registers successful responses for both ClickHouse endpoints.
     private func registerAllResponses(
-        timeSeries: String = Self.emptyTimeSeriesJSON,
-        groupData: String = Self.emptyGroupDataJSON,
-        metadata: String = Self.emptyMetadataJSON
+        data dataJSON: String = LLMBenchmarkViewModelTests.emptyDataJSON,
+        metadata metadataJSON: String = LLMBenchmarkViewModelTests.emptyMetadataJSON
     ) {
-        mockClient.setResponse(timeSeries, for: "/api/benchmark/get_time_series")
-        mockClient.setResponse(groupData, for: "/api/benchmark/group_data")
-        mockClient.setResponse(metadata, for: "/api/benchmark/list_metadata")
+        mockClient.setResponse(dataJSON, for: "/api/clickhouse/oss_ci_benchmark_llms")
+        mockClient.setResponse(metadataJSON, for: "/api/clickhouse/oss_ci_benchmark_names")
     }
 
     // MARK: - Static JSON Fixtures
 
-    private static let emptyTimeSeriesJSON = """
-    {
-        "data": { "time_series": [] },
-        "time_range": null,
-        "total_raw_rows": 0
-    }
-    """
+    private static let emptyDataJSON = "[]"
+    private static let emptyMetadataJSON = "[]"
 
-    private static let emptyGroupDataJSON = """
-    {
-        "data": [],
-        "metadata": null
-    }
-    """
-
-    private static let emptyMetadataJSON = """
-    {
-        "data": []
-    }
-    """
-
-    private static let timeSeriesWithThroughputJSON = """
-    {
-        "data": {
-            "time_series": [
-                {
-                    "group_info": { "model": "llama-7b", "metric": "throughput" },
-                    "data": [
-                        { "commit": "aaa111", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 45.5 },
-                        { "commit": "bbb222", "granularity_bucket": "2025-01-11T00:00:00.000Z", "actual": 50.0 },
-                        { "commit": "ccc333", "granularity_bucket": "2025-01-12T00:00:00.000Z", "actual": 42.0 }
-                    ]
-                },
-                {
-                    "group_info": { "model": "gpt2", "metric": "throughput" },
-                    "data": [
-                        { "commit": "ddd444", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 120.0 },
-                        { "commit": "eee555", "granularity_bucket": "2025-01-11T00:00:00.000Z", "actual": 130.0 }
-                    ]
-                }
-            ]
+    private static let dataWithThroughputJSON = """
+    [
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "eager",
+            "metric": "throughput", "actual": 45.5, "actual_geomean": 45.0, "target": 40.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
         },
-        "time_range": { "start": "2025-01-01T00:00:00.000Z", "end": "2025-01-15T00:00:00.000Z" },
-        "total_raw_rows": 5
-    }
-    """
-
-    private static let timeSeriesWithLatencyJSON = """
-    {
-        "data": {
-            "time_series": [
-                {
-                    "group_info": { "model": "llama-7b", "metric": "latency_ms" },
-                    "data": [
-                        { "commit": "aaa111", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 10.0 },
-                        { "commit": "bbb222", "granularity_bucket": "2025-01-11T00:00:00.000Z", "actual": 20.0 },
-                        { "commit": "ccc333", "granularity_bucket": "2025-01-12T00:00:00.000Z", "actual": 15.0 }
-                    ]
-                }
-            ]
+        {
+            "workflow_id": 101, "job_id": 2, "model": "llama-7b", "backend": "eager",
+            "metric": "throughput", "actual": 50.0, "actual_geomean": 49.0, "target": 40.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-11T00:00:00.000Z"
         },
-        "time_range": null,
-        "total_raw_rows": 3
-    }
-    """
-
-    private static let timeSeriesWithMemoryJSON = """
-    {
-        "data": {
-            "time_series": [
-                {
-                    "group_info": { "model": "llama-7b", "metric": "memory_bandwidth_gb/s" },
-                    "data": [
-                        { "commit": "aaa111", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 100.0 },
-                        { "commit": "bbb222", "granularity_bucket": "2025-01-11T00:00:00.000Z", "actual": 200.0 }
-                    ]
-                }
-            ]
+        {
+            "workflow_id": 102, "job_id": 3, "model": "llama-7b", "backend": "eager",
+            "metric": "throughput", "actual": 42.0, "actual_geomean": 41.5, "target": 40.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-12T00:00:00.000Z"
         },
-        "time_range": null,
-        "total_raw_rows": 2
-    }
-    """
-
-    private static let timeSeriesWithCompilationJSON = """
-    {
-        "data": {
-            "time_series": [
-                {
-                    "group_info": { "model": "llama-7b", "metric": "compile_time" },
-                    "data": [
-                        { "commit": "aaa111", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 5.0 },
-                        { "commit": "bbb222", "granularity_bucket": "2025-01-11T00:00:00.000Z", "actual": 8.0 },
-                        { "commit": "ccc333", "granularity_bucket": "2025-01-12T00:00:00.000Z", "actual": 6.0 }
-                    ]
-                }
-            ]
+        {
+            "workflow_id": 100, "job_id": 4, "model": "gpt2", "backend": "eager",
+            "metric": "throughput", "actual": 120.0, "actual_geomean": 118.0, "target": 100.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
         },
-        "time_range": null,
-        "total_raw_rows": 3
-    }
-    """
-
-    private static let timeSeriesMultiMetricJSON = """
-    {
-        "data": {
-            "time_series": [
-                {
-                    "group_info": { "model": "llama-7b", "metric": "throughput" },
-                    "data": [
-                        { "commit": "aaa111", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 50.0 }
-                    ]
-                },
-                {
-                    "group_info": { "model": "llama-7b", "metric": "latency_ms" },
-                    "data": [
-                        { "commit": "bbb222", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 12.0 }
-                    ]
-                },
-                {
-                    "group_info": { "model": "llama-7b", "metric": "memory_bandwidth" },
-                    "data": [
-                        { "commit": "ccc333", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 80.0 }
-                    ]
-                },
-                {
-                    "group_info": { "model": "llama-7b", "metric": "compilation" },
-                    "data": [
-                        { "commit": "ddd444", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 3.5 }
-                    ]
-                }
-            ]
-        },
-        "time_range": null,
-        "total_raw_rows": 4
-    }
-    """
-
-    private static let groupDataWithModelsJSON = """
-    {
-        "data": [
-            {
-                "name": "llama-7b",
-                "metric": "throughput",
-                "value": 50.0,
-                "baseline": 45.0,
-                "speedup": 1.11,
-                "status": "pass"
-            },
-            {
-                "name": "gpt2",
-                "metric": "throughput",
-                "value": 120.0,
-                "baseline": 130.0,
-                "speedup": 0.92,
-                "status": "fail"
-            },
-            {
-                "name": "bert-base",
-                "metric": "latency_ms",
-                "value": 15.0,
-                "baseline": 14.0,
-                "speedup": 0.93,
-                "status": "fail"
-            }
-        ],
-        "metadata": {
-            "suite": "llm-benchmark",
-            "compiler": null,
-            "mode": "inference",
-            "dtype": "float16",
-            "device": "cuda",
-            "branch": "main",
-            "commit": "abc123"
+        {
+            "workflow_id": 101, "job_id": 5, "model": "gpt2", "backend": "eager",
+            "metric": "throughput", "actual": 130.0, "actual_geomean": 128.0, "target": 100.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-11T00:00:00.000Z"
         }
-    }
+    ]
+    """
+
+    private static let dataWithLatencyJSON = """
+    [
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "eager",
+            "metric": "latency_ms", "actual": 10.0, "actual_geomean": 10.0, "target": 12.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 101, "job_id": 2, "model": "llama-7b", "backend": "eager",
+            "metric": "latency_ms", "actual": 20.0, "actual_geomean": 19.0, "target": 12.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-11T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 102, "job_id": 3, "model": "llama-7b", "backend": "eager",
+            "metric": "latency_ms", "actual": 15.0, "actual_geomean": 14.5, "target": 12.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-12T00:00:00.000Z"
+        }
+    ]
+    """
+
+    private static let dataWithMemoryJSON = """
+    [
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "eager",
+            "metric": "memory_bandwidth_gb/s", "actual": 100.0, "actual_geomean": 100.0, "target": 90.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 101, "job_id": 2, "model": "llama-7b", "backend": "eager",
+            "metric": "memory_bandwidth_gb/s", "actual": 200.0, "actual_geomean": 195.0, "target": 90.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-11T00:00:00.000Z"
+        }
+    ]
+    """
+
+    private static let dataWithCompilationJSON = """
+    [
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "inductor",
+            "metric": "compile_time", "actual": 5.0, "actual_geomean": 5.0, "target": 0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 101, "job_id": 2, "model": "llama-7b", "backend": "inductor",
+            "metric": "compile_time", "actual": 8.0, "actual_geomean": 7.5, "target": 0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-11T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 102, "job_id": 3, "model": "llama-7b", "backend": "inductor",
+            "metric": "compile_time", "actual": 6.0, "actual_geomean": 5.8, "target": 0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-12T00:00:00.000Z"
+        }
+    ]
+    """
+
+    private static let dataMultiMetricJSON = """
+    [
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "eager",
+            "metric": "throughput", "actual": 50.0, "actual_geomean": 49.0, "target": 40.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "eager",
+            "metric": "latency_ms", "actual": 12.0, "actual_geomean": 11.5, "target": 15.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "eager",
+            "metric": "memory_bandwidth", "actual": 80.0, "actual_geomean": 78.0, "target": 70.0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        },
+        {
+            "workflow_id": 100, "job_id": 1, "model": "llama-7b", "backend": "inductor",
+            "metric": "compilation", "actual": 3.5, "actual_geomean": 3.3, "target": 0,
+            "mode": "inference", "dtype": "float16", "device": "cuda", "arch": "A100",
+            "granularity_bucket": "2025-01-10T00:00:00.000Z"
+        }
+    ]
     """
 
     private static let metadataWithOptionsJSON = """
-    {
-        "data": [
-            { "name": "device", "values": ["cuda", "cpu", "mps"] },
-            { "name": "backend", "values": ["eager", "inductor", "aot_eager"] },
-            { "name": "mode", "values": ["inference", "training"] },
-            { "name": "dtype", "values": ["float32", "float16", "bfloat16"] }
-        ]
-    }
+    [
+        { "benchmark": "PyTorch gpt-fast benchmark", "model": "llama-7b", "backend": "eager", "metric": "throughput", "dtype": "float32", "mode": "inference", "device": "cuda", "arch": "A100" },
+        { "benchmark": "PyTorch gpt-fast benchmark", "model": "llama-7b", "backend": "inductor", "metric": "throughput", "dtype": "float16", "mode": "inference", "device": "cuda", "arch": "A100" },
+        { "benchmark": "PyTorch gpt-fast benchmark", "model": "gpt2", "backend": "eager", "metric": "throughput", "dtype": "bfloat16", "mode": "training", "device": "cpu", "arch": "x86" },
+        { "benchmark": "PyTorch gpt-fast benchmark", "model": "gpt2", "backend": "aot_eager", "metric": "latency", "dtype": "float16", "mode": "inference", "device": "mps", "arch": "M1" }
+    ]
     """
 
     // MARK: - Initial State Tests
@@ -230,7 +178,6 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .idle)
         XCTAssertTrue(viewModel.timeSeriesData.isEmpty)
         XCTAssertNil(viewModel.groupData)
-        XCTAssertNil(viewModel.metadataOptions)
         XCTAssertTrue(viewModel.selectedModels.isEmpty)
         XCTAssertEqual(viewModel.selectedMetricType, .throughput)
         XCTAssertEqual(viewModel.selectedDevice, "All Devices")
@@ -246,12 +193,23 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertEqual(LLMBenchmarkViewModel.branches, ["main", "viable/strict", "nightly"])
     }
 
+    // MARK: - Benchmark Config
+
+    func testBenchmarkConfigMappings() {
+        let config = LLMBenchmarkViewModel.benchmarkConfig
+        XCTAssertEqual(config["pytorch_gptfast"]?.repo, "pytorch/pytorch")
+        XCTAssertEqual(config["pytorch_gptfast"]?.benchmarks, ["PyTorch gpt-fast benchmark"])
+        XCTAssertEqual(config["vllm_benchmark"]?.repo, "vllm-project/vllm")
+        XCTAssertEqual(config["vllm_benchmark"]?.benchmarks, ["vLLM benchmark"])
+        XCTAssertEqual(config["sglang_benchmark"]?.repo, "sgl-project/sglang")
+        XCTAssertEqual(config["pytorch_x_vllm_benchmark"]?.repo, "pytorch/pytorch")
+    }
+
     // MARK: - Load Data Tests
 
     func testLoadDataSuccess() async {
         registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.groupDataWithModelsJSON,
+            data: Self.dataWithThroughputJSON,
             metadata: Self.metadataWithOptionsJSON
         )
 
@@ -260,15 +218,10 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .loaded)
         XCTAssertFalse(viewModel.timeSeriesData.isEmpty)
         XCTAssertNotNil(viewModel.groupData)
-        XCTAssertNotNil(viewModel.metadataOptions)
     }
 
-    func testLoadDataPopulatesTimeSeriesFromFlattenedResponse() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+    func testLoadDataPopulatesTimeSeriesFromRawRows() async {
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -283,32 +236,42 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     }
 
     func testLoadDataPopulatesGroupData() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.state, .loaded)
         XCTAssertNotNil(viewModel.groupData)
-        XCTAssertEqual(viewModel.groupData?.data.count, 3)
-        XCTAssertEqual(viewModel.groupData?.metadata?.device, "cuda")
+        // Group data has latest per (model, metric, backend, dtype):
+        // llama-7b+throughput+eager+float16 -> workflow 102
+        // gpt2+throughput+eager+float16 -> workflow 101
+        XCTAssertEqual(viewModel.groupData?.data.count, 2)
     }
 
-    func testLoadDataPopulatesMetadata() async {
+    func testLoadDataPopulatesFilterOptions() async {
         registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.emptyGroupDataJSON,
+            data: Self.emptyDataJSON,
             metadata: Self.metadataWithOptionsJSON
         )
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertNotNil(viewModel.metadataOptions)
-        XCTAssertEqual(viewModel.metadataOptions?.data?.count, 4)
+        // Metadata rows contain: cuda, cpu, mps devices
+        XCTAssertTrue(viewModel.availableDevices.contains("cuda"))
+        XCTAssertTrue(viewModel.availableDevices.contains("cpu"))
+        XCTAssertTrue(viewModel.availableDevices.contains("mps"))
+        // Backends: eager, inductor, aot_eager
+        XCTAssertTrue(viewModel.availableBackends.contains("eager"))
+        XCTAssertTrue(viewModel.availableBackends.contains("inductor"))
+        XCTAssertTrue(viewModel.availableBackends.contains("aot_eager"))
+        // Modes: inference, training
+        XCTAssertTrue(viewModel.availableModes.contains("inference"))
+        XCTAssertTrue(viewModel.availableModes.contains("training"))
+        // Dtypes: float32, float16, bfloat16
+        XCTAssertTrue(viewModel.availableDtypes.contains("float32"))
+        XCTAssertTrue(viewModel.availableDtypes.contains("float16"))
+        XCTAssertTrue(viewModel.availableDtypes.contains("bfloat16"))
     }
 
     func testLoadDataWithEmptyResponses() async {
@@ -316,14 +279,13 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
 
         await viewModel.loadData()
 
-        // Empty time series and nil group data should yield error
+        // Empty data should yield error (no time series, no group data)
         XCTAssertTrue(viewModel.timeSeriesData.isEmpty)
     }
 
     func testLoadDataErrorOnAllEndpoints() async {
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/get_time_series")
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/group_data")
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/list_metadata")
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/oss_ci_benchmark_llms")
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/oss_ci_benchmark_names")
 
         await viewModel.loadData()
 
@@ -334,10 +296,9 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         }
     }
 
-    func testLoadDataPartialSuccess_TimeSeriesOnly() async {
-        mockClient.setResponse(Self.timeSeriesWithThroughputJSON, for: "/api/benchmark/get_time_series")
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/group_data")
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/list_metadata")
+    func testLoadDataPartialSuccess_DataOnly() async {
+        mockClient.setResponse(Self.dataWithThroughputJSON, for: "/api/clickhouse/oss_ci_benchmark_llms")
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/oss_ci_benchmark_names")
 
         await viewModel.loadData()
 
@@ -346,36 +307,20 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.timeSeriesData.isEmpty)
     }
 
-    func testLoadDataPartialSuccess_GroupDataOnly() async {
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/get_time_series")
-        mockClient.setResponse(Self.groupDataWithModelsJSON, for: "/api/benchmark/group_data")
-        mockClient.setError(APIError.serverError(500), for: "/api/benchmark/list_metadata")
-
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertNotNil(viewModel.groupData)
-    }
-
     func testLoadDataCallsCorrectEndpoints() async {
         registerAllResponses()
 
         await viewModel.loadData()
 
         let paths = mockClient.callPaths()
-        XCTAssertTrue(paths.contains("/api/benchmark/get_time_series"))
-        XCTAssertTrue(paths.contains("/api/benchmark/group_data"))
-        XCTAssertTrue(paths.contains("/api/benchmark/list_metadata"))
+        XCTAssertTrue(paths.contains("/api/clickhouse/oss_ci_benchmark_llms"))
+        XCTAssertTrue(paths.contains("/api/clickhouse/oss_ci_benchmark_names"))
     }
 
     // MARK: - Available Models
 
     func testAvailableModelsFromTimeSeries() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -385,43 +330,8 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertEqual(models.count, 2)
     }
 
-    func testAvailableModelsFromGroupData() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
-
-        await viewModel.loadData()
-
-        let models = viewModel.availableModels
-        XCTAssertTrue(models.contains("llama-7b"))
-        XCTAssertTrue(models.contains("gpt2"))
-        XCTAssertTrue(models.contains("bert-base"))
-        XCTAssertEqual(models.count, 3)
-    }
-
-    func testAvailableModelsCombinesBothSources() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
-
-        await viewModel.loadData()
-
-        let models = viewModel.availableModels
-        // Union of {llama-7b, gpt2} and {llama-7b, gpt2, bert-base}
-        XCTAssertEqual(models.count, 3)
-        XCTAssertTrue(models.contains("bert-base"))
-    }
-
     func testAvailableModelsAreSorted() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -432,11 +342,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Available Filter Options
 
     func testAvailableDevicesWithMetadata() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.metadataWithOptionsJSON
-        )
+        registerAllResponses(metadata: Self.metadataWithOptionsJSON)
 
         await viewModel.loadData()
 
@@ -491,11 +397,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Filtered Time Series
 
     func testFilteredTimeSeriesByMetricType() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesMultiMetricJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataMultiMetricJSON)
 
         await viewModel.loadData()
 
@@ -520,11 +422,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     }
 
     func testFilteredTimeSeriesBySelectedModels() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -546,67 +444,34 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertTrue(gpt2Only.allSatisfy { $0.model == "gpt2" })
     }
 
-    func testFilteredTimeSeriesWithNilMetricPassesThrough() async {
-        // Points with nil metric should pass the metric filter
-        let tsJSON = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "test-model" },
-                        "data": [
-                            { "commit": "aaa111", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 99.0 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        registerAllResponses(timeSeries: tsJSON)
-
-        await viewModel.loadData()
-
-        // Point has nil metric, so it should pass any metric type filter
-        viewModel.selectedMetricType = .throughput
-        XCTAssertEqual(viewModel.filteredTimeSeries.count, 1)
-
-        viewModel.selectedMetricType = .latency
-        XCTAssertEqual(viewModel.filteredTimeSeries.count, 1)
-    }
-
     // MARK: - Filtered Group Points
 
     func testFilteredGroupPointsByMetric() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataMultiMetricJSON)
 
         await viewModel.loadData()
 
-        // groupData has 2 throughput points and 1 latency_ms point
+        // Multi-metric data has throughput, latency_ms, memory_bandwidth, compilation
         viewModel.selectedMetricType = .throughput
-        XCTAssertEqual(viewModel.filteredGroupPoints.count, 2)
+        XCTAssertEqual(viewModel.filteredGroupPoints.count, 1) // llama-7b throughput
 
         viewModel.selectedMetricType = .latency
-        XCTAssertEqual(viewModel.filteredGroupPoints.count, 1)
-        XCTAssertEqual(viewModel.filteredGroupPoints.first?.name, "bert-base")
+        XCTAssertEqual(viewModel.filteredGroupPoints.count, 1) // llama-7b latency_ms
+
+        viewModel.selectedMetricType = .memory
+        XCTAssertEqual(viewModel.filteredGroupPoints.count, 1) // llama-7b memory_bandwidth
+
+        viewModel.selectedMetricType = .compilation
+        XCTAssertEqual(viewModel.filteredGroupPoints.count, 1) // llama-7b compilation
     }
 
     func testFilteredGroupPointsBySelectedModels() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
         viewModel.selectedMetricType = .throughput
 
-        // No filter
+        // No filter - should have group points for both models
         viewModel.selectedModels = []
         XCTAssertEqual(viewModel.filteredGroupPoints.count, 2)
 
@@ -617,18 +482,15 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     }
 
     func testFilteredGroupPointsSortedByValueDescending() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
         viewModel.selectedMetricType = .throughput
 
         let points = viewModel.filteredGroupPoints
         XCTAssertEqual(points.count, 2)
-        // gpt2 (120) should come before llama-7b (50) because sorted descending
+        // gpt2 (130) should come before llama-7b (42) because sorted descending by value
+        // Latest workflow: gpt2=101 (130.0), llama-7b=102 (42.0)
         XCTAssertEqual(points.first?.name, "gpt2")
         XCTAssertEqual(points.last?.name, "llama-7b")
     }
@@ -640,11 +502,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Throughput Stats
 
     func testThroughputStats() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -660,11 +518,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     }
 
     func testThroughputStatsNilWhenNoMatchingData() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithLatencyJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithLatencyJSON)
 
         await viewModel.loadData()
 
@@ -675,11 +529,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Latency Stats
 
     func testLatencyStats() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithLatencyJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithLatencyJSON)
 
         await viewModel.loadData()
 
@@ -695,11 +545,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     }
 
     func testLatencyStatsNilWhenNoMatchingData() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -709,11 +555,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Memory Stats
 
     func testMemoryStats() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithMemoryJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithMemoryJSON)
 
         await viewModel.loadData()
 
@@ -733,11 +575,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Compilation Stats
 
     func testCompilationStats() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithCompilationJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithCompilationJSON)
 
         await viewModel.loadData()
 
@@ -810,16 +648,69 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertEqual(LLMBenchmarkViewModel.MetricType.latency.description, "Latency")
     }
 
-    // MARK: - Filter Changes Trigger Reload
+    // MARK: - convertRawRows Static Method
+
+    func testConvertRawRowsEmpty() {
+        let (ts, group) = LLMBenchmarkViewModel.convertRawRows([])
+        XCTAssertTrue(ts.isEmpty)
+        XCTAssertNil(group)
+    }
+
+    func testConvertRawRowsCreatesTimeSeriesPoints() {
+        let rows: [LLMBenchmarkRawRow] = MockData.decode(Self.dataWithThroughputJSON)
+        let (ts, _) = LLMBenchmarkViewModel.convertRawRows(rows)
+
+        XCTAssertEqual(ts.count, 5)
+        XCTAssertTrue(ts.allSatisfy { $0.metric == "throughput" })
+    }
+
+    func testConvertRawRowsGroupDataKeepsLatestWorkflow() {
+        let rows: [LLMBenchmarkRawRow] = MockData.decode(Self.dataWithThroughputJSON)
+        let (_, group) = LLMBenchmarkViewModel.convertRawRows(rows)
+
+        XCTAssertNotNil(group)
+        XCTAssertEqual(group?.data.count, 2) // llama-7b and gpt2
+
+        // llama-7b latest is workflow 102 with actual=42.0
+        let llama = group?.data.first(where: { $0.name == "llama-7b" })
+        XCTAssertNotNil(llama)
+        XCTAssertEqual(llama!.value, 42.0, accuracy: 0.01)
+
+        // gpt2 latest is workflow 101 with actual=130.0
+        let gpt2 = group?.data.first(where: { $0.name == "gpt2" })
+        XCTAssertNotNil(gpt2)
+        XCTAssertEqual(gpt2!.value, 130.0, accuracy: 0.01)
+    }
+
+    func testConvertRawRowsCalculatesSpeedupFromTarget() {
+        let rows: [LLMBenchmarkRawRow] = MockData.decode(Self.dataWithThroughputJSON)
+        let (_, group) = LLMBenchmarkViewModel.convertRawRows(rows)
+
+        // gpt2 latest: actual=130.0, target=100.0, speedup=1.3
+        let gpt2 = group?.data.first(where: { $0.name == "gpt2" })
+        XCTAssertNotNil(gpt2?.speedup)
+        XCTAssertEqual(gpt2!.speedup!, 1.3, accuracy: 0.01)
+        XCTAssertEqual(gpt2?.baseline, 100.0)
+    }
+
+    func testConvertRawRowsNoSpeedupWhenTargetIsZero() {
+        let rows: [LLMBenchmarkRawRow] = MockData.decode(Self.dataWithCompilationJSON)
+        let (_, group) = LLMBenchmarkViewModel.convertRawRows(rows)
+
+        // compile_time rows have target=0, so no speedup
+        let llama = group?.data.first(where: { $0.name == "llama-7b" })
+        XCTAssertNil(llama?.speedup)
+        XCTAssertNil(llama?.baseline)
+    }
+
+    // MARK: - Filter Changes
 
     func testDeviceFilterExcludesAllPrefix() async {
         registerAllResponses(metadata: Self.metadataWithOptionsJSON)
 
         await viewModel.loadData()
 
-        // Changing to a specific device
         viewModel.selectedDevice = "cuda"
-        // Just verify the property changed; the actual reload is triggered by onChange in the view
         XCTAssertEqual(viewModel.selectedDevice, "cuda")
     }
 
@@ -852,11 +743,7 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
     // MARK: - Selected Point
 
     func testSelectedPointCanBeSetAndCleared() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesWithThroughputJSON,
-            groupData: Self.emptyGroupDataJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         await viewModel.loadData()
 
@@ -881,216 +768,18 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isComparisonMode)
     }
 
-    // MARK: - BenchmarkTimeSeriesResponse Flattening
-
-    func testFlattenedTimeSeriesUsesActualField() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "test" },
-                        "data": [
-                            { "commit": "abc", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 42.5 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.count, 1)
-        XCTAssertEqual(points.first?.value, 42.5)
-        XCTAssertEqual(points.first?.model, "test")
-    }
-
-    func testFlattenedTimeSeriesFallsBackToValueField() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "test" },
-                        "data": [
-                            { "commit": "abc", "granularity_bucket": "2025-01-10T00:00:00.000Z", "value": 99.9 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.count, 1)
-        XCTAssertEqual(points.first?.value, 99.9)
-    }
-
-    func testFlattenedTimeSeriesSkipsPointsWithoutValue() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "test" },
-                        "data": [
-                            { "commit": "abc", "granularity_bucket": "2025-01-10T00:00:00.000Z" }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.count, 0)
-    }
-
-    func testFlattenedTimeSeriesUsesHeadShaFallback() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "test" },
-                        "data": [
-                            { "head_sha": "def456", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 10.0 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.first?.commit, "def456")
-    }
-
-    func testFlattenedTimeSeriesUsesGroupInfoMetric() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "test-model", "metric": "throughput" },
-                        "data": [
-                            { "commit": "abc", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 50.0 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.first?.metric, "throughput")
-        XCTAssertEqual(points.first?.model, "test-model")
-    }
-
-    func testFlattenedTimeSeriesPointLevelMetricOverridesGroup() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "model": "group-model", "metric": "group-metric" },
-                        "data": [
-                            { "commit": "abc", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 50.0, "model": "point-model", "metric": "point-metric" }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        // Point-level values should override group-level
-        XCTAssertEqual(points.first?.model, "point-model")
-        XCTAssertEqual(points.first?.metric, "point-metric")
-    }
-
-    func testFlattenedTimeSeriesUsesNameFallbackForModel() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": { "name": "model-via-name" },
-                        "data": [
-                            { "commit": "abc", "granularity_bucket": "2025-01-10T00:00:00.000Z", "actual": 50.0 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.first?.model, "model-via-name")
-    }
-
-    func testFlattenedTimeSeriesUsesDateFallback() {
-        let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {},
-                        "data": [
-                            { "commit": "abc", "date": "2025-02-01", "actual": 1.0 }
-                        ]
-                    }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 1
-        }
-        """
-        let response: BenchmarkTimeSeriesResponse = MockData.decode(json)
-        let points = response.flattenedTimeSeries
-
-        XCTAssertEqual(points.first?.commitDate, "2025-02-01")
-    }
-
     // MARK: - Metric Keyword Matching
 
     func testThroughputKeywordMatching() async {
         let tsJSON = """
-        {
-            "data": {
-                "time_series": [
-                    { "group_info": {}, "data": [{ "commit": "a", "actual": 1.0, "metric": "tokens_per_second" }] },
-                    { "group_info": {}, "data": [{ "commit": "b", "actual": 2.0, "metric": "tok/s" }] },
-                    { "group_info": {}, "data": [{ "commit": "c", "actual": 3.0, "metric": "tps" }] },
-                    { "group_info": {}, "data": [{ "commit": "d", "actual": 4.0, "metric": "latency_ms" }] }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 4
-        }
+        [
+            { "workflow_id": 1, "job_id": 1, "model": "a", "backend": "eager", "metric": "tokens_per_second", "actual": 1.0, "actual_geomean": 1.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" },
+            { "workflow_id": 1, "job_id": 1, "model": "b", "backend": "eager", "metric": "tok/s", "actual": 2.0, "actual_geomean": 2.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" },
+            { "workflow_id": 1, "job_id": 1, "model": "c", "backend": "eager", "metric": "tps", "actual": 3.0, "actual_geomean": 3.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" },
+            { "workflow_id": 1, "job_id": 1, "model": "d", "backend": "eager", "metric": "latency_ms", "actual": 4.0, "actual_geomean": 4.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" }
+        ]
         """
-        registerAllResponses(timeSeries: tsJSON)
+        registerAllResponses(data: tsJSON)
 
         await viewModel.loadData()
         viewModel.selectedMetricType = .throughput
@@ -1101,20 +790,14 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
 
     func testLatencyKeywordMatching() async {
         let tsJSON = """
-        {
-            "data": {
-                "time_series": [
-                    { "group_info": {}, "data": [{ "commit": "a", "actual": 1.0, "metric": "ttft_ms" }] },
-                    { "group_info": {}, "data": [{ "commit": "b", "actual": 2.0, "metric": "tpot" }] },
-                    { "group_info": {}, "data": [{ "commit": "c", "actual": 3.0, "metric": "itl_latency" }] },
-                    { "group_info": {}, "data": [{ "commit": "d", "actual": 4.0, "metric": "throughput_tps" }] }
-                ]
-            },
-            "time_range": null,
-            "total_raw_rows": 4
-        }
+        [
+            { "workflow_id": 1, "job_id": 1, "model": "a", "backend": "eager", "metric": "ttft_ms", "actual": 1.0, "actual_geomean": 1.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" },
+            { "workflow_id": 1, "job_id": 1, "model": "b", "backend": "eager", "metric": "tpot", "actual": 2.0, "actual_geomean": 2.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" },
+            { "workflow_id": 1, "job_id": 1, "model": "c", "backend": "eager", "metric": "itl_latency", "actual": 3.0, "actual_geomean": 3.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" },
+            { "workflow_id": 1, "job_id": 1, "model": "d", "backend": "eager", "metric": "throughput_tps", "actual": 4.0, "actual_geomean": 4.0, "target": 0, "mode": "inference", "dtype": "f16", "device": "cuda", "arch": "A100", "granularity_bucket": "2025-01-10" }
+        ]
         """
-        registerAllResponses(timeSeries: tsJSON)
+        registerAllResponses(data: tsJSON)
 
         await viewModel.loadData()
         viewModel.selectedMetricType = .latency
@@ -1127,22 +810,18 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
 
     func testLoadDataReplacesExistingData() async {
         // First load with throughput data
-        registerAllResponses(timeSeries: Self.timeSeriesWithThroughputJSON)
+        registerAllResponses(data: Self.dataWithThroughputJSON)
         await viewModel.loadData()
         XCTAssertEqual(viewModel.timeSeriesData.count, 5)
 
         // Second load with latency data (fewer points)
-        registerAllResponses(timeSeries: Self.timeSeriesWithLatencyJSON)
+        registerAllResponses(data: Self.dataWithLatencyJSON)
         await viewModel.loadData()
         XCTAssertEqual(viewModel.timeSeriesData.count, 3)
     }
 
     func testSelectedMetricTypeChangesFilteredData() async {
-        registerAllResponses(
-            timeSeries: Self.timeSeriesMultiMetricJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+        registerAllResponses(data: Self.dataMultiMetricJSON)
 
         await viewModel.loadData()
 
@@ -1156,43 +835,36 @@ final class LLMBenchmarkViewModelTests: XCTestCase {
 
         // Different metric types should yield different filtered counts
         XCTAssertEqual(throughputCount, 1)
-        XCTAssertEqual(throughputGroupCount, 2) // llama-7b and gpt2 have throughput metric
+        XCTAssertEqual(throughputGroupCount, 1)
         XCTAssertEqual(latencyCount, 1)
-        XCTAssertEqual(latencyGroupCount, 1) // only bert-base has latency
+        XCTAssertEqual(latencyGroupCount, 1)
     }
 
     func testCustomBenchmarkId() async {
-        let customVM = LLMBenchmarkViewModel(benchmarkId: "custom-bench", apiClient: mockClient)
+        let customVM = LLMBenchmarkViewModel(benchmarkId: "vllm_benchmark", apiClient: mockClient)
         registerAllResponses()
 
         await customVM.loadData()
 
-        // Verify the endpoints were called (the path is the same regardless of benchmarkId,
-        // but the body contains the benchmarkId)
+        // Verify the correct ClickHouse endpoints were called
         let paths = mockClient.callPaths()
-        XCTAssertTrue(paths.contains("/api/benchmark/get_time_series"))
+        XCTAssertTrue(paths.contains("/api/clickhouse/oss_ci_benchmark_llms"))
+        XCTAssertTrue(paths.contains("/api/clickhouse/oss_ci_benchmark_names"))
     }
 
     func testStateTransitionsDuringLoad() async {
-        registerAllResponses(timeSeries: Self.timeSeriesWithThroughputJSON)
+        registerAllResponses(data: Self.dataWithThroughputJSON)
 
         XCTAssertEqual(viewModel.state, .idle)
         await viewModel.loadData()
         XCTAssertEqual(viewModel.state, .loaded)
     }
 
-    func testEmptyTimeSeriesResponseWithGroupData() async {
-        registerAllResponses(
-            timeSeries: Self.emptyTimeSeriesJSON,
-            groupData: Self.groupDataWithModelsJSON,
-            metadata: Self.emptyMetadataJSON
-        )
+    // MARK: - Excluded Metrics
 
-        await viewModel.loadData()
-
-        XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertTrue(viewModel.timeSeriesData.isEmpty)
-        XCTAssertNotNil(viewModel.groupData)
-        XCTAssertEqual(viewModel.groupData?.data.count, 3)
+    func testExcludedMetricsListIsPopulated() {
+        XCTAssertFalse(LLMBenchmarkViewModel.excludedMetrics.isEmpty)
+        XCTAssertTrue(LLMBenchmarkViewModel.excludedMetrics.contains("load_status"))
+        XCTAssertTrue(LLMBenchmarkViewModel.excludedMetrics.contains("mean_itl_ms"))
     }
 }

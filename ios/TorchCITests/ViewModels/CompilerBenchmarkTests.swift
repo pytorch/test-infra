@@ -3,145 +3,144 @@ import XCTest
 
 final class CompilerBenchmarkTests: XCTestCase {
 
-    // MARK: - CompilerPerformanceRecord Decoding
+    // MARK: - CompilerBenchmarkRawRow Decoding
 
-    func testCompilerPerformanceRecordDecoding() {
+    func testRawRowDecoding() {
         let json = """
         {
-            "name": "BERT_pytorch",
-            "compiler": "inductor",
+            "workflow_id": 12345,
+            "job_id": 67890,
+            "backend": "inductor",
             "suite": "torchbench",
-            "speedup": 1.45,
-            "accuracy": "pass",
-            "compilation_latency": 12.5,
-            "compression_ratio": 0.95,
-            "dynamo_peak_mem": 1073741824,
-            "mode": "training",
-            "dtype": "amp",
-            "device": "cuda"
+            "model": "BERT_pytorch",
+            "metric": "speedup",
+            "value": 1.45,
+            "extra_info": {"benchmark_values": "[\\"pass\\"]"},
+            "output": "some_output_string",
+            "granularity_bucket": "2025-01-15T10:00:00.000"
         }
         """
 
-        let record: CompilerPerformanceRecord = MockData.decode(json)
+        let row: CompilerBenchmarkRawRow = MockData.decode(json)
 
-        XCTAssertEqual(record.name, "BERT_pytorch")
+        XCTAssertEqual(row.workflowId, 12345)
+        XCTAssertEqual(row.jobId, 67890)
+        XCTAssertEqual(row.backend, "inductor")
+        XCTAssertEqual(row.suite, "torchbench")
+        XCTAssertEqual(row.model, "BERT_pytorch")
+        XCTAssertEqual(row.metric, "speedup")
+        XCTAssertEqual(row.value, 1.45, accuracy: 0.001)
+        XCTAssertEqual(row.extraInfo?["benchmark_values"], "[\"pass\"]")
+        XCTAssertEqual(row.output, "some_output_string")
+        XCTAssertEqual(row.granularityBucket, "2025-01-15T10:00:00.000")
+    }
+
+    func testRawRowDecodingNullOptionals() {
+        let json = """
+        {
+            "workflow_id": 100,
+            "backend": "inductor",
+            "suite": "huggingface",
+            "model": "resnet50",
+            "metric": "accuracy",
+            "value": 0,
+            "granularity_bucket": "2025-01-15T10:00:00.000"
+        }
+        """
+
+        let row: CompilerBenchmarkRawRow = MockData.decode(json)
+
+        XCTAssertNil(row.jobId)
+        XCTAssertNil(row.extraInfo)
+        XCTAssertNil(row.output)
+    }
+
+    // MARK: - convertToPerformanceRecords
+
+    func testConvertPivotsMetricsCorrectly() {
+        let rawRows: [CompilerBenchmarkRawRow] = MockData.decode("""
+        [
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "speedup", "value": 1.45, "granularity_bucket": "2025-01-15T10:00:00.000"},
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "compilation_latency", "value": 12.5, "granularity_bucket": "2025-01-15T10:00:00.000"},
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "compression_ratio", "value": 0.95, "granularity_bucket": "2025-01-15T10:00:00.000"},
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "dynamo_peak_mem", "value": 1073741824, "granularity_bucket": "2025-01-15T10:00:00.000"},
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "accuracy", "value": 0, "extra_info": {"benchmark_values": "[\\"pass\\"]"}, "granularity_bucket": "2025-01-15T10:00:00.000"}
+        ]
+        """)
+
+        let records = CompilerBenchmarkView.convertToPerformanceRecords(rawRows)
+
+        XCTAssertEqual(records.count, 1)
+        let record = records[0]
+        XCTAssertEqual(record.name, "bert")
         XCTAssertEqual(record.compiler, "inductor")
         XCTAssertEqual(record.suite, "torchbench")
-        XCTAssertEqual(record.speedup, 1.45, accuracy: 0.001)
+        XCTAssertEqual(record.speedup!, 1.45, accuracy: 0.001)
         XCTAssertEqual(record.accuracy, "pass")
-        XCTAssertEqual(record.compilationLatency, 12.5, accuracy: 0.001)
-        XCTAssertEqual(record.compressionRatio, 0.95, accuracy: 0.001)
-        XCTAssertEqual(record.peakMemory, 1_073_741_824, accuracy: 1)
-        XCTAssertEqual(record.mode, "training")
-        XCTAssertEqual(record.dtype, "amp")
-        XCTAssertEqual(record.device, "cuda")
+        XCTAssertEqual(record.compilationLatency!, 12.5, accuracy: 0.001)
+        XCTAssertEqual(record.compressionRatio!, 0.95, accuracy: 0.001)
+        XCTAssertEqual(record.peakMemory!, 1_073_741_824, accuracy: 1)
     }
 
-    func testCompilerPerformanceRecordDecodingNilOptionals() {
-        let json = """
-        {
-            "name": "resnet50",
-            "compiler": "inductor_no_cudagraphs",
-            "suite": "huggingface",
-            "speedup": null,
-            "accuracy": "fail",
-            "compilation_latency": null,
-            "compression_ratio": null,
-            "dynamo_peak_mem": null,
-            "mode": null,
-            "dtype": null,
-            "device": null
-        }
-        """
+    func testConvertGroupsByWorkflowModelBackend() {
+        let rawRows: [CompilerBenchmarkRawRow] = MockData.decode("""
+        [
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "speedup", "value": 1.2, "granularity_bucket": "2025-01-15T10:00:00.000"},
+            {"workflow_id": 1, "backend": "inductor_no_cudagraphs", "suite": "torchbench", "model": "bert", "metric": "speedup", "value": 0.9, "granularity_bucket": "2025-01-15T10:00:00.000"},
+            {"workflow_id": 1, "backend": "inductor", "suite": "huggingface", "model": "resnet", "metric": "speedup", "value": 1.5, "granularity_bucket": "2025-01-15T10:00:00.000"}
+        ]
+        """)
 
-        let record: CompilerPerformanceRecord = MockData.decode(json)
+        let records = CompilerBenchmarkView.convertToPerformanceRecords(rawRows)
 
-        XCTAssertEqual(record.name, "resnet50")
-        XCTAssertEqual(record.compiler, "inductor_no_cudagraphs")
-        XCTAssertEqual(record.suite, "huggingface")
-        XCTAssertNil(record.speedup)
-        XCTAssertEqual(record.accuracy, "fail")
-        XCTAssertNil(record.compilationLatency)
-        XCTAssertNil(record.compressionRatio)
-        XCTAssertNil(record.peakMemory)
-        XCTAssertNil(record.mode)
-        XCTAssertNil(record.dtype)
-        XCTAssertNil(record.device)
+        XCTAssertEqual(records.count, 3)
+        let names = Set(records.map { "\($0.name)-\($0.compiler)" })
+        XCTAssertTrue(names.contains("bert-inductor"))
+        XCTAssertTrue(names.contains("bert-inductor_no_cudagraphs"))
+        XCTAssertTrue(names.contains("resnet-inductor"))
     }
+
+    func testConvertKeepsLatestWorkflow() {
+        let rawRows: [CompilerBenchmarkRawRow] = MockData.decode("""
+        [
+            {"workflow_id": 100, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "speedup", "value": 1.2, "granularity_bucket": "2025-01-15T08:00:00.000"},
+            {"workflow_id": 200, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "speedup", "value": 1.5, "granularity_bucket": "2025-01-15T10:00:00.000"}
+        ]
+        """)
+
+        let records = CompilerBenchmarkView.convertToPerformanceRecords(rawRows)
+
+        XCTAssertEqual(records.count, 1)
+        // Should keep workflow 200 (higher = more recent)
+        XCTAssertEqual(records[0].speedup!, 1.5, accuracy: 0.001)
+    }
+
+    func testConvertEmptyRows() {
+        let records = CompilerBenchmarkView.convertToPerformanceRecords([])
+        XCTAssertEqual(records.count, 0)
+    }
+
+    func testConvertMissingAccuracyDefaultsToEmpty() {
+        let rawRows: [CompilerBenchmarkRawRow] = MockData.decode("""
+        [
+            {"workflow_id": 1, "backend": "inductor", "suite": "torchbench", "model": "bert", "metric": "speedup", "value": 1.2, "granularity_bucket": "2025-01-15T10:00:00.000"}
+        ]
+        """)
+
+        let records = CompilerBenchmarkView.convertToPerformanceRecords(rawRows)
+
+        XCTAssertEqual(records.count, 1)
+        XCTAssertEqual(records[0].accuracy, "")
+    }
+
+    // MARK: - CompilerPerformanceRecord
 
     func testCompilerPerformanceRecordHasUniqueId() {
-        let json = """
-        {
-            "name": "model_a",
-            "compiler": "inductor",
-            "suite": "torchbench",
-            "speedup": 1.0,
-            "accuracy": "pass"
-        }
-        """
-
-        let record1: CompilerPerformanceRecord = MockData.decode(json)
-        let record2: CompilerPerformanceRecord = MockData.decode(json)
+        let record1 = makeRecord()
+        let record2 = makeRecord()
 
         // Each instance should get a unique UUID
         XCTAssertNotEqual(record1.id, record2.id)
-    }
-
-    // MARK: - CompilerPerformanceResponse Decoding
-
-    func testCompilerPerformanceResponseDecoding() {
-        let json = """
-        {
-            "data": [
-                {
-                    "name": "model_a",
-                    "compiler": "inductor",
-                    "suite": "torchbench",
-                    "speedup": 1.20,
-                    "accuracy": "pass"
-                },
-                {
-                    "name": "model_b",
-                    "compiler": "inductor_no_cudagraphs",
-                    "suite": "huggingface",
-                    "speedup": 0.85,
-                    "accuracy": "pass"
-                }
-            ]
-        }
-        """
-
-        let response: CompilerPerformanceResponse = MockData.decode(json)
-
-        XCTAssertNotNil(response.data)
-        XCTAssertEqual(response.data?.count, 2)
-        XCTAssertEqual(response.data?[0].name, "model_a")
-        XCTAssertEqual(response.data?[1].speedup, 0.85, accuracy: 0.001)
-    }
-
-    func testCompilerPerformanceResponseNullData() {
-        let json = """
-        {
-            "data": null
-        }
-        """
-
-        let response: CompilerPerformanceResponse = MockData.decode(json)
-
-        XCTAssertNil(response.data)
-    }
-
-    func testCompilerPerformanceResponseEmptyData() {
-        let json = """
-        {
-            "data": []
-        }
-        """
-
-        let response: CompilerPerformanceResponse = MockData.decode(json)
-
-        XCTAssertNotNil(response.data)
-        XCTAssertEqual(response.data?.count, 0)
     }
 
     // MARK: - displayNameForCompiler
@@ -639,23 +638,15 @@ final class CompilerBenchmarkTests: XCTestCase {
         compressionRatio: Double? = nil,
         peakMemory: Double? = nil
     ) -> CompilerPerformanceRecord {
-        let speedupStr = speedup.map { "\($0)" } ?? "null"
-        let latencyStr = compilationLatency.map { "\($0)" } ?? "null"
-        let ratioStr = compressionRatio.map { "\($0)" } ?? "null"
-        let peakStr = peakMemory.map { "\($0)" } ?? "null"
-
-        let json = """
-        {
-            "name": "\(name)",
-            "compiler": "\(compiler)",
-            "suite": "\(suite)",
-            "speedup": \(speedupStr),
-            "accuracy": "\(accuracy)",
-            "compilation_latency": \(latencyStr),
-            "compression_ratio": \(ratioStr),
-            "dynamo_peak_mem": \(peakStr)
-        }
-        """
-        return MockData.decode(json)
+        CompilerPerformanceRecord(
+            name: name,
+            compiler: compiler,
+            suite: suite,
+            speedup: speedup,
+            accuracy: accuracy,
+            compilationLatency: compilationLatency,
+            compressionRatio: compressionRatio,
+            peakMemory: peakMemory
+        )
     }
 }

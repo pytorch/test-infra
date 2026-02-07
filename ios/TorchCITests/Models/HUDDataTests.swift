@@ -275,7 +275,7 @@ final class HUDDataTests: XCTestCase {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
         let job = response.shaGrid[0].jobs[1] // the failure job
 
-        XCTAssertEqual(job.id, 100002)
+        XCTAssertEqual(job.jobId, 100002)
         XCTAssertEqual(job.name, "linux-jammy-py3.10-gcc9 / test (default, 1, 3)")
         XCTAssertEqual(job.conclusion, "failure")
         XCTAssertEqual(job.htmlUrl, "https://github.com/pytorch/pytorch/actions/runs/100002")

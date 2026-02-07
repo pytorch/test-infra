@@ -9,15 +9,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3",
-            "title": "Add torch.compile support for custom ops (#99001)",
-            "body": "This PR adds torch.compile support.",
-            "author": {
-                "login": "compiler-dev",
-                "avatar_url": "https://avatars.githubusercontent.com/u/12345678",
-                "url": "https://github.com/compiler-dev"
-            },
-            "commitDate": "2025-01-20T14:30:00Z",
-            "prNumber": 99001,
+            "commitTitle": "Add torch.compile support for custom ops (#99001)",
+            "commitMessageBody": "This PR adds torch.compile support.",
+            "author": "compiler-dev",
+            "authorUrl": "https://github.com/compiler-dev",
+            "time": "2025-01-20T14:30:00Z",
+            "prNum": 99001,
             "diffNum": "D12345678"
         }
         """
@@ -29,20 +26,20 @@ final class CommitDataTests: XCTestCase {
         XCTAssertEqual(commit.body, "This PR adds torch.compile support.")
         XCTAssertEqual(commit.prNumber, 99001)
         XCTAssertEqual(commit.diffNum, "D12345678")
-        XCTAssertEqual(commit.author?.login, "compiler-dev")
-        XCTAssertEqual(commit.author?.avatarUrl, "https://avatars.githubusercontent.com/u/12345678")
-        XCTAssertEqual(commit.author?.url, "https://github.com/compiler-dev")
+        XCTAssertEqual(commit.author, "compiler-dev")
+        XCTAssertEqual(commit.authorUrl, "https://github.com/compiler-dev")
     }
 
     func testCommitInfoNilOptionals() {
         let json = """
         {
             "sha": "aaaa1111bbbb2222cccc3333dddd4444eeee5555",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": null,
-            "prNumber": null,
+            "authorUrl": null,
+            "time": null,
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -53,7 +50,7 @@ final class CommitDataTests: XCTestCase {
         XCTAssertNil(commit.title)
         XCTAssertNil(commit.body)
         XCTAssertNil(commit.author)
-        XCTAssertNil(commit.commitDate)
+        XCTAssertNil(commit.time)
         XCTAssertNil(commit.prNumber)
         XCTAssertNil(commit.diffNum)
     }
@@ -64,11 +61,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": null,
-            "prNumber": null,
+            "authorUrl": null,
+            "time": null,
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -83,11 +81,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "abc",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": null,
-            "prNumber": null,
+            "authorUrl": null,
+            "time": null,
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -104,11 +103,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "1234567890abcdef1234567890abcdef12345678",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": null,
-            "prNumber": null,
+            "authorUrl": null,
+            "time": null,
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -124,11 +124,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "abcdef1234567890abcdef1234567890abcdef12",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": "2025-01-20T14:30:00Z",
-            "prNumber": null,
+            "authorUrl": null,
+            "time": "2025-01-20T14:30:00Z",
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -151,11 +152,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "abcdef1234567890abcdef1234567890abcdef12",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": null,
-            "prNumber": null,
+            "authorUrl": null,
+            "time": null,
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -169,11 +171,12 @@ final class CommitDataTests: XCTestCase {
         let json = """
         {
             "sha": "abcdef1234567890abcdef1234567890abcdef12",
-            "title": null,
-            "body": null,
+            "commitTitle": null,
+            "commitMessageBody": null,
             "author": null,
-            "commitDate": "not-a-date",
-            "prNumber": null,
+            "authorUrl": null,
+            "time": "not-a-date",
+            "prNum": null,
             "diffNum": null
         }
         """
@@ -230,7 +233,7 @@ final class CommitDataTests: XCTestCase {
         XCTAssertEqual(response.commit.prNumber, 99001)
         XCTAssertEqual(response.commit.diffNum, "D12345678")
         XCTAssertNotNil(response.commit.date)
-        XCTAssertEqual(response.commit.author?.login, "compiler-dev")
+        XCTAssertEqual(response.commit.author, "compiler-dev")
 
         // Jobs
         XCTAssertEqual(response.jobs.count, 4)

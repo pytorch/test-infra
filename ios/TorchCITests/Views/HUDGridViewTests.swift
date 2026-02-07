@@ -51,88 +51,6 @@ final class HUDGridViewTests: XCTestCase {
         )
     }
 
-    // MARK: - shortJobName tests
-
-    func testShortJobNameExtractsAfterSlash() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
-        let result = grid.shortJobName("linux-jammy-py3.10-gcc9 / build")
-        XCTAssertEqual(result, "build")
-    }
-
-    func testShortJobNameExtractsComplexSuffix() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
-        let result = grid.shortJobName("linux-jammy-py3.10-gcc9 / test (default, 1, 3)")
-        XCTAssertEqual(result, "test (default, 1, 3)")
-    }
-
-    func testShortJobNameReturnsFullNameWhenNoSlash() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
-        let result = grid.shortJobName("simple-job-name")
-        XCTAssertEqual(result, "simple-job-name")
-    }
-
-    func testShortJobNameHandlesMultipleSlashSeparators() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
-        // Should split on the first " / " occurrence
-        let result = grid.shortJobName("workflow / sub / test")
-        XCTAssertEqual(result, "sub / test")
-    }
-
-    func testShortJobNameHandlesEmptyString() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
-        let result = grid.shortJobName("")
-        XCTAssertEqual(result, "")
-    }
-
-    func testShortJobNameIgnoresSlashWithoutSpaces() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
-        // A slash without surrounding spaces should NOT be treated as a separator
-        let result = grid.shortJobName("linux/build")
-        XCTAssertEqual(result, "linux/build")
-    }
-
     // MARK: - jobSummary tests
 
     func testJobSummaryCountsAllStatuses() {
@@ -350,28 +268,12 @@ final class HUDGridViewTests: XCTestCase {
         XCTAssertEqual(summary2.pending, 1)
     }
 
-    func testShortJobNameFromMockData() {
-        let grid = HUDGridView(
-            rows: [],
-            allJobs: [],
-            jobNames: [],
-            repoOwner: "pytorch",
-            repoName: "pytorch"
-        )
-
+    func testJobNamesFromMockData() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
 
-        XCTAssertEqual(
-            grid.shortJobName(response.jobNames[0]),
-            "build"
-        )
-        XCTAssertEqual(
-            grid.shortJobName(response.jobNames[1]),
-            "test (default, 1, 3)"
-        )
-        XCTAssertEqual(
-            grid.shortJobName(response.jobNames[2]),
-            "test (default, 2, 3)"
-        )
+        XCTAssertEqual(response.jobNames.count, 3)
+        XCTAssertTrue(response.jobNames[0].contains("build"))
+        XCTAssertTrue(response.jobNames[1].contains("test"))
+        XCTAssertTrue(response.jobNames[2].contains("test"))
     }
 }

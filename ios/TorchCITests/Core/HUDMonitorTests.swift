@@ -1,6 +1,7 @@
 import XCTest
 @testable import TorchCI
 
+@MainActor
 final class HUDMonitorTests: XCTestCase {
 
     private var mockClient: MockAPIClient!
@@ -71,7 +72,6 @@ final class HUDMonitorTests: XCTestCase {
     // MARK: - Zero Consecutive Failures
 
     func testZeroConsecutiveFailuresReturnsZero() async {
-        // All rows are success
         let json = makeHUDResponseJSON(rows: [
             [(name: "build", conclusion: "success", unstable: false)],
             [(name: "build", conclusion: "success", unstable: false)],
@@ -89,7 +89,7 @@ final class HUDMonitorTests: XCTestCase {
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 1)
 
-        var alertCalled = false
+        nonisolated(unsafe) var alertCalled = false
         await monitor.checkForFailures(preferences: prefs) { _, _, _ in
             alertCalled = true
         }
@@ -100,7 +100,6 @@ final class HUDMonitorTests: XCTestCase {
     // MARK: - Three Failures Then Success
 
     func testThreeFailuresThenSuccessReturnsThree() async {
-        // 3 failures followed by 1 success
         let json = makeHUDResponseJSON(rows: [
             [(name: "build", conclusion: "failure", unstable: false)],
             [(name: "test", conclusion: "failure", unstable: false)],
@@ -120,8 +119,8 @@ final class HUDMonitorTests: XCTestCase {
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 2)
 
-        var capturedCount: Int?
-        var capturedPatterns: [String]?
+        nonisolated(unsafe) var capturedCount: Int?
+        nonisolated(unsafe) var capturedPatterns: [String]?
         await monitor.checkForFailures(preferences: prefs) { _, count, patterns in
             capturedCount = count
             capturedPatterns = patterns
@@ -135,7 +134,6 @@ final class HUDMonitorTests: XCTestCase {
     // MARK: - All Failures Returns Full Count
 
     func testAllFailuresReturnsFullCount() async {
-        // All 5 rows are failures
         let json = makeHUDResponseJSON(rows: [
             [(name: "build", conclusion: "failure", unstable: false)],
             [(name: "build", conclusion: "failure", unstable: false)],
@@ -156,7 +154,7 @@ final class HUDMonitorTests: XCTestCase {
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 1)
 
-        var capturedCount: Int?
+        nonisolated(unsafe) var capturedCount: Int?
         await monitor.checkForFailures(preferences: prefs) { _, count, _ in
             capturedCount = count
         }
@@ -181,7 +179,7 @@ final class HUDMonitorTests: XCTestCase {
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 1)
 
-        var alertCalled = false
+        nonisolated(unsafe) var alertCalled = false
         await monitor.checkForFailures(preferences: prefs) { _, _, _ in
             alertCalled = true
         }
@@ -200,7 +198,7 @@ final class HUDMonitorTests: XCTestCase {
             monitoredRepos: [RepoConfig(owner: "pytorch", name: "pytorch")]
         )
 
-        var alertCalled = false
+        nonisolated(unsafe) var alertCalled = false
         await monitor.checkForFailures(preferences: prefs) { _, _, _ in
             alertCalled = true
         }
@@ -212,7 +210,6 @@ final class HUDMonitorTests: XCTestCase {
     // MARK: - Cancellation Stops Processing
 
     func testCancellationStopsProcessing() async {
-        // Set up a response with failures to ensure alert would normally fire
         let json = makeHUDResponseJSON(rows: [
             [(name: "build", conclusion: "failure", unstable: false)],
             [(name: "build", conclusion: "failure", unstable: false)],
@@ -228,15 +225,13 @@ final class HUDMonitorTests: XCTestCase {
         )
         mockClient.setResponse(json, for: endpoint.path)
 
-        // Use a small delay so we can cancel before completion
-        mockClient.artificialDelayNanoseconds = 500_000_000 // 500ms
+        mockClient.artificialDelayNanoseconds = 500_000_000
 
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 1)
 
-        var alertCalled = false
+        nonisolated(unsafe) var alertCalled = false
 
-        // Cancel immediately
         await monitor.cancel()
 
         await monitor.checkForFailures(preferences: prefs) { _, _, _ in
@@ -249,7 +244,6 @@ final class HUDMonitorTests: XCTestCase {
     // MARK: - Unstable Failures Are Excluded
 
     func testUnstableFailuresAreNotCountedAsConsecutive() async {
-        // Row with only unstable failure, followed by success
         let json = makeHUDResponseJSON(rows: [
             [(name: "flaky-test", conclusion: "failure", unstable: true)],
             [(name: "build", conclusion: "success", unstable: false)],
@@ -267,7 +261,7 @@ final class HUDMonitorTests: XCTestCase {
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 1)
 
-        var alertCalled = false
+        nonisolated(unsafe) var alertCalled = false
         await monitor.checkForFailures(preferences: prefs) { _, _, _ in
             alertCalled = true
         }
@@ -290,7 +284,7 @@ final class HUDMonitorTests: XCTestCase {
         let monitor = HUDMonitor(apiClient: mockClient)
         let prefs = defaultPreferences(threshold: 1)
 
-        var alertCalled = false
+        nonisolated(unsafe) var alertCalled = false
         await monitor.checkForFailures(preferences: prefs) { _, _, _ in
             alertCalled = true
         }

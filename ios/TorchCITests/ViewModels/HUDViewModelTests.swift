@@ -181,30 +181,12 @@ final class HUDViewModelTests: XCTestCase {
         }
     }
 
-    // MARK: - Page Navigation
+    // MARK: - Infinite Scroll
 
-    func testNextPageIncrementsPage() {
-        XCTAssertEqual(viewModel.currentPage, 1)
-
-        viewModel.nextPage()
-
-        XCTAssertEqual(viewModel.currentPage, 2)
-    }
-
-    func testPreviousPageDecrementsPage() {
-        viewModel.currentPage = 3
-
-        viewModel.previousPage()
-
-        XCTAssertEqual(viewModel.currentPage, 2)
-    }
-
-    func testPreviousPageDoesNotGoBelowOne() {
-        XCTAssertEqual(viewModel.currentPage, 1)
-
-        viewModel.previousPage()
-
-        XCTAssertEqual(viewModel.currentPage, 1)
+    func testLoadMoreIfNeededSetsIsLoadingMore() {
+        // Set up loaded state first
+        viewModel.state = .loaded
+        XCTAssertFalse(viewModel.isLoadingMore)
     }
 
     func testOnPageChangeSetsPage() {

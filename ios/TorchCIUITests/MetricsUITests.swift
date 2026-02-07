@@ -1,10 +1,12 @@
 import XCTest
 
+@MainActor
 final class MetricsUITests: XCTestCase {
-    let app = XCUIApplication()
+    private var app: XCUIApplication!
 
     override func setUp() {
         continueAfterFailure = false
+        app = XCUIApplication()
         app.launch()
     }
 
