@@ -5,7 +5,7 @@ export default function Page() {
   const router = useRouter();
   const { report_id } = router.query;
   const limitParam = router.query.limit;
-  const limit = limitParam ? Number(limitParam) : 5; // default to 20
+  const limit = limitParam ? Number(limitParam) : 20; // default to 20
 
   return (
     <BenchmarkRegressionReportListWrapper

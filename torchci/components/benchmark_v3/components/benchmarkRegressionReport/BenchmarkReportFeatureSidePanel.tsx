@@ -57,7 +57,7 @@ export function BenchmarkReportFeatureSidePanel({
       >
         <Box sx={{ width: "80vw" }}>
           {type === "list" && (
-            <BenchmarkRegressionReportListWrapper report_id={id} limit={5} />
+            <BenchmarkRegressionReportListWrapper report_id={id} limit={10} />
           )}
           {type === "detail" && (
             <>
