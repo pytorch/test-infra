@@ -1,0 +1,67 @@
+# Xcode
+build/
+DerivedData/
+*.xcuserdata/
+*.xcworkspace/xcuserdata/
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+xcuserdata/
+
+# Xcode project index
+IndexStoreDB/
+Package.resolved
+
+# Swift Package Manager
+.build/
+.swiftpm/
+
+# CocoaPods
+Pods/
+
+# Fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output/
+fastlane/vendor/
+
+# Code signing
+*.mobileprovision
+*.p12
+*.p8
+*.cer
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test output
+test_output/
+*.xcresult
+swiftlint_results.json
+
+# Build artifacts
+*.ipa
+*.dSYM.zip
+*.dSYM
+*.app
+
+# OS files
+.DS_Store
+*.swp
+*~
+._*
+Thumbs.db
+
+# IDE
+.idea/
+*.hmap
+TorchCI/Secrets.plist
+Secrets.plist

@@ -1,0 +1,117 @@
+name: TorchCI
+options:
+  bundleIdPrefix: com.pytorch
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: 1
+    GENERATE_INFOPLIST_FILE: YES
+    ENABLE_PREVIEWS: YES
+    CODE_SIGN_STYLE: Automatic
+    DEVELOPMENT_TEAM: N324UX8D9M
+    SWIFT_STRICT_CONCURRENCY: complete
+
+targets:
+  TorchCI:
+    type: application
+    platform: iOS
+    sources:
+      - TorchCI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pytorch.torchci
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        INFOPLIST_KEY_BGTaskSchedulerPermittedIdentifiers: "$(PRODUCT_BUNDLE_IDENTIFIER).hudmonitor"
+    dependencies:
+      - target: TorchCIWidgetExtension
+    entitlements:
+      path: TorchCI/TorchCI.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.associated-domains:
+          - "applinks:hud.pytorch.org"
+        com.apple.security.application-groups:
+          - "group.com.pytorch.torchci"
+
+  TorchCIWidgetExtension:
+    type: app-extension
+    platform: iOS
+    sources:
+      - TorchCIWidget
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pytorch.torchci.widget
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+    info:
+      path: TorchCIWidget/Info.plist
+      properties:
+        CFBundleDisplayName: TorchCI Widget
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: TorchCIWidget/TorchCIWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - "group.com.pytorch.torchci"
+
+  TorchCITests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - TorchCITests
+    dependencies:
+      - target: TorchCI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pytorch.torchci.tests
+
+  TorchCIUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - TorchCIUITests
+    dependencies:
+      - target: TorchCI
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.pytorch.torchci.uitests
+
+schemes:
+  TorchCI:
+    build:
+      targets:
+        TorchCI: all
+        TorchCITests: [test]
+        TorchCIUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - TorchCITests
+        - TorchCIUITests
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  TorchCIWidgetExtension:
+    build:
+      targets:
+        TorchCIWidgetExtension: all
+    run:
+      config: Debug
+    archive:
+      config: Release

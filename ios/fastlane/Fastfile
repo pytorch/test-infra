@@ -1,0 +1,214 @@
+# Fastlane configuration for TorchCI iOS app
+# PyTorch CI/CD dashboard for iOS
+
+default_platform(:ios)
+
+SCHEME = "TorchCI"
+PROJECT = "TorchCI.xcodeproj"
+
+platform :ios do
+  # ============================================
+  # Build
+  # ============================================
+
+  desc "Build the app for testing (Debug configuration)"
+  lane :build do
+    gym(
+      project: PROJECT,
+      scheme: SCHEME,
+      clean: true,
+      configuration: "Debug",
+      skip_codesigning: true,
+      skip_archive: true,
+      destination: "generic/platform=iOS Simulator",
+      output_directory: "./build",
+      derived_data_path: "./DerivedData"
+    )
+
+    UI.success("Build completed successfully.")
+  end
+
+  # ============================================
+  # Test
+  # ============================================
+
+  desc "Run unit tests and UI tests"
+  lane :test do |options|
+    # Run unit tests
+    scan(
+      project: PROJECT,
+      scheme: SCHEME,
+      clean: true,
+      devices: [options[:device] || "iPhone 16 Pro"],
+      code_coverage: true,
+      output_directory: "./test_output",
+      output_types: "junit,html",
+      result_bundle: true,
+      derived_data_path: "./DerivedData"
+    )
+
+    UI.success("All tests passed.")
+  end
+
+  # ============================================
+  # Beta (TestFlight)
+  # ============================================
+
+  desc "Build and upload to TestFlight"
+  lane :beta do |options|
+    api_key = get_api_key
+
+    # Increment build number
+    increment_build_number(
+      xcodeproj: PROJECT
+    )
+
+    # Build the app
+    gym(
+      project: PROJECT,
+      scheme: SCHEME,
+      export_method: "app-store",
+      clean: true,
+      output_directory: "./build",
+      output_name: "TorchCI.ipa",
+      derived_data_path: "./DerivedData"
+    )
+
+    # Upload to TestFlight
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: options[:skip_wait] || false,
+      distribute_external: false
+    )
+
+    # Commit the version bump
+    commit_version_bump(
+      xcodeproj: PROJECT,
+      message: "Bump build number for TestFlight",
+      force: true
+    )
+
+    build_number = get_build_number(xcodeproj: PROJECT)
+    UI.success("Successfully uploaded build #{build_number} to TestFlight.")
+  end
+
+  # ============================================
+  # Release (App Store)
+  # ============================================
+
+  desc "Build for App Store release, upload, and submit for review"
+  lane :release do |options|
+    api_key = get_api_key
+    version = get_version_number(xcodeproj: PROJECT, target: SCHEME)
+
+    UI.message("Releasing version #{version}")
+
+    # 1. Increment build number
+    increment_build_number(xcodeproj: PROJECT)
+    build_number = get_build_number(xcodeproj: PROJECT)
+    UI.message("Build number: #{build_number}")
+
+    # 2. Build the app
+    UI.message("Building app for App Store...")
+    gym(
+      project: PROJECT,
+      scheme: SCHEME,
+      export_method: "app-store",
+      clean: true,
+      output_directory: "./build",
+      output_name: "TorchCI.ipa",
+      derived_data_path: "./DerivedData",
+      include_bitcode: false
+    )
+
+    # 3. Upload to App Store Connect
+    UI.message("Uploading to App Store Connect...")
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: false
+    )
+
+    # 4. Upload metadata
+    UI.message("Uploading metadata...")
+    deliver(
+      api_key: api_key,
+      app_identifier: "com.pytorch.torchci",
+      app_version: version,
+      skip_binary_upload: true,
+      skip_screenshots: options[:skip_screenshots] || false,
+      skip_metadata: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submit_for_review: false,
+      automatic_release: false,
+      run_precheck_before_submit: false
+    )
+
+    # 5. Submit for review
+    UI.message("Submitting for App Store review...")
+    deliver(
+      api_key: api_key,
+      app_identifier: "com.pytorch.torchci",
+      app_version: version,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: true,
+      automatic_release: true,
+      force: true,
+      submission_information: {
+        add_id_info_uses_idfa: false
+      }
+    )
+
+    # 6. Commit version bump and tag
+    commit_version_bump(
+      xcodeproj: PROJECT,
+      message: "Release version #{version} (#{build_number})",
+      force: true
+    )
+
+    add_git_tag(tag: "ios/v#{version}-#{build_number}")
+
+    UI.success("Successfully submitted version #{version} for review!")
+  end
+
+  # ============================================
+  # Lint
+  # ============================================
+
+  desc "Run SwiftLint if available"
+  lane :lint do
+    if system("which swiftlint > /dev/null 2>&1")
+      swiftlint(
+        mode: :lint,
+        output_file: "./swiftlint_results.json",
+        reporter: "json",
+        raise_if_swiftlint_error: true,
+        ignore_exit_status: false
+      )
+      UI.success("SwiftLint passed.")
+    else
+      UI.important("SwiftLint not installed. Skipping lint.")
+      UI.message("Install with: brew install swiftlint")
+    end
+  end
+
+  # ============================================
+  # Helpers
+  # ============================================
+
+  private_lane :get_api_key do
+    app_store_connect_api_key(
+      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
+      key_filepath: ENV["APP_STORE_CONNECT_KEY_PATH"],
+      in_house: false
+    )
+  end
+end
+
+# Error handling
+error do |lane, exception|
+  UI.error("Error in lane '#{lane}': #{exception.message}")
+end
