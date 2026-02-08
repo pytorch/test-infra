@@ -1454,15 +1454,13 @@
       "mac"
     ]
   ],
-  "test_remove_noop_slice1_cpu (__main__.CpuTests)": [
-    "151379",
-    "https://github.com/pytorch/pytorch/issues/151379",
+  "test_remove_noop_slice1_cuda (__main__.GPUTests)": [
+    "151381",
+    "https://github.com/pytorch/pytorch/issues/151381",
     [
-      "asan",
       "linux",
-      "mac",
-      "macos",
-      "rocm"
+      "rocm",
+      "slow"
     ]
   ],
   "test_remove_noop_slice_cpu (__main__.CpuTests)": [
