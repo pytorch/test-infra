@@ -7,6 +7,7 @@ struct HUDGridView: View {
     let repoOwner: String
     let repoName: String
     var isLoadingMore: Bool = false
+    var hasMorePages: Bool = true
     var loadMoreError: String?
     var onJobTap: ((HUDJob, String) -> Void)?
     var onCommitTap: ((HUDRow) -> Void)?
@@ -106,6 +107,14 @@ struct HUDGridView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
+                }
+
+                if !isLoadingMore && !hasMorePages && !rows.isEmpty {
+                    Text("All commits loaded")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
                 }
             }
         }

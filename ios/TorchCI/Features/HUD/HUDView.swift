@@ -394,6 +394,7 @@ struct HUDView: View {
                     repoOwner: viewModel.selectedRepo.owner,
                     repoName: viewModel.selectedRepo.name,
                     isLoadingMore: viewModel.isLoadingMore,
+                    hasMorePages: viewModel.hasMorePages,
                     loadMoreError: viewModel.loadMoreError,
                     onJobTap: { job, name in
                         selectedJob = job

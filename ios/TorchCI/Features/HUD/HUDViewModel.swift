@@ -34,7 +34,7 @@ final class HUDViewModel: ObservableObject {
     @Published var failurePatterns: [String] = []
     @Published var isLoadingMore: Bool = false
     @Published var loadMoreError: String?
-    private var hasMorePages: Bool = true
+    @Published private(set) var hasMorePages: Bool = true
 
     // MARK: - Configuration
 

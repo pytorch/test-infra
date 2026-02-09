@@ -789,11 +789,11 @@ final class MetricsDashboardViewModel: ObservableObject {
         lastDocsPushSeconds = await docsPushResult?.first?.last_success_seconds_ago
 
         // Activity Metrics
-        revertsCount = await revertsResult?.first?.value.map { Int($0) }
-        commitsCount = await commitsResult?.first?.value.map { Int($0) }
+        revertsCount = await revertsResult?.last?.value.map { Int($0) }
+        commitsCount = await commitsResult?.last?.value.map { Int($0) }
 
         // LF Rollover: use most recent bucket's percentage
-        lfRolloverPercent = await lfRolloverResult?.first?.percentage
+        lfRolloverPercent = await lfRolloverResult?.last?.percentage
 
         lastUpdated = Date()
         state = .loaded

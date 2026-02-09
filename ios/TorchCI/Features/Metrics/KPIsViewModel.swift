@@ -286,8 +286,11 @@ final class KPIsViewModel: ObservableObject {
             allSparklines[queryName] = data
 
             let current = data.last?.value ?? 0
-            // For trend, compare against a point 30 days ago (or ~4 weeks)
-            let previousIndex = max(0, data.count - 30)
+            // For trend, compare against roughly 1 month ago.
+            // Use 1/6th of the data range (for a default 6-month window = ~1 month)
+            // which adapts to any granularity (day, week, month).
+            let lookback = max(1, data.count / 6)
+            let previousIndex = max(0, data.count - lookback)
             let previous = data.indices.contains(previousIndex) ? data[previousIndex].value : nil
 
             let kpi = KPIData(

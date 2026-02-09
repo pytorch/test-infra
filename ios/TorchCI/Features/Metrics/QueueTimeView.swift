@@ -871,10 +871,8 @@ final class QueueTimeViewModel: ObservableObject {
         return machineMap.map { machineType, values in
             let sorted = values.sorted()
             let avg = values.reduce(0, +) / Double(values.count)
-            let p50Index = max(Int(Double(sorted.count) * 0.5), 0)
-            let p90Index = max(Int(Double(sorted.count) * 0.9), 0)
-            let p50 = sorted.count > p50Index ? sorted[p50Index] : 0
-            let p90 = sorted.count > p90Index ? sorted[p90Index] : 0
+            let p50 = Self.percentile(sorted, p: 0.5)
+            let p90 = Self.percentile(sorted, p: 0.9)
             let maxVal = sorted.last ?? 0
 
             return MachineTypeData(
@@ -886,6 +884,17 @@ final class QueueTimeViewModel: ObservableObject {
                 dataPoints: values.count
             )
         }
+    }
+
+    /// Linear interpolation percentile on a pre-sorted array of values.
+    private static func percentile(_ sorted: [Double], p: Double) -> Double {
+        guard !sorted.isEmpty else { return 0 }
+        if sorted.count == 1 { return sorted[0] }
+        let rank = p * Double(sorted.count - 1)
+        let lower = Int(rank)
+        let upper = min(lower + 1, sorted.count - 1)
+        let fraction = rank - Double(lower)
+        return sorted[lower] + fraction * (sorted[upper] - sorted[lower])
     }
 
     private func computeSummary(from data: [QueueTimeResponse]) {
