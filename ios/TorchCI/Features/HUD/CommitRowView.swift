@@ -80,6 +80,35 @@ struct CommitRowView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = row.sha
+            } label: {
+                Label("Copy SHA", systemImage: "doc.on.doc")
+            }
+
+            if let title = row.commitTitle {
+                Button {
+                    UIPasteboard.general.string = title
+                } label: {
+                    Label("Copy Title", systemImage: "doc.on.clipboard")
+                }
+            }
+
+            if let prNumber = row.prNumber {
+                Button {
+                    UIPasteboard.general.string = "https://github.com/\(repoOwner)/\(repoName)/pull/\(prNumber)"
+                } label: {
+                    Label("Copy PR Link", systemImage: "link")
+                }
+            }
+
+            Button {
+                UIPasteboard.general.string = "https://github.com/\(repoOwner)/\(repoName)/commit/\(row.sha)"
+            } label: {
+                Label("Copy Commit Link", systemImage: "link.circle")
+            }
+        }
     }
 
     private var avatarView: some View {
