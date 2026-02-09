@@ -45,12 +45,24 @@ struct VLLMMetricsView: View {
 
                 keyMetricsOverview
 
-                Picker("Section", selection: $viewModel.selectedTab) {
-                    Text("Reliability").tag(0)
-                    Text("Duration").tag(1)
-                    Text("Source Control").tag(2)
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 0) {
+                        ForEach(Array(["Reliability", "Duration", "Source Control", "Utilization & Cost", "CI Builds"].enumerated()), id: \.offset) { index, title in
+                            Button {
+                                withAnimation { viewModel.selectedTab = index }
+                            } label: {
+                                Text(title)
+                                    .font(.subheadline.bold())
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 8)
+                                    .background(viewModel.selectedTab == index ? Color.accentColor : Color(.systemGray5))
+                                    .foregroundStyle(viewModel.selectedTab == index ? .white : .primary)
+                                    .clipShape(Capsule())
+                            }
+                        }
+                    }
+                    .padding(.vertical, 4)
                 }
-                .pickerStyle(.segmented)
                 .padding(.top, 8)
 
                 switch viewModel.selectedTab {
@@ -60,6 +72,10 @@ struct VLLMMetricsView: View {
                     durationSection
                 case 2:
                     sourceControlSection
+                case 3:
+                    utilizationCostSection
+                case 4:
+                    ciBuildsSection
                 default:
                     EmptyView()
                 }
@@ -325,6 +341,16 @@ struct VLLMMetricsView: View {
                 valueFormat: .duration,
                 chartHeight: 200
             )
+
+            if !viewModel.dockerBuildRuntimeSeries.isEmpty {
+                TimeSeriesChart(
+                    title: "Docker Build Runtime",
+                    data: viewModel.dockerBuildRuntimeSeries,
+                    color: .purple,
+                    valueFormat: .duration,
+                    chartHeight: 200
+                )
+            }
         }
     }
 
@@ -414,6 +440,134 @@ struct VLLMMetricsView: View {
                 valueFormat: .integer,
                 chartHeight: 200
             )
+        }
+    }
+
+    // MARK: - Utilization & Cost Section
+
+    @ViewBuilder
+    private var utilizationCostSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if viewModel.queuePerBuildData.isEmpty {
+                ContentUnavailableView(
+                    "No Queue Data",
+                    systemImage: "clock.badge.questionmark",
+                    description: Text("No queue wait or cost data available for this time period.")
+                )
+            } else {
+                SectionHeader(
+                    title: "Queue Wait per Build",
+                    subtitle: "P90 queue wait times by GPU type per build"
+                )
+
+                ForEach(viewModel.queuePerBuildData.prefix(20), id: \.buildNumber) { row in
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("Build #\(row.buildNumber)")
+                                .font(.subheadline.bold())
+                            Spacer()
+                            Text(row.startedAt.prefix(10))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        HStack(spacing: 16) {
+                            Label(String(format: "1-GPU: %.0fm", row.gpu1QueueWaitP90Hours * 60), systemImage: "cpu")
+                                .font(.caption)
+                            Label(String(format: "4-GPU: %.0fm", row.gpu4QueueWaitP90Hours * 60), systemImage: "cpu")
+                                .font(.caption)
+                            Label(String(format: "CPU: %.0fm", row.cpuQueueWaitP90Hours * 60), systemImage: "desktopcomputer")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                    Divider()
+                }
+
+                SectionHeader(
+                    title: "Run Cost per Build",
+                    subtitle: "Estimated compute cost per CI build"
+                )
+
+                ForEach(viewModel.queuePerBuildData.prefix(20), id: \.buildNumber) { row in
+                    HStack {
+                        Text("Build #\(row.buildNumber)")
+                            .font(.subheadline.bold())
+                        Spacer()
+                        Text(String(format: "$%.0f", row.totalCostDollars))
+                            .font(.subheadline.bold())
+                            .foregroundStyle(row.totalCostDollars > 500 ? .red : .green)
+                    }
+                    .padding(.vertical, 2)
+                    Divider()
+                }
+            }
+        }
+    }
+
+    // MARK: - CI Builds Section
+
+    @ViewBuilder
+    private var ciBuildsSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SectionHeader(
+                title: "Continuous Build Tracker",
+                subtitle: "Recent CI build results on main branch"
+            )
+
+            if viewModel.continuousBuildsData.isEmpty {
+                ContentUnavailableView(
+                    "No Build Data",
+                    systemImage: "hammer",
+                    description: Text("No continuous build data available for this time period.")
+                )
+            } else {
+                ForEach(viewModel.continuousBuildsData.prefix(30), id: \.buildNumber) { build in
+                    HStack {
+                        Circle()
+                            .fill(build.buildState == "passed" ? Color.green : build.buildState == "canceled" ? Color.gray : Color.red)
+                            .frame(width: 10, height: 10)
+                        Text("#\(build.buildNumber)")
+                            .font(.subheadline.bold())
+                        Spacer()
+                        Text(build.buildState.capitalized)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(build.startedAt.prefix(10))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                    Divider()
+                }
+            }
+
+            SectionHeader(
+                title: "Job List",
+                subtitle: "Individual jobs from CI pipeline"
+            )
+
+            if viewModel.jobListData.isEmpty {
+                ContentUnavailableView(
+                    "No Job Data",
+                    systemImage: "list.bullet",
+                    description: Text("No job list data available for this time period.")
+                )
+            } else {
+                ForEach(viewModel.jobListData.prefix(30), id: \.jobName) { job in
+                    HStack {
+                        Text(job.jobName)
+                            .font(.subheadline)
+                            .lineLimit(1)
+                        Spacer()
+                        Text("\(job.buildCount) builds")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 2)
+                    Divider()
+                }
+            }
         }
     }
 
@@ -515,6 +669,19 @@ final class VLLMMetricsViewModel: ObservableObject {
     @Published var forceMergeSeries: [TimeSeriesDataPoint] = []
     @Published var mergeTrendSeries: [TimeSeriesDataPoint] = []
 
+    // Utilization & Cost data
+    @Published var queuePerBuildData: [QueuePerBuildRow] = []
+
+    // CI Builds data
+    @Published var continuousBuildsData: [ContinuousBuildRow] = []
+    @Published var jobListData: [JobListRow] = []
+
+    // Duration: Docker build runtime
+    @Published var dockerBuildRuntimeSeries: [TimeSeriesDataPoint] = []
+
+    // Duration: Job runtime trends
+    @Published var jobRuntimeTrendsData: [JobRuntimeTrendRow] = []
+
     private let apiClient: APIClientProtocol
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
@@ -568,12 +735,24 @@ final class VLLMMetricsViewModel: ObservableObject {
             async let prevPRCycle = fetchPrevPRCycle()
             async let retryRate = fetchRetryRate()
             async let trunkRecovery = fetchTrunkRecovery()
+            async let queuePerBuild = fetchQueuePerBuild()
+            async let continuousBuilds = fetchContinuousBuilds()
+            async let jobList = fetchJobList()
+            async let dockerRuntime = fetchDockerBuildRuntime()
+            async let jobRuntimes = fetchJobRuntimeTrends()
 
             let (rel, prevRel, trunk, prevTrunk, ciDur, prevCiDur, merge, prevMerge, prC, prevPrC, retry, recovery) = try await (
                 reliability, prevReliability, trunkHealth, prevTrunkHealth,
                 ciDurations, prevCIDurations, merges, prevMerges,
                 prCycle, prevPRCycle, retryRate, trunkRecovery
             )
+
+            // Await new queries (non-critical -- use try? so failures don't block the page)
+            let qpb = try? await queuePerBuild
+            let cb = try? await continuousBuilds
+            let jl = try? await jobList
+            let dr = try? await dockerRuntime
+            let jr = try? await jobRuntimes
 
             processReliability(rel, prev: prevRel)
             processTrunkHealth(trunk, prev: prevTrunk)
@@ -582,6 +761,18 @@ final class VLLMMetricsViewModel: ObservableObject {
             processPRCycle(prC, prev: prevPrC)
             processRetryRate(retry)
             processTrunkRecovery(recovery)
+
+            // Process new tab data
+            queuePerBuildData = qpb ?? []
+            continuousBuildsData = cb ?? []
+            jobListData = jl ?? []
+            jobRuntimeTrendsData = jr ?? []
+            dockerBuildRuntimeSeries = (dr ?? []).map {
+                TimeSeriesDataPoint(
+                    granularity_bucket: $0.started_at,
+                    value: $0.duration_seconds ?? 0
+                )
+            }
 
             state = .loaded
         } catch {
@@ -649,6 +840,54 @@ final class VLLMMetricsViewModel: ObservableObject {
         let recovery_hours: Double
     }
 
+    struct QueuePerBuildRow: Decodable, Identifiable {
+        let build_number: Int
+        let started_at: String
+        let gpu_1_queue_wait_p90_hours: Double?
+        let gpu_4_queue_wait_p90_hours: Double?
+        let cpu_queue_wait_p90_hours: Double?
+        let total_cost_dollars: Double?
+
+        var id: Int { build_number }
+        var buildNumber: Int { build_number }
+        var startedAt: String { started_at }
+        var gpu1QueueWaitP90Hours: Double { gpu_1_queue_wait_p90_hours ?? 0 }
+        var gpu4QueueWaitP90Hours: Double { gpu_4_queue_wait_p90_hours ?? 0 }
+        var cpuQueueWaitP90Hours: Double { cpu_queue_wait_p90_hours ?? 0 }
+        var totalCostDollars: Double { total_cost_dollars ?? 0 }
+    }
+
+    struct ContinuousBuildRow: Decodable, Identifiable {
+        let build_number: Int
+        let build_state: String
+        let started_at: String
+
+        var id: Int { build_number }
+        var buildNumber: Int { build_number }
+        var buildState: String { build_state }
+        var startedAt: String { started_at }
+    }
+
+    struct JobListRow: Decodable, Identifiable {
+        let job_name: String
+        let build_count: Int?
+
+        var id: String { job_name }
+        var jobName: String { job_name }
+        var buildCount: Int { build_count ?? 0 }
+    }
+
+    struct DockerBuildRuntimeRow: Decodable {
+        let started_at: String
+        let duration_seconds: Double?
+    }
+
+    struct JobRuntimeTrendRow: Decodable {
+        let job_name: String
+        let started_at: String
+        let duration_seconds: Double?
+    }
+
     // MARK: - Fetch Methods
 
     private func fetchReliability() async throws -> [ReliabilityRow] {
@@ -660,8 +899,8 @@ final class VLLMMetricsViewModel: ObservableObject {
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
                     "granularity": "day",
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                     "jobGroups": selectedJobGroups,
                 ] as [String: Any]
             )
@@ -677,8 +916,8 @@ final class VLLMMetricsViewModel: ObservableObject {
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
                     "granularity": "day",
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                     "jobGroups": selectedJobGroups,
                 ] as [String: Any]
             )
@@ -693,8 +932,9 @@ final class VLLMMetricsViewModel: ObservableObject {
                 parameters: [
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "granularity": "day",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                     "jobGroups": selectedJobGroups,
                 ] as [String: Any]
             )
@@ -709,8 +949,9 @@ final class VLLMMetricsViewModel: ObservableObject {
                 parameters: [
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "granularity": "day",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                     "jobGroups": selectedJobGroups,
                 ] as [String: Any]
             )
@@ -725,8 +966,8 @@ final class VLLMMetricsViewModel: ObservableObject {
                 parameters: [
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                 ] as [String: Any]
             )
         )
@@ -740,8 +981,8 @@ final class VLLMMetricsViewModel: ObservableObject {
                 parameters: [
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                 ] as [String: Any]
             )
         )
@@ -814,8 +1055,8 @@ final class VLLMMetricsViewModel: ObservableObject {
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
                     "granularity": "day",
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
                     "jobGroups": selectedJobGroups,
                 ] as [String: Any]
             )
@@ -830,8 +1071,82 @@ final class VLLMMetricsViewModel: ObservableObject {
                 parameters: [
                     "startTime": range.startTime,
                     "stopTime": range.stopTime,
-                    "repo": "https://github.com/vllm-project/vllm",
-                    "pipelineName": "vllm-ci",
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
+                    "jobGroups": selectedJobGroups,
+                ] as [String: Any]
+            )
+        )
+    }
+
+    private func fetchQueuePerBuild() async throws -> [QueuePerBuildRow] {
+        let range = timeRangeTuple
+        return try await apiClient.fetch(
+            .clickhouseQuery(
+                name: "vllm/queue_per_build_windowed",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                ] as [String: Any]
+            )
+        )
+    }
+
+    private func fetchContinuousBuilds() async throws -> [ContinuousBuildRow] {
+        let range = timeRangeTuple
+        return try await apiClient.fetch(
+            .clickhouseQuery(
+                name: "vllm/continuous_builds",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
+                ] as [String: Any]
+            )
+        )
+    }
+
+    private func fetchJobList() async throws -> [JobListRow] {
+        let range = timeRangeTuple
+        return try await apiClient.fetch(
+            .clickhouseQuery(
+                name: "vllm/job_list",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "pipelineName": "CI",
+                    "jobGroups": selectedJobGroups,
+                ] as [String: Any]
+            )
+        )
+    }
+
+    private func fetchDockerBuildRuntime() async throws -> [DockerBuildRuntimeRow] {
+        let range = timeRangeTuple
+        return try await apiClient.fetch(
+            .clickhouseQuery(
+                name: "vllm/docker_build_runtime",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "repo": "https://github.com/vllm-project/vllm.git",
+                    "jobName": ":docker: build image",
+                ] as [String: Any]
+            )
+        )
+    }
+
+    private func fetchJobRuntimeTrends() async throws -> [JobRuntimeTrendRow] {
+        let range = timeRangeTuple
+        return try await apiClient.fetch(
+            .clickhouseQuery(
+                name: "vllm/job_runtime_trends",
+                parameters: [
+                    "startTime": range.startTime,
+                    "stopTime": range.stopTime,
+                    "repo": "https://github.com/vllm-project/vllm.git",
                     "jobGroups": selectedJobGroups,
                 ] as [String: Any]
             )
