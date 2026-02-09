@@ -183,7 +183,7 @@ struct TorchAOBenchmarkView: View {
             )
 
             MetricCard(
-                title: "Avg Speedup",
+                title: "Geo Mean Speedup",
                 value: viewModel.averageSpeedup.map { String(format: "%.2fx", $0) } ?? "--",
                 subtitle: viewModel.averageSpeedup.map { $0 >= 1.0 ? "Improved" : "Regressed" },
                 valueColor: viewModel.averageSpeedup.map { speedupValueColor($0) } ?? .primary,
@@ -625,9 +625,11 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
     }
 
     var averageSpeedup: Double? {
-        let speedups = filteredDataPoints.compactMap(\.speedup)
+        let speedups = filteredDataPoints.compactMap(\.speedup).filter { $0 > 0 }
         guard !speedups.isEmpty else { return nil }
-        return speedups.reduce(0.0, +) / Double(speedups.count)
+        // Geometric mean: exp(mean(log(values))) -- correct for ratios/speedups
+        let logSum = speedups.reduce(0.0) { $0 + log($1) }
+        return exp(logSum / Double(speedups.count))
     }
 
     var passRate: Double? {
@@ -681,10 +683,12 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
                 point.name.lowercased().contains(quant.lowercased()) ||
                 point.metric?.lowercased().contains(quant.lowercased()) ?? false
             }
-            let speedups = filtered.compactMap(\.speedup)
+            let speedups = filtered.compactMap(\.speedup).filter { $0 > 0 }
             if !speedups.isEmpty {
-                let avg = speedups.reduce(0.0, +) / Double(speedups.count)
-                stats.append(QuantizationStats(quantization: quant, avgSpeedup: avg, modelCount: speedups.count))
+                // Geometric mean: exp(mean(log(values))) -- correct for ratios/speedups
+                let logSum = speedups.reduce(0.0) { $0 + log($1) }
+                let geomean = exp(logSum / Double(speedups.count))
+                stats.append(QuantizationStats(quantization: quant, avgSpeedup: geomean, modelCount: speedups.count))
             }
         }
 
@@ -723,7 +727,7 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
                     : [selectedQuantization],
                 "granularity": "hour",
                 "mode": selectedMode,
-                "repo": "pytorch/ao",
+                "repo": "pytorch/benchmark",
                 "startTime": dateFormatter.string(from: startDate),
                 "stopTime": dateFormatter.string(from: now),
                 "suites": selectedSuite == "all"

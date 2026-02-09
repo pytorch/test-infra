@@ -180,8 +180,9 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
         ]
         viewModel.groupData = BenchmarkGroupData(data: points, metadata: nil)
 
+        // Geometric mean: exp((log(1.2) + log(0.8)) / 2) = sqrt(0.96) ≈ 0.9798
         XCTAssertNotNil(viewModel.averageSpeedup)
-        XCTAssertEqual(viewModel.averageSpeedup!, 1.0, accuracy: 0.001)
+        XCTAssertEqual(viewModel.averageSpeedup!, sqrt(1.2 * 0.8), accuracy: 0.001)
     }
 
     func testAverageSpeedupWithSinglePoint() {
@@ -190,6 +191,7 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
         ]
         viewModel.groupData = BenchmarkGroupData(data: points, metadata: nil)
 
+        // Geometric mean of a single value is the value itself
         XCTAssertNotNil(viewModel.averageSpeedup)
         XCTAssertEqual(viewModel.averageSpeedup!, 1.5, accuracy: 0.001)
     }
@@ -372,7 +374,7 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
 
         let autoquant = comparison.first { $0.quantization == "autoquant" }
         XCTAssertNotNil(autoquant)
-        XCTAssertEqual(autoquant!.avgSpeedup, 1.3, accuracy: 0.001) // (1.2 + 1.4) / 2
+        XCTAssertEqual(autoquant!.avgSpeedup, sqrt(1.2 * 1.4), accuracy: 0.001) // geomean(1.2, 1.4)
         XCTAssertEqual(autoquant!.modelCount, 2)
 
         let int8 = comparison.first { $0.quantization == "int8dynamic" }
