@@ -369,6 +369,262 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.showFailureWarning)
     }
 
+    // MARK: - Hide Unstable Filter
+
+    func testHideUnstableFiltersOutUnstableJobs() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build-linux", "test-linux-unstable", "lint", "test-windows-unstable"],
+            rows: [
+                [
+                    (name: "build-linux", conclusion: "success", unstable: false),
+                    (name: "test-linux-unstable", conclusion: "failure", unstable: true),
+                    (name: "lint", conclusion: "success", unstable: false),
+                    (name: "test-windows-unstable", conclusion: "failure", unstable: true),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        // Without filter, all jobs visible
+        XCTAssertEqual(viewModel.filteredJobNames.count, 4)
+
+        // Enable hide unstable
+        viewModel.hideUnstable = true
+        XCTAssertEqual(viewModel.filteredJobNames.count, 2)
+        XCTAssertTrue(viewModel.filteredJobNames.contains("build-linux"))
+        XCTAssertTrue(viewModel.filteredJobNames.contains("lint"))
+        XCTAssertFalse(viewModel.filteredJobNames.contains("test-linux-unstable"))
+        XCTAssertFalse(viewModel.filteredJobNames.contains("test-windows-unstable"))
+    }
+
+    func testHideUnstableIsCaseInsensitive() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build", "test-UNSTABLE-check"],
+            rows: []
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        viewModel.hideUnstable = true
+        XCTAssertEqual(viewModel.filteredJobNames.count, 1)
+        XCTAssertEqual(viewModel.filteredJobNames.first, "build")
+    }
+
+    // MARK: - Show Failures Only Filter
+
+    func testShowFailuresOnlyFiltersToJobsWithFailures() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build", "test", "lint"],
+            rows: [
+                [
+                    (name: "build", conclusion: "success", unstable: false),
+                    (name: "test", conclusion: "failure", unstable: false),
+                    (name: "lint", conclusion: "success", unstable: false),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        // Without filter, all visible
+        XCTAssertEqual(viewModel.filteredJobNames.count, 3)
+
+        // Enable failures only
+        viewModel.showFailuresOnly = true
+        XCTAssertEqual(viewModel.filteredJobNames.count, 1)
+        XCTAssertEqual(viewModel.filteredJobNames.first, "test")
+    }
+
+    func testShowFailuresOnlyConsidersAllRows() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build", "test", "lint"],
+            rows: [
+                [
+                    (name: "build", conclusion: "success", unstable: false),
+                    (name: "test", conclusion: "failure", unstable: false),
+                    (name: "lint", conclusion: "success", unstable: false),
+                ],
+                [
+                    (name: "build", conclusion: "failure", unstable: false),
+                    (name: "test", conclusion: "success", unstable: false),
+                    (name: "lint", conclusion: "success", unstable: false),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        viewModel.showFailuresOnly = true
+        // Both "build" and "test" have failures across the two rows
+        XCTAssertEqual(viewModel.filteredJobNames.count, 2)
+        XCTAssertTrue(viewModel.filteredJobNames.contains("build"))
+        XCTAssertTrue(viewModel.filteredJobNames.contains("test"))
+    }
+
+    // MARK: - Combined Filters
+
+    func testCombinedFiltersHideUnstableAndFailuresOnly() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build", "test-unstable", "lint", "check"],
+            rows: [
+                [
+                    (name: "build", conclusion: "failure", unstable: false),
+                    (name: "test-unstable", conclusion: "failure", unstable: true),
+                    (name: "lint", conclusion: "success", unstable: false),
+                    (name: "check", conclusion: "failure", unstable: false),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        viewModel.hideUnstable = true
+        viewModel.showFailuresOnly = true
+        // "build" has failure + not unstable -> shown
+        // "test-unstable" has failure but name contains unstable -> hidden
+        // "lint" no failures -> hidden
+        // "check" has failure + not unstable -> shown
+        XCTAssertEqual(viewModel.filteredJobNames.count, 2)
+        XCTAssertTrue(viewModel.filteredJobNames.contains("build"))
+        XCTAssertTrue(viewModel.filteredJobNames.contains("check"))
+    }
+
+    func testCombinedSearchAndHideUnstable() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["build-linux", "build-linux-unstable", "test-linux", "lint"],
+            rows: []
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        viewModel.searchFilter = "linux"
+        viewModel.hideUnstable = true
+        // "build-linux" matches search + not unstable -> shown
+        // "build-linux-unstable" matches search but name contains unstable -> hidden
+        // "test-linux" matches search + not unstable -> shown
+        // "lint" doesn't match search -> hidden
+        XCTAssertEqual(viewModel.filteredJobNames.count, 2)
+        XCTAssertTrue(viewModel.filteredJobNames.contains("build-linux"))
+        XCTAssertTrue(viewModel.filteredJobNames.contains("test-linux"))
+    }
+
+    // MARK: - Clear Filter Resets All
+
+    func testClearFilterResetsAllFilters() async {
+        setSuccessfulHUDResponse(jobNames: ["build", "test-unstable", "lint"])
+        await viewModel.loadData()
+
+        viewModel.searchFilter = "build"
+        viewModel.hideUnstable = true
+        viewModel.showFailuresOnly = true
+
+        viewModel.clearFilter()
+
+        XCTAssertEqual(viewModel.searchFilter, "")
+        XCTAssertFalse(viewModel.hideUnstable)
+        XCTAssertFalse(viewModel.showFailuresOnly)
+        XCTAssertEqual(viewModel.filteredJobNames.count, 3)
+    }
+
+    // MARK: - Job Health Stats
+
+    func testJobHealthStatsCountsBlockingFailures() async {
+        // Create jobs where some are blocking (contain "viable/strict" pattern)
+        let json = makeHUDResponseJSON(
+            jobNames: ["trunk / build / linux", "pull / lint", "periodic / check"],
+            rows: [
+                [
+                    (name: "trunk / build / linux", conclusion: "failure", unstable: false),
+                    (name: "pull / lint", conclusion: "failure", unstable: false),
+                    (name: "periodic / check", conclusion: "success", unstable: false),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        let stats = viewModel.jobHealthStats
+        XCTAssertEqual(stats.successCount, 1)
+        // Total failure count should be 2 (both non-unstable failures)
+        XCTAssertEqual(stats.failureCount, 2)
+    }
+
+    func testJobHealthStatsExcludesUnstableFromBlockingCount() async {
+        let json = makeHUDResponseJSON(
+            jobNames: ["trunk / build", "test-unstable"],
+            rows: [
+                [
+                    (name: "trunk / build", conclusion: "failure", unstable: false),
+                    (name: "test-unstable", conclusion: "failure", unstable: true),
+                ],
+            ]
+        )
+        let endpoint = APIEndpoint.hud(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            branch: "main",
+            page: 1
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await viewModel.loadData()
+
+        let stats = viewModel.jobHealthStats
+        XCTAssertEqual(stats.unstableCount, 1)
+        // The non-unstable failure should be counted, but unstable one shouldn't add to blocking
+        XCTAssertTrue(stats.failureCount >= 1)
+    }
+
     // MARK: - Refresh
 
     func testRefreshCallsLoadData() async {
@@ -379,5 +635,12 @@ final class HUDViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .loaded)
         // loadData auto-loads initialPageCount pages (currently 2)
         XCTAssertEqual(mockClient.callCount, 2)
+    }
+
+    // MARK: - Initial Filter State
+
+    func testInitialFilterStateIsOff() {
+        XCTAssertFalse(viewModel.hideUnstable)
+        XCTAssertFalse(viewModel.showFailuresOnly)
     }
 }

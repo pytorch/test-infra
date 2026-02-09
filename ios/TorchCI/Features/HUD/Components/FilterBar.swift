@@ -82,8 +82,6 @@ struct FilterBar: View {
                         Button {
                             withAnimation(.easeInOut(duration: 0.2)) {
                                 viewModel.clearFilter()
-                                viewModel.showFailuresOnly = false
-                                viewModel.hideUnstable = false
                             }
                         } label: {
                             Text("Clear All")

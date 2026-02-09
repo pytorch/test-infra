@@ -348,6 +348,8 @@ final class HUDViewModel: ObservableObject {
 
     func clearFilter() {
         searchFilter = ""
+        hideUnstable = false
+        showFailuresOnly = false
     }
 
     // MARK: - Job Organization

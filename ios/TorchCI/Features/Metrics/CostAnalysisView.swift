@@ -616,7 +616,6 @@ final class CostAnalysisViewModel: ObservableObject {
 
             state = .loaded
         } catch {
-            print("[CostAnalysis] Error: \(error)")
             state = .error(error.localizedDescription)
         }
     }

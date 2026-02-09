@@ -60,8 +60,8 @@ final class HUDUITests: XCTestCase {
         searchField.tap()
         searchField.typeText("test-query")
 
-        // When text is entered, the FilterBar shows a "Clear" button
-        let clearButton = app.buttons["Clear"]
+        // When text is entered, the FilterBar shows a "Clear All" button
+        let clearButton = app.buttons["Clear All"]
         XCTAssertTrue(clearButton.waitForExistence(timeout: 3))
     }
 
