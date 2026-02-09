@@ -108,9 +108,15 @@ struct RunnersView: View {
             Circle()
                 .fill(AppColors.success)
                 .frame(width: 6, height: 6)
-            Text("Live")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if let lastRefreshed = viewModel.lastRefreshed {
+                Text(lastRefreshed, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Live")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
         }
         .accessibilityLabel("Live data, auto-refreshing")
     }

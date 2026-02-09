@@ -33,6 +33,7 @@ final class RunnersViewModel: ObservableObject {
     @Published var expandedGroups: Set<String> = []
     @Published var sortOrder: SortOrder = .alphabetical
     @Published var statusFilter: StatusFilter = .all
+    @Published var lastRefreshed: Date?
 
     // MARK: - Configuration
 
@@ -85,8 +86,8 @@ final class RunnersViewModel: ObservableObject {
                     || String(runner.id).contains(lowered)
                 }
 
-                if matchesGroupName {
-                    return group
+                if matchesGroupName && matchingRunners.isEmpty {
+                    return group // Group name matches but no individual runners do - show all
                 } else if !matchingRunners.isEmpty {
                     return RunnerGroup(name: group.name, runners: matchingRunners)
                 }
@@ -168,6 +169,7 @@ final class RunnersViewModel: ObservableObject {
             let endpoint = APIEndpoint.runners(org: selectedOrg)
             let result: RunnersResponse = try await apiClient.fetch(endpoint)
             response = result
+            lastRefreshed = Date()
             state = .loaded
         } catch {
             state = .error(error.localizedDescription)
