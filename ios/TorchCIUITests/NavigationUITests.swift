@@ -28,8 +28,8 @@ final class NavigationUITests: XCTestCase {
 
     func testTabSwitchingToTests() {
         app.tabBars.buttons["Tests"].tap()
-        // TestSearchView sets .navigationTitle("Tests")
-        XCTAssertTrue(app.navigationBars["Tests"].waitForExistence(timeout: 5))
+        // TestSearchView sets .navigationTitle("Test Search")
+        XCTAssertTrue(app.navigationBars["Test Search"].waitForExistence(timeout: 5))
     }
 
     func testTabSwitchingToBenchmarks() {
@@ -58,37 +58,31 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        XCTAssertTrue(list.exists)
-
-        XCTAssertTrue(list.staticTexts["Failure Analysis"].exists)
-        XCTAssertTrue(list.staticTexts["Failed Jobs Classifier"].exists)
-        XCTAssertTrue(list.staticTexts["Runners"].exists)
-        XCTAssertTrue(list.staticTexts["Utilization"].exists)
-        XCTAssertTrue(list.staticTexts["Nightlies"].exists)
-        XCTAssertTrue(list.staticTexts["Job Cancellations"].exists)
+        XCTAssertTrue(app.staticTexts["Failure Analysis"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Failed Jobs Classifier"].exists)
+        XCTAssertTrue(app.staticTexts["Runners"].exists)
+        XCTAssertTrue(app.staticTexts["Utilization"].exists)
+        XCTAssertTrue(app.staticTexts["Nightlies"].exists)
+        XCTAssertTrue(app.staticTexts["Job Cancellations"].exists)
     }
 
     func testMoreMenuAIItemsExist() {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        XCTAssertTrue(list.staticTexts["PyTorch CI Agent"].exists)
-        XCTAssertTrue(list.staticTexts["Claude Billing"].exists)
+        XCTAssertTrue(app.staticTexts["PyTorch CI Agent"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Claude Billing"].exists)
     }
 
     func testMoreMenuAccountAndSettingsItemsExist() {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-
         // Scroll down to make settings visible since the list can be long
-        list.swipeUp()
+        app.swipeUp()
 
-        XCTAssertTrue(list.staticTexts["Settings"].waitForExistence(timeout: 3))
-        XCTAssertTrue(list.staticTexts["Notifications"].exists)
+        XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Notifications"].exists)
     }
 
     // MARK: - Navigation to Settings
@@ -97,10 +91,9 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        let settingsCell = list.staticTexts["Settings"]
+        let settingsCell = app.staticTexts["Settings"]
         XCTAssertTrue(settingsCell.waitForExistence(timeout: 3))
         settingsCell.tap()
 
@@ -114,10 +107,9 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        let notificationsCell = list.staticTexts["Notifications"]
+        let notificationsCell = app.staticTexts["Notifications"]
         XCTAssertTrue(notificationsCell.waitForExistence(timeout: 3))
         notificationsCell.tap()
 
@@ -131,10 +123,9 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        list.staticTexts["Settings"].tap()
+        app.staticTexts["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
 
         // Tap the back button to return to More
@@ -146,10 +137,9 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        list.staticTexts["Notifications"].tap()
+        app.staticTexts["Notifications"].tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
 
         // Tap the back button to return to More

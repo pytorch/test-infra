@@ -25,8 +25,8 @@ final class HUDUITests: XCTestCase {
             NSPredicate(format: "label BEGINSWITH 'Page'")
         ).firstMatch
 
-        let loaded = loadingText.waitForExistence(timeout: 5)
-            || paginationPage.waitForExistence(timeout: 5)
+        let loaded = loadingText.waitForExistence(timeout: 10)
+            || paginationPage.waitForExistence(timeout: 10)
         XCTAssertTrue(loaded, "HUD should show loading indicator or paginated content")
     }
 

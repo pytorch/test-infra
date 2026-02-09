@@ -16,10 +16,9 @@ final class SettingsUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        let settingsCell = list.staticTexts["Settings"]
+        let settingsCell = app.staticTexts["Settings"]
         XCTAssertTrue(settingsCell.waitForExistence(timeout: 3))
         settingsCell.tap()
 
@@ -39,20 +38,18 @@ final class SettingsUITests: XCTestCase {
     func testSettingsShowsAllSections() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-
         // Appearance section
-        XCTAssertTrue(list.staticTexts["Appearance"].exists)
+        XCTAssertTrue(app.staticTexts["Appearance"].exists)
 
         // Default Repository section
-        XCTAssertTrue(list.staticTexts["Default Repository"].exists)
+        XCTAssertTrue(app.staticTexts["Default Repository"].exists)
 
         // Cache section - scroll down to find it
-        list.swipeUp()
-        XCTAssertTrue(list.staticTexts["Cache"].waitForExistence(timeout: 3))
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Cache"].waitForExistence(timeout: 3))
 
         // About section
-        XCTAssertTrue(list.staticTexts["About"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["About"].waitForExistence(timeout: 3))
     }
 
     // MARK: - Theme Picker (3 Options)
@@ -60,13 +57,10 @@ final class SettingsUITests: XCTestCase {
     func testThemePickerShowsThreeOptions() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-
         // The Appearance section renders 3 buttons: Light, Dark, System
-        // Each is rendered as a Button with the theme name as text
-        let lightOption = list.staticTexts["Light"]
-        let darkOption = list.staticTexts["Dark"]
-        let systemOption = list.staticTexts["System"]
+        let lightOption = app.staticTexts["Light"]
+        let darkOption = app.staticTexts["Dark"]
+        let systemOption = app.staticTexts["System"]
 
         XCTAssertTrue(lightOption.exists, "Light theme option should be visible")
         XCTAssertTrue(darkOption.exists, "Dark theme option should be visible")
@@ -76,25 +70,17 @@ final class SettingsUITests: XCTestCase {
     func testThemePickerSelectLight() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-
-        // Tap "Light" option
-        let lightOption = list.staticTexts["Light"]
+        let lightOption = app.staticTexts["Light"]
         XCTAssertTrue(lightOption.exists)
         lightOption.tap()
 
-        // After selecting, a checkmark should appear next to Light.
-        // The checkmark is an Image(systemName: "checkmark") in the same row.
-        // We verify the option is tappable (no crash) as a baseline.
         XCTAssertTrue(lightOption.exists, "Light option should still be visible after selection")
     }
 
     func testThemePickerSelectDark() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-
-        let darkOption = list.staticTexts["Dark"]
+        let darkOption = app.staticTexts["Dark"]
         XCTAssertTrue(darkOption.exists)
         darkOption.tap()
 
@@ -104,9 +90,7 @@ final class SettingsUITests: XCTestCase {
     func testThemePickerSelectSystem() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-
-        let systemOption = list.staticTexts["System"]
+        let systemOption = app.staticTexts["System"]
         XCTAssertTrue(systemOption.exists)
         systemOption.tap()
 
@@ -116,14 +100,12 @@ final class SettingsUITests: XCTestCase {
     // MARK: - Notification Settings Navigation
 
     func testNavigationToNotificationSettingsFromMore() {
-        // Navigate to Notifications from the More tab (not from Settings)
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        let notificationsCell = list.staticTexts["Notifications"]
+        let notificationsCell = app.staticTexts["Notifications"]
         XCTAssertTrue(notificationsCell.waitForExistence(timeout: 3))
         notificationsCell.tap()
 
@@ -134,10 +116,9 @@ final class SettingsUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        list.staticTexts["Notifications"].tap()
+        app.staticTexts["Notifications"].tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
 
         // NotificationSettingsView has a Toggle: "Enable Notifications"
@@ -152,10 +133,9 @@ final class SettingsUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        list.staticTexts["Notifications"].tap()
+        app.staticTexts["Notifications"].tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
 
         let enableToggle = app.switches["Enable Notifications"]
@@ -185,11 +165,9 @@ final class SettingsUITests: XCTestCase {
     func testCacheSectionShowsCacheSize() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        // The cache section shows "Cache Size" label
-        let cacheSizeLabel = list.staticTexts["Cache Size"]
+        let cacheSizeLabel = app.staticTexts["Cache Size"]
         XCTAssertTrue(cacheSizeLabel.waitForExistence(timeout: 5),
                        "Cache Size label should be visible in settings")
     }
@@ -197,11 +175,9 @@ final class SettingsUITests: XCTestCase {
     func testCacheSectionShowsClearButton() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        // The cache section has a "Clear Cache" button
-        let clearCacheButton = list.staticTexts["Clear Cache"]
+        let clearCacheButton = app.staticTexts["Clear Cache"]
         XCTAssertTrue(clearCacheButton.waitForExistence(timeout: 5),
                        "Clear Cache button should be visible in settings")
     }
@@ -211,17 +187,16 @@ final class SettingsUITests: XCTestCase {
     func testAboutSectionShowsLinks() {
         navigateToSettings()
 
-        let list = app.collectionViews.firstMatch
-        list.swipeUp()
+        app.swipeUp()
 
-        let aboutTorchCI = list.staticTexts["About TorchCI"]
+        let aboutTorchCI = app.staticTexts["About TorchCI"]
         XCTAssertTrue(aboutTorchCI.waitForExistence(timeout: 3),
                        "About TorchCI link should be visible")
 
-        let githubRepo = list.staticTexts["GitHub Repository"]
+        let githubRepo = app.staticTexts["GitHub Repository"]
         XCTAssertTrue(githubRepo.exists, "GitHub Repository link should be visible")
 
-        let feedback = list.staticTexts["Send Feedback"]
+        let feedback = app.staticTexts["Send Feedback"]
         XCTAssertTrue(feedback.exists, "Send Feedback link should be visible")
     }
 }
