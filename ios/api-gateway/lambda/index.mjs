@@ -37,6 +37,7 @@ function compressResponse(body, contentType) {
         "Content-Type": contentType,
         "Content-Encoding": "gzip",
         "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "public, max-age=120",
         "X-Cache": "MISS",
       },
       body: compressed.toString("base64"),
@@ -142,6 +143,7 @@ export async function handler(event) {
         headers: {
           "Content-Type": cached.contentType,
           "Access-Control-Allow-Origin": "*",
+          "Cache-Control": "public, max-age=120",
           "X-Cache": "HIT",
         },
         body: cached.body,
@@ -191,13 +193,18 @@ export async function handler(event) {
       }
     }
 
+    const responseHeaders = {
+      "Content-Type": contentType,
+      "Access-Control-Allow-Origin": "*",
+      "X-Cache": "MISS",
+    };
+    if (method === "GET" && response.status >= 200 && response.status < 300) {
+      responseHeaders["Cache-Control"] = "public, max-age=120";
+    }
+
     return {
       statusCode: response.status,
-      headers: {
-        "Content-Type": contentType,
-        "Access-Control-Allow-Origin": "*",
-        "X-Cache": "MISS",
-      },
+      headers: responseHeaders,
       body,
     };
   } catch (error) {
