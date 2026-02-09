@@ -46,6 +46,13 @@ struct CommitDetailView: View {
                 JobDetailView(job: job)
             }
         }
+        .navigationDestination(for: PRNavigation.self) { nav in
+            PRDetailView(
+                prNumber: nav.prNumber,
+                repoOwner: nav.repoOwner,
+                repoName: nav.repoName
+            )
+        }
     }
 
     // MARK: - Main Content
@@ -133,12 +140,11 @@ struct CommitDetailView: View {
 
                     // PR badge if available
                     if let prNumber = viewModel.commitResponse?.commit.prNumber {
-                        Button {
-                            if let url = URL(string: viewModel.prURL ?? "") {
-                                safariURL = url
-                                showingSafari = true
-                            }
-                        } label: {
+                        NavigationLink(value: PRNavigation(
+                            prNumber: prNumber,
+                            repoOwner: viewModel.repoOwner,
+                            repoName: viewModel.repoName
+                        )) {
                             HStack(spacing: 4) {
                                 Image(systemName: "arrow.triangle.branch")
                                     .font(.caption)
@@ -352,13 +358,12 @@ struct CommitDetailView: View {
             .buttonStyle(.bordered)
             .tint(.blue)
 
-            if viewModel.prURL != nil {
-                Button {
-                    if let url = URL(string: viewModel.prURL ?? "") {
-                        safariURL = url
-                        showingSafari = true
-                    }
-                } label: {
+            if let prNumber = viewModel.commitResponse?.commit.prNumber {
+                NavigationLink(value: PRNavigation(
+                    prNumber: prNumber,
+                    repoOwner: viewModel.repoOwner,
+                    repoName: viewModel.repoName
+                )) {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.triangle.branch")
                             .font(.body)
