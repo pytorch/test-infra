@@ -67,7 +67,7 @@ final class JobDetailViewModel: ObservableObject {
     var hasFailureInfo: Bool {
         let hasLines = !(job.failureLines ?? []).isEmpty
         let hasCaptures = !(job.failureCaptures ?? []).isEmpty
-        let hasContext = job.failureContext != nil && !job.failureContext!.isEmpty
+        let hasContext = !(job.failureContext ?? "").isEmpty
         return hasLines || hasCaptures || hasContext
     }
 

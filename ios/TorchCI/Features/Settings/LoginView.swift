@@ -184,8 +184,9 @@ struct LoginView: View {
 
             // Quick actions section
             Section {
-                if let username = authManager.username {
-                    Link(destination: URL(string: "https://github.com/\(username)")!) {
+                if let username = authManager.username,
+                   let profileURL = URL(string: "https://github.com/\(username)") {
+                    Link(destination: profileURL) {
                         HStack {
                             Label("View GitHub Profile", systemImage: "person.crop.circle")
                                 .foregroundStyle(.primary)

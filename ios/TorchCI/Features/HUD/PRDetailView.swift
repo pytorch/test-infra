@@ -73,8 +73,10 @@ struct PRDetailView: View {
                         Label("Copy PR Link", systemImage: "doc.on.doc")
                     }
 
-                    ShareLink(item: URL(string: viewModel.prURL)!) {
-                        Label("Share PR", systemImage: "square.and.arrow.up")
+                    if let shareURL = URL(string: viewModel.prURL) {
+                        ShareLink(item: shareURL) {
+                            Label("Share PR", systemImage: "square.and.arrow.up")
+                        }
                     }
 
                     if let sha = viewModel.selectedSha {
