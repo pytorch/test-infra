@@ -172,8 +172,9 @@ final class KPIsViewModelTests: XCTestCase {
 
         let redOnTrunk = viewModel.kpis.first { $0.name == "Commits Red on Trunk" }
         XCTAssertNotNil(redOnTrunk)
-        // Previous should be at index max(0, 35-30) = 5 -> value = 5 * 1.5 = 7.5
-        XCTAssertEqual(redOnTrunk!.previous!, 7.5, accuracy: 0.001)
+        // lookback = max(1, 35/6) = 5
+        // Previous should be at index max(0, 35-1-5) = 29 -> value = 29 * 1.5 = 43.5
+        XCTAssertEqual(redOnTrunk!.previous!, 43.5, accuracy: 0.001)
         // Current should be the last value: (34) * 1.5 = 51.0
         XCTAssertEqual(redOnTrunk!.current, 51.0, accuracy: 0.001)
     }

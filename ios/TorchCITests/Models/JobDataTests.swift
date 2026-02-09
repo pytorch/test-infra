@@ -173,8 +173,8 @@ final class JobDataTests: XCTestCase {
     }
 
     func testDurationFormattedHoursAndMinutesAndSeconds() {
-        let job = makeJob(durationS: 8100) // 2h 15m 0s
-        XCTAssertEqual(job.durationFormatted, "2h 15m 0s")
+        let job = makeJob(durationS: 8100) // 2h 15m
+        XCTAssertEqual(job.durationFormatted, "2h 15m")
     }
 
     func testDurationFormattedNilDuration() {
@@ -183,8 +183,8 @@ final class JobDataTests: XCTestCase {
     }
 
     func testDurationFormattedExactHour() {
-        let job = makeJob(durationS: 3600) // 1h 0m 0s
-        XCTAssertEqual(job.durationFormatted, "1h 0m 0s")
+        let job = makeJob(durationS: 3600) // 1h 0m
+        XCTAssertEqual(job.durationFormatted, "1h 0m")
     }
 
     func testDurationFormattedExactMinute() {

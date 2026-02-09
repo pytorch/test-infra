@@ -414,14 +414,14 @@ final class FailureAnalysisViewModelTests: XCTestCase {
 
     // MARK: - Histogram Data
 
-    func testHistogramDataReturns14Buckets() {
+    func testHistogramDataReturns15Buckets() {
         let data = viewModel.histogramData
-        XCTAssertEqual(data.count, 14, "Should always have 14 day buckets")
+        XCTAssertEqual(data.count, 15, "Default range of -14 days to today = 15 day buckets (inclusive)")
     }
 
     func testHistogramDataBucketsAreChronological() {
         let data = viewModel.histogramData
-        XCTAssertEqual(data.count, 14)
+        XCTAssertEqual(data.count, 15)
 
         // Last bucket should correspond to today
         let todayFormatter = DateFormatter()
