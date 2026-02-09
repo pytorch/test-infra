@@ -72,6 +72,13 @@ struct HUDView: View {
                                 Divider()
 
                                 Button {
+                                    let link = "https://hud.pytorch.org/hud/\(viewModel.selectedRepo.owner)/\(viewModel.selectedRepo.name)/\(viewModel.selectedBranch)"
+                                    UIPasteboard.general.string = link
+                                } label: {
+                                    Label("Copy HUD Link", systemImage: "link")
+                                }
+
+                                Button {
                                     Task { await viewModel.refresh() }
                                 } label: {
                                     Label("Refresh", systemImage: "arrow.clockwise")
