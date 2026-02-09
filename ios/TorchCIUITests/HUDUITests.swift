@@ -18,16 +18,13 @@ final class HUDUITests: XCTestCase {
     }
 
     func testHUDShowsLoadingOrContent() {
-        // The HUD should either show "Loading CI data..." or the grid content
-        // after launch. We wait for a reasonable time for one of them to appear.
-        let loadingText = app.staticTexts["Loading CI data..."]
-        let paginationPage = app.staticTexts.matching(
-            NSPredicate(format: "label BEGINSWITH 'Page'")
-        ).firstMatch
+        // The HUD always renders a FilterBar with a search field, regardless of
+        // data loading state (loading, loaded, empty, error).
+        XCTAssertTrue(app.navigationBars["CI HUD"].waitForExistence(timeout: 10))
 
-        let loaded = loadingText.waitForExistence(timeout: 10)
-            || paginationPage.waitForExistence(timeout: 10)
-        XCTAssertTrue(loaded, "HUD should show loading indicator or paginated content")
+        let searchField = app.textFields["Filter jobs by name..."]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 10),
+                       "HUD should render the filter bar in any state")
     }
 
     // MARK: - Search Bar

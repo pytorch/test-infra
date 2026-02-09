@@ -817,8 +817,13 @@ final class MetricsDashboardViewModel: ObservableObject {
         let firstHalf = timeSeries[..<midpoint]
         let secondHalf = timeSeries[midpoint...]
 
-        let firstAvg = firstHalf.compactMap { $0.value }.reduce(0, +) / Double(firstHalf.count)
-        let secondAvg = secondHalf.compactMap { $0.value }.reduce(0, +) / Double(secondHalf.count)
+        let firstValues = firstHalf.compactMap { $0.value }
+        let secondValues = secondHalf.compactMap { $0.value }
+
+        guard !firstValues.isEmpty, !secondValues.isEmpty else { return nil }
+
+        let firstAvg = firstValues.reduce(0, +) / Double(firstValues.count)
+        let secondAvg = secondValues.reduce(0, +) / Double(secondValues.count)
 
         guard firstAvg != 0 else { return nil }
         return ((secondAvg - firstAvg) / firstAvg) * 100

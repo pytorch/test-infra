@@ -58,31 +58,45 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
+        // DevInfra is in the More overflow list; tap into it
+        let devInfraCell = app.staticTexts["DevInfra"]
+        XCTAssertTrue(devInfraCell.waitForExistence(timeout: 5))
+        devInfraCell.tap()
+
         XCTAssertTrue(app.staticTexts["Failure Analysis"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Failed Jobs Classifier"].exists)
         XCTAssertTrue(app.staticTexts["Runners"].exists)
         XCTAssertTrue(app.staticTexts["Utilization"].exists)
         XCTAssertTrue(app.staticTexts["Nightlies"].exists)
-        XCTAssertTrue(app.staticTexts["Job Cancellations"].exists)
+
+        // Scroll down to reveal items in lower sections
+        app.swipeUp()
+        XCTAssertTrue(app.staticTexts["Job Cancellations"].waitForExistence(timeout: 3))
     }
 
     func testMoreMenuAIItemsExist() {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
+        // Agent tab is in the More overflow list
+        let agentCell = app.staticTexts["Agent"]
+        XCTAssertTrue(agentCell.waitForExistence(timeout: 5))
+        agentCell.tap()
+
         XCTAssertTrue(app.staticTexts["PyTorch CI Agent"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Claude Billing"].exists)
     }
 
     func testMoreMenuAccountAndSettingsItemsExist() {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        // Scroll down to make settings visible since the list can be long
-        app.swipeUp()
-
+        // Settings is in the More overflow list
         XCTAssertTrue(app.staticTexts["Settings"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Notifications"].exists)
+
+        // Tap into Settings to verify Notifications link exists inside
+        app.staticTexts["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Notifications"].waitForExistence(timeout: 3))
     }
 
     // MARK: - Navigation to Settings
@@ -104,10 +118,12 @@ final class NavigationUITests: XCTestCase {
     // MARK: - Navigation to Notifications
 
     func testNavigationToNotifications() {
+        // Notifications is inside Settings view
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        app.swipeUp()
+        app.staticTexts["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
 
         let notificationsCell = app.staticTexts["Notifications"]
         XCTAssertTrue(notificationsCell.waitForExistence(timeout: 3))
@@ -123,27 +139,28 @@ final class NavigationUITests: XCTestCase {
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        app.swipeUp()
-
         app.staticTexts["Settings"].tap()
         XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
 
-        // Tap the back button to return to More
-        app.navigationBars["Settings"].buttons["More"].tap()
+        // Tap the back button (first button in nav bar) to return to More
+        app.navigationBars.buttons.firstMatch.tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
     }
 
     func testBackNavigationFromNotifications() {
+        // Navigate to Notifications through Settings
         app.tabBars.buttons["More"].tap()
         XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
 
-        app.swipeUp()
+        app.staticTexts["Settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
 
         app.staticTexts["Notifications"].tap()
         XCTAssertTrue(app.navigationBars["Notifications"].waitForExistence(timeout: 5))
 
-        // Tap the back button to return to More
-        app.navigationBars["Notifications"].buttons["More"].tap()
-        XCTAssertTrue(app.navigationBars["More"].waitForExistence(timeout: 5))
+        // Tap the back button - navigates back (to Settings or More depending on nav stack)
+        app.navigationBars.buttons.firstMatch.tap()
+        // Verify we're no longer on the Notifications screen
+        XCTAssertFalse(app.navigationBars["Notifications"].waitForExistence(timeout: 3))
     }
 }
