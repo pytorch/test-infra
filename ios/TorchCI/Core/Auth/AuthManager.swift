@@ -13,9 +13,17 @@ final class AuthManager: ObservableObject {
 
     private let keychain = KeychainHelper.shared
 
-    private let clientID = "your_github_client_id"
     private let redirectURI = "torchci://callback"
     private let scope = "public_repo workflow"
+
+    private var clientID: String {
+        guard let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
+              let dict = NSDictionary(contentsOfFile: path),
+              let id = dict["GitHubClientID"] as? String, !id.isEmpty else {
+            return ""
+        }
+        return id
+    }
 
     /// Retains the current auth session so it is not deallocated mid-flow.
     private var currentAuthSession: ASWebAuthenticationSession?
@@ -28,6 +36,9 @@ final class AuthManager: ObservableObject {
     }
 
     func signIn() async throws {
+        guard !clientID.isEmpty else {
+            throw APIError.serverError(0)
+        }
         let authURL = buildAuthURL()
         let callbackURL = try await performOAuth(url: authURL)
         let code = try extractCode(from: callbackURL)
@@ -103,12 +114,16 @@ final class AuthManager: ObservableObject {
     }
 
     private func exchangeCodeForToken(_ code: String) async throws -> String {
-        // Exchange authorization code for access token via backend
-        // In production, this should go through your backend to keep client_secret safe
+        // Exchange authorization code for access token via Lambda gateway
+        // The gateway holds the client_secret securely server-side
         let endpoint = APIEndpoint(
-            path: "/api/auth/callback/github",
+            path: "/api/auth/github/token",
             method: .POST,
-            body: try? JSONSerialization.data(withJSONObject: ["code": code])
+            body: try? JSONSerialization.data(withJSONObject: [
+                "code": code,
+                "client_id": clientID,
+                "redirect_uri": redirectURI,
+            ])
         )
         let response: TokenResponse = try await APIClient.shared.fetch(endpoint)
         return response.accessToken

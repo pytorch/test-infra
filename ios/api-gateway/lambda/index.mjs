@@ -2,6 +2,7 @@ import { gzipSync } from "node:zlib";
 
 const HUD_BASE_URL = process.env.HUD_BASE_URL || "https://hud.pytorch.org";
 const HUD_BOT_TOKEN = process.env.HUD_BOT_TOKEN;
+const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 
 // Simple in-memory cache: { [url]: { body, contentType, timestamp } }
 const cache = new Map();
@@ -45,6 +46,55 @@ function fixClickHousePath(path) {
   return path;
 }
 
+async function handleGitHubTokenExchange(event) {
+  if (!GITHUB_CLIENT_SECRET) {
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ error: "GitHub OAuth not configured" }),
+    };
+  }
+
+  try {
+    const body = event.isBase64Encoded
+      ? JSON.parse(Buffer.from(event.body, "base64").toString())
+      : JSON.parse(event.body);
+
+    const response = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        client_id: body.client_id,
+        client_secret: GITHUB_CLIENT_SECRET,
+        code: body.code,
+        redirect_uri: body.redirect_uri,
+      }),
+    });
+
+    const data = await response.json();
+    if (data.error) {
+      return {
+        statusCode: 400,
+        headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+        body: JSON.stringify({ error: data.error, error_description: data.error_description }),
+      };
+    }
+
+    return {
+      statusCode: 200,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ access_token: data.access_token }),
+    };
+  } catch (error) {
+    console.error("GitHub token exchange error:", error);
+    return {
+      statusCode: 500,
+      headers: { "Content-Type": "application/json", "Access-Control-Allow-Origin": "*" },
+      body: JSON.stringify({ error: "Token exchange failed" }),
+    };
+  }
+}
+
 export async function handler(event) {
   const rawPath = event.rawPath || "";
   let path = rawPath.startsWith("/") ? rawPath.slice(1) : rawPath;
@@ -54,6 +104,11 @@ export async function handler(event) {
 
   // Fix ClickHouse query names that contain slashes (decoded by API Gateway)
   path = fixClickHousePath(path);
+
+  // Handle GitHub OAuth token exchange
+  if (path === "api/auth/github/token" && method === "POST") {
+    return handleGitHubTokenExchange(event);
+  }
 
   const targetUrl = `${HUD_BASE_URL}/${path}${qs ? "?" + qs : ""}`;
 
