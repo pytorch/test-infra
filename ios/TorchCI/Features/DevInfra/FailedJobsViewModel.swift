@@ -18,6 +18,60 @@ struct JobAnnotationData: Decodable {
     }
 }
 
+// MARK: - Annotation Local Cache
+
+/// Persists job annotations to UserDefaults so they survive app restarts
+/// even when the backend is unreachable.
+struct AnnotationCache: @unchecked Sendable {
+    private let defaults: UserDefaults
+    private let cacheKey = "com.torchci.job_annotations_cache"
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+    }
+
+    /// Load all cached annotations. Keys are job ID integers, values are raw annotation strings.
+    func load() -> [Int: String] {
+        guard let dict = defaults.dictionary(forKey: cacheKey) as? [String: String] else {
+            return [:]
+        }
+        var result: [Int: String] = [:]
+        for (key, value) in dict {
+            if let intKey = Int(key) {
+                result[intKey] = value
+            }
+        }
+        return result
+    }
+
+    /// Save a single annotation to the local cache.
+    func save(jobId: Int, annotation: String) {
+        var dict = defaults.dictionary(forKey: cacheKey) as? [String: String] ?? [:]
+        if annotation.isEmpty {
+            dict.removeValue(forKey: String(jobId))
+        } else {
+            dict[String(jobId)] = annotation
+        }
+        defaults.set(dict, forKey: cacheKey)
+    }
+
+    /// Save multiple annotations at once, replacing all existing entries.
+    func saveAll(_ annotations: [Int: String]) {
+        var dict: [String: String] = [:]
+        for (key, value) in annotations where !value.isEmpty {
+            dict[String(key)] = value
+        }
+        defaults.set(dict, forKey: cacheKey)
+    }
+
+    /// Remove a single annotation from the local cache.
+    func remove(jobId: Int) {
+        var dict = defaults.dictionary(forKey: cacheKey) as? [String: String] ?? [:]
+        dict.removeValue(forKey: String(jobId))
+        defaults.set(dict, forKey: cacheKey)
+    }
+}
+
 @MainActor
 final class FailedJobsViewModel: ObservableObject {
     // MARK: - Types
@@ -100,6 +154,9 @@ final class FailedJobsViewModel: ObservableObject {
     @Published var startDate: Date
     @Published var endDate: Date
 
+    /// Tracks job IDs that have pending (unsaved) annotation changes.
+    @Published var pendingAnnotationJobIds: Set<Int> = []
+
     // MARK: - Configuration
 
     static let repos: [RepoConfig] = [
@@ -119,6 +176,7 @@ final class FailedJobsViewModel: ObservableObject {
 
     private let apiClient: APIClientProtocol
     let authManager: AuthManager
+    private let annotationCache: AnnotationCache
 
     // MARK: - Computed
 
@@ -224,16 +282,21 @@ final class FailedJobsViewModel: ObservableObject {
 
     init(
         apiClient: APIClientProtocol = APIClient.shared,
-        authManager: AuthManager = .shared
+        authManager: AuthManager = .shared,
+        annotationCache: AnnotationCache = AnnotationCache()
     ) {
         self.apiClient = apiClient
         self.authManager = authManager
+        self.annotationCache = annotationCache
         self.selectedRepo = Self.repos[0]
 
         // Initialize with last 7 days
         let now = Date()
         self.endDate = now
         self.startDate = Calendar.current.date(byAdding: .day, value: -7, to: now) ?? now
+
+        // Load locally cached annotations so they are available immediately
+        loadCachedAnnotations()
     }
 
     // MARK: - Actions
@@ -267,16 +330,31 @@ final class FailedJobsViewModel: ObservableObject {
             // Update jobs
             jobs = response.failedJobs ?? []
 
-            // Update annotations from the server
-            var newAnnotations: [Int: AnnotationValue] = [:]
+            // Start with locally cached annotations as a baseline
+            let cached = annotationCache.load()
+            var mergedAnnotations: [Int: AnnotationValue] = [:]
+            for (jobId, rawValue) in cached {
+                if let value = AnnotationValue(rawValue: rawValue) {
+                    mergedAnnotations[jobId] = value
+                }
+            }
+
+            // Server annotations take priority over local cache
             for (jobIdString, annotationData) in response.annotationsMap ?? [:] {
                 if let jobId = Int(jobIdString),
                    let rawAnnotation = annotationData.annotation,
                    let annotationValue = AnnotationValue(rawValue: rawAnnotation) {
-                    newAnnotations[jobId] = annotationValue
+                    mergedAnnotations[jobId] = annotationValue
                 }
             }
-            annotations = newAnnotations
+            annotations = mergedAnnotations
+
+            // Persist the merged set back to local cache so it stays fresh
+            var cacheDict: [Int: String] = [:]
+            for (jobId, value) in mergedAnnotations where value != .none {
+                cacheDict[jobId] = value.rawValue
+            }
+            annotationCache.saveAll(cacheDict)
 
             state = .loaded
         } catch {
@@ -322,11 +400,94 @@ final class FailedJobsViewModel: ObservableObject {
         Task { await loadData() }
     }
 
+    /// Annotate a single job. The annotation is applied optimistically to the
+    /// local state, persisted to UserDefaults for offline durability, and
+    /// sent to the backend for server-side persistence.
     func annotate(jobId: Int, value: AnnotationValue) {
+        // Optimistic local update
         annotations[jobId] = value
+
+        // Persist to local cache immediately
+        if value == .none {
+            annotationCache.remove(jobId: jobId)
+        } else {
+            annotationCache.save(jobId: jobId, annotation: value.rawValue)
+        }
+
+        // Fire-and-forget POST to backend
+        Task {
+            await submitAnnotationToBackend(jobIds: [jobId], value: value)
+        }
+    }
+
+    /// Annotate multiple jobs at once (e.g. all jobs in a failure group).
+    func annotateMultiple(jobIds: [Int], value: AnnotationValue) {
+        // Optimistic local update for all
+        for jobId in jobIds {
+            annotations[jobId] = value
+            if value == .none {
+                annotationCache.remove(jobId: jobId)
+            } else {
+                annotationCache.save(jobId: jobId, annotation: value.rawValue)
+            }
+        }
+
+        // Single POST to backend for all job IDs
+        Task {
+            await submitAnnotationToBackend(jobIds: jobIds, value: value)
+        }
     }
 
     // MARK: - Private
+
+    /// Load annotations from the local UserDefaults cache.
+    private func loadCachedAnnotations() {
+        let cached = annotationCache.load()
+        for (jobId, rawValue) in cached {
+            if let value = AnnotationValue(rawValue: rawValue) {
+                annotations[jobId] = value
+            }
+        }
+    }
+
+    /// Submit an annotation to the backend. The server endpoint is:
+    /// POST /api/job_annotation/{repoOwner}/{repoName}/{annotation}
+    /// Body: JSON array of job ID integers.
+    ///
+    /// When removing an annotation, the server expects "null" as the annotation path segment.
+    private func submitAnnotationToBackend(jobIds: [Int], value: AnnotationValue) async {
+        // The server requires authentication; skip if not authenticated
+        guard authManager.isAuthenticated else {
+            print("[FailedJobs] Skipping backend annotation sync: not authenticated")
+            return
+        }
+
+        let annotationString = value == .none ? "null" : value.rawValue
+
+        let endpoint = APIEndpoint.annotateJobs(
+            repoOwner: selectedRepo.owner,
+            repoName: selectedRepo.name,
+            annotation: annotationString,
+            jobIds: jobIds
+        )
+
+        // Mark jobs as pending
+        pendingAnnotationJobIds.formUnion(jobIds)
+
+        do {
+            let _: Data = try await apiClient.fetchRaw(endpoint)
+            print("[FailedJobs] Annotation saved to backend: \(annotationString) for jobs \(jobIds)")
+        } catch {
+            print("[FailedJobs] Failed to save annotation to backend: \(error.localizedDescription)")
+            // The local cache still has the annotation, so the user's choice is
+            // preserved. It will be synced next time the server is reachable and
+            // the user re-annotates, or the annotation will be visible from the
+            // local cache on next app launch.
+        }
+
+        // Remove from pending set
+        pendingAnnotationJobIds.subtract(jobIds)
+    }
 
     func classifyFailure(_ job: JobData) -> FailureType {
         // Check manual annotation first

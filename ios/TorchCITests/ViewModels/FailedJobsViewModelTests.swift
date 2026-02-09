@@ -6,15 +6,23 @@ final class FailedJobsViewModelTests: XCTestCase {
 
     private var mockClient: MockAPIClient!
     private var viewModel: FailedJobsViewModel!
+    private var testDefaults: UserDefaults!
+    private var testCache: AnnotationCache!
 
     override func setUp() {
         super.setUp()
+        testDefaults = UserDefaults(suiteName: "test_failed_jobs_vm")!
+        testDefaults.removePersistentDomain(forName: "test_failed_jobs_vm")
+        testCache = AnnotationCache(defaults: testDefaults)
         mockClient = MockAPIClient()
-        viewModel = FailedJobsViewModel(apiClient: mockClient)
+        viewModel = FailedJobsViewModel(apiClient: mockClient, annotationCache: testCache)
     }
 
     override func tearDown() {
         mockClient.reset()
+        testDefaults.removePersistentDomain(forName: "test_failed_jobs_vm")
+        testDefaults = nil
+        testCache = nil
         mockClient = nil
         viewModel = nil
         super.tearDown()
@@ -564,6 +572,72 @@ final class FailedJobsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.annotations[42], expected)
     }
 
+    func testAnnotateJobPersistsToLocalCache() {
+        let defaults = UserDefaults(suiteName: "test_annotations_persist")!
+        defaults.removePersistentDomain(forName: "test_annotations_persist")
+        let cache = AnnotationCache(defaults: defaults)
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: cache)
+
+        vm.annotate(jobId: 99, value: .flaky)
+
+        let cached = cache.load()
+        XCTAssertEqual(cached[99], "flaky")
+
+        defaults.removePersistentDomain(forName: "test_annotations_persist")
+    }
+
+    func testAnnotateJobRemoveFromCacheOnNone() {
+        let defaults = UserDefaults(suiteName: "test_annotations_remove")!
+        defaults.removePersistentDomain(forName: "test_annotations_remove")
+        let cache = AnnotationCache(defaults: defaults)
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: cache)
+
+        vm.annotate(jobId: 55, value: .brokenTrunk)
+        XCTAssertEqual(cache.load()[55], "broken_trunk")
+
+        vm.annotate(jobId: 55, value: .none)
+        XCTAssertNil(cache.load()[55])
+
+        defaults.removePersistentDomain(forName: "test_annotations_remove")
+    }
+
+    func testAnnotateMultipleJobsPersistsAll() {
+        let defaults = UserDefaults(suiteName: "test_annotations_multi")!
+        defaults.removePersistentDomain(forName: "test_annotations_multi")
+        let cache = AnnotationCache(defaults: defaults)
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: cache)
+
+        vm.annotateMultiple(jobIds: [10, 20, 30], value: .infra)
+
+        XCTAssertEqual(vm.annotations[10], .infra)
+        XCTAssertEqual(vm.annotations[20], .infra)
+        XCTAssertEqual(vm.annotations[30], .infra)
+
+        let cached = cache.load()
+        XCTAssertEqual(cached[10], "infra")
+        XCTAssertEqual(cached[20], "infra")
+        XCTAssertEqual(cached[30], "infra")
+
+        defaults.removePersistentDomain(forName: "test_annotations_multi")
+    }
+
+    func testCachedAnnotationsLoadedOnInit() {
+        let defaults = UserDefaults(suiteName: "test_annotations_init")!
+        defaults.removePersistentDomain(forName: "test_annotations_init")
+        let cache = AnnotationCache(defaults: defaults)
+
+        // Pre-populate cache
+        cache.save(jobId: 7, annotation: "broken_trunk")
+        cache.save(jobId: 8, annotation: "flaky")
+
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: cache)
+
+        XCTAssertEqual(vm.annotations[7], .brokenTrunk)
+        XCTAssertEqual(vm.annotations[8], .flaky)
+
+        defaults.removePersistentDomain(forName: "test_annotations_init")
+    }
+
     // MARK: - isAuthenticated
 
     func testIsAuthenticatedDelegatesToAuthManager() {
@@ -801,6 +875,49 @@ final class FailedJobsViewModelTests: XCTestCase {
     }
 
     // MARK: - API Response Parsing
+
+    func testLoadDataServerAnnotationsOverrideLocalCache() async {
+        let defaults = UserDefaults(suiteName: "test_annotations_merge")!
+        defaults.removePersistentDomain(forName: "test_annotations_merge")
+        let cache = AnnotationCache(defaults: defaults)
+
+        // Pre-populate local cache with an annotation
+        cache.save(jobId: 1, annotation: "flaky")
+
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: cache)
+
+        // Verify local cache is loaded
+        XCTAssertEqual(vm.annotations[1], .flaky)
+
+        // Set up server response with a different annotation for the same job
+        let jobs = [makeFailedJob(id: 1)]
+        let json = makeResponseJSON(
+            jobs: jobs,
+            annotations: [
+                "1": (annotation: "broken_trunk", jobID: 1),
+            ]
+        )
+
+        let queryParams: [String: Any] = [
+            "branch": "main",
+            "repo": "pytorch/pytorch",
+            "startTime": formatDate(vm.startDate),
+            "stopTime": formatDate(vm.endDate),
+        ]
+        let endpoint = APIEndpoint.failedJobsWithAnnotations(
+            repoOwner: "pytorch",
+            repoName: "pytorch",
+            queryParams: queryParams
+        )
+        mockClient.setResponse(json, for: endpoint.path)
+
+        await vm.loadData()
+
+        // Server annotation should win
+        XCTAssertEqual(vm.annotations[1], .brokenTrunk)
+
+        defaults.removePersistentDomain(forName: "test_annotations_merge")
+    }
 
     func testLoadDataDecodesAnnotationsFromResponse() async {
         let jobs = [makeFailedJob(id: 1), makeFailedJob(id: 2)]

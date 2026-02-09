@@ -33,10 +33,12 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     @Published var selectedModels: Set<String> = []
     @Published var selectedMetric: String = ""
     @Published var selectedBranch: String = "main"
+    @Published var selectedGranularity: String = "day"
     @Published var startDate: Date = Calendar.current.date(byAdding: .day, value: -30, to: Date()) ?? Date()
     @Published var endDate: Date = Date()
 
     static let branches: [String] = ["main", "viable/strict", "nightly"]
+    static let granularityOptions: [String] = ["hour", "day", "week"]
 
     // MARK: - Dependencies
 
@@ -315,7 +317,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
                 "arch": "h100",
                 "device": "cuda",
                 "dtype": "amp",
-                "granularity": "hour",
+                "granularity": selectedGranularity,
                 "mode": "training",
                 "startTime": startTime,
                 "stopTime": stopTime,
@@ -366,7 +368,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
                 "dtypes": [] as [String],
                 "excludedMetrics": Self.excludedMetrics,
                 "benchmarks": benchmarks,
-                "granularity": "day",
+                "granularity": selectedGranularity,
                 "models": [] as [String],
                 "backends": [] as [String],
                 "repo": repo,

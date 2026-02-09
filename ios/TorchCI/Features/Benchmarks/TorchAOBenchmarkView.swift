@@ -36,6 +36,9 @@ struct TorchAOBenchmarkView: View {
                 await viewModel.loadData()
             }
         }
+        .onChange(of: viewModel.selectedGranularity) { _, _ in
+            Task { await viewModel.loadData() }
+        }
     }
 
     // MARK: - Content
@@ -122,6 +125,16 @@ struct TorchAOBenchmarkView: View {
                         selection: $viewModel.selectedDevice,
                         options: viewModel.availableDevices
                     )
+                }
+
+                HStack(spacing: 12) {
+                    filterPicker(
+                        title: "Granularity",
+                        icon: "clock",
+                        selection: $viewModel.selectedGranularity,
+                        options: viewModel.availableGranularities
+                    )
+                    Spacer()
                 }
             }
         }
@@ -560,6 +573,7 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
     @Published var selectedQuantization: String = "all"
     @Published var selectedMode: String = "inference"
     @Published var selectedDevice: String = "cuda"
+    @Published var selectedGranularity: String = "hour"
     @Published var sortBySpeedup: Bool = true
 
     private let apiClient: APIClientProtocol
@@ -584,6 +598,10 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
 
     var availableDevices: [String] {
         ["cuda", "cpu"]
+    }
+
+    var availableGranularities: [String] {
+        ["hour", "day", "week"]
     }
 
     // MARK: - Filtered Data
@@ -725,7 +743,7 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
                 "dtypes": selectedQuantization == "all"
                     ? ["autoquant", "int8dynamic", "int8weightonly", "noquant"]
                     : [selectedQuantization],
-                "granularity": "hour",
+                "granularity": selectedGranularity,
                 "mode": selectedMode,
                 "repo": "pytorch/benchmark",
                 "startTime": dateFormatter.string(from: startDate),

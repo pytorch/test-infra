@@ -33,6 +33,7 @@ final class HUDViewModel: ObservableObject {
     @Published var consecutiveFailures: Int = 0
     @Published var failurePatterns: [String] = []
     @Published var isLoadingMore: Bool = false
+    @Published var loadMoreError: String?
     private var hasMorePages: Bool = true
 
     // MARK: - Configuration
@@ -210,6 +211,7 @@ final class HUDViewModel: ObservableObject {
         state = .loading
         currentPage = 1
         hasMorePages = true
+        loadMoreError = nil
         do {
             let endpoint = APIEndpoint.hud(
                 repoOwner: selectedRepo.owner,
@@ -243,7 +245,17 @@ final class HUDViewModel: ObservableObject {
         }
     }
 
+    func retryLoadMore() {
+        loadMoreError = nil
+        loadMoreIfNeeded()
+    }
+
+    func dismissLoadMoreError() {
+        loadMoreError = nil
+    }
+
     private func loadNextPage() async {
+        loadMoreError = nil
         let nextPage = currentPage + 1
         do {
             let endpoint = APIEndpoint.hud(
@@ -276,7 +288,7 @@ final class HUDViewModel: ObservableObject {
                 }
             }
         } catch {
-            // Silently fail on load-more; user can pull-to-refresh
+            loadMoreError = error.localizedDescription
         }
         isLoadingMore = false
     }

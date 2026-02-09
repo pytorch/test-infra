@@ -4,6 +4,7 @@ import UIKit
 struct JobCellView: View {
     let job: HUDJob
     let jobName: String
+    var isAutorevertSignal: Bool = false
     var onTap: (() -> Void)?
 
     @State private var showingSafari = false
@@ -37,6 +38,23 @@ struct JobCellView: View {
                         Circle()
                             .fill(.white)
                             .frame(width: 6, height: 6)
+                    }
+                }
+                .overlay {
+                    if isAutorevertSignal {
+                        RoundedRectangle(cornerRadius: 5)
+                            .strokeBorder(Color.orange, lineWidth: 2.5)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if isAutorevertSignal {
+                        Text("!")
+                            .font(.system(size: 8, weight: .black))
+                            .foregroundStyle(.white)
+                            .frame(width: 12, height: 12)
+                            .background(Color.orange)
+                            .clipShape(Circle())
+                            .offset(x: 4, y: -4)
                     }
                 }
                 .shadow(color: cellColor.opacity(0.3), radius: isPressed ? 1 : 2, x: 0, y: 1)

@@ -188,21 +188,26 @@ final class BuildTimeViewModel: ObservableObject {
 
     private func fetchAllData() async {
         do {
-            async let duration = fetchDurationSeries()
-            async let p50 = fetchPercentileSeries("0.5")
-            async let p75 = fetchPercentileSeries("0.75")
-            async let p90 = fetchPercentileSeries("0.9")
-            async let slowest = fetchSlowestWorkflows()
+            async let overall = fetchOverallEntries()
             async let steps = fetchBuildSteps()
 
-            let (durationResult, p50Result, p75Result, p90Result, slowestResult, stepsResult) =
-                try await (duration, p50, p75, p90, slowest, steps)
+            let (overallEntries, stepsResult) = try await (overall, steps)
 
-            durationSeries = durationResult
-            p50Series = p50Result
-            p75Series = p75Result
-            p90Series = p90Result
-            slowestWorkflows = slowestResult
+            // Compute duration series: average across all jobs per time bucket
+            let grouped = Dictionary(grouping: overallEntries, by: { $0.bucket })
+            durationSeries = grouped.map { (bucket, items) in
+                let avgSec = items.map(\.duration_sec).reduce(0, +) / Double(items.count)
+                return TimeSeriesDataPoint(granularity_bucket: bucket, value: avgSec)
+            }.sorted { $0.granularity_bucket < $1.granularity_bucket }
+
+            // Compute percentile series (P50, P75, P90) across job durations per bucket
+            let percentiles = computePercentileSeries(from: overallEntries)
+            p50Series = percentiles.p50
+            p75Series = percentiles.p75
+            p90Series = percentiles.p90
+
+            // Derive slowest workflows from overall data
+            slowestWorkflows = deriveSlowestWorkflows(from: overallEntries)
             buildSteps = stepsResult
 
             // Extract all unique job names from build steps
@@ -231,24 +236,60 @@ final class BuildTimeViewModel: ObservableObject {
         let job_name: String
     }
 
-    private func fetchDurationSeries() async throws -> [TimeSeriesDataPoint] {
-        let entries: [BuildTimeOverallEntry] = try await apiClient.fetch(
+    private func fetchOverallEntries() async throws -> [BuildTimeOverallEntry] {
+        try await apiClient.fetch(
             .clickhouseQuery(
                 name: "build_time_metrics/overall",
                 parameters: baseParams()
             )
         )
-        // Aggregate across all jobs per time bucket
-        let grouped = Dictionary(grouping: entries, by: { $0.bucket })
-        return grouped.map { (bucket, items) in
-            let avgSec = items.map(\.duration_sec).reduce(0, +) / Double(items.count)
-            return TimeSeriesDataPoint(granularity_bucket: bucket, value: avgSec)
-        }.sorted { $0.granularity_bucket < $1.granularity_bucket }
     }
 
-    private func fetchPercentileSeries(_ percentile: String) async throws -> [TimeSeriesDataPoint] {
-        // No direct percentile query for build times; degrade gracefully
-        return []
+    /// Compute P50, P75, P90 percentile series from per-job per-bucket duration data.
+    /// For each time bucket, collects all job durations, sorts them, and picks the
+    /// value at each percentile rank.
+    private func computePercentileSeries(
+        from entries: [BuildTimeOverallEntry]
+    ) -> (p50: [TimeSeriesDataPoint], p75: [TimeSeriesDataPoint], p90: [TimeSeriesDataPoint]) {
+        let grouped = Dictionary(grouping: entries, by: { $0.bucket })
+        var p50Points: [TimeSeriesDataPoint] = []
+        var p75Points: [TimeSeriesDataPoint] = []
+        var p90Points: [TimeSeriesDataPoint] = []
+
+        for (bucket, items) in grouped {
+            let sorted = items.map(\.duration_sec).sorted()
+            guard !sorted.isEmpty else { continue }
+
+            p50Points.append(TimeSeriesDataPoint(
+                granularity_bucket: bucket,
+                value: Self.percentile(sorted, p: 0.50)
+            ))
+            p75Points.append(TimeSeriesDataPoint(
+                granularity_bucket: bucket,
+                value: Self.percentile(sorted, p: 0.75)
+            ))
+            p90Points.append(TimeSeriesDataPoint(
+                granularity_bucket: bucket,
+                value: Self.percentile(sorted, p: 0.90)
+            ))
+        }
+
+        return (
+            p50: p50Points.sorted { $0.granularity_bucket < $1.granularity_bucket },
+            p75: p75Points.sorted { $0.granularity_bucket < $1.granularity_bucket },
+            p90: p90Points.sorted { $0.granularity_bucket < $1.granularity_bucket }
+        )
+    }
+
+    /// Linear interpolation percentile on a pre-sorted array of values.
+    private static func percentile(_ sorted: [Double], p: Double) -> Double {
+        guard !sorted.isEmpty else { return 0 }
+        if sorted.count == 1 { return sorted[0] }
+        let rank = p * Double(sorted.count - 1)
+        let lower = Int(rank)
+        let upper = min(lower + 1, sorted.count - 1)
+        let fraction = rank - Double(lower)
+        return sorted[lower] + fraction * (sorted[upper] - sorted[lower])
     }
 
     private struct BuildStepEntry: Decodable {
@@ -257,21 +298,17 @@ final class BuildTimeViewModel: ObservableObject {
         let duration_min: Double?
     }
 
-    private func fetchSlowestWorkflows() async throws -> [WorkflowDuration] {
-        // Derive from build_time_metrics/overall: aggregate per job_name
-        let entries: [BuildTimeOverallEntry] = try await apiClient.fetch(
-            .clickhouseQuery(
-                name: "build_time_metrics/overall",
-                parameters: baseParams()
-            )
-        )
+    /// Derive slowest workflows from already-fetched overall entries (no extra network call).
+    private func deriveSlowestWorkflows(from entries: [BuildTimeOverallEntry]) -> [WorkflowDuration] {
         let grouped = Dictionary(grouping: entries, by: { $0.job_name })
         return grouped.map { (jobName, items) in
-            let avgSec = items.map(\.duration_sec).reduce(0, +) / Double(items.count)
+            let durations = items.map(\.duration_sec).sorted()
+            let avgSec = durations.reduce(0, +) / Double(durations.count)
+            let p90Sec = Self.percentile(durations, p: 0.90)
             return WorkflowDuration(
                 name: jobName,
                 avgMinutes: avgSec / 60,
-                p90Minutes: 0,
+                p90Minutes: p90Sec / 60,
                 runCount: items.count
             )
         }

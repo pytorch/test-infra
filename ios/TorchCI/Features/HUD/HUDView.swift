@@ -394,6 +394,7 @@ struct HUDView: View {
                     repoOwner: viewModel.selectedRepo.owner,
                     repoName: viewModel.selectedRepo.name,
                     isLoadingMore: viewModel.isLoadingMore,
+                    loadMoreError: viewModel.loadMoreError,
                     onJobTap: { job, name in
                         selectedJob = job
                         selectedJobName = name
@@ -421,6 +422,12 @@ struct HUDView: View {
                     },
                     onLoadMore: {
                         viewModel.loadMoreIfNeeded()
+                    },
+                    onRetryLoadMore: {
+                        viewModel.retryLoadMore()
+                    },
+                    onDismissLoadMoreError: {
+                        viewModel.dismissLoadMoreError()
                     }
                 )
             }

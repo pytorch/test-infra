@@ -138,11 +138,13 @@ struct CommitRowView: View {
     // MARK: - Job Cells Row
 
     private var jobCellsRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
+        let signals = Set(row.autorevertSignals ?? [])
+        return ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 3) {
                 ForEach(Array(jobs.enumerated()), id: \.offset) { index, job in
                     let name = index < jobNames.count ? jobNames[index] : (job.name ?? "Job \(index)")
-                    JobCellView(job: job, jobName: name) {
+                    let isSignal = signals.contains(name)
+                    JobCellView(job: job, jobName: name, isAutorevertSignal: isSignal) {
                         onJobTap?(job, name)
                     }
                 }

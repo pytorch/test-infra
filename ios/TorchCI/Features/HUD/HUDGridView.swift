@@ -7,11 +7,14 @@ struct HUDGridView: View {
     let repoOwner: String
     let repoName: String
     var isLoadingMore: Bool = false
+    var loadMoreError: String?
     var onJobTap: ((HUDJob, String) -> Void)?
     var onCommitTap: ((HUDRow) -> Void)?
     var onCommitRowTap: ((HUDRow) -> Void)?
     var onPRTap: ((Int) -> Void)?
     var onLoadMore: (() -> Void)?
+    var onRetryLoadMore: (() -> Void)?
+    var onDismissLoadMoreError: (() -> Void)?
 
     var body: some View {
         if rows.isEmpty {
@@ -50,6 +53,47 @@ struct HUDGridView: View {
                     if index < rows.count - 1 {
                         Divider()
                     }
+                }
+
+                if let loadMoreError {
+                    VStack(spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                            Text("Failed to load more: \(loadMoreError)")
+                                .font(.caption)
+                                .foregroundStyle(.white)
+                                .lineLimit(2)
+                        }
+
+                        HStack(spacing: 12) {
+                            Button {
+                                onRetryLoadMore?()
+                            } label: {
+                                Label("Retry", systemImage: "arrow.clockwise")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.white.opacity(0.25))
+
+                            Button {
+                                onDismissLoadMoreError?()
+                            } label: {
+                                Text("Dismiss")
+                                    .font(.caption.weight(.medium))
+                            }
+                            .buttonStyle(.bordered)
+                            .tint(.white.opacity(0.5))
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .frame(maxWidth: .infinity)
+                    .background(Color.red.opacity(0.85))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                 }
 
                 if isLoadingMore {

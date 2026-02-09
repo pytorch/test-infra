@@ -99,6 +99,8 @@ struct BenchmarkDashboardView: View {
 
                 Spacer()
 
+                granularityPicker
+
                 dateRangePicker
             }
 
@@ -113,6 +115,38 @@ struct BenchmarkDashboardView: View {
                     selectedModels: $viewModel.selectedModels
                 )
             }
+        }
+    }
+
+    private var granularityPicker: some View {
+        Menu {
+            ForEach(BenchmarkDashboardViewModel.granularityOptions, id: \.self) { option in
+                Button {
+                    viewModel.selectedGranularity = option
+                    Task { await viewModel.refresh() }
+                } label: {
+                    HStack {
+                        Text(option.capitalized)
+                        if viewModel.selectedGranularity == option {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "clock")
+                    .font(.caption)
+                Text(viewModel.selectedGranularity.capitalized)
+                    .font(.subheadline.weight(.medium))
+                Image(systemName: "chevron.down")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color(.systemGray6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
     }
 

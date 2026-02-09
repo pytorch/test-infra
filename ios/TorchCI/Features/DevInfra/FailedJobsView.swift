@@ -194,13 +194,13 @@ struct FailedJobsView: View {
                                 group: group,
                                 annotation: group.representativeJob.jobId.flatMap { viewModel.annotations[$0] },
                                 isAuthenticated: viewModel.isAuthenticated,
+                                isPending: group.jobs.contains(where: { job in
+                                    job.jobId.map { viewModel.pendingAnnotationJobIds.contains($0) } ?? false
+                                }),
                                 onAnnotate: { value in
-                                    // Annotate all jobs in the group
-                                    for job in group.jobs {
-                                        if let id = job.jobId {
-                                            viewModel.annotate(jobId: id, value: value)
-                                        }
-                                    }
+                                    // Annotate all jobs in the group with a single backend call
+                                    let jobIds = group.jobs.compactMap(\.jobId)
+                                    viewModel.annotateMultiple(jobIds: jobIds, value: value)
                                 }
                             )
                         }
@@ -345,6 +345,7 @@ private struct FailureGroupRow: View {
     let group: FailedJobsViewModel.FailureGroup
     let annotation: FailedJobsViewModel.AnnotationValue?
     let isAuthenticated: Bool
+    let isPending: Bool
     let onAnnotate: (FailedJobsViewModel.AnnotationValue) -> Void
 
     @State private var isExpanded = false
@@ -523,10 +524,16 @@ private struct FailureGroupRow: View {
                                 .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
+                        .disabled(isPending)
                     }
                 }
 
-                if annotation != nil {
+                if isPending {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                }
+
+                if annotation != nil && !isPending {
                     Button {
                         onAnnotate(.none)
                     } label: {

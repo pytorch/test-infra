@@ -271,6 +271,46 @@ extension APIEndpoint {
             timeout: 60
         )
     }
+
+    /// Submit a job annotation to the backend.
+    ///
+    /// The server endpoint is POST `/api/job_annotation/{repoOwner}/{repoName}/{annotation}`.
+    /// The body is a JSON array of job ID integers to annotate.
+    /// Pass `"null"` as annotation to remove the annotation.
+    static func annotateJobs(
+        repoOwner: String,
+        repoName: String,
+        annotation: String,
+        jobIds: [Int]
+    ) -> APIEndpoint {
+        let body = try? JSONSerialization.data(withJSONObject: jobIds)
+        return APIEndpoint(
+            path: "/api/job_annotation/\(repoOwner)/\(repoName)/\(annotation)",
+            method: .POST,
+            body: body,
+            timeout: 30
+        )
+    }
+
+    /// Fetch existing annotations for specific job IDs.
+    ///
+    /// The server endpoint is GET `/api/job_annotation/{repoOwner}/{repoName}/annotations/{jobIds}`.
+    /// The `jobIds` path segment is a JSON-encoded array of job ID integers.
+    static func fetchAnnotations(
+        repoOwner: String,
+        repoName: String,
+        jobIds: [Int]
+    ) -> APIEndpoint {
+        let jsonData = try? JSONSerialization.data(withJSONObject: jobIds)
+        let jsonString = jsonData.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/[]")
+        let encodedIds = jsonString.addingPercentEncoding(withAllowedCharacters: allowed) ?? "[]"
+        return APIEndpoint(
+            path: "/api/job_annotation/\(repoOwner)/\(repoName)/annotations/\(encodedIds)",
+            timeout: 30
+        )
+    }
 }
 
 // MARK: - Autorevert Endpoints

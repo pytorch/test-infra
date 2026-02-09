@@ -18,6 +18,7 @@ struct CompilerBenchmarkView: View {
     @State private var expandedCompiler: String?
     @State private var modelSortOrder: ModelSortOrder = .speedupDesc
     @State private var expandedModelId: UUID?
+    @State private var selectedGranularity: String = "hour"
 
     private let apiClient: APIClientProtocol = APIClient.shared
 
@@ -42,6 +43,8 @@ struct CompilerBenchmarkView: View {
     private let modeOptions = ["training", "inference"]
     private let dtypeOptions = ["amp", "float16", "bfloat16", "float32"]
     private let deviceOptions = ["cuda (h100)", "cuda (a100)", "cuda (b200)", "cpu (x86_64)", "cpu (aarch64)", "rocm (mi325x)"]
+
+    private let granularityOptions = ["hour", "day", "week"]
 
     private let deviceNameMap: [String: [String]] = [
         "cuda (h100)": ["cuda"],
@@ -194,6 +197,7 @@ struct CompilerBenchmarkView: View {
                     pickerChip(title: "Compiler", options: compilerOptions, selection: $selectedCompiler)
                     pickerChip(title: "Mode", options: modeOptions, selection: $selectedMode, reload: true)
                     pickerChip(title: "Precision", options: dtypeOptions, selection: $selectedDtype, reload: true)
+                    pickerChip(title: "Granularity", options: granularityOptions, selection: $selectedGranularity, reload: true)
                 }
             }
         }
@@ -774,7 +778,7 @@ struct CompilerBenchmarkView: View {
             "arch": archs.first ?? "h100",
             "device": devices.first ?? "cuda",
             "dtype": selectedDtype,
-            "granularity": "hour",
+            "granularity": selectedGranularity,
             "mode": selectedMode,
             "startTime": dateFormatter.string(from: startDate),
             "stopTime": dateFormatter.string(from: now),
