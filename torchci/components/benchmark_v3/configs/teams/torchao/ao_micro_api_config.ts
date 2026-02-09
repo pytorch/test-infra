@@ -7,6 +7,11 @@ import {
 
 export const PYTORCH_AO_MICRO_API_BENCHMARK_ID = "torchao_micro_api_benchmark";
 
+export const PYTORCH_AO_MICRO_API_REPORT_CONFIG = {
+  report_id: PYTORCH_AO_MICRO_API_BENCHMARK_ID,
+  include_non_regression: false,
+};
+
 const COMPARISON_TABLE_METADATA_COLUMNS = [
   ...DEFAULT_COMPARISON_TABLE_METADATA_COLUMNS,
   {
