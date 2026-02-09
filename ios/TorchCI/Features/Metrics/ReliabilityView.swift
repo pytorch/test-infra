@@ -374,10 +374,7 @@ struct ReliabilityView: View {
 
     @ViewBuilder
     private func workflowRow(_ workflow: ReliabilityData) -> some View {
-        Button {
-            // TODO: Navigate to detail view for this workflow
-        } label: {
-            VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(workflow.workflowName)
@@ -445,11 +442,9 @@ struct ReliabilityView: View {
                 }
                 .frame(height: 6)
             }
-            .padding(12)
-            .background(Color(.secondarySystemBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
+        .padding(12)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Helpers
