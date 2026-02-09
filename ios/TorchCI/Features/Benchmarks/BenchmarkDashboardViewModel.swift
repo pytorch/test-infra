@@ -44,7 +44,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     let benchmark: BenchmarkMetadata
 
     /// Maps benchmark IDs that route to the generic dashboard to their ClickHouse query config.
-    /// Derived from the web app's BENCHMARK_ID_MAPPING.
+    /// Derived from the web app's BENCHMARK_ID_MAPPING (all 8 V3 benchmark IDs).
     static let benchmarkConfig: [String: (repo: String, benchmarks: [String])] = [
         "pytorch_operator_microbenchmark": (
             repo: "pytorch/pytorch",
@@ -58,6 +58,41 @@ final class BenchmarkDashboardViewModel: ObservableObject {
             repo: "pytorch/executorch",
             benchmarks: ["ExecuTorch"]
         ),
+        "compiler_inductor": (
+            repo: "pytorch/pytorch",
+            benchmarks: ["TorchInductor"]
+        ),
+        "pytorch_x_vllm_benchmark": (
+            repo: "pytorch/pytorch",
+            benchmarks: ["PyTorch x vLLM"]
+        ),
+        "compiler_precompute": (
+            repo: "pytorch/pytorch",
+            benchmarks: ["TorchInductor"]
+        ),
+        "torchao_micro_api_benchmark": (
+            repo: "pytorch/ao",
+            benchmarks: ["TorchAO API Microbenchmark"]
+        ),
+        "vllm_benchmark": (
+            repo: "vllm-project/vllm",
+            benchmarks: ["vLLM"]
+        ),
+        "pytorch_gptfast": (
+            repo: "pytorch/pytorch",
+            benchmarks: ["GPT-Fast"]
+        ),
+        "sglang_benchmark": (
+            repo: "sgl-project/sglang",
+            benchmarks: ["SGLang"]
+        ),
+    ]
+
+    /// Benchmark IDs that should query `compilers_benchmark_performance` instead of
+    /// `oss_ci_benchmark_llms`. These correspond to the web's compiler benchmark pages.
+    static let compilerBenchmarkIds: Set<String> = [
+        "compiler_inductor",
+        "compiler_precompute",
     ]
 
     /// Excluded metrics matching the web app's EXCLUDED_METRICS.
@@ -249,6 +284,11 @@ final class BenchmarkDashboardViewModel: ObservableObject {
 
     // MARK: - Actions
 
+    /// Whether this benchmark should use the compiler-specific ClickHouse query.
+    var isCompilerBenchmark: Bool {
+        Self.compilerBenchmarkIds.contains(benchmark.id)
+    }
+
     func loadData() async {
         state = .loading
 
@@ -262,60 +302,109 @@ final class BenchmarkDashboardViewModel: ObservableObject {
         let startTime = dateFormatter.string(from: startDate)
         let stopTime = dateFormatter.string(from: endDate)
 
-        // Build parameters for the oss_ci_benchmark_llms ClickHouse query.
-        // Must match clickhouse_queries/oss_ci_benchmark_llms/params.json exactly.
-        let dataParameters: [String: Any] = [
-            "arch": "",
-            "branches": [selectedBranch],
-            "commits": [] as [String],
-            "device": "",
-            "mode": "",
-            "dtypes": [] as [String],
-            "excludedMetrics": Self.excludedMetrics,
-            "benchmarks": benchmarks,
-            "granularity": "day",
-            "models": [] as [String],
-            "backends": [] as [String],
-            "repo": repo,
-            "startTime": startTime,
-            "stopTime": stopTime,
-            "requestRate": "",
-        ]
-
-        let dataEndpoint = APIEndpoint.clickhouseQuery(
-            name: "oss_ci_benchmark_llms",
-            parameters: dataParameters
-        )
-
         // Also fetch regression reports (this API does not require auth)
         let regressionEndpoint = APIEndpoint.regressionReports(reportId: benchmark.id)
 
-        do {
-            let client = apiClient
-            async let dataFetch: [LLMBenchmarkRawRow] = client.fetch(dataEndpoint)
-            async let regressionFetch: RegressionReportListResponse = client.fetch(regressionEndpoint)
+        if isCompilerBenchmark {
+            // Compiler benchmarks use the compilers_benchmark_performance ClickHouse query,
+            // matching the web's compiler dashboard pages.
+            let compilerParameters: [String: Any] = [
+                "branches": [selectedBranch],
+                "commits": [] as [String],
+                "compilers": [] as [String],
+                "arch": "h100",
+                "device": "cuda",
+                "dtype": "amp",
+                "granularity": "hour",
+                "mode": "training",
+                "startTime": startTime,
+                "stopTime": stopTime,
+                "suites": ["torchbench", "huggingface", "timm_models"],
+                "workflowId": 0,
+            ]
 
-            let (rawRows, regressionResponse) = try await (dataFetch, regressionFetch)
-            let (timeSeries, group) = Self.convertRawRows(rawRows)
-            timeSeriesData = timeSeries
-            groupData = group
-            regressionReports = regressionResponse.reports ?? []
+            let dataEndpoint = APIEndpoint.clickhouseQuery(
+                name: "compilers_benchmark_performance",
+                parameters: compilerParameters
+            )
 
-            // Auto-select first metric if none selected
-            if selectedMetric.isEmpty, let first = availableMetrics.first {
-                selectedMetric = first
-            }
+            do {
+                let client = apiClient
+                async let dataFetch: [CompilerBenchmarkRawRow] = client.fetch(dataEndpoint)
+                async let regressionFetch: RegressionReportListResponse = client.fetch(regressionEndpoint)
 
-            state = .loaded
-        } catch {
-            // Try loading each piece individually so partial data still shows
-            await loadTimeSeriesFromClickHouse(parameters: dataParameters)
-            await loadRegressions()
+                let (rawRows, regressionResponse) = try await (dataFetch, regressionFetch)
+                let (timeSeries, group) = Self.convertCompilerRawRows(rawRows)
+                timeSeriesData = timeSeries
+                groupData = group
+                regressionReports = regressionResponse.reports ?? []
 
-            if timeSeriesData.isEmpty && groupData == nil {
-                state = .error(error.localizedDescription)
-            } else {
+                if selectedMetric.isEmpty, let first = availableMetrics.first {
+                    selectedMetric = first
+                }
+
                 state = .loaded
+            } catch {
+                await loadCompilerTimeSeries(parameters: compilerParameters)
+                await loadRegressions()
+
+                if timeSeriesData.isEmpty && groupData == nil {
+                    state = .error(error.localizedDescription)
+                } else {
+                    state = .loaded
+                }
+            }
+        } else {
+            // Non-compiler benchmarks use the oss_ci_benchmark_llms ClickHouse query.
+            // Must match clickhouse_queries/oss_ci_benchmark_llms/params.json exactly.
+            let dataParameters: [String: Any] = [
+                "arch": "",
+                "branches": [selectedBranch],
+                "commits": [] as [String],
+                "device": "",
+                "mode": "",
+                "dtypes": [] as [String],
+                "excludedMetrics": Self.excludedMetrics,
+                "benchmarks": benchmarks,
+                "granularity": "day",
+                "models": [] as [String],
+                "backends": [] as [String],
+                "repo": repo,
+                "startTime": startTime,
+                "stopTime": stopTime,
+                "requestRate": "",
+            ]
+
+            let dataEndpoint = APIEndpoint.clickhouseQuery(
+                name: "oss_ci_benchmark_llms",
+                parameters: dataParameters
+            )
+
+            do {
+                let client = apiClient
+                async let dataFetch: [LLMBenchmarkRawRow] = client.fetch(dataEndpoint)
+                async let regressionFetch: RegressionReportListResponse = client.fetch(regressionEndpoint)
+
+                let (rawRows, regressionResponse) = try await (dataFetch, regressionFetch)
+                let (timeSeries, group) = Self.convertRawRows(rawRows)
+                timeSeriesData = timeSeries
+                groupData = group
+                regressionReports = regressionResponse.reports ?? []
+
+                if selectedMetric.isEmpty, let first = availableMetrics.first {
+                    selectedMetric = first
+                }
+
+                state = .loaded
+            } catch {
+                await loadTimeSeriesFromClickHouse(parameters: dataParameters)
+                await loadRegressions()
+
+                if timeSeriesData.isEmpty && groupData == nil {
+                    state = .error(error.localizedDescription)
+                } else {
+                    state = .loaded
+                }
             }
         }
     }
@@ -387,6 +476,127 @@ final class BenchmarkDashboardViewModel: ObservableObject {
         return (timeSeriesPoints, groupData)
     }
 
+    /// Converts raw compiler benchmark rows into time series points and group data.
+    /// Uses the same pivot logic as CompilerBenchmarkView but produces the generic
+    /// BenchmarkTimeSeriesPoint / BenchmarkGroupData types for the dashboard.
+    static func convertCompilerRawRows(_ rawRows: [CompilerBenchmarkRawRow]) -> ([BenchmarkTimeSeriesPoint], BenchmarkGroupData?) {
+        guard !rawRows.isEmpty else { return ([], nil) }
+
+        // Group by (workflowId, model, backend) and pivot metrics, same as CompilerBenchmarkView
+        struct PivotKey: Hashable {
+            let workflowId: Int
+            let model: String
+            let backend: String
+        }
+        struct PivotEntry {
+            let model: String
+            let backend: String
+            let suite: String
+            let workflowId: Int
+            let granularityBucket: String
+            var speedup: Double?
+            var accuracy: String?
+            var compilationLatency: Double?
+            var compressionRatio: Double?
+            var absLatency: Double?
+        }
+
+        var workflowBucket: [Int: String] = [:]
+        for row in rawRows {
+            if workflowBucket[row.workflowId] == nil {
+                workflowBucket[row.workflowId] = row.granularityBucket
+            }
+        }
+
+        var grouped: [PivotKey: PivotEntry] = [:]
+        for row in rawRows {
+            let key = PivotKey(workflowId: row.workflowId, model: row.model, backend: row.backend)
+            if grouped[key] == nil {
+                grouped[key] = PivotEntry(
+                    model: row.model,
+                    backend: row.backend,
+                    suite: row.suite,
+                    workflowId: row.workflowId,
+                    granularityBucket: workflowBucket[row.workflowId] ?? row.granularityBucket
+                )
+            }
+            switch row.metric {
+            case "speedup":
+                grouped[key]?.speedup = row.value
+            case "accuracy":
+                if let extraInfo = row.extraInfo,
+                   let benchmarkValues = extraInfo["benchmark_values"],
+                   let jsonData = benchmarkValues.data(using: .utf8),
+                   let parsed = try? JSONSerialization.jsonObject(with: jsonData) as? [Any],
+                   let first = parsed.first as? String {
+                    grouped[key]?.accuracy = first
+                }
+            case "compilation_latency":
+                grouped[key]?.compilationLatency = row.value
+            case "compression_ratio":
+                grouped[key]?.compressionRatio = row.value
+            case "abs_latency":
+                grouped[key]?.absLatency = row.value
+            default:
+                break
+            }
+        }
+
+        // Build time series from speedup metric (one point per workflow+model+backend)
+        var timeSeriesPoints: [BenchmarkTimeSeriesPoint] = []
+        for entry in grouped.values {
+            if let speedup = entry.speedup {
+                timeSeriesPoints.append(BenchmarkTimeSeriesPoint(
+                    commit: "\(entry.workflowId)",
+                    commitDate: entry.granularityBucket,
+                    value: speedup,
+                    metric: "speedup",
+                    model: entry.model
+                ))
+            }
+            if let compileTime = entry.compilationLatency {
+                timeSeriesPoints.append(BenchmarkTimeSeriesPoint(
+                    commit: "\(entry.workflowId)",
+                    commitDate: entry.granularityBucket,
+                    value: compileTime,
+                    metric: "compilation_latency",
+                    model: entry.model
+                ))
+            }
+        }
+
+        // Build group data: keep latest workflow per (model, backend)
+        struct ModelBackendKey: Hashable {
+            let model: String
+            let backend: String
+        }
+        var latestByModelBackend: [ModelBackendKey: PivotEntry] = [:]
+        for entry in grouped.values {
+            let key = ModelBackendKey(model: entry.model, backend: entry.backend)
+            if let existing = latestByModelBackend[key] {
+                if entry.workflowId > existing.workflowId {
+                    latestByModelBackend[key] = entry
+                }
+            } else {
+                latestByModelBackend[key] = entry
+            }
+        }
+
+        let dataPoints: [BenchmarkDataPoint] = latestByModelBackend.values.map { entry in
+            BenchmarkDataPoint(
+                name: entry.model,
+                metric: "speedup",
+                value: entry.speedup ?? 0,
+                baseline: 1.0, // Compiler benchmarks measure speedup over baseline (1.0x)
+                speedup: entry.speedup,
+                status: entry.accuracy
+            )
+        }
+
+        let groupData = BenchmarkGroupData(data: dataPoints, metadata: nil)
+        return (timeSeriesPoints, groupData)
+    }
+
     // MARK: - Private
 
     private func loadTimeSeriesFromClickHouse(parameters: [String: Any]) async {
@@ -398,6 +608,22 @@ final class BenchmarkDashboardViewModel: ObservableObject {
                 )
             )
             let (timeSeries, group) = Self.convertRawRows(rawRows)
+            timeSeriesData = timeSeries
+            groupData = group
+        } catch {
+            // Silently fail for partial load
+        }
+    }
+
+    private func loadCompilerTimeSeries(parameters: [String: Any]) async {
+        do {
+            let rawRows: [CompilerBenchmarkRawRow] = try await apiClient.fetch(
+                APIEndpoint.clickhouseQuery(
+                    name: "compilers_benchmark_performance",
+                    parameters: parameters
+                )
+            )
+            let (timeSeries, group) = Self.convertCompilerRawRows(rawRows)
             timeSeriesData = timeSeries
             groupData = group
         } catch {

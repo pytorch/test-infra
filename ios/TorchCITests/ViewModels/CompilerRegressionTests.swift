@@ -258,13 +258,13 @@ final class CompilerRegressionTests: XCTestCase {
             "reports": [
                 {
                     "id": "r1",
-                    "report_id": "compiler_regression",
+                    "report_id": "compiler_precompute",
                     "regression_count": 5,
                     "total_count": 100
                 },
                 {
                     "id": "r2",
-                    "report_id": "compiler_regression",
+                    "report_id": "compiler_precompute",
                     "regression_count": 2,
                     "total_count": 80
                 }
@@ -311,7 +311,7 @@ final class CompilerRegressionTests: XCTestCase {
         let json = """
         {
             "id": "r-filters",
-            "report_id": "compiler_regression",
+            "report_id": "compiler_precompute",
             "filters": {
                 "suite": ["torchbench", "huggingface"],
                 "compiler": ["inductor"],
@@ -438,7 +438,7 @@ final class CompilerRegressionTests: XCTestCase {
         let reportJSON = """
         {
             "id": "test-report",
-            "report_id": "compiler_regression",
+            "report_id": "compiler_precompute",
             "status": "regression",
             "regression_count": 2,
             "total_count": 50,
@@ -632,7 +632,7 @@ final class CompilerRegressionTests: XCTestCase {
     // MARK: - API Endpoint tests
 
     func testRegressionReportsEndpoint() {
-        let endpoint = APIEndpoint.regressionReports(reportId: "compiler_regression")
+        let endpoint = APIEndpoint.regressionReports(reportId: "compiler_precompute")
 
         XCTAssertEqual(endpoint.path, "/api/benchmark/list_regression_summary_reports")
         XCTAssertEqual(endpoint.method, .POST)
@@ -641,7 +641,7 @@ final class CompilerRegressionTests: XCTestCase {
         // Verify the body contains the report_id
         if let body = endpoint.body,
            let bodyDict = try? JSONSerialization.jsonObject(with: body) as? [String: Any] {
-            XCTAssertEqual(bodyDict["report_id"] as? String, "compiler_regression")
+            XCTAssertEqual(bodyDict["report_id"] as? String, "compiler_precompute")
             XCTAssertEqual(bodyDict["limit"] as? Int, 10)
         } else {
             XCTFail("Failed to parse endpoint body")

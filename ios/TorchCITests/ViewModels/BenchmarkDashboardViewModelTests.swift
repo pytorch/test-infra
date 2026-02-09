@@ -229,6 +229,43 @@ final class BenchmarkDashboardViewModelTests: XCTestCase {
         XCTAssertNotNil(executorchConfig)
         XCTAssertEqual(executorchConfig?.repo, "pytorch/executorch")
         XCTAssertEqual(executorchConfig?.benchmarks, ["ExecuTorch"])
+
+        // V3 benchmark IDs added for compiler and other benchmarks
+        let compilerInductorConfig = BenchmarkDashboardViewModel.benchmarkConfig["compiler_inductor"]
+        XCTAssertNotNil(compilerInductorConfig)
+        XCTAssertEqual(compilerInductorConfig?.repo, "pytorch/pytorch")
+
+        let compilerPrecomputeConfig = BenchmarkDashboardViewModel.benchmarkConfig["compiler_precompute"]
+        XCTAssertNotNil(compilerPrecomputeConfig)
+        XCTAssertEqual(compilerPrecomputeConfig?.repo, "pytorch/pytorch")
+
+        let vllmConfig = BenchmarkDashboardViewModel.benchmarkConfig["vllm_benchmark"]
+        XCTAssertNotNil(vllmConfig)
+        XCTAssertEqual(vllmConfig?.repo, "vllm-project/vllm")
+
+        let gptfastConfig = BenchmarkDashboardViewModel.benchmarkConfig["pytorch_gptfast"]
+        XCTAssertNotNil(gptfastConfig)
+        XCTAssertEqual(gptfastConfig?.repo, "pytorch/pytorch")
+
+        let torchaoConfig = BenchmarkDashboardViewModel.benchmarkConfig["torchao_micro_api_benchmark"]
+        XCTAssertNotNil(torchaoConfig)
+        XCTAssertEqual(torchaoConfig?.repo, "pytorch/ao")
+
+        let pytorchVllmConfig = BenchmarkDashboardViewModel.benchmarkConfig["pytorch_x_vllm_benchmark"]
+        XCTAssertNotNil(pytorchVllmConfig)
+        XCTAssertEqual(pytorchVllmConfig?.repo, "pytorch/pytorch")
+
+        let sglangConfig = BenchmarkDashboardViewModel.benchmarkConfig["sglang_benchmark"]
+        XCTAssertNotNil(sglangConfig)
+        XCTAssertEqual(sglangConfig?.repo, "sgl-project/sglang")
+    }
+
+    // MARK: - Compiler Benchmark IDs
+
+    func testCompilerBenchmarkIdsSet() {
+        XCTAssertTrue(BenchmarkDashboardViewModel.compilerBenchmarkIds.contains("compiler_inductor"))
+        XCTAssertTrue(BenchmarkDashboardViewModel.compilerBenchmarkIds.contains("compiler_precompute"))
+        XCTAssertFalse(BenchmarkDashboardViewModel.compilerBenchmarkIds.contains("pytorch_operator_microbenchmark"))
     }
 
     func testUnknownBenchmarkIdFallsBackToName() async {
@@ -421,5 +458,107 @@ final class BenchmarkDashboardViewModelTests: XCTestCase {
 
     func testBranchesConstant() {
         XCTAssertEqual(BenchmarkDashboardViewModel.branches, ["main", "viable/strict", "nightly"])
+    }
+
+    // MARK: - Compiler Benchmark Routing
+
+    func testCompilerBenchmarkCallsCompilersEndpoint() async {
+        let compilerBenchmark = BenchmarkMetadata(
+            id: "compiler_inductor",
+            name: "TorchInductor",
+            description: nil,
+            suites: nil,
+            lastUpdated: nil
+        )
+        let compilerVM = BenchmarkDashboardViewModel(benchmark: compilerBenchmark, apiClient: mockClient)
+
+        mockClient.setResponse("[]", for: "/api/clickhouse/compilers_benchmark_performance")
+        mockClient.setResponse(BenchmarkDashboardViewModelTests.emptyRegressionJSON,
+                               for: "/api/benchmark/list_regression_summary_reports")
+
+        await compilerVM.loadData()
+
+        let paths = mockClient.callPaths()
+        XCTAssertTrue(paths.contains("/api/clickhouse/compilers_benchmark_performance"),
+                       "Compiler benchmarks should call compilers_benchmark_performance")
+        XCTAssertFalse(paths.contains("/api/clickhouse/oss_ci_benchmark_llms"),
+                        "Compiler benchmarks should NOT call oss_ci_benchmark_llms")
+    }
+
+    func testNonCompilerBenchmarkCallsLLMEndpoint() async {
+        // The default viewModel uses pytorch_operator_microbenchmark which is not a compiler benchmark
+        registerAllResponses()
+
+        await viewModel.loadData()
+
+        let paths = mockClient.callPaths()
+        XCTAssertTrue(paths.contains("/api/clickhouse/oss_ci_benchmark_llms"),
+                       "Non-compiler benchmarks should call oss_ci_benchmark_llms")
+        XCTAssertFalse(paths.contains("/api/clickhouse/compilers_benchmark_performance"),
+                        "Non-compiler benchmarks should NOT call compilers_benchmark_performance")
+    }
+
+    func testIsCompilerBenchmarkProperty() {
+        // compiler_inductor is a compiler benchmark
+        let compilerBenchmark = BenchmarkMetadata(
+            id: "compiler_inductor",
+            name: "TorchInductor",
+            description: nil,
+            suites: nil,
+            lastUpdated: nil
+        )
+        let compilerVM = BenchmarkDashboardViewModel(benchmark: compilerBenchmark, apiClient: mockClient)
+        XCTAssertTrue(compilerVM.isCompilerBenchmark)
+
+        // pytorch_operator_microbenchmark is NOT a compiler benchmark
+        XCTAssertFalse(viewModel.isCompilerBenchmark)
+    }
+
+    // MARK: - ConvertCompilerRawRows
+
+    func testConvertCompilerRawRowsEmpty() {
+        let (timeSeries, groupData) = BenchmarkDashboardViewModel.convertCompilerRawRows([])
+        XCTAssertTrue(timeSeries.isEmpty)
+        XCTAssertNil(groupData)
+    }
+
+    func testConvertCompilerRawRowsProducesTimeSeries() throws {
+        let json = """
+        [
+            {
+                "workflow_id": 200, "job_id": 1, "backend": "inductor", "suite": "torchbench",
+                "model": "resnet50", "metric": "speedup", "value": 1.45,
+                "extra_info": null, "output": null,
+                "granularity_bucket": "2025-01-10 10:00:00.000"
+            },
+            {
+                "workflow_id": 200, "job_id": 1, "backend": "inductor", "suite": "torchbench",
+                "model": "resnet50", "metric": "compilation_latency", "value": 12.5,
+                "extra_info": null, "output": null,
+                "granularity_bucket": "2025-01-10 10:00:00.000"
+            }
+        ]
+        """
+        let data = json.data(using: .utf8)!
+        let rows = try JSONDecoder().decode([CompilerBenchmarkRawRow].self, from: data)
+
+        let (timeSeries, groupData) = BenchmarkDashboardViewModel.convertCompilerRawRows(rows)
+
+        // Should produce 2 time series points: one for speedup, one for compilation_latency
+        XCTAssertEqual(timeSeries.count, 2)
+
+        let speedupPoints = timeSeries.filter { $0.metric == "speedup" }
+        XCTAssertEqual(speedupPoints.count, 1)
+        XCTAssertEqual(speedupPoints.first?.value, 1.45)
+
+        let latencyPoints = timeSeries.filter { $0.metric == "compilation_latency" }
+        XCTAssertEqual(latencyPoints.count, 1)
+        XCTAssertEqual(latencyPoints.first?.value, 12.5)
+
+        // Group data should have one entry for resnet50
+        XCTAssertNotNil(groupData)
+        XCTAssertEqual(groupData?.data.count, 1)
+        XCTAssertEqual(groupData?.data.first?.name, "resnet50")
+        XCTAssertEqual(groupData?.data.first?.speedup, 1.45)
     }
 }

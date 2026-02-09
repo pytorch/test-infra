@@ -693,7 +693,7 @@ struct CompilerRegressionView: View {
         state = .loading
         do {
             let result: RegressionReportListResponse = try await apiClient.fetch(
-                APIEndpoint.regressionReports(reportId: "compiler_regression")
+                APIEndpoint.regressionReports(reportId: "compiler_precompute")
             )
             regressionReports = result.reports ?? []
             state = .loaded

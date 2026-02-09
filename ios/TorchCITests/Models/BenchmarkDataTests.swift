@@ -327,7 +327,7 @@ final class BenchmarkDataTests: XCTestCase {
         let json = """
         {
             "id": "report-2025-01-20",
-            "report_id": "compiler_regression",
+            "report_id": "compiler_precompute",
             "created_at": "2025-01-20T08:00:00Z",
             "last_record_ts": "2025-01-20T07:55:00Z",
             "last_record_commit": "abc123def456789",
@@ -365,7 +365,7 @@ final class BenchmarkDataTests: XCTestCase {
         let report: RegressionReport = MockData.decode(json)
 
         XCTAssertEqual(report.id, "report-2025-01-20")
-        XCTAssertEqual(report.reportId, "compiler_regression")
+        XCTAssertEqual(report.reportId, "compiler_precompute")
         XCTAssertEqual(report.createdAt, "2025-01-20T08:00:00Z")
         XCTAssertEqual(report.status, "regression")
         XCTAssertEqual(report.repo, "pytorch/pytorch")
