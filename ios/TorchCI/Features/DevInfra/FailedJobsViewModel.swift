@@ -145,7 +145,7 @@ final class FailedJobsViewModel: ObservableObject {
     @Published var state: ViewState = .idle
     @Published var jobs: [JobData] = []
     @Published var selectedRepo: RepoConfig
-    @Published var selectedBranch: String = "main"
+    @Published var selectedBranch: String = UserDefaults.standard.string(forKey: "default_branch") ?? "main"
     @Published var filterType: FailureType = .all
     @Published var searchFilter: String = ""
     @Published var currentPage: Int = 1
@@ -289,7 +289,10 @@ final class FailedJobsViewModel: ObservableObject {
         self.apiClient = apiClient
         self.authManager = authManager
         self.annotationCache = annotationCache
-        self.selectedRepo = Self.repos[0]
+
+        // Use the user's configured default repo from Settings
+        let savedRepo = UserDefaults.standard.string(forKey: "default_repo") ?? "pytorch/pytorch"
+        self.selectedRepo = Self.repos.first { $0.id == savedRepo } ?? Self.repos[0]
 
         // Initialize with last 7 days
         let now = Date()

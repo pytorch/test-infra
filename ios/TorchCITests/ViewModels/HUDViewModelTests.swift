@@ -17,7 +17,40 @@ final class HUDViewModelTests: XCTestCase {
         mockClient.reset()
         mockClient = nil
         viewModel = nil
+        // Clean up any defaults we may have set
+        UserDefaults.standard.removeObject(forKey: "default_repo")
+        UserDefaults.standard.removeObject(forKey: "default_branch")
         super.tearDown()
+    }
+
+    // MARK: - Settings Defaults
+
+    func testInitUsesDefaultRepoFromSettings() {
+        UserDefaults.standard.set("pytorch/vision", forKey: "default_repo")
+        let vm = HUDViewModel(apiClient: mockClient)
+        XCTAssertEqual(vm.selectedRepo.name, "vision")
+        XCTAssertEqual(vm.selectedRepo.owner, "pytorch")
+    }
+
+    func testInitUsesDefaultBranchFromSettings() {
+        UserDefaults.standard.set("viable/strict", forKey: "default_branch")
+        let vm = HUDViewModel(apiClient: mockClient)
+        XCTAssertEqual(vm.selectedBranch, "viable/strict")
+    }
+
+    func testInitFallsBackToPyTorchWhenNoSettingsSaved() {
+        UserDefaults.standard.removeObject(forKey: "default_repo")
+        UserDefaults.standard.removeObject(forKey: "default_branch")
+        let vm = HUDViewModel(apiClient: mockClient)
+        XCTAssertEqual(vm.selectedRepo.id, "pytorch/pytorch")
+        XCTAssertEqual(vm.selectedBranch, "main")
+    }
+
+    func testInitIgnoresInvalidRepoSetting() {
+        UserDefaults.standard.set("nonexistent/repo", forKey: "default_repo")
+        let vm = HUDViewModel(apiClient: mockClient)
+        // Should fall back to first repo (pytorch/pytorch)
+        XCTAssertEqual(vm.selectedRepo.id, "pytorch/pytorch")
     }
 
     // MARK: - Helpers

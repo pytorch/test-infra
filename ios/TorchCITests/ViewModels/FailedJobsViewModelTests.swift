@@ -25,7 +25,23 @@ final class FailedJobsViewModelTests: XCTestCase {
         testCache = nil
         mockClient = nil
         viewModel = nil
+        UserDefaults.standard.removeObject(forKey: "default_repo")
+        UserDefaults.standard.removeObject(forKey: "default_branch")
         super.tearDown()
+    }
+
+    // MARK: - Settings Defaults
+
+    func testInitUsesDefaultRepoFromSettings() {
+        UserDefaults.standard.set("pytorch/vision", forKey: "default_repo")
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: testCache)
+        XCTAssertEqual(vm.selectedRepo.name, "vision")
+    }
+
+    func testInitUsesDefaultBranchFromSettings() {
+        UserDefaults.standard.set("viable/strict", forKey: "default_branch")
+        let vm = FailedJobsViewModel(apiClient: mockClient, annotationCache: testCache)
+        XCTAssertEqual(vm.selectedBranch, "viable/strict")
     }
 
     // MARK: - Test Helpers

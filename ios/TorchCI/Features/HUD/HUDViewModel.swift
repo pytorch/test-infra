@@ -200,7 +200,13 @@ final class HUDViewModel: ObservableObject {
 
     init(apiClient: APIClientProtocol = APIClient.shared) {
         self.apiClient = apiClient
-        self.selectedRepo = Self.repos[0]
+
+        // Use the user's configured defaults from Settings, falling back to pytorch/pytorch + main
+        let savedRepo = UserDefaults.standard.string(forKey: "default_repo") ?? "pytorch/pytorch"
+        let savedBranch = UserDefaults.standard.string(forKey: "default_branch") ?? "main"
+
+        self.selectedRepo = Self.repos.first { $0.id == savedRepo } ?? Self.repos[0]
+        self.selectedBranch = savedBranch
     }
 
     // MARK: - Actions
