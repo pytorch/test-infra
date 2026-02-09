@@ -74,7 +74,7 @@ final class FailureAnalysisViewModel: ObservableObject {
         }
     }
 
-    /// Histogram data showing failure counts grouped by day over the last 14 days.
+    /// Histogram data showing failure counts grouped by day over the selected date range.
     /// Returns array of tuples: (date, mainBranchCount, otherBranchCount)
     /// Uses integer day offsets for reliable sorting across month boundaries.
     nonisolated(unsafe) private static let displayFormatter: DateFormatter = {
@@ -88,12 +88,15 @@ final class FailureAnalysisViewModel: ObservableObject {
         let samples = similarFailuresResult?.samples ?? results
 
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
+        let rangeStart = calendar.startOfDay(for: startDate)
+        let rangeEnd = calendar.startOfDay(for: endDate)
 
-        // Create 14-day buckets keyed by day offset (0 = oldest, 13 = today)
-        var buckets: [(label: String, main: Int, other: Int)] = (0..<14).map { offset in
-            let dayIndex = 13 - offset
-            let date = calendar.date(byAdding: .day, value: -dayIndex, to: today) ?? today
+        // Compute the number of days in the selected range (inclusive)
+        let dayCount = max((calendar.dateComponents([.day], from: rangeStart, to: rangeEnd).day ?? 0) + 1, 1)
+
+        // Create buckets keyed by day offset (0 = oldest, dayCount-1 = newest)
+        var buckets: [(label: String, main: Int, other: Int)] = (0..<dayCount).map { offset in
+            let date = calendar.date(byAdding: .day, value: offset, to: rangeStart) ?? rangeStart
             return (label: Self.displayFormatter.string(from: date), main: 0, other: 0)
         }
 
@@ -104,9 +107,8 @@ final class FailureAnalysisViewModel: ObservableObject {
                   let time = Self.isoFormatter.date(from: timeStr) else { continue }
 
             let jobDay = calendar.startOfDay(for: time)
-            let dayDiff = calendar.dateComponents([.day], from: jobDay, to: today).day ?? -1
-            let bucketIndex = 13 - dayDiff
-            guard bucketIndex >= 0 && bucketIndex < 14 else { continue }
+            let bucketIndex = calendar.dateComponents([.day], from: rangeStart, to: jobDay).day ?? -1
+            guard bucketIndex >= 0 && bucketIndex < dayCount else { continue }
 
             let branch = job.branch ?? ""
             if highlighted.contains(branch) {

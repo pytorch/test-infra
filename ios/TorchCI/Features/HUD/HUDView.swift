@@ -11,6 +11,12 @@ struct HUDView: View {
     @State private var selectedCommitRow: HUDRow?
     @State private var showingCommitJobs = false
 
+    private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return formatter
+    }()
+
     var body: some View {
         VStack(spacing: 0) {
             FilterBar(viewModel: viewModel)
@@ -23,6 +29,17 @@ struct HUDView: View {
                 // Show quick stats bar when data is loaded
                 if viewModel.hasData && viewModel.state == .loaded {
                     quickStatsBar
+                }
+
+                if let lastRefreshed = viewModel.lastRefreshed {
+                    HStack {
+                        Spacer()
+                        Text("Updated \(lastRefreshed, formatter: Self.relativeFormatter)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
                 }
 
                 mainContent

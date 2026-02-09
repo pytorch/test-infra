@@ -210,15 +210,15 @@ struct DisabledTestsView: View {
             if viewModel.filteredTests.isEmpty {
                 if viewModel.allTests.isEmpty {
                     EmptyStateView(
-                        icon: "minus.circle",
-                        title: "No Disabled Tests",
-                        message: "There are currently no disabled tests."
+                        icon: "checkmark.circle",
+                        title: "No Disabled Tests Found",
+                        message: "Great news! There are currently no disabled tests. All tests are active and running."
                     )
                 } else {
                     EmptyStateView(
-                        icon: "magnifyingglass",
-                        title: "No Results",
-                        message: "No tests match your current filters. Try adjusting your search or filters.",
+                        icon: "line.3.horizontal.decrease.circle",
+                        title: "No Tests Match Your Filters",
+                        message: "None of the \(viewModel.totalCount) disabled tests match your current search or filter criteria.",
                         actionTitle: "Clear Filters"
                     ) {
                         viewModel.clearFilters()

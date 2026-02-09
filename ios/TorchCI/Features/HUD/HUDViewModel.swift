@@ -35,6 +35,7 @@ final class HUDViewModel: ObservableObject {
     @Published var isLoadingMore: Bool = false
     @Published var loadMoreError: String?
     @Published private(set) var hasMorePages: Bool = true
+    @Published var lastRefreshed: Date?
 
     // MARK: - Configuration
 
@@ -224,6 +225,7 @@ final class HUDViewModel: ObservableObject {
             hasMorePages = !response.shaGrid.isEmpty
             computeConsecutiveFailures()
             state = .loaded
+            lastRefreshed = Date()
 
             // Auto-load additional pages to compensate for reduced per_page
             if hasMorePages {
@@ -285,6 +287,7 @@ final class HUDViewModel: ObservableObject {
                     )
                     hudData = merged
                     currentPage = nextPage
+                    lastRefreshed = Date()
                 }
             }
         } catch {
