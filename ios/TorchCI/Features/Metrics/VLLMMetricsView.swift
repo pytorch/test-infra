@@ -697,7 +697,7 @@ final class VLLMMetricsViewModel: ObservableObject {
         return APIEndpoint.timeRange(days: days)
     }
 
-    nonisolated(unsafe) private static let utcFormatter: DateFormatter = {
+    private static let utcFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
         f.timeZone = TimeZone(identifier: "UTC")

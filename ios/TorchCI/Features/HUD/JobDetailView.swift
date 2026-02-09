@@ -645,6 +645,30 @@ struct JobDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                 }
+
+                if viewModel.hasFailureInfo {
+                    Button {
+                        viewModel.copyFailureSummary()
+                    } label: {
+                        HStack {
+                            Image(systemName: viewModel.copiedFailure ? "checkmark.circle.fill" : "doc.on.clipboard")
+                                .font(.subheadline)
+                            Text(viewModel.copiedFailure ? "Copied!" : "Copy Failure Summary")
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                            if !viewModel.copiedFailure {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .foregroundStyle(viewModel.copiedFailure ? AppColors.success : .primary)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
+                    .animation(.easeInOut(duration: 0.2), value: viewModel.copiedFailure)
+                }
             }
         }
     }

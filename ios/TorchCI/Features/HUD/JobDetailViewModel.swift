@@ -181,4 +181,38 @@ final class JobDetailViewModel: ObservableObject {
             copiedLink = false
         }
     }
+
+    @Published var copiedFailure: Bool = false
+
+    func copyFailureSummary() {
+        var parts: [String] = []
+        parts.append("Job: \(displayName)")
+        if let conclusion = job.conclusion {
+            parts.append("Status: \(conclusion)")
+        }
+        if let url = job.htmlUrl {
+            parts.append("Link: \(url)")
+        }
+        if let captures = job.failureCaptures, !captures.isEmpty {
+            parts.append("Failures:")
+            for capture in captures {
+                parts.append("  - \(capture)")
+            }
+        } else if let lines = job.failureLines, !lines.isEmpty {
+            parts.append("Failure lines:")
+            for line in lines.prefix(10) {
+                parts.append("  \(line)")
+            }
+            if lines.count > 10 {
+                parts.append("  ... (\(lines.count - 10) more lines)")
+            }
+        }
+        UIPasteboard.general.string = parts.joined(separator: "\n")
+        copiedFailure = true
+
+        Task {
+            try? await Task.sleep(for: .seconds(2))
+            copiedFailure = false
+        }
+    }
 }
