@@ -413,7 +413,7 @@ struct CompilerBenchmarkView: View {
 
     private var speedupDistributionSection: some View {
         let chartData = filteredRecords
-            .filter { $0.speedup != nil && $0.speedup! > 0 }
+            .filter { if let s = $0.speedup { s > 0 } else { false } }
             .sorted { ($0.speedup ?? 0) > ($1.speedup ?? 0) }
             .prefix(20)
 

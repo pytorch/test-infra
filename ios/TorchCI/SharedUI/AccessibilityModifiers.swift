@@ -502,10 +502,12 @@ enum ChartSummaryBuilder {
             return "\(title): No data available."
         }
 
-        let minVal = values.min()!
-        let maxVal = values.max()!
-        let latest = values.last!
-        let first = values.first!
+        guard let minVal = values.min(),
+              let maxVal = values.max(),
+              let latest = values.last,
+              let first = values.first else {
+            return "\(title): No data available."
+        }
 
         var parts: [String] = []
         parts.append("Ranges from \(format(minVal)) to \(format(maxVal))")
