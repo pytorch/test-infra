@@ -71,7 +71,13 @@ platform :ios do
       clean: true,
       output_directory: "./build",
       output_name: "TorchCI.ipa",
-      derived_data_path: "./DerivedData"
+      derived_data_path: "./DerivedData",
+      export_options: {
+        signingStyle: "automatic",
+        teamID: "N324UX8D9M"
+      },
+      xcodebuild_formatter: "",
+      xcargs: "-allowProvisioningUpdates -authenticationKeyPath '#{ENV["APP_STORE_CONNECT_KEY_PATH"]}' -authenticationKeyID '#{ENV["APP_STORE_CONNECT_KEY_ID"]}' -authenticationKeyIssuerID '#{ENV["APP_STORE_CONNECT_ISSUER_ID"]}'"
     )
 
     # Upload to TestFlight
@@ -90,6 +96,56 @@ platform :ios do
 
     build_number = get_build_number(xcodeproj: PROJECT)
     UI.success("Successfully uploaded build #{build_number} to TestFlight.")
+  end
+
+  # ============================================
+  # External Beta (TestFlight - External Testers)
+  # ============================================
+
+  desc "Build and upload to TestFlight for external testers"
+  lane :external_beta do |options|
+    api_key = get_api_key
+
+    # Increment build number
+    increment_build_number(
+      xcodeproj: PROJECT
+    )
+
+    # Build the app
+    gym(
+      project: PROJECT,
+      scheme: SCHEME,
+      export_method: "app-store",
+      clean: true,
+      output_directory: "./build",
+      output_name: "TorchCI.ipa",
+      derived_data_path: "./DerivedData",
+      export_options: {
+        signingStyle: "automatic",
+        teamID: "N324UX8D9M"
+      },
+      xcodebuild_formatter: "",
+      xcargs: "-allowProvisioningUpdates -authenticationKeyPath '#{ENV["APP_STORE_CONNECT_KEY_PATH"]}' -authenticationKeyID '#{ENV["APP_STORE_CONNECT_KEY_ID"]}' -authenticationKeyIssuerID '#{ENV["APP_STORE_CONNECT_ISSUER_ID"]}'"
+    )
+
+    # Upload to TestFlight for external testers
+    upload_to_testflight(
+      api_key: api_key,
+      skip_waiting_for_build_processing: false,
+      distribute_external: true,
+      groups: options[:groups] || ["External Testers"],
+      changelog: options[:changelog] || "Bug fixes and improvements."
+    )
+
+    # Commit the version bump
+    commit_version_bump(
+      xcodeproj: PROJECT,
+      message: "Bump build number for TestFlight (external)",
+      force: true
+    )
+
+    build_number = get_build_number(xcodeproj: PROJECT)
+    UI.success("Successfully uploaded build #{build_number} to TestFlight for external testers.")
   end
 
   # ============================================
@@ -200,8 +256,8 @@ platform :ios do
 
   private_lane :get_api_key do
     app_store_connect_api_key(
-      key_id: ENV["APP_STORE_CONNECT_API_KEY_ID"],
-      issuer_id: ENV["APP_STORE_CONNECT_API_ISSUER_ID"],
+      key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
+      issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
       key_filepath: ENV["APP_STORE_CONNECT_KEY_PATH"],
       in_house: false
     )
