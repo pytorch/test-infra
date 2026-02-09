@@ -132,6 +132,8 @@ final class PRDetailViewModel: ObservableObject {
         "https://hud.pytorch.org/\(repoOwner)/\(repoName)/pull/\(prNumber)"
     }
 
+    /// Color key for the PR state badge.  Returns `"neutral"` when the API
+    /// does not provide a state (which is the current default).
     var prStateColor: String {
         switch prResponse?.state?.lowercased() {
         case "open": return "success"
@@ -141,6 +143,7 @@ final class PRDetailViewModel: ObservableObject {
         }
     }
 
+    /// SF Symbol name for the PR state badge.
     var prStateIcon: String {
         switch prResponse?.state?.lowercased() {
         case "open": return "arrow.triangle.branch"
@@ -150,13 +153,20 @@ final class PRDetailViewModel: ObservableObject {
         }
     }
 
+    /// Whether the API returned any metadata beyond title/shas.
+    var hasMetadata: Bool {
+        prResponse?.hasMetadata ?? false
+    }
+
     /// Human-readable relative time for when the PR was created.
+    /// Returns `nil` when the API does not provide `created_at`.
     var createdTimeAgo: String? {
         guard let dateString = prResponse?.createdAt else { return nil }
         return Self.relativeTime(from: dateString)
     }
 
     /// Human-readable relative time for when the PR was last updated.
+    /// Returns `nil` when the API does not provide `updated_at`.
     var updatedTimeAgo: String? {
         guard let dateString = prResponse?.updatedAt else { return nil }
         return Self.relativeTime(from: dateString)

@@ -870,6 +870,7 @@ final class NightliesViewModel: ObservableObject {
         let endpoint = APIEndpoint.clickhouseQuery(
             name: "nightly_jobs_red_by_name",
             parameters: [
+                "repo": "pytorch",
                 "startTime": range.startTime,
                 "stopTime": range.stopTime,
             ] as [String: Any]

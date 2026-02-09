@@ -2,10 +2,18 @@ import Foundation
 
 /// Response from the /api/{owner}/{repo}/pull/{prNumber} endpoint.
 /// The API returns: { title: string, body: string, shas: [{sha, title}] }
+///
+/// Note: The API only returns `title`, `body`, and `shas`. Fields like `state`,
+/// `author`, timestamps, and branch refs are **not** returned by the current
+/// backend.  They are declared as optionals so that if the backend is ever
+/// extended, the model will decode them automatically without code changes.
 struct PRResponse: Decodable {
     let title: String?
     let body: String?
     let shas: [PRShaInfo]?
+
+    // Fields the API does NOT currently return -- kept as optionals for
+    // forward-compatibility.  The UI must never assume these are populated.
     let state: String?
     let author: AuthorInfo?
     let number: Int?
@@ -26,10 +34,15 @@ struct PRResponse: Decodable {
         shas?.last?.sha
     }
 
-    /// Extract branch name from body if available (e.g., "Differential Revision: D12345")
+    /// Branch info (head -> base) when the API provides ref data.
     var branchInfo: String? {
         guard let headRef = headRef, let baseRef = baseRef else { return nil }
         return "\(headRef) → \(baseRef)"
+    }
+
+    /// Whether this response has meaningful header metadata beyond the title.
+    var hasMetadata: Bool {
+        state != nil || author != nil || branchInfo != nil || createdAt != nil || updatedAt != nil
     }
 
     enum CodingKeys: String, CodingKey {

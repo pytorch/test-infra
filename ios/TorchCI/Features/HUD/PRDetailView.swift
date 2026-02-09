@@ -145,9 +145,9 @@ struct PRDetailView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            // Metadata chips row
+            // Metadata chips row -- always show PR number; state/branch only when API provides them
             FlowLayout(spacing: 8) {
-                // State Badge
+                // State Badge (only shown when the API returns state)
                 if let state = viewModel.prResponse?.state {
                     HStack(spacing: 5) {
                         Image(systemName: viewModel.prStateIcon)
@@ -162,7 +162,7 @@ struct PRDetailView: View {
                     .clipShape(Capsule())
                 }
 
-                // PR Number
+                // PR Number (always available)
                 HStack(spacing: 4) {
                     Image(systemName: "number")
                         .font(.caption2)
@@ -175,7 +175,22 @@ struct PRDetailView: View {
                 .background(Color(.systemGray6))
                 .clipShape(Capsule())
 
-                // Branch info
+                // Commit count chip (always useful context)
+                if !viewModel.commits.isEmpty {
+                    HStack(spacing: 4) {
+                        Image(systemName: "point.3.connected.trianglepath.dotted")
+                            .font(.caption2)
+                        Text("\(viewModel.commits.count) commit\(viewModel.commits.count == 1 ? "" : "s")")
+                            .font(.caption)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(Color(.systemGray6))
+                    .clipShape(Capsule())
+                }
+
+                // Branch info (only shown when the API returns head/base refs)
                 if let branchInfo = viewModel.prResponse?.branchInfo {
                     HStack(spacing: 4) {
                         Image(systemName: "arrow.triangle.branch")
@@ -192,64 +207,66 @@ struct PRDetailView: View {
                 }
             }
 
-            // Author and timestamps row
-            HStack(spacing: 12) {
-                // Author
-                if let author = viewModel.prResponse?.author {
-                    HStack(spacing: 6) {
-                        AsyncImage(url: authorAvatarURL(for: author)) { phase in
-                            switch phase {
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            case .failure:
-                                Image(systemName: "person.circle.fill")
-                                    .resizable()
-                                    .foregroundStyle(.secondary)
-                            case .empty:
-                                Circle()
-                                    .fill(Color(.systemGray4))
-                                    .overlay {
-                                        Image(systemName: "person.fill")
-                                            .foregroundStyle(.secondary)
-                                            .font(.system(size: 10))
-                                    }
-                            @unknown default:
-                                Circle()
-                                    .fill(Color(.systemGray4))
+            // Author and timestamps row -- only shown when the API returns this data
+            if viewModel.prResponse?.author != nil || viewModel.createdTimeAgo != nil || viewModel.updatedTimeAgo != nil {
+                HStack(spacing: 12) {
+                    // Author
+                    if let author = viewModel.prResponse?.author {
+                        HStack(spacing: 6) {
+                            AsyncImage(url: authorAvatarURL(for: author)) { phase in
+                                switch phase {
+                                case .success(let image):
+                                    image
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                case .failure:
+                                    Image(systemName: "person.circle.fill")
+                                        .resizable()
+                                        .foregroundStyle(.secondary)
+                                case .empty:
+                                    Circle()
+                                        .fill(Color(.systemGray4))
+                                        .overlay {
+                                            Image(systemName: "person.fill")
+                                                .foregroundStyle(.secondary)
+                                                .font(.system(size: 10))
+                                        }
+                                @unknown default:
+                                    Circle()
+                                        .fill(Color(.systemGray4))
+                                }
                             }
+                            .frame(width: 22, height: 22)
+                            .clipShape(Circle())
+
+                            Text(author.login ?? "Unknown")
+                                .font(.caption.weight(.medium))
+                                .foregroundStyle(.primary)
                         }
-                        .frame(width: 22, height: 22)
-                        .clipShape(Circle())
-
-                        Text(author.login ?? "Unknown")
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(.primary)
                     }
-                }
 
-                Spacer()
+                    Spacer()
 
-                // Timestamps
-                if let created = viewModel.createdTimeAgo {
-                    HStack(spacing: 3) {
-                        Image(systemName: "clock")
-                            .font(.caption2)
-                        Text(created)
-                            .font(.caption)
+                    // Timestamps
+                    if let created = viewModel.createdTimeAgo {
+                        HStack(spacing: 3) {
+                            Image(systemName: "clock")
+                                .font(.caption2)
+                            Text(created)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.tertiary)
                     }
-                    .foregroundStyle(.tertiary)
-                }
 
-                if let updated = viewModel.updatedTimeAgo {
-                    HStack(spacing: 3) {
-                        Image(systemName: "arrow.clockwise")
-                            .font(.caption2)
-                        Text(updated)
-                            .font(.caption)
+                    if let updated = viewModel.updatedTimeAgo {
+                        HStack(spacing: 3) {
+                            Image(systemName: "arrow.clockwise")
+                                .font(.caption2)
+                            Text(updated)
+                                .font(.caption)
+                        }
+                        .foregroundStyle(.tertiary)
                     }
-                    .foregroundStyle(.tertiary)
                 }
             }
         }
