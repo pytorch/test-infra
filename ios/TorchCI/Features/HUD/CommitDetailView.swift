@@ -455,7 +455,7 @@ struct CommitDetailView: View {
                         Image(systemName: "line.3.horizontal.decrease.circle.fill")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("Showing \(viewModel.visibleJobCount) of \(viewModel.totalJobs) jobs")
+                        Text("Showing \(viewModel.visibleJobCount.formatted()) of \(viewModel.totalJobs.formatted()) jobs")
                             .font(.caption)
                             .foregroundStyle(.secondary)
 

@@ -258,7 +258,7 @@ struct HUDGridView: View {
                         jobBadges(stats: stats)
                         Spacer()
                         timingBadges(stats: stats)
-                        Text("\(stats.totalRealJobs) jobs")
+                        Text("\(stats.totalRealJobs.formatted()) jobs")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }

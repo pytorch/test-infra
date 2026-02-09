@@ -597,7 +597,7 @@ struct PRDetailView: View {
 
                     // Filtered count indicator
                     if viewModel.isFiltering {
-                        Text("\(viewModel.filteredJobCount) of \(viewModel.totalJobs)")
+                        Text("\(viewModel.filteredJobCount.formatted()) of \(viewModel.totalJobs.formatted())")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -692,8 +692,8 @@ struct PRDetailView: View {
                     SectionHeader(
                         title: "CI Jobs",
                         subtitle: viewModel.isFiltering
-                            ? "\(viewModel.filteredJobCount) of \(viewModel.totalJobs) jobs"
-                            : "\(viewModel.totalJobs) jobs in \(viewModel.filteredGroupedJobs.count) workflow\(viewModel.filteredGroupedJobs.count == 1 ? "" : "s")"
+                            ? "\(viewModel.filteredJobCount.formatted()) of \(viewModel.totalJobs.formatted()) jobs"
+                            : "\(viewModel.totalJobs.formatted()) jobs in \(viewModel.filteredGroupedJobs.count) workflow\(viewModel.filteredGroupedJobs.count == 1 ? "" : "s")"
                     )
                     Spacer()
                     if viewModel.filteredGroupedJobs.contains(where: { !viewModel.expandedWorkflows.contains($0.workflowName) }) {

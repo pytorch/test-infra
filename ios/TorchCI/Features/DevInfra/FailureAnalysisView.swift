@@ -247,13 +247,13 @@ struct FailureAnalysisView: View {
                 HStack(spacing: 12) {
                     MetricCard(
                         title: "Total Failures",
-                        value: "\(viewModel.totalCount)",
+                        value: viewModel.totalCount.formatted(),
                         valueColor: AppColors.failure
                     )
 
                     MetricCard(
                         title: "Unique Jobs",
-                        value: "\(viewModel.jobDistribution.count)"
+                        value: viewModel.jobDistribution.count.formatted()
                     )
                 }
 
@@ -268,7 +268,7 @@ struct FailureAnalysisView: View {
                         if viewModel.mainBranchFailureCount > 0 {
                             MetricCard(
                                 title: "Main Branch",
-                                value: "\(viewModel.mainBranchFailureCount)",
+                                value: viewModel.mainBranchFailureCount.formatted(),
                                 valueColor: Color(red: 228/255, green: 26/255, blue: 28/255)
                             )
                         } else {
