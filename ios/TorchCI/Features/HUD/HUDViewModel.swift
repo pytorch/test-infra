@@ -30,6 +30,8 @@ final class HUDViewModel: ObservableObject {
     @Published var currentPage: Int = 1
     @Published var searchFilter: String = ""
     @Published var isRegexEnabled: Bool = false
+    @Published var hideUnstable: Bool = false
+    @Published var showFailuresOnly: Bool = false
     @Published var consecutiveFailures: Int = 0
     @Published var failurePatterns: [String] = []
     @Published var isLoadingMore: Bool = false
@@ -62,23 +64,7 @@ final class HUDViewModel: ObservableObject {
 
     var filteredJobNames: [String] {
         guard let hudData else { return [] }
-        let names = hudData.jobNames
-        guard !searchFilter.isEmpty else { return names }
-
-        if isRegexEnabled {
-            guard let regex = try? NSRegularExpression(
-                pattern: searchFilter,
-                options: [.caseInsensitive]
-            ) else { return names }
-
-            return names.filter { name in
-                let range = NSRange(name.startIndex..., in: name)
-                return regex.firstMatch(in: name, range: range) != nil
-            }
-        } else {
-            let lowered = searchFilter.lowercased()
-            return names.filter { $0.lowercased().contains(lowered) }
-        }
+        return filteredJobIndices.map { hudData.jobNames[$0] }
     }
 
     var filteredRows: [HUDRow] {
@@ -107,26 +93,50 @@ final class HUDViewModel: ObservableObject {
     var filteredJobIndices: [Int] {
         guard let hudData else { return [] }
         let allNames = hudData.jobNames
+        let rows = hudData.shaGrid
 
-        guard !searchFilter.isEmpty else {
-            return Array(allNames.indices)
-        }
-
-        if isRegexEnabled {
-            guard let regex = try? NSRegularExpression(
-                pattern: searchFilter,
-                options: [.caseInsensitive]
-            ) else { return Array(allNames.indices) }
-
-            return allNames.enumerated().compactMap { index, name in
-                let range = NSRange(name.startIndex..., in: name)
-                return regex.firstMatch(in: name, range: range) != nil ? index : nil
+        // Build set of job indices that have at least one failure across all rows
+        let failureIndices: Set<Int>? = showFailuresOnly ? {
+            var indices = Set<Int>()
+            for row in rows {
+                for (idx, job) in row.jobs.enumerated() {
+                    if job.isFailure {
+                        indices.insert(idx)
+                    }
+                }
             }
-        } else {
-            let lowered = searchFilter.lowercased()
-            return allNames.enumerated().compactMap { index, name in
-                name.lowercased().contains(lowered) ? index : nil
+            return indices
+        }() : nil
+
+        let regex: NSRegularExpression? = isRegexEnabled && !searchFilter.isEmpty
+            ? try? NSRegularExpression(pattern: searchFilter, options: [.caseInsensitive])
+            : nil
+
+        let loweredSearch = searchFilter.lowercased()
+        let hasSearch = !searchFilter.isEmpty
+
+        return allNames.enumerated().compactMap { index, name in
+            // Hide unstable filter: skip jobs whose name contains "unstable"
+            if hideUnstable && name.lowercased().contains("unstable") {
+                return nil
             }
+
+            // Failures-only filter: skip jobs that have no failures in current data
+            if let failureIndices, !failureIndices.contains(index) {
+                return nil
+            }
+
+            // Search filter
+            if hasSearch {
+                if let regex {
+                    let range = NSRange(name.startIndex..., in: name)
+                    if regex.firstMatch(in: name, range: range) == nil { return nil }
+                } else {
+                    if !name.lowercased().contains(loweredSearch) { return nil }
+                }
+            }
+
+            return index
         }
     }
 
@@ -237,7 +247,7 @@ final class HUDViewModel: ObservableObject {
 
             // Auto-load additional pages to compensate for reduced per_page
             if hasMorePages {
-                for page in 2...Self.initialPageCount {
+                for _ in 2...Self.initialPageCount {
                     await loadNextPage()
                     guard hasMorePages else { break }
                 }
