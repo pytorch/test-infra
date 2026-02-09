@@ -371,6 +371,21 @@ struct CommitDetailView: View {
                 .buttonStyle(.bordered)
                 .tint(.purple)
             }
+
+            if let url = URL(string: viewModel.commitURL) {
+                ShareLink(item: url) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.body)
+                        Text("Share")
+                            .font(.subheadline.weight(.medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+            }
         }
     }
 

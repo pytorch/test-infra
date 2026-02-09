@@ -603,7 +603,7 @@ struct JobDetailView: View {
                     }
                 }
 
-                if viewModel.githubURL != nil {
+                if let urlString = viewModel.githubURL, let url = URL(string: urlString) {
                     Button {
                         viewModel.copyLink()
                     } label: {
@@ -625,6 +625,23 @@ struct JobDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                     }
                     .animation(.easeInOut(duration: 0.2), value: viewModel.copiedLink)
+
+                    ShareLink(item: url) {
+                        HStack {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.subheadline)
+                            Text("Share Job")
+                                .font(.subheadline.weight(.medium))
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .foregroundStyle(.primary)
+                        .padding()
+                        .background(Color(.secondarySystemBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                    }
                 }
             }
         }

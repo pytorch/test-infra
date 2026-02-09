@@ -5,7 +5,6 @@ struct PRDetailView: View {
     @State private var showingSafari = false
     @State private var safariURL: URL?
     @State private var selectedJob: JobData?
-    @State private var showingShareSheet = false
     @State private var copiedSHA = false
 
     init(prNumber: Int, repoOwner: String = "pytorch", repoName: String = "pytorch") {
@@ -64,6 +63,18 @@ struct PRDetailView: View {
                         }
                     } label: {
                         Label("Open on HUD", systemImage: "chart.bar.xaxis")
+                    }
+
+                    Divider()
+
+                    Button {
+                        UIPasteboard.general.string = viewModel.prURL
+                    } label: {
+                        Label("Copy PR Link", systemImage: "doc.on.doc")
+                    }
+
+                    ShareLink(item: URL(string: viewModel.prURL)!) {
+                        Label("Share PR", systemImage: "square.and.arrow.up")
                     }
 
                     if let sha = viewModel.selectedSha {
