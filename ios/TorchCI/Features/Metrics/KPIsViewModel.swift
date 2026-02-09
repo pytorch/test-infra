@@ -202,9 +202,7 @@ final class KPIsViewModel: ObservableObject {
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
-                    "label": "",
-                    "platform": "",
-                    "triaged": "",
+                    "repo": "pytorch/pytorch",
                 ] as [String: Any]
             }
         ),
@@ -220,84 +218,100 @@ final class KPIsViewModel: ObservableObject {
 
     func loadKPIs() async {
         state = .loading
-        do {
-            let range = APIEndpoint.timeRange(days: selectedTimeRange.days)
-            let definitions = Self.kpiDefinitionTemplates
 
-            // Build endpoints outside the task group to avoid capturing [String: Any] in @Sendable closures
-            struct FetchTask: Sendable {
-                let queryName: String
-                let endpoint: APIEndpoint
-            }
+        let range = APIEndpoint.timeRange(days: selectedTimeRange.days)
+        let definitions = Self.kpiDefinitionTemplates
 
-            let tasks: [FetchTask] = definitions.map { definition in
-                let params = definition.paramBuilder(range.startTime, range.stopTime)
-                let endpoint = APIEndpoint.clickhouseQuery(
-                    name: definition.actualQueryName,
-                    parameters: params
-                )
-                return FetchTask(queryName: definition.queryName, endpoint: endpoint)
-            }
+        // Build endpoints outside the task group to avoid capturing [String: Any] in @Sendable closures
+        struct FetchTask: Sendable {
+            let queryName: String
+            let endpoint: APIEndpoint
+        }
 
-            let client = apiClient
-            let results = try await withThrowingTaskGroup(of: (String, [TimeSeriesDataPoint]).self, returning: [(String, [TimeSeriesDataPoint])].self) { group in
-                for task in tasks {
-                    let endpoint = task.endpoint
-                    let queryName = task.queryName
-                    group.addTask {
+        let tasks: [FetchTask] = definitions.map { definition in
+            let params = definition.paramBuilder(range.startTime, range.stopTime)
+            let endpoint = APIEndpoint.clickhouseQuery(
+                name: definition.actualQueryName,
+                parameters: params
+            )
+            return FetchTask(queryName: definition.queryName, endpoint: endpoint)
+        }
+
+        // Fetch each KPI independently so one failure does not break the entire page.
+        let client = apiClient
+        let results = await withTaskGroup(of: (String, [TimeSeriesDataPoint]?, Error?).self, returning: [(String, [TimeSeriesDataPoint]?, Error?)].self) { group in
+            for task in tasks {
+                let endpoint = task.endpoint
+                let queryName = task.queryName
+                group.addTask {
+                    do {
                         let data: [TimeSeriesDataPoint] = try await client.fetch(endpoint)
-                        return (queryName, data)
+                        return (queryName, data, nil)
+                    } catch {
+                        return (queryName, nil, error)
                     }
                 }
-                var collected: [(String, [TimeSeriesDataPoint])] = []
-                for try await result in group {
-                    collected.append(result)
-                }
-                return collected
+            }
+            var collected: [(String, [TimeSeriesDataPoint]?, Error?)] = []
+            for await result in group {
+                collected.append(result)
+            }
+            return collected
+        }
+
+        var allSparklines: [String: [TimeSeriesDataPoint]] = [:]
+        var allKPIs: [KPIData] = []
+        var failedQueries: [String] = []
+
+        for (queryName, rawData, error) in results {
+            guard let definition = definitions.first(where: { $0.queryName == queryName }) else {
+                continue
             }
 
-            var allSparklines: [String: [TimeSeriesDataPoint]] = [:]
-            var allKPIs: [KPIData] = []
-
-            for (queryName, rawData) in results {
-                guard let definition = definitions.first(where: { $0.queryName == queryName }) else {
-                    continue
-                }
-
-                // For multi-row queries, filter to the requested series
-                let data: [TimeSeriesDataPoint]
-                if let filterName = definition.filterName {
-                    data = rawData.filter { $0.seriesName == filterName }
-                } else {
-                    data = rawData
-                }
-
-                allSparklines[queryName] = data
-
-                let current = data.last?.value ?? 0
-                // For trend, compare against a point 30 days ago (or ~4 weeks)
-                let previousIndex = max(0, data.count - 30)
-                let previous = data.indices.contains(previousIndex) ? data[previousIndex].value : nil
-
-                let kpi = KPIData(
-                    name: definition.displayName,
-                    current: current,
-                    previous: previous,
-                    target: nil,
-                    unit: definition.unit.isEmpty ? nil : definition.unit,
-                    lowerIsBetter: definition.lowerIsBetter
-                )
-                allKPIs.append(kpi)
+            if let error {
+                failedQueries.append("\(definition.displayName): \(error.localizedDescription)")
+                continue
             }
 
-            sparklines = allSparklines
-            kpis = definitions.compactMap { definition in
-                allKPIs.first { $0.name == definition.displayName }
+            guard let rawData else { continue }
+
+            // For multi-row queries, filter to the requested series
+            let data: [TimeSeriesDataPoint]
+            if let filterName = definition.filterName {
+                data = rawData.filter { $0.seriesName == filterName }
+            } else {
+                data = rawData
             }
 
+            allSparklines[queryName] = data
+
+            let current = data.last?.value ?? 0
+            // For trend, compare against a point 30 days ago (or ~4 weeks)
+            let previousIndex = max(0, data.count - 30)
+            let previous = data.indices.contains(previousIndex) ? data[previousIndex].value : nil
+
+            let kpi = KPIData(
+                name: definition.displayName,
+                current: current,
+                previous: previous,
+                target: nil,
+                unit: definition.unit.isEmpty ? nil : definition.unit,
+                lowerIsBetter: definition.lowerIsBetter
+            )
+            allKPIs.append(kpi)
+        }
+
+        sparklines = allSparklines
+        kpis = definitions.compactMap { definition in
+            allKPIs.first { $0.name == definition.displayName }
+        }
+
+        if allKPIs.isEmpty && !failedQueries.isEmpty {
+            // All queries failed – show a combined error
+            state = .error(failedQueries.joined(separator: "\n"))
+        } else {
+            // At least some KPIs loaded successfully
             state = .loaded
-        } catch {
-            state = .error(error.localizedDescription)
         }
     }
 

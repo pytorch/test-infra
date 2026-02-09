@@ -359,7 +359,10 @@ extension APIEndpoint {
     }
 
     static func utilizationMetadata(workflowId: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/list_utilization_metadata_info/\(workflowId)")
+        APIEndpoint(
+            path: "/api/list_utilization_metadata_info/\(workflowId)",
+            queryItems: [URLQueryItem(name: "includes_stats", value: "true")]
+        )
     }
 
     static func jobUtilization(workflowId: String, jobId: String, attempt: String) -> APIEndpoint {

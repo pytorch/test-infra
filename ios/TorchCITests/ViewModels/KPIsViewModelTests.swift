@@ -196,10 +196,8 @@ final class KPIsViewModelTests: XCTestCase {
 
     // MARK: - Error Handling
 
-    func testLoadKPIsWithNetworkErrorSetsErrorState() async {
-        // Only set error for one endpoint, rest are missing -> first error should propagate
-        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/master_commit_red_percent")
-
+    func testLoadKPIsWithAllErrorsSetsErrorState() async {
+        // Don't register any responses - the mock will throw APIError.notFound for all
         await viewModel.loadKPIs()
 
         if case .error(let message) = viewModel.state {
@@ -209,15 +207,34 @@ final class KPIsViewModelTests: XCTestCase {
         }
     }
 
-    func testLoadKPIsWithNotFoundErrorSetsErrorState() async {
-        // Don't register any responses - the mock will throw APIError.notFound
+    func testLoadKPIsWithPartialErrorStillLoads() async {
+        // Register responses for some endpoints, leave others missing (notFound).
+        // With independent error handling, the page should still load with partial data.
+        registerAllEmptyResponses()
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/master_commit_red_percent")
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/ttrs_percentiles")
+
         await viewModel.loadKPIs()
 
-        if case .error = viewModel.state {
-            // Expected
-        } else {
-            XCTFail("Expected error state but got \(viewModel.state)")
-        }
+        // Should still be loaded since some KPIs succeeded
+        XCTAssertEqual(viewModel.state, .loaded)
+        // Should have loaded 8 out of 10 KPIs (2 failed)
+        XCTAssertEqual(viewModel.kpis.count, 8)
+        // The failed ones should not be present
+        XCTAssertNil(viewModel.kpis.first { $0.name == "Commits Red on Trunk" })
+        XCTAssertNil(viewModel.kpis.first { $0.name == "TTRS p50 (pull)" })
+    }
+
+    func testLoadKPIsWithSingleErrorStillLoadsOthers() async {
+        // One endpoint error, rest succeed - page should load with 9 KPIs
+        registerAllEmptyResponses()
+        mockClient.setError(APIError.serverError(500), for: "/api/clickhouse/disabled_test_historical")
+
+        await viewModel.loadKPIs()
+
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.kpis.count, 9)
+        XCTAssertNil(viewModel.kpis.first { $0.name == "Disabled Tests" })
     }
 
     func testLoadKPIsSetsLoadingBeforeFetch() async {
