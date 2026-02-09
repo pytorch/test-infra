@@ -64,17 +64,26 @@ struct KPIsView: View {
     @ViewBuilder
     private var kpiContent: some View {
         ScrollView {
-            LazyVStack(spacing: 12) {
-                ForEach(viewModel.kpis, id: \.name) { kpi in
-                    KPICardView(
-                        kpi: kpi,
-                        formattedValue: viewModel.formatValue(for: kpi),
-                        sparklineData: viewModel.sparkline(for: kpi),
-                        accentColor: viewModel.color(for: kpi)
-                    )
+            if viewModel.kpis.isEmpty {
+                ContentUnavailableView(
+                    "No KPIs Available",
+                    systemImage: "chart.bar.xaxis",
+                    description: Text("No metrics data found for the selected time range.")
+                )
+                .padding(.top, 40)
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(viewModel.kpis, id: \.name) { kpi in
+                        KPICardView(
+                            kpi: kpi,
+                            formattedValue: viewModel.formatValue(for: kpi),
+                            sparklineData: viewModel.sparkline(for: kpi),
+                            accentColor: viewModel.color(for: kpi)
+                        )
+                    }
                 }
+                .padding()
             }
-            .padding()
         }
         .refreshable {
             await viewModel.refresh()

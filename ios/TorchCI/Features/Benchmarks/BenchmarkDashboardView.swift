@@ -48,10 +48,16 @@ struct BenchmarkDashboardView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Spacer()
+                        Button("Retry") {
+                            viewModel.partialLoadError = nil
+                            Task { await viewModel.loadData() }
+                        }
+                        .font(.caption.weight(.medium))
                         Button("Dismiss") {
                             viewModel.partialLoadError = nil
                         }
                         .font(.caption.weight(.medium))
+                        .foregroundStyle(.secondary)
                     }
                     .padding(12)
                     .background(Color.orange.opacity(0.1))

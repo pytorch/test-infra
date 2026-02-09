@@ -356,9 +356,17 @@ struct ReliabilityView: View {
                 subtitle: "\(viewModel.filteredWorkflows.count) workflows"
             )
 
-            LazyVStack(spacing: 8) {
-                ForEach(viewModel.filteredWorkflows) { workflow in
-                    workflowRow(workflow)
+            if viewModel.filteredWorkflows.isEmpty {
+                Text("No workflows match the current filters")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                LazyVStack(spacing: 8) {
+                    ForEach(viewModel.filteredWorkflows) { workflow in
+                        workflowRow(workflow)
+                    }
                 }
             }
         }
