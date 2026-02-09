@@ -62,6 +62,8 @@ struct JobCellView: View {
                 .animation(.easeInOut(duration: 0.1), value: isPressed)
         }
         .buttonStyle(JobCellButtonStyle(isPressed: $isPressed))
+        .accessibilityLabel("\(jobName): \(job.accessibilityStatus)")
+        .accessibilityHint("Tap to see job details")
         .contextMenu {
             if let htmlUrl = job.htmlUrl, let url = URL(string: htmlUrl) {
                 Button {

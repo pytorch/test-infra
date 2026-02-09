@@ -171,5 +171,14 @@ struct HUDJob: Decodable, Identifiable {
             return "\(secs)s"
         }
     }
+
+    var accessibilityStatus: String {
+        if isUnstable { return "unstable" }
+        if isFlaky { return "flaky" }
+        if isFailure { return "failure" }
+        if isSuccess { return "success" }
+        if isPending { return "pending" }
+        return "unknown"
+    }
 }
 
