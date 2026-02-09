@@ -46,7 +46,24 @@ struct GrafanaDashboardView: UIViewRepresentable {
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {}
-        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {}
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            showErrorPage(in: webView, error: error)
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            showErrorPage(in: webView, error: error)
+        }
+
+        private func showErrorPage(in webView: WKWebView, error: Error) {
+            let html = """
+            <html><body style="display:flex;align-items:center;justify-content:center;height:100vh;margin:0;\
+            font-family:-apple-system;background:transparent;color:#888;">
+            <div style="text-align:center;padding:20px;">
+            <p style="font-size:16px;">Failed to load dashboard</p>
+            <p style="font-size:13px;">\(error.localizedDescription)</p>
+            </div></body></html>
+            """
+            webView.loadHTMLString(html, baseURL: nil)
+        }
     }
 }
