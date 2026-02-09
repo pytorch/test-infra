@@ -633,6 +633,46 @@ final class MetricsViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.brokenTrunkTrend)
     }
 
+    func testTrendWithNilValuesIgnoresNils() async {
+        registerAllEmptyResponses()
+
+        // Mix of values and nulls. The nil entries should NOT dilute averages.
+        // First half: 10 + null → avg should be 10 (not 5)
+        // Second half: 20 + null → avg should be 20 (not 10)
+        // Trend: (20-10)/10 * 100 = +100%
+        registerJSONResponse("""
+        [
+            {"granularity_bucket":"2024-01-01T00:00:00Z","value":10},
+            {"granularity_bucket":"2024-01-02T00:00:00Z","value":null},
+            {"granularity_bucket":"2024-01-03T00:00:00Z","value":20},
+            {"granularity_bucket":"2024-01-04T00:00:00Z","value":null}
+        ]
+        """, forQuery: "master_commit_red")
+
+        await viewModel.loadDashboard()
+
+        XCTAssertNotNil(viewModel.brokenTrunkTrend)
+        if let trend = viewModel.brokenTrunkTrend {
+            XCTAssertEqual(trend, 100.0, accuracy: 0.1)
+        }
+    }
+
+    func testTrendNilWhenAllValuesAreNil() async {
+        registerAllEmptyResponses()
+
+        // All null values - cannot compute trend
+        registerJSONResponse("""
+        [
+            {"granularity_bucket":"2024-01-01T00:00:00Z","value":null},
+            {"granularity_bucket":"2024-01-02T00:00:00Z","value":null}
+        ]
+        """, forQuery: "master_commit_red")
+
+        await viewModel.loadDashboard()
+
+        XCTAssertNil(viewModel.brokenTrunkTrend)
+    }
+
     // MARK: - API Endpoint Paths
 
     func testLoadDashboardCallsCorrectEndpoints() async {
