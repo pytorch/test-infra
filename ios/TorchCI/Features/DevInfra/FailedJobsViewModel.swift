@@ -156,6 +156,7 @@ final class FailedJobsViewModel: ObservableObject {
 
     /// Tracks job IDs that have pending (unsaved) annotation changes.
     @Published var pendingAnnotationJobIds: Set<Int> = []
+    @Published var annotationSyncError: String?
 
     // MARK: - Configuration
 
@@ -476,13 +477,11 @@ final class FailedJobsViewModel: ObservableObject {
 
         do {
             let _: Data = try await apiClient.fetchRaw(endpoint)
-            print("[FailedJobs] Annotation saved to backend: \(annotationString) for jobs \(jobIds)")
+            annotationSyncError = nil
         } catch {
-            print("[FailedJobs] Failed to save annotation to backend: \(error.localizedDescription)")
             // The local cache still has the annotation, so the user's choice is
-            // preserved. It will be synced next time the server is reachable and
-            // the user re-annotates, or the annotation will be visible from the
-            // local cache on next app launch.
+            // preserved. Show a non-blocking error so the user knows sync failed.
+            annotationSyncError = "Annotation saved locally but failed to sync: \(error.localizedDescription)"
         }
 
         // Remove from pending set

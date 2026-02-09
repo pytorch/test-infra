@@ -57,6 +57,7 @@ final class PRDetailViewModel: ObservableObject {
     /// so this is populated by `loadJobsForSha` after selection.
     @Published var jobsForSelectedSha: [JobData] = []
     @Published var isLoadingJobs: Bool = false
+    @Published var jobLoadError: String?
 
     var totalJobs: Int { jobsForSelectedSha.count }
 
@@ -239,6 +240,7 @@ final class PRDetailViewModel: ObservableObject {
         jobFilter = .all
         jobSearchQuery = ""
         // Load jobs for this SHA via the commit endpoint
+        jobLoadError = nil
         do {
             let response: CommitResponse = try await apiClient.fetch(
                 .commit(repoOwner: repoOwner, repoName: repoName, sha: sha)
@@ -246,6 +248,7 @@ final class PRDetailViewModel: ObservableObject {
             jobsForSelectedSha = response.jobs
         } catch {
             jobsForSelectedSha = []
+            jobLoadError = error.localizedDescription
         }
         rebuildGroupedJobs()
         isLoadingJobs = false

@@ -179,6 +179,24 @@ struct FailedJobsView: View {
 
     private var jobsList: some View {
         List {
+            if let syncError = viewModel.annotationSyncError {
+                Section {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(syncError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Dismiss") {
+                            viewModel.annotationSyncError = nil
+                        }
+                        .font(.caption.weight(.medium))
+                    }
+                    .listRowBackground(Color.orange.opacity(0.1))
+                }
+            }
+
             Section {
                 summaryCards
                     .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))

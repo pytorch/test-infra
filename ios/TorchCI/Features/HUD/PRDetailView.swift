@@ -623,6 +623,27 @@ struct PRDetailView: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 40)
+        } else if let jobError = viewModel.jobLoadError {
+            VStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle")
+                    .font(.system(size: 32))
+                    .foregroundStyle(.orange)
+                Text("Failed to load jobs")
+                    .font(.headline)
+                Text(jobError)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                Button("Retry") {
+                    if let sha = viewModel.selectedSha {
+                        Task { await viewModel.selectSha(sha) }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 40)
         } else if viewModel.groupedJobs.isEmpty {
             VStack(spacing: 12) {
                 EmptyStateView(
