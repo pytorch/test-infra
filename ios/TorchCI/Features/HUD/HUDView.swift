@@ -365,11 +365,10 @@ struct HUDView: View {
                         .padding()
                     }
             } else {
-                ErrorView(error: NSError(domain: "", code: 0, userInfo: [
-                    NSLocalizedDescriptionKey: message,
-                ])) {
-                    Task { await viewModel.loadData() }
-                }
+                ErrorView(
+                    error: NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: message]),
+                    retryAction: { Task { await viewModel.refresh() } }
+                )
             }
         }
     }

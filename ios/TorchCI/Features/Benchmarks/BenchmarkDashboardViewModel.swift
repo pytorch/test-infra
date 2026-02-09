@@ -209,7 +209,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
 
     var performanceTrend: PerformanceTrend {
         let recent = filteredTimeSeries.suffix(10).map(\.value)
-        let older = filteredTimeSeries.prefix(max(10, filteredTimeSeries.count / 2)).map(\.value)
+        let older = filteredTimeSeries.prefix(filteredTimeSeries.count / 2).map(\.value)
 
         guard !recent.isEmpty, !older.isEmpty else { return .stable }
 
@@ -224,9 +224,9 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     }
 
     var comparisonData: BenchmarkComparison? {
-        guard filteredTimeSeries.count >= 2 else { return nil }
-        let latest = filteredTimeSeries.last!
-        let baseline = filteredTimeSeries.first!
+        guard filteredTimeSeries.count >= 2,
+              let latest = filteredTimeSeries.last,
+              let baseline = filteredTimeSeries.first else { return nil }
         guard baseline.value != 0, latest.value != 0 else { return nil }
 
         let change = ((latest.value - baseline.value) / baseline.value) * 100
