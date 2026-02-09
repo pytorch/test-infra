@@ -134,6 +134,7 @@ private struct LoadedContentView: View {
                         }
                     }
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
         .refreshable {

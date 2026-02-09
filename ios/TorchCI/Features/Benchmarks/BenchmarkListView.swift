@@ -82,6 +82,7 @@ struct BenchmarkListView: View {
             }
             .padding(.vertical)
         }
+        .scrollDismissesKeyboard(.interactively)
         .refreshable {
             await viewModel.refresh()
         }
