@@ -7,6 +7,22 @@ const GITHUB_CLIENT_SECRET = process.env.GITHUB_CLIENT_SECRET;
 // Simple in-memory cache: { [url]: { body, contentType, timestamp } }
 const cache = new Map();
 const CACHE_TTL_MS = 120_000; // 2 minutes
+const CACHE_MAX_ENTRIES = 200;
+
+function evictStaleCache() {
+  if (cache.size <= CACHE_MAX_ENTRIES) return;
+  const now = Date.now();
+  for (const [key, entry] of cache) {
+    if (now - entry.timestamp > CACHE_TTL_MS) cache.delete(key);
+  }
+  // If still over limit, remove oldest entries
+  if (cache.size > CACHE_MAX_ENTRIES) {
+    const sorted = [...cache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+    for (let i = 0; i < sorted.length - CACHE_MAX_ENTRIES; i++) {
+      cache.delete(sorted[i][0]);
+    }
+  }
+}
 
 // AWS Lambda has a 6 MB synchronous response payload limit.
 // Gzip-compress responses larger than this threshold to stay under the limit.
@@ -163,6 +179,7 @@ export async function handler(event) {
     // Cache successful GET responses
     if (method === "GET" && response.status >= 200 && response.status < 300) {
       cache.set(targetUrl, { body, contentType, timestamp: Date.now() });
+      evictStaleCache();
     }
 
     // Compress large responses to stay under Lambda's 6MB payload limit
