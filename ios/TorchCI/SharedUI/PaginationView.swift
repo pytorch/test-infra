@@ -16,6 +16,7 @@ struct PaginationView: View {
                 Image(systemName: "chevron.left")
             }
             .disabled(currentPage <= 1)
+            .accessibilityLabel("Previous page")
 
             if let totalPages {
                 Text("Page \(currentPage) of \(totalPages)")
@@ -37,6 +38,7 @@ struct PaginationView: View {
                 Image(systemName: "chevron.right")
             }
             .disabled(totalPages.map { currentPage >= $0 } ?? false)
+            .accessibilityLabel("Next page")
         }
         .padding(.vertical, 8)
     }

@@ -22,6 +22,7 @@ struct QueryInputBar: View {
                             .font(.system(size: 20))
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityLabel("Clear input")
                     .transition(.scale.combined(with: .opacity))
                 }
 
@@ -101,6 +102,7 @@ struct QueryInputBar: View {
                         .foregroundStyle(.red)
                 }
             }
+            .accessibilityLabel("Stop generating")
             .transition(.scale.combined(with: .opacity))
         } else {
             Button(action: onSend) {
@@ -114,6 +116,7 @@ struct QueryInputBar: View {
                         .foregroundStyle(.white)
                 }
             }
+            .accessibilityLabel("Send message")
             .disabled(!canSend)
             .scaleEffect(canSend ? 1.0 : 0.92)
             .animation(.spring(response: 0.3, dampingFraction: 0.6), value: canSend)

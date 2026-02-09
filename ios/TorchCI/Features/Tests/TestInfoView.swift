@@ -442,6 +442,7 @@ struct TestInfoView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(viewModel.isFailureExpanded(failure) ? "Collapse failure details" : "Expand failure details")
 
             if viewModel.isFailureExpanded(failure) {
                 expandedFailureContent(failure)

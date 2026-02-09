@@ -62,6 +62,7 @@ private struct LoadedContentView: View {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundStyle(.secondary)
+                        .accessibilityHidden(true)
                     TextField("Search files or labels...", text: $viewModel.searchQuery)
                         .textFieldStyle(.plain)
                         .autocorrectionDisabled()
@@ -73,6 +74,7 @@ private struct LoadedContentView: View {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundStyle(.secondary)
                         }
+                        .accessibilityLabel("Clear search")
                     }
                 }
                 .padding(10)

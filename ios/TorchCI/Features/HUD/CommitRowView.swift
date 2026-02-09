@@ -155,6 +155,7 @@ struct CommitRowView: View {
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .padding(.leading, 4)
+                        .accessibilityHidden(true)
                 }
             }
             .padding(.trailing, 12)

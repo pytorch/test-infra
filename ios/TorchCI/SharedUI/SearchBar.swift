@@ -15,6 +15,7 @@ struct SearchBar: View {
                 Image(systemName: "magnifyingglass")
                     .foregroundStyle(.secondary)
                     .font(.subheadline)
+                    .accessibilityHidden(true)
 
                 TextField(placeholder, text: $text)
                     .textFieldStyle(.plain)
@@ -31,6 +32,7 @@ struct SearchBar: View {
                         Image(systemName: "xmark.circle.fill")
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityLabel("Clear search")
                 }
             }
             .padding(10)
