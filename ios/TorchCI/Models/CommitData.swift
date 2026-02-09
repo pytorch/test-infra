@@ -1,5 +1,10 @@
 import Foundation
 
+struct PreviousRun: Decodable {
+    let conclusion: String?
+    let htmlUrl: String?
+}
+
 struct CommitResponse: Decodable {
     let commit: CommitInfo
     let jobs: [JobData]
@@ -67,6 +72,8 @@ struct JobData: Decodable, Identifiable {
     let unstable: Bool?
     let previousRun: PreviousRun?
     let runAttempt: Int?
+    /// The head branch this job ran on (e.g. "main", "viable/strict").
+    let branch: String?
 
     /// Stable identity for SwiftUI; uses the server ID when available,
     /// otherwise falls back to a per-instance UUID.
@@ -80,6 +87,7 @@ struct JobData: Decodable, Identifiable {
         case htmlUrl, logUrl, durationS, queueTimeS
         case failureLines, failureCaptures, failureContext
         case runnerName, runnerGroup, previousRun, runAttempt
+        case branch = "head_branch"
     }
 
     init(from decoder: Decoder) throws {
@@ -107,6 +115,7 @@ struct JobData: Decodable, Identifiable {
         unstable = try container.decodeIfPresent(Bool.self, forKey: .unstable)
         previousRun = try container.decodeIfPresent(PreviousRun.self, forKey: .previousRun)
         runAttempt = try container.decodeIfPresent(Int.self, forKey: .runAttempt)
+        branch = try container.decodeIfPresent(String.self, forKey: .branch)
     }
 
     /// Direct initializer for tests, previews, and manual construction.
@@ -116,7 +125,7 @@ struct JobData: Decodable, Identifiable {
         durationS: Int?, queueTimeS: Int? = nil, failureLines: [String]?, failureCaptures: [String]?,
         failureContext: String?, runnerName: String?, runnerGroup: String?,
         status: String?, steps: [JobStep]?, time: String?, unstable: Bool?,
-        previousRun: PreviousRun?, runAttempt: Int? = nil
+        previousRun: PreviousRun?, runAttempt: Int? = nil, branch: String? = nil
     ) {
         self.jobId = id
         self.id = id.map { String($0) } ?? UUID().uuidString
@@ -128,7 +137,7 @@ struct JobData: Decodable, Identifiable {
         self.failureContext = failureContext; self.runnerName = runnerName
         self.runnerGroup = runnerGroup; self.status = status; self.steps = steps
         self.time = time; self.unstable = unstable; self.previousRun = previousRun
-        self.runAttempt = runAttempt
+        self.runAttempt = runAttempt; self.branch = branch
     }
 
     var isFailure: Bool {

@@ -13,9 +13,6 @@ struct ContentView: View {
     // Deep link navigation state for the TorchAgent tab (flambeau sessions).
     @State private var torchAgentNavigationPath = NavigationPath()
 
-    // Deep link navigation state for the DevInfra tab.
-    @State private var devInfraNavigationPath = NavigationPath()
-
     var body: some View {
         TabView(selection: $selectedTab) {
             NavigationStack(path: $hudNavigationPath) {
@@ -64,7 +61,7 @@ struct ContentView: View {
             }
             .tag(AppTab.tests)
 
-            NavigationStack(path: $devInfraNavigationPath) {
+            NavigationStack {
                 DevInfraTabView()
             }
             .tabItem {

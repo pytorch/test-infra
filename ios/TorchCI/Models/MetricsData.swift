@@ -8,25 +8,29 @@ import Foundation
 struct TimeSeriesDataPoint: Decodable, Identifiable {
     let granularity_bucket: String
     let value: Double?
+    /// For multi-row queries that return a "name" or "code" field per bucket.
+    let seriesName: String?
 
-    var id: String { granularity_bucket }
+    var id: String { granularity_bucket + (seriesName ?? "") }
+
+    // Cached formatters for date parsing (creating these is expensive)
+    nonisolated(unsafe) private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoBasic = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let dateOnly: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
 
     var date: Date? {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let date = formatter.date(from: granularity_bucket) {
-            return date
-        }
-        // Try without fractional seconds
-        let fallback = ISO8601DateFormatter()
-        if let date = fallback.date(from: granularity_bucket) {
-            return date
-        }
-        // Try date-only format
-        let dateOnly = DateFormatter()
-        dateOnly.dateFormat = "yyyy-MM-dd"
-        dateOnly.timeZone = TimeZone(identifier: "UTC")
-        return dateOnly.date(from: granularity_bucket)
+        Self.isoFractional.date(from: granularity_bucket)
+            ?? Self.isoBasic.date(from: granularity_bucket)
+            ?? Self.dateOnly.date(from: granularity_bucket)
     }
 
     enum CodingKeys: String, CodingKey {
@@ -60,6 +64,9 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
         case diff_hr
         case pr_count
         case new_disabled = "new"
+        // Series name keys (for multi-row queries)
+        case name
+        case code
     }
 
     init(from decoder: Decoder) throws {
@@ -132,6 +139,15 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
         } else {
             value = nil
         }
+
+        // Decode series name (for multi-row queries like master_commit_red_percent, num_reverts)
+        if let n = try container.decodeIfPresent(String.self, forKey: .name) {
+            seriesName = n
+        } else if let c = try container.decodeIfPresent(String.self, forKey: .code) {
+            seriesName = c
+        } else {
+            seriesName = nil
+        }
     }
 
     /// Try to decode a Double from the given key, handling both numeric and string-encoded values.
@@ -149,9 +165,10 @@ struct TimeSeriesDataPoint: Decodable, Identifiable {
     }
 
     /// Direct initializer for previews and testing.
-    init(granularity_bucket: String, value: Double?) {
+    init(granularity_bucket: String, value: Double?, seriesName: String? = nil) {
         self.granularity_bucket = granularity_bucket
         self.value = value
+        self.seriesName = seriesName
     }
 }
 

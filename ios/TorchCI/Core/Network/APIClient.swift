@@ -12,32 +12,13 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
     private let session: URLSession
     private let decoder: JSONDecoder
     private let baseURL: URL
-    private let hudBotToken: String?
-
-    /// Load the HUD bot token from Secrets.plist (not committed to git).
-    /// Falls back to nil if not found, which means the header won't be sent.
-    private static func loadBotToken() -> String? {
-        // Try Secrets.plist in the main bundle
-        if let path = Bundle.main.path(forResource: "Secrets", ofType: "plist"),
-           let dict = NSDictionary(contentsOfFile: path),
-           let token = dict["HUD_BOT_TOKEN"] as? String, !token.isEmpty {
-            return token
-        }
-        // Try environment variable (for debug builds)
-        if let token = ProcessInfo.processInfo.environment["HUD_BOT_TOKEN"], !token.isEmpty {
-            return token
-        }
-        return nil
-    }
 
     init(
         session: URLSession = .shared,
-        baseURL: URL = URL(string: "https://hud.pytorch.org")!,
-        hudBotToken: String? = nil
+        baseURL: URL = URL(string: "https://4gxl23l6f7.execute-api.us-east-1.amazonaws.com")!
     ) {
         self.session = session
         self.baseURL = baseURL
-        self.hudBotToken = hudBotToken ?? Self.loadBotToken()
 
         self.decoder = JSONDecoder()
         self.decoder.dateDecodingStrategy = .custom { decoder in
@@ -186,11 +167,8 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         }
 
-        // Include the HUD internal bot token for API access
-        if let botToken = hudBotToken {
-            request.setValue(botToken, forHTTPHeaderField: "x-hud-internal-bot")
-        }
-
+        // Bot token is injected by the Lambda proxy; no need to send from the app.
+        // GitHub auth is forwarded through for user-specific endpoints.
         if let token = KeychainHelper.shared.read(key: "github_access_token") {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }

@@ -26,11 +26,31 @@ struct APIEndpoint: Sendable {
     }
 }
 
+// MARK: - JSON Body Helper
+extension APIEndpoint {
+    /// Serialize a dictionary to JSON Data, asserting in debug builds on failure.
+    static func jsonBody(_ object: [String: Any]) -> Data? {
+        do {
+            return try JSONSerialization.data(withJSONObject: object)
+        } catch {
+            assertionFailure("APIEndpoint: JSON body serialization failed: \(error)")
+            return nil
+        }
+    }
+}
+
 // MARK: - HUD Endpoints
 extension APIEndpoint {
-    static func hud(repoOwner: String, repoName: String, branch: String, page: Int, perPage: Int = 50) -> APIEndpoint {
+    /// Percent-encode a value for use as a single URL path segment (encodes `/` as `%2F`).
+    private static func encodePath(_ value: String) -> String {
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove("/")
+        return value.addingPercentEncoding(withAllowedCharacters: allowed) ?? value
+    }
+
+    static func hud(repoOwner: String, repoName: String, branch: String, page: Int, perPage: Int = 30) -> APIEndpoint {
         APIEndpoint(
-            path: "/api/hud/\(repoOwner)/\(repoName)/\(branch)/\(page)",
+            path: "/api/hud/\(repoOwner)/\(repoName)/\(encodePath(branch))/\(page)",
             queryItems: [URLQueryItem(name: "per_page", value: "\(perPage)")]
         )
     }
@@ -70,15 +90,19 @@ extension APIEndpoint {
         )
     }
 
+    nonisolated(unsafe) private static let isoMillisFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     /// Helper to compute ISO 8601 startTime/stopTime from a number of lookback days.
     /// Returns times with milliseconds like "2026-02-01T00:00:00.000".
     static func timeRange(days: Int) -> (startTime: String, stopTime: String) {
         let now = Date()
         let start = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        return (startTime: formatter.string(from: start), stopTime: formatter.string(from: now))
+        return (startTime: isoMillisFormatter.string(from: start), stopTime: isoMillisFormatter.string(from: now))
     }
 }
 
@@ -141,11 +165,10 @@ extension APIEndpoint {
 extension APIEndpoint {
     /// List benchmark metadata. The API requires POST with `name` and `query_params` in the JSON body.
     static func benchmarkList(name: String, queryParams: [String: Any]) -> APIEndpoint {
-        let body: [String: Any] = [
+        let data = jsonBody([
             "name": name,
             "query_params": queryParams,
-        ]
-        let data = try? JSONSerialization.data(withJSONObject: body)
+        ])
         return APIEndpoint(path: "/api/benchmark/list_metadata", method: .POST, body: data, timeout: 60)
     }
 
@@ -155,12 +178,11 @@ extension APIEndpoint {
         queryParams: [String: Any],
         responseFormats: [String] = ["time_series"]
     ) -> APIEndpoint {
-        let body: [String: Any] = [
+        let data = jsonBody([
             "name": name,
             "query_params": queryParams,
             "response_formats": responseFormats,
-        ]
-        let data = try? JSONSerialization.data(withJSONObject: body)
+        ])
         return APIEndpoint(path: "/api/benchmark/get_time_series", method: .POST, body: data, timeout: 60)
     }
 
@@ -175,11 +197,10 @@ extension APIEndpoint {
 
     /// List regression summary reports. The API requires POST with `report_id` in the JSON body.
     static func regressionReports(reportId: String, limit: Int = 10) -> APIEndpoint {
-        let body: [String: Any] = [
+        let data = jsonBody([
             "report_id": reportId,
             "limit": limit,
-        ]
-        let data = try? JSONSerialization.data(withJSONObject: body)
+        ])
         return APIEndpoint(
             path: "/api/benchmark/list_regression_summary_reports",
             method: .POST,
@@ -190,8 +211,7 @@ extension APIEndpoint {
 
     /// Get a single regression summary report by ID. The API requires POST with `id` in the JSON body.
     static func regressionReport(id: String) -> APIEndpoint {
-        let body: [String: Any] = ["id": id]
-        let data = try? JSONSerialization.data(withJSONObject: body)
+        let data = jsonBody(["id": id])
         return APIEndpoint(
             path: "/api/benchmark/get_regression_summary_report",
             method: .POST,
@@ -225,7 +245,7 @@ extension APIEndpoint {
     }
 
     static func failedJobs(repoOwner: String, repoName: String, branch: String, page: Int) -> APIEndpoint {
-        APIEndpoint(path: "/api/hud/\(repoOwner)/\(repoName)/\(branch)/\(page)")
+        APIEndpoint(path: "/api/hud/\(repoOwner)/\(repoName)/\(encodePath(branch))/\(page)")
     }
 
     /// Fetch failed jobs with their annotations. Query params should include:
@@ -239,9 +259,12 @@ extension APIEndpoint {
         queryParams: [String: Any]
     ) -> APIEndpoint {
         // Encode the query params as JSON
-        let jsonData = try? JSONSerialization.data(withJSONObject: queryParams)
+        let jsonData = try? JSONSerialization.data(withJSONObject: queryParams, options: .sortedKeys)
         let jsonString = jsonData.flatMap { String(data: $0, encoding: .utf8) } ?? "{}"
-        let encodedParams = jsonString.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? ""
+        // Must encode ALL special characters including / so the JSON blob is a single path segment
+        var allowed = CharacterSet.urlPathAllowed
+        allowed.remove(charactersIn: "/{}\":,")
+        let encodedParams = jsonString.addingPercentEncoding(withAllowedCharacters: allowed) ?? ""
 
         return APIEndpoint(
             path: "/api/job_annotation/\(repoOwner)/\(repoName)/failures/\(encodedParams)",
@@ -253,11 +276,13 @@ extension APIEndpoint {
 // MARK: - Autorevert Endpoints
 extension APIEndpoint {
     static func autorevertMetrics(startTime: String, stopTime: String) -> APIEndpoint {
-        APIEndpoint(
+        let workflowNames = "[\"Lint\",\"pull\",\"trunk\",\"linux-aarch64\"]"
+        return APIEndpoint(
             path: "/api/autorevert/metrics",
             queryItems: [
                 URLQueryItem(name: "startTime", value: startTime),
                 URLQueryItem(name: "stopTime", value: stopTime),
+                URLQueryItem(name: "workflowNames", value: workflowNames),
             ]
         )
     }
@@ -275,7 +300,7 @@ extension APIEndpoint {
     static func torchAgentQuery(query: String, sessionId: String?) -> APIEndpoint {
         var body: [String: Any] = ["query": query]
         if let sessionId { body["sessionId"] = sessionId }
-        let data = try? JSONSerialization.data(withJSONObject: body)
+        let data = jsonBody(body)
         return APIEndpoint(path: "/api/torchagent-api", method: .POST, body: data, timeout: 120)
     }
 
@@ -295,7 +320,7 @@ extension APIEndpoint {
     }
 
     static func torchAgentShare(sessionId: String) -> APIEndpoint {
-        let data = try? JSONSerialization.data(withJSONObject: ["sessionId": sessionId])
+        let data = jsonBody(["sessionId": sessionId])
         return APIEndpoint(path: "/api/torchagent-share", method: .POST, body: data)
     }
 
@@ -304,10 +329,10 @@ extension APIEndpoint {
     }
 
     static func torchAgentFeedback(sessionId: String, feedback: Int) -> APIEndpoint {
-        let data = try? JSONSerialization.data(withJSONObject: [
+        let data = jsonBody([
             "sessionId": sessionId,
             "feedback": feedback,
-        ] as [String: Any])
+        ])
         return APIEndpoint(path: "/api/torchagent-feedback", method: .POST, body: data)
     }
 }
@@ -345,7 +370,7 @@ extension APIEndpoint {
 // MARK: - Misc Endpoints
 extension APIEndpoint {
     static func issuesByLabel(label: String) -> APIEndpoint {
-        APIEndpoint(path: "/api/issue/\(label)")
+        APIEndpoint(path: "/api/issue/\(encodePath(label))")
     }
 
     static func artifacts(repository: String? = nil, lookbackDays: Int = 7) -> APIEndpoint {
