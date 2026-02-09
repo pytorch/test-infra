@@ -406,7 +406,21 @@ struct FailureAnalysisView: View {
         .padding(.vertical, 2)
     }
 
+    @ViewBuilder
     private var failuresSection: some View {
+        if let similarError = viewModel.similarFailuresError {
+            Section {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                        .font(.caption)
+                    Text(similarError)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+
         Section {
             ForEach(viewModel.filteredResults) { job in
                 FailureResultRow(job: job)

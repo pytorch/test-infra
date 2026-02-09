@@ -32,6 +32,7 @@ final class FailureAnalysisViewModel: ObservableObject {
     @Published var showDatePicker: Bool = false
     @Published var similarFailuresResult: SimilarFailureResult?
     @Published var isSimilarLoading: Bool = false
+    @Published var similarFailuresError: String?
     @Published var selectedJobFilters: Set<String> = []
 
     // MARK: - Dependencies
@@ -211,9 +212,11 @@ final class FailureAnalysisViewModel: ObservableObject {
                 )
             )
             similarFailuresResult = result
+            similarFailuresError = nil
         } catch {
             // Non-fatal: similar failures are supplementary data
             similarFailuresResult = nil
+            similarFailuresError = "Could not load similar failures: \(error.localizedDescription)"
         }
     }
 

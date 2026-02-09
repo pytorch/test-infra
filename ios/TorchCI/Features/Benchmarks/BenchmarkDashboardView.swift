@@ -40,6 +40,25 @@ struct BenchmarkDashboardView: View {
     private var dashboardContent: some View {
         ScrollView {
             VStack(spacing: 16) {
+                if let partialError = viewModel.partialLoadError {
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                        Text(partialError)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Dismiss") {
+                            viewModel.partialLoadError = nil
+                        }
+                        .font(.caption.weight(.medium))
+                    }
+                    .padding(12)
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal)
+                }
+
                 filtersSection
 
                 // Quick insights
