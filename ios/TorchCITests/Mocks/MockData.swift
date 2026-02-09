@@ -324,40 +324,33 @@ enum MockData {
 
     // MARK: - Test Search Response
 
-    /// Search results with 3 tests: one flaky, one stable, one failing.
+    /// Search results with 3 tests matching TestSearchResponse format.
     static let testSearchResponseJSON: String = """
     {
+        "count": 3,
         "tests": [
             {
                 "name": "test_nccl_allreduce",
-                "suite": "TestDistributedNCCL",
+                "classname": "TestDistributedNCCL",
                 "file": "test/distributed/test_nccl.py",
-                "invoked_times": 1500,
-                "failed_times": 45,
-                "flaky_rate": 0.03,
-                "last_seen": "2025-01-18T22:00:00Z"
+                "invoking_file": "test/distributed/test_nccl.py",
+                "last_run": "2025-01-18T22:00:00Z"
             },
             {
                 "name": "test_matmul_cuda",
-                "suite": "TestLinalgCUDA",
+                "classname": "TestLinalgCUDA",
                 "file": "test/test_linalg.py",
-                "invoked_times": 3200,
-                "failed_times": 0,
-                "flaky_rate": 0.0,
-                "last_seen": "2025-01-19T08:30:00Z"
+                "invoking_file": "test/test_linalg.py",
+                "last_run": "2025-01-19T08:30:00Z"
             },
             {
                 "name": "test_autograd_profiler_output",
-                "suite": "TestProfiler",
+                "classname": "TestProfiler",
                 "file": "test/profiler/test_profiler.py",
-                "invoked_times": 800,
-                "failed_times": 200,
-                "flaky_rate": 0.25,
-                "last_seen": "2025-01-19T12:45:00Z"
+                "invoking_file": "test/profiler/test_profiler.py",
+                "last_run": "2025-01-19T12:45:00Z"
             }
-        ],
-        "total_count": 3,
-        "page": 1
+        ]
     }
     """
 
