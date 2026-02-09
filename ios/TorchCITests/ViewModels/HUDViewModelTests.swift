@@ -344,6 +344,7 @@ final class HUDViewModelTests: XCTestCase {
         await viewModel.refresh()
 
         XCTAssertEqual(viewModel.state, .loaded)
-        XCTAssertEqual(mockClient.callCount, 1)
+        // loadData auto-loads initialPageCount pages (currently 2)
+        XCTAssertEqual(mockClient.callCount, 2)
     }
 }

@@ -23,7 +23,6 @@ final class HUDGridViewTests: XCTestCase {
             failureCaptures: nil,
             runnerName: nil,
             unstable: unstable,
-            previousRun: nil,
             authorEmail: nil
         )
     }
@@ -55,11 +54,11 @@ final class HUDGridViewTests: XCTestCase {
 
     func testJobSummaryCountsAllStatuses() {
         let jobs = [
-            makeJob(conclusion: "success"),
-            makeJob(conclusion: "success"),
-            makeJob(conclusion: "failure"),
-            makeJob(conclusion: nil),
-            makeJob(conclusion: "pending"),
+            makeJob(id: 1, conclusion: "success"),
+            makeJob(id: 2, conclusion: "success"),
+            makeJob(id: 3, conclusion: "failure"),
+            makeJob(id: 4, conclusion: nil),       // pending (has id, nil conclusion)
+            makeJob(id: 5, conclusion: "pending"),  // pending
         ]
 
         let summary = HUDGridView.jobSummary(for: jobs)
@@ -98,8 +97,8 @@ final class HUDGridViewTests: XCTestCase {
 
     func testJobSummaryAllPending() {
         let jobs = [
-            makeJob(conclusion: nil),
-            makeJob(conclusion: "pending"),
+            makeJob(id: 1, conclusion: nil),       // pending (has id, nil conclusion)
+            makeJob(id: 2, conclusion: "pending"),  // pending
         ]
 
         let summary = HUDGridView.jobSummary(for: jobs)

@@ -15,26 +15,52 @@ struct HUDRow: Decodable, Identifiable {
     let time: String?
     let jobs: [HUDJob]
     let isForcedMerge: Bool?
+    let isForcedMergeWithFailures: Bool?
+    let isAutoreverted: Bool?
+    let autorevertWorkflows: [String]?
+    let autorevertSignals: [String]?
 
     var id: String { sha }
 
     enum CodingKeys: String, CodingKey {
-        case sha, commitTitle, commitMessageBody, author, authorUrl, time, jobs, isForcedMerge
+        case sha, commitTitle, commitMessageBody, author, authorUrl, time, jobs
+        case isForcedMerge, isForcedMergeWithFailures, isAutoreverted
+        case autorevertWorkflows, autorevertSignals
         case prNumber = "prNum"
+    }
+
+    init(sha: String, commitTitle: String?, commitMessageBody: String?, prNumber: Int?,
+         author: String?, authorUrl: String?, time: String?, jobs: [HUDJob],
+         isForcedMerge: Bool? = nil, isForcedMergeWithFailures: Bool? = nil,
+         isAutoreverted: Bool? = nil, autorevertWorkflows: [String]? = nil,
+         autorevertSignals: [String]? = nil) {
+        self.sha = sha; self.commitTitle = commitTitle
+        self.commitMessageBody = commitMessageBody; self.prNumber = prNumber
+        self.author = author; self.authorUrl = authorUrl; self.time = time
+        self.jobs = jobs; self.isForcedMerge = isForcedMerge
+        self.isForcedMergeWithFailures = isForcedMergeWithFailures
+        self.isAutoreverted = isAutoreverted
+        self.autorevertWorkflows = autorevertWorkflows
+        self.autorevertSignals = autorevertSignals
     }
 
     var shortSha: String { String(sha.prefix(7)) }
 
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     var commitDate: Date? {
         guard let time else { return nil }
-        return ISO8601DateFormatter().date(from: time)
+        return Self.isoFormatter.date(from: time)
     }
 
     var relativeTime: String {
         guard let date = commitDate else { return time ?? "" }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
+        return Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 }
 
@@ -46,27 +72,28 @@ struct HUDJob: Decodable, Identifiable {
     let htmlUrl: String?
     let logUrl: String?
     let durationS: Int?
+    let queueTimeS: Int?
     let failureLines: [String]?
     let failureCaptures: [String]?
     let runnerName: String?
     let unstable: Bool?
-    let previousRun: PreviousRun?
+    /// Whether a previous run of this job (same name, same SHA) failed.
+    /// This is a simple boolean from the API (not a full PreviousRun object).
+    let failedPreviousRun: Bool?
     let authorEmail: String?
 
     /// Stable identity for SwiftUI; uses the server ID when available,
     /// otherwise falls back to a per-instance UUID.
     let id: String
 
-    // JSON keys are camelCase (matching the ClickHouse column aliases
-    // and TypeScript interface: htmlUrl, logUrl, durationS, etc.)
+    // JSON keys are camelCase (matching the TypeScript interface)
     enum CodingKeys: String, CodingKey {
-        case id, name, conclusion, htmlUrl, logUrl, durationS
+        case id, name, conclusion, htmlUrl, logUrl, durationS, queueTimeS
         case failureLines, failureCaptures, runnerName
-        case unstable, previousRun, authorEmail
+        case unstable, failedPreviousRun, authorEmail
     }
 
     /// Custom decoder that handles all fields including failure data.
-    /// Failure data is needed by FailedJobsView for classification and previews.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let decodedId = try container.decodeIfPresent(Int.self, forKey: .id)
@@ -77,9 +104,10 @@ struct HUDJob: Decodable, Identifiable {
         htmlUrl = try container.decodeIfPresent(String.self, forKey: .htmlUrl)
         logUrl = try container.decodeIfPresent(String.self, forKey: .logUrl)
         durationS = try container.decodeIfPresent(Int.self, forKey: .durationS)
+        queueTimeS = try container.decodeIfPresent(Int.self, forKey: .queueTimeS)
         runnerName = try container.decodeIfPresent(String.self, forKey: .runnerName)
         unstable = try container.decodeIfPresent(Bool.self, forKey: .unstable)
-        previousRun = try container.decodeIfPresent(PreviousRun.self, forKey: .previousRun)
+        failedPreviousRun = try container.decodeIfPresent(Bool.self, forKey: .failedPreviousRun)
         authorEmail = try container.decodeIfPresent(String.self, forKey: .authorEmail)
         failureLines = try container.decodeIfPresent([String].self, forKey: .failureLines)
         failureCaptures = try container.decodeIfPresent([String].self, forKey: .failureCaptures)
@@ -87,15 +115,16 @@ struct HUDJob: Decodable, Identifiable {
 
     // Direct initializer for tests and manual construction
     init(id: Int?, name: String?, conclusion: String?, htmlUrl: String?, logUrl: String?,
-         durationS: Int?, failureLines: [String]?, failureCaptures: [String]?,
-         runnerName: String?, unstable: Bool?, previousRun: PreviousRun?, authorEmail: String?) {
+         durationS: Int?, queueTimeS: Int? = nil, failureLines: [String]?, failureCaptures: [String]?,
+         runnerName: String?, unstable: Bool?, failedPreviousRun: Bool? = nil, authorEmail: String?) {
         self.jobId = id
         self.id = id.map { String($0) } ?? UUID().uuidString
         self.name = name; self.conclusion = conclusion
         self.htmlUrl = htmlUrl; self.logUrl = logUrl; self.durationS = durationS
+        self.queueTimeS = queueTimeS
         self.failureLines = failureLines; self.failureCaptures = failureCaptures
         self.runnerName = runnerName; self.unstable = unstable
-        self.previousRun = previousRun; self.authorEmail = authorEmail
+        self.failedPreviousRun = failedPreviousRun; self.authorEmail = authorEmail
     }
 
     var isFailure: Bool { conclusion == "failure" }
@@ -105,16 +134,24 @@ struct HUDJob: Decodable, Identifiable {
     /// Job slot exists in the grid but no actual job was created for this commit.
     var isEmpty: Bool { conclusion == nil && jobId == nil }
 
-    /// A failure that also failed on the previous commit (repeat/known breakage).
-    var isRepeatFailure: Bool { isFailure && previousRun?.conclusion == "failure" }
-    /// A failure where the previous commit succeeded (new breakage).
+    /// Succeeded but a previous run of the same job (same commit) failed — flaky.
+    var isFlaky: Bool { isSuccess && failedPreviousRun == true }
+    /// A failure that also failed on a previous run (known/preexisting breakage).
+    var isRepeatFailure: Bool { isFailure && failedPreviousRun == true }
+    /// A failure where the previous run did not fail (new breakage).
     var isNewFailure: Bool { isFailure && !isRepeatFailure }
 
     /// Whether this job name matches a viable-strict blocking pattern.
+    /// Note: In HUD grid data, jobs often lack an individual `name`; use
+    /// `HUDJob.isBlockingName(_:)` with the name from the `jobNames` array instead.
     var isViableStrictBlocking: Bool {
         guard let name else { return false }
+        return Self.isBlockingName(name)
+    }
+
+    /// Check whether a job name matches a viable/strict blocking pattern.
+    static func isBlockingName(_ name: String) -> Bool {
         let lowered = name.lowercased()
-        // Matches the web HUD's VIABLE_STRICT_BLOCKING_JOBS for pytorch/pytorch
         let blockingPatterns = ["pull", "trunk", "lint", "linux-aarch64"]
         let excludePatterns = ["mem_leak", "rerun_disabled"]
         if excludePatterns.contains(where: { lowered.contains($0) }) { return false }
@@ -136,7 +173,3 @@ struct HUDJob: Decodable, Identifiable {
     }
 }
 
-struct PreviousRun: Decodable {
-    let conclusion: String?
-    let htmlUrl: String?
-}

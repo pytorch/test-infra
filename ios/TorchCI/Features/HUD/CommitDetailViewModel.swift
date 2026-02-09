@@ -44,7 +44,9 @@ final class CommitDetailViewModel: ObservableObject {
     }
 
     var failedJobs: Int {
-        commitResponse?.jobs.filter { $0.isFailure }.count ?? 0
+        commitResponse?.jobs.filter {
+            $0.isFailure && $0.conclusion?.lowercased() != "cancelled" && $0.conclusion?.lowercased() != "canceled"
+        }.count ?? 0
     }
 
     var pendingJobs: Int {

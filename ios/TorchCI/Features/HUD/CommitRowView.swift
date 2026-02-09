@@ -172,16 +172,16 @@ struct CommitRowView: View {
                 authorUrl: "https://github.com/pytorchbot",
                 time: ISO8601DateFormatter().string(from: Date().addingTimeInterval(-3600)),
                 jobs: [
-                    HUDJob(id: 1, name: "build", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 300, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-                    HUDJob(id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil, durationS: 120, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-                    HUDJob(id: 3, name: "lint", conclusion: nil, htmlUrl: nil, logUrl: nil, durationS: nil, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
+                    HUDJob(id: 1, name: "build", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 300, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+                    HUDJob(id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil, durationS: 120, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+                    HUDJob(id: 3, name: "lint", conclusion: nil, htmlUrl: nil, logUrl: nil, durationS: nil, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
                 ],
                 isForcedMerge: true
             ),
             jobs: [
-                HUDJob(id: 1, name: "build", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 300, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-                HUDJob(id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil, durationS: 120, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-                HUDJob(id: 3, name: "lint", conclusion: nil, htmlUrl: nil, logUrl: nil, durationS: nil, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
+                HUDJob(id: 1, name: "build", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 300, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+                HUDJob(id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil, durationS: 120, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+                HUDJob(id: 3, name: "lint", conclusion: nil, htmlUrl: nil, logUrl: nil, durationS: nil, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
             ],
             jobNames: ["linux-build / build", "linux-test / test", "lint / check"],
             repoOwner: "pytorch",

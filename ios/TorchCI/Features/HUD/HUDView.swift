@@ -214,56 +214,58 @@ struct HUDView: View {
             let stats = viewModel.jobHealthStats
             if !stats.isEmpty {
                 VStack(spacing: 4) {
-                    // Stacked progress bar
+                    // Proportional status bar using GeometryReader for correct widths
+                    let nonBlockingFails = max(0, stats.failureCount - stats.blockingFailureCount)
+                    let segments: [(Color, Int)] = [
+                        (AppColors.success, stats.successCount),
+                        (Color.green.opacity(0.5), stats.flakyCount),
+                        (AppColors.failure, stats.blockingFailureCount),
+                        (Color.red.opacity(0.5), nonBlockingFails),
+                        (AppColors.unstable, stats.unstableCount),
+                        (AppColors.pending, stats.pendingCount),
+                    ].filter { $0.1 > 0 }
+                    let segmentTotal = segments.reduce(0) { $0 + $1.1 }
+
                     GeometryReader { geometry in
                         let totalWidth = geometry.size.width
-                        HStack(spacing: 1) {
-                            if stats.successCount > 0 {
+                        let spacing: CGFloat = CGFloat(max(0, segments.count - 1)) * 0.5
+                        let available = totalWidth - spacing
+
+                        HStack(spacing: 0.5) {
+                            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                                 RoundedRectangle(cornerRadius: 2)
-                                    .fill(AppColors.success)
-                                    .frame(width: max(2, totalWidth * stats.successRate))
-                            }
-                            if stats.failureCount > 0 {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(AppColors.failure)
-                                    .frame(width: max(2, totalWidth * stats.failureRate))
-                            }
-                            if stats.unstableCount > 0 {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(AppColors.unstable)
-                                    .frame(width: max(2, totalWidth * stats.unstableRate))
-                            }
-                            if stats.pendingCount > 0 {
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(AppColors.pending)
-                                    .frame(width: max(2, totalWidth * stats.pendingRate))
+                                    .fill(segment.0)
+                                    .frame(width: max(2, available * CGFloat(segment.1) / CGFloat(segmentTotal)))
                             }
                         }
                     }
                     .frame(height: 6)
                     .clipShape(RoundedRectangle(cornerRadius: 3))
 
-                    // Legend
-                    HStack(spacing: 12) {
+                    // Legend with failure breakdown badges
+                    HStack(spacing: 4) {
+                        if stats.blockingFailureCount > 0 {
+                            healthBadge(count: stats.blockingFailureCount, color: AppColors.failure, label: "blocking")
+                        }
+                        if stats.newFailureCount > stats.blockingFailureCount {
+                            healthBadge(count: stats.newFailureCount - stats.blockingFailureCount, color: Color.red.opacity(0.7), label: "failed")
+                        }
+                        if stats.repeatFailureCount > 0 {
+                            healthBadge(count: stats.repeatFailureCount, color: Color(.systemGray2), label: "known")
+                        }
+                        if stats.unstableCount > 0 {
+                            healthBadge(count: stats.unstableCount, color: AppColors.unstable, label: "unstable")
+                        }
+                        if stats.flakyCount > 0 {
+                            healthBadge(count: stats.flakyCount, color: Color.green.opacity(0.7), label: "flaky")
+                        }
+
+                        Spacer()
+
                         healthLegendItem(
                             color: AppColors.success,
-                            label: "\(stats.successCount) passed"
+                            label: "\(stats.successCount + stats.flakyCount) passed"
                         )
-                        healthLegendItem(
-                            color: AppColors.failure,
-                            label: "\(stats.failureCount) failed"
-                        )
-                        if stats.unstableCount > 0 {
-                            healthLegendItem(
-                                color: AppColors.unstable,
-                                label: "\(stats.unstableCount) unstable"
-                            )
-                        }
-                        healthLegendItem(
-                            color: AppColors.pending,
-                            label: "\(stats.pendingCount) pending"
-                        )
-                        Spacer()
                         Text(stats.successPercentage)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(AppColors.success)
@@ -285,6 +287,20 @@ struct HUDView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func healthBadge(count: Int, color: Color, label: String) -> some View {
+        HStack(spacing: 2) {
+            Text("\(count)")
+                .font(.system(size: 9, weight: .bold))
+            Text(label)
+                .font(.system(size: 8))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 4)
+        .padding(.vertical, 2)
+        .background(color)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
     }
 
     // MARK: - Main Content
@@ -572,29 +588,19 @@ private struct HUDJobDetailView: View {
 
     @ViewBuilder
     private var previousRunSection: some View {
-        if let previousRun = job.previousRun {
+        if let failed = job.failedPreviousRun, failed {
             VStack(alignment: .leading, spacing: 8) {
                 SectionHeader(title: "Previous Run")
 
                 HStack(spacing: 12) {
                     JobStatusBadge(
-                        conclusion: previousRun.conclusion,
+                        conclusion: "failure",
                         showLabel: true
                     )
-
-                    if let htmlUrl = previousRun.htmlUrl, URL(string: htmlUrl) != nil {
-                        Spacer()
-
-                        Button {
-                            safariURL = URL(string: htmlUrl)
-                            showingSafari = true
-                        } label: {
-                            Label("View", systemImage: "arrow.up.right.square")
-                                .font(.caption.weight(.medium))
-                        }
-                        .buttonStyle(.bordered)
-                        .controlSize(.small)
-                    }
+                    Text("Previous run also failed")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    Spacer()
                 }
                 .padding()
                 .frame(maxWidth: .infinity, alignment: .leading)

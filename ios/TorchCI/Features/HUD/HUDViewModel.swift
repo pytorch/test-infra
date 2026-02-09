@@ -92,7 +92,11 @@ final class HUDViewModel: ObservableObject {
                 authorUrl: row.authorUrl,
                 time: row.time,
                 jobs: filteredJobs,
-                isForcedMerge: row.isForcedMerge
+                isForcedMerge: row.isForcedMerge,
+                isForcedMergeWithFailures: row.isForcedMergeWithFailures,
+                isAutoreverted: row.isAutoreverted,
+                autorevertWorkflows: row.autorevertWorkflows,
+                autorevertSignals: row.autorevertSignals
             )
         }
     }
@@ -142,34 +146,49 @@ final class HUDViewModel: ObservableObject {
     // MARK: - Health Stats
 
     /// Overall job health stats across all visible rows (excludes empty slots).
+    /// Uses `filteredJobNames` to determine viable/strict blocking status
+    /// since HUD grid jobs don't carry their own name.
     var jobHealthStats: JobHealthStats {
         let rows = filteredRows
-        var totalSuccess = 0
-        var totalFailure = 0
-        var totalPending = 0
-        var totalUnstable = 0
+        let names = filteredJobNames
+        var success = 0, flaky = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, pending = 0
 
         for row in rows {
-            for job in row.jobs {
+            for (jobIndex, job) in row.jobs.enumerated() {
                 if job.isEmpty { continue }
-                if job.isUnstable {
-                    totalUnstable += 1
+                let jobName = jobIndex < names.count ? names[jobIndex] : ""
+                if job.isFlaky {
+                    flaky += 1
                 } else if job.isSuccess {
-                    totalSuccess += 1
+                    success += 1
                 } else if job.isFailure {
-                    totalFailure += 1
+                    if job.isUnstable {
+                        unstableFail += 1
+                    } else if job.isRepeatFailure {
+                        repeatFail += 1
+                    } else {
+                        newFail += 1
+                    }
+                    if HUDJob.isBlockingName(jobName) && !job.isUnstable {
+                        blocking += 1
+                    }
                 } else if job.isPending {
-                    totalPending += 1
+                    pending += 1
                 }
             }
         }
 
-        let total = totalSuccess + totalFailure + totalPending + totalUnstable
+        let totalFailure = newFail + repeatFail
+        let total = success + flaky + totalFailure + unstableFail + pending
         return JobHealthStats(
-            successCount: totalSuccess,
+            successCount: success,
+            flakyCount: flaky,
             failureCount: totalFailure,
-            pendingCount: totalPending,
-            unstableCount: totalUnstable,
+            newFailureCount: newFail,
+            repeatFailureCount: repeatFail,
+            blockingFailureCount: blocking,
+            pendingCount: pending,
+            unstableCount: unstableFail,
             totalCount: total
         )
     }
@@ -182,6 +201,10 @@ final class HUDViewModel: ObservableObject {
     }
 
     // MARK: - Actions
+
+    /// Number of pages to fetch on initial load.
+    /// At per_page=30, loading 2 pages gives ~60 commits (similar to the old per_page=50).
+    private static let initialPageCount = 2
 
     func loadData() async {
         state = .loading
@@ -199,6 +222,14 @@ final class HUDViewModel: ObservableObject {
             hasMorePages = !response.shaGrid.isEmpty
             computeConsecutiveFailures()
             state = .loaded
+
+            // Auto-load additional pages to compensate for reduced per_page
+            if hasMorePages {
+                for page in 2...Self.initialPageCount {
+                    await loadNextPage()
+                    guard hasMorePages else { break }
+                }
+            }
         } catch {
             state = .error(error.localizedDescription)
         }
@@ -232,10 +263,13 @@ final class HUDViewModel: ObservableObject {
                     hasMorePages = false
                 } else {
                     var merged = hudData ?? HUDResponse(shaGrid: [], jobNames: [])
-                    let allNames = Array(Set(merged.jobNames + response.jobNames))
+                    // Preserve ordering: keep existing names in order, append only new ones
+                    let existingNames = Set(merged.jobNames)
+                    let newNames = response.jobNames.filter { !existingNames.contains($0) }
+                    let allNames = merged.jobNames + newNames
                     merged = HUDResponse(
                         shaGrid: merged.shaGrid + newRows,
-                        jobNames: merged.jobNames.count >= allNames.count ? merged.jobNames : allNames
+                        jobNames: allNames
                     )
                     hudData = merged
                     currentPage = nextPage
@@ -341,29 +375,18 @@ final class HUDViewModel: ObservableObject {
 
 struct JobHealthStats {
     let successCount: Int
+    let flakyCount: Int
     let failureCount: Int
+    let newFailureCount: Int
+    let repeatFailureCount: Int
+    let blockingFailureCount: Int
     let pendingCount: Int
     let unstableCount: Int
     let totalCount: Int
 
-    var successRate: Double {
-        totalCount > 0 ? Double(successCount) / Double(totalCount) : 0
-    }
-
-    var failureRate: Double {
-        totalCount > 0 ? Double(failureCount) / Double(totalCount) : 0
-    }
-
-    var pendingRate: Double {
-        totalCount > 0 ? Double(pendingCount) / Double(totalCount) : 0
-    }
-
-    var unstableRate: Double {
-        totalCount > 0 ? Double(unstableCount) / Double(totalCount) : 0
-    }
-
     var successPercentage: String {
-        String(format: "%.0f%%", successRate * 100)
+        let passCount = successCount + flakyCount
+        return totalCount > 0 ? String(format: "%.0f%%", Double(passCount) / Double(totalCount) * 100) : "0%"
     }
 
     var isEmpty: Bool {

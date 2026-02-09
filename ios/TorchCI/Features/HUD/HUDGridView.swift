@@ -71,22 +71,36 @@ struct HUDGridView: View {
 
     private struct RowJobStats {
         let successCount: Int
+        let flakyCount: Int
         let newFailureCount: Int
         let repeatFailureCount: Int
         let unstableFailureCount: Int
         let blockingFailureCount: Int
         let pendingCount: Int
         let totalRealJobs: Int
+        let maxDurationS: Int?
+        let maxQueueTimeS: Int?
 
         var totalFailures: Int { newFailureCount + repeatFailureCount + unstableFailureCount }
     }
 
     private func computeStats(for jobs: [HUDJob]) -> RowJobStats {
-        var success = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, pending = 0, real = 0
-        for job in jobs {
+        var success = 0, flaky = 0, newFail = 0, repeatFail = 0, unstableFail = 0, blocking = 0, pending = 0, real = 0
+        var maxDur: Int?
+        var maxQueue: Int?
+        for (jobIndex, job) in jobs.enumerated() {
             if job.isEmpty { continue }
             real += 1
-            if job.isSuccess {
+            let jobName = jobIndex < jobNames.count ? jobNames[jobIndex] : ""
+            if let d = job.durationS {
+                maxDur = max(maxDur ?? 0, d)
+            }
+            if let q = job.queueTimeS {
+                maxQueue = max(maxQueue ?? 0, q)
+            }
+            if job.isFlaky {
+                flaky += 1
+            } else if job.isSuccess {
                 success += 1
             } else if job.isFailure {
                 if job.isUnstable {
@@ -96,7 +110,7 @@ struct HUDGridView: View {
                 } else {
                     newFail += 1
                 }
-                if job.isViableStrictBlocking && !job.isUnstable {
+                if HUDJob.isBlockingName(jobName) && !job.isUnstable {
                     blocking += 1
                 }
             } else if job.isPending {
@@ -105,12 +119,15 @@ struct HUDGridView: View {
         }
         return RowJobStats(
             successCount: success,
+            flakyCount: flaky,
             newFailureCount: newFail,
             repeatFailureCount: repeatFail,
             unstableFailureCount: unstableFail,
             blockingFailureCount: blocking,
             pendingCount: pending,
-            totalRealJobs: real
+            totalRealJobs: real,
+            maxDurationS: maxDur,
+            maxQueueTimeS: maxQueue
         )
     }
 
@@ -132,13 +149,27 @@ struct HUDGridView: View {
                                 .font(.system(.caption, design: .monospaced))
                                 .foregroundStyle(Color.accentColor)
 
+                            if row.isAutoreverted == true {
+                                HStack(spacing: 2) {
+                                    Image(systemName: "arrow.uturn.backward")
+                                        .font(.system(size: 7, weight: .bold))
+                                    Text("reverted")
+                                        .font(.system(size: 8, weight: .bold))
+                                }
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(Color.orange)
+                                .clipShape(RoundedRectangle(cornerRadius: 3))
+                            }
+
                             if row.isForcedMerge == true {
                                 Text("FM")
                                     .font(.system(size: 8, weight: .bold))
                                     .foregroundStyle(.white)
                                     .padding(.horizontal, 4)
                                     .padding(.vertical, 2)
-                                    .background(AppColors.unstable)
+                                    .background(row.isForcedMergeWithFailures == true ? Color.orange : AppColors.unstable)
                                     .clipShape(RoundedRectangle(cornerRadius: 3))
                             }
 
@@ -173,6 +204,7 @@ struct HUDGridView: View {
                     HStack(spacing: 4) {
                         jobBadges(stats: stats)
                         Spacer()
+                        timingBadges(stats: stats)
                         Text("\(stats.totalRealJobs) jobs")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
@@ -184,7 +216,11 @@ struct HUDGridView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .background(index % 2 == 0 ? Color(.systemBackground) : Color(.systemGray6).opacity(0.3))
+        .background(
+            row.isAutoreverted == true
+                ? Color(.systemGray4).opacity(0.3)
+                : (index % 2 == 0 ? Color(.systemBackground) : Color(.systemGray6).opacity(0.3))
+        )
     }
 
     // MARK: - Status Bar
@@ -193,20 +229,28 @@ struct HUDGridView: View {
         let nonBlockingFails = max(0, stats.newFailureCount + stats.repeatFailureCount - stats.blockingFailureCount)
         let segments: [(Color, Int)] = [
             (AppColors.success, stats.successCount),
+            (Color.green.opacity(0.5), stats.flakyCount),
             (AppColors.failure, stats.blockingFailureCount),
-            (AppColors.failure.opacity(0.5), nonBlockingFails),
+            (Color.red.opacity(0.5), nonBlockingFails),
             (AppColors.unstable, stats.unstableFailureCount),
             (AppColors.pending, stats.pendingCount),
         ].filter { $0.1 > 0 }
+        let segmentTotal = segments.reduce(0) { $0 + $1.1 }
 
-        // Use large maxWidth proportional to count so SwiftUI compresses proportionally
-        return HStack(spacing: 0.5) {
-            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
-                Rectangle()
-                    .fill(segment.0)
-                    .frame(maxWidth: CGFloat(segment.1) * 10000, maxHeight: 5)
+        return GeometryReader { geometry in
+            let totalWidth = geometry.size.width
+            let spacing: CGFloat = CGFloat(max(0, segments.count - 1)) * 0.5
+            let available = totalWidth - spacing
+
+            HStack(spacing: 0.5) {
+                ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                    Rectangle()
+                        .fill(segment.0)
+                        .frame(width: max(2, available * CGFloat(segment.1) / CGFloat(segmentTotal)))
+                }
             }
         }
+        .frame(height: 5)
         .clipShape(RoundedRectangle(cornerRadius: 2))
     }
 
@@ -224,7 +268,10 @@ struct HUDGridView: View {
                 miniCountBadge(count: stats.repeatFailureCount, color: Color(.systemGray2), label: "known")
             }
             if stats.unstableFailureCount > 0 {
-                miniCountBadge(count: stats.unstableFailureCount, color: AppColors.unstable, label: "flaky")
+                miniCountBadge(count: stats.unstableFailureCount, color: AppColors.unstable, label: "unstable")
+            }
+            if stats.flakyCount > 0 {
+                miniCountBadge(count: stats.flakyCount, color: Color.green.opacity(0.7), label: "flaky")
             }
             if stats.pendingCount > 0 {
                 miniCountBadge(count: stats.pendingCount, color: AppColors.pending, label: nil)
@@ -251,6 +298,38 @@ struct HUDGridView: View {
         .padding(.vertical, 2)
         .background(color)
         .clipShape(RoundedRectangle(cornerRadius: 4))
+    }
+
+    // MARK: - Timing Badges
+
+    private func timingBadges(stats: RowJobStats) -> some View {
+        HStack(spacing: 3) {
+            if let dur = stats.maxDurationS {
+                timingLabel(icon: "clock", text: formatDuration(dur))
+            }
+            if let queue = stats.maxQueueTimeS, queue > 60 {
+                timingLabel(icon: "hourglass", text: formatDuration(queue))
+            }
+        }
+    }
+
+    private func timingLabel(icon: String, text: String) -> some View {
+        HStack(spacing: 2) {
+            Image(systemName: icon)
+                .font(.system(size: 7))
+            Text(text)
+                .font(.system(size: 8))
+        }
+        .foregroundStyle(.secondary)
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let hours = seconds / 3600
+        let minutes = (seconds % 3600) / 60
+        if hours > 0 {
+            return "\(hours)h\(minutes > 0 ? " \(minutes)m" : "")"
+        }
+        return "\(minutes)m"
     }
 
     // MARK: - Avatar Views
@@ -308,10 +387,10 @@ struct HUDGridView: View {
 
 #Preview {
     let sampleJobs: [HUDJob] = [
-        HUDJob(id: 1, name: "build", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 300, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-        HUDJob(id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil, durationS: 120, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-        HUDJob(id: 3, name: "lint", conclusion: nil, htmlUrl: nil, logUrl: nil, durationS: nil, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
-        HUDJob(id: 4, name: "docs", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 60, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil),
+        HUDJob(id: 1, name: "build", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 300, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+        HUDJob(id: 2, name: "test", conclusion: "failure", htmlUrl: nil, logUrl: nil, durationS: 120, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+        HUDJob(id: 3, name: "lint", conclusion: nil, htmlUrl: nil, logUrl: nil, durationS: nil, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
+        HUDJob(id: 4, name: "docs", conclusion: "success", htmlUrl: nil, logUrl: nil, durationS: 60, failureLines: nil, failureCaptures: nil, runnerName: nil, unstable: nil, authorEmail: nil),
     ]
 
     let sampleRows = (0..<10).map { i in
@@ -324,7 +403,9 @@ struct HUDGridView: View {
             authorUrl: nil,
             time: ISO8601DateFormatter().string(from: Date().addingTimeInterval(Double(-i * 3600))),
             jobs: sampleJobs,
-            isForcedMerge: i == 2
+            isForcedMerge: i == 2,
+            isForcedMergeWithFailures: i == 2,
+            isAutoreverted: i == 3
         )
     }
 

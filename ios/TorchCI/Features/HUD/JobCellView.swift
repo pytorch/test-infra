@@ -189,7 +189,7 @@ private struct JobCellPreview: View {
                 id: 1, name: "test-build", conclusion: "success",
                 htmlUrl: "https://github.com", logUrl: nil,
                 durationS: 300, failureLines: nil, failureCaptures: nil,
-                runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil
+                runnerName: nil, unstable: nil, authorEmail: nil
             ),
             jobName: "linux-build / test-build"
         )
@@ -198,7 +198,7 @@ private struct JobCellPreview: View {
                 id: 2, name: "test-run", conclusion: "failure",
                 htmlUrl: nil, logUrl: nil, durationS: 120,
                 failureLines: ["AssertionError: expected True"], failureCaptures: nil,
-                runnerName: "runner-1", unstable: nil, previousRun: nil, authorEmail: nil
+                runnerName: "runner-1", unstable: nil, authorEmail: nil
             ),
             jobName: "linux-test / test-run"
         )
@@ -207,7 +207,7 @@ private struct JobCellPreview: View {
                 id: 3, name: "pending-job", conclusion: nil,
                 htmlUrl: nil, logUrl: nil, durationS: nil,
                 failureLines: nil, failureCaptures: nil,
-                runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil
+                runnerName: nil, unstable: nil, authorEmail: nil
             ),
             jobName: "pending-workflow / pending-job"
         )
@@ -216,7 +216,7 @@ private struct JobCellPreview: View {
                 id: 4, name: "unstable-job", conclusion: "failure",
                 htmlUrl: nil, logUrl: nil, durationS: 450,
                 failureLines: nil, failureCaptures: nil,
-                runnerName: nil, unstable: true, previousRun: nil, authorEmail: nil
+                runnerName: nil, unstable: true, authorEmail: nil
             ),
             jobName: "linux-test / unstable-job"
         )

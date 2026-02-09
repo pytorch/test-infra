@@ -151,13 +151,13 @@ struct WorkflowSection: View {
                 id: 1, name: "build-x86", conclusion: "success",
                 htmlUrl: nil, logUrl: nil, durationS: 1200,
                 failureLines: nil, failureCaptures: nil,
-                runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil
+                runnerName: nil, unstable: nil, authorEmail: nil
             )),
             (name: "linux-build / test-x86", job: HUDJob(
                 id: 2, name: "test-x86", conclusion: "failure",
                 htmlUrl: nil, logUrl: nil, durationS: 600,
                 failureLines: ["Error: test failed"], failureCaptures: nil,
-                runnerName: nil, unstable: nil, previousRun: nil, authorEmail: nil
+                runnerName: nil, unstable: nil, authorEmail: nil
             )),
         ]
     )
