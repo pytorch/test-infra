@@ -272,12 +272,14 @@ final class MetricsDashboardViewModel: ObservableObject {
     // MARK: - State
 
     enum ViewState: Equatable {
+        case idle
         case loading
         case loaded
         case error(String)
 
         static func == (lhs: ViewState, rhs: ViewState) -> Bool {
             switch (lhs, rhs) {
+            case (.idle, .idle): return true
             case (.loading, .loading): return true
             case (.loaded, .loaded): return true
             case (.error(let a), .error(let b)): return a == b
@@ -286,7 +288,7 @@ final class MetricsDashboardViewModel: ObservableObject {
         }
     }
 
-    @Published var state: ViewState = .loading
+    @Published var state: ViewState = .idle
     @Published var granularity: TimeGranularity = .day
     @Published var selectedTimeRange: String = "14d"
     @Published var selectedPercentile: Double = 0.5
@@ -405,6 +407,7 @@ final class MetricsDashboardViewModel: ObservableObject {
     // MARK: - Data Loading
 
     func loadDashboard() async {
+        guard state == .idle else { return }
         state = .loading
         await fetchAllMetrics()
     }

@@ -7,13 +7,14 @@ struct MetricsDashboardView: View {
     var body: some View {
         Group {
             switch viewModel.state {
-            case .loading:
+            case .idle, .loading:
                 LoadingView(message: "Loading metrics...")
 
             case .error(let message):
                 ErrorView(error: NSError(domain: "", code: 0, userInfo: [
                     NSLocalizedDescriptionKey: message,
                 ])) {
+                    viewModel.state = .idle
                     Task { await viewModel.loadDashboard() }
                 }
 

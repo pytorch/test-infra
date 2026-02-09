@@ -804,7 +804,7 @@ final class TorchAOBenchmarkViewModel: ObservableObject {
                 name: record.name,
                 metric: record.dtype,
                 value: record.absLatency ?? 0,
-                baseline: 1.0,
+                baseline: nil,
                 speedup: record.speedup,
                 status: (record.speedup ?? 0) >= 0.95 ? "pass" : "fail"
             )

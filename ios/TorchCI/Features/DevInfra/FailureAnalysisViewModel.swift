@@ -77,27 +77,31 @@ final class FailureAnalysisViewModel: ObservableObject {
     /// Histogram data showing failure counts grouped by day over the last 14 days.
     /// Returns array of tuples: (date, mainBranchCount, otherBranchCount)
     /// Uses integer day offsets for reliable sorting across month boundaries.
+    nonisolated(unsafe) private static let displayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MM/d"
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     var histogramData: [(date: String, main: Int, other: Int)] {
         let samples = similarFailuresResult?.samples ?? results
 
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let displayFormatter = DateFormatter()
-        displayFormatter.dateFormat = "MM/d"
 
         // Create 14-day buckets keyed by day offset (0 = oldest, 13 = today)
         var buckets: [(label: String, main: Int, other: Int)] = (0..<14).map { offset in
             let dayIndex = 13 - offset
             let date = calendar.date(byAdding: .day, value: -dayIndex, to: today) ?? today
-            return (label: displayFormatter.string(from: date), main: 0, other: 0)
+            return (label: Self.displayFormatter.string(from: date), main: 0, other: 0)
         }
 
         // Count failures per day
         let highlighted: Set<String> = ["master", "main"]
-        let isoFormatter = ISO8601DateFormatter()
         for job in samples {
             guard let timeStr = job.time,
-                  let time = isoFormatter.date(from: timeStr) else { continue }
+                  let time = Self.isoFormatter.date(from: timeStr) else { continue }
 
             let jobDay = calendar.startOfDay(for: time)
             let dayDiff = calendar.dateComponents([.day], from: jobDay, to: today).day ?? -1
@@ -143,11 +147,11 @@ final class FailureAnalysisViewModel: ObservableObject {
         histogramData.reduce(0) { $0 + $1.main }
     }
 
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }
+    nonisolated(unsafe) private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }()
 
     // MARK: - Init
 
@@ -167,8 +171,8 @@ final class FailureAnalysisViewModel: ObservableObject {
         selectedJobFilters = []
 
         do {
-            let startStr = dateFormatter.string(from: startDate)
-            let endStr = dateFormatter.string(from: endDate)
+            let startStr = Self.dateFormatter.string(from: startDate)
+            let endStr = Self.dateFormatter.string(from: endDate)
 
             let searchResult: FailureSearchResult = try await apiClient.fetch(
                 APIEndpoint.searchFailures(
@@ -232,13 +236,3 @@ final class FailureAnalysisViewModel: ObservableObject {
     }
 }
 
-// MARK: - JobData Extension
-
-private extension JobData {
-    var branch: String? {
-        // The web implementation looks for job.branch, but our JobData doesn't include it.
-        // For now, assume most jobs are on main/master unless we can parse from jobName.
-        // This could be enhanced if the API returns branch info.
-        nil
-    }
-}

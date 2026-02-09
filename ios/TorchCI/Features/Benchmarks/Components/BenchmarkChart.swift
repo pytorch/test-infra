@@ -10,14 +10,33 @@ struct BenchmarkChart: View {
 
     @State private var rawSelectedDate: Date?
 
-    private var parsedPoints: [ParsedChartPoint] {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
+    // Cached formatters (creating these is expensive in a computed property)
+    nonisolated(unsafe) private static let isoFractional: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoBasic = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let clickhouseFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+    nonisolated(unsafe) private static let clickhouseNoMs: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm:ss"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
 
+    private var parsedPoints: [ParsedChartPoint] {
         return dataPoints.compactMap { point in
             guard let dateStr = point.commitDate else { return nil }
-            let date = formatter.date(from: dateStr) ?? fallback.date(from: dateStr)
+            let date = Self.isoFractional.date(from: dateStr)
+                ?? Self.isoBasic.date(from: dateStr)
+                ?? Self.clickhouseFormatter.date(from: dateStr)
+                ?? Self.clickhouseNoMs.date(from: dateStr)
             guard let date else { return nil }
             return ParsedChartPoint(
                 date: date,

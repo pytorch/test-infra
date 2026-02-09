@@ -477,14 +477,16 @@ struct BenchmarkDashboardView: View {
                         Text("vs Mean")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        let diff = ((point.value - viewModel.statistics.mean) / viewModel.statistics.mean) * 100
+                        let meanDiff = viewModel.statistics.mean != 0
+                            ? ((point.value - viewModel.statistics.mean) / viewModel.statistics.mean) * 100
+                            : 0
                         HStack(spacing: 3) {
-                            Image(systemName: diff > 0 ? "arrow.up" : "arrow.down")
+                            Image(systemName: meanDiff > 0 ? "arrow.up" : "arrow.down")
                                 .font(.caption2)
-                            Text(String(format: "%.1f%%", abs(diff)))
+                            Text(String(format: "%.1f%%", abs(meanDiff)))
                                 .font(.caption.weight(.medium).monospacedDigit())
                         }
-                        .foregroundStyle(diff > 0 ? AppColors.failure : AppColors.success)
+                        .foregroundStyle(meanDiff > 0 ? AppColors.failure : AppColors.success)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -492,14 +494,16 @@ struct BenchmarkDashboardView: View {
                         Text("vs Median")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        let diff = ((point.value - viewModel.statistics.median) / viewModel.statistics.median) * 100
+                        let medianDiff = viewModel.statistics.median != 0
+                            ? ((point.value - viewModel.statistics.median) / viewModel.statistics.median) * 100
+                            : 0
                         HStack(spacing: 3) {
-                            Image(systemName: diff > 0 ? "arrow.up" : "arrow.down")
+                            Image(systemName: medianDiff > 0 ? "arrow.up" : "arrow.down")
                                 .font(.caption2)
-                            Text(String(format: "%.1f%%", abs(diff)))
+                            Text(String(format: "%.1f%%", abs(medianDiff)))
                                 .font(.caption.weight(.medium).monospacedDigit())
                         }
-                        .foregroundStyle(diff > 0 ? AppColors.failure : AppColors.success)
+                        .foregroundStyle(medianDiff > 0 ? AppColors.failure : AppColors.success)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }

@@ -311,23 +311,49 @@ final class ReliabilityViewModel: ObservableObject {
 
             // Group per-workflow red percentages and average across time buckets
             let fetchedGroups = try await groupData
+
+            // Fetch trend data (categories: "Total", "Broken trunk", "Flaky")
+            let fetchedTrend = (try? await trendData) ?? []
+
+            // Compute average category ratios from trend data so we can distribute
+            // the per-workflow failure counts into broken trunk / flaky / infra.
+            let avgCategory: (String) -> Double = { category in
+                let entries = fetchedTrend.filter { $0.name == category }
+                guard !entries.isEmpty else { return 0 }
+                return entries.map(\.metric).reduce(0, +) / Double(entries.count)
+            }
+            let avgTotal = avgCategory("Total")
+            let avgBrokenTrunk = avgCategory("Broken trunk")
+            let avgFlaky = avgCategory("Flaky")
+            // Infra = total - broken trunk - flaky
+            let avgInfra = max(0, avgTotal - avgBrokenTrunk - avgFlaky)
+
+            let brokenTrunkRatio = avgTotal > 0 ? avgBrokenTrunk / avgTotal : 0
+            let flakyRatio = avgTotal > 0 ? avgFlaky / avgTotal : 0
+            let infraRatio = avgTotal > 0 ? avgInfra / avgTotal : 0
+
             let byName = Dictionary(grouping: fetchedGroups, by: { $0.name })
             workflows = byName.map { (name, entries) in
                 let avgRed = entries.map(\.red).reduce(0, +) / Double(entries.count)
-                let failedScaled = Int(avgRed * 100) // Scale for precision
+                // avgRed is already a percentage (5.0 = 5%). Scale by 100 so
+                // failureRate = failedJobs / totalJobs * 100 yields the correct percentage.
+                let failedScaled = Int(avgRed * 100)
+                // Distribute failures by category ratios from trend data
+                let bt = avgTotal > 0 ? Int(Double(failedScaled) * brokenTrunkRatio) : nil
+                let fl = avgTotal > 0 ? Int(Double(failedScaled) * flakyRatio) : nil
+                let inf = avgTotal > 0 ? Int(Double(failedScaled) * infraRatio) : nil
                 return ReliabilityData(
                     workflowName: name,
                     totalJobs: 10000,
                     failedJobs: failedScaled,
-                    brokenTrunk: nil,
-                    flaky: nil,
-                    infra: nil
+                    brokenTrunk: bt,
+                    flaky: fl,
+                    infra: inf
                 )
             }.sorted { $0.failureRate > $1.failureRate }
 
             // Convert red-rate to reliability (100 - redRate)
             // Filter to "Total" entries only for the trend line
-            let fetchedTrend = (try? await trendData) ?? []
             reliabilityTrendSeries = fetchedTrend
                 .filter { $0.name == "Total" }
                 .map { entry in

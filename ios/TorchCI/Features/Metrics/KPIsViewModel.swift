@@ -36,6 +36,8 @@ final class KPIsViewModel: ObservableObject {
         let lowerIsBetter: Bool
         /// The actual clickhouse query name (may differ from queryName for ttrs variants).
         let actualQueryName: String
+        /// For multi-row queries, filter to this series name (matched against TimeSeriesDataPoint.seriesName).
+        let filterName: String?
         let paramBuilder: @Sendable (String, String) -> [String: Any]
     }
 
@@ -47,6 +49,7 @@ final class KPIsViewModel: ObservableObject {
             unit: "%",
             lowerIsBetter: true,
             actualQueryName: "master_commit_red_percent",
+            filterName: "Total",
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
@@ -63,10 +66,12 @@ final class KPIsViewModel: ObservableObject {
             unit: "",
             lowerIsBetter: true,
             actualQueryName: "number_of_force_pushes_historical",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
+                    "granularity": "week",
                 ] as [String: Any]
             }
         ),
@@ -77,12 +82,13 @@ final class KPIsViewModel: ObservableObject {
             unit: "min",
             lowerIsBetter: true,
             actualQueryName: "ttrs_percentiles",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
                     "one_bucket": false,
-                    "percentile_to_get": 0,
+                    "percentile_to_get": 0.5,
                     "workflow": "pull",
                 ] as [String: Any]
             }
@@ -94,6 +100,7 @@ final class KPIsViewModel: ObservableObject {
             unit: "%",
             lowerIsBetter: true,
             actualQueryName: "weekly_force_merge_stats",
+            filterName: "All Force Merges",
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
@@ -111,6 +118,7 @@ final class KPIsViewModel: ObservableObject {
             unit: "hours",
             lowerIsBetter: true,
             actualQueryName: "time_to_signal",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
@@ -125,6 +133,7 @@ final class KPIsViewModel: ObservableObject {
             unit: "",
             lowerIsBetter: true,
             actualQueryName: "num_reverts",
+            filterName: "total",
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
@@ -139,10 +148,12 @@ final class KPIsViewModel: ObservableObject {
             unit: "hours",
             lowerIsBetter: true,
             actualQueryName: "strict_lag_historical",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
+                    "granularity": "day",
                     "repoFullName": "pytorch/pytorch",
                 ] as [String: Any]
             }
@@ -152,12 +163,14 @@ final class KPIsViewModel: ObservableObject {
             queryName: "external_contribution_stats",
             displayName: "External PRs (weekly)",
             unit: "",
-            lowerIsBetter: false, // Higher is better
+            lowerIsBetter: false,
             actualQueryName: "external_contribution_stats",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
+                    "granularity": "week",
                 ] as [String: Any]
             }
         ),
@@ -166,12 +179,14 @@ final class KPIsViewModel: ObservableObject {
             queryName: "monthly_contribution_stats",
             displayName: "External PRs (monthly)",
             unit: "",
-            lowerIsBetter: false, // Higher is better
+            lowerIsBetter: false,
             actualQueryName: "monthly_contribution_stats",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
+                    "granularity": "month",
                 ] as [String: Any]
             }
         ),
@@ -182,11 +197,14 @@ final class KPIsViewModel: ObservableObject {
             unit: "",
             lowerIsBetter: true,
             actualQueryName: "disabled_test_historical",
+            filterName: nil,
             paramBuilder: { startTime, stopTime in
                 [
                     "startTime": startTime,
                     "stopTime": stopTime,
-                    "repo": "pytorch/pytorch",
+                    "label": "",
+                    "platform": "",
+                    "triaged": "",
                 ] as [String: Any]
             }
         ),
@@ -241,12 +259,20 @@ final class KPIsViewModel: ObservableObject {
             var allSparklines: [String: [TimeSeriesDataPoint]] = [:]
             var allKPIs: [KPIData] = []
 
-            for (queryName, data) in results {
-                allSparklines[queryName] = data
-
+            for (queryName, rawData) in results {
                 guard let definition = definitions.first(where: { $0.queryName == queryName }) else {
                     continue
                 }
+
+                // For multi-row queries, filter to the requested series
+                let data: [TimeSeriesDataPoint]
+                if let filterName = definition.filterName {
+                    data = rawData.filter { $0.seriesName == filterName }
+                } else {
+                    data = rawData
+                }
+
+                allSparklines[queryName] = data
 
                 let current = data.last?.value ?? 0
                 // For trend, compare against a point 30 days ago (or ~4 weeks)

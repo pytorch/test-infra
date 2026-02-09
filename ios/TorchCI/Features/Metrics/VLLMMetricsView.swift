@@ -971,12 +971,13 @@ final class VLLMMetricsViewModel: ObservableObject {
                 value: Double($0.duration_seconds)
             )
         }
+        // Convert hours to seconds so the .duration formatter displays correctly
         timeToSignalSeries = data
             .filter { successStates.contains($0.build_state.lowercased()) }
             .map {
                 TimeSeriesDataPoint(
                     granularity_bucket: $0.started_at,
-                    value: $0.duration_hours
+                    value: $0.duration_hours * 3600
                 )
             }
     }

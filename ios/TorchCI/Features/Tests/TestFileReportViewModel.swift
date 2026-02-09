@@ -190,7 +190,7 @@ final class TestFileReportViewModel: ObservableObject {
             }
 
             let failureCount = totalTests - successCount - skippedCount
-            let ownerLabels = ownerLabelMap["\(file).py"] ?? ["unknown"]
+            let ownerLabels = ownerLabelMap[file] ?? ownerLabelMap["\(file).py"] ?? ["unknown"]
 
             stats.append(FileStats(
                 file: file,

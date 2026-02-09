@@ -104,17 +104,25 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     }
 
     var regressionCommits: Set<String> {
-        var commits = Set<String>()
+        var ids = Set<String>()
         for report in regressionReports {
+            // Match by lastRecordCommit (maps to commit SHA in time series if available)
+            if let commit = report.lastRecordCommit {
+                ids.insert(commit)
+            }
+            // Also collect workflowIds from regression detail points, since
+            // the time series uses workflowId as its commit identifier
             if let items = report.details?.regression {
-                for _ in items {
-                    // Regression reports don't have commit shas directly on items,
-                    // but the report ID often encodes the commit
-                    commits.insert(report.id)
+                for item in items {
+                    for point in item.points ?? [] {
+                        if let wfId = point.workflowId {
+                            ids.insert(wfId)
+                        }
+                    }
                 }
             }
         }
-        return commits
+        return ids
     }
 
     var hasRegressions: Bool {
@@ -171,6 +179,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
         let recentAvg = recent.reduce(0, +) / Double(recent.count)
         let olderAvg = older.reduce(0, +) / Double(older.count)
 
+        guard olderAvg != 0 else { return .stable }
         let change = (recentAvg - olderAvg) / olderAvg
         if change > 0.05 { return .improving }
         if change < -0.05 { return .regressing }
@@ -181,6 +190,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
         guard filteredTimeSeries.count >= 2 else { return nil }
         let latest = filteredTimeSeries.last!
         let baseline = filteredTimeSeries.first!
+        guard baseline.value != 0, latest.value != 0 else { return nil }
 
         let change = ((latest.value - baseline.value) / baseline.value) * 100
         let speedup = baseline.value / latest.value
