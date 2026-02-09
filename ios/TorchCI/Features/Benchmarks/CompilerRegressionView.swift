@@ -71,7 +71,7 @@ struct CompilerRegressionView: View {
                 timeMatch = true
             case .day, .week, .month:
                 guard let createdAt = entry.report.createdAt else {
-                    timeMatch = true
+                    timeMatch = false
                     return searchMatch && severityMatch && timeMatch
                 }
                 let cutoffDate = Calendar.current.date(
@@ -83,7 +83,7 @@ struct CompilerRegressionView: View {
                 formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
                 let fallback = ISO8601DateFormatter()
                 guard let reportDate = formatter.date(from: createdAt) ?? fallback.date(from: createdAt) else {
-                    timeMatch = true
+                    timeMatch = false
                     return searchMatch && severityMatch && timeMatch
                 }
                 timeMatch = reportDate >= cutoffDate

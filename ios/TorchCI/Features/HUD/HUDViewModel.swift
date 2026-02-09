@@ -56,6 +56,7 @@ final class HUDViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
 
     // MARK: - Computed Properties
 
@@ -209,6 +210,7 @@ final class HUDViewModel: ObservableObject {
     private static let initialPageCount = 2
 
     func loadData() async {
+        guard !Task.isCancelled else { return }
         state = .loading
         currentPage = 1
         hasMorePages = true
@@ -242,7 +244,8 @@ final class HUDViewModel: ObservableObject {
     func loadMoreIfNeeded() {
         guard !isLoadingMore, hasMorePages, state == .loaded else { return }
         isLoadingMore = true
-        Task {
+        loadTask?.cancel()
+        loadTask = Task {
             await loadNextPage()
         }
     }
@@ -257,6 +260,7 @@ final class HUDViewModel: ObservableObject {
     }
 
     private func loadNextPage() async {
+        guard !Task.isCancelled else { return }
         loadMoreError = nil
         let nextPage = currentPage + 1
         do {
@@ -302,21 +306,24 @@ final class HUDViewModel: ObservableObject {
 
     func selectRepo(_ repo: RepoConfig) {
         guard repo.id != selectedRepo.id else { return }
+        loadTask?.cancel()
         selectedRepo = repo
         hudData = nil
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func selectBranch(_ branch: String) {
         guard branch != selectedBranch else { return }
+        loadTask?.cancel()
         selectedBranch = branch
         hudData = nil
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func onPageChange(_ page: Int) {
+        loadTask?.cancel()
         currentPage = page
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     func toggleRegex() {

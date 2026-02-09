@@ -43,6 +43,8 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let apiClient: APIClientProtocol
+    private var loadTask: Task<Void, Never>?
+    @Published var partialLoadError: String?
     let benchmark: BenchmarkMetadata
 
     /// Maps benchmark IDs that route to the generic dashboard to their ClickHouse query config.
@@ -292,6 +294,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     }
 
     func loadData() async {
+        guard !Task.isCancelled else { return }
         state = .loading
 
         let config = Self.benchmarkConfig[benchmark.id]
@@ -420,9 +423,10 @@ final class BenchmarkDashboardViewModel: ObservableObject {
     }
 
     func updateDateRange(start: Date, end: Date) {
+        loadTask?.cancel()
         startDate = start
         endDate = end
-        Task { await loadData() }
+        loadTask = Task { await loadData() }
     }
 
     // MARK: - Data Conversion
@@ -613,7 +617,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
             timeSeriesData = timeSeries
             groupData = group
         } catch {
-            // Silently fail for partial load
+            partialLoadError = "Time series load failed: \(error.localizedDescription)"
         }
     }
 
@@ -629,7 +633,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
             timeSeriesData = timeSeries
             groupData = group
         } catch {
-            // Silently fail for partial load
+            partialLoadError = "Compiler time series load failed: \(error.localizedDescription)"
         }
     }
 
@@ -640,7 +644,7 @@ final class BenchmarkDashboardViewModel: ObservableObject {
             )
             regressionReports = result.reports ?? []
         } catch {
-            // Silently fail for partial load
+            partialLoadError = "Regressions load failed: \(error.localizedDescription)"
         }
     }
 }

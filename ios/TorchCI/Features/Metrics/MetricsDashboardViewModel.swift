@@ -335,6 +335,7 @@ final class MetricsDashboardViewModel: ObservableObject {
     @Published var lastUpdated: Date?
 
     private let apiClient: APIClientProtocol
+    private var fetchTask: Task<Void, Never>?
 
     // MARK: - Init
 
@@ -413,14 +414,21 @@ final class MetricsDashboardViewModel: ObservableObject {
     }
 
     func refresh() async {
-        await fetchAllMetrics()
+        fetchTask?.cancel()
+        let task = Task { await fetchAllMetrics() }
+        fetchTask = task
+        await task.value
     }
 
     func onParametersChanged() async {
-        await fetchAllMetrics()
+        fetchTask?.cancel()
+        let task = Task { await fetchAllMetrics() }
+        fetchTask = task
+        await task.value
     }
 
     private func fetchAllMetrics() async {
+        guard !Task.isCancelled else { return }
         let range = timeRangeTuple
         let gran = granularity.rawValue
         let client = apiClient

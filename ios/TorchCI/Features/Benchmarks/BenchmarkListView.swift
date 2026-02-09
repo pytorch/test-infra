@@ -50,12 +50,32 @@ struct BenchmarkListView: View {
 
                 // Category Sections
                 if viewModel.filteredCategories.isEmpty {
-                    EmptyStateView(
-                        icon: "chart.bar.xaxis",
-                        title: "No Benchmarks Found",
-                        message: "Try adjusting your search query."
-                    )
-                    .frame(minHeight: 300)
+                    if !viewModel.searchText.isEmpty {
+                        VStack(spacing: 12) {
+                            EmptyStateView(
+                                icon: "magnifyingglass",
+                                title: "No Benchmarks Match '\(viewModel.searchText)'",
+                                message: "Try a different search term or clear the search."
+                            )
+
+                            Button {
+                                viewModel.searchText = ""
+                            } label: {
+                                Label("Clear Search", systemImage: "xmark.circle")
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
+                        }
+                        .frame(minHeight: 300)
+                    } else {
+                        EmptyStateView(
+                            icon: "chart.bar.xaxis",
+                            title: "No Benchmarks Found",
+                            message: "Try adjusting your search query."
+                        )
+                        .frame(minHeight: 300)
+                    }
                 } else {
                     categoryList
                 }

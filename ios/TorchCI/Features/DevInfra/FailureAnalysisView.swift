@@ -72,12 +72,17 @@ struct FailureAnalysisView: View {
                 Button {
                     Task { await viewModel.search() }
                 } label: {
-                    Label("Search", systemImage: "magnifyingglass")
-                        .font(.subheadline.weight(.medium))
+                    if viewModel.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Label("Search", systemImage: "magnifyingglass")
+                            .font(.subheadline.weight(.medium))
+                    }
                 }
                 .buttonStyle(.borderedProminent)
                 .controlSize(.small)
-                .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isLoading)
             }
         }
     }
