@@ -89,6 +89,14 @@ struct JobCellView: View {
                 }
             }
 
+            if let failureLines = job.failureLines, !failureLines.isEmpty {
+                Button {
+                    UIPasteboard.general.string = failureLines.joined(separator: "\n")
+                } label: {
+                    Label("Copy Failure", systemImage: "doc.on.clipboard")
+                }
+            }
+
             Divider()
 
             Text(jobName)
@@ -161,6 +169,16 @@ private struct JobCellPreview: View {
                             .font(.caption)
                     }
                     .foregroundStyle(.secondary)
+                }
+
+                if HUDJob.isBlockingName(jobName) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "exclamationmark.octagon.fill")
+                            .font(.caption2)
+                        Text("Blocking")
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .foregroundStyle(.orange)
                 }
             }
 
