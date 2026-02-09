@@ -697,15 +697,19 @@ final class VLLMMetricsViewModel: ObservableObject {
         return APIEndpoint.timeRange(days: days)
     }
 
+    nonisolated(unsafe) private static let utcFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
+        f.timeZone = TimeZone(identifier: "UTC")
+        return f
+    }()
+
     private var prevTimeRangeTuple: (startTime: String, stopTime: String) {
         let days = selectedRange?.days ?? 7
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSS"
-        formatter.timeZone = TimeZone(identifier: "UTC")
         let now = Date()
         let stop = Calendar.current.date(byAdding: .day, value: -days, to: now) ?? now
         let start = Calendar.current.date(byAdding: .day, value: -days, to: stop) ?? stop
-        return (startTime: formatter.string(from: start), stopTime: formatter.string(from: stop))
+        return (startTime: Self.utcFormatter.string(from: start), stopTime: Self.utcFormatter.string(from: stop))
     }
 
     func loadData() async {

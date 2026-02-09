@@ -12,6 +12,13 @@ struct TimeSeriesChart: View {
     @State private var selectedPoint: TimeSeriesDataPoint?
     @State private var plotWidth: CGFloat = 0
 
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFallbackFormatter = ISO8601DateFormatter()
+
     enum ValueFormat {
         case decimal(Int)
         case percentage(Int)
@@ -38,13 +45,10 @@ struct TimeSeriesChart: View {
     }
 
     private var validData: [(date: Date, value: Double)] {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallbackFormatter = ISO8601DateFormatter()
-        return data.compactMap { point in
+        data.compactMap { point in
             guard let value = point.value else { return nil }
-            let date = formatter.date(from: point.granularity_bucket)
-                ?? fallbackFormatter.date(from: point.granularity_bucket)
+            let date = Self.isoFormatter.date(from: point.granularity_bucket)
+                ?? Self.isoFallbackFormatter.date(from: point.granularity_bucket)
             guard let date else { return nil }
             return (date: date, value: value)
         }

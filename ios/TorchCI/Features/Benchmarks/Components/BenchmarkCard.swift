@@ -4,6 +4,18 @@ struct BenchmarkCard: View {
     let benchmark: BenchmarkMetadata
     var showChevron: Bool = true
 
+    nonisolated(unsafe) private static let isoFormatter: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+    nonisolated(unsafe) private static let isoFallbackFormatter = ISO8601DateFormatter()
+    nonisolated(unsafe) private static let relativeFormatter: RelativeDateTimeFormatter = {
+        let f = RelativeDateTimeFormatter()
+        f.unitsStyle = .abbreviated
+        return f
+    }()
+
     private var suitesText: String? {
         guard let suites = benchmark.suites, !suites.isEmpty else { return nil }
         if suites.count <= 3 {
@@ -14,17 +26,11 @@ struct BenchmarkCard: View {
 
     private var lastUpdatedRelative: String? {
         guard let lastUpdated = benchmark.lastUpdated else { return nil }
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let fallback = ISO8601DateFormatter()
-
-        guard let date = formatter.date(from: lastUpdated) ?? fallback.date(from: lastUpdated) else {
+        guard let date = Self.isoFormatter.date(from: lastUpdated)
+                ?? Self.isoFallbackFormatter.date(from: lastUpdated) else {
             return lastUpdated
         }
-
-        let relative = RelativeDateTimeFormatter()
-        relative.unitsStyle = .abbreviated
-        return relative.localizedString(for: date, relativeTo: Date())
+        return Self.relativeFormatter.localizedString(for: date, relativeTo: Date())
     }
 
     var body: some View {

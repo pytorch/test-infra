@@ -8,6 +8,8 @@ struct JobDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    nonisolated(unsafe) private static let isoFormatter = ISO8601DateFormatter()
+
     init(job: JobData) {
         _viewModel = StateObject(wrappedValue: JobDetailViewModel(job: job))
     }
@@ -482,8 +484,8 @@ struct JobDetailView: View {
     private func stepDuration(_ step: JobStep) -> String? {
         guard let startedAt = step.startedAt,
               let completedAt = step.completedAt,
-              let startDate = ISO8601DateFormatter().date(from: startedAt),
-              let endDate = ISO8601DateFormatter().date(from: completedAt)
+              let startDate = Self.isoFormatter.date(from: startedAt),
+              let endDate = Self.isoFormatter.date(from: completedAt)
         else {
             return nil
         }
