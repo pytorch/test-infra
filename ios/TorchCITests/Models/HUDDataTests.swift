@@ -119,7 +119,7 @@ final class HUDDataTests: XCTestCase {
                     "sha": "ffff0000ffff0000ffff0000ffff0000ffff0000",
                     "commitTitle": "No time commit",
                     "commitMessageBody": null,
-                    "prNumber": null,
+                    "prNum": null,
                     "author": null,
                     "authorUrl": null,
                     "time": null,
@@ -163,7 +163,7 @@ final class HUDDataTests: XCTestCase {
                     "sha": "0000111100001111000011110000111100001111",
                     "commitTitle": null,
                     "commitMessageBody": null,
-                    "prNumber": null,
+                    "prNum": null,
                     "author": null,
                     "authorUrl": null,
                     "time": null,
@@ -243,28 +243,28 @@ final class HUDDataTests: XCTestCase {
 
     func testHUDJobDurationFormattedSeconds() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
-        let job = response.shaGrid[2].jobs[0] // duration_s: 45
+        let job = response.shaGrid[2].jobs[0] // durationS: 45
 
         XCTAssertEqual(job.durationFormatted, "45s")
     }
 
     func testHUDJobDurationFormattedMinutesSeconds() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
-        let job = response.shaGrid[1].jobs[2] // duration_s: 330 -> 5m 30s
+        let job = response.shaGrid[1].jobs[2] // durationS: 330 -> 5m 30s
 
         XCTAssertEqual(job.durationFormatted, "5m 30s")
     }
 
     func testHUDJobDurationFormattedHoursMinutes() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
-        let job = response.shaGrid[0].jobs[1] // duration_s: 5400 -> 1h 30m
+        let job = response.shaGrid[0].jobs[1] // durationS: 5400 -> 1h 30m
 
         XCTAssertEqual(job.durationFormatted, "1h 30m")
     }
 
     func testHUDJobDurationFormattedNil() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
-        let job = response.shaGrid[0].jobs[2] // duration_s: null
+        let job = response.shaGrid[0].jobs[2] // durationS: null
 
         XCTAssertNil(job.durationFormatted)
     }
@@ -287,50 +287,25 @@ final class HUDDataTests: XCTestCase {
         XCTAssertEqual(job.authorEmail, "pytorch-dev@meta.com")
     }
 
-    func testHUDJobPreviousRunDecoding() {
+    func testHUDJobFailedPreviousRunDecoding() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
-        let job = response.shaGrid[0].jobs[1] // has a previous_run
-
-        XCTAssertNotNil(job.previousRun)
-        XCTAssertEqual(job.previousRun?.conclusion, "success")
-        XCTAssertEqual(job.previousRun?.htmlUrl, "https://github.com/pytorch/pytorch/actions/runs/99999")
+        // Job 100002 has failedPreviousRun: false (previous run succeeded)
+        let job = response.shaGrid[0].jobs[1]
+        XCTAssertEqual(job.failedPreviousRun, false)
     }
 
-    func testHUDJobNilPreviousRun() {
+    func testHUDJobFailedPreviousRunTrue() {
         let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
-        let job = response.shaGrid[0].jobs[0] // previous_run: null
-
-        XCTAssertNil(job.previousRun)
+        // Job 100007 has failedPreviousRun: true (previous run also failed)
+        let job = response.shaGrid[2].jobs[1]
+        XCTAssertEqual(job.failedPreviousRun, true)
+        XCTAssertTrue(job.isRepeatFailure)
     }
 
-    // MARK: - PreviousRun standalone decoding
-
-    func testPreviousRunDecoding() {
-        let json = """
-        {
-            "conclusion": "failure",
-            "html_url": "https://github.com/pytorch/pytorch/actions/runs/88888"
-        }
-        """
-
-        let previousRun: PreviousRun = MockData.decode(json)
-
-        XCTAssertEqual(previousRun.conclusion, "failure")
-        XCTAssertEqual(previousRun.htmlUrl, "https://github.com/pytorch/pytorch/actions/runs/88888")
-    }
-
-    func testPreviousRunNilFields() {
-        let json = """
-        {
-            "conclusion": null,
-            "html_url": null
-        }
-        """
-
-        let previousRun: PreviousRun = MockData.decode(json)
-
-        XCTAssertNil(previousRun.conclusion)
-        XCTAssertNil(previousRun.htmlUrl)
+    func testHUDJobNilFailedPreviousRun() {
+        let response: HUDResponse = MockData.decode(MockData.hudResponseJSON)
+        let job = response.shaGrid[0].jobs[0] // failedPreviousRun: null
+        XCTAssertNil(job.failedPreviousRun)
     }
 
     // MARK: - Row-level aggregation smoke tests

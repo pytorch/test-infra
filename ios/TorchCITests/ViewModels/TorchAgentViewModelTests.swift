@@ -90,10 +90,13 @@ final class TorchAgentViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.messages.count, 1)
     }
 
-    func testSendQueryRecordsEndpointCall() {
+    func testSendQueryRecordsEndpointCall() async throws {
         mockClient.streamChunks = []
 
         viewModel.sendQuery("test query")
+
+        // sendQuery spawns a Task internally, give it time to start
+        try await Task.sleep(nanoseconds: 50_000_000)
 
         // The stream endpoint should be called
         XCTAssertEqual(mockClient.callCount, 1)
@@ -976,11 +979,14 @@ final class TorchAgentViewModelTests: XCTestCase {
 
     // MARK: - Send Query With Existing Session ID
 
-    func testSendQueryWithSessionIdPassesItToEndpoint() {
+    func testSendQueryWithSessionIdPassesItToEndpoint() async throws {
         viewModel.sessionId = "existing-session"
         mockClient.streamChunks = []
 
         viewModel.sendQuery("Follow up question")
+
+        // sendQuery spawns a Task internally, give it time to start
+        try await Task.sleep(nanoseconds: 50_000_000)
 
         XCTAssertEqual(mockClient.callCount, 1)
         let call = mockClient.recordedCalls.first

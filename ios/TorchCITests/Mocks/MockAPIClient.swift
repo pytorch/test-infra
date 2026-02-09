@@ -28,7 +28,14 @@ final class MockAPIClient: APIClientProtocol, @unchecked Sendable {
         let queryItems: [URLQueryItem]?
     }
 
-    private(set) var recordedCalls: [RecordedCall] = []
+    private var _recordedCalls: [RecordedCall] = []
+    private let _lock = NSLock()
+
+    var recordedCalls: [RecordedCall] {
+        _lock.lock()
+        defer { _lock.unlock() }
+        return _recordedCalls
+    }
 
     var callCount: Int { recordedCalls.count }
 
@@ -55,7 +62,9 @@ final class MockAPIClient: APIClientProtocol, @unchecked Sendable {
     func reset() {
         responses.removeAll()
         errors.removeAll()
-        recordedCalls.removeAll()
+        _lock.lock()
+        _recordedCalls.removeAll()
+        _lock.unlock()
         streamChunks.removeAll()
         streamError = nil
         artificialDelayNanoseconds = nil
@@ -121,7 +130,9 @@ final class MockAPIClient: APIClientProtocol, @unchecked Sendable {
             method: endpoint.method.rawValue,
             queryItems: endpoint.queryItems
         )
-        recordedCalls.append(call)
+        _lock.lock()
+        _recordedCalls.append(call)
+        _lock.unlock()
     }
 
     private func applyDelay() async throws {

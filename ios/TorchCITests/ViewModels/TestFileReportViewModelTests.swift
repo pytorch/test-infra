@@ -215,7 +215,10 @@ final class TestFileReportViewModelTests: XCTestCase {
         await viewModel.loadData()
         viewModel.searchQuery = "nn"
         let filtered = viewModel.filteredAndSortedFiles
-        XCTAssertEqual(filtered.count, 2) // matches both "test_nn" by file name and "module: nn" by label
+        // "nn" matches "test_nn" by file name (and also its "module: nn" label),
+        // but both matches are on the same file so only 1 result is returned.
+        XCTAssertEqual(filtered.count, 1)
+        XCTAssertEqual(filtered.first?.file, "test_nn")
     }
 
     func testSearchIsCaseInsensitive() async {

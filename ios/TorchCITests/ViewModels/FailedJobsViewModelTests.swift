@@ -559,7 +559,9 @@ final class FailedJobsViewModelTests: XCTestCase {
         viewModel.annotate(jobId: 42, value: .brokenTrunk)
         viewModel.annotate(jobId: 42, value: .none)
 
-        XCTAssertEqual(viewModel.annotations[42], .none)
+        // Use explicit type to avoid ambiguity with Optional.none
+        let expected: FailedJobsViewModel.AnnotationValue = .none
+        XCTAssertEqual(viewModel.annotations[42], expected)
     }
 
     // MARK: - isAuthenticated

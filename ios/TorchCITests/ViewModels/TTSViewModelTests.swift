@@ -270,15 +270,23 @@ final class TTSViewModelTests: XCTestCase {
     }
 
     func testIsNotImprovingWhenIncreasing() async {
+        // Need enough data points so that prefix(3) and suffix(3) don't
+        // overlap, otherwise their averages are equal and <= returns true.
         let points = [
-            makeTTSJobJSON(bucket: "2024-01-01T00:00:00Z", tts: 3000, duration: 1500, jobName: "job-a"),
-            makeTTSJobJSON(bucket: "2024-01-02T00:00:00Z", tts: 4000, duration: 2000, jobName: "job-a"),
-            makeTTSJobJSON(bucket: "2024-01-03T00:00:00Z", tts: 5000, duration: 2500, jobName: "job-a"),
+            makeTTSJobJSON(bucket: "2024-01-01T00:00:00Z", tts: 1000, duration: 500, jobName: "job-a"),
+            makeTTSJobJSON(bucket: "2024-01-02T00:00:00Z", tts: 2000, duration: 1000, jobName: "job-a"),
+            makeTTSJobJSON(bucket: "2024-01-03T00:00:00Z", tts: 3000, duration: 1500, jobName: "job-a"),
+            makeTTSJobJSON(bucket: "2024-01-04T00:00:00Z", tts: 4000, duration: 2000, jobName: "job-a"),
+            makeTTSJobJSON(bucket: "2024-01-05T00:00:00Z", tts: 5000, duration: 2500, jobName: "job-a"),
+            makeTTSJobJSON(bucket: "2024-01-06T00:00:00Z", tts: 6000, duration: 3000, jobName: "job-a"),
         ]
         registerTTSResponse("[\(points.joined(separator: ","))]")
 
         await viewModel.loadData()
 
+        // prefix(3) avg = (1000+2000+3000)/3 = 2000
+        // suffix(3) avg = (4000+5000+6000)/3 = 5000
+        // 5000 <= 2000 is false, so isImproving = false
         XCTAssertFalse(viewModel.isImproving)
     }
 

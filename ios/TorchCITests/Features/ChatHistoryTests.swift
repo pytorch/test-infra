@@ -247,7 +247,7 @@ final class ChatHistoryViewModelTests: XCTestCase {
         let sessionJSON = """
         {"session_id": "sess-load", "title": "Loaded", "messages": []}
         """
-        mockClient.setResponse(sessionJSON, for: "/api/torchagent-chat-history")
+        mockClient.setResponse(sessionJSON, for: "/api/torchagent-get-chat-history")
 
         let session = makeSession(id: "sess-load", title: "Loaded")
         await viewModel.loadSession(session)
@@ -266,7 +266,7 @@ final class ChatHistoryViewModelTests: XCTestCase {
             {"role": "assistant", "content": "Hi there!"}
         ]}
         """
-        mockClient.setResponse(sessionJSON, for: "/api/torchagent-chat-history")
+        mockClient.setResponse(sessionJSON, for: "/api/torchagent-get-chat-history")
 
         let session = makeSession(id: "sess-new")
         await viewModel.loadSession(session)
@@ -287,7 +287,7 @@ final class ChatHistoryViewModelTests: XCTestCase {
             ]}
         ]}
         """
-        mockClient.setResponse(sessionJSON, for: "/api/torchagent-chat-history")
+        mockClient.setResponse(sessionJSON, for: "/api/torchagent-get-chat-history")
 
         let session = makeSession(id: "sess-tools")
         await viewModel.loadSession(session)
@@ -299,7 +299,7 @@ final class ChatHistoryViewModelTests: XCTestCase {
     }
 
     func testLoadSessionErrorAddsErrorMessage() async {
-        mockClient.setError(APIError.serverError(500), for: "/api/torchagent-chat-history")
+        mockClient.setError(APIError.serverError(500), for: "/api/torchagent-get-chat-history")
 
         let session = makeSession(id: "sess-fail")
         await viewModel.loadSession(session)
@@ -316,7 +316,7 @@ final class ChatHistoryViewModelTests: XCTestCase {
         let sessionJSON = """
         {"session_id": "sess-fb", "messages": []}
         """
-        mockClient.setResponse(sessionJSON, for: "/api/torchagent-chat-history")
+        mockClient.setResponse(sessionJSON, for: "/api/torchagent-get-chat-history")
 
         let session = makeSession(id: "sess-fb")
         await viewModel.loadSession(session)
@@ -611,7 +611,7 @@ final class ChatHistoryViewModelTests: XCTestCase {
             {"role": "assistant", "content": "Hi!"}
         ]}
         """
-        mockClient.setResponse(sessionJSON, for: "/api/torchagent-chat-history")
+        mockClient.setResponse(sessionJSON, for: "/api/torchagent-get-chat-history")
 
         let session = makeSession(id: "sess-loaded")
         await viewModel.loadSession(session)

@@ -202,10 +202,11 @@ final class CommitDetailViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.totalJobs, 6)
         XCTAssertEqual(viewModel.passedJobs, 2)
-        XCTAssertEqual(viewModel.failedJobs, 1)
+        // failedJobs excludes "cancelled" to avoid double-counting with cancelledJobs
+        XCTAssertEqual(viewModel.failedJobs, 1) // only "failure" (job 3)
         XCTAssertEqual(viewModel.pendingJobs, 1) // nil conclusion = pending
         XCTAssertEqual(viewModel.skippedJobs, 1)
-        XCTAssertEqual(viewModel.cancelledJobs, 1)
+        XCTAssertEqual(viewModel.cancelledJobs, 1) // "cancelled" (job 6)
         XCTAssertEqual(viewModel.otherJobs, 0)
     }
 

@@ -278,7 +278,8 @@ final class CostAnalysisViewModelTests: XCTestCase {
     }
 
     func testFormatCurrencyShortMillions() {
-        XCTAssertEqual(CostAnalysisViewModel.formatCurrencyShort(2_500_000.0), "$3M")
+        // 2.5M with %.0f uses banker's rounding (round half to even) → $2M
+        XCTAssertEqual(CostAnalysisViewModel.formatCurrencyShort(2_500_000.0), "$2M")
     }
 
     func testFormatCurrencyShortSmall() {

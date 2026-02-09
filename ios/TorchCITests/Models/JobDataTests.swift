@@ -10,18 +10,18 @@ final class JobDataTests: XCTestCase {
         {
             "id": 200001,
             "name": "pull / linux-jammy-py3.10-gcc9 / build",
-            "workflow_name": "pull",
-            "workflow_id": 5001,
-            "job_name": "linux-jammy-py3.10-gcc9 / build",
+            "workflowName": "pull",
+            "workflowId": 5001,
+            "jobName": "linux-jammy-py3.10-gcc9 / build",
             "conclusion": "success",
-            "html_url": "https://github.com/pytorch/pytorch/actions/runs/200001",
-            "log_url": "https://ossci-raw-job-status.s3.amazonaws.com/log/200001",
-            "duration_s": 1920,
-            "failure_lines": [],
-            "failure_captures": [],
-            "failure_context": null,
-            "runner_name": "i-0abc111def222",
-            "runner_group": "linux.2xlarge",
+            "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/200001",
+            "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/200001",
+            "durationS": 1920,
+            "failureLines": [],
+            "failureCaptures": [],
+            "failureContext": null,
+            "runnerName": "i-0abc111def222",
+            "runnerGroup": "linux.2xlarge",
             "status": "completed",
             "steps": [
                 {
@@ -41,7 +41,7 @@ final class JobDataTests: XCTestCase {
             ],
             "time": "2025-01-20T14:31:00Z",
             "unstable": false,
-            "previous_run": null
+            "previousRun": null
         }
         """
 
@@ -73,25 +73,25 @@ final class JobDataTests: XCTestCase {
         {
             "id": 200002,
             "name": "pull / linux-jammy / test (default, 1, 3)",
-            "workflow_name": "pull",
-            "workflow_id": 5001,
-            "job_name": "linux-jammy / test (default, 1, 3)",
+            "workflowName": "pull",
+            "workflowId": 5001,
+            "jobName": "linux-jammy / test (default, 1, 3)",
             "conclusion": "failure",
-            "html_url": "https://github.com/pytorch/pytorch/actions/runs/200002",
-            "log_url": "https://ossci-raw-job-status.s3.amazonaws.com/log/200002",
-            "duration_s": 3780,
-            "failure_lines": ["FAIL: test_compile_custom_op"],
-            "failure_captures": ["RuntimeError: unsupported operator"],
-            "failure_context": "test_custom_ops.py:142",
-            "runner_name": "i-0ghi333jkl444",
-            "runner_group": "linux.2xlarge",
+            "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/200002",
+            "logUrl": "https://ossci-raw-job-status.s3.amazonaws.com/log/200002",
+            "durationS": 3780,
+            "failureLines": ["FAIL: test_compile_custom_op"],
+            "failureCaptures": ["RuntimeError: unsupported operator"],
+            "failureContext": "test_custom_ops.py:142",
+            "runnerName": "i-0ghi333jkl444",
+            "runnerGroup": "linux.2xlarge",
             "status": "completed",
             "steps": [],
             "time": "2025-01-20T15:05:00Z",
             "unstable": false,
-            "previous_run": {
+            "previousRun": {
                 "conclusion": "success",
-                "html_url": "https://github.com/pytorch/pytorch/actions/runs/199999"
+                "htmlUrl": "https://github.com/pytorch/pytorch/actions/runs/199999"
             }
         }
         """
@@ -113,29 +113,29 @@ final class JobDataTests: XCTestCase {
         {
             "id": null,
             "name": null,
-            "workflow_name": null,
-            "workflow_id": null,
-            "job_name": null,
+            "workflowName": null,
+            "workflowId": null,
+            "jobName": null,
             "conclusion": null,
-            "html_url": null,
-            "log_url": null,
-            "duration_s": null,
-            "failure_lines": null,
-            "failure_captures": null,
-            "failure_context": null,
-            "runner_name": null,
-            "runner_group": null,
+            "htmlUrl": null,
+            "logUrl": null,
+            "durationS": null,
+            "failureLines": null,
+            "failureCaptures": null,
+            "failureContext": null,
+            "runnerName": null,
+            "runnerGroup": null,
             "status": null,
             "steps": null,
             "time": null,
             "unstable": null,
-            "previous_run": null
+            "previousRun": null
         }
         """
 
         let job: JobData = MockData.decode(json)
 
-        XCTAssertNil(job.id)
+        XCTAssertNil(job.jobId)
         XCTAssertNil(job.name)
         XCTAssertNil(job.workflowName)
         XCTAssertNil(job.workflowId)
@@ -285,23 +285,23 @@ final class JobDataTests: XCTestCase {
         {
             "id": 1,
             "name": "test-job",
-            "workflow_name": null,
-            "workflow_id": null,
-            "job_name": null,
+            "workflowName": null,
+            "workflowId": null,
+            "jobName": null,
             "conclusion": \(conclusionValue),
-            "html_url": null,
-            "log_url": null,
-            "duration_s": \(durationValue),
-            "failure_lines": null,
-            "failure_captures": null,
-            "failure_context": null,
-            "runner_name": null,
-            "runner_group": null,
+            "htmlUrl": null,
+            "logUrl": null,
+            "durationS": \(durationValue),
+            "failureLines": null,
+            "failureCaptures": null,
+            "failureContext": null,
+            "runnerName": null,
+            "runnerGroup": null,
             "status": null,
             "steps": null,
             "time": null,
             "unstable": null,
-            "previous_run": null
+            "previousRun": null
         }
         """
         return MockData.decode(json)

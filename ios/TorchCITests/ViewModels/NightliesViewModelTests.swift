@@ -325,17 +325,17 @@ final class NightliesViewModelTests: XCTestCase {
     }
 
     func testOverallHealthPercentageWithLowFailure() async {
-        // 3% failure rate on last day for pytorch -> overall avg = 0.03 / 3 = 0.01
+        // 3% failure rate on last day for all repos (mock uses same path)
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.03),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
-        // pytorchHealthValue = 0.03, vision = 0, audio = 0
-        // avg = 0.01, pass = 99%
-        XCTAssertEqual(viewModel.overallHealthPercentage, "99")
+        // pytorchHealthValue = 0.03, visionHealthValue = 0.03, audioHealthValue = 0.03
+        // avg = 0.03, pass = 97%
+        XCTAssertEqual(viewModel.overallHealthPercentage, "97")
     }
 
     func testOverallHealthColorGreen() {
@@ -387,10 +387,10 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testHealthColorYellowRange() async {
         // 10% failure rate -> yellow range (0.05 <= x < 0.15)
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.10),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -400,10 +400,10 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testHealthColorRedRange() async {
         // 20% failure rate -> red range (>= 0.15)
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.20),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -413,10 +413,10 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testHealthPercentageWithHighFailureRate() async {
         // 50% failure rate -> 50% pass rate
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.50),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -425,12 +425,12 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testHealthUsesLastTrendPoint() async {
         // Multiple trend points - health should use the last one
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-04T00:00:00Z", red: 0.50),
             (bucket: "2026-02-05T00:00:00Z", red: 0.30),
             (bucket: "2026-02-06T00:00:00Z", red: 0.02),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -518,10 +518,10 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testOverallHealthMultipleFailures() async {
         // All three repos at 20% failure -> avg = 0.20 > 0.15 -> red/multiple failures
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.20),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -533,10 +533,10 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testOverallHealthSomeIssues() async {
         // All three repos at 10% -> avg = 0.10, which is 0.05..0.15 -> yellow
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.10),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -547,10 +547,10 @@ final class NightliesViewModelTests: XCTestCase {
 
     func testOverallHealthOperational() async {
         // All three repos at 2% -> avg = 0.02 < 0.05 -> green
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.02),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -562,10 +562,10 @@ final class NightliesViewModelTests: XCTestCase {
     // MARK: - Edge Cases
 
     func testLoadDataWithSingleTrendPoint() async {
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.15),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -574,10 +574,10 @@ final class NightliesViewModelTests: XCTestCase {
     }
 
     func testLoadDataWithZeroFailureRate() async {
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 0.0),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -586,10 +586,10 @@ final class NightliesViewModelTests: XCTestCase {
     }
 
     func testLoadDataWithFullFailureRate() async {
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 1.0),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -598,10 +598,10 @@ final class NightliesViewModelTests: XCTestCase {
     }
 
     func testOverallHealthPercentageWithFullFailure() async {
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-06T00:00:00Z", red: 1.0),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 
@@ -612,11 +612,11 @@ final class NightliesViewModelTests: XCTestCase {
     // MARK: - Trend Data Parsing
 
     func testTrendDataParsesCorrectly() async {
+        registerAllEmptyResponses()
         registerTrendResponse(points: [
             (bucket: "2026-02-04T00:00:00Z", red: 0.05),
             (bucket: "2026-02-05T00:00:00Z", red: 0.12),
         ])
-        registerAllEmptyResponses()
 
         await viewModel.loadData()
 

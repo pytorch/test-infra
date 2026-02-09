@@ -181,7 +181,7 @@ final class APIClientTests: XCTestCase {
                 httpVersion: nil,
                 headerFields: nil
             )!
-            let body = #"{"tests":[],"total_count":0,"page":3}"#
+            let body = #"{"tests":[],"count":0}"#
             return (response, Data(body.utf8))
         }
 
@@ -353,14 +353,13 @@ final class APIClientTests: XCTestCase {
             "tests": [
                 {
                     "name": "test_add",
-                    "suite": "torch",
-                    "invoked_times": 100,
-                    "failed_times": 5,
-                    "flaky_rate": 0.05
+                    "classname": "torch",
+                    "file": "test/test_ops.py",
+                    "invoking_file": "test/test_ops.py",
+                    "last_run": "2025-01-19T08:30:00Z"
                 }
             ],
-            "total_count": 1,
-            "page": 1
+            "count": 1
         }
         """#
 

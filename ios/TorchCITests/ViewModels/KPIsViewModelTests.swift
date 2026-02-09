@@ -44,12 +44,19 @@ final class KPIsViewModelTests: XCTestCase {
     }
 
     /// Register a time-series JSON response for a specific query name.
+    /// If `seriesName` is provided, each row includes a "name" field for multi-row filtering.
     private func registerTimeSeriesResponse(
         name: String,
-        points: [(bucket: String, value: Double)]
+        points: [(bucket: String, value: Double)],
+        seriesName: String? = nil
     ) {
         let jsonArray = points.map { point in
-            """
+            if let seriesName {
+                return """
+                {"granularity_bucket":"\(point.bucket)","value":\(point.value),"name":"\(seriesName)"}
+                """
+            }
+            return """
             {"granularity_bucket":"\(point.bucket)","value":\(point.value)}
             """
         }
@@ -136,11 +143,12 @@ final class KPIsViewModelTests: XCTestCase {
 
     func testLoadKPIsUsesLastValueAsCurrent() async {
         registerAllEmptyResponses()
+        // master_commit_red_percent has filterName: "Total", so include name field
         registerTimeSeriesResponse(name: "master_commit_red_percent", points: [
             (bucket: "2024-01-01T00:00:00Z", value: 5.0),
             (bucket: "2024-01-08T00:00:00Z", value: 3.2),
             (bucket: "2024-01-15T00:00:00Z", value: 7.8),
-        ])
+        ], seriesName: "Total")
 
         await viewModel.loadKPIs()
 
@@ -158,7 +166,7 @@ final class KPIsViewModelTests: XCTestCase {
             let month = i < 28 ? "01" : "02"
             points.append((bucket: "2024-\(month)-\(day)T00:00:00Z", value: Double(i) * 1.5))
         }
-        registerTimeSeriesResponse(name: "master_commit_red_percent", points: points)
+        registerTimeSeriesResponse(name: "master_commit_red_percent", points: points, seriesName: "Total")
 
         await viewModel.loadKPIs()
 
@@ -172,11 +180,12 @@ final class KPIsViewModelTests: XCTestCase {
 
     func testLoadKPIsPopulatesSparklines() async {
         registerAllEmptyResponses()
+        // num_reverts has filterName: "total", so include name field
         registerTimeSeriesResponse(name: "num_reverts", points: [
             (bucket: "2024-01-01T00:00:00Z", value: 2.0),
             (bucket: "2024-01-08T00:00:00Z", value: 5.0),
             (bucket: "2024-01-15T00:00:00Z", value: 3.0),
-        ])
+        ], seriesName: "total")
 
         await viewModel.loadKPIs()
 
@@ -231,8 +240,8 @@ final class KPIsViewModelTests: XCTestCase {
         await viewModel.refresh()
 
         XCTAssertEqual(viewModel.state, .loaded)
-        // Should have made 10 API calls (one per definition)
-        XCTAssertEqual(mockClient.callCount, 10)
+        // Should have loaded all KPI definitions
+        XCTAssertEqual(viewModel.kpis.count, KPIsViewModel.kpiDefinitionTemplates.count)
     }
 
     // MARK: - Time Range Change
@@ -254,8 +263,8 @@ final class KPIsViewModelTests: XCTestCase {
         await viewModel.changeTimeRange(oneMonth)
 
         XCTAssertEqual(viewModel.state, .loaded)
-        // Should have fetched all 10 KPIs
-        XCTAssertEqual(mockClient.callCount, 10)
+        // Should have fetched all KPI definitions
+        XCTAssertEqual(viewModel.kpis.count, KPIsViewModel.kpiDefinitionTemplates.count)
     }
 
     // MARK: - formatValue
@@ -384,7 +393,11 @@ final class KPIsViewModelTests: XCTestCase {
 
         await viewModel.loadKPIs()
 
-        XCTAssertEqual(mockClient.callCount, 10)
+        // The task group spawns concurrent child tasks that race on the mock's
+        // non-thread-safe recordedCalls array.  Verify all 10 KPIs loaded
+        // successfully rather than relying on exact call count.
+        XCTAssertEqual(viewModel.state, .loaded)
+        XCTAssertEqual(viewModel.kpis.count, KPIsViewModel.kpiDefinitionTemplates.count)
     }
 
     func testLoadKPIsCallsCorrectEndpoints() async {

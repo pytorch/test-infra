@@ -604,12 +604,17 @@ final class ChatMessageViewTests: XCTestCase {
         let userPath = userShape.path(in: rect)
         let assistantPath = assistantShape.path(in: rect)
 
-        // The bounding rects should differ because the tail is on different sides
-        XCTAssertNotEqual(
-            userPath.boundingRect.origin.x,
-            assistantPath.boundingRect.origin.x,
-            accuracy: 1.0,
-            "User and assistant bubble tails should be on different sides"
+        // The user bubble starts at x=0 on the left, while the assistant bubble
+        // starts at x=tailSize*0.5=4. A point at x=2 in the middle of the rect
+        // is inside the user bubble but outside the assistant bubble.
+        let leftEdgePoint = CGPoint(x: 2, y: rect.midY)
+        XCTAssertTrue(
+            userPath.contains(leftEdgePoint),
+            "Point near left edge should be inside user bubble (left edge at x=0)"
+        )
+        XCTAssertFalse(
+            assistantPath.contains(leftEdgePoint),
+            "Point near left edge should be outside assistant bubble (left edge at x=4)"
         )
     }
 

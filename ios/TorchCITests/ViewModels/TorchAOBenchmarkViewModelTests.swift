@@ -425,7 +425,7 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
     // MARK: - Load Data Success
 
     func testLoadDataSuccess() async {
-        mockClient.setResponse(makeTimeSeriesResponseJSON(), for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(makeClickHouseResponseJSON(), for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
@@ -435,7 +435,7 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
     }
 
     func testLoadDataSetsLoadingState() async {
-        mockClient.setResponse(makeTimeSeriesResponseJSON(), for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(makeClickHouseResponseJSON(), for: "/api/clickhouse/torchao_query")
 
         // State should transition to .loading and then .loaded
         await viewModel.loadData()
@@ -444,23 +444,15 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.state, .loaded)
     }
 
-    func testLoadDataAggregatesMultiplePointsForSameModel() async {
+    func testLoadDataKeepsLatestWorkflowPerModelDtype() async {
+        // Two workflows for the same (model, dtype) – only the latest should be kept
         let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {"model": "resnet50", "metric": "speedup"},
-                        "data": [
-                            {"commit": "abc", "granularity_bucket": "2025-01-01T00:00:00Z", "actual": 0.5},
-                            {"commit": "def", "granularity_bucket": "2025-01-01T01:00:00Z", "actual": 0.25}
-                        ]
-                    }
-                ]
-            }
-        }
+        [
+            {"suite": "torchbench", "model": "resnet50", "dtype": "autoquant", "metric": "speedup", "value": 1.2, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"},
+            {"suite": "torchbench", "model": "resnet50", "dtype": "autoquant", "metric": "speedup", "value": 1.5, "workflow_id": 200, "job_id": 2, "granularity_bucket": "2025-01-01T01:00:00Z"}
+        ]
         """
-        mockClient.setResponse(json, for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(json, for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
@@ -470,64 +462,44 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
 
         let point = viewModel.groupData!.data.first!
         XCTAssertEqual(point.name, "resnet50")
-        // avg value = (0.5 + 0.25) / 2 = 0.375
-        XCTAssertEqual(point.value, 0.375, accuracy: 0.001)
-        // avg speedup = (1/0.5 + 1/0.25) / 2 = (2.0 + 4.0) / 2 = 3.0
-        XCTAssertEqual(point.speedup!, 3.0, accuracy: 0.001)
+        // Latest workflow (200) has speedup 1.5
+        XCTAssertEqual(point.speedup!, 1.5, accuracy: 0.001)
     }
 
     func testLoadDataSetsPassStatusForHighSpeedup() async {
         let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {"model": "fast_model", "metric": "speedup"},
-                        "data": [
-                            {"commit": "abc", "granularity_bucket": "2025-01-01T00:00:00Z", "actual": 0.5}
-                        ]
-                    }
-                ]
-            }
-        }
+        [
+            {"suite": "torchbench", "model": "fast_model", "dtype": "autoquant", "metric": "speedup", "value": 2.0, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"}
+        ]
         """
-        mockClient.setResponse(json, for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(json, for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
         let point = viewModel.groupData!.data.first!
-        // speedup = 1/0.5 = 2.0 which is >= 0.95, so status should be "pass"
+        // speedup = 2.0 which is >= 0.95, so status should be "pass"
         XCTAssertEqual(point.status, "pass")
     }
 
     func testLoadDataSetsFailStatusForLowSpeedup() async {
         let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {"model": "slow_model", "metric": "speedup"},
-                        "data": [
-                            {"commit": "abc", "granularity_bucket": "2025-01-01T00:00:00Z", "actual": 2.0}
-                        ]
-                    }
-                ]
-            }
-        }
+        [
+            {"suite": "torchbench", "model": "slow_model", "dtype": "autoquant", "metric": "speedup", "value": 0.5, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"}
+        ]
         """
-        mockClient.setResponse(json, for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(json, for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
         let point = viewModel.groupData!.data.first!
-        // speedup = 1/2.0 = 0.5 which is < 0.95, so status should be "fail"
+        // speedup = 0.5 which is < 0.95, so status should be "fail"
         XCTAssertEqual(point.status, "fail")
     }
 
     // MARK: - Load Data Error
 
     func testLoadDataError() async {
-        mockClient.setError(APIError.notFound, for: "/api/benchmark/get_time_series")
+        mockClient.setError(APIError.notFound, for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
@@ -540,20 +512,17 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
 
     func testLoadDataErrorPreservesExistingData() async {
         // First, load some data successfully
-        mockClient.setResponse(makeTimeSeriesResponseJSON(), for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(makeClickHouseResponseJSON(), for: "/api/clickhouse/torchao_query")
         await viewModel.loadData()
         XCTAssertNotNil(viewModel.groupData)
 
         // Now simulate an error on reload
-        mockClient.setError(APIError.notFound, for: "/api/benchmark/get_time_series")
+        mockClient.setError(APIError.notFound, for: "/api/clickhouse/torchao_query")
         await viewModel.loadData()
 
         // groupData should still be present from the first load
-        // (the view relies on this for showing stale data with an error banner)
-        // Actually the current implementation does NOT preserve data on error - it just sets error state
-        // but doesn't clear groupData. Let's verify:
+        // because loadData only replaces it on success
         if case .error = viewModel.state {
-            // The groupData is still set because loadData only replaces it on success
             XCTAssertNotNil(viewModel.groupData)
         } else {
             XCTFail("Expected error state")
@@ -563,12 +532,12 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
     // MARK: - Load Data Makes Correct API Call
 
     func testLoadDataCallsCorrectEndpoint() async {
-        mockClient.setResponse(makeTimeSeriesResponseJSON(), for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(makeClickHouseResponseJSON(), for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
         XCTAssertEqual(mockClient.callCount, 1)
-        XCTAssertEqual(mockClient.callPaths(), ["/api/benchmark/get_time_series"])
+        XCTAssertEqual(mockClient.callPaths(), ["/api/clickhouse/torchao_query"])
     }
 
     // MARK: - ViewState Equatable
@@ -608,53 +577,40 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
 
     // MARK: - Edge Cases
 
-    func testLoadDataHandlesZeroValuePoints() async {
+    func testLoadDataHandlesZeroSpeedupValue() async {
         let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {"model": "zero_model", "metric": "speedup"},
-                        "data": [
-                            {"commit": "abc", "granularity_bucket": "2025-01-01T00:00:00Z", "actual": 0.0}
-                        ]
-                    }
-                ]
-            }
-        }
+        [
+            {"suite": "torchbench", "model": "zero_model", "dtype": "autoquant", "metric": "speedup", "value": 0.0, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"}
+        ]
         """
-        mockClient.setResponse(json, for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(json, for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.state, .loaded)
         let point = viewModel.groupData!.data.first!
-        // When value is 0, speedup should be 1.0 (fallback)
-        XCTAssertEqual(point.speedup!, 1.0, accuracy: 0.001)
+        // speedup of 0.0 is < 0.95, so status should be "fail"
+        XCTAssertEqual(point.speedup!, 0.0, accuracy: 0.001)
+        XCTAssertEqual(point.status, "fail")
     }
 
-    func testLoadDataHandlesModelWithNoMetric() async {
+    func testLoadDataHandlesModelWithOnlyAbsLatency() async {
+        // A row with metric "abs_latency" but no speedup row
         let json = """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {"model": "simple_model"},
-                        "data": [
-                            {"commit": "abc", "granularity_bucket": "2025-01-01T00:00:00Z", "actual": 0.5}
-                        ]
-                    }
-                ]
-            }
-        }
+        [
+            {"suite": "torchbench", "model": "simple_model", "dtype": "autoquant", "metric": "abs_latency", "value": 42.5, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"}
+        ]
         """
-        mockClient.setResponse(json, for: "/api/benchmark/get_time_series")
+        mockClient.setResponse(json, for: "/api/clickhouse/torchao_query")
 
         await viewModel.loadData()
 
         XCTAssertEqual(viewModel.state, .loaded)
         let point = viewModel.groupData!.data.first!
         XCTAssertEqual(point.name, "simple_model")
+        XCTAssertEqual(point.value, 42.5, accuracy: 0.001)
+        // No speedup row, so speedup is nil
+        XCTAssertNil(point.speedup)
     }
 
     func testFilteredDataPointsWithMetricMatch() {
@@ -720,39 +676,14 @@ final class TorchAOBenchmarkViewModelTests: XCTestCase {
         ]
     }
 
-    private func makeTimeSeriesResponseJSON() -> String {
+    private func makeClickHouseResponseJSON() -> String {
         """
-        {
-            "data": {
-                "time_series": [
-                    {
-                        "group_info": {"model": "resnet50", "metric": "speedup"},
-                        "data": [
-                            {
-                                "commit": "abc123",
-                                "granularity_bucket": "2025-01-01T00:00:00Z",
-                                "actual": 0.8
-                            }
-                        ]
-                    },
-                    {
-                        "group_info": {"model": "bert_base", "metric": "speedup"},
-                        "data": [
-                            {
-                                "commit": "def456",
-                                "granularity_bucket": "2025-01-01T00:00:00Z",
-                                "actual": 1.2
-                            }
-                        ]
-                    }
-                ]
-            },
-            "time_range": {
-                "start": "2025-01-01T00:00:00Z",
-                "end": "2025-01-07T00:00:00Z"
-            },
-            "total_raw_rows": 2
-        }
+        [
+            {"suite": "torchbench", "model": "resnet50", "dtype": "autoquant", "metric": "speedup", "value": 1.25, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"},
+            {"suite": "torchbench", "model": "resnet50", "dtype": "autoquant", "metric": "abs_latency", "value": 0.8, "workflow_id": 100, "job_id": 1, "granularity_bucket": "2025-01-01T00:00:00Z"},
+            {"suite": "huggingface", "model": "bert_base", "dtype": "int8dynamic", "metric": "speedup", "value": 0.83, "workflow_id": 100, "job_id": 2, "granularity_bucket": "2025-01-01T00:00:00Z"},
+            {"suite": "huggingface", "model": "bert_base", "dtype": "int8dynamic", "metric": "abs_latency", "value": 1.2, "workflow_id": 100, "job_id": 2, "granularity_bucket": "2025-01-01T00:00:00Z"}
+        ]
         """
     }
 }
