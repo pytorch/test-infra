@@ -120,5 +120,7 @@ struct FilterBar: View {
                     .strokeBorder(isActive ? Color.accentColor.opacity(0.3) : Color.clear, lineWidth: 1)
             )
         }
+        .accessibilityLabel("\(label), \(isActive ? "active" : "inactive")")
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }

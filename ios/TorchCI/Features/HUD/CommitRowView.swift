@@ -38,6 +38,10 @@ struct CommitRowView: View {
                         if row.isForcedMerge == true {
                             forceMergeBadge
                         }
+
+                        if row.isAutoreverted == true {
+                            autorevertBadge
+                        }
                     }
 
                     Text(row.commitTitle ?? "No title")
@@ -162,6 +166,22 @@ struct CommitRowView: View {
         .padding(.vertical, 2)
         .background(AppColors.unstable)
         .clipShape(RoundedRectangle(cornerRadius: 4))
+        .accessibilityLabel("Forced merge")
+    }
+
+    private var autorevertBadge: some View {
+        HStack(spacing: 2) {
+            Image(systemName: "arrow.uturn.backward")
+                .font(.system(size: 6))
+            Text("AR")
+                .font(.system(size: 8, weight: .bold))
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(AppColors.failure)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .accessibilityLabel("Auto-reverted")
     }
 
     // MARK: - Job Cells Row
