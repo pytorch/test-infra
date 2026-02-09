@@ -15,7 +15,7 @@ final class APIClient: APIClientProtocol, @unchecked Sendable {
 
     init(
         session: URLSession = .shared,
-        baseURL: URL = URL(string: "https://4gxl23l6f7.execute-api.us-east-1.amazonaws.com")!
+        baseURL: URL = URL(string: "https://ouwu4mgduf.execute-api.us-east-1.amazonaws.com")!
     ) {
         self.session = session
         self.baseURL = baseURL

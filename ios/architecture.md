@@ -35,7 +35,7 @@ iOS App
   │
   │ HTTPS
   ▼
-API Gateway (https://4gxl23l6f7.execute-api.us-east-1.amazonaws.com)
+API Gateway (https://ouwu4mgduf.execute-api.us-east-1.amazonaws.com)
   │
   │ Cache: 2-min TTL per unique URL
   ▼
