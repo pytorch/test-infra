@@ -822,7 +822,7 @@ private struct StatCell: View {
 
     var body: some View {
         VStack(spacing: 6) {
-            Text("\(value)")
+            Text(value.formatted())
                 .font(.title2.bold())
                 .foregroundStyle(color)
                 .contentTransition(.numericText())

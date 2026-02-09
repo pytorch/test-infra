@@ -969,7 +969,7 @@ private struct PRStatCell: View {
     var body: some View {
         if compact {
             VStack(spacing: 3) {
-                Text("\(value)")
+                Text(value.formatted())
                     .font(.title3.bold())
                     .foregroundStyle(color)
                 Text(label)
@@ -979,7 +979,7 @@ private struct PRStatCell: View {
             .frame(maxWidth: .infinity)
         } else {
             VStack(spacing: 4) {
-                Text("\(value)")
+                Text(value.formatted())
                     .font(.title2.bold())
                     .foregroundStyle(color)
                 Text(label)
