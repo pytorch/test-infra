@@ -169,6 +169,7 @@ enum WidgetRepository: String, AppEnum, CaseIterable {
     case pytorchVision = "pytorch/vision"
     case pytorchAudio = "pytorch/audio"
     case pytorchExecutorch = "pytorch/executorch"
+    case pytorchHelion = "pytorch/helion"
 
     static var typeDisplayRepresentation: TypeDisplayRepresentation {
         "Repository"
@@ -180,6 +181,7 @@ enum WidgetRepository: String, AppEnum, CaseIterable {
             .pytorchVision: "pytorch/vision",
             .pytorchAudio: "pytorch/audio",
             .pytorchExecutorch: "pytorch/executorch",
+            .pytorchHelion: "pytorch/helion",
         ]
     }
 
