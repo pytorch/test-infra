@@ -391,6 +391,26 @@ private struct FailureGroupRow: View {
                 expandedJobsList
             }
         }
+        .contextMenu {
+            let jobName = group.representativeJob.jobName ?? group.representativeJob.name ?? "Unknown"
+            Button {
+                UIPasteboard.general.string = jobName
+            } label: {
+                Label("Copy Job Name", systemImage: "doc.on.doc")
+            }
+            if let captures = group.representativeJob.failureCaptures, !captures.isEmpty {
+                Button {
+                    UIPasteboard.general.string = captures.joined(separator: "\n")
+                } label: {
+                    Label("Copy Failure", systemImage: "doc.on.clipboard")
+                }
+            }
+            if let url = group.representativeJob.htmlUrl, let htmlUrl = URL(string: url) {
+                Link(destination: htmlUrl) {
+                    Label("Open on GitHub", systemImage: "arrow.up.right.square")
+                }
+            }
+        }
     }
 
     // MARK: - Main Row

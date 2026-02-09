@@ -517,6 +517,25 @@ struct DisabledTestsView: View {
             }
         }
         .padding(.vertical, 4)
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = test.parsedTestName
+            } label: {
+                Label("Copy Test Name", systemImage: "doc.on.doc")
+            }
+            if let suite = test.suiteName, !suite.isEmpty {
+                Button {
+                    UIPasteboard.general.string = "\(suite).\(test.parsedTestName)"
+                } label: {
+                    Label("Copy Full Name", systemImage: "doc.on.doc.fill")
+                }
+            }
+            if let issueUrl = test.issueUrl, let url = URL(string: issueUrl) {
+                Link(destination: url) {
+                    Label("Open Issue", systemImage: "link.circle")
+                }
+            }
+        }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(accessibilityLabel(for: test))
     }
